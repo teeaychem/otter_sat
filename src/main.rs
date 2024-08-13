@@ -42,22 +42,43 @@ impl PartialEq for Literal {
 
 impl Eq for Literal {}
 
+type ClauseId = usize;
+
 struct Clause {
+    id: ClauseId,
     literals: Vec<Literal>,
 }
 
 impl Clause {
-    pub fn is_unit_on(&self, trail: &Trail) -> bool {
-        self.literals
-            .iter()
-            .filter(|&l| !trail.literals.contains(l))
-            .count()
-            == 1
+    ///
+    pub fn get_unit_on(&self, assignment: &Assignment) -> Option<(Literal, ClauseId)> {
+        let mut unit = None;
+        for literal in &self.literals {
+            if let Some(assignment) = assignment.get(literal.variable) {
+                match assignment {
+                    Some(true) => break,     // as the clause does not provide any new information
+                    Some(false) => continue, // some other literal must be true
+                    None => {
+                        // if no assignment, then literal must be true…
+                        match unit {
+                            Some(_) => {
+                                // æbut if there was already a literal, it's not implied
+                                unit = None;
+                                break;
+                            }
+                            None => unit = Some((*literal, self.id)), // still, if everything so far is false, this literal must be true, for now…
+                        }
+                    }
+                }
+            }
+        }
+        unit
     }
 }
 
 struct Cnf {
-    clauses: BTreeSet<Clause>,
+    variables: usize,
+    clauses: Vec<Clause>,
 }
 
 /// how a literal was added to an assignment
@@ -67,21 +88,37 @@ enum Source {
     Deduction,
 }
 
+type Assignment = Vec<Option<bool>>;
+
 /// a partial assignment with some history
+// the assignment
 struct Trail {
-    literals: Vec<Literal>,
-    history: Vec<Source>,
+    assignment: Assignment,
+    history: Vec<(Literal, Source)>,
+}
+
+impl Trail {
+    /// work back through steps of the trail, discarding the trail, and relaxing the assignment
+    // here, some deduced literals may still hold, but for now the trail does not record multiple paths to a deduction
+    pub fn track_back(&mut self, steps: usize) {
+        for _step in 0..steps {
+            if let Some((literal, _)) = self.history.pop() {
+                self.assignment[literal.variable] = None
+            };
+        }
+    }
 }
 
 impl Trail {
     pub fn backtrack_to_choice(&mut self) -> bool {
         let mut back_point = self.history.len() - 1;
-        while let Some(Source::Deduction) = self.history.get(back_point) {
+        let mut back_steps = 0;
+        while let Some((_, Source::Deduction)) = self.history.get(back_point) {
             back_point -= 1;
+            back_steps += 1;
         }
-        if back_point != self.history.len() {
-            self.history.truncate(back_point);
-            self.literals.truncate(back_point);
+        if back_steps != 0 {
+            self.track_back(back_steps);
             true
         } else {
             false
