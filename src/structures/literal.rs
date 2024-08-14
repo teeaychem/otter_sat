@@ -61,6 +61,10 @@ impl Literal {
     pub fn variable(&self) -> Variable {
         self.variable
     }
+
+    pub fn polarity(&self) -> bool {
+        self.polarity
+    }
 }
 
 impl PartialOrd for Literal {

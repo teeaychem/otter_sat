@@ -22,11 +22,18 @@ fn main() {
     if let Ok(contents) = fs::read_to_string(args.file) {
         println!("read");
         if let Ok(the_cnf) = Cnf::from_dimacs(&contents) {
-            let new_solve = Solve::new(the_cnf);
+            let mut new_solve = TrailSolve::new(the_cnf);
             if let Some(unit) = new_solve.find_unit() {
                 println!("unit: {}", unit.0);
             }
-            // dbg!(&new_solve);
+            // new_solve.assume(Literal::from_string("6").expect("hek"));
+            dbg!(&new_solve.is_unsat());
+            new_solve.assume(Literal::from_string("1").expect("hek"));
+            new_solve.assume(Literal::from_string("2").expect("hek"));
+            new_solve.assume(Literal::from_string("-6").expect("hek"));
+            new_solve.assume(Literal::from_string("3").expect("hek"));
+
+            dbg!(&new_solve.is_sat());
         }
     }
 }
