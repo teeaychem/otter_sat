@@ -22,7 +22,8 @@ fn main() {
     if let Ok(contents) = fs::read_to_string(args.file) {
         println!("read");
         if let Ok(the_cnf) = Cnf::from_dimacs(&contents) {
-            dbg!(&the_cnf);
+            let new_solve = Solve::new(the_cnf);
+            dbg!(&new_solve);
         }
     }
 }
