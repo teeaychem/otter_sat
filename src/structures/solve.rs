@@ -1,17 +1,15 @@
-use crate::structures::{Assignment, Cnf, Literal};
-
-use super::clause::ClauseId;
+use crate::structures::{Assignment, ClauseId, Cnf, Literal};
 
 #[derive(Debug)]
-pub struct Solve {
+pub struct TrailSolve {
     cnf: Cnf,
     trail: Trail,
 }
 
-impl Solve {
+impl TrailSolve {
     pub fn new(cnf: Cnf) -> Self {
         let trail = Trail::for_cnf(&cnf);
-        Solve { cnf, trail }
+        TrailSolve { cnf, trail }
     }
 
     pub fn find_unit(&self) -> Option<(Literal, ClauseId)> {
@@ -22,6 +20,18 @@ impl Solve {
         }
         None
     }
+
+    pub fn is_unsat(&self) -> bool {
+        self.cnf.is_unsat_on(&self.trail.assignment)
+    }
+
+    pub fn is_sat(&self) -> bool {
+        self.cnf.is_sat_on(&self.trail.assignment)
+    }
+
+    pub fn assume(&mut self, literal: Literal) {
+        self.trail.set(literal, Source::Assumption);
+    }
 }
 
 /// how a literal was added to an assignment
@@ -29,6 +39,7 @@ impl Solve {
 enum Source {
     Choice,
     Deduction,
+    Assumption,
 }
 
 /// a partial assignment with some history
@@ -70,5 +81,10 @@ impl Trail {
         } else {
             false
         }
+    }
+
+    pub fn set(&mut self, literal: Literal, source: Source) {
+        self.history.push((literal, source));
+        self.assignment.set(literal);
     }
 }

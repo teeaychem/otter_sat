@@ -1,7 +1,9 @@
 use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
-use crate::structures::{Clause, ClauseError, Variable};
+use crate::structures::{Assignment, Clause, ClauseError, Variable};
+
+
 
 #[derive(Debug)]
 pub enum CnfError {
@@ -29,6 +31,14 @@ impl Cnf {
 
     pub fn clauses(&self) -> &Vec<Clause> {
         &self.clauses
+    }
+
+    pub fn is_unsat_on(&self, assignment: &Assignment) -> bool {
+        self.clauses.iter().any(|clause| clause.is_unsat_on(assignment))
+    }
+
+    pub fn is_sat_on(&self, assignment: &Assignment) -> bool {
+        self.clauses.iter().all(|clause| clause.is_sat_on(assignment))
     }
 
 

@@ -56,6 +56,22 @@ impl Clause {
         Ok(())
     }
 
+    pub fn is_sat_on(&self, assignment: &Assignment) -> bool {
+        self.literals
+            .iter()
+            .any(|l| assignment.get(l.variable()) == Some(Some(l.polarity())))
+    }
+
+    pub fn is_unsat_on(&self, assignment: &Assignment) -> bool {
+        self.literals.iter().all(|l| {
+            if let Some(Some(variable_assignment)) = assignment.get(l.variable()) {
+                variable_assignment != l.polarity()
+            } else {
+                false
+            }
+        })
+    }
+
     pub fn get_unit_on(&self, assignment: &Assignment) -> Option<(Literal, ClauseId)> {
         let mut unit = None;
         for literal in &self.literals {

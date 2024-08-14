@@ -1,3 +1,5 @@
+use crate::structures::Literal;
+
 #[derive(Debug)]
 pub struct Assignment {
     status: Vec<Option<bool>>,
@@ -31,6 +33,10 @@ impl Assignment {
             None
         }
     }
+
+    pub fn set(&mut self, literal: Literal) {
+        self.status[literal.variable()] = Some(literal.polarity())
+}
 
     pub fn clear(&mut self, index: usize) {
         self.status[index] = None
