@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 pub type Variable = usize;
 
 #[derive(Clone, Copy, Debug)]
@@ -16,6 +14,15 @@ pub enum LiteralError {
     BadVariable,
     UnobtainableVariable,
     ZeroVariable,
+}
+
+impl std::fmt::Display for Literal {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self.polarity {
+            true => write!(f, "{}", self.variable),
+            false => write!(f, "-{}", self.variable),
+        }
+    }
 }
 
 impl Literal {
@@ -57,20 +64,20 @@ impl Literal {
 }
 
 impl PartialOrd for Literal {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for Literal {
-    fn cmp(&self, other: &Self) -> Ordering {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         if self.variable == other.variable {
             if self.polarity == other.polarity {
-                Ordering::Equal
+                std::cmp::Ordering::Equal
             } else if self.polarity {
-                Ordering::Less
+                std::cmp::Ordering::Less
             } else {
-                Ordering::Greater
+                std::cmp::Ordering::Greater
             }
         } else {
             self.variable.cmp(&other.variable)

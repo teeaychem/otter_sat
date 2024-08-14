@@ -1,5 +1,7 @@
 use crate::structures::{Assignment, Cnf, Literal};
 
+use super::clause::ClauseId;
+
 #[derive(Debug)]
 pub struct Solve {
     cnf: Cnf,
@@ -10,6 +12,15 @@ impl Solve {
     pub fn new(cnf: Cnf) -> Self {
         let trail = Trail::for_cnf(&cnf);
         Solve { cnf, trail }
+    }
+
+    pub fn find_unit(&self) -> Option<(Literal, ClauseId)> {
+        for clause in self.cnf.clauses().iter() {
+            if let Some(pair) = clause.get_unit_on(&self.trail.assignment) {
+                return Some(pair);
+            }
+        }
+        None
     }
 }
 
