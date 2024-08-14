@@ -23,6 +23,10 @@ impl Cnf {
         }
     }
 
+    pub fn variables(&self) -> &BTreeSet<Variable> {
+        &self.variables
+    }
+
     fn make_clause_id() -> usize {
         static COUNTER: AtomicUsize = AtomicUsize::new(1);
         COUNTER.fetch_add(1, AtomicOrdering::Relaxed)
