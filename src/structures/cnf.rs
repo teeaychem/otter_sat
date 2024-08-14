@@ -27,6 +27,11 @@ impl Cnf {
         &self.variables
     }
 
+    pub fn clauses(&self) -> &Vec<Clause> {
+        &self.clauses
+    }
+
+
     fn make_clause_id() -> usize {
         static COUNTER: AtomicUsize = AtomicUsize::new(1);
         COUNTER.fetch_add(1, AtomicOrdering::Relaxed)

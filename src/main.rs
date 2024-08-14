@@ -23,7 +23,10 @@ fn main() {
         println!("read");
         if let Ok(the_cnf) = Cnf::from_dimacs(&contents) {
             let new_solve = Solve::new(the_cnf);
-            dbg!(&new_solve);
+            if let Some(unit) = new_solve.find_unit() {
+                println!("unit: {}", unit.0);
+            }
+            // dbg!(&new_solve);
         }
     }
 }

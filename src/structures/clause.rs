@@ -1,4 +1,7 @@
-use crate::structures::{Assignment, Literal, LiteralError};
+use crate::{
+    literal,
+    structures::{Assignment, Literal, LiteralError},
+};
 
 pub type ClauseId = usize;
 
@@ -12,6 +15,20 @@ pub enum ClauseError {
 pub struct Clause {
     id: Option<ClauseId>,
     literals: Vec<Literal>,
+}
+
+impl std::fmt::Display for Clause {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if let Some(id) = self.id {
+            write!(f, "#[{id}] ")?;
+        }
+        write!(f, "(")?;
+        for literal in self.literals.iter() {
+            write!(f, " {literal} ")?;
+        }
+        write!(f, ")")?;
+        Ok(())
+    }
 }
 
 impl Clause {
@@ -62,5 +79,4 @@ impl Clause {
         }
         unit
     }
-
 }
