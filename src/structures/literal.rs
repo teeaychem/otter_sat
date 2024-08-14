@@ -26,6 +26,13 @@ impl std::fmt::Display for Literal {
 }
 
 impl Literal {
+    pub fn negate(&self) -> Self {
+        Literal {
+            variable: self.variable,
+            polarity: !self.polarity
+        }
+    }
+
     pub fn from_string(string: &str) -> Result<Literal, LiteralError> {
         if string.is_empty() || string == "-" {
             return Err(LiteralError::NoVariable);

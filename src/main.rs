@@ -27,13 +27,12 @@ fn main() {
                 println!("unit: {}", unit.0);
             }
             // new_solve.assume(Literal::from_string("6").expect("hek"));
-            dbg!(&new_solve.is_unsat());
-            new_solve.assume(Literal::from_string("1").expect("hek"));
-            new_solve.assume(Literal::from_string("2").expect("hek"));
-            new_solve.assume(Literal::from_string("-6").expect("hek"));
-            new_solve.assume(Literal::from_string("3").expect("hek"));
+
+            new_solve.simple_solve();
 
             dbg!(&new_solve.is_sat());
+            dbg!(&new_solve.is_unsat());
+            // dbg!(&new_solve);
         }
     }
 }
