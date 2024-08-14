@@ -32,12 +32,51 @@ impl TrailSolve {
     pub fn assume(&mut self, literal: Literal) {
         self.trail.set(literal, Source::Assumption);
     }
+
+    pub fn simple_solve(&mut self) -> bool {
+        loop {
+            // dbg!(&self.trail);
+            if self.is_sat() {
+                return true;
+            } else if self.is_unsat() {
+                if let Some(literal) = self.trail.undo_choice() {
+                    self.trail.set(literal.negate(), Source::Deduction)
+                } else {
+                    return false;
+                }
+            } else if let Some((lit, _clause)) = self.find_unit() {
+                self.trail.set(lit, Source::Deduction);
+            } else if let Some(variable) = self.trail.assignment.get_unassigned() {
+                if self.cnf.clauses().iter().any(|clause| {
+                    clause
+                        .literals()
+                        .iter()
+                        .filter(|l| l.variable() == variable)
+                        .count()
+                        > 0
+                }) {
+                    self.trail.set(
+                        Literal::from_string(format!("{variable}").as_str()).expect("hek"),
+                        Source::Choice,
+                    );
+                } else {
+                    self.trail.set(
+                        Literal::from_string(format!("{variable}").as_str()).expect("hek"),
+                        Source::FreeChoice,
+                    );
+                }
+            } else {
+                panic!("A simple solve possibility has not been covered…");
+            }
+        }
+    }
 }
 
 /// how a literal was added to an assignment
 #[derive(Debug, PartialEq, Eq)]
 enum Source {
     Choice,
+    FreeChoice,
     Deduction,
     Assumption,
 }
@@ -53,7 +92,7 @@ struct Trail {
 impl Trail {
     pub fn for_cnf(cnf: &Cnf) -> Self {
         Trail {
-            assignment: Assignment::new(cnf.variables().len()),
+            assignment: Assignment::new(cnf.variables().len() + 1),
             history: vec![],
         }
     }
@@ -68,18 +107,34 @@ impl Trail {
         }
     }
 
-    pub fn backtrack_to_choice(&mut self) -> bool {
+    pub fn backsteps_to_choice(&self) -> Option<usize> {
         let mut back_point = self.history.len() - 1;
         let mut back_steps = 0;
-        while let Some((_, Source::Deduction)) = self.history.get(back_point) {
-            back_point -= 1;
-            back_steps += 1;
+        loop {
+            if let Some((_, source)) = self.history.get(back_point) {
+                match source {
+                    Source::Choice => return Some(back_steps),
+                    _ => {
+                        if back_point != 0 {
+                            back_point -= 1;
+                            back_steps += 1;
+                        } else {
+                            return None;
+                        }
+                    }
+                }
+            }
         }
-        if back_steps != 0 {
-            self.track_back(back_steps);
-            true
+    }
+
+    pub fn undo_choice(&mut self) -> Option<Literal> {
+        let steps_to_take = self.backsteps_to_choice()?;
+        self.track_back(steps_to_take);
+        if let Some((literal, _)) = self.history.pop() {
+            self.assignment.clear(literal.variable());
+            Some(literal)
         } else {
-            false
+            None
         }
     }
 

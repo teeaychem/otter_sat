@@ -1,4 +1,4 @@
-use crate::structures::Literal;
+use crate::structures::{Literal, Variable};
 
 #[derive(Debug)]
 pub struct Assignment {
@@ -8,7 +8,7 @@ pub struct Assignment {
 impl std::fmt::Display for Assignment {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "[")?;
-        for (maybe_literal) in self.status.iter() {
+        for maybe_literal in self.status.iter() {
             if let Some(literal) = maybe_literal {
                 write!(f, "{}", literal)?
             } else {
@@ -36,9 +36,17 @@ impl Assignment {
 
     pub fn set(&mut self, literal: Literal) {
         self.status[literal.variable()] = Some(literal.polarity())
-}
+    }
 
     pub fn clear(&mut self, index: usize) {
         self.status[index] = None
+    }
+
+    pub fn get_unassigned(&self) -> Option<Variable> {
+        if let Some((index, _)) = self.status.iter().enumerate().find(|(i, v)| *i > 0 && v.is_none()) {
+            Some(index)
+        } else {
+            None
+        }
     }
 }
