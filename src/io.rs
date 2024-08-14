@@ -1,4 +1,4 @@
-use crate::ideas::*;
+use crate::structures::*;
 
 impl Clause {
     pub fn from_dimacs(string: &str) -> Result<Clause, ClauseError> {
