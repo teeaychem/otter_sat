@@ -1,15 +1,14 @@
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
-use crate::structures::{Solve};
+use crate::structures::Solve;
 
 pub type VariableId = u32;
 
 #[derive(Clone, Debug)]
 pub struct Variable {
     pub name: String,
-    pub id: VariableId
+    pub id: VariableId,
 }
-
 
 pub type LiteralInt = i64;
 
@@ -22,11 +21,6 @@ pub struct Literal {
 #[derive(Debug)]
 pub enum LiteralError {
     NoVariable,
-    NoFirst,
-    BadStart,
-    BadVariable,
-    UnobtainableVariable,
-    ZeroVariable,
 }
 
 impl std::fmt::Display for Literal {
@@ -47,53 +41,8 @@ impl Literal {
     }
 
     pub fn new(variable: Variable, polarity: bool) -> Self {
-        Literal {
-            variable,
-            polarity
-        }
+        Literal { variable, polarity }
     }
-
-    pub fn from_string(string: &str, solve: &mut Solve) -> Result<Literal, LiteralError> {
-        if string.is_empty() || string == "-" {
-            return Err(LiteralError::NoVariable);
-        };
-        if let Some(first) = string.chars().nth(0) {
-            if first != '-' && !first.is_numeric() {
-                return Err(LiteralError::BadStart);
-            };
-            if first == '0' {
-                return Err(LiteralError::ZeroVariable);
-            }
-        } else {
-            return Err(LiteralError::NoFirst);
-        }
-
-        let polarity = string.chars().nth(0) != Some('-');
-        let variable_slice = if polarity {
-            string.get(0..)
-        } else {
-            string.get(1..)
-        };
-        if let Some(variable_string) = variable_slice {
-            if let Ok(literal) = solve.literal_from_string(variable_string) {
-                println!("made: {}", literal);
-                Ok(literal)
-            } else {
-                Err(LiteralError::BadVariable)
-            }
-        } else {
-            Err(LiteralError::UnobtainableVariable)
-        }
-    }
-
-    // pub fn from_int(int: LiteralInt) -> Result<Literal, LiteralError> {
-    //     if int == 0 {
-    //         return Err(LiteralError::ZeroVariable);
-    //     }
-    //     let literal = Literal::new(int.unsigned_abs() as usize, int.is_positive());
-    //     println!("made: {}", literal);
-    //     Ok(literal)
-    // }
 
     pub fn variable(&self) -> &Variable {
         &self.variable
@@ -134,7 +83,6 @@ impl PartialEq for Literal {
 
 impl Eq for Literal {}
 
-
 impl PartialOrd for Variable {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
@@ -149,7 +97,7 @@ impl Ord for Variable {
 
 impl PartialEq for Variable {
     fn eq(&self, other: &Self) -> bool {
-        self.id == other.id || self.name == other.name
+        self.id == other.id
     }
 }
 
