@@ -18,21 +18,20 @@ struct Args {
 fn main() {
     println!("Hello, world!");
     let args = Args::parse();
-    dbg!(&args);
+    // dbg!(&args);
     if let Ok(contents) = fs::read_to_string(args.file) {
         println!("read");
-        if let Ok(the_cnf) = Cnf::from_dimacs(&contents) {
-            let mut new_solve = TrailSolve::new(the_cnf);
-            if let Some(unit) = new_solve.find_unit() {
-                println!("unit: {}", unit.0);
-            }
+        if let Ok(new_solve) = Solve::from_dimacs(&contents) {
+            let mut the_solve = new_solve;
+            // if let Some(unit) = the_solve.find_unit() {
+            //     println!("unit: {}", unit.0);
+            // }
             // new_solve.assume(Literal::from_string("6").expect("hek"));
 
-            new_solve.simple_solve();
+            let sat = the_solve.simple_solve();
+            println!("SAT? {:?}", sat);
 
-            dbg!(&new_solve.is_sat());
-            dbg!(&new_solve.is_unsat());
-            // dbg!(&new_solve);
+            // dbg!(&the_solve);
         }
     }
 }
