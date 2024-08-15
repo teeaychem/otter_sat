@@ -1,8 +1,13 @@
-use crate::structures::{Literal, Variable};
+use crate::structures::{Literal, Variable, VariableId};
 
 #[derive(Debug)]
 pub struct Assignment {
     status: Vec<Option<bool>>,
+}
+
+#[derive(PartialEq)]
+pub enum AssignmentError {
+    OutOfBounds
 }
 
 impl std::fmt::Display for Assignment {
@@ -26,25 +31,26 @@ impl Assignment {
         }
     }
 
-    pub fn get(&self, index: usize) -> Option<Option<bool>> {
-        if let Some(&info) = self.status.get(index) {
-            Some(info)
+    pub fn get(&self, variable: &Variable) -> Result<Option<bool>, AssignmentError> {
+        if let Some(&info) = self.status.get(variable.id as usize) {
+            Ok(info)
         } else {
-            None
+            Err(AssignmentError::OutOfBounds)
         }
     }
 
     pub fn set(&mut self, literal: Literal) {
-        self.status[literal.variable()] = Some(literal.polarity())
+        println!("settings: {:?}", literal);
+        self.status[literal.variable().id as usize] = Some(literal.polarity())
     }
 
-    pub fn clear(&mut self, index: usize) {
-        self.status[index] = None
+    pub fn clear(&mut self, index: &Variable) {
+        self.status[index.id as usize] = None
     }
 
-    pub fn get_unassigned(&self) -> Option<Variable> {
+    pub fn get_unassigned(&self) -> Option<VariableId> {
         if let Some((index, _)) = self.status.iter().enumerate().find(|(i, v)| *i > 0 && v.is_none()) {
-            Some(index)
+            Some(index as VariableId)
         } else {
             None
         }

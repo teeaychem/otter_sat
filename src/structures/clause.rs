@@ -3,7 +3,7 @@ use crate::{
     structures::{Assignment, Literal, LiteralError},
 };
 
-pub type ClauseId = usize;
+pub type ClauseId = u32;
 
 #[derive(Debug)]
 pub enum ClauseError {
@@ -13,15 +13,13 @@ pub enum ClauseError {
 
 #[derive(Debug)]
 pub struct Clause {
-    id: Option<ClauseId>,
+    id: ClauseId,
     literals: Vec<Literal>,
 }
 
 impl std::fmt::Display for Clause {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if let Some(id) = self.id {
-            write!(f, "#[{id}] ")?;
-        }
+        write!(f, "#[{}] ", self.id)?;
         write!(f, "(")?;
         for literal in self.literals.iter() {
             write!(f, " {literal} ")?;
@@ -32,9 +30,9 @@ impl std::fmt::Display for Clause {
 }
 
 impl Clause {
-    pub fn new() -> Clause {
+    pub fn new(id: ClauseId) -> Clause {
         Clause {
-            id: None,
+            id,
             literals: Vec::new(),
         }
     }
@@ -43,12 +41,8 @@ impl Clause {
         &self.literals
     }
 
-    pub fn id(&self) -> Option<ClauseId> {
+    pub fn id(&self) -> ClauseId {
         self.id
-    }
-
-    pub fn set_id(&mut self, to: ClauseId) {
-        self.id = Some(to);
     }
 
     pub fn add_literal(&mut self, literal: Literal) -> Result<(), ClauseError> {
@@ -59,12 +53,12 @@ impl Clause {
     pub fn is_sat_on(&self, assignment: &Assignment) -> bool {
         self.literals
             .iter()
-            .any(|l| assignment.get(l.variable()) == Some(Some(l.polarity())))
+            .any(|l| assignment.get(&l.variable()) == Ok(Some(l.polarity())))
     }
 
     pub fn is_unsat_on(&self, assignment: &Assignment) -> bool {
         self.literals.iter().all(|l| {
-            if let Some(Some(variable_assignment)) = assignment.get(l.variable()) {
+            if let Ok(Some(variable_assignment)) = assignment.get(&l.variable()) {
                 variable_assignment != l.polarity()
             } else {
                 false
@@ -75,7 +69,7 @@ impl Clause {
     pub fn get_unit_on(&self, assignment: &Assignment) -> Option<(Literal, ClauseId)> {
         let mut unit = None;
         for literal in &self.literals {
-            if let Some(assignment) = assignment.get(literal.variable()) {
+            if let Ok(assignment) = assignment.get(&literal.variable()) {
                 match assignment {
                     Some(true) => break,     // as the clause does not provide any new information
                     Some(false) => continue, // some other literal must be true
@@ -87,7 +81,7 @@ impl Clause {
                                 unit = None;
                                 break;
                             }
-                            None => unit = Some((*literal, self.id.unwrap())), // still, if everything so far is false, this literal must be true, for now…
+                            None => unit = Some((literal.clone(), self.id)), // still, if everything so far is false, this literal must be true, for now…
                         }
                     }
                 }
