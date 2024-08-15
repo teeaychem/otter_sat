@@ -42,11 +42,10 @@ impl Solve {
         let trimmed_string = string.trim();
 
         if trimmed_string.is_empty() || trimmed_string == "-" {
-            return Err(SolveError::VariableWithNoName);
+            return Err(SolveError::Literal(LiteralError::NoVariable));
         }
 
         let polarity = trimmed_string.chars().nth(0) != Some('-');
-        println!("| polarity: {}", polarity);
 
         let mut the_name = trimmed_string;
         if !polarity {
@@ -89,7 +88,6 @@ pub enum SolveError {
     Literal(LiteralError),
     Clause(ClauseError),
     ParseFailure,
-    VariableWithNoName,
     Hek,
 }
 
@@ -115,8 +113,8 @@ impl Solve {
                 } else {
                     return Ok(false);
                 }
-            // } else if let Some((lit, _clause)) = self.find_unit() {
-            //     the_trail.set(lit, Source::Deduction);
+            } else if let Some((lit, _clause)) = the_trail.find_unit(self) {
+                the_trail.set(&lit, Source::Deduction);
             } else if let Some(variable) = the_trail.get_unassigned(self) {
                 println!("unassignemd: {:?}", variable);
                 if self.clauses.iter().any(|clause| {
@@ -216,5 +214,15 @@ impl Trail {
             .iter()
             .find(|&v| self.assignment.get(v).is_ok_and(|x| x.is_none()))
             .cloned()
+    }
+
+    pub fn find_unit(&self, solve: &Solve) -> Option<(Literal, ClauseId)> {
+        for clause in &solve.clauses {
+            if let Some(pair) = clause.get_unit_on(&self.assignment) {
+                return Some(pair);
+            }
+
+        }
+        None
     }
 }

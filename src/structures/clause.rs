@@ -41,10 +41,6 @@ impl Clause {
         &self.literals
     }
 
-    pub fn id(&self) -> ClauseId {
-        self.id
-    }
-
     pub fn add_literal(&mut self, literal: Literal) -> Result<(), ClauseError> {
         self.literals.push(literal);
         Ok(())
@@ -53,12 +49,12 @@ impl Clause {
     pub fn is_sat_on(&self, assignment: &Assignment) -> bool {
         self.literals
             .iter()
-            .any(|l| assignment.get(&l.variable()) == Ok(Some(l.polarity())))
+            .any(|l| assignment.get(l.variable()) == Ok(Some(l.polarity())))
     }
 
     pub fn is_unsat_on(&self, assignment: &Assignment) -> bool {
         self.literals.iter().all(|l| {
-            if let Ok(Some(variable_assignment)) = assignment.get(&l.variable()) {
+            if let Ok(Some(variable_assignment)) = assignment.get(l.variable()) {
                 variable_assignment != l.polarity()
             } else {
                 false
@@ -69,7 +65,7 @@ impl Clause {
     pub fn get_unit_on(&self, assignment: &Assignment) -> Option<(Literal, ClauseId)> {
         let mut unit = None;
         for literal in &self.literals {
-            if let Ok(assignment) = assignment.get(&literal.variable()) {
+            if let Ok(assignment) = assignment.get(literal.variable()) {
                 match assignment {
                     Some(true) => break,     // as the clause does not provide any new information
                     Some(false) => continue, // some other literal must be true
