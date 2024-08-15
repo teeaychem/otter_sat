@@ -1,44 +1,39 @@
 use crate::structures::{
     Assignment, Clause, ClauseError, ClauseId, Literal, LiteralError, Variable, VariableId,
 };
-use std::collections::BTreeSet;
+
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
 #[derive(Debug)]
 pub struct Solve {
-    variables: BTreeSet<Variable>,
+    variables: Vec<Variable>,
     pub clauses: Vec<Clause>,
 }
 
 impl Solve {
     pub fn new() -> Self {
         Solve {
-            variables: BTreeSet::new(),
+            variables: Vec::new(),
             clauses: Vec::new(),
         }
     }
 
-    fn make_literal_id() -> VariableId {
-        static COUNTER: AtomicUsize = AtomicUsize::new(1);
-        COUNTER.fetch_add(1, AtomicOrdering::Relaxed) as u32
-    }
-
-    pub fn variable_by_name(&mut self, name: &str) -> Variable {
+    pub fn v_id_from_name(&mut self, name: &str) -> VariableId {
         if let Some(variable) = self.variables.iter().find(|v| v.name == name) {
-            variable.clone()
+            variable.id
         } else {
+            let the_id = self.variables.len() as VariableId;
             let new_variable = Variable {
                 name: name.to_string(),
-                id: Self::make_literal_id(),
+                id: the_id,
             };
-            self.variables.insert(new_variable.clone());
-            new_variable
+            self.variables.push(new_variable);
+            the_id
         }
     }
 
     pub fn literal_from_string(&mut self, string: &str) -> Result<Literal, SolveError> {
-        println!("| literal from string: {}", string);
         let trimmed_string = string.trim();
 
         if trimmed_string.is_empty() || trimmed_string == "-" {
@@ -51,12 +46,14 @@ impl Solve {
         if !polarity {
             the_name = &the_name[1..]
         }
-        println!("| name: {}", the_name);
 
-        let the_variable = self.variable_by_name(the_name);
-        println!("| variable: {:?}", the_variable);
+        let the_variable = self.v_id_from_name(the_name);
         let the_literal = Literal::new(the_variable, polarity);
         Ok(the_literal)
+    }
+
+    pub fn v_by_id(&self, id: VariableId) -> Option<&Variable> {
+        self.variables.get(id as usize)
     }
 }
 
@@ -101,38 +98,47 @@ impl Solve {
         None
     }
 
-    pub fn simple_solve(&mut self) -> Result<bool, SolveError> {
+    pub fn trail_solve(&mut self) -> Result<(bool, Assignment), SolveError> {
         let mut the_trail = Trail::for_solve(self);
+        let sat_assignment: Option<(bool, Assignment)>;
 
         loop {
+            // 1. (un)sat check
             if self.is_sat_on(&the_trail.assignment) {
-                return Ok(true);
+                sat_assignment = Some((true, the_trail.assignment.clone()));
+                break;
             } else if self.is_unsat_on(&the_trail.assignment) {
                 if let Some(literal) = the_trail.undo_choice() {
                     the_trail.set(&literal.negate(), Source::Deduction)
                 } else {
-                    return Ok(false);
+                    sat_assignment = Some((false, the_trail.assignment.clone()));
+                    break;
                 }
-            } else if let Some((lit, _clause)) = the_trail.find_unit(self) {
+            }
+            // 2. search
+            if let Some((lit, _clause)) = the_trail.find_unit(self) {
                 the_trail.set(&lit, Source::Deduction);
-            } else if let Some(variable) = the_trail.get_unassigned(self) {
-                println!("unassignemd: {:?}", variable);
+            } else if let Some(v_id) = the_trail.get_unassigned_id(self) {
                 if self.clauses.iter().any(|clause| {
                     clause
                         .literals()
                         .iter()
-                        .filter(|l| l.variable() == &variable)
+                        .filter(|l| l.v_id() == v_id)
                         .count()
                         > 0
                 }) {
-                    the_trail.set(&Literal::new(variable, true), Source::Choice);
+                    the_trail.set(&Literal::new(v_id, true), Source::Choice);
                 } else {
-                    the_trail.set(&Literal::new(variable, true), Source::FreeChoice);
+                    the_trail.set(&Literal::new(v_id, true), Source::FreeChoice);
                 }
             } else {
                 dbg!(the_trail);
                 panic!("A simple solve possibility has not been covered…");
             }
+        }
+        match sat_assignment {
+            Some(pair) => Ok(pair),
+            None => Err(SolveError::Hek),
         }
     }
 }
@@ -157,7 +163,7 @@ struct Trail {
 impl Trail {
     pub fn for_solve(solve: &Solve) -> Self {
         Trail {
-            assignment: Assignment::new(solve.variables.len() + 1),
+            assignment: Assignment::new(solve.variables.len()),
             history: vec![],
         }
     }
@@ -167,7 +173,7 @@ impl Trail {
     pub fn track_back(&mut self, steps: usize) {
         for _step in 0..steps {
             if let Some((literal, _)) = self.history.pop() {
-                self.assignment.clear(literal.variable())
+                self.assignment.clear(literal.v_id())
             };
         }
     }
@@ -196,7 +202,7 @@ impl Trail {
         let steps_to_take = self.backsteps_to_choice()?;
         self.track_back(steps_to_take);
         if let Some((literal, _)) = self.history.pop() {
-            self.assignment.clear(literal.variable());
+            self.assignment.clear(literal.v_id());
             Some(literal)
         } else {
             None
@@ -208,12 +214,16 @@ impl Trail {
         self.assignment.set(literal.clone());
     }
 
-    pub fn get_unassigned(&self, solve: &Solve) -> Option<Variable> {
+    pub fn get_unassigned_id(&self, solve: &Solve) -> Option<VariableId> {
         solve
             .variables
             .iter()
-            .find(|&v| self.assignment.get(v).is_ok_and(|x| x.is_none()))
-            .cloned()
+            .find(|&v| {
+                self.assignment
+                    .get_by_variable(v)
+                    .is_ok_and(|p| p.is_none())
+            })
+            .map(|found| found.id)
     }
 
     pub fn find_unit(&self, solve: &Solve) -> Option<(Literal, ClauseId)> {
@@ -221,7 +231,6 @@ impl Trail {
             if let Some(pair) = clause.get_unit_on(&self.assignment) {
                 return Some(pair);
             }
-
         }
         None
     }

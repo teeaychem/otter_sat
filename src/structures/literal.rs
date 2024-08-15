@@ -1,20 +1,14 @@
-use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-
-use crate::structures::Solve;
-
 pub type VariableId = u32;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Variable {
     pub name: String,
     pub id: VariableId,
 }
 
-pub type LiteralInt = i64;
-
 #[derive(Clone, Debug)]
 pub struct Literal {
-    variable: Variable,
+    variable: VariableId,
     polarity: bool,
 }
 
@@ -26,8 +20,8 @@ pub enum LiteralError {
 impl std::fmt::Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.polarity {
-            true => write!(f, "{}", self.variable.name),
-            false => write!(f, "-{}", self.variable.name),
+            true => write!(f, "{}", self.variable),
+            false => write!(f, "-{}", self.variable),
         }
     }
 }
@@ -35,17 +29,17 @@ impl std::fmt::Display for Literal {
 impl Literal {
     pub fn negate(&self) -> Self {
         Literal {
-            variable: self.variable.clone(),
+            variable: self.variable,
             polarity: !self.polarity,
         }
     }
 
-    pub fn new(variable: Variable, polarity: bool) -> Self {
+    pub fn new(variable: VariableId, polarity: bool) -> Self {
         Literal { variable, polarity }
     }
 
-    pub fn variable(&self) -> &Variable {
-        &self.variable
+    pub fn v_id(&self) -> VariableId {
+        self.variable
     }
 
     pub fn polarity(&self) -> bool {
