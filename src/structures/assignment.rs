@@ -1,13 +1,15 @@
-use crate::structures::{Literal, Variable, VariableId};
+use std::fmt::Debug;
 
-#[derive(Debug)]
+use crate::structures::{Literal, Solve, Variable, VariableId};
+
+#[derive(Debug, Clone)]
 pub struct Assignment {
     status: Vec<Option<bool>>,
 }
 
 #[derive(PartialEq)]
 pub enum AssignmentError {
-    OutOfBounds
+    OutOfBounds,
 }
 
 impl std::fmt::Display for Assignment {
@@ -31,8 +33,29 @@ impl Assignment {
         }
     }
 
-    pub fn get(&self, variable: &Variable) -> Result<Option<bool>, AssignmentError> {
-        if let Some(&info) = self.status.get(variable.id as usize) {
+    pub fn as_external_string(&self, solve: &Solve) -> String {
+        self.status
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| p.is_some())
+            .map(|(i, p)| {
+                let variable = solve.v_by_id(i as VariableId).unwrap();
+                match p {
+                    Some(true) => variable.name.to_string(),
+                    Some(false) => format!("-{}", variable.name),
+                    _ => String::new(),
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    pub fn get_by_variable(&self, variable: &Variable) -> Result<Option<bool>, AssignmentError> {
+        self.get_by_variable_id(variable.id)
+    }
+
+    pub fn get_by_variable_id(&self, v_id: VariableId) -> Result<Option<bool>, AssignmentError> {
+        if let Some(&info) = self.status.get(v_id as usize) {
             Ok(info)
         } else {
             Err(AssignmentError::OutOfBounds)
@@ -40,16 +63,20 @@ impl Assignment {
     }
 
     pub fn set(&mut self, literal: Literal) {
-        println!("settings: {:?}", literal);
-        self.status[literal.variable().id as usize] = Some(literal.polarity())
+        self.status[literal.v_id() as usize] = Some(literal.polarity())
     }
 
-    pub fn clear(&mut self, index: &Variable) {
-        self.status[index.id as usize] = None
+    pub fn clear(&mut self, v_id: VariableId) {
+        self.status[v_id as usize] = None
     }
 
     pub fn get_unassigned(&self) -> Option<VariableId> {
-        if let Some((index, _)) = self.status.iter().enumerate().find(|(i, v)| *i > 0 && v.is_none()) {
+        if let Some((index, _)) = self
+            .status
+            .iter()
+            .enumerate()
+            .find(|(i, v)| *i > 0 && v.is_none())
+        {
             Some(index as VariableId)
         } else {
             None

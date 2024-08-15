@@ -23,13 +23,15 @@ fn main() {
         println!("read");
         if let Ok(new_solve) = Solve::from_dimacs(&contents) {
             let mut the_solve = new_solve;
-            // if let Some(unit) = the_solve.find_unit() {
-            //     println!("unit: {}", unit.0);
-            // }
-            // new_solve.assume(Literal::from_string("6").expect("hek"));
 
-            let sat = the_solve.simple_solve();
-            println!("SAT? {:?}", sat);
+            let result = the_solve.trail_solve();
+            if let Ok((sat, assignment)) = result {
+                println!("SAT? {:?}", sat);
+                println!("Assignment: {}", assignment.as_external_string(&the_solve));
+            }
+
+
+
 
             // dbg!(&the_solve);
         }
