@@ -3,8 +3,11 @@ use std::fs;
 mod ideas;
 mod io;
 mod structures;
+mod solve;
 
 use crate::structures::*;
+use crate::solve::*;
+
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
