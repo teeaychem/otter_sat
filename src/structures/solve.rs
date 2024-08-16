@@ -13,7 +13,7 @@ pub struct Solve {
 #[derive(Debug)]
 pub enum SolveError {
     Literal(LiteralError),
-    Clause(ClauseError),
+    // Clause(ClauseError),
     ParseFailure,
     Hek,
 }
@@ -99,7 +99,7 @@ impl Solve {
 
     pub fn find_unit_on(&self, assignment: &Assignment) -> Option<(Literal, ClauseId)> {
         for clause in self.clauses.iter() {
-            if let Some(pair) = clause.get_unit_on(assignment) {
+            if let Some(pair) = clause.find_unit_on(assignment) {
                 return Some(pair);
             }
         }
