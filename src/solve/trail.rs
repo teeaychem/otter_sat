@@ -78,7 +78,7 @@ impl Trail {
 
     pub fn find_unit(&self, solve: &Solve) -> Option<(Literal, ClauseId)> {
         for clause in &solve.clauses {
-            if let Some(pair) = clause.get_unit_on(&self.assignment) {
+            if let Some(pair) = clause.find_unit_on(&self.assignment) {
                 return Some(pair);
             }
         }
@@ -105,7 +105,7 @@ impl Solve {
                 }
             }
             // 2. search
-            while let Some((lit, _clause)) = the_trail.find_unit(self) {
+            while let Some((lit, _clause)) = self.find_unit_on(&the_trail.assignment) {
                 the_trail.set(&lit, LiteralSource::Deduction);
             }
             if let Some(v_id) = the_trail.get_unassigned_id(self) {

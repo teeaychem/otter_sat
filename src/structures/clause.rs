@@ -59,7 +59,7 @@ impl Clause {
         })
     }
 
-    pub fn get_unit_on(&self, assignment: &Assignment) -> Option<(Literal, ClauseId)> {
+    pub fn find_unit_on(&self, assignment: &Assignment) -> Option<(Literal, ClauseId)> {
         let mut unit = None;
         for literal in &self.literals {
             if let Ok(assignment) = assignment.get_by_variable_id(literal.v_id()) {
