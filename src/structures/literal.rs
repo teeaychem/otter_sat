@@ -34,7 +34,7 @@ pub enum LiteralSource {
     Choice,     // a choice made where the alternative may make a SAT difference
     FreeChoice, // a choice made with a guarantee that the alternative would make no SAT difference
     DeductionFalsum,
-    DeductionClause(ClauseId),  // the literal must be the case for SAT given some assignment
+    DeductionClause(ClauseId), // the literal must be the case for SAT given some assignment
     Assumption,
 }
 
