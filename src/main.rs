@@ -27,7 +27,7 @@ fn main() {
             let mut the_solve = new_solve;
             the_solve.literals_of_polarity(true);
             the_solve.literals_of_polarity(false);
-            the_solve.free_choices();
+            the_solve.hobson_choices();
 
             let result = the_solve.alt_deduction_solve();
             if let Ok((sat, assignment)) = result {
