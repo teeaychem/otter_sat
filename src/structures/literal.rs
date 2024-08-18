@@ -1,3 +1,5 @@
+use crate::structures::ClauseId;
+
 pub type VariableId = u32;
 
 #[derive(Debug)]
@@ -31,7 +33,8 @@ impl std::fmt::Display for Literal {
 pub enum LiteralSource {
     Choice,     // a choice made where the alternative may make a SAT difference
     FreeChoice, // a choice made with a guarantee that the alternative would make no SAT difference
-    Deduction,  // the literal must be the case for SAT given some assignment
+    DeductionFalsum,
+    DeductionClause(ClauseId),  // the literal must be the case for SAT given some assignment
     Assumption,
 }
 

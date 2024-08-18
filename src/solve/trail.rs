@@ -71,12 +71,12 @@ impl Trail {
                     source,
                 }
             }
-            LiteralSource::FreeChoice | LiteralSource::Assumption => Record {
+            LiteralSource::FreeChoice | LiteralSource::Assumption  => Record {
                 level: 0,
                 literal: literal.clone(),
                 source,
             },
-            LiteralSource::Deduction => Record {
+            LiteralSource::DeductionClause(_) | LiteralSource::DeductionFalsum => Record {
                 level: self.level,
                 literal: literal.clone(),
                 source,
@@ -104,21 +104,22 @@ impl Solve {
         let sat_assignment: Option<(bool, Assignment)>;
 
         loop {
+            println!("{:?}", the_trail);
             // 1. (un)sat check
             if self.is_sat_on(&the_trail.assignment) {
                 sat_assignment = Some((true, the_trail.assignment.clone()));
                 break;
             } else if self.is_unsat_on(&the_trail.assignment) {
                 if let Some(literal) = the_trail.undo_last_choice() {
-                    the_trail.set(&literal.negate(), LiteralSource::Deduction)
+                    the_trail.set(&literal.negate(), LiteralSource::DeductionFalsum)
                 } else {
                     sat_assignment = Some((false, the_trail.assignment.clone()));
                     break;
                 }
             }
             // 2. search
-            while let Some((lit, _clause)) = self.find_unit_on(&the_trail.assignment) {
-                the_trail.set(&lit, LiteralSource::Deduction);
+            while let Some((lit, clause_id)) = self.find_unit_on(&the_trail.assignment) {
+                the_trail.set(&lit, LiteralSource::DeductionClause(clause_id));
             }
             if let Some(v_id) = the_trail.get_unassigned_id(self) {
                 if self.clauses.iter().any(|clause| {
