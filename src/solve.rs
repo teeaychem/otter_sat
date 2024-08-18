@@ -1,3 +1,3 @@
-mod trail;
+mod search;
 
-pub use trail::Trail;
+pub use search::Search;

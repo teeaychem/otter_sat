@@ -1,4 +1,4 @@
-use crate::{structures::{Assignment, Literal, LiteralError}, Trail};
+use crate::{structures::{Assignment, Literal, LiteralError}, Search};
 
 pub type ClauseId = u32;
 
