@@ -1,4 +1,4 @@
-use crate::structures::{Assignment, Literal, LiteralError};
+use crate::{structures::{Assignment, Literal, LiteralError}, Trail};
 
 pub type ClauseId = u32;
 
@@ -34,6 +34,10 @@ impl Clause {
         }
     }
 
+    pub fn id(&self) -> ClauseId {
+        self.id
+    }
+
     pub fn literals(&self) -> &Vec<Literal> {
         &self.literals
     }
@@ -59,8 +63,9 @@ impl Clause {
         })
     }
 
-    pub fn find_unit_on(&self, assignment: &Assignment) -> Option<(Literal, ClauseId)> {
+    pub fn find_unit_literal(&self, assignment: &Assignment) -> Option<Literal> {
         let mut unit = None;
+
         for literal in &self.literals {
             if let Ok(assignment) = assignment.get_by_variable_id(literal.v_id()) {
                 match assignment {
@@ -74,7 +79,7 @@ impl Clause {
                                 unit = None;
                                 break;
                             }
-                            None => unit = Some((literal.clone(), self.id)), // still, if everything so far is false, this literal must be true, for now…
+                            None => unit = Some(literal.clone()), // still, if everything so far is false, this literal must be true, for now…
                         }
                     }
                 }
@@ -82,4 +87,13 @@ impl Clause {
         }
         unit
     }
+
+
+
+
+    // pub fn all_units_on(&self, assignment: &Assignment) -> Vec<(Literal, ClauseId)> {
+    //     self.literals.iter().filter()
+
+
+    // }
 }

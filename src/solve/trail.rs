@@ -2,66 +2,87 @@ use crate::structures::{
     Assignment, ClauseId, Literal, LiteralSource, Solve, SolveError, VariableId,
 };
 
+#[derive(Clone, Debug)]
+pub struct Record {
+    level: usize,
+    literal: Literal,
+    source: LiteralSource,
+}
+
 /// a partial assignment with some history
-// the assignment
 #[derive(Debug)]
 pub struct Trail {
+    level: usize,
     assignment: Assignment,
-    history: Vec<(Literal, LiteralSource)>,
+    records: Vec<Record>,
 }
 
 impl Trail {
     pub fn for_solve(solve: &Solve) -> Self {
         Trail {
+            level: 0,
             assignment: Assignment::new(solve.vars().len()),
-            history: vec![],
+            records: vec![],
         }
     }
 
-    /// work back through steps of the trail, discarding the trail, and relaxing the assignment
-    // here, some deduced literals may still hold, but for now the trail does not record multiple paths to a deduction
-    pub fn track_back(&mut self, steps: usize) {
-        (0..steps).for_each(|_| {
-            if let Some((literal, _)) = self.history.pop() {
-                self.assignment.clear(literal.v_id())
-            }
-        })
-    }
-
-    pub fn backsteps_to_choice(&self) -> Option<usize> {
-        let mut back_point = self.history.len() - 1;
-        let mut back_steps = 0;
-        loop {
-            if let Some((_, source)) = self.history.get(back_point) {
-                match source {
-                    LiteralSource::Choice => return Some(back_steps),
-                    _ => {
-                        if back_point != 0 {
-                            back_point -= 1;
-                            back_steps += 1;
-                        } else {
-                            return None;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn undo_choice(&mut self) -> Option<Literal> {
-        let steps_to_take = self.backsteps_to_choice()?;
-        self.track_back(steps_to_take);
-        if let Some((literal, _)) = self.history.pop() {
-            self.assignment.clear(literal.v_id());
-            Some(literal)
+    // the last choice corresponds to the curent level
+    pub fn undo_last_choice(&mut self) -> Option<Literal> {
+        if let Some(record) = self.find_last_choice() {
+            self.fresh_level(self.level);
+            Some(record.literal)
         } else {
             None
         }
     }
 
+    pub fn find_last_choice(&self) -> Option<Record> {
+        self.records
+            .iter()
+            .find(|record| record.level == self.level && record.source == LiteralSource::Choice)
+            .cloned()
+    }
+
+    pub fn level_start(&self, level: usize) -> Option<usize> {
+        self.records.iter().position(|record| record.level == level)
+    }
+
+    /// creates a fresh decision level /l/ by clearing the records from levels ≥ /l/
+    pub fn fresh_level(&mut self, l: usize) {
+        self.records.iter().for_each(|record| {
+            if record.level >= l {
+                self.assignment.clear(record.literal.v_id());
+            }
+        });
+        if let Some(position) = self.level_start(l) {
+            self.records.truncate(position);
+        }
+        self.level = l;
+    }
+
     pub fn set(&mut self, literal: &Literal, source: LiteralSource) {
-        self.history.push((literal.clone(), source));
         self.assignment.set(literal.clone());
+        let record = match source {
+            LiteralSource::Choice => {
+                self.level += 1;
+                Record {
+                    level: self.level,
+                    literal: literal.clone(),
+                    source,
+                }
+            }
+            LiteralSource::FreeChoice | LiteralSource::Assumption => Record {
+                level: 0,
+                literal: literal.clone(),
+                source,
+            },
+            LiteralSource::Deduction => Record {
+                level: self.level,
+                literal: literal.clone(),
+                source,
+            },
+        };
+        self.records.push(record);
     }
 
     pub fn get_unassigned_id(&self, solve: &Solve) -> Option<VariableId> {
@@ -74,15 +95,6 @@ impl Trail {
                     .is_ok_and(|p| p.is_none())
             })
             .map(|found| found.id)
-    }
-
-    pub fn find_unit(&self, solve: &Solve) -> Option<(Literal, ClauseId)> {
-        for clause in &solve.clauses {
-            if let Some(pair) = clause.find_unit_on(&self.assignment) {
-                return Some(pair);
-            }
-        }
-        None
     }
 }
 
@@ -97,7 +109,7 @@ impl Solve {
                 sat_assignment = Some((true, the_trail.assignment.clone()));
                 break;
             } else if self.is_unsat_on(&the_trail.assignment) {
-                if let Some(literal) = the_trail.undo_choice() {
+                if let Some(literal) = the_trail.undo_last_choice() {
                     the_trail.set(&literal.negate(), LiteralSource::Deduction)
                 } else {
                     sat_assignment = Some((false, the_trail.assignment.clone()));
