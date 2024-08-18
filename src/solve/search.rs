@@ -72,7 +72,7 @@ impl Search {
                     source,
                 }
             }
-            LiteralSource::FreeChoice | LiteralSource::Assumption => Record {
+            LiteralSource::HobsonChoice | LiteralSource::Assumption => Record {
                 depth: 0,
                 literal: literal.clone(),
                 source,
@@ -122,18 +122,7 @@ impl Solve {
                 the_search.set(&lit, LiteralSource::DeductionClause(clause_id));
             }
             if let Some(v_id) = the_search.get_unassigned_id(self) {
-                if self.clauses.iter().any(|clause| {
-                    clause
-                        .literals()
-                        .iter()
-                        .filter(|l| l.v_id() == v_id)
-                        .count()
-                        > 0
-                }) {
-                    the_search.set(&Literal::new(v_id, true), LiteralSource::Choice);
-                } else {
-                    the_search.set(&Literal::new(v_id, true), LiteralSource::FreeChoice);
-                }
+                the_search.set(&Literal::new(v_id, true), LiteralSource::Choice);
             }
         }
         match sat_assignment {
@@ -158,7 +147,7 @@ impl Solve {
     }
 
     /// general order for pairs related to booleans is 0 is false, 1 is true
-    pub fn free_choices(&self) -> (Vec<VariableId>, Vec<VariableId>) {
+    pub fn hobson_choices(&self) -> (Vec<VariableId>, Vec<VariableId>) {
         // let all_v_ids: BTreeSet<VariableId> = self.vars().iter().map(|v| v.id).collect();
         let the_true: BTreeSet<VariableId> = self
             .literals_of_polarity(true)
@@ -171,28 +160,28 @@ impl Solve {
             .map(|l| l.v_id())
             .collect();
         let the_intersection = the_true.intersection(&the_false).cloned().collect();
-        let free_false = the_false.difference(&the_intersection).cloned().collect();
-        let free_true = the_true.difference(&the_intersection).cloned().collect();
-        (free_false, free_true)
+        let hobson_false = the_false.difference(&the_intersection).cloned().collect();
+        let hobson_true = the_true.difference(&the_intersection).cloned().collect();
+        (hobson_false, hobson_true)
     }
 
-    pub fn settle_free_choices(&self, search: &mut Search) {
-        let the_free_choices = self.free_choices();
-        the_free_choices.0.iter().for_each(|&v_id| {
+    pub fn settle_hobson_choices(&self, search: &mut Search) {
+        let the_choices = self.hobson_choices();
+        the_choices.0.iter().for_each(|&v_id| {
             let the_choice = Literal::new(v_id, false);
-            search.set(&the_choice, LiteralSource::FreeChoice);
+            search.set(&the_choice, LiteralSource::HobsonChoice);
         });
-        the_free_choices.1.iter().for_each(|&v_id| {
+        the_choices.1.iter().for_each(|&v_id| {
             let the_choice = Literal::new(v_id, true);
-            search.set(&the_choice, LiteralSource::FreeChoice);
+            search.set(&the_choice, LiteralSource::HobsonChoice);
         });
     }
 
     pub fn alt_deduction_solve(&mut self) -> Result<(bool, Assignment), SolveError> {
         let mut the_search = Search::for_solve(self);
         let sat_assignment: Option<(bool, Assignment)>;
-        // settle any free choices
-        self.settle_free_choices(&mut the_search);
+        // settle any forced choices
+        self.settle_hobson_choices(&mut the_search);
 
         loop {
             // 1. (un)sat check
