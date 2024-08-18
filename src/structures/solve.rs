@@ -99,10 +99,20 @@ impl Solve {
 
     pub fn find_unit_on(&self, assignment: &Assignment) -> Option<(Literal, ClauseId)> {
         for clause in self.clauses.iter() {
-            if let Some(pair) = clause.find_unit_on(assignment) {
-                return Some(pair);
+            if let Some(unit_literal) = clause.find_unit_literal(assignment) {
+                return Some((unit_literal, clause.id()));
             }
         }
         None
+    }
+
+    pub fn all_units_on(&self, assignment: &Assignment) -> Vec<(Literal, ClauseId)> {
+        let mut the_vec = vec![];
+        for clause in self.clauses.iter() {
+            if let Some(unit_literal) = clause.find_unit_literal(assignment) {
+                the_vec.push((unit_literal, clause.id()));
+            }
+        }
+        the_vec
     }
 }
