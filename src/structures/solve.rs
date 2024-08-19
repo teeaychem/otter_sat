@@ -1,5 +1,5 @@
 use crate::structures::{
-    Assignment, Clause, ClauseError, ClauseId, Literal, LiteralError, Variable, VariableId,
+    Valuation, Clause, ClauseError, ClauseId, Literal, LiteralError, Variable, VariableId,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -85,19 +85,19 @@ impl Solve {
 
 // SAT related things
 impl Solve {
-    pub fn is_unsat_on(&self, assignment: &Assignment) -> bool {
+    pub fn is_unsat_on(&self, assignment: &Valuation) -> bool {
         self.clauses
             .iter()
             .any(|clause| clause.is_unsat_on(assignment))
     }
 
-    pub fn is_sat_on(&self, assignment: &Assignment) -> bool {
+    pub fn is_sat_on(&self, assignment: &Valuation) -> bool {
         self.clauses
             .iter()
             .all(|clause| clause.is_sat_on(assignment))
     }
 
-    pub fn find_unit_on(&self, assignment: &Assignment) -> Option<(Literal, ClauseId)> {
+    pub fn find_unit_on(&self, assignment: &Valuation) -> Option<(Literal, ClauseId)> {
         for clause in self.clauses.iter() {
             if let Some(unit_literal) = clause.find_unit_literal(assignment) {
                 return Some((unit_literal, clause.id()));
@@ -106,7 +106,7 @@ impl Solve {
         None
     }
 
-    pub fn all_units_on(&self, assignment: &Assignment) -> Vec<(Literal, ClauseId)> {
+    pub fn all_units_on(&self, assignment: &Valuation) -> Vec<(Literal, ClauseId)> {
         let mut the_vec = vec![];
         for clause in self.clauses.iter() {
             if let Some(unit_literal) = clause.find_unit_literal(assignment) {

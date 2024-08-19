@@ -1,4 +1,4 @@
-use crate::{structures::{Assignment, Literal, LiteralError}, Search};
+use crate::{structures::{Valuation, Literal, LiteralError}, Assignment};
 
 pub type ClauseId = u32;
 
@@ -47,13 +47,13 @@ impl Clause {
         Ok(())
     }
 
-    pub fn is_sat_on(&self, assignment: &Assignment) -> bool {
+    pub fn is_sat_on(&self, assignment: &Valuation) -> bool {
         self.literals
             .iter()
             .any(|l| assignment.get_by_variable_id(l.v_id()) == Ok(Some(l.polarity())))
     }
 
-    pub fn is_unsat_on(&self, assignment: &Assignment) -> bool {
+    pub fn is_unsat_on(&self, assignment: &Valuation) -> bool {
         self.literals.iter().all(|l| {
             if let Ok(Some(variable_assignment)) = assignment.get_by_variable_id(l.v_id()) {
                 variable_assignment != l.polarity()
@@ -63,7 +63,7 @@ impl Clause {
         })
     }
 
-    pub fn find_unit_literal(&self, assignment: &Assignment) -> Option<Literal> {
+    pub fn find_unit_literal(&self, assignment: &Valuation) -> Option<Literal> {
         let mut unit = None;
 
         for literal in &self.literals {
