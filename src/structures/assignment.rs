@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use crate::structures::{Literal, Solve, Variable, VariableId};
 
 #[derive(Debug, Clone)]
-pub struct Assignment {
+pub struct Valuation {
     status: Vec<Option<bool>>,
 }
 
@@ -12,7 +12,7 @@ pub enum AssignmentError {
     OutOfBounds,
 }
 
-impl std::fmt::Display for Assignment {
+impl std::fmt::Display for Valuation {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "[")?;
         for maybe_literal in self.status.iter() {
@@ -26,9 +26,9 @@ impl std::fmt::Display for Assignment {
     }
 }
 
-impl Assignment {
+impl Valuation {
     pub fn new(variable_count: usize) -> Self {
-        Assignment {
+        Valuation {
             status: vec![None; variable_count + 1],
         }
     }

@@ -1,5 +1,5 @@
 use crate::structures::{
-    Assignment, ClauseId, Literal, LiteralSource, Solve, SolveError, VariableId,
+    Valuation, ClauseId, Literal, LiteralSource, Solve, SolveError, VariableId,
 };
 use std::collections::BTreeSet;
 
@@ -12,23 +12,23 @@ pub struct Record {
 
 /// a partial assignment with some history
 #[derive(Debug)]
-pub struct Search {
+pub struct Assignment {
     depth: usize,
-    assignment: Assignment,
+    assignment: Valuation,
     records: Vec<Record>,
 }
 
-impl Search {
+impl Assignment {
     pub fn for_solve(solve: &Solve) -> Self {
-        Search {
+        Assignment {
             depth: 0,
-            assignment: Assignment::new(solve.vars().len()),
+            assignment: Valuation::new(solve.vars().len()),
             records: vec![],
         }
     }
 
     // the last choice corresponds to the curent depth
-    pub fn undo_last_choice(&mut self) -> Option<Literal> {
+    pub fn pop_last_choice(&mut self) -> Option<Literal> {
         if let Some(record) = self.find_last_choice() {
             self.raise_to_depth(self.depth);
             Some(record.literal)
@@ -100,9 +100,9 @@ impl Search {
 }
 
 impl Solve {
-    pub fn single_deduction_solve(&mut self) -> Result<(bool, Assignment), SolveError> {
-        let mut the_search = Search::for_solve(self);
-        let sat_assignment: Option<(bool, Assignment)>;
+    pub fn single_deduction_solve(&mut self) -> Result<(bool, Valuation), SolveError> {
+        let mut the_search = Assignment::for_solve(self);
+        let sat_assignment: Option<(bool, Valuation)>;
 
         loop {
             // 1. (un)sat check
@@ -110,7 +110,7 @@ impl Solve {
                 sat_assignment = Some((true, the_search.assignment.clone()));
                 break;
             } else if self.is_unsat_on(&the_search.assignment) {
-                if let Some(literal) = the_search.undo_last_choice() {
+                if let Some(literal) = the_search.pop_last_choice() {
                     the_search.set(&literal.negate(), LiteralSource::DeductionFalsum)
                 } else {
                     sat_assignment = Some((false, the_search.assignment.clone()));
@@ -165,7 +165,7 @@ impl Solve {
         (hobson_false, hobson_true)
     }
 
-    pub fn settle_hobson_choices(&self, search: &mut Search) {
+    pub fn settle_hobson_choices(&self, search: &mut Assignment) {
         let the_choices = self.hobson_choices();
         the_choices.0.iter().for_each(|&v_id| {
             let the_choice = Literal::new(v_id, false);
@@ -177,9 +177,21 @@ impl Solve {
         });
     }
 
-    pub fn alt_deduction_solve(&mut self) -> Result<(bool, Assignment), SolveError> {
-        let mut the_search = Search::for_solve(self);
-        let sat_assignment: Option<(bool, Assignment)>;
+    pub fn propagate_unit(&self, assignment: &mut Assignment) -> Option<Vec<(Literal, ClauseId)>> {
+        let mut units_found = vec![];
+        while let Some((lit, clause_id)) = self.find_unit_on(&assignment.assignment) {
+            assignment.set(&lit, LiteralSource::DeductionClause(clause_id));
+            units_found.push((lit, clause_id));
+            }
+        match units_found.is_empty() {
+            true => None,
+            false => Some(units_found)
+        }
+    }
+
+    pub fn alt_deduction_solve(&mut self) -> Result<(bool, Valuation), SolveError> {
+        let mut the_search = Assignment::for_solve(self);
+        let sat_assignment: Option<(bool, Valuation)>;
         // settle any forced choices
         self.settle_hobson_choices(&mut the_search);
 
@@ -189,7 +201,7 @@ impl Solve {
                 sat_assignment = Some((true, the_search.assignment.clone()));
                 break;
             } else if self.is_unsat_on(&the_search.assignment) {
-                if let Some(literal) = the_search.undo_last_choice() {
+                if let Some(literal) = the_search.pop_last_choice() {
                     the_search.set(&literal.negate(), LiteralSource::DeductionFalsum)
                 } else {
                     sat_assignment = Some((false, the_search.assignment.clone()));
@@ -197,11 +209,13 @@ impl Solve {
                 }
             }
             // 2. search
-            while let Some((lit, clause_id)) = self.find_unit_on(&the_search.assignment) {
-                the_search.set(&lit, LiteralSource::DeductionClause(clause_id));
+            if let Some(_units_found) = self.propagate_unit(&mut the_search) {
+                continue;
             }
+
             if let Some(v_id) = the_search.get_unassigned_id(self) {
                 the_search.set(&Literal::new(v_id, true), LiteralSource::Choice);
+                continue;
             }
         }
         match sat_assignment {
