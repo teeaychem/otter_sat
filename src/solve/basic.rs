@@ -65,9 +65,8 @@ impl Solve {
             .iter()
             .map(|l| l.v_id())
             .collect();
-        let the_intersection = the_true.intersection(&the_false).cloned().collect();
-        let hobson_false = the_false.difference(&the_intersection).cloned().collect();
-        let hobson_true = the_true.difference(&the_intersection).cloned().collect();
+        let hobson_false: Vec<_> = the_false.difference(&the_true).cloned().collect();
+        let hobson_true: Vec<_> = the_true.difference(&the_false).cloned().collect();
         (hobson_false, hobson_true)
     }
 
@@ -83,11 +82,11 @@ impl Solve {
         });
     }
 
-    pub fn propagate_unit(&self, assignment: &mut Assignment) -> Option<Vec<(Literal, ClauseId)>> {
+    pub fn propagate_unit(&self, assignment: &mut Assignment) -> Option<Vec<(ClauseId, Literal)>> {
         let mut units_found = vec![];
-        while let Some((lit, clause_id)) = self.find_unit_on(&assignment.valuation) {
+        while let Some((clause_id, lit)) = self.find_unit_on(&assignment.valuation) {
             assignment.set(&lit, LiteralSource::DeductionClause(clause_id));
-            units_found.push((lit, clause_id));
+            units_found.push((clause_id, lit));
         }
         match units_found.is_empty() {
             true => None,
@@ -100,6 +99,7 @@ impl Solve {
         let sat_assignment: Option<(bool, Assignment)>;
         // settle any forced choices
         self.settle_hobson_choices(&mut the_search);
+        self.propagate_unit(&mut the_search);
 
         loop {
             // 1. (un)sat check

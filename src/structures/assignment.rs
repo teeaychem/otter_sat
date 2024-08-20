@@ -1,8 +1,8 @@
-use std::fmt::Debug;
+use std::{collections::BTreeSet, fmt::Debug};
 
 use crate::structures::{Literal, LiteralSource, Solve, Variable, VariableId};
 
-use super::ClauseId;
+use super::{literal, ClauseId};
 
 /// a partial assignment with some history
 #[derive(Clone, Debug)]
@@ -16,16 +16,16 @@ pub struct Level {
     index: usize,
     pub choices: Vec<Literal>,
     observations: Vec<Literal>,
-    implications: Vec<(Literal, ClauseId, Literal)>,
+    implications: ImplicationGraph,
 }
 
 impl Level {
-    fn new(index: usize) -> Self {
+    fn new(index: usize, assignment: &Assignment) -> Self {
         Level {
             index,
             choices: vec![],
             observations: vec![],
-            implications: vec![],
+            implications: ImplicationGraph::new(&assignment),
         }
     }
 
@@ -44,10 +44,47 @@ impl Level {
     }
 }
 
+pub type EdgeId = usize;
+pub type ImplicationGraphEdge = (VariableId, ClauseId, VariableId);
+
+#[derive(Clone, Debug)]
+pub struct ImplicationGraph {
+    nodes: Vec<Option<Vec<EdgeId>>>, // indicies correspond to variables, indexed vec is for edges
+    edges: Vec<ImplicationGraphEdge>,
+}
+
+impl ImplicationGraph {
+    pub fn new(assignment: &Assignment) -> Self {
+        ImplicationGraph {
+            nodes: vec![None; assignment.valuation.status.len()],
+            edges: vec![],
+        }
+    }
+
+    pub fn from(assignment: &Assignment, solve: &Solve) -> ImplicationGraph {
+        let the_units = solve.find_all_units_on(&assignment.valuation, &mut BTreeSet::new());
+        let edges = the_units
+            .iter()
+            .flat_map(|(clause_id, to_literal)| {
+                solve.clauses[*clause_id as usize]
+                    .literals()
+                    .iter()
+                    .filter(|&l| l != to_literal)
+                    .map(|from_literal| (from_literal.v_id(), *clause_id, to_literal.v_id()))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        ImplicationGraph {
+            nodes: vec![None; assignment.valuation.status.len()],
+            edges,
+        }
+    }
+}
+
 impl Assignment {
     pub fn fresh_level(&mut self) -> &mut Level {
         let level_cout = self.levels.len();
-        let the_level = Level::new(self.levels.len());
+        let the_level = Level::new(self.levels.len(), self);
         self.levels.push(the_level);
         &mut self.levels[level_cout]
     }
@@ -64,13 +101,6 @@ impl Assignment {
         let last_position = self.levels.len() - 1;
         self.level_mut(last_position)
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct Record {
-    depth: usize,
-    literal: Literal,
-    source: LiteralSource,
 }
 
 #[derive(Debug, Clone)]
@@ -109,15 +139,18 @@ impl std::fmt::Display for Valuation {
 
 impl Assignment {
     pub fn for_solve(solve: &Solve) -> Self {
-        Assignment {
+        let mut the_assignment = Assignment {
             valuation: Valuation::new(solve.vars().len()),
-            levels: vec![Level::new(0)],
-        }
+            levels: vec![],
+        };
+        let level_zero = Level::new(0, &the_assignment);
+        the_assignment.levels.push(level_zero);
+        the_assignment
     }
 
     // the last choice corresponds to the curent depth
     pub fn pop_last_level(&mut self) -> Option<Level> {
-        if self.levels.is_empty() {
+        if self.levels.len() <= 1 {
             return None;
         }
         let the_level = self.levels.pop();
@@ -126,7 +159,7 @@ impl Assignment {
     }
 
     pub fn set(&mut self, literal: &Literal, source: LiteralSource) {
-        self.valuation.set(literal.clone());
+        self.valuation.set(literal);
         match source {
             LiteralSource::Choice => {
                 let fresh_level = self.fresh_level();
@@ -186,7 +219,7 @@ impl Valuation {
         }
     }
 
-    pub fn set(&mut self, literal: Literal) {
+    pub fn set(&mut self, literal: &Literal) {
         self.status[literal.v_id() as usize] = Some(literal.polarity())
     }
 
