@@ -10,8 +10,8 @@ pub struct Variable {
 
 #[derive(Clone, Debug)]
 pub struct Literal {
-    variable: VariableId,
-    polarity: bool,
+    pub v_id: VariableId,
+    pub polarity: bool,
 }
 
 #[derive(Debug)]
@@ -22,8 +22,8 @@ pub enum LiteralError {
 impl std::fmt::Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.polarity {
-            true => write!(f, "{}", self.variable),
-            false => write!(f, "-{}", self.variable),
+            true => write!(f, "{}", self.v_id),
+            false => write!(f, "-{}", self.v_id),
         }
     }
 }
@@ -41,21 +41,13 @@ pub enum LiteralSource {
 impl Literal {
     pub fn negate(&self) -> Self {
         Literal {
-            variable: self.variable,
+            v_id: self.v_id,
             polarity: !self.polarity,
         }
     }
 
     pub fn new(variable: VariableId, polarity: bool) -> Self {
-        Literal { variable, polarity }
-    }
-
-    pub fn v_id(&self) -> VariableId {
-        self.variable
-    }
-
-    pub fn polarity(&self) -> bool {
-        self.polarity
+        Literal { v_id: variable, polarity }
     }
 }
 
@@ -67,7 +59,7 @@ impl PartialOrd for Literal {
 
 impl Ord for Literal {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        if self.variable == other.variable {
+        if self.v_id == other.v_id {
             if self.polarity == other.polarity {
                 std::cmp::Ordering::Equal
             } else if self.polarity {
@@ -76,14 +68,14 @@ impl Ord for Literal {
                 std::cmp::Ordering::Greater
             }
         } else {
-            self.variable.cmp(&other.variable)
+            self.v_id.cmp(&other.v_id)
         }
     }
 }
 
 impl PartialEq for Literal {
     fn eq(&self, other: &Self) -> bool {
-        self.variable == other.variable && self.polarity == other.polarity
+        self.v_id == other.v_id && self.polarity == other.polarity
     }
 }
 

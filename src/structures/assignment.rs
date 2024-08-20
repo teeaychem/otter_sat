@@ -67,10 +67,10 @@ impl ImplicationGraph {
             .iter()
             .flat_map(|(clause_id, to_literal)| {
                 solve.clauses[*clause_id as usize]
-                    .literals()
+                    .literals
                     .iter()
                     .filter(|&l| l != to_literal)
-                    .map(|from_literal| (from_literal.v_id(), *clause_id, to_literal.v_id()))
+                    .map(|from_literal| (from_literal.v_id, *clause_id, to_literal.v_id))
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
@@ -112,7 +112,7 @@ impl Valuation {
     pub fn maybe_clear_level(&mut self, maybe_level: &Option<Level>) {
         if let Some(level) = maybe_level {
             for literal in level.literals() {
-                self.status[literal.v_id() as usize] = None;
+                self.status[literal.v_id as usize] = None;
             }
         }
     }
@@ -220,7 +220,7 @@ impl Valuation {
     }
 
     pub fn set(&mut self, literal: &Literal) {
-        self.status[literal.v_id() as usize] = Some(literal.polarity())
+        self.status[literal.v_id as usize] = Some(literal.polarity)
     }
 
     pub fn clear(&mut self, v_id: VariableId) {
