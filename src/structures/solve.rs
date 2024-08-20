@@ -1,7 +1,8 @@
 use crate::structures::{
-    Valuation, Clause, ClauseError, ClauseId, Literal, LiteralError, Variable, VariableId,
+    Clause, ClauseError, ClauseId, Literal, LiteralError, Valuation, Variable, VariableId,
 };
 
+use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
 #[derive(Debug)]
@@ -97,22 +98,58 @@ impl Solve {
             .all(|clause| clause.is_sat_on(assignment))
     }
 
-    pub fn find_unit_on(&self, assignment: &Valuation) -> Option<(Literal, ClauseId)> {
+    pub fn find_unit_on(&self, assignment: &Valuation) -> Option<(ClauseId, Literal)> {
         for clause in self.clauses.iter() {
             if let Some(unit_literal) = clause.find_unit_literal(assignment) {
-                return Some((unit_literal, clause.id()));
+                return Some((clause.id(), unit_literal));
             }
         }
         None
     }
 
-    pub fn all_units_on(&self, assignment: &Valuation) -> Vec<(Literal, ClauseId)> {
-        let mut the_vec = vec![];
+
+    /* ideally the check on an ignored unit is improved
+     for example, with watched literals a clause can be ignored in advance if the ignored literal is watched and it's negation is not part of the given valuation.
+    whether this makes sense to do…
+    */
+
+    pub fn all_immediate_units_on(
+        &self,
+        assignment: &Valuation,
+        ignoring: &BTreeSet<(ClauseId, Literal)>,
+    ) -> BTreeSet<(ClauseId, Literal)> {
+        let mut the_set = BTreeSet::new();
         for clause in self.clauses.iter() {
             if let Some(unit_literal) = clause.find_unit_literal(assignment) {
-                the_vec.push((unit_literal, clause.id()));
+                let the_pair = (clause.id(), unit_literal);
+                if !ignoring.contains(&the_pair) {
+                    the_set.insert(the_pair);
+                }
             }
         }
-        the_vec
+        the_set
+    }
+
+    pub fn find_all_units_on(
+        &self,
+        valuation: &Valuation,
+        ignoring: &mut BTreeSet<(ClauseId, Literal)>,
+    ) -> Vec<(ClauseId, Literal)> {
+        let immediate_units = self.all_immediate_units_on(valuation, ignoring);
+        ignoring.extend(immediate_units.clone());
+        let mut further_units = vec![];
+        if !immediate_units.is_empty() {
+            for (_, literal) in &immediate_units {
+                let mut updated_valuation = valuation.clone();
+                updated_valuation.set(literal);
+                further_units.extend(
+                    self.find_all_units_on(&updated_valuation, ignoring)
+                        .iter()
+                        .cloned(),
+                );
+            }
+        }
+        further_units.extend(immediate_units.iter().cloned());
+        further_units
     }
 }
