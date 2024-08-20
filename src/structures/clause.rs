@@ -1,4 +1,7 @@
-use crate::{structures::{Valuation, Literal, LiteralError}, Assignment};
+use crate::{
+    structures::{Literal, LiteralError, Valuation},
+    Assignment,
+};
 
 pub type ClauseId = u32;
 
@@ -67,33 +70,26 @@ impl Clause {
         let mut unit = None;
 
         for literal in &self.literals {
-            if let Ok(assignment) = assignment.get_by_variable_id(literal.v_id()) {
-                match assignment {
-                    Some(true) => break,     // as the clause does not provide any new information
-                    Some(false) => continue, // some other literal must be true
-                    None => {
-                        // if no assignment, then literal must be true…
-                        match unit {
-                            Some(_) => {
-                                // …but if there was already a literal, it's not implied
-                                unit = None;
-                                break;
-                            }
-                            None => unit = Some(literal.clone()), // still, if everything so far is false, this literal must be true, for now…
+            if let Ok(assigned_value) = assignment.get_by_variable_id(literal.v_id()) {
+                if assigned_value.is_some_and(|v| v == literal.polarity()) {
+                    // the clause is satisfied and so does not provide any new information
+                    break;
+                } else if assigned_value.is_some() {
+                    // either every literal so far has been valued the opposite, or there has been exactly on unvalued literal, so continue
+                    continue;
+                } else {
+                    // if no other literal has been found then this literal may be unit, so mark it and continue
+                    // though, if some other literal has already been marked, the clause does not force any literal
+                    match unit {
+                        Some(_) => {
+                            unit = None;
+                            break;
                         }
+                        None => unit = Some(literal.clone()),
                     }
                 }
             }
         }
         unit
     }
-
-
-
-
-    // pub fn all_units_on(&self, assignment: &Assignment) -> Vec<(Literal, ClauseId)> {
-    //     self.literals.iter().filter()
-
-
-    // }
 }
