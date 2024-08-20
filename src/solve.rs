@@ -1,3 +1,1 @@
-mod search;
-
-pub use search::Assignment;
+mod basic;
