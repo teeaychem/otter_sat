@@ -5,7 +5,6 @@ mod io;
 mod solve;
 mod structures;
 
-use crate::solve::*;
 use crate::structures::*;
 
 /// Simple program to greet a person
@@ -32,7 +31,8 @@ fn main() {
             let result = the_solve.alt_deduction_solve();
             if let Ok((sat, assignment)) = result {
                 println!("SAT? {:?}", sat);
-                println!("Assignment: {}", assignment.as_external_string(&the_solve));
+                println!("Assignment: {}", assignment.valuation.as_external_string(&the_solve));
+                println!("Assignment: {:?}", &assignment);
             }
 
             // dbg!(&the_solve);
