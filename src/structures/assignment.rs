@@ -25,7 +25,7 @@ impl Level {
             index,
             choices: vec![],
             observations: vec![],
-            implications: ImplicationGraph::new(&assignment),
+            implications: ImplicationGraph::new(assignment),
         }
     }
 
@@ -49,14 +49,14 @@ pub type ImplicationGraphEdge = (VariableId, ClauseId, VariableId);
 
 #[derive(Clone, Debug)]
 pub struct ImplicationGraph {
-    nodes: Vec<Option<Vec<EdgeId>>>, // indicies correspond to variables, indexed vec is for edges
+    backwards: Vec<Option<BTreeSet<EdgeId>>>, // indicies correspond to variables, indexed vec is for edges
     edges: Vec<ImplicationGraphEdge>,
 }
 
 impl ImplicationGraph {
     pub fn new(assignment: &Assignment) -> Self {
         ImplicationGraph {
-            nodes: vec![None; assignment.valuation.status.len()],
+            backwards: vec![None; assignment.valuation.status.len()],
             edges: vec![],
         }
     }
@@ -74,9 +74,21 @@ impl ImplicationGraph {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        ImplicationGraph {
-            nodes: vec![None; assignment.valuation.status.len()],
+        let mut the_graph = ImplicationGraph {
+            backwards: vec![None; assignment.valuation.status.len()],
             edges,
+        };
+        the_graph.add_backwards();
+        the_graph
+    }
+
+    pub fn add_backwards(&mut self) {
+        for (edge_id, (_from_node, _clause_id, to_node)) in self.edges.iter().enumerate() {
+            if let Some(Some(set)) = self.backwards.get_mut(*to_node as usize) {
+                set.insert(edge_id);
+            } else {
+                self.backwards[*to_node as usize] = Some(BTreeSet::from([edge_id]));
+            };
         }
     }
 }
@@ -100,6 +112,12 @@ impl Assignment {
     pub fn last_level_mut(&mut self) -> &mut Level {
         let last_position = self.levels.len() - 1;
         self.level_mut(last_position)
+    }
+
+    pub fn make_implication_for_last_level(&mut self, solve: &Solve) {
+        let the_graph = ImplicationGraph::from(self, solve);
+        println!("the graph: {:?}", the_graph);
+        self.last_level_mut().implications = the_graph;
     }
 }
 

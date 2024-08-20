@@ -108,6 +108,7 @@ impl Solve {
                 break;
             } else if self.is_unsat_on(&the_search.valuation) {
                 if let Some(level) = the_search.pop_last_level() {
+                    the_search.make_implication_for_last_level(self);
                     level.choices.into_iter().for_each(|choice| {
                         the_search.set(&choice.negate(), LiteralSource::Conflict)
                     })
@@ -120,6 +121,7 @@ impl Solve {
             if let Some(_units_found) = self.propagate_unit(&mut the_search) {
                 continue;
             }
+
 
             if let Some(v_id) = the_search.get_unassigned_id(self) {
                 the_search.set(&Literal::new(v_id, true), LiteralSource::Choice);
