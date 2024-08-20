@@ -42,9 +42,9 @@ impl Solve {
             .iter()
             .fold(BTreeSet::new(), |mut acc: BTreeSet<Literal>, this| {
                 acc.extend(
-                    this.literals()
+                    this.literals
                         .iter()
-                        .filter(|&l| l.polarity() == polarity)
+                        .filter(|&l| l.polarity == polarity)
                         .cloned()
                         .collect::<BTreeSet<Literal>>(),
                 );
@@ -58,12 +58,12 @@ impl Solve {
         let the_true: BTreeSet<VariableId> = self
             .literals_of_polarity(true)
             .iter()
-            .map(|l| l.v_id())
+            .map(|l| l.v_id)
             .collect();
         let the_false: BTreeSet<VariableId> = self
             .literals_of_polarity(false)
             .iter()
-            .map(|l| l.v_id())
+            .map(|l| l.v_id)
             .collect();
         let hobson_false: Vec<_> = the_false.difference(&the_true).cloned().collect();
         let hobson_true: Vec<_> = the_true.difference(&the_false).cloned().collect();

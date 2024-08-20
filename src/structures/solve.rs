@@ -101,7 +101,7 @@ impl Solve {
     pub fn find_unit_on(&self, assignment: &Valuation) -> Option<(ClauseId, Literal)> {
         for clause in self.clauses.iter() {
             if let Some(unit_literal) = clause.find_unit_literal(assignment) {
-                return Some((clause.id(), unit_literal));
+                return Some((clause.id, unit_literal));
             }
         }
         None
@@ -121,7 +121,7 @@ impl Solve {
         let mut the_set = BTreeSet::new();
         for clause in self.clauses.iter() {
             if let Some(unit_literal) = clause.find_unit_literal(assignment) {
-                let the_pair = (clause.id(), unit_literal);
+                let the_pair = (clause.id, unit_literal);
                 if !ignoring.contains(&the_pair) {
                     the_set.insert(the_pair);
                 }

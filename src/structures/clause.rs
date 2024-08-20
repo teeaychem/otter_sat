@@ -13,8 +13,8 @@ pub enum ClauseError {
 
 #[derive(Debug)]
 pub struct Clause {
-    id: ClauseId,
-    literals: Vec<Literal>,
+    pub id: ClauseId,
+    pub literals: Vec<Literal>,
 }
 
 impl std::fmt::Display for Clause {
@@ -37,14 +37,6 @@ impl Clause {
         }
     }
 
-    pub fn id(&self) -> ClauseId {
-        self.id
-    }
-
-    pub fn literals(&self) -> &Vec<Literal> {
-        &self.literals
-    }
-
     pub fn add_literal(&mut self, literal: Literal) -> Result<(), ClauseError> {
         self.literals.push(literal);
         Ok(())
@@ -53,13 +45,13 @@ impl Clause {
     pub fn is_sat_on(&self, assignment: &Valuation) -> bool {
         self.literals
             .iter()
-            .any(|l| assignment.get_by_variable_id(l.v_id()) == Ok(Some(l.polarity())))
+            .any(|l| assignment.get_by_variable_id(l.v_id) == Ok(Some(l.polarity)))
     }
 
     pub fn is_unsat_on(&self, assignment: &Valuation) -> bool {
         self.literals.iter().all(|l| {
-            if let Ok(Some(variable_assignment)) = assignment.get_by_variable_id(l.v_id()) {
-                variable_assignment != l.polarity()
+            if let Ok(Some(variable_assignment)) = assignment.get_by_variable_id(l.v_id) {
+                variable_assignment != l.polarity
             } else {
                 false
             }
@@ -70,8 +62,8 @@ impl Clause {
         let mut unit = None;
 
         for literal in &self.literals {
-            if let Ok(assigned_value) = assignment.get_by_variable_id(literal.v_id()) {
-                if assigned_value.is_some_and(|v| v == literal.polarity()) {
+            if let Ok(assigned_value) = assignment.get_by_variable_id(literal.v_id) {
+                if assigned_value.is_some_and(|v| v == literal.polarity) {
                     // the clause is satisfied and so does not provide any new information
                     break;
                 } else if assigned_value.is_some() {
