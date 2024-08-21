@@ -1,5 +1,5 @@
 use crate::structures::{
-    Assignment, ClauseId, Literal, LiteralSource, Solve, SolveError, Valuation, VariableId,
+    Assignment, ClauseId, Literal, LiteralSource, Solve, SolveError, VariableId,
 };
 use std::collections::BTreeSet;
 
@@ -82,10 +82,22 @@ impl Solve {
         });
     }
 
-    pub fn propagate_unit(&self, assignment: &mut Assignment) -> Option<Vec<(ClauseId, Literal)>> {
+    pub fn propagate_all_units(&self, assignment: &mut Assignment) -> Option<Vec<(ClauseId, Literal)>> {
         let mut units_found = vec![];
         while let Some((clause_id, lit)) = self.find_unit_on(&assignment.valuation) {
-            assignment.set(&lit, LiteralSource::DeductionClause(clause_id));
+            assignment.set(&lit, LiteralSource::Clause(clause_id));
+            units_found.push((clause_id, lit));
+        }
+        match units_found.is_empty() {
+            true => None,
+            false => Some(units_found),
+        }
+    }
+
+    pub fn propagate_by_implication_graph(&self, assignment: &mut Assignment) -> Option<Vec<(ClauseId, Literal)>> {
+        let mut units_found = vec![];
+        while let Some((clause_id, lit)) = self.find_unit_on(&assignment.valuation) {
+            assignment.set(&lit, LiteralSource::Clause(clause_id));
             units_found.push((clause_id, lit));
         }
         match units_found.is_empty() {
@@ -99,7 +111,7 @@ impl Solve {
         let sat_assignment: Option<(bool, Assignment)>;
         // settle any forced choices
         self.settle_hobson_choices(&mut the_search);
-        self.propagate_unit(&mut the_search);
+        self.propagate_all_units(&mut the_search);
 
         loop {
             // 1. (un)sat check
@@ -118,7 +130,7 @@ impl Solve {
                 }
             }
             // 2. search
-            if let Some(_units_found) = self.propagate_unit(&mut the_search) {
+            if let Some(_the_units_found) = self.propagate_all_units(&mut the_search) {
                 continue;
             }
 

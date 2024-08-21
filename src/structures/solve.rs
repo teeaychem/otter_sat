@@ -1,9 +1,11 @@
 use crate::structures::{
-    Clause, ClauseError, ClauseId, Literal, LiteralError, Valuation, Variable, VariableId,
+    Clause, ClauseError, ClauseId, Literal, LiteralError, ValuationVec, Variable, VariableId,
 };
 
 use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+
+use super::Valuation;
 
 #[derive(Debug)]
 pub struct Solve {
@@ -86,19 +88,19 @@ impl Solve {
 
 // SAT related things
 impl Solve {
-    pub fn is_unsat_on(&self, assignment: &Valuation) -> bool {
+    pub fn is_unsat_on(&self, assignment: &ValuationVec) -> bool {
         self.clauses
             .iter()
             .any(|clause| clause.is_unsat_on(assignment))
     }
 
-    pub fn is_sat_on(&self, assignment: &Valuation) -> bool {
+    pub fn is_sat_on(&self, assignment: &ValuationVec) -> bool {
         self.clauses
             .iter()
             .all(|clause| clause.is_sat_on(assignment))
     }
 
-    pub fn find_unit_on(&self, assignment: &Valuation) -> Option<(ClauseId, Literal)> {
+    pub fn find_unit_on(&self, assignment: &ValuationVec) -> Option<(ClauseId, Literal)> {
         for clause in self.clauses.iter() {
             if let Some(unit_literal) = clause.find_unit_literal(assignment) {
                 return Some((clause.id, unit_literal));
@@ -107,7 +109,6 @@ impl Solve {
         None
     }
 
-
     /* ideally the check on an ignored unit is improved
      for example, with watched literals a clause can be ignored in advance if the ignored literal is watched and it's negation is not part of the given valuation.
     whether this makes sense to do…
@@ -115,7 +116,7 @@ impl Solve {
 
     pub fn all_immediate_units_on(
         &self,
-        assignment: &Valuation,
+        assignment: &ValuationVec,
         ignoring: &BTreeSet<(ClauseId, Literal)>,
     ) -> BTreeSet<(ClauseId, Literal)> {
         let mut the_set = BTreeSet::new();
@@ -132,7 +133,7 @@ impl Solve {
 
     pub fn find_all_units_on(
         &self,
-        valuation: &Valuation,
+        valuation: &ValuationVec,
         ignoring: &mut BTreeSet<(ClauseId, Literal)>,
     ) -> Vec<(ClauseId, Literal)> {
         let immediate_units = self.all_immediate_units_on(valuation, ignoring);
@@ -141,7 +142,7 @@ impl Solve {
         if !immediate_units.is_empty() {
             for (_, literal) in &immediate_units {
                 let mut updated_valuation = valuation.clone();
-                updated_valuation.set(literal);
+                updated_valuation.set_literal(literal);
                 further_units.extend(
                     self.find_all_units_on(&updated_valuation, ignoring)
                         .iter()

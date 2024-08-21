@@ -31,7 +31,7 @@ fn main() {
             let result = the_solve.alt_deduction_solve();
             if let Ok((sat, assignment)) = result {
                 println!("SAT? {:?}", sat);
-                println!("Assignment: {}", assignment.valuation.as_external_string(&the_solve));
+                println!("Assignment: {}", assignment.valuation.as_display_string(&the_solve));
                 println!("Assignment: {:?}", &assignment);
             }
 
