@@ -195,7 +195,7 @@ impl ImplicationGraph {
         let mut relevant_edges: Vec<ImplicationGraphEdge> = vec![];
         for (clause_id, to_literal) in the_units {
             for from_literal in &solve.clauses[clause_id].literals {
-                if *from_literal != to_literal && relevant_ids.contains(&from_literal.v_id) {
+                if relevant_ids.contains(&from_literal.v_id) && *from_literal != to_literal {
                     relevant_edges.push((from_literal.v_id, clause_id, to_literal.v_id));
                 }
             }
