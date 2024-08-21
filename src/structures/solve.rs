@@ -3,7 +3,7 @@ use crate::structures::{
 };
 
 use std::collections::BTreeSet;
-use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+
 
 use super::Valuation;
 
@@ -76,13 +76,14 @@ impl Solve {
 
 // Clause things
 impl Solve {
-    fn make_clause_id() -> ClauseId {
-        static COUNTER: AtomicUsize = AtomicUsize::new(1);
-        COUNTER.fetch_add(1, AtomicOrdering::Relaxed) as ClauseId
-    }
+    // use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+    // fn make_clause_id() -> ClauseId {
+    //     static COUNTER: AtomicUsize = AtomicUsize::new(1);
+    //     COUNTER.fetch_add(1, AtomicOrdering::Relaxed) as ClauseId
+    // }
 
-    pub fn fresh_clause() -> Clause {
-        Clause::new(Self::make_clause_id())
+    pub fn fresh_clause(&self) -> Clause {
+        Clause::new(self.clauses.len())
     }
 }
 
@@ -114,9 +115,9 @@ impl Solve {
     whether this makes sense to do…
     */
 
-    pub fn all_immediate_units_on(
+    pub fn all_immediate_units_on<T: Valuation>(
         &self,
-        assignment: &ValuationVec,
+        assignment: &T,
         ignoring: &BTreeSet<(ClauseId, Literal)>,
     ) -> BTreeSet<(ClauseId, Literal)> {
         let mut the_set = BTreeSet::new();
@@ -131,9 +132,9 @@ impl Solve {
         the_set
     }
 
-    pub fn find_all_units_on(
+    pub fn find_all_units_on<T: Valuation + Clone>(
         &self,
-        valuation: &ValuationVec,
+        valuation: &T,
         ignoring: &mut BTreeSet<(ClauseId, Literal)>,
     ) -> Vec<(ClauseId, Literal)> {
         let immediate_units = self.all_immediate_units_on(valuation, ignoring);
