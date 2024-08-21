@@ -1,14 +1,17 @@
 use std::{collections::BTreeSet, fmt::Debug};
 
-use crate::structures::{Literal, LiteralSource, Solve, Variable, VariableId};
-
-use super::{literal, ClauseId};
+use crate::structures::{ClauseId, Literal, LiteralSource, Solve, Variable, VariableId};
 
 /// a partial assignment with some history
 #[derive(Clone, Debug)]
 pub struct Assignment {
-    pub valuation: Valuation,
-    levels: Vec<Level>,
+    pub valuation: Vec<Option<bool>>,
+    pub levels: Vec<Level>,
+}
+
+#[derive(PartialEq)]
+pub enum AssignmentError {
+    OutOfBounds,
 }
 
 #[derive(Clone, Debug)]
@@ -44,55 +47,6 @@ impl Level {
     }
 }
 
-pub type EdgeId = usize;
-pub type ImplicationGraphEdge = (VariableId, ClauseId, VariableId);
-
-#[derive(Clone, Debug)]
-pub struct ImplicationGraph {
-    backwards: Vec<Option<BTreeSet<EdgeId>>>, // indicies correspond to variables, indexed vec is for edges
-    edges: Vec<ImplicationGraphEdge>,
-}
-
-impl ImplicationGraph {
-    pub fn new(assignment: &Assignment) -> Self {
-        ImplicationGraph {
-            backwards: vec![None; assignment.valuation.status.len()],
-            edges: vec![],
-        }
-    }
-
-    pub fn from(assignment: &Assignment, solve: &Solve) -> ImplicationGraph {
-        let the_units = solve.find_all_units_on(&assignment.valuation, &mut BTreeSet::new());
-        let edges = the_units
-            .iter()
-            .flat_map(|(clause_id, to_literal)| {
-                solve.clauses[*clause_id as usize]
-                    .literals
-                    .iter()
-                    .filter(|&l| l != to_literal)
-                    .map(|from_literal| (from_literal.v_id, *clause_id, to_literal.v_id))
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let mut the_graph = ImplicationGraph {
-            backwards: vec![None; assignment.valuation.status.len()],
-            edges,
-        };
-        the_graph.add_backwards();
-        the_graph
-    }
-
-    pub fn add_backwards(&mut self) {
-        for (edge_id, (_from_node, _clause_id, to_node)) in self.edges.iter().enumerate() {
-            if let Some(Some(set)) = self.backwards.get_mut(*to_node as usize) {
-                set.insert(edge_id);
-            } else {
-                self.backwards[*to_node as usize] = Some(BTreeSet::from([edge_id]));
-            };
-        }
-    }
-}
-
 impl Assignment {
     pub fn fresh_level(&mut self) -> &mut Level {
         let level_cout = self.levels.len();
@@ -119,46 +73,18 @@ impl Assignment {
         println!("the graph: {:?}", the_graph);
         self.last_level_mut().implications = the_graph;
     }
-}
 
-#[derive(Debug, Clone)]
-pub struct Valuation {
-    status: Vec<Option<bool>>,
-}
-
-impl Valuation {
-    pub fn maybe_clear_level(&mut self, maybe_level: &Option<Level>) {
-        if let Some(level) = maybe_level {
-            for literal in level.literals() {
-                self.status[literal.v_id as usize] = None;
-            }
-        }
+    pub fn level_from_choice(&mut self, choice: &Literal, solve: &Solve) {
+        let the_level = self.fresh_level();
+        the_level.choices.push(choice.clone());
+        let the_graph = ImplicationGraph::from(self, solve);
+        println!("the graph: {:?}", the_graph);
+        self.last_level_mut().implications = the_graph;
     }
-}
 
-#[derive(PartialEq)]
-pub enum AssignmentError {
-    OutOfBounds,
-}
-
-impl std::fmt::Display for Valuation {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "[")?;
-        for maybe_literal in self.status.iter() {
-            if let Some(literal) = maybe_literal {
-                write!(f, "{}", literal)?
-            } else {
-                write!(f, " ❍ ")?
-            }
-        }
-        write!(f, "]")
-    }
-}
-
-impl Assignment {
     pub fn for_solve(solve: &Solve) -> Self {
         let mut the_assignment = Assignment {
-            valuation: Valuation::new(solve.vars().len()),
+            valuation: Vec::<Option<bool>>::new_for_variables(solve.vars().len()),
             levels: vec![],
         };
         let level_zero = Level::new(0, &the_assignment);
@@ -172,12 +98,12 @@ impl Assignment {
             return None;
         }
         let the_level = self.levels.pop();
-        self.valuation.maybe_clear_level(&the_level);
+        self.valuation.clear_if_level(&the_level);
         the_level
     }
 
     pub fn set(&mut self, literal: &Literal, source: LiteralSource) {
-        self.valuation.set(literal);
+        self.valuation.set_literal(literal);
         match source {
             LiteralSource::Choice => {
                 let fresh_level = self.fresh_level();
@@ -186,7 +112,7 @@ impl Assignment {
             LiteralSource::HobsonChoice | LiteralSource::Assumption => {
                 self.level_mut(0).observations.push(literal.clone());
             }
-            LiteralSource::DeductionClause(_) | LiteralSource::Conflict => {
+            LiteralSource::Clause(_) | LiteralSource::Conflict => {
                 self.last_level_mut().observations.push(literal.clone());
             }
         };
@@ -196,21 +122,36 @@ impl Assignment {
         solve
             .vars()
             .iter()
-            .find(|&v| self.valuation.get_by_variable(v).is_ok_and(|p| p.is_none()))
+            .find(|&v| self.valuation.of_v_id(v.id).is_ok_and(|p| p.is_none()))
             .map(|found| found.id)
     }
 }
 
-impl Valuation {
-    pub fn new(variable_count: usize) -> Self {
-        Valuation {
-            status: vec![None; variable_count + 1],
-        }
+// Valuation
+
+pub type ValuationVec = Vec<Option<bool>>;
+
+pub trait Valuation {
+    fn new_for_variables(variable_count: usize) -> Self;
+
+    fn as_display_string(&self, solve: &Solve) -> String;
+
+    fn of_v_id(&self, v_id: VariableId) -> Result<Option<bool>, AssignmentError>;
+
+    fn set_literal(&mut self, literal: &Literal);
+
+    fn clear_v_id(&mut self, v_id: VariableId);
+
+    fn clear_if_level(&mut self, maybe_level: &Option<Level>);
+}
+
+impl Valuation for ValuationVec {
+    fn new_for_variables(variable_count: usize) -> Self {
+        vec![None; variable_count + 1]
     }
 
-    pub fn as_external_string(&self, solve: &Solve) -> String {
-        self.status
-            .iter()
+    fn as_display_string(&self, solve: &Solve) -> String {
+        self.iter()
             .enumerate()
             .filter(|(_, p)| p.is_some())
             .map(|(i, p)| {
@@ -225,36 +166,96 @@ impl Valuation {
             .join(" ")
     }
 
-    pub fn get_by_variable(&self, variable: &Variable) -> Result<Option<bool>, AssignmentError> {
-        self.get_by_variable_id(variable.id)
-    }
-
-    pub fn get_by_variable_id(&self, v_id: VariableId) -> Result<Option<bool>, AssignmentError> {
-        if let Some(&info) = self.status.get(v_id as usize) {
+    fn of_v_id(&self, v_id: VariableId) -> Result<Option<bool>, AssignmentError> {
+        if let Some(&info) = self.get(v_id as usize) {
             Ok(info)
         } else {
             Err(AssignmentError::OutOfBounds)
         }
     }
 
-    pub fn set(&mut self, literal: &Literal) {
-        self.status[literal.v_id as usize] = Some(literal.polarity)
+    fn set_literal(&mut self, literal: &Literal) {
+        self[literal.v_id as usize] = Some(literal.polarity)
     }
 
-    pub fn clear(&mut self, v_id: VariableId) {
-        self.status[v_id as usize] = None
+    fn clear_v_id(&mut self, v_id: VariableId) {
+        self[v_id as usize] = None
     }
 
-    pub fn get_unassigned(&self) -> Option<VariableId> {
-        if let Some((index, _)) = self
-            .status
+    fn clear_if_level(&mut self, maybe_level: &Option<Level>) {
+        if let Some(level) = maybe_level {
+            level
+                .literals()
+                .iter()
+                .for_each(|l| self.clear_v_id(l.v_id))
+        }
+    }
+}
+
+
+
+// impl std::fmt::Display for ValuationStruct {
+//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+//         write!(f, "[")?;
+//         for maybe_literal in self.status.iter() {
+//             if let Some(literal) = maybe_literal {
+//                 write!(f, "{}", literal)?
+//             } else {
+//                 write!(f, " ❍ ")?
+//             }
+//         }
+//         write!(f, "]")
+//     }
+// }
+
+
+// Implication graph
+
+pub type EdgeId = usize;
+pub type ImplicationGraphEdge = (VariableId, ClauseId, VariableId);
+
+#[derive(Clone, Debug)]
+pub struct ImplicationGraph {
+    backwards: Vec<Option<BTreeSet<EdgeId>>>, // indicies correspond to variables, indexed vec is for edges
+    edges: Vec<ImplicationGraphEdge>,
+}
+
+impl ImplicationGraph {
+    pub fn new(assignment: &Assignment) -> Self {
+        ImplicationGraph {
+            backwards: vec![None; assignment.valuation.len()],
+            edges: vec![],
+        }
+    }
+
+    pub fn from(assignment: &Assignment, solve: &Solve) -> ImplicationGraph {
+        let the_units = solve.find_all_units_on(&assignment.valuation, &mut BTreeSet::new());
+        let edges = the_units
             .iter()
-            .enumerate()
-            .find(|(i, v)| *i > 0 && v.is_none())
-        {
-            Some(index as VariableId)
-        } else {
-            None
+            .flat_map(|(clause_id, to_literal)| {
+                solve.clauses[*clause_id as usize]
+                    .literals
+                    .iter()
+                    .filter(|&l| l != to_literal)
+                    .map(|from_literal| (from_literal.v_id, *clause_id, to_literal.v_id))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        let mut the_graph = ImplicationGraph {
+            backwards: vec![None; assignment.valuation.len()],
+            edges,
+        };
+        the_graph.add_backwards();
+        the_graph
+    }
+
+    pub fn add_backwards(&mut self) {
+        for (edge_id, (_from_node, _clause_id, to_node)) in self.edges.iter().enumerate() {
+            if let Some(Some(set)) = self.backwards.get_mut(*to_node as usize) {
+                set.insert(edge_id);
+            } else {
+                self.backwards[*to_node as usize] = Some(BTreeSet::from([edge_id]));
+            };
         }
     }
 }

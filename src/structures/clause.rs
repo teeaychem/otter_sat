@@ -1,5 +1,5 @@
 use crate::{
-    structures::{Literal, LiteralError, Valuation},
+    structures::{Literal, LiteralError, Valuation, ValuationVec},
     Assignment,
 };
 
@@ -42,15 +42,15 @@ impl Clause {
         Ok(())
     }
 
-    pub fn is_sat_on(&self, assignment: &Valuation) -> bool {
+    pub fn is_sat_on(&self, assignment: &ValuationVec) -> bool {
         self.literals
             .iter()
-            .any(|l| assignment.get_by_variable_id(l.v_id) == Ok(Some(l.polarity)))
+            .any(|l| assignment.of_v_id(l.v_id) == Ok(Some(l.polarity)))
     }
 
-    pub fn is_unsat_on(&self, assignment: &Valuation) -> bool {
+    pub fn is_unsat_on(&self, assignment: &ValuationVec) -> bool {
         self.literals.iter().all(|l| {
-            if let Ok(Some(variable_assignment)) = assignment.get_by_variable_id(l.v_id) {
+            if let Ok(Some(variable_assignment)) = assignment.of_v_id(l.v_id) {
                 variable_assignment != l.polarity
             } else {
                 false
@@ -58,11 +58,11 @@ impl Clause {
         })
     }
 
-    pub fn find_unit_literal(&self, assignment: &Valuation) -> Option<Literal> {
+    pub fn find_unit_literal(&self, assignment: &ValuationVec) -> Option<Literal> {
         let mut unit = None;
 
         for literal in &self.literals {
-            if let Ok(assigned_value) = assignment.get_by_variable_id(literal.v_id) {
+            if let Ok(assigned_value) = assignment.of_v_id(literal.v_id) {
                 if assigned_value.is_some_and(|v| v == literal.polarity) {
                     // the clause is satisfied and so does not provide any new information
                     break;
