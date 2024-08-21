@@ -1,5 +1,5 @@
 use crate::structures::{
-    Assignment, ClauseId, Literal, LiteralSource, Solve, SolveError, VariableId,
+    Assignment, ClauseId, Literal, LiteralSource, Solve, SolveError, Valuation, VariableId,
 };
 use std::collections::BTreeSet;
 
@@ -82,7 +82,10 @@ impl Solve {
         });
     }
 
-    pub fn propagate_all_units(&self, assignment: &mut Assignment) -> Option<Vec<(ClauseId, Literal)>> {
+    pub fn propagate_all_units(
+        &self,
+        assignment: &mut Assignment,
+    ) -> Option<Vec<(usize, Literal)>> {
         let mut units_found = vec![];
         while let Some((clause_id, lit)) = self.find_unit_on(&assignment.valuation) {
             assignment.set(&lit, LiteralSource::Clause(clause_id));
@@ -94,7 +97,10 @@ impl Solve {
         }
     }
 
-    pub fn propagate_by_implication_graph(&self, assignment: &mut Assignment) -> Option<Vec<(ClauseId, Literal)>> {
+    pub fn propagate_by_implication_graph(
+        &self,
+        assignment: &mut Assignment,
+    ) -> Option<Vec<(usize, Literal)>> {
         let mut units_found = vec![];
         while let Some((clause_id, lit)) = self.find_unit_on(&assignment.valuation) {
             assignment.set(&lit, LiteralSource::Clause(clause_id));
@@ -134,6 +140,47 @@ impl Solve {
                 continue;
             }
 
+            if let Some(v_id) = the_search.get_unassigned_id(self) {
+                the_search.set(&Literal::new(v_id, true), LiteralSource::Choice);
+                continue;
+            }
+        }
+        match sat_assignment {
+            Some(pair) => Ok(pair),
+            None => Err(SolveError::Hek),
+        }
+    }
+
+    pub fn implication_solve(&mut self) -> Result<(bool, Assignment), SolveError> {
+        println!("~~~ an implication solve ~~~");
+        let mut the_search = Assignment::for_solve(self);
+        let sat_assignment: Option<(bool, Assignment)>;
+        // settle any forced choices
+        self.settle_hobson_choices(&mut the_search);
+        self.propagate_all_units(&mut the_search);
+
+        loop {
+            // 1. (un)sat check
+            if self.is_sat_on(&the_search.valuation) {
+                sat_assignment = Some((true, the_search));
+                break;
+            } else if self.is_unsat_on(&the_search.valuation) {
+                if let Some(level) = the_search.pop_last_level() {
+                    the_search.make_implication_for_last_level(self);
+                    level.choices.into_iter().for_each(|choice| {
+                        the_search.set(&choice.negate(), LiteralSource::Conflict)
+                    })
+                } else {
+                    sat_assignment = Some((false, the_search));
+                    break;
+                }
+            }
+            // 2. search
+            the_search.add_implication_graph_for_level(the_search.current_level(), self);
+            if !the_search.graph_at_level(the_search.current_level()).units.is_empty() {
+                the_search.add_literals_from_graph(the_search.current_level());
+                continue;
+            }
 
             if let Some(v_id) = the_search.get_unassigned_id(self) {
                 the_search.set(&Literal::new(v_id, true), LiteralSource::Choice);

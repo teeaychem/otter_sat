@@ -3,7 +3,7 @@ use crate::{
     Assignment,
 };
 
-pub type ClauseId = u32;
+pub type ClauseId = usize;
 
 #[derive(Debug)]
 pub enum ClauseError {
@@ -13,7 +13,7 @@ pub enum ClauseError {
 
 #[derive(Debug)]
 pub struct Clause {
-    pub id: ClauseId,
+    pub id: usize,
     pub literals: Vec<Literal>,
 }
 
@@ -30,9 +30,9 @@ impl std::fmt::Display for Clause {
 }
 
 impl Clause {
-    pub fn new(id: ClauseId) -> Clause {
+    pub fn new(position: usize) -> Clause {
         Clause {
-            id,
+            id: position,
             literals: Vec::new(),
         }
     }
@@ -58,7 +58,7 @@ impl Clause {
         })
     }
 
-    pub fn find_unit_literal(&self, assignment: &ValuationVec) -> Option<Literal> {
+    pub fn find_unit_literal<T: Valuation>(&self, assignment: &T) -> Option<Literal> {
         let mut unit = None;
 
         for literal in &self.literals {

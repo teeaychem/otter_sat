@@ -30,7 +30,7 @@ impl Solve {
 impl Solve {
     pub fn add_clause(&mut self, string: &str) -> Result<(), SolveError> {
         let string_lterals = string.split_whitespace();
-        let mut the_clause = Self::fresh_clause();
+        let mut the_clause = self.fresh_clause();
         for string_literal in string_lterals {
             let _ = match self.literal_from_string(string_literal) {
                 Ok(made) => the_clause.add_literal(made),

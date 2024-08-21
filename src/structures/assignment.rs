@@ -55,6 +55,10 @@ impl Assignment {
         &mut self.levels[level_cout]
     }
 
+    pub fn current_level(&self) -> usize {
+        self.levels.len() - 1
+    }
+
     pub fn last_level(&self) -> &Level {
         self.levels.last().unwrap()
     }
@@ -69,15 +73,13 @@ impl Assignment {
     }
 
     pub fn make_implication_for_last_level(&mut self, solve: &Solve) {
-        let the_graph = ImplicationGraph::from(self, solve);
-        println!("the graph: {:?}", the_graph);
-        self.last_level_mut().implications = the_graph;
+        self.last_level_mut().implications = ImplicationGraph::from(&self.valuation, solve);
     }
 
     pub fn level_from_choice(&mut self, choice: &Literal, solve: &Solve) {
         let the_level = self.fresh_level();
         the_level.choices.push(choice.clone());
-        let the_graph = ImplicationGraph::from(self, solve);
+        let the_graph = ImplicationGraph::from(&self.valuation, solve);
         println!("the graph: {:?}", the_graph);
         self.last_level_mut().implications = the_graph;
     }
@@ -125,6 +127,35 @@ impl Assignment {
             .find(|&v| self.valuation.of_v_id(v.id).is_ok_and(|p| p.is_none()))
             .map(|found| found.id)
     }
+
+    pub fn valuation_at_level(&self, index: usize) -> ValuationVec {
+        let mut valuation = ValuationVec::new_for_variables(self.valuation.len());
+        (0..=index).for_each(|i| {
+            self.levels[i]
+                .literals()
+                .iter()
+                .for_each(|l| valuation.set_literal(l))
+        });
+        valuation
+    }
+
+    pub fn add_implication_graph_for_level(&mut self, index: usize, solve: &Solve) {
+        let valuation = self.valuation_at_level(index);
+        let the_graph = ImplicationGraph::from(&valuation, solve);
+        self.levels[index].implications = the_graph;
+    }
+
+    pub fn graph_at_level(&self, index: usize) -> &ImplicationGraph {
+        &self.levels[index].implications
+    }
+
+    pub fn add_literals_from_graph(&mut self, index: usize) {
+        let the_level = &mut self.levels[index];
+        the_level.implications.units.iter().for_each(|l| {
+            self.valuation.set_literal(l);
+            the_level.observations.push(l.clone());
+        })
+    }
 }
 
 // Valuation
@@ -143,6 +174,8 @@ pub trait Valuation {
     fn clear_v_id(&mut self, v_id: VariableId);
 
     fn clear_if_level(&mut self, maybe_level: &Option<Level>);
+
+    fn size(&self) -> usize;
 }
 
 impl Valuation for ValuationVec {
@@ -190,24 +223,11 @@ impl Valuation for ValuationVec {
                 .for_each(|l| self.clear_v_id(l.v_id))
         }
     }
+
+    fn size(&self) -> usize {
+        self.len()
+    }
 }
-
-
-
-// impl std::fmt::Display for ValuationStruct {
-//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-//         write!(f, "[")?;
-//         for maybe_literal in self.status.iter() {
-//             if let Some(literal) = maybe_literal {
-//                 write!(f, "{}", literal)?
-//             } else {
-//                 write!(f, " ❍ ")?
-//             }
-//         }
-//         write!(f, "]")
-//     }
-// }
-
 
 // Implication graph
 
@@ -216,6 +236,7 @@ pub type ImplicationGraphEdge = (VariableId, ClauseId, VariableId);
 
 #[derive(Clone, Debug)]
 pub struct ImplicationGraph {
+    pub units: Vec<Literal>,
     backwards: Vec<Option<BTreeSet<EdgeId>>>, // indicies correspond to variables, indexed vec is for edges
     edges: Vec<ImplicationGraphEdge>,
 }
@@ -223,17 +244,23 @@ pub struct ImplicationGraph {
 impl ImplicationGraph {
     pub fn new(assignment: &Assignment) -> Self {
         ImplicationGraph {
+            units: vec![],
             backwards: vec![None; assignment.valuation.len()],
             edges: vec![],
         }
     }
 
-    pub fn from(assignment: &Assignment, solve: &Solve) -> ImplicationGraph {
-        let the_units = solve.find_all_units_on(&assignment.valuation, &mut BTreeSet::new());
+    pub fn from<T: Valuation + Clone>(valuation: &T, solve: &Solve) -> ImplicationGraph {
+        let the_units = solve.find_all_units_on(valuation, &mut BTreeSet::new());
+        let units = the_units
+            .iter()
+            .map(|(_clause, literal)| literal)
+            .cloned()
+            .collect();
         let edges = the_units
             .iter()
             .flat_map(|(clause_id, to_literal)| {
-                solve.clauses[*clause_id as usize]
+                solve.clauses[*clause_id]
                     .literals
                     .iter()
                     .filter(|&l| l != to_literal)
@@ -242,10 +269,12 @@ impl ImplicationGraph {
             })
             .collect::<Vec<_>>();
         let mut the_graph = ImplicationGraph {
-            backwards: vec![None; assignment.valuation.len()],
+            units,
+            backwards: vec![None; valuation.size()],
             edges,
         };
         the_graph.add_backwards();
+
         the_graph
     }
 

@@ -28,7 +28,7 @@ fn main() {
             the_solve.literals_of_polarity(false);
             the_solve.hobson_choices();
 
-            let result = the_solve.alt_deduction_solve();
+            let result = the_solve.implication_solve();
             if let Ok((sat, assignment)) = result {
                 println!("SAT? {:?}", sat);
                 println!("Assignment: {}", assignment.valuation.as_display_string(&the_solve));
