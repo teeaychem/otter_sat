@@ -1,11 +1,8 @@
 use crate::structures::{
-    Clause, ClauseError, ClauseId, Literal, LiteralError, ValuationVec, Variable, VariableId,
+    Clause, ClauseId, Literal, LiteralError, Valuation, ValuationVec, Variable, VariableId,
 };
 
 use std::collections::BTreeSet;
-
-
-use super::Valuation;
 
 #[derive(Debug)]
 pub struct Solve {

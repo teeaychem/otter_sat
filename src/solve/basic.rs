@@ -126,7 +126,6 @@ impl Solve {
                 break;
             } else if self.is_unsat_on(&the_search.valuation) {
                 if let Some(level) = the_search.pop_last_level() {
-                    the_search.make_implication_for_last_level(self);
                     level.choices.into_iter().for_each(|choice| {
                         the_search.set(&choice.negate(), LiteralSource::Conflict)
                     })
@@ -157,7 +156,7 @@ impl Solve {
         let sat_assignment: Option<(bool, Assignment)>;
         // settle any forced choices
         self.settle_hobson_choices(&mut the_search);
-        self.propagate_all_units(&mut the_search);
+        // self.propagate_all_units(&mut the_search);
 
         loop {
             // 1. (un)sat check
@@ -166,7 +165,6 @@ impl Solve {
                 break;
             } else if self.is_unsat_on(&the_search.valuation) {
                 if let Some(level) = the_search.pop_last_level() {
-                    the_search.make_implication_for_last_level(self);
                     level.choices.into_iter().for_each(|choice| {
                         the_search.set(&choice.negate(), LiteralSource::Conflict)
                     })
