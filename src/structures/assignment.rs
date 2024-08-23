@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::structures::{
-    ImplicationGraph, Literal, LiteralSource, Solve, Valuation, ValuationVec, VariableId,
+    ImpGraph, Literal, LiteralSource, Solve, Valuation, ValuationVec, VariableId,
 };
 
 /// a partial assignment with some history
@@ -21,7 +21,7 @@ pub struct Level {
     index: usize,
     pub choices: Vec<Literal>,
     observations: Vec<Literal>,
-    implications: ImplicationGraph,
+    pub implications: ImpGraph,
 }
 
 impl Level {
@@ -30,7 +30,7 @@ impl Level {
             index,
             choices: vec![],
             observations: vec![],
-            implications: ImplicationGraph::new(assignment),
+            implications: ImpGraph::new(assignment),
         }
     }
 
@@ -41,10 +41,11 @@ impl Level {
         }
     }
 
-    pub fn literals(&self) -> Vec<&Literal> {
+    pub fn literals(&self) -> Vec<Literal> {
         self.choices
             .iter()
             .chain(self.observations.iter())
+            .cloned()
             .collect()
     }
 }
@@ -139,11 +140,11 @@ impl Assignment {
 
     pub fn add_implication_graph_for_level(&mut self, index: usize, solve: &Solve) {
         // let valuation = self.valuation_at_level(index);
-        let the_graph = ImplicationGraph::for_level(self, index, solve);
+        let the_graph = ImpGraph::for_level(self, index, solve);
         self.levels[index].implications = the_graph;
     }
 
-    pub fn graph_at_level(&self, index: usize) -> &ImplicationGraph {
+    pub fn graph_at_level(&self, index: usize) -> &ImpGraph {
         &self.levels[index].implications
     }
 

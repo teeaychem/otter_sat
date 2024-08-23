@@ -155,7 +155,7 @@ impl Solve {
         let mut the_search = Assignment::for_solve(self);
         let sat_assignment: Option<(bool, Assignment)>;
         // settle any forced choices
-        self.settle_hobson_choices(&mut the_search);
+        // self.settle_hobson_choices(&mut the_search);
         // self.propagate_all_units(&mut the_search);
 
         loop {
@@ -164,7 +164,11 @@ impl Solve {
                 sat_assignment = Some((true, the_search));
                 break;
             } else if self.is_unsat_on(&the_search.valuation) {
-                if let Some(level) = the_search.pop_last_level() {
+                // let unsat_valuation = the_search.valuation.literals();
+                if let Some(mut level) = the_search.pop_last_level() {
+                    println!("level {:?}", level);
+                    level.implications.trace_implication_paths(level.literals());
+                    println!("ig: {:?}", level.implications);
                     level.choices.into_iter().for_each(|choice| {
                         the_search.set(&choice.negate(), LiteralSource::Conflict)
                     })
@@ -175,13 +179,17 @@ impl Solve {
             }
             // 2. search
             the_search.add_implication_graph_for_level(the_search.current_level(), self);
-            if !the_search.graph_at_level(the_search.current_level()).units.is_empty() {
+            if !the_search
+                .graph_at_level(the_search.current_level())
+                .units
+                .is_empty()
+            {
                 the_search.add_literals_from_graph(the_search.current_level());
                 continue;
             }
 
             if let Some(v_id) = the_search.get_unassigned_id(self) {
-                the_search.set(&Literal::new(v_id, true), LiteralSource::Choice);
+                the_search.set(&Literal::new(v_id, false), LiteralSource::Choice);
                 continue;
             }
         }
