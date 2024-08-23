@@ -17,6 +17,8 @@ pub trait Valuation {
     fn clear_if_level(&mut self, maybe_level: &Option<Level>);
 
     fn size(&self) -> usize;
+
+    fn literals(&self) -> Vec<Literal>;
 }
 
 impl Valuation for ValuationVec {
@@ -67,5 +69,14 @@ impl Valuation for ValuationVec {
 
     fn size(&self) -> usize {
         self.len()
+    }
+
+    fn literals(&self) -> Vec<Literal> {
+        self
+            .iter()
+            .enumerate()
+            .filter(|(_, v)| v.is_some())
+            .map(|(i, v)| Literal::new(i.try_into().unwrap(), v.unwrap()))
+            .collect::<Vec<_>>()
     }
 }

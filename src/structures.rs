@@ -10,4 +10,4 @@ pub use crate::structures::clause::{Clause, ClauseError, ClauseId};
 pub use crate::structures::literal::{Literal, LiteralError, LiteralSource, Variable, VariableId};
 pub use crate::structures::solve::{Solve, SolveError};
 pub use crate::structures::valuation::{Valuation, ValuationVec};
-pub use crate::structures::implication_graph::{EdgeId, ImplicationGraph};
+pub use crate::structures::implication_graph::{EdgeId, ImpGraph, ImpGraphEdge};
