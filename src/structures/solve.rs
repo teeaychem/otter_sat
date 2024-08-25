@@ -15,6 +15,8 @@ pub enum SolveError {
     Literal(LiteralError),
     // Clause(ClauseError),
     ParseFailure,
+    PrefaceLength,
+    PrefaceFormat,
     Hek,
 }
 
