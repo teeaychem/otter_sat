@@ -4,9 +4,12 @@ use crate::structures::{
     ImpGraph, Literal, LiteralSource, Solve, Valuation, ValuationVec, VariableId,
 };
 
+use super::valuation::ValuationError;
+
 /// a partial assignment with some history
 #[derive(Clone, Debug)]
 pub struct Assignment {
+    pub sat: Option<bool>,
     pub valuation: Vec<Option<bool>>,
     pub levels: Vec<Level>,
 }
@@ -85,6 +88,7 @@ impl Assignment {
 
     pub fn for_solve(solve: &Solve) -> Self {
         let mut the_assignment = Assignment {
+            sat: None,
             valuation: Vec::<Option<bool>>::new_for_variables(solve.vars().len()),
             levels: vec![],
         };
@@ -100,11 +104,12 @@ impl Assignment {
         }
         let the_level = self.levels.pop();
         self.valuation.clear_if_level(&the_level);
+        self.sat = None;
+
         the_level
     }
 
-    pub fn set(&mut self, literal: &Literal, source: LiteralSource) {
-        self.valuation.set_literal(literal);
+    pub fn set(&mut self, literal: &Literal, source: LiteralSource) -> Result<(), ValuationError> {
         match source {
             LiteralSource::Choice => {
                 let fresh_level = self.fresh_level();
@@ -117,6 +122,11 @@ impl Assignment {
                 self.last_level_mut().observations.push(literal.clone());
             }
         };
+        let result = self.valuation.set_literal(literal);
+        if let Err(ValuationError::Inconsistent) = result {
+            self.sat = Some(false)
+        }
+        result
     }
 
     pub fn get_unassigned_id(&self, solve: &Solve) -> Option<VariableId> {
@@ -130,10 +140,9 @@ impl Assignment {
     pub fn valuation_at_level(&self, index: usize) -> ValuationVec {
         let mut valuation = ValuationVec::new_for_variables(self.valuation.len());
         (0..=index).for_each(|i| {
-            self.levels[i]
-                .literals()
-                .iter()
-                .for_each(|l| valuation.set_literal(l))
+            self.levels[i].literals().iter().for_each(|l| {
+                let _ = valuation.set_literal(l);
+            })
         });
         valuation
     }
@@ -149,10 +158,9 @@ impl Assignment {
     }
 
     pub fn add_literals_from_graph(&mut self, index: usize) {
-        let the_level = &mut self.levels[index];
-        the_level.implications.units.iter().for_each(|l| {
-            self.valuation.set_literal(l);
-            the_level.observations.push(l.clone());
-        })
+        let the_units = self.levels[index].implications.units.clone();
+        for (clause_id, literal) in the_units {
+            let _ = self.set(&literal, LiteralSource::Clause(clause_id));
+        }
     }
 }
