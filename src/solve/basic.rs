@@ -127,7 +127,7 @@ impl Solve {
             } else if self.is_unsat_on(&the_search.valuation) {
                 if let Some(level) = the_search.pop_last_level() {
                     level.choices.into_iter().for_each(|choice| {
-                        the_search.set(&choice.negate(), LiteralSource::Conflict)
+                        the_search.set(&choice.negate(), LiteralSource::Conflict);
                     })
                 } else {
                     sat_assignment = Some((false, the_search));
@@ -160,23 +160,25 @@ impl Solve {
 
         loop {
             // 1. (un)sat check
-            if self.is_sat_on(&the_search.valuation) {
-                sat_assignment = Some((true, the_search));
-                break;
-            } else if self.is_unsat_on(&the_search.valuation) {
-                // let unsat_valuation = the_search.valuation.literals();
+            if Some(false) == the_search.sat {
                 if let Some(mut level) = the_search.pop_last_level() {
                     println!("level {:?}", level);
                     level.implications.trace_implication_paths(level.literals());
                     println!("ig: {:?}", level.implications);
                     level.choices.into_iter().for_each(|choice| {
-                        the_search.set(&choice.negate(), LiteralSource::Conflict)
+                        let _ = the_search.set(&choice.negate(), LiteralSource::Conflict);
                     })
                 } else {
                     sat_assignment = Some((false, the_search));
                     break;
                 }
             }
+
+            if self.is_sat_on(&the_search.valuation) {
+                sat_assignment = Some((true, the_search));
+                break;
+            }
+
             // 2. search
             the_search.add_implication_graph_for_level(the_search.current_level(), self);
             if !the_search
@@ -189,7 +191,7 @@ impl Solve {
             }
 
             if let Some(v_id) = the_search.get_unassigned_id(self) {
-                the_search.set(&Literal::new(v_id, false), LiteralSource::Choice);
+                let _ = the_search.set(&Literal::new(v_id, false), LiteralSource::Choice);
                 continue;
             }
         }

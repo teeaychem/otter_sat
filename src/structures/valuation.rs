@@ -10,7 +10,7 @@ pub trait Valuation {
 
     fn of_v_id(&self, v_id: VariableId) -> Result<Option<bool>, AssignmentError>;
 
-    fn set_literal(&mut self, literal: &Literal);
+    fn set_literal(&mut self, literal: &Literal) -> Result<(), ValuationError>;
 
     fn clear_v_id(&mut self, v_id: VariableId);
 
@@ -19,6 +19,10 @@ pub trait Valuation {
     fn size(&self) -> usize;
 
     fn literals(&self) -> Vec<Literal>;
+}
+
+pub enum ValuationError {
+    Inconsistent,
 }
 
 impl Valuation for ValuationVec {
@@ -50,8 +54,17 @@ impl Valuation for ValuationVec {
         }
     }
 
-    fn set_literal(&mut self, literal: &Literal) {
-        self[literal.v_id as usize] = Some(literal.polarity)
+    fn set_literal(&mut self, literal: &Literal) -> Result<(), ValuationError> {
+        if let Some(already_set) = self[literal.v_id as usize] {
+            if already_set == literal.polarity {
+                Ok(())
+            } else {
+                Err(ValuationError::Inconsistent)
+            }
+        } else {
+            self[literal.v_id as usize] = Some(literal.polarity);
+            Ok(())
+        }
     }
 
     fn clear_v_id(&mut self, v_id: VariableId) {
@@ -63,7 +76,7 @@ impl Valuation for ValuationVec {
             level
                 .literals()
                 .iter()
-                .for_each(|l| self.clear_v_id(l.v_id))
+                .for_each(|l| self.clear_v_id(l.v_id));
         }
     }
 
@@ -72,8 +85,7 @@ impl Valuation for ValuationVec {
     }
 
     fn literals(&self) -> Vec<Literal> {
-        self
-            .iter()
+        self.iter()
             .enumerate()
             .filter(|(_, v)| v.is_some())
             .map(|(i, v)| Literal::new(i.try_into().unwrap(), v.unwrap()))
