@@ -1,5 +1,5 @@
 use crate::structures::{Assignment, ClauseId, Literal, Solve, Valuation, VariableId};
-use std::collections::BTreeSet;
+use std::{borrow::Borrow, collections::BTreeSet};
 
 // Implication graph
 
@@ -66,7 +66,7 @@ impl ImpGraphPaths {
 
 #[derive(Clone, Debug)]
 pub struct ImpGraph {
-    pub units: Vec<Literal>,
+    pub units: Vec<(ClauseId, Literal)>,
     edges: Vec<ImpGraphEdge>,
     valuation_size: usize,
     nodes: Vec<ImpGraphNode>,
@@ -102,12 +102,12 @@ impl ImpGraph {
             .collect::<BTreeSet<_>>();
 
         let mut relevant_edges: Vec<ImpGraphEdge> = vec![];
-        for (clause_id, to_literal) in the_units {
-            for from_literal in &solve.clauses[clause_id].literals {
-                if relevant_ids.contains(&from_literal.v_id) && *from_literal != to_literal {
+        for (clause_id, to_literal) in &the_units {
+            for from_literal in &solve.clauses[*clause_id].literals {
+                if relevant_ids.contains(&from_literal.v_id) && from_literal != to_literal {
                     relevant_edges.push(ImpGraphEdge::new(
                         from_literal.v_id,
-                        clause_id,
+                        *clause_id,
                         to_literal.v_id,
                     ));
                 }
@@ -126,7 +126,7 @@ impl ImpGraph {
         //     .collect::<Vec<_>>();
         let mut the_graph = ImpGraph {
             valuation_size: valuation.size(),
-            units,
+            units: the_units,
             edges: relevant_edges,
             implication_paths: ImpGraphPaths::new_empty(),
             nodes: (0..valuation.size())
@@ -168,6 +168,7 @@ impl ImpGraph {
 
     /* a dfs over the graph where each terminal node is given a unique number and any intermediate node has all the numbers of it's associated terminal nodes
     only terminal nodes are considered, as if non terminal then the literal was unit from the decision and so must be passed through anyway
+
 
     could be improved by ignoring edges which differ only by clause id
     */
