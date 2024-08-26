@@ -38,7 +38,8 @@ impl Solve {
     // }
 
     pub fn literals_of_polarity(&self, polarity: bool) -> BTreeSet<Literal> {
-        self.clauses
+        self.formula
+            .clauses
             .iter()
             .fold(BTreeSet::new(), |mut acc: BTreeSet<Literal>, this| {
                 acc.extend(

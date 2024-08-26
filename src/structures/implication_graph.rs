@@ -1,5 +1,5 @@
 use crate::structures::{Assignment, ClauseId, Literal, Solve, Valuation, VariableId};
-use std::{borrow::Borrow, collections::BTreeSet};
+use std::collections::BTreeSet;
 
 // Implication graph
 
@@ -103,7 +103,7 @@ impl ImpGraph {
 
         let mut relevant_edges: Vec<ImpGraphEdge> = vec![];
         for (clause_id, to_literal) in &the_units {
-            for from_literal in &solve.clauses[*clause_id].literals {
+            for from_literal in &solve.formula.borrow_clause_by_id(*clause_id).literals {
                 if relevant_ids.contains(&from_literal.v_id) && from_literal != to_literal {
                     relevant_edges.push(ImpGraphEdge::new(
                         from_literal.v_id,

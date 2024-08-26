@@ -22,8 +22,9 @@ fn main() {
     // dbg!(&args);
     if let Ok(contents) = fs::read_to_string(args.file) {
         println!("read");
-        if let Ok(new_solve) = Solve::from_dimacs(&contents) {
-            let mut the_solve = new_solve;
+        if let Ok(formula) = Formula::from_dimacs(&contents) {
+            let mut the_solve = Solve::from_formula(formula);
+
             the_solve.literals_of_polarity(true);
             the_solve.literals_of_polarity(false);
             the_solve.hobson_choices();
@@ -35,6 +36,7 @@ fn main() {
                 println!("Assignment: {:?}", &assignment);
             }
 
+            println!("{}", the_solve);
             // dbg!(&the_solve);
         }
     }

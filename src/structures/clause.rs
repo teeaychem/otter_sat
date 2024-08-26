@@ -11,9 +11,10 @@ pub enum ClauseError {
     Empty,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Clause {
     pub id: usize,
+    pub position: usize,
     pub literals: Vec<Literal>,
 }
 
@@ -30,9 +31,10 @@ impl std::fmt::Display for Clause {
 }
 
 impl Clause {
-    pub fn new(position: usize) -> Clause {
+    pub fn new(id: usize, position: usize) -> Clause {
         Clause {
-            id: position,
+            id,
+            position,
             literals: Vec::new(),
         }
     }

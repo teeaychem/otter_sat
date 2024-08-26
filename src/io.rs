@@ -6,11 +6,9 @@ enum IOError {
     UnexpectedInformation,
 }
 
-impl Solve {
-    // todo, make this an iterator?
-    pub fn from_dimacs(string: &str) -> Result<Solve, SolveError> {
-        let mut the_solve = Solve::new();
-
+impl Formula {
+    pub fn from_dimacs(string: &str) -> Result<Formula, SolveError> {
+        let mut the_solve = Formula::new();
         let mut from = 0;
         let mut to = 0;
         let mut skip = false;
@@ -45,14 +43,14 @@ impl Solve {
                 } else if Some("cnf") != preface_parts.next() {
                     return Err(SolveError::PrefaceFormat);
                 }
-                let variables = match preface_parts.next() {
+                let _variables = match preface_parts.next() {
                     Some(count) => match count.parse::<usize>() {
                         Ok(count_number) => count_number,
                         Err(_) => return Err(SolveError::ParseFailure),
                     },
                     None => return Err(SolveError::ParseFailure),
                 };
-                let clauses = match preface_parts.next() {
+                let _clauses = match preface_parts.next() {
                     Some(count) => match count.parse::<usize>() {
                         Ok(count_number) => count_number,
                         Err(_) => return Err(SolveError::ParseFailure),
@@ -74,9 +72,7 @@ impl Solve {
             Ok(the_solve)
         }
     }
-}
 
-impl Solve {
     pub fn add_clause(&mut self, string: &str) -> Result<(), SolveError> {
         let string_lterals = string.split_whitespace();
         let mut the_clause = self.fresh_clause();
