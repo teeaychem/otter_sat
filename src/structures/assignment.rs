@@ -89,7 +89,7 @@ impl Assignment {
     pub fn for_solve(solve: &Solve) -> Self {
         let mut the_assignment = Assignment {
             sat: None,
-            valuation: Vec::<Option<bool>>::new_for_variables(solve.vars().len()),
+            valuation: Vec::<Option<bool>>::new_for_variables(solve.formula.vars().len()),
             levels: vec![],
         };
         let level_zero = Level::new(0, &the_assignment);
@@ -131,6 +131,7 @@ impl Assignment {
 
     pub fn get_unassigned_id(&self, solve: &Solve) -> Option<VariableId> {
         solve
+            .formula
             .vars()
             .iter()
             .find(|&v| self.valuation.of_v_id(v.id).is_ok_and(|p| p.is_none()))
