@@ -35,7 +35,7 @@ impl Valuation for ValuationVec {
             .enumerate()
             .filter(|(_, p)| p.is_some())
             .map(|(i, p)| {
-                let variable = solve.var_by_id(i as VariableId).unwrap();
+                let variable = solve.formula.var_by_id(i as VariableId).unwrap();
                 match p {
                     Some(true) => variable.name.to_string(),
                     Some(false) => format!("-{}", variable.name),
