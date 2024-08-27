@@ -1,13 +1,9 @@
 use std::fmt::Debug;
 
 use crate::structures::{
-    ImpGraph, ImpGraphEdge, Literal, LiteralSource, Solve, Valuation, ValuationError, ValuationVec,
-    VariableId,
+    ClauseId, ImpGraph, ImpGraphEdge, Literal, LiteralSource, Solve, Valuation, ValuationError,
+    ValuationVec, VariableId,
 };
-
-use std::collections::BTreeSet;
-
-use super::{Clause, ClauseId};
 
 #[derive(Clone, Debug)]
 pub struct Level {
@@ -16,8 +12,7 @@ pub struct Level {
     observations: Vec<Literal>,
     pub implications: ImpGraph,
     pub clauses_unit: Vec<(ClauseId, Literal)>,
-    pub clauses_sat: Vec<ClauseId>,
-    pub clauses_open: Vec<ClauseId>,
+    // pub clauses_open: Vec<ClauseId>,
 }
 
 impl Level {
@@ -28,15 +23,14 @@ impl Level {
             observations: vec![],
             implications: ImpGraph::for_formula(solve.formula),
             clauses_unit: vec![],
-            clauses_sat: vec![],
-            clauses_open: vec![],
+            // clauses_open: vec![],
         }
     }
 
     pub fn add_literal(&mut self, literal: &Literal, source: LiteralSource) {
         match source {
-            LiteralSource::Choice => self.choices.push(literal.clone()),
-            LiteralSource::Clause(_) => self.observations.push(literal.clone()),
+            LiteralSource::Choice => self.choices.push(*literal),
+            LiteralSource::Clause(_) => self.observations.push(*literal),
             _ => todo!(),
         }
     }
@@ -97,10 +91,10 @@ impl Solve {
                 fresh_level.add_literal(literal, source);
             }
             LiteralSource::HobsonChoice | LiteralSource::Assumption => {
-                self.level_mut(0).observations.push(literal.clone());
+                self.level_mut(0).observations.push(*literal);
             }
             LiteralSource::Clause(_) | LiteralSource::Conflict => {
-                self.last_level_mut().observations.push(literal.clone());
+                self.last_level_mut().observations.push(*literal);
             }
         };
         let result = self.valuation.set_literal(literal);
@@ -120,14 +114,12 @@ impl Solve {
     }
 
     pub fn valuation_at_level(&self, index: usize) -> ValuationVec {
-        println!("valuation_at_level");
         let mut valuation = ValuationVec::new_for_variables(self.valuation.len());
         (0..=index).for_each(|i| {
             self.levels[i].literals().iter().for_each(|l| {
                 let _ = valuation.set_literal(l);
             })
         });
-        println!("valuation_at_level");
         valuation
     }
 
