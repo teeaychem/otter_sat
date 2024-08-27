@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 
-use crate::structures::{Assignment, Clause, ClauseError, Variable};
+use crate::structures::{Clause, ClauseError, Variable};
 
 
 

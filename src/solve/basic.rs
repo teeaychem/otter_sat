@@ -1,5 +1,5 @@
 use crate::structures::{
-    ClauseId, Literal, LiteralSource, Solve, SolveError, Valuation, VariableId, ValuationVec
+    ClauseId, Literal, LiteralSource, Solve, SolveError, Valuation, ValuationVec, VariableId,
 };
 use std::collections::BTreeSet;
 
@@ -75,18 +75,18 @@ impl Solve {
         let the_choices = self.hobson_choices();
         the_choices.0.iter().for_each(|&v_id| {
             let the_choice = Literal::new(v_id, false);
-            self.set(&the_choice, LiteralSource::HobsonChoice);
+            let _ = self.set(&the_choice, LiteralSource::HobsonChoice);
         });
         the_choices.1.iter().for_each(|&v_id| {
             let the_choice = Literal::new(v_id, true);
-            self.set(&the_choice, LiteralSource::HobsonChoice);
+            let _ = self.set(&the_choice, LiteralSource::HobsonChoice);
         });
     }
 
     pub fn propagate_all_units(&mut self) -> Option<Vec<(usize, Literal)>> {
         let mut units_found = vec![];
         while let Some((clause_id, lit)) = self.find_unit_on(&self.valuation) {
-            self.set(&lit, LiteralSource::Clause(clause_id));
+            let _ = self.set(&lit, LiteralSource::Clause(clause_id));
             units_found.push((clause_id, lit));
         }
         match units_found.is_empty() {
@@ -97,11 +97,11 @@ impl Solve {
 
     pub fn propagate_by_implication_graph(
         &self,
-        assignment: &mut Solve,
+        solve: &mut Solve,
     ) -> Option<Vec<(usize, Literal)>> {
         let mut units_found = vec![];
-        while let Some((clause_id, lit)) = self.find_unit_on(&assignment.valuation) {
-            assignment.set(&lit, LiteralSource::Clause(clause_id));
+        while let Some((clause_id, lit)) = self.find_unit_on(&solve.valuation) {
+            let _ = solve.set(&lit, LiteralSource::Clause(clause_id));
             units_found.push((clause_id, lit));
         }
         match units_found.is_empty() {
@@ -111,8 +111,7 @@ impl Solve {
     }
 
     pub fn alt_deduction_solve(&mut self) -> Result<(bool, ValuationVec), SolveError> {
-        // let mut the_search = Solve::new(self);
-        let sat_assignment: Option<(bool, ValuationVec)>;
+        let sat_valuation: Option<(bool, ValuationVec)>;
         // settle any forced choices
         self.settle_hobson_choices();
         self.propagate_all_units();
@@ -120,15 +119,15 @@ impl Solve {
         loop {
             // 1. (un)sat check
             if self.is_sat_on(&self.valuation) {
-                sat_assignment = Some((true, self.valuation.clone()));
+                sat_valuation = Some((true, self.valuation.clone()));
                 break;
             } else if self.is_unsat_on(&self.valuation) {
                 if let Some(level) = self.pop_last_level() {
                     level.choices.into_iter().for_each(|choice| {
-                        self.set(&choice.negate(), LiteralSource::Conflict);
+                        let _ = self.set(&choice.negate(), LiteralSource::Conflict);
                     })
                 } else {
-                    sat_assignment = Some((false, self.valuation.clone()));
+                    sat_valuation = Some((false, self.valuation.clone()));
                     break;
                 }
             }
@@ -138,11 +137,11 @@ impl Solve {
             }
 
             if let Some(v_id) = self.get_unassigned_id(self) {
-                self.set(&Literal::new(v_id, true), LiteralSource::Choice);
+                let _ = self.set(&Literal::new(v_id, true), LiteralSource::Choice);
                 continue;
             }
         }
-        match sat_assignment {
+        match sat_valuation {
             Some((sat_status, valuation)) => Ok((sat_status, valuation)),
             None => Err(SolveError::Hek),
         }
@@ -150,7 +149,7 @@ impl Solve {
 
     pub fn implication_solve(&mut self) -> Result<(bool, ValuationVec), SolveError> {
         println!("~~~ an implication solve ~~~");
-        let sat_assignment: Option<(bool, ValuationVec)>;
+        let sat_valuation: Option<(bool, ValuationVec)>;
         // settle any forced choices
         // self.settle_hobson_choices(&mut the_search);
         // self.propagate_all_units(&mut the_search);
@@ -166,23 +165,19 @@ impl Solve {
                         let _ = self.set(&choice.negate(), LiteralSource::Conflict);
                     })
                 } else {
-                    sat_assignment = Some((false, self.valuation.clone()));
+                    sat_valuation = Some((false, self.valuation.clone()));
                     break;
                 }
             }
 
             if self.is_sat_on(&self.valuation) {
-                sat_assignment = Some((true, self.valuation.clone()));
+                sat_valuation = Some((true, self.valuation.clone()));
                 break;
             }
 
             // 2. search
             self.add_implication_graph_for_level(self.current_level());
-            if !self
-                .graph_at_level(self.current_level())
-                .units
-                .is_empty()
-            {
+            if !self.graph_at_level(self.current_level()).units.is_empty() {
                 self.add_literals_from_graph(self.current_level());
                 continue;
             }
@@ -192,7 +187,7 @@ impl Solve {
                 continue;
             }
         }
-        match sat_assignment {
+        match sat_valuation {
             Some(pair) => Ok(pair),
             None => Err(SolveError::Hek),
         }

@@ -71,12 +71,12 @@ impl Solve {
 
     pub fn all_immediate_units_on<T: Valuation>(
         &self,
-        assignment: &T,
+        valuation: &T,
         ignoring: &BTreeSet<(ClauseId, Literal)>,
     ) -> BTreeSet<(ClauseId, Literal)> {
         let mut the_set = BTreeSet::new();
         for clause in self.formula.clauses.iter() {
-            if let Some(unit_literal) = clause.find_unit_literal(assignment) {
+            if let Some(unit_literal) = clause.find_unit_literal(valuation) {
                 let the_pair = (clause.id, unit_literal);
                 if !ignoring.contains(&the_pair) {
                     the_set.insert(the_pair);

@@ -14,12 +14,12 @@ pub struct Level {
 }
 
 impl Level {
-    pub fn new(index: usize, assignment: &Solve) -> Self {
+    pub fn new(index: usize, solve: &Solve) -> Self {
         Level {
             index,
             choices: vec![],
             observations: vec![],
-            implications: ImpGraph::new(assignment),
+            implications: ImpGraph::new(solve),
         }
     }
 
@@ -72,7 +72,6 @@ impl Solve {
     //     // self.last_level_mut().implications = the_graph;
     // }
 
-    // the last choice corresponds to the curent depth
     pub fn pop_last_level(&mut self) -> Option<Level> {
         if self.levels.len() <= 1 {
             return None;

@@ -30,10 +30,10 @@ fn main() {
             the_solve.hobson_choices();
 
             let result = the_solve.implication_solve();
-            if let Ok((sat, assignment)) = result {
+            if let Ok((sat, valuation)) = result {
                 println!("SAT? {:?}", sat);
-                println!("Assignment: {}", the_solve.valuation.as_display_string(&the_solve));
-                println!("Assignment: {:?}", &assignment);
+                println!("Valuation: {}", the_solve.valuation.as_display_string(&the_solve));
+                println!("Valuiation: {:?}", &valuation);
             }
 
             println!("{}", the_solve);
