@@ -44,27 +44,27 @@ impl Clause {
         Ok(())
     }
 
-    pub fn is_sat_on(&self, assignment: &ValuationVec) -> bool {
+    pub fn is_sat_on(&self, valuation: &ValuationVec) -> bool {
         self.literals
             .iter()
-            .any(|l| assignment.of_v_id(l.v_id) == Ok(Some(l.polarity)))
+            .any(|l| valuation.of_v_id(l.v_id) == Ok(Some(l.polarity)))
     }
 
-    pub fn is_unsat_on(&self, assignment: &ValuationVec) -> bool {
+    pub fn is_unsat_on(&self, valuation: &ValuationVec) -> bool {
         self.literals.iter().all(|l| {
-            if let Ok(Some(variable_assignment)) = assignment.of_v_id(l.v_id) {
-                variable_assignment != l.polarity
+            if let Ok(Some(var_valuie)) = valuation.of_v_id(l.v_id) {
+                var_valuie != l.polarity
             } else {
                 false
             }
         })
     }
 
-    pub fn find_unit_literal<T: Valuation>(&self, assignment: &T) -> Option<Literal> {
+    pub fn find_unit_literal<T: Valuation>(&self, valuation: &T) -> Option<Literal> {
         let mut unit = None;
 
         for literal in &self.literals {
-            if let Ok(assigned_value) = assignment.of_v_id(literal.v_id) {
+            if let Ok(assigned_value) = valuation.of_v_id(literal.v_id) {
                 if assigned_value.is_some_and(|v| v == literal.polarity) {
                     // the clause is satisfied and so does not provide any new information
                     break;
