@@ -23,6 +23,8 @@ fn main() {
     if let Ok(contents) = fs::read_to_string(args.file) {
         println!("read");
         if let Ok(formula) = Formula::from_dimacs(&contents) {
+            println!("formula: {}", formula);
+
             let mut the_solve = Solve::from_formula(formula);
 
             the_solve.literals_of_polarity(true);

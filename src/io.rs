@@ -7,7 +7,7 @@ enum IOError {
 }
 
 impl Formula {
-    pub fn from_dimacs(string: &str) -> Result<Formula, SolveError> {
+    pub fn from_dimacs(string: &str) -> Result<&'static Formula, SolveError> {
         let mut the_solve = Formula::new();
         let mut from = 0;
         let mut to = 0;
@@ -69,7 +69,7 @@ impl Formula {
         if !&string[from..].trim().is_empty() {
             Err(SolveError::ParseFailure)
         } else {
-            Ok(the_solve)
+            Ok(Box::leak(Box::new(the_solve)))
         }
     }
 

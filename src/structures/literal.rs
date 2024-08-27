@@ -8,7 +8,7 @@ pub struct Variable {
     pub id: VariableId,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Literal {
     pub v_id: VariableId,
     pub polarity: bool,

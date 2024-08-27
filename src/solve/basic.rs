@@ -155,9 +155,11 @@ impl Solve {
         // self.propagate_all_units(&mut the_search);
 
         loop {
+            println!("> level: {}", self.current_level());
             // 1. (un)sat check
             if Some(false) == self.sat {
                 if let Some(mut level) = self.pop_last_level() {
+                    level.implications.generate_details();
                     println!("level {:?}", level);
                     level.implications.trace_implication_paths(level.literals());
                     println!("ig: {:?}", level.implications);
@@ -170,21 +172,34 @@ impl Solve {
                 }
             }
 
-            if self.is_sat_on(&self.valuation) {
+            // 2. search
+            let (the_units, the_choices) =
+                self.find_all_unset_on(&self.valuation_at_level(self.current_level()));
+
+            if !the_units.is_empty() {
+                let current_level = self.current_level();
+                for (clause_id, literal) in &the_units {
+                    self.levels[current_level]
+                        .add_literal(literal, LiteralSource::Clause(*clause_id));
+                    let _ = self.set(literal, LiteralSource::Clause(*clause_id));
+                }
+                let from_literals = self.levels[self.current_level()]
+                    .literals()
+                    .iter()
+                    .chain(the_units.iter().map(|(_, l)| l))
+                    .cloned()
+                    .collect();
+                self.extend_implication_graph(
+                    self.current_level(),
+                    the_units.iter().cloned().collect(),
+                    from_literals,
+                );
+            } else if !the_choices.is_empty() {
+                let _ = self.set(the_choices.first().unwrap(), LiteralSource::Choice);
+                continue;
+            } else {
                 sat_valuation = Some((true, self.valuation.clone()));
                 break;
-            }
-
-            // 2. search
-            self.add_implication_graph_for_level(self.current_level());
-            if !self.graph_at_level(self.current_level()).units.is_empty() {
-                self.add_literals_from_graph(self.current_level());
-                continue;
-            }
-
-            if let Some(v_id) = self.get_unassigned_id(self) {
-                let _ = self.set(&Literal::new(v_id, false), LiteralSource::Choice);
-                continue;
             }
         }
         match sat_valuation {

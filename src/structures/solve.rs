@@ -7,13 +7,13 @@ use std::collections::BTreeSet;
 
 #[derive(Debug)]
 pub struct Solve {
-    pub formula: Formula,
+    pub formula: &'static Formula,
     pub sat: Option<bool>,
     pub valuation: Vec<Option<bool>>,
     pub levels: Vec<Level>,
 }
 
-#[derive(Debug ,PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum SolveError {
     Literal(LiteralError),
     // Clause(ClauseError),
@@ -25,7 +25,7 @@ pub enum SolveError {
 }
 
 impl Solve {
-    pub fn from_formula(formula: Formula) -> Self {
+    pub fn from_formula(formula: &'static Formula) -> Self {
         let valuation = Vec::<Option<bool>>::new_for_variables(formula.vars().len());
         let mut the_solve = Solve {
             formula,
@@ -69,11 +69,11 @@ impl Solve {
     whether this makes sense to do…
     */
 
-    pub fn all_immediate_units_on<T: Valuation>(
+    pub fn find_all_immediate_units_on<T: Valuation>(
         &self,
         valuation: &T,
         ignoring: &BTreeSet<(ClauseId, Literal)>,
-    ) -> BTreeSet<(ClauseId, Literal)> {
+    ) -> Vec<(ClauseId, Literal)> {
         let mut the_set = BTreeSet::new();
         for clause in self.formula.clauses.iter() {
             if let Some(unit_literal) = clause.find_unit_literal(valuation) {
@@ -83,37 +83,57 @@ impl Solve {
                 }
             }
         }
-        the_set
+        the_set.iter().cloned().collect()
     }
 
-    pub fn find_all_units_on<T: Valuation + Clone>(
-        &self,
-        valuation: &T,
-        ignoring: &mut BTreeSet<(ClauseId, Literal)>,
-    ) -> Vec<(ClauseId, Literal)> {
-        let immediate_units = self.all_immediate_units_on(valuation, ignoring);
-        ignoring.extend(immediate_units.clone());
-        let mut further_units = vec![];
-        if !immediate_units.is_empty() {
-            for (_, literal) in &immediate_units {
-                let mut updated_valuation = valuation.clone();
-                let _ = updated_valuation.set_literal(literal);
-                further_units.extend(
-                    self.find_all_units_on(&updated_valuation, ignoring)
-                        .iter()
-                        .cloned(),
-                );
+    pub fn find_all_unset_on<T: Valuation>(&self, valuation: &T) -> (BTreeSet<(ClauseId, Literal)>, BTreeSet<Literal>) {
+        let mut the_unit_set = BTreeSet::new();
+        let mut the_choice_set = BTreeSet::new();
+        for clause in self.formula.clauses.iter() {
+            let the_unset = clause.find_unset(valuation);
+            if the_unset.len() == 1 {
+                let the_pair: (ClauseId, Literal) = (clause.id, *the_unset.first().unwrap());
+                the_unit_set.insert(the_pair);
+                if the_choice_set.contains(&the_pair.1) {
+                    the_choice_set.remove(&the_pair.1);
+                }
+            } else {
+                for literal in the_unset {
+                    the_choice_set.insert(literal);
+                }
             }
         }
-        further_units.extend(immediate_units.iter().cloned());
-        further_units
+        (the_unit_set, the_choice_set)
     }
+
+    // pub fn find_all_units_on<T: Valuation + Clone>(
+    //     &self,
+    //     valuation: &T,
+    //     ignoring: &mut BTreeSet<(ClauseId, Literal)>,
+    // ) -> Vec<(ClauseId, Literal)> {
+    //     let immediate_units = self.find_all_immediate_units_on(valuation, ignoring);
+    //     ignoring.extend(immediate_units.clone());
+    //     let mut further_units = vec![];
+    //     if !immediate_units.is_empty() {
+    //         for (_, literal) in &immediate_units {
+    //             let mut updated_valuation = valuation.clone();
+    //             let _ = updated_valuation.set_literal(literal);
+    //             further_units.extend(
+    //                 self.find_all_units_on(&updated_valuation, ignoring)
+    //                     .iter()
+    //                     .cloned(),
+    //             );
+    //         }
+    //     }
+    //     further_units.extend(immediate_units.iter().cloned());
+    //     further_units
+    // }
 }
 
 impl std::fmt::Display for Solve {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:?}\n", self.valuation);
-        write!(f, "{}", self.formula);
+        let _ = writeln!(f, "{:?}", self.valuation);
+        let _ = write!(f, "{}", self.formula);
 
         Ok(())
     }

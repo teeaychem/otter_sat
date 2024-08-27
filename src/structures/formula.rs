@@ -78,6 +78,10 @@ impl Formula {
         let the_literal = Literal::new(the_variable, polarity);
         Ok(the_literal)
     }
+
+    pub fn var_count(&self) -> usize {
+        self.variables.len()
+}
 }
 
 impl std::fmt::Display for Formula {

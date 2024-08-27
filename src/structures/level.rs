@@ -1,9 +1,13 @@
 use std::fmt::Debug;
 
 use crate::structures::{
-    ImpGraph, Literal, LiteralSource, Solve, Valuation, ValuationVec, VariableId, ValuationError
+    ImpGraph, ImpGraphEdge, Literal, LiteralSource, Solve, Valuation, ValuationError, ValuationVec,
+    VariableId,
 };
 
+use std::collections::BTreeSet;
+
+use super::{Clause, ClauseId};
 
 #[derive(Clone, Debug)]
 pub struct Level {
@@ -11,6 +15,9 @@ pub struct Level {
     pub choices: Vec<Literal>,
     observations: Vec<Literal>,
     pub implications: ImpGraph,
+    pub clauses_unit: Vec<(ClauseId, Literal)>,
+    pub clauses_sat: Vec<ClauseId>,
+    pub clauses_open: Vec<ClauseId>,
 }
 
 impl Level {
@@ -19,13 +26,17 @@ impl Level {
             index,
             choices: vec![],
             observations: vec![],
-            implications: ImpGraph::new(solve),
+            implications: ImpGraph::for_formula(solve.formula),
+            clauses_unit: vec![],
+            clauses_sat: vec![],
+            clauses_open: vec![],
         }
     }
 
     pub fn add_literal(&mut self, literal: &Literal, source: LiteralSource) {
         match source {
             LiteralSource::Choice => self.choices.push(literal.clone()),
+            LiteralSource::Clause(_) => self.observations.push(literal.clone()),
             _ => todo!(),
         }
     }
@@ -50,10 +61,6 @@ impl Solve {
     pub fn current_level(&self) -> usize {
         self.levels.len() - 1
     }
-
-    // pub fn last_level(&self) -> &Level {
-    //     self.levels.last().unwrap()
-    // }
 
     pub fn level_mut(&mut self, index: usize) -> &mut Level {
         &mut self.levels[index]
@@ -113,29 +120,44 @@ impl Solve {
     }
 
     pub fn valuation_at_level(&self, index: usize) -> ValuationVec {
+        println!("valuation_at_level");
         let mut valuation = ValuationVec::new_for_variables(self.valuation.len());
         (0..=index).for_each(|i| {
             self.levels[i].literals().iter().for_each(|l| {
                 let _ = valuation.set_literal(l);
             })
         });
+        println!("valuation_at_level");
         valuation
     }
 
-    pub fn add_implication_graph_for_level(&mut self, index: usize) {
+    pub fn extend_implication_graph(
+        &mut self,
+        level: usize,
+        the_units: Vec<(ClauseId, Literal)>,
+        from_literals: Vec<Literal>,
+    ) {
         // let valuation = self.valuation_at_level(index);
-        let the_graph = ImpGraph::for_level(self, index);
-        self.levels[index].implications = the_graph;
-    }
+        // let the_graph = ImpGraph::for_level(self, index, &self.formula);
+        // self.levels[index].implications = the_graph;
 
-    pub fn graph_at_level(&self, index: usize) -> &ImpGraph {
-        &self.levels[index].implications
-    }
-
-    pub fn add_literals_from_graph(&mut self, index: usize) {
-        let the_units = self.levels[index].implications.units.clone();
-        for (clause_id, literal) in the_units {
-            let _ = self.set(&literal, LiteralSource::Clause(clause_id));
+        for (clause_id, to_literal) in &the_units {
+            for clause_literal in &self.formula.borrow_clause_by_id(*clause_id).literals {
+                if from_literals.contains(&clause_literal.negate()) && clause_literal != to_literal
+                {
+                    self.levels[level].implications.add_edge(ImpGraphEdge::new(
+                        clause_literal.v_id,
+                        *clause_id,
+                        to_literal.v_id,
+                    ))
+                }
+            }
         }
+
+        for (clause_id, literal) in &the_units {
+            let _ = self.set(literal, LiteralSource::Clause(*clause_id));
+        }
+
+        self.levels[level].clauses_unit.extend(the_units);
     }
 }
