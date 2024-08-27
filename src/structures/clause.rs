@@ -1,7 +1,4 @@
-use crate::{
-    structures::{Literal, LiteralError, Valuation, ValuationVec},
-    Solve,
-};
+use crate::structures::{Literal, LiteralError, Valuation, ValuationVec};
 
 pub type ClauseId = usize;
 
@@ -87,7 +84,7 @@ impl Clause {
         unit
     }
 
-        pub fn find_unset<T: Valuation>(&self, valuation: &T) -> Vec<Literal> {
+    pub fn collect_unset<T: Valuation>(&self, valuation: &T) -> Vec<Literal> {
         let mut the_literals = vec![];
 
         for literal in &self.literals {
