@@ -28,13 +28,13 @@ impl std::fmt::Display for Literal {
     }
 }
 
-/// how a literal was added to an assignment
+/// how a literal was settled
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LiteralSource {
     Choice,       // a choice made where the alternative may make a SAT difference
     HobsonChoice, // a choice made with a guarantee that the alternative would make no SAT difference
     Conflict,
-    Clause(ClauseId), // the literal must be the case for SAT given some assignment
+    Clause(ClauseId), // the literal must be the case for SAT given some valuation
     Assumption,
 }
 
