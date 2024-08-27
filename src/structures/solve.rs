@@ -1,17 +1,19 @@
 use crate::structures::{
-    Clause, ClauseId, Literal, LiteralError, Valuation, ValuationVec, Variable, VariableId, Formula
+    Clause, ClauseId, Formula, Level, Literal, LiteralError, Valuation, ValuationVec, Variable,
+    VariableId,
 };
 
-
 use std::collections::BTreeSet;
-
 
 #[derive(Debug)]
 pub struct Solve {
     pub formula: Formula,
+    pub sat: Option<bool>,
+    pub valuation: Vec<Option<bool>>,
+    pub levels: Vec<Level>,
 }
 
-#[derive(Debug)]
+#[derive(Debug ,PartialEq)]
 pub enum SolveError {
     Literal(LiteralError),
     // Clause(ClauseError),
@@ -19,35 +21,43 @@ pub enum SolveError {
     PrefaceLength,
     PrefaceFormat,
     Hek,
+    OutOfBounds,
 }
 
 impl Solve {
     pub fn from_formula(formula: Formula) -> Self {
-        Solve {
+        let valuation = Vec::<Option<bool>>::new_for_variables(formula.vars().len());
+        let mut the_solve = Solve {
             formula,
-        }
+            sat: None,
+            valuation,
+            levels: vec![],
+        };
+        let level_zero = Level::new(0, &the_solve);
+        the_solve.levels.push(level_zero);
+        the_solve
     }
 }
 
 // SAT related things
 impl Solve {
-    pub fn is_unsat_on(&self, assignment: &ValuationVec) -> bool {
+    pub fn is_unsat_on(&self, valuation: &ValuationVec) -> bool {
         self.formula
             .clauses
             .iter()
-            .any(|clause| clause.is_unsat_on(assignment))
+            .any(|clause| clause.is_unsat_on(valuation))
     }
 
-    pub fn is_sat_on(&self, assignment: &ValuationVec) -> bool {
+    pub fn is_sat_on(&self, valuation: &ValuationVec) -> bool {
         self.formula
             .clauses
             .iter()
-            .all(|clause| clause.is_sat_on(assignment))
+            .all(|clause| clause.is_sat_on(valuation))
     }
 
-    pub fn find_unit_on(&self, assignment: &ValuationVec) -> Option<(ClauseId, Literal)> {
+    pub fn find_unit_on(&self, valuation: &ValuationVec) -> Option<(ClauseId, Literal)> {
         for clause in self.formula.clauses.iter() {
-            if let Some(unit_literal) = clause.find_unit_literal(assignment) {
+            if let Some(unit_literal) = clause.find_unit_literal(valuation) {
                 return Some((clause.id, unit_literal));
             }
         }
@@ -100,10 +110,11 @@ impl Solve {
     }
 }
 
-
 impl std::fmt::Display for Solve {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}\n", self.valuation);
         write!(f, "{}", self.formula);
+
         Ok(())
     }
 }

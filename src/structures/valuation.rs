@@ -1,4 +1,4 @@
-use crate::structures::{AssignmentError, Level, Literal, Solve, VariableId};
+use crate::structures::{Level, Literal, Solve, SolveError, VariableId};
 // Valuation
 
 pub type ValuationVec = Vec<Option<bool>>;
@@ -8,7 +8,7 @@ pub trait Valuation {
 
     fn as_display_string(&self, solve: &Solve) -> String;
 
-    fn of_v_id(&self, v_id: VariableId) -> Result<Option<bool>, AssignmentError>;
+    fn of_v_id(&self, v_id: VariableId) -> Result<Option<bool>, SolveError>;
 
     fn set_literal(&mut self, literal: &Literal) -> Result<(), ValuationError>;
 
@@ -46,11 +46,11 @@ impl Valuation for ValuationVec {
             .join(" ")
     }
 
-    fn of_v_id(&self, v_id: VariableId) -> Result<Option<bool>, AssignmentError> {
+    fn of_v_id(&self, v_id: VariableId) -> Result<Option<bool>, SolveError> {
         if let Some(&info) = self.get(v_id as usize) {
             Ok(info)
         } else {
-            Err(AssignmentError::OutOfBounds)
+            Err(SolveError::OutOfBounds)
         }
     }
 

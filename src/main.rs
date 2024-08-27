@@ -32,7 +32,7 @@ fn main() {
             let result = the_solve.implication_solve();
             if let Ok((sat, assignment)) = result {
                 println!("SAT? {:?}", sat);
-                println!("Assignment: {}", assignment.valuation.as_display_string(&the_solve));
+                println!("Assignment: {}", the_solve.valuation.as_display_string(&the_solve));
                 println!("Assignment: {:?}", &assignment);
             }
 

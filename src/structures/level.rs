@@ -1,23 +1,9 @@
 use std::fmt::Debug;
 
 use crate::structures::{
-    ImpGraph, Literal, LiteralSource, Solve, Valuation, ValuationVec, VariableId,
+    ImpGraph, Literal, LiteralSource, Solve, Valuation, ValuationVec, VariableId, ValuationError
 };
 
-use super::valuation::ValuationError;
-
-/// a partial assignment with some history
-#[derive(Clone, Debug)]
-pub struct Assignment {
-    pub sat: Option<bool>,
-    pub valuation: Vec<Option<bool>>,
-    pub levels: Vec<Level>,
-}
-
-#[derive(PartialEq)]
-pub enum AssignmentError {
-    OutOfBounds,
-}
 
 #[derive(Clone, Debug)]
 pub struct Level {
@@ -28,7 +14,7 @@ pub struct Level {
 }
 
 impl Level {
-    fn new(index: usize, assignment: &Assignment) -> Self {
+    pub fn new(index: usize, assignment: &Solve) -> Self {
         Level {
             index,
             choices: vec![],
@@ -53,7 +39,7 @@ impl Level {
     }
 }
 
-impl Assignment {
+impl Solve {
     pub fn fresh_level(&mut self) -> &mut Level {
         let level_cout = self.levels.len();
         let the_level = Level::new(self.levels.len(), self);
@@ -85,17 +71,6 @@ impl Assignment {
     //     // println!("the graph: {:?}", the_graph);
     //     // self.last_level_mut().implications = the_graph;
     // }
-
-    pub fn for_solve(solve: &Solve) -> Self {
-        let mut the_assignment = Assignment {
-            sat: None,
-            valuation: Vec::<Option<bool>>::new_for_variables(solve.formula.vars().len()),
-            levels: vec![],
-        };
-        let level_zero = Level::new(0, &the_assignment);
-        the_assignment.levels.push(level_zero);
-        the_assignment
-    }
 
     // the last choice corresponds to the curent depth
     pub fn pop_last_level(&mut self) -> Option<Level> {
@@ -148,9 +123,9 @@ impl Assignment {
         valuation
     }
 
-    pub fn add_implication_graph_for_level(&mut self, index: usize, solve: &Solve) {
+    pub fn add_implication_graph_for_level(&mut self, index: usize) {
         // let valuation = self.valuation_at_level(index);
-        let the_graph = ImpGraph::for_level(self, index, solve);
+        let the_graph = ImpGraph::for_level(self, index);
         self.levels[index].implications = the_graph;
     }
 

@@ -1,6 +1,6 @@
 use crate::{
     structures::{Literal, LiteralError, Valuation, ValuationVec},
-    Assignment,
+    Solve,
 };
 
 pub type ClauseId = usize;
