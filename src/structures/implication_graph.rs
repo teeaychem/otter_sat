@@ -1,4 +1,4 @@
-use crate::structures::{ClauseId, Formula, Level, Literal, Solve, Valuation, VariableId};
+use crate::structures::{ClauseId, Formula, Literal, VariableId};
 use std::collections::BTreeSet;
 
 // Implication graph
@@ -6,8 +6,8 @@ use std::collections::BTreeSet;
 #[derive(Clone, Debug)]
 pub struct ImpGraph {
     formula: &'static Formula,
-    edges: Vec<ImpGraphEdge>,
     nodes: Vec<ImpGraphNode>,
+    edges: Vec<ImpGraphEdge>,
     implication_paths: ImpGraphPaths,
 }
 

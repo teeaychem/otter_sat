@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_imports)]
+
 use clap::Parser;
 use std::fs;
 mod ideas;
@@ -6,6 +8,8 @@ mod solve;
 mod structures;
 
 use crate::structures::*;
+
+
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -21,10 +25,7 @@ fn main() {
     let args = Args::parse();
     // dbg!(&args);
     if let Ok(contents) = fs::read_to_string(args.file) {
-        println!("read");
         if let Ok(formula) = Formula::from_dimacs(&contents) {
-            println!("formula: {}", formula);
-
             let mut the_solve = Solve::from_formula(formula);
 
             the_solve.literals_of_polarity(true);
@@ -32,10 +33,8 @@ fn main() {
             the_solve.hobson_choices();
 
             let result = the_solve.implication_solve();
-            if let Ok((sat, valuation)) = result {
+            if let Ok((sat, _valuation)) = result {
                 println!("SAT? {:?}", sat);
-                println!("Valuation: {}", the_solve.valuation.as_display_string(&the_solve));
-                println!("Valuiation: {:?}", &valuation);
             }
 
             println!("{}", the_solve);

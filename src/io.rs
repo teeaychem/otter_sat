@@ -2,10 +2,6 @@ use std::char;
 
 use crate::structures::*;
 
-enum IOError {
-    UnexpectedInformation,
-}
-
 impl Formula {
     pub fn from_dimacs(string: &str) -> Result<&'static Formula, SolveError> {
         let mut the_solve = Formula::new();
