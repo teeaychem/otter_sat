@@ -1,4 +1,4 @@
-use crate::structures::{Assignment, ClauseId, Literal, Solve, Valuation, VariableId};
+use crate::structures::{ClauseId, Literal, Solve, Valuation, VariableId};
 use std::collections::BTreeSet;
 
 // Implication graph
@@ -74,20 +74,20 @@ pub struct ImpGraph {
 }
 
 impl ImpGraph {
-    pub fn new(assignment: &Assignment) -> Self {
+    pub fn new(solve: &Solve) -> Self {
         ImpGraph {
-            valuation_size: assignment.valuation.len(),
+            valuation_size: solve.valuation.len(),
             units: vec![],
             implication_paths: ImpGraphPaths::new_empty(),
             edges: vec![],
-            nodes: (0..assignment.valuation.len())
+            nodes: (0..solve.valuation.len())
                 .map(|i| ImpGraphNode::new(i as u32))
                 .collect::<Vec<_>>(),
         }
     }
 
-    pub fn for_level(assignment: &Assignment, level: usize, solve: &Solve) -> ImpGraph {
-        let valuation = &assignment.valuation_at_level(level);
+    pub fn for_level(solve: &Solve, level: usize) -> ImpGraph {
+        let valuation = &solve.valuation_at_level(level);
         let the_units = solve.find_all_units_on(valuation, &mut BTreeSet::new());
         let units: Vec<Literal> = the_units
             .iter()
@@ -97,7 +97,7 @@ impl ImpGraph {
 
         let relevant_ids = units
             .iter()
-            .chain(assignment.levels[level].literals().iter())
+            .chain(solve.levels[level].literals().iter())
             .map(|l| l.v_id)
             .collect::<BTreeSet<_>>();
 

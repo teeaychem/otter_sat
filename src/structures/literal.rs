@@ -14,7 +14,7 @@ pub struct Literal {
     pub polarity: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum LiteralError {
     NoVariable,
 }
