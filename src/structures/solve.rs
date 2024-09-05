@@ -3,11 +3,11 @@ use crate::structures::{ClauseId, Formula, Level, Literal, LiteralError, Valuati
 use std::collections::BTreeSet;
 
 #[derive(Debug)]
-pub struct Solve {
-    pub formula: &'static Formula,
+pub struct Solve<'formula> {
+    pub formula: &'formula Formula,
     pub sat: Option<bool>,
     pub valuation: Vec<Option<bool>>,
-    pub levels: Vec<Level>,
+    pub levels: Vec<Level<'formula>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -21,8 +21,8 @@ pub enum SolveError {
     OutOfBounds,
 }
 
-impl Solve {
-    pub fn from_formula(formula: &'static Formula) -> Self {
+impl Solve<'_> {
+    pub fn from_formula(formula: &Formula) -> Solve {
         let valuation = Vec::<Option<bool>>::new_for_variables(formula.vars().len());
         let mut the_solve = Solve {
             formula,
@@ -37,7 +37,7 @@ impl Solve {
 }
 
 // SAT related things
-impl Solve {
+impl Solve<'_> {
     pub fn is_unsat_on(&self, valuation: &ValuationVec) -> bool {
         self.formula
             .clauses
@@ -137,7 +137,7 @@ impl Solve {
     // }
 }
 
-impl std::fmt::Display for Solve {
+impl std::fmt::Display for Solve<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let _ = writeln!(f, "Valuation: {}", self.valuation.as_display_string(self));
         let _ = write!(f, "{}", self.formula);

@@ -6,17 +6,17 @@ use crate::structures::{
 };
 
 #[derive(Clone, Debug)]
-pub struct Level {
+pub struct Level<'formula> {
     index: usize,
     pub choices: Vec<Literal>,
     observations: Vec<Literal>,
-    pub implications: ImpGraph,
+    pub implications: ImpGraph<'formula>,
     pub clauses_unit: Vec<(ClauseId, Literal)>,
     // pub clauses_open: Vec<ClauseId>,
 }
 
-impl Level {
-    pub fn new(index: usize, solve: &Solve) -> Self {
+impl<'borrow, 'formula> Level<'formula> {
+    pub fn new(index: usize, solve: &'borrow Solve<'formula>) -> Self {
         Level {
             index,
             choices: vec![],
@@ -26,7 +26,9 @@ impl Level {
             // clauses_open: vec![],
         }
     }
+}
 
+impl Level<'_> {
     pub fn add_literal(&mut self, literal: &Literal, source: LiteralSource) {
         match source {
             LiteralSource::Choice => self.choices.push(*literal),
@@ -44,25 +46,43 @@ impl Level {
     }
 }
 
-impl Solve {
-    pub fn fresh_level(&mut self) -> &mut Level {
-        let level_cout = self.levels.len();
-        let the_level = Level::new(self.levels.len(), self);
+impl<'borrow, 'formula> Solve<'formula> {
+    pub fn add_fresh_level(&'borrow mut self) {
+        let index = self.levels.len();
+        let the_level = Level::new(index, self);
         self.levels.push(the_level);
-        &mut self.levels[level_cout]
     }
+}
 
+impl<'formula> Solve<'formula> {
+    pub fn set(&mut self, literal: &Literal, source: LiteralSource) -> Result<(), ValuationError> {
+        {
+            match source {
+                LiteralSource::Choice => {
+                    self.add_fresh_level();
+                    let last_position = self.levels.len() - 1;
+                    self.levels[last_position].choices.push(*literal);
+                }
+                LiteralSource::HobsonChoice | LiteralSource::Assumption => {
+                    self.levels[0].observations.push(*literal);
+                }
+                LiteralSource::Clause(_) | LiteralSource::Conflict => {
+                    let last_position = self.levels.len() - 1;
+                    self.levels[last_position].observations.push(*literal);
+                }
+            };
+        }
+        let result = self.valuation.set_literal(literal);
+        if let Err(ValuationError::Inconsistent) = result {
+            self.sat = Some(false)
+        }
+        result
+    }
+}
+
+impl Solve<'_> {
     pub fn current_level(&self) -> usize {
         self.levels.len() - 1
-    }
-
-    pub fn level_mut(&mut self, index: usize) -> &mut Level {
-        &mut self.levels[index]
-    }
-
-    pub fn last_level_mut(&mut self) -> &mut Level {
-        let last_position = self.levels.len() - 1;
-        self.level_mut(last_position)
     }
 
     // pub fn level_from_choice(&mut self, choice: &Literal, solve: &Solve) {
@@ -82,26 +102,6 @@ impl Solve {
         self.sat = None;
 
         the_level
-    }
-
-    pub fn set(&mut self, literal: &Literal, source: LiteralSource) -> Result<(), ValuationError> {
-        match source {
-            LiteralSource::Choice => {
-                let fresh_level = self.fresh_level();
-                fresh_level.add_literal(literal, source);
-            }
-            LiteralSource::HobsonChoice | LiteralSource::Assumption => {
-                self.level_mut(0).observations.push(*literal);
-            }
-            LiteralSource::Clause(_) | LiteralSource::Conflict => {
-                self.last_level_mut().observations.push(*literal);
-            }
-        };
-        let result = self.valuation.set_literal(literal);
-        if let Err(ValuationError::Inconsistent) = result {
-            self.sat = Some(false)
-        }
-        result
     }
 
     pub fn get_unassigned_id(&self, solve: &Solve) -> Option<VariableId> {
