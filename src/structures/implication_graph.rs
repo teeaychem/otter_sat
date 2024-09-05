@@ -4,8 +4,8 @@ use std::collections::BTreeSet;
 // Implication graph
 
 #[derive(Clone, Debug)]
-pub struct ImpGraph {
-    formula: &'static Formula,
+pub struct ImpGraph<'f> {
+    formula: &'f Formula,
     nodes: Vec<ImpGraphNode>,
     edges: Vec<ImpGraphEdge>,
     implication_paths: ImpGraphPaths,
@@ -52,8 +52,8 @@ impl ImpGraphPaths {
     }
 }
 
-impl ImpGraph {
-    pub fn for_formula(formula: &'static Formula) -> ImpGraph {
+impl ImpGraph<'_> {
+    pub fn for_formula<'f>(formula: &'f Formula) -> ImpGraph {
         ImpGraph {
             formula,
             edges: vec![],
