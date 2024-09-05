@@ -3,7 +3,7 @@ use crate::structures::{
 };
 use std::collections::BTreeSet;
 
-impl Solve {
+impl Solve<'_> {
     pub fn single_deduction_solve(&mut self) -> Result<(bool, ValuationVec), SolveError> {
         println!("~~~ a basic solve ~~~");
         let sat_valuation: Option<(bool, ValuationVec)>;

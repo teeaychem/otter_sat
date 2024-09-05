@@ -3,7 +3,7 @@ use std::char;
 use crate::structures::*;
 
 impl Formula {
-    pub fn from_dimacs(string: &str) -> Result<&'static Formula, SolveError> {
+    pub fn from_dimacs<'formula>(string: &str) -> Result<&'formula Formula, SolveError> {
         let mut the_solve = Formula::new();
         let mut from = 0;
         let mut to = 0;
