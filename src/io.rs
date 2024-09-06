@@ -7,20 +7,31 @@ impl Formula {
         let mut the_solve = Formula::new();
         let mut from = 0;
         let mut to = 0;
-        let mut skip = false;
+        let mut reading_comment = false;
+        let mut reading_literal = false;
         while let Some(ch) = string.chars().nth(to) {
-            if ch == '0' {
-                if !skip {
-                    the_solve.add_clause(&string[from..to])?;
+            if !reading_literal {
+                if ['-', '1', '2', '3', '4', '5', '6', '7', '8', '9'].contains(&ch) {
+                    reading_literal = true
+                } else if ch == '0' {
+                    if !reading_comment {
+                        println!("adding clause: {}", &string[from..to]);
+                        the_solve.add_clause(&string[from..to])?;
+                    }
+                    from = to + 1;
                 }
-                from = to + 1;
-            } else if ch == 'c' {
-                skip = true;
+            }
+            if reading_literal && ch.is_whitespace() {
+                reading_literal = false
+            }
+
+            if ch == 'c' {
+                reading_comment = true;
             } else if ch == 0xA as char {
                 // newline check
                 from += 1;
-                skip = false;
-            } else if ch == 'p' {
+                reading_comment = false;
+            } else if !reading_comment && ch == 'p' {
                 loop {
                     to += 1;
                     if let Some(other_ch) = string.chars().nth(to) {
@@ -28,25 +39,30 @@ impl Formula {
                             break;
                         }
                     } else {
+                        println!("p issue");
                         return Err(SolveError::ParseFailure);
                     }
                 }
                 let the_preface = &string[from..to];
-                let mut preface_parts = the_preface.split_whitespace();
-                preface_parts.next(); // skip 'p'
-                if to - from < 7 {
+                let preface_parts = the_preface.split_whitespace().collect::<Vec<_>>();
+                if preface_parts.len() != 4 {
+                    println!("p length");
                     return Err(SolveError::PrefaceLength);
-                } else if Some("cnf") != preface_parts.next() {
+                } else if Some(&"p") != preface_parts.get(0) {
+                    return Err(SolveError::PrefaceFormat);
+                } else if Some(&"cnf") != preface_parts.get(1) {
+                    println!("p fmt {:?}", the_preface);
+                    println!("p fmt {:?}", preface_parts);
                     return Err(SolveError::PrefaceFormat);
                 }
-                let _variables = match preface_parts.next() {
+                let _variables = match preface_parts.get(2) {
                     Some(count) => match count.parse::<usize>() {
                         Ok(count_number) => count_number,
                         Err(_) => return Err(SolveError::ParseFailure),
                     },
                     None => return Err(SolveError::ParseFailure),
                 };
-                let _clauses = match preface_parts.next() {
+                let _clauses = match preface_parts.get(3) {
                     Some(count) => match count.parse::<usize>() {
                         Ok(count_number) => count_number,
                         Err(_) => return Err(SolveError::ParseFailure),
@@ -56,17 +72,15 @@ impl Formula {
                 from = to
             }
 
-            if skip {
+            if reading_comment {
                 from += 1
             }
             to += 1;
         }
 
-        if !&string[from..].trim().is_empty() {
-            Err(SolveError::ParseFailure)
-        } else {
-            Ok(Box::leak(Box::new(the_solve)))
-        }
+        println!("checking: {}", &string[from - 1..]);
+
+        Ok(Box::leak(Box::new(the_solve)))
     }
 
     pub fn add_clause(&mut self, string: &str) -> Result<(), SolveError> {
