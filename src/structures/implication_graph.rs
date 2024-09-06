@@ -1,11 +1,11 @@
 use crate::structures::{ClauseId, Formula, Literal, VariableId};
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, VecDeque};
 
 // Implication graph
 
 #[derive(Clone, Debug)]
-pub struct ImpGraph<'f> {
-    formula: &'f Formula,
+pub struct ImpGraph<'formula> {
+    formula: &'formula Formula,
     nodes: Vec<ImpGraphNode>,
     edges: Vec<ImpGraphEdge>,
     implication_paths: ImpGraphPaths,
@@ -53,7 +53,7 @@ impl ImpGraphPaths {
 }
 
 impl ImpGraph<'_> {
-    pub fn for_formula<'f>(formula: &'f Formula) -> ImpGraph {
+    pub fn for_formula(formula: &Formula) -> ImpGraph {
         ImpGraph {
             formula,
             edges: vec![],
@@ -116,8 +116,7 @@ impl ImpGraph<'_> {
             if let Some(edges) = &g.nodes[n].backward_edges {
                 for (index, edge) in edges.iter().enumerate() {
                     let child: usize = g.edges[*edge].from.try_into().unwrap();
-                    if index > 0 {
-                        // only add to the count when branching
+                    if index > 0 { // only add to the count when branching
                         p_obj.count += 1;
                         new_paths.push(p_obj.count);
                     }
@@ -142,6 +141,34 @@ impl ImpGraph<'_> {
             helper(self, v as usize, path_obj.count, &mut path_obj);
         }
         self.implication_paths = path_obj
+    }
+
+    pub fn unique_point(&self) {
+
+        let possible_nodes = self.implication_paths.paths.iter().filter(|p_info| p_info.as_ref().is_some_and(|x| x.len() == self.implication_paths.count)).cloned().collect::<Vec<_>>();
+        println!("possible nodes: {:?}", possible_nodes);
+        let mut found_points: Vec<ImpGraphNode> = vec![];
+        let mut queue: VecDeque<&ImpGraphNode> = VecDeque::new();
+
+//         // set up the queue
+//         self.implication_paths.from.iter().for_each(|literal| {
+//             if let Some(node) = self.nodes.iter().find(|n| n.v_id == literal.v_id) {
+//                 queue.push_front(node);
+//             }
+//         });
+
+//         loop {
+//             if queue.is_empty() {
+//                 break;
+//             }
+//             if let Some(node) = queue.pop_back() {
+//                 if node.
+// }
+
+
+
+
+// }
     }
 
     pub fn generate_details(&mut self) {
