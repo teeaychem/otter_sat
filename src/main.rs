@@ -25,6 +25,8 @@ fn main() {
     let args = Args::parse();
     // dbg!(&args);
     if let Ok(contents) = fs::read_to_string(args.file) {
+        println!("have string {:?}", contents);
+
         if let Ok(formula) = Formula::from_dimacs(&contents) {
             let mut the_solve = Solve::from_formula(formula);
 
@@ -37,6 +39,7 @@ fn main() {
                 println!("SAT? {:?}", sat);
             }
 
+            println!("{}", the_solve.levels.len());
             println!("{}", the_solve);
             // dbg!(&the_solve);
         }
