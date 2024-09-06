@@ -76,7 +76,7 @@ impl Clause {
                             unit = None;
                             break;
                         }
-                        None => unit = Some(literal.clone()),
+                        None => unit = Some(*literal),
                     }
                 }
             }
@@ -84,24 +84,41 @@ impl Clause {
         unit
     }
 
-    pub fn collect_unset<T: Valuation>(&self, valuation: &T) -> Vec<Literal> {
+
+    /*
+    If
+     */
+    pub fn collect_choices<T: Valuation>(&self, valuation: &T) -> Option<Vec<Literal>> {
         let mut the_literals = vec![];
 
         for literal in &self.literals {
-            if let Ok(assigned_value) = valuation.of_v_id(literal.v_id) {
-                if assigned_value.is_some_and(|v| v == literal.polarity) {
-                    // the clause is satisfied and so does not provide any new information
-                    break;
-                } else if assigned_value.is_some() {
-                    // either every literal so far has been valued the opposite, or there has been exactly on unvalued literal, so continue
-                    continue;
-                } else {
-                    // if no other literal has been found then this literal may be unit, so mark it and continue
-                    // though, if some other literal has already been marked, the clause does not force any literal
-                    the_literals.push(literal.clone())
+            match valuation.of_v_id(literal.v_id) {
+                Ok(assigned_value) => {
+                    match assigned_value {
+                        Some(value) => {
+                            if value == literal.polarity {
+                                return None;
+                            } else {
+                                continue;
+                            }
+                        }
+                        None => the_literals.push(*literal),
+                    }
+                    // if assigned_value.is_some_and(|v| ) {
+                    //     // the clause is satisfied and so does not provide any new information
+                    //     break;
+                    // } else if assigned_value.is_some() {
+                    //     // either every literal so far has been valued the opposite, or there has been exactly on unvalued literal, so continue
+                    //     continue;
+                    // } else {
+                    //     // if no other literal has been found then this literal may be unit, so mark it and continue
+                    //     // though, if some other literal has already been marked, the clause does not force any literal
+
+                    // }
                 }
+                Err(_) => panic!("Failed to get valuation of variable"),
             }
         }
-        the_literals
+        Some(the_literals)
     }
 }

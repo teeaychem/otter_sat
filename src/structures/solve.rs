@@ -1,4 +1,8 @@
-use crate::structures::{ClauseId, Formula, Level, Literal, LiteralError, Valuation, ValuationVec};
+use crate::structures::{
+    Clause, ClauseId, Formula, Level, Literal, LiteralError, LiteralSource, Valuation,
+    ValuationError, ValuationVec, VariableId,
+};
+use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
 use std::collections::BTreeSet;
 
@@ -8,6 +12,7 @@ pub struct Solve<'formula> {
     pub sat: Option<bool>,
     pub valuation: Vec<Option<bool>>,
     pub levels: Vec<Level<'formula>>,
+    pub clauses: Vec<Clause>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -19,6 +24,7 @@ pub enum SolveError {
     PrefaceFormat,
     Hek,
     OutOfBounds,
+    SetIssue,
 }
 
 impl Solve<'_> {
@@ -29,6 +35,7 @@ impl Solve<'_> {
             sat: None,
             valuation,
             levels: vec![],
+            clauses: vec![],
         };
         let level_zero = Level::new(0, &the_solve);
         the_solve.levels.push(level_zero);
@@ -63,17 +70,18 @@ impl Solve<'_> {
     ) -> (BTreeSet<(ClauseId, Literal)>, BTreeSet<Literal>) {
         let mut the_unit_set = BTreeSet::new();
         let mut the_choice_set = BTreeSet::new();
-        for clause in self.formula.clauses.iter() {
-            let the_unset = clause.collect_unset(valuation);
-            if the_unset.len() == 1 {
-                let the_pair: (ClauseId, Literal) = (clause.id, *the_unset.first().unwrap());
-                the_unit_set.insert(the_pair);
-                if the_choice_set.contains(&the_pair.1) {
-                    the_choice_set.remove(&the_pair.1);
-                }
-            } else {
-                for literal in the_unset {
-                    the_choice_set.insert(literal);
+        for clause in &self.formula.clauses {
+            if let Some(the_unset) = clause.collect_choices(valuation) {
+                if the_unset.len() == 1 {
+                    let the_pair: (ClauseId, Literal) = (clause.id, *the_unset.first().unwrap());
+                    the_unit_set.insert(the_pair);
+                    if the_choice_set.contains(&the_pair.1) {
+                        the_choice_set.remove(&the_pair.1);
+                    }
+                } else {
+                    for literal in the_unset {
+                        the_choice_set.insert(literal);
+                    }
                 }
             }
         }
@@ -96,45 +104,56 @@ impl Solve<'_> {
             })
     }
 
-    // pub fn find_all_immediate_units_on<T: Valuation>(
-    //     &self,
-    //     valuation: &T,
-    //     ignoring: &BTreeSet<(ClauseId, Literal)>,
-    // ) -> Vec<(ClauseId, Literal)> {
-    //     let mut the_set = BTreeSet::new();
-    //     for clause in self.formula.clauses.iter() {
-    //         if let Some(unit_literal) = clause.find_unit_literal(valuation) {
-    //             let the_pair = (clause.id, unit_literal);
-    //             if !ignoring.contains(&the_pair) {
-    //                 the_set.insert(the_pair);
-    //             }
-    //         }
-    //     }
-    //     the_set.iter().cloned().collect()
-    // }
+    pub fn fresh_clause_id() -> ClauseId {
+        static COUNTER: AtomicUsize = AtomicUsize::new(1);
+        COUNTER.fetch_add(1, AtomicOrdering::Relaxed) as ClauseId
+    }
 
-    // pub fn find_all_units_on<T: Valuation + Clone>(
-    //     &self,
-    //     valuation: &T,
-    //     ignoring: &mut BTreeSet<(ClauseId, Literal)>,
-    // ) -> Vec<(ClauseId, Literal)> {
-    //     let immediate_units = self.find_all_immediate_units_on(valuation, ignoring);
-    //     ignoring.extend(immediate_units.clone());
-    //     let mut further_units = vec![];
-    //     if !immediate_units.is_empty() {
-    //         for (_, literal) in &immediate_units {
-    //             let mut updated_valuation = valuation.clone();
-    //             let _ = updated_valuation.set_literal(literal);
-    //             further_units.extend(
-    //                 self.find_all_units_on(&updated_valuation, ignoring)
-    //                     .iter()
-    //                     .cloned(),
-    //             );
-    //         }
-    //     }
-    //     further_units.extend(immediate_units.iter().cloned());
-    //     further_units
-    // }
+    pub fn get_unassigned_id(&self, solve: &Solve) -> Option<VariableId> {
+        solve
+            .formula
+            .vars()
+            .iter()
+            .find(|&v| self.valuation.of_v_id(v.id).is_ok_and(|p| p.is_none()))
+            .map(|found| found.id)
+    }
+}
+
+impl<'borrow, 'solve> Solve<'solve> {
+    pub fn learn_as_clause(&'borrow mut self, literals: Vec<Literal>) {
+        let clause = Clause {
+            id: Solve::fresh_clause_id(),
+            position: self.clauses.len(),
+            literals,
+        };
+        self.clauses.push(clause)
+    }
+
+    pub fn set_literal(
+        &'borrow mut self,
+        literal: &Literal,
+        source: LiteralSource,
+    ) -> Result<(), ValuationError> {
+        match source {
+            LiteralSource::Choice => {
+                self.add_fresh_level();
+                let last_position = self.levels.len() - 1;
+                self.levels[last_position].choices.push(*literal);
+            }
+            LiteralSource::HobsonChoice | LiteralSource::Assumption => {
+                self.levels[0].observations.push(*literal);
+            }
+            LiteralSource::Clause(_) | LiteralSource::Conflict => {
+                let last_position = self.levels.len() - 1;
+                self.levels[last_position].observations.push(*literal);
+            }
+        };
+        let result = self.valuation.set_literal(literal);
+        if let Err(ValuationError::Inconsistent) = result {
+            self.sat = Some(false)
+        }
+        result
+    }
 }
 
 impl std::fmt::Display for Solve<'_> {

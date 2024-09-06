@@ -1,5 +1,5 @@
 use crate::structures::{
-    Clause, ClauseId, Literal, LiteralError, Variable, VariableId, SolveError,
+    Clause, ClauseId, Literal, LiteralError, SolveError, Variable, VariableId,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -24,9 +24,11 @@ impl Formula {
     }
 
     pub fn fresh_clause(&self) -> Clause {
-        let id = Self::fresh_clause_id();
-        let position = self.clauses.len();
-        Clause::new(id, position)
+        Clause {
+            id: Self::fresh_clause_id(),
+            position: self.clauses.len(),
+            literals: Vec::new(),
+        }
     }
 
     // todo think about the structure to allow dropping clauses, etc
@@ -81,13 +83,21 @@ impl Formula {
 
     pub fn var_count(&self) -> usize {
         self.variables.len()
-}
+    }
 }
 
 impl std::fmt::Display for Formula {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         writeln!(f, "| Variables")?;
-        writeln!(f, "|   {}", self.variables.iter().map(|v| v.name.clone()).collect::<Vec<_>>().join(" "))?;
+        writeln!(
+            f,
+            "|   {}",
+            self.variables
+                .iter()
+                .map(|v| v.name.clone())
+                .collect::<Vec<_>>()
+                .join(" ")
+        )?;
         writeln!(f, "| Clauses")?;
         for clause in &self.clauses {
             writeln!(f, "|   {}", clause)?;

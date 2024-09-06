@@ -9,21 +9,20 @@ use crate::structures::{
 pub struct Level<'formula> {
     index: usize,
     pub choices: Vec<Literal>,
-    observations: Vec<Literal>,
+    pub observations: Vec<Literal>,
     pub implications: ImpGraph<'formula>,
     pub clauses_unit: Vec<(ClauseId, Literal)>,
     // pub clauses_open: Vec<ClauseId>,
 }
 
-impl<'borrow, 'formula> Level<'formula> {
-    pub fn new(index: usize, solve: &'borrow Solve<'formula>) -> Self {
+impl<'borrow, 'solve> Level<'solve> {
+    pub fn new(index: usize, solve: &'borrow Solve<'solve>) -> Self {
         Level {
             index,
             choices: vec![],
             observations: vec![],
             implications: ImpGraph::for_formula(solve.formula),
             clauses_unit: vec![],
-            // clauses_open: vec![],
         }
     }
 }
@@ -54,46 +53,12 @@ impl<'borrow, 'formula> Solve<'formula> {
     }
 }
 
-impl<'formula> Solve<'formula> {
-    pub fn set(&mut self, literal: &Literal, source: LiteralSource) -> Result<(), ValuationError> {
-        {
-            match source {
-                LiteralSource::Choice => {
-                    self.add_fresh_level();
-                    let last_position = self.levels.len() - 1;
-                    self.levels[last_position].choices.push(*literal);
-                }
-                LiteralSource::HobsonChoice | LiteralSource::Assumption => {
-                    self.levels[0].observations.push(*literal);
-                }
-                LiteralSource::Clause(_) | LiteralSource::Conflict => {
-                    let last_position = self.levels.len() - 1;
-                    self.levels[last_position].observations.push(*literal);
-                }
-            };
-        }
-        let result = self.valuation.set_literal(literal);
-        if let Err(ValuationError::Inconsistent) = result {
-            self.sat = Some(false)
-        }
-        result
-    }
-}
-
 impl Solve<'_> {
     pub fn current_level(&self) -> usize {
         self.levels.len() - 1
     }
 
-    // pub fn level_from_choice(&mut self, choice: &Literal, solve: &Solve) {
-    //     let the_level = self.fresh_level();
-    //     the_level.choices.push(choice.clone());
-    //     // let the_graph = ImplicationGraph::for_level(&self.valuation, solve);
-    //     // println!("the graph: {:?}", the_graph);
-    //     // self.last_level_mut().implications = the_graph;
-    // }
-
-    pub fn pop_last_level(&mut self) -> Option<Level> {
+    pub fn pop_level(&mut self) -> Option<Level> {
         if self.levels.len() <= 1 {
             return None;
         }
@@ -102,15 +67,6 @@ impl Solve<'_> {
         self.sat = None;
 
         the_level
-    }
-
-    pub fn get_unassigned_id(&self, solve: &Solve) -> Option<VariableId> {
-        solve
-            .formula
-            .vars()
-            .iter()
-            .find(|&v| self.valuation.of_v_id(v.id).is_ok_and(|p| p.is_none()))
-            .map(|found| found.id)
     }
 
     pub fn valuation_at_level(&self, index: usize) -> ValuationVec {
@@ -147,7 +103,7 @@ impl Solve<'_> {
         }
 
         for (clause_id, literal) in &the_units {
-            let _ = self.set(literal, LiteralSource::Clause(*clause_id));
+            let _ = self.set_literal(literal, LiteralSource::Clause(*clause_id));
         }
 
         self.levels[level].clauses_unit.extend(the_units);
