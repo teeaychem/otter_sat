@@ -1,4 +1,4 @@
-use crate::structures::{ClauseId, Formula, Literal, VariableId};
+use crate::structures::{Clause, ClauseId, Formula, Literal, Valuation, VariableId, Level};
 use std::collections::{BTreeSet, VecDeque};
 
 // Implication graph
@@ -14,8 +14,8 @@ pub struct ImpGraph<'formula> {
 #[derive(Clone, Debug)]
 pub struct ImpGraphNode {
     v_id: VariableId,
-    backward_edges: Option<Vec<EdgeId>>,
-    forward_edges: Option<Vec<EdgeId>>,
+    backward_edges: Vec<EdgeId>,
+    forward_edges: Vec<EdgeId>,
 }
 
 pub type EdgeId = usize;
@@ -30,8 +30,8 @@ pub struct ImpGraphEdge {
 #[derive(Clone, Debug)]
 struct ImpGraphPaths {
     from: Vec<VariableId>,
-    paths: Vec<Option<Vec<usize>>>,
-    count: usize,
+    paths: Vec<Vec<usize>>,
+    next_path_id: usize,
 }
 
 impl ImpGraphPaths {
@@ -39,15 +39,15 @@ impl ImpGraphPaths {
         ImpGraphPaths {
             from: vec![],
             paths: vec![],
-            count: 0,
+            next_path_id: 0,
         }
     }
 
     pub fn new_empty_of_size(size: usize, from: Vec<VariableId>) -> Self {
         ImpGraphPaths {
             from,
-            paths: vec![None; size],
-            count: 0,
+            paths: vec![vec![]; size],
+            next_path_id: 0,
         }
     }
 }
@@ -68,28 +68,32 @@ impl ImpGraph<'_> {
         self.edges.push(edge)
     }
 
+    pub fn extend(&mut self, from: BTreeSet<VariableId>, ante: &Clause, cseq: VariableId) {
+        for literal in &ante.literals {
+            if literal.v_id != cseq && from.contains(&literal.v_id) {
+                self.edges.push(ImpGraphEdge {
+                    from: literal.v_id,
+                    to: cseq,
+                    clause_id: ante.id,
+                })
+            }
+        }
+    }
+
     pub fn annotate_node_edges(&mut self, forwards: bool, backwards: bool) {
         for (edge_id, edge) in self.edges.iter().enumerate() {
             if forwards {
                 if let Some(node) = self.nodes.get_mut(edge.from as usize) {
-                    if let Some(ref mut vec) = node.forward_edges {
-                        if !vec.contains(&edge_id) {
-                            vec.push(edge_id);
-                        }
-                    } else {
-                        self.nodes[edge.from as usize].forward_edges = Some(Vec::from([edge_id]));
+                    if !node.forward_edges.contains(&edge_id) {
+                        node.forward_edges.push(edge_id);
                     }
                 }
             }
 
             if backwards {
                 if let Some(node) = self.nodes.get_mut(edge.to as usize) {
-                    if let Some(ref mut vec) = node.backward_edges {
-                        if !vec.contains(&edge_id) {
-                            vec.push(edge_id);
-                        }
-                    } else {
-                        self.nodes[edge.to as usize].backward_edges = Some(Vec::from([edge_id]));
+                    if !node.backward_edges.contains(&edge_id) {
+                        node.backward_edges.push(edge_id);
                     }
                 }
             }
@@ -101,74 +105,114 @@ impl ImpGraph<'_> {
 
     could be improved by ignoring edges which differ only by clause id
     */
-    pub fn trace_implication_paths(&mut self, from: Vec<Literal>) {
+    pub fn trace_implication_paths(&mut self, to: VariableId, from: Vec<VariableId>) {
+        // work backwards from terminal nodes
         let mut path_obj = ImpGraphPaths::new_empty_of_size(
             self.formula.var_count(),
-            from.iter()
-                .map(|l| l.v_id)
-                .filter(|&v_id| self.nodes[v_id as usize].forward_edges.is_none())
-                .collect::<Vec<_>>(),
+            from, // .iter()
+                  // .filter(|&&v_id| self.nodes[v_id as usize].forward_edges.is_empty())
+                  // .cloned()
+                  // .collect::<Vec<_>>(),
         );
 
-        fn helper(g: &ImpGraph, n: usize, p: usize, p_obj: &mut ImpGraphPaths) -> Vec<usize> {
-            let mut sub_paths = vec![p];
-            let mut new_paths = vec![];
-            if let Some(edges) = &g.nodes[n].backward_edges {
-                for (index, edge) in edges.iter().enumerate() {
-                    let child: usize = g.edges[*edge].from.try_into().unwrap();
-                    if index > 0 { // only add to the count when branching
-                        p_obj.count += 1;
-                        new_paths.push(p_obj.count);
+        fn helper(
+            g: &ImpGraph,
+            node_index: usize,
+            p_obj: &mut ImpGraphPaths,
+            from: VariableId,
+        ) -> Vec<usize> {
+            let the_node = &g.nodes[node_index];
+            match &the_node.backward_edges.is_empty() {
+                true => {
+                    if the_node.v_id == from {
+                        let path_id = p_obj.next_path_id;
+                        p_obj.next_path_id += 1;
+                        p_obj.paths[node_index].push(path_id);
+                        vec![path_id]
+                    } else {
+                        vec![]
                     }
-                    sub_paths.extend(helper(g, child, p_obj.count, p_obj));
+                }
+                false => {
+                    let mut sub_paths = vec![];
+                    for edge in &the_node.backward_edges {
+                        let child: usize = g.edges[*edge].from.try_into().unwrap();
+                        let new_paths = helper(g, child, p_obj, from);
+                        sub_paths.extend(new_paths);
+                    }
+                    for sub_path_id in &sub_paths {
+                        p_obj.paths[node_index].push(*sub_path_id);
+                    }
+                    sub_paths
                 }
             }
-            if p_obj.paths[n].is_some() {
-                sub_paths
-                    .iter()
-                    .for_each(|p| p_obj.paths[n].as_mut().expect("hek").push(*p));
-            } else {
-                p_obj.paths[n] = Some(sub_paths);
-            }
-
-            new_paths
         }
 
         let variables = path_obj.from.iter().cloned().collect::<BTreeSet<_>>();
 
         for v in variables {
-            path_obj.count += 1;
-            helper(self, v as usize, path_obj.count, &mut path_obj);
+            helper(self, v as usize, &mut path_obj, to);
         }
         self.implication_paths = path_obj
     }
 
-    pub fn unique_point(&self) {
+    pub fn unique_point<T: Valuation + std::fmt::Debug>(&self, clause: &Clause, val: T, level: &Level) {
+        let possible_nodes = self.implication_paths.paths.iter().enumerate();
+        for (id, p_info) in self.implication_paths.paths.iter().enumerate() {
+            if !p_info.is_empty() && p_info.len() == self.implication_paths.next_path_id {
+                // println!("{:?}", self.nodes[id]);
+                // let v = self.nodes[id].v_id;
+                // println!("{:?}", self.nodes[v as usize]);
+            }
+        }
+        if self
+            .implication_paths
+            .paths
+            .iter()
+            .all(|b| b.is_empty())
+        {
+            println!("e so {}", level.choices.first().unwrap());
+            println!("e so {}", clause);
+            println!("e so {:?}", val);
+            println!("e so {}", self);
+            for (i, edge) in self.edges.iter().enumerate() {
+                println!("{i} - {:?}", edge)
+            }
 
-        let possible_nodes = self.implication_paths.paths.iter().filter(|p_info| p_info.as_ref().is_some_and(|x| x.len() == self.implication_paths.count)).cloned().collect::<Vec<_>>();
-        println!("possible nodes: {:?}", possible_nodes);
+
+            panic!();
+        }
+
+        // let possible_nodes2 = self
+        //     .implication_paths
+        //     .paths
+        //     .iter()
+        //     .filter(|x| !x.is_empty())
+        //     .map(|y| y.clone().len())
+        //     .collect::<Vec<_>>();
+        // println!(
+        //     "{} & possible nodes2: {:?}",
+        //     self.implication_paths.next_path_id, possible_nodes2
+        // );
         let mut found_points: Vec<ImpGraphNode> = vec![];
         let mut queue: VecDeque<&ImpGraphNode> = VecDeque::new();
 
-//         // set up the queue
-//         self.implication_paths.from.iter().for_each(|literal| {
-//             if let Some(node) = self.nodes.iter().find(|n| n.v_id == literal.v_id) {
-//                 queue.push_front(node);
-//             }
-//         });
+        //         // set up the queue
+        //         self.implication_paths.from.iter().for_each(|literal| {
+        //             if let Some(node) = self.nodes.iter().find(|n| n.v_id == literal.v_id) {
+        //                 queue.push_front(node);
+        //             }
+        //         });
 
-//         loop {
-//             if queue.is_empty() {
-//                 break;
-//             }
-//             if let Some(node) = queue.pop_back() {
-//                 if node.
-// }
+        //         loop {
+        //             if queue.is_empty() {
+        //                 break;
+        //             }
+        //             if let Some(node) = queue.pop_back() {
+        //                 if node.
+        // }
 
-
-
-
-// }
+        // }
     }
 
     pub fn generate_details(&mut self) {
@@ -180,8 +224,8 @@ impl ImpGraphNode {
     pub fn new(v_id: VariableId) -> Self {
         ImpGraphNode {
             v_id,
-            backward_edges: None,
-            forward_edges: None,
+            backward_edges: vec![],
+            forward_edges: vec![],
         }
     }
 }
@@ -193,5 +237,13 @@ impl ImpGraphEdge {
             clause_id,
             to,
         }
+    }
+}
+
+impl std::fmt::Display for ImpGraph<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "#[{:?}] ", self.nodes)?;
+        write!(f, "#[{:?}] ", self.edges)?;
+        Ok(())
     }
 }

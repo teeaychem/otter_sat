@@ -28,7 +28,7 @@ fn main() {
         println!("have string {:?}", contents);
 
         if let Ok(formula) = Formula::from_dimacs(&contents) {
-            let mut the_solve = Solve::from_formula(formula);
+            let mut the_solve = Solve::from_formula(&formula);
 
             the_solve.literals_of_polarity(true);
             the_solve.literals_of_polarity(false);
@@ -39,8 +39,7 @@ fn main() {
                 println!("SAT? {:?}", sat);
             }
 
-            println!("{}", the_solve.levels.len());
-            println!("{}", the_solve);
+            // println!("{}", the_solve);
             // dbg!(&the_solve);
         }
     }
