@@ -1,6 +1,6 @@
 use crate::structures::{
-    Clause, ClauseId, Formula, Level, Literal, LiteralError, LiteralSource, Valuation,
-    ValuationError, ValuationVec, VariableId,
+    Clause, ClauseId, Formula, ImplicationEdge, ImplicationGraph, ImplicationNode, Level, Literal,
+    LiteralError, LiteralSource, Valuation, ValuationError, ValuationVec, VariableId,
 };
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
@@ -11,8 +11,9 @@ pub struct Solve<'formula> {
     pub formula: &'formula Formula,
     pub sat: Option<bool>,
     pub valuation: Vec<Option<bool>>,
-    pub levels: Vec<Level<'formula>>,
+    pub levels: Vec<Level>,
     pub clauses: Vec<Clause>,
+    pub graph: ImplicationGraph,
 }
 
 #[derive(Debug, PartialEq)]
@@ -36,6 +37,7 @@ impl Solve<'_> {
             valuation,
             levels: vec![],
             clauses: vec![],
+            graph: ImplicationGraph::new_for(formula),
         };
         let level_zero = Level::new(0, &the_solve);
         the_solve.levels.push(level_zero);
@@ -144,22 +146,21 @@ impl<'borrow, 'solve> Solve<'solve> {
             LiteralSource::HobsonChoice | LiteralSource::Assumption => {
                 self.levels[0].observations.push(*literal);
             }
-            LiteralSource::Clause(_) |
-            LiteralSource::Conflict => {
+            LiteralSource::Clause(_) | LiteralSource::Conflict => {
                 let current_level = self.current_level();
                 self.levels[current_level].observations.push(*literal);
             }
         };
         let result = self.valuation.set_literal(literal);
         if Some(false) != self.sat {
-        let current_level = self.current_level();
-        if let Err(ValuationError::Inconsistent) = result {
-            match source {
-                LiteralSource::Clause(c) => self.levels[current_level].clauses_violated.push(c),
-                _ => panic!("unsat without a clause")
+            let current_level = self.current_level();
+            if let Err(ValuationError::Inconsistent) = result {
+                match source {
+                    LiteralSource::Clause(c) => self.levels[current_level].clauses_violated.push(c),
+                    _ => panic!("unsat without a clause"),
+                }
+                self.sat = Some(false)
             }
-            self.sat = Some(false)
-        }
         }
         result
     }

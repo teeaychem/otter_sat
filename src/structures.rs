@@ -8,7 +8,9 @@ pub mod valuation;
 
 pub use crate::structures::clause::{Clause, ClauseError, ClauseId};
 pub use crate::structures::formula::Formula;
-pub use crate::structures::implication_graph::{EdgeId, ImpGraph, ImpGraphEdge};
+pub use crate::structures::implication_graph::{
+    ImplicationEdge, ImplicationGraph, ImplicationNode,
+};
 pub use crate::structures::level::Level;
 pub use crate::structures::literal::{Literal, LiteralError, LiteralSource, Variable, VariableId};
 pub use crate::structures::solve::{Solve, SolveError};
