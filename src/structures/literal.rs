@@ -1,6 +1,6 @@
 use crate::structures::ClauseId;
 
-pub type VariableId = u32;
+pub type VariableId = usize;
 
 #[derive(Clone, Debug)]
 pub struct Variable {
