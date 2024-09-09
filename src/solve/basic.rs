@@ -89,13 +89,23 @@ impl Solve<'_> {
                 let val = self.valuation_at_level(self.current_level());
                 let popped_level = self.pop_level();
                 if let Some(mut level) = popped_level {
+                    let the_choice = level.choices.first().unwrap();
+                    let the_choice_index = self.graph.get_literal(*the_choice);
+                    self.graph.dominators(the_choice_index);
+
+
+                    for literal in level.literals() {
+                        self.graph.remove_literal(literal);
+                    }
+                    for conflcit in &self.graph.conflict_indicies {
+                        self.graph.graph.remove_node(*conflcit);
+                    }
+                    self.graph.conflict_indicies = vec![];
+
                     // println!(". {:?}", level.clauses_violated);
-                    level.implications.generate_details();
                     let x = *level.clauses_violated.first().unwrap();
                     let v_c = self.formula.clauses.iter().find(|c|  c.id == x).unwrap();
                     let c_v = v_c.literals.iter().map(|l| l.v_id ).collect::<Vec<_>>();
-                    level.implications.trace_implication_paths(level.choices.first().unwrap().v_id, c_v);
-                    level.implications.unique_point(v_c, val, &level);
                     if level.choices.len() == 1 {
                         let the_literal = &level.choices.first().unwrap().negate();
                         let _ = self.set_literal(the_literal, LiteralSource::Conflict);
@@ -115,20 +125,27 @@ impl Solve<'_> {
 
             // 3. decide, either
             if !the_units.is_empty() { // apply unit clauses
-                for (clause_id, literal) in &the_units {
-                    match self.set_literal(literal, LiteralSource::Clause(*clause_id)) {
+                for (clause_id, consequent) in &the_units {
+                    let the_clause = &self.formula.clauses.iter().find(|c| c.id == *clause_id).unwrap();
+                    // println!("unit {} - {}", the_clause, consequent);
+                    match self.set_literal(consequent, LiteralSource::Clause(*clause_id)) {
                         Err(ValuationError::Inconsistent) => {
+                            println!("conflict for {} -{}", the_clause, consequent);
+                            self.graph.add_conflict(the_clause, *consequent, self.current_level());
                             // println!("{:?}", self.formula.clauses.iter().find(|c| c.id == *clause_id).unwrap());
                             // break
                         },
-                        _ => continue
+                        _ => {
+                            self.graph.add_implication(the_clause, *consequent, self.current_level());
+                            continue
+                        }
                     }
                 }
 
-                self.extend_implication_graph(
-                    self.current_level(),
-                    &the_units.iter().cloned().collect()
-                );
+                // self.extend_implication_graph(
+                //     self.current_level(),
+                //     &the_units.iter().cloned().collect()
+                // );
             } else if !the_choices.is_empty() { // make a choice
                 let first_choice = the_choices.first().unwrap();
                 let _ = self.set_literal(first_choice, LiteralSource::Choice);
