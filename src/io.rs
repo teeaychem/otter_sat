@@ -3,7 +3,7 @@ use std::char;
 use crate::structures::*;
 
 impl Formula {
-    pub fn from_dimacs<'formula>(string: &str) -> Result<&'formula Formula, SolveError> {
+    pub fn from_dimacs<'formula>(string: &str) -> Result<Formula, SolveError> {
         let mut the_solve = Formula::new();
         let mut from = 0;
         let mut to = 0;
@@ -15,7 +15,6 @@ impl Formula {
                     reading_literal = true
                 } else if ch == '0' {
                     if !reading_comment {
-                        println!("adding clause: {}", &string[from..to]);
                         the_solve.add_clause(&string[from..to])?;
                     }
                     from = to + 1;
@@ -39,20 +38,16 @@ impl Formula {
                             break;
                         }
                     } else {
-                        println!("p issue");
                         return Err(SolveError::ParseFailure);
                     }
                 }
                 let the_preface = &string[from..to];
                 let preface_parts = the_preface.split_whitespace().collect::<Vec<_>>();
                 if preface_parts.len() != 4 {
-                    println!("p length");
                     return Err(SolveError::PrefaceLength);
-                } else if Some(&"p") != preface_parts.get(0) {
+                } else if Some(&"p") != preface_parts.first() {
                     return Err(SolveError::PrefaceFormat);
                 } else if Some(&"cnf") != preface_parts.get(1) {
-                    println!("p fmt {:?}", the_preface);
-                    println!("p fmt {:?}", preface_parts);
                     return Err(SolveError::PrefaceFormat);
                 }
                 let _variables = match preface_parts.get(2) {
@@ -77,10 +72,7 @@ impl Formula {
             }
             to += 1;
         }
-
-        println!("checking: {}", &string[from - 1..]);
-
-        Ok(Box::leak(Box::new(the_solve)))
+        Ok(the_solve)
     }
 
     pub fn add_clause(&mut self, string: &str) -> Result<(), SolveError> {

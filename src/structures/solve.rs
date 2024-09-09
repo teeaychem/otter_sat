@@ -121,6 +121,7 @@ impl Solve<'_> {
 
 impl<'borrow, 'solve> Solve<'solve> {
     pub fn learn_as_clause(&'borrow mut self, literals: Vec<Literal>) {
+        panic!("learn as clause");
         let clause = Clause {
             id: Solve::fresh_clause_id(),
             position: self.clauses.len(),
@@ -137,20 +138,28 @@ impl<'borrow, 'solve> Solve<'solve> {
         match source {
             LiteralSource::Choice => {
                 self.add_fresh_level();
-                let last_position = self.levels.len() - 1;
-                self.levels[last_position].choices.push(*literal);
+                let current_level = self.current_level();
+                self.levels[current_level].choices.push(*literal);
             }
             LiteralSource::HobsonChoice | LiteralSource::Assumption => {
                 self.levels[0].observations.push(*literal);
             }
-            LiteralSource::Clause(_) | LiteralSource::Conflict => {
-                let last_position = self.levels.len() - 1;
-                self.levels[last_position].observations.push(*literal);
+            LiteralSource::Clause(_) |
+            LiteralSource::Conflict => {
+                let current_level = self.current_level();
+                self.levels[current_level].observations.push(*literal);
             }
         };
         let result = self.valuation.set_literal(literal);
+        if Some(false) != self.sat {
+        let current_level = self.current_level();
         if let Err(ValuationError::Inconsistent) = result {
+            match source {
+                LiteralSource::Clause(c) => self.levels[current_level].clauses_violated.push(c),
+                _ => panic!("unsat without a clause")
+            }
             self.sat = Some(false)
+        }
         }
         result
     }

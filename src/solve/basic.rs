@@ -1,6 +1,7 @@
-use crate::{structures::{
-    Literal, LiteralSource, Solve, SolveError, ValuationVec, VariableId,
-}, Clause, ValuationError};
+use crate::{
+    structures::{Literal, LiteralSource, Solve, SolveError, ValuationVec, VariableId},
+    Clause, ValuationError,
+};
 use std::collections::BTreeSet;
 
 impl Solve<'_> {
@@ -80,32 +81,29 @@ impl Solve<'_> {
     pub fn implication_solve(&mut self) -> Result<(bool, ValuationVec), SolveError> {
         println!("~~~ an implication solve ~~~");
         let sat_valuation: Option<(bool, ValuationVec)>;
-        let mut count = 0;
         // self.settle_hobson_choices(); // settle any literals which do occur with some fixed polarity
 
         loop {
-            println!("loop: {count}");
-            count += 1;
             // 1. (un)sat check
             if Some(false) == self.sat {
-                if let Some(mut level) = self.pop_level() {
-                    println!("popped level");
-                    println!("{:?}", level);
+                let val = self.valuation_at_level(self.current_level());
+                let popped_level = self.pop_level();
+                if let Some(mut level) = popped_level {
+                    // println!(". {:?}", level.clauses_violated);
                     level.implications.generate_details();
-                    level.implications.trace_implication_paths(level.literals());
-                    level.implications.unique_point();
+                    let x = *level.clauses_violated.first().unwrap();
+                    let v_c = self.formula.clauses.iter().find(|c|  c.id == x).unwrap();
+                    let c_v = v_c.literals.iter().map(|l| l.v_id ).collect::<Vec<_>>();
+                    level.implications.trace_implication_paths(level.choices.first().unwrap().v_id, c_v);
+                    level.implications.unique_point(v_c, val, &level);
                     if level.choices.len() == 1 {
                         let the_literal = &level.choices.first().unwrap().negate();
-                        println!("level choice {:?}", the_literal);
                         let _ = self.set_literal(the_literal, LiteralSource::Conflict);
-                        println!("{:?}", self.valuation_at_level(0));
-                        println!("{:?}", self.valuation_at_level(self.current_level()))
                     } else {
                         let the_clause = level.choices.into_iter().map(|l| l.negate()).collect();
                         self.learn_as_clause(the_clause);
                     }
                 } else {
-                    println!("no level to pop");
                     sat_valuation = Some((false, self.valuation.clone()));
                     break;
                 }
@@ -117,29 +115,22 @@ impl Solve<'_> {
 
             // 3. decide, either
             if !the_units.is_empty() { // apply unit clauses
-                println!("units");
-                println!("{:?}", self.valuation_at_level(self.current_level()));
                 for (clause_id, literal) in &the_units {
-                    println!("unit clause {} literal {}", clause_id, literal);
                     match self.set_literal(literal, LiteralSource::Clause(*clause_id)) {
-                        Err(ValuationError::Inconsistent) => break,
+                        Err(ValuationError::Inconsistent) => {
+                            // println!("{:?}", self.formula.clauses.iter().find(|c| c.id == *clause_id).unwrap());
+                            // break
+                        },
                         _ => continue
                     }
                 }
-                let from_literals = self.levels[self.current_level()]
-                    .literals()
-                    .iter()
-                    .chain(the_units.iter().map(|(_, l)| l))
-                    .cloned()
-                    .collect();
+
                 self.extend_implication_graph(
                     self.current_level(),
-                    the_units.iter().cloned().collect(),
-                    from_literals,
+                    &the_units.iter().cloned().collect()
                 );
             } else if !the_choices.is_empty() { // make a choice
                 let first_choice = the_choices.first().unwrap();
-                println!("chose {}", first_choice);
                 let _ = self.set_literal(first_choice, LiteralSource::Choice);
             } else { // return sat
                 sat_valuation = Some((true, self.valuation.clone()));
@@ -147,8 +138,10 @@ impl Solve<'_> {
             }
         }
         match sat_valuation {
+
             Some(pair) => Ok(pair),
             None => Err(SolveError::Hek),
         }
     }
+
 }
