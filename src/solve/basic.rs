@@ -84,6 +84,19 @@ impl Solve<'_> {
         // self.settle_hobson_choices(); // settle any literals which do occur with some fixed polarity
 
         loop {
+            println!("{:?}", self.graph.variable_indicies);
+            let current_level = self.current_level();
+            println!("\n\ncurrent level is {}", current_level);
+            let extra_nodes = self
+                .graph
+                .graph
+                .node_weights()
+                .filter(|x| x.level > current_level)
+                .collect::<Vec<_>>();
+            if !extra_nodes.is_empty() {
+                println!("\n\n\nextra nodes: {:?}", extra_nodes);
+                println!("{:?}", self.graph.conflict_indicies);
+            }
             // 1. (un)sat check
             if Some(false) == self.sat {
                 let val = self.valuation_at_level(self.current_level());
@@ -91,24 +104,44 @@ impl Solve<'_> {
                 if let Some(mut level) = popped_level {
                     let the_choice = level.choices.first().unwrap();
                     let the_choice_index = self.graph.get_literal(*the_choice);
-                    self.graph.dominators(the_choice_index);
+
+                    let conflict_node = self
+                        .graph
+                        .graph
+                        .node_weights()
+                        .find(|w| w.conflict)
+                        .unwrap();
+                    let conflict_index = self
+                        .graph
+                        .graph
+                        .node_indices()
+                        .find(|x| self.graph.graph.node_weight(*x).unwrap().conflict)
+                        .unwrap();
 
 
+                    println!("the choice is {} @ {:?}", the_choice, the_choice_index);
+                    println!("the conflict is {:?} @ {:?}", conflict_node, conflict_index);
+                    self.graph.dominators(the_choice_index, conflict_index);
+
+                    println!("clearing: {:?}", level.literals());
                     for literal in level.literals() {
                         self.graph.remove_literal(literal);
                     }
+
                     for conflcit in &self.graph.conflict_indicies {
                         self.graph.graph.remove_node(*conflcit);
                     }
-                    self.graph.conflict_indicies = vec![];
+                    self.graph.conflict_indicies.clear();
 
                     // println!(". {:?}", level.clauses_violated);
                     let x = *level.clauses_violated.first().unwrap();
-                    let v_c = self.formula.clauses.iter().find(|c|  c.id == x).unwrap();
-                    let c_v = v_c.literals.iter().map(|l| l.v_id ).collect::<Vec<_>>();
+                    let v_c = self.formula.clauses.iter().find(|c| c.id == x).unwrap();
+                    let c_v = v_c.literals.iter().map(|l| l.v_id).collect::<Vec<_>>();
                     if level.choices.len() == 1 {
                         let the_literal = &level.choices.first().unwrap().negate();
                         let _ = self.set_literal(the_literal, LiteralSource::Conflict);
+                        let cl = self.current_level();
+                        self.graph.add_literal(*the_literal, cl, false);
                     } else {
                         let the_clause = level.choices.into_iter().map(|l| l.negate()).collect();
                         self.learn_as_clause(the_clause);
@@ -124,20 +157,31 @@ impl Solve<'_> {
                 self.find_all_unset_on(&self.valuation_at_level(self.current_level()));
 
             // 3. decide, either
-            if !the_units.is_empty() { // apply unit clauses
+            if !the_units.is_empty() {
+                // apply unit clauses
                 for (clause_id, consequent) in &the_units {
-                    let the_clause = &self.formula.clauses.iter().find(|c| c.id == *clause_id).unwrap();
+                    let the_clause = &self
+                        .formula
+                        .clauses
+                        .iter()
+                        .find(|c| c.id == *clause_id)
+                        .unwrap();
                     // println!("unit {} - {}", the_clause, consequent);
                     match self.set_literal(consequent, LiteralSource::Clause(*clause_id)) {
                         Err(ValuationError::Inconsistent) => {
                             println!("conflict for {} -{}", the_clause, consequent);
-                            self.graph.add_conflict(the_clause, *consequent, self.current_level());
+                            self.graph
+                                .add_conflict(the_clause, *consequent, self.current_level());
                             // println!("{:?}", self.formula.clauses.iter().find(|c| c.id == *clause_id).unwrap());
                             // break
-                        },
+                        }
                         _ => {
-                            self.graph.add_implication(the_clause, *consequent, self.current_level());
-                            continue
+                            self.graph.add_implication(
+                                the_clause,
+                                *consequent,
+                                self.current_level(),
+                            );
+                            continue;
                         }
                     }
                 }
@@ -146,19 +190,20 @@ impl Solve<'_> {
                 //     self.current_level(),
                 //     &the_units.iter().cloned().collect()
                 // );
-            } else if !the_choices.is_empty() { // make a choice
+            } else if !the_choices.is_empty() {
+                // make a choice
                 let first_choice = the_choices.first().unwrap();
                 let _ = self.set_literal(first_choice, LiteralSource::Choice);
-            } else { // return sat
+                self.graph.add_choice(*first_choice, self.current_level());
+            } else {
+                // return sat
                 sat_valuation = Some((true, self.valuation.clone()));
                 break;
             }
         }
         match sat_valuation {
-
             Some(pair) => Ok(pair),
             None => Err(SolveError::Hek),
         }
     }
-
 }
