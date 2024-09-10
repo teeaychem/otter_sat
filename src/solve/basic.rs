@@ -81,29 +81,15 @@ impl Solve<'_> {
         // self.settle_hobson_choices(); // settle any literals which do occur with some fixed polarity
 
         loop {
-            let current_level = self.current_level_index();
-            let extra_nodes = self
-                .graph
-                .graph
-                .node_weights()
-                .filter(|x| x.level > current_level)
-                .collect::<Vec<_>>();
-            if !extra_nodes.is_empty() {
-                println!("\n\n\nextra nodes: {:?}", extra_nodes);
-            }
             // 1. (un)sat check
             if Some(false) == self.sat {
-                let popped_level = self.pop_level();
-                if let Some(level) = popped_level {
-                    let the_choice = level.get_choice();
-                    let the_choice_index = self.graph.get_literal(the_choice);
+                let dead_end = self.pop_level();
+                if let Some(level) = dead_end {
 
-                    let conflict_index = self.graph.conflict_indicies.first().unwrap();
 
-                    self.graph.dominators(the_choice_index, *conflict_index);
-
-                    self.graph.remove_literals(level.literals());
-                    self.graph.remove_conflicts();
+                    let x = level.conflicts().first().unwrap();
+                    self.analyse_conflict(&level, x.0, x.1);
+                    self.graph.remove_level(&level);
 
 
                     let the_literal = &level.get_choice().negate();
@@ -142,14 +128,6 @@ impl Solve<'_> {
                     match self.set_literal(consequent, LiteralSource::Clause(*clause_id)) {
                         Err(ValuationError::Inconsistent) => {
                             println!("conflict for {} -{}", the_clause, consequent);
-                            self.graph.add_implication(
-                                the_clause,
-                                *consequent,
-                                self.current_level_index(),
-                                true,
-                            );
-                            // println!("{:?}", self.formula.clauses.iter().find(|c| c.id == *clause_id).unwrap());
-                            // break
                         }
                         _ => {
                             self.graph.add_implication(
@@ -158,7 +136,6 @@ impl Solve<'_> {
                                 self.current_level_index(),
                                 false,
                             );
-                            continue;
                         }
                     }
                 }

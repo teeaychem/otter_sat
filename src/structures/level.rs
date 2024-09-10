@@ -12,7 +12,7 @@ pub struct Level {
     choice: Option<Literal>,
     observations: Vec<Literal>,
     clauses_unit: Vec<(ClauseId, Literal)>,
-    clauses_violated: Vec<ClauseId>, // pub clauses_open: Vec<ClauseId>,
+    clauses_violated: Vec<(ClauseId, Literal)>,
 }
 
 impl<'borrow, 'solve> Level {
@@ -28,6 +28,10 @@ impl<'borrow, 'solve> Level {
 }
 
 impl Level {
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
     pub fn get_choice(&self) -> Literal {
         if self.choice.is_none() {
             panic!("Level {} has no choice", self.index)
@@ -51,14 +55,18 @@ impl Level {
         }
     }
 
-    pub fn add_violated_clause(&mut self, clause: ClauseId) {
-        self.clauses_violated.push(clause)
-}
+    pub fn add_violated_clause(&mut self, clause: ClauseId, literal: Literal) {
+        self.clauses_violated.push((clause, literal))
+    }
 
     pub fn literals(&self) -> impl Iterator<Item = Literal> + '_ {
         self.choice
             .into_iter()
             .chain(self.observations.iter().cloned())
+    }
+
+    pub fn conflicts(&self) -> &Vec<(ClauseId, Literal)> {
+        &self.clauses_violated
     }
 }
 
@@ -76,7 +84,10 @@ impl<'borrow, 'level, 'solve: 'level> Solve<'solve> {
             return None;
         }
         let the_level: Option<Level> = self.levels.pop();
-        self.valuation.clear_if_level(&the_level);
+        if let Some(level) = &the_level {
+            self.valuation.clear_level(level);
+        };
+
         self.sat = None;
 
         the_level
