@@ -1,8 +1,7 @@
 use std::fmt::Debug;
 
 use crate::structures::{
-    ClauseId, Literal, LiteralSource, Solve, Valuation, ValuationError,
-    ValuationVec, VariableId,
+    ClauseId, Literal, LiteralSource, Solve, Valuation, ValuationError, ValuationVec, VariableId,
 };
 
 use std::collections::BTreeSet;
@@ -13,8 +12,7 @@ pub struct Level {
     pub choices: Vec<Literal>,
     pub observations: Vec<Literal>,
     pub clauses_unit: Vec<(ClauseId, Literal)>,
-    pub clauses_violated: Vec<ClauseId>
-    // pub clauses_open: Vec<ClauseId>,
+    pub clauses_violated: Vec<ClauseId>, // pub clauses_open: Vec<ClauseId>,
 }
 
 impl<'borrow, 'solve> Level {
@@ -45,6 +43,13 @@ impl Level {
             .cloned()
             .collect()
     }
+
+    pub fn literals_iter<'a>(&'a self) -> impl Iterator<Item = &'a Literal> {
+        self.choices
+            .iter()
+            .chain(self.observations.iter())
+
+    }
 }
 
 impl<'borrow, 'solve> Solve<'solve> {
@@ -66,13 +71,23 @@ impl<'borrow, 'level, 'solve: 'level> Solve<'solve> {
 
         the_level
     }
-}
 
-impl Solve<'_> {
-    pub fn current_level(&self) -> usize {
+    pub fn current_level_index(&'borrow self) -> usize {
         self.levels.len() - 1
     }
 
+    pub fn current_level(&'borrow self) -> &Level {
+        let index = self.levels.len() - 1;
+        &self.levels[index]
+    }
+
+    pub fn current_level_mut(&'borrow mut self) -> &mut Level {
+        let index = self.levels.len() - 1;
+        &mut self.levels[index]
+    }
+}
+
+impl Solve<'_> {
     pub fn valuation_at_level(&self, index: usize) -> ValuationVec {
         let mut valuation = ValuationVec::new_for_variables(self.valuation.len());
         (0..=index).for_each(|i| {
