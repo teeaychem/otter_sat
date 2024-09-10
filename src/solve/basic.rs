@@ -29,7 +29,7 @@ impl Solve<'_> {
             if !the_units.is_empty() {
                 for (clause_id, literal) in &the_units {
                     self.current_level_mut()
-                        .add_literal(literal, LiteralSource::Clause(*clause_id));
+                        .record_literal(literal, LiteralSource::Clause(*clause_id));
                     let _ = self.set_literal(literal, LiteralSource::Clause(*clause_id));
                 }
             } else if !the_choices.is_empty() {
@@ -85,12 +85,9 @@ impl Solve<'_> {
             if Some(false) == self.sat {
                 let dead_end = self.pop_level();
                 if let Some(level) = dead_end {
-
-
                     let x = level.conflicts().first().unwrap();
                     self.analyse_conflict(&level, x.0, x.1);
                     self.graph.remove_level(&level);
-
 
                     let the_literal = &level.get_choice().negate();
                     let _ = self.set_literal(the_literal, LiteralSource::Conflict);
@@ -98,11 +95,8 @@ impl Solve<'_> {
                         .add_literal(*the_literal, self.current_level_index(), false);
                     if self.current_level_index() > 1 {
                         let cc = self.current_level().get_choice();
-                        self.graph.add_contradiction(
-                            cc,
-                            *the_literal,
-                            self.current_level_index(),
-                        );
+                        self.graph
+                            .add_contradiction(cc, *the_literal, self.current_level_index());
                     }
                 } else {
                     sat_valuation = Some((false, self.valuation.clone()));
@@ -126,17 +120,16 @@ impl Solve<'_> {
                         .unwrap();
                     // println!("unit {} - {}", the_clause, consequent);
                     match self.set_literal(consequent, LiteralSource::Clause(*clause_id)) {
-                        Err(ValuationError::Inconsistent) => {
-                            println!("conflict for {} -{}", the_clause, consequent);
-                        }
-                        _ => {
+                        Err(SolveError::Inconsistent) => {}
+                        Ok(()) => {
                             self.graph.add_implication(
                                 the_clause,
                                 *consequent,
                                 self.current_level_index(),
                                 false,
                             );
-                        }
+                        },
+                        _ => todo!()
                     }
                 }
 
@@ -150,7 +143,7 @@ impl Solve<'_> {
                 println!("\n-------\nmade choice {}\n----\n", first_choice);
                 let _ = self.set_literal(first_choice, LiteralSource::Choice);
                 self.graph
-                    .add_choice(*first_choice, self.current_level_index());
+                    .add_literal(*first_choice, self.current_level_index(), false);
             } else {
                 // return sat
                 sat_valuation = Some((true, self.valuation.clone()));

@@ -1,7 +1,8 @@
 use crate::structures::{
     Clause, ClauseId, Formula, ImplicationEdge, ImplicationGraph, ImplicationNode, Level, Literal,
-    LiteralError, LiteralSource, Valuation, ValuationError, ValuationVec, VariableId,
+    LiteralError, LiteralSource, Valuation, ValuationError, ValuationOk, ValuationVec, VariableId,
 };
+use std::result;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
 use std::collections::BTreeSet;
@@ -26,6 +27,7 @@ pub enum SolveError {
     Hek,
     OutOfBounds,
     SetIssue,
+    Inconsistent,
 }
 
 impl Solve<'_> {
@@ -136,32 +138,50 @@ impl<'borrow, 'solve> Solve<'solve> {
         &'borrow mut self,
         literal: &Literal,
         source: LiteralSource,
-    ) -> Result<(), ValuationError> {
-        match source {
-            LiteralSource::Choice => {
-                self.add_fresh_level();
-                self.current_level_mut().add_literal(literal, source);
+    ) -> Result<(), SolveError> {
+        match self.valuation.check_literal(*literal) {
+            Ok(ValuationOk::Match) => {
+                match source {
+                    LiteralSource::Choice | LiteralSource::HobsonChoice => {
+                        panic!("Attempting to set a made choice")
+                    }
+                    LiteralSource::Assumption => {
+                        panic!("Attempting to set a made assumption")
+                    }
+                    LiteralSource::Clause(_) | LiteralSource::Conflict => {
+                        self.current_level_mut().record_literal(literal, source);
+                    }
+                };
+                Ok(())
             }
-            LiteralSource::HobsonChoice | LiteralSource::Assumption => {
-                self.top_level_mut().add_literal(literal, source);
+            Ok(ValuationOk::NotSet) => {
+                let _ = self.valuation.set_literal(*literal);
+                match source {
+                    LiteralSource::Choice => {
+                        self.add_fresh_level();
+                        self.current_level_mut().record_literal(literal, source);
+                    }
+                    LiteralSource::HobsonChoice | LiteralSource::Assumption => {
+                        self.top_level_mut().record_literal(literal, source);
+                    }
+                    LiteralSource::Clause(_) | LiteralSource::Conflict => {
+                        self.current_level_mut().record_literal(literal, source);
+                    }
+                };
+                Ok(())
             }
-            LiteralSource::Clause(_) | LiteralSource::Conflict => {
-                self.current_level_mut().add_literal(literal, source);
-            }
-        };
-        let result = self.valuation.set_literal(*literal);
-        if Some(false) != self.sat {
-            if let Err(ValuationError::Inconsistent) = result {
+            Err(ValuationError::Inconsistent) => {
                 match source {
                     LiteralSource::Clause(c) => {
                         self.current_level_mut().add_violated_clause(c, *literal)
                     }
                     _ => panic!("unsat without a clause"),
                 }
-                self.sat = Some(false)
+                self.sat = Some(false);
+                Err(SolveError::Inconsistent)
             }
+            Err(ValuationError::AlreadySet) => Err(SolveError::SetIssue),
         }
-        result
     }
 }
 

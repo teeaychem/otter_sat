@@ -39,7 +39,7 @@ impl Level {
         self.choice.unwrap()
     }
 
-    pub fn add_literal(&mut self, literal: &Literal, source: LiteralSource) {
+    pub fn record_literal(&mut self, literal: &Literal, source: LiteralSource) {
         match source {
             LiteralSource::Choice => {
                 if self.choice.is_some() {
