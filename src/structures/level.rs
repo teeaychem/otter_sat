@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 #[derive(Clone, Debug)]
 pub struct Level {
     index: usize,
-    pub choices: Vec<Literal>,
+    pub choice: Option<Literal>,
     pub observations: Vec<Literal>,
     pub clauses_unit: Vec<(ClauseId, Literal)>,
     pub clauses_violated: Vec<ClauseId>, // pub clauses_open: Vec<ClauseId>,
@@ -19,7 +19,7 @@ impl<'borrow, 'solve> Level {
     pub fn new(index: usize, solve: &'borrow Solve<'solve>) -> Self {
         Level {
             index,
-            choices: vec![],
+            choice: None,
             observations: vec![],
             clauses_unit: vec![],
             clauses_violated: vec![],
@@ -30,17 +30,21 @@ impl<'borrow, 'solve> Level {
 impl Level {
     pub fn add_literal(&mut self, literal: &Literal, source: LiteralSource) {
         match source {
-            LiteralSource::Choice => self.choices.push(*literal),
-            LiteralSource::Clause(_) => self.observations.push(*literal),
+            LiteralSource::Choice => {
+                if self.choice.is_some() {
+                    panic!("Attempting to make multiple choices on a single level")
+                }
+                self.choice = Some(*literal);
+            }
+            LiteralSource::Clause(_) | LiteralSource::Conflict => self.observations.push(*literal),
             _ => todo!(),
         }
     }
 
-    pub fn literals(& self) -> impl Iterator<Item = &Literal> {
-        self.choices
-            .iter()
-            .chain(self.observations.iter())
-
+    pub fn literals(&self) -> impl Iterator<Item = Literal> + '_ {
+        self.choice
+            .into_iter()
+            .chain(self.observations.iter().cloned())
     }
 }
 
@@ -66,6 +70,14 @@ impl<'borrow, 'level, 'solve: 'level> Solve<'solve> {
 
     pub fn current_level_index(&'borrow self) -> usize {
         self.levels.len() - 1
+    }
+
+        pub fn top_level(&'borrow self) -> &Level {
+            &self.levels[0]
+    }
+
+    pub fn top_level_mut(&'borrow mut self) -> &mut Level {
+        &mut self.levels[0]
     }
 
     pub fn current_level(&'borrow self) -> &Level {

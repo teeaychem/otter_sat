@@ -187,10 +187,10 @@ impl ImplicationGraph {
 impl<'borrow> ImplicationGraph {
     pub fn remove_literals<I>(&'borrow mut self, literals: I)
     where
-        I: Iterator<Item = &'borrow Literal>,
+        I: Iterator<Item = Literal>,
     {
         for literal in literals {
-            self.remove_literal(*literal)
+            self.remove_literal(literal)
         }
     }
 }
