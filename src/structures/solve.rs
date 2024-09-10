@@ -140,23 +140,20 @@ impl<'borrow, 'solve> Solve<'solve> {
         match source {
             LiteralSource::Choice => {
                 self.add_fresh_level();
-                let current_level = self.current_level_index();
-                self.levels[current_level].choices.push(*literal);
+                self.current_level_mut().add_literal(literal, source);
             }
             LiteralSource::HobsonChoice | LiteralSource::Assumption => {
-                self.levels[0].observations.push(*literal);
+                self.top_level_mut().observations.push(*literal);
             }
             LiteralSource::Clause(_) | LiteralSource::Conflict => {
-                let current_level = self.current_level_index();
-                self.levels[current_level].observations.push(*literal);
+                self.current_level_mut().add_literal(literal, source);
             }
         };
-        let result = self.valuation.set_literal(literal);
+        let result = self.valuation.set_literal(*literal);
         if Some(false) != self.sat {
-            let current_level = self.current_level_index();
             if let Err(ValuationError::Inconsistent) = result {
                 match source {
-                    LiteralSource::Clause(c) => self.levels[current_level].clauses_violated.push(c),
+                    LiteralSource::Clause(c) => self.current_level_mut().clauses_violated.push(c),
                     _ => panic!("unsat without a clause"),
                 }
                 self.sat = Some(false)
