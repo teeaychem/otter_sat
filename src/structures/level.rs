@@ -36,7 +36,7 @@ impl Level {
         }
     }
 
-    pub fn literals<'a>(&'a self) -> impl Iterator<Item = &'a Literal> {
+    pub fn literals(& self) -> impl Iterator<Item = &Literal> {
         self.choices
             .iter()
             .chain(self.observations.iter())
