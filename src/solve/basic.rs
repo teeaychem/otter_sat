@@ -172,7 +172,7 @@ impl Solve<'_> {
                         Err(ValuationError::Inconsistent) => {
                             println!("conflict for {} -{}", the_clause, consequent);
                             self.graph
-                                .add_conflict(the_clause, *consequent, self.current_level());
+                                .add_implication(the_clause, *consequent, self.current_level(), true);
                             // println!("{:?}", self.formula.clauses.iter().find(|c| c.id == *clause_id).unwrap());
                             // break
                         }
@@ -181,6 +181,7 @@ impl Solve<'_> {
                                 the_clause,
                                 *consequent,
                                 self.current_level(),
+                                false
                             );
                             continue;
                         }
