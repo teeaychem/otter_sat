@@ -85,19 +85,12 @@ impl Solve<'_> {
             if Some(false) == self.sat {
                 let dead_end = self.pop_level();
                 if let Some(level) = dead_end {
-                    let x = level.conflicts().first().unwrap();
-                    self.analyse_conflict(&level, x.0, x.1);
+                    let a_conflict_pair = level.conflicts().first().unwrap();
+                    self.analyse_conflict(&level, a_conflict_pair.0, a_conflict_pair.1);
+
                     self.graph.remove_level(&level);
 
-                    let the_literal = &level.get_choice().negate();
-                    let _ = self.set_literal(the_literal, LiteralSource::Conflict);
-                    self.graph
-                        .add_literal(*the_literal, self.current_level_index(), false);
-                    if self.current_level_index() > 1 {
-                        let cc = self.current_level().get_choice();
-                        self.graph
-                            .add_contradiction(cc, *the_literal, self.current_level_index());
-                    }
+                    let _ = self.set_literal(&level.get_choice().negate(), LiteralSource::Conflict);
                 } else {
                     sat_valuation = Some((false, self.valuation.clone()));
                     break;
@@ -128,8 +121,8 @@ impl Solve<'_> {
                                 self.current_level_index(),
                                 false,
                             );
-                        },
-                        _ => todo!()
+                        }
+                        _ => todo!(),
                     }
                 }
 
