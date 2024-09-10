@@ -64,7 +64,6 @@ impl ImplicationGraph {
             Some(index) => {
                 let the_node = self.graph.node_weight(index).unwrap();
                 if the_node.literal.polarity != literal.polarity {
-                    // println!("Adding {} though {}", literal, the_node.literal);
                     panic!("Graph polarity does not match");
                 }
                 if the_node.literal.v_id != literal.v_id {
@@ -103,15 +102,11 @@ impl ImplicationGraph {
     }
 
     pub fn add_choice(&mut self, literal: Literal, level: usize) -> NodeIndex {
-        println!("adding choice {} @ level {}", literal, level);
+        log::trace!(target: "graph", "adding choice {} @ level {}", literal, level);
         self.add_literal(literal, level, false)
     }
 
     pub fn add_implication(&mut self, clause: &Clause, consequent: Literal, level: usize) {
-        println!(
-            "Adding implication with consequent: {} : {}",
-            clause, consequent
-        );
         let consequent_index = self.get_or_make_literal(consequent, level);
         let antecedents = clause.literals.iter().filter(|a| a.v_id != consequent.v_id);
         for antecedent in antecedents {
@@ -123,15 +118,12 @@ impl ImplicationGraph {
                     source: Source::Clause(clause.id),
                 },
             );
-            println!("adding edge {} -- ({:?}) -> {}", antecedent, z, consequent);
+            log::debug!(target: "graph", "Added {antecedent} -- ({:?}) -> {consequent}", z.index());
         }
+        log::info!(target: "graph", "Added implication: {clause} -> {consequent}");
     }
 
     pub fn add_conflict(&mut self, clause: &Clause, consequent: Literal, level: usize) {
-        println!(
-            "Adding conflict with consequent:{} : {}",
-            clause, consequent
-        );
         let consequent_index = self.make_conflict(consequent, level);
         let antecedents = clause.literals.iter().filter(|l| l.v_id != consequent.v_id);
         for antecedent in antecedents {
@@ -144,27 +136,32 @@ impl ImplicationGraph {
                 },
             );
         }
+        log::info!(target: "graph", "Added conflict: {clause} -> {consequent}");
     }
 
     pub fn add_contradiction(&mut self, from: Literal, to: Literal, level: usize) {
-        println!("Adding qed - {} : {}", from, to);
         let choice_index = self.get_literal(from);
         let qed_index = self.get_or_make_literal(to, level);
 
-        self.graph
-            .add_edge(choice_index, qed_index, ImplicationEdge { source: Source::Contradiction });
+        let edge_index = self.graph.add_edge(
+            choice_index,
+            qed_index,
+            ImplicationEdge {
+                source: Source::Contradiction,
+            },
+        );
+        log::debug!(target: "graph", "Contradiction {from} -- ({:?}) -> {to}", edge_index.index());
     }
 
     pub fn remove_literal(&mut self, literal: Literal) {
         if let Some(index) = self.variable_indicies[literal.v_id] {
             let node = self.graph.remove_node(index);
-            println!("| | | removing: {:?}", node);
+            log::debug!(target: "graph", "Removed: {node:?}");
             self.variable_indicies[literal.v_id] = None;
         };
     }
 
     pub fn dominators(&self, root: NodeIndex, conflict: NodeIndex) {
-        println!("{:?}", self.graph);
         let x = simple_fast(&self.graph, root);
 
         let z = x.immediate_dominator(conflict);
