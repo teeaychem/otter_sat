@@ -10,6 +10,8 @@ pub trait Valuation {
 
     fn of_v_id(&self, v_id: VariableId) -> Result<Option<bool>, SolveError>;
 
+    fn check_literal(&self, literal: Literal) -> Result<ValuationOk, ValuationError>;
+
     fn set_literal(&mut self, literal: Literal) -> Result<(), ValuationError>;
 
     fn clear_v_id(&mut self, v_id: VariableId);
@@ -23,6 +25,12 @@ pub trait Valuation {
 
 pub enum ValuationError {
     Inconsistent,
+    AlreadySet
+}
+
+pub enum ValuationOk {
+    NotSet,
+    Match
 }
 
 impl Valuation for ValuationVec {
@@ -54,16 +62,25 @@ impl Valuation for ValuationVec {
         }
     }
 
-    fn set_literal(&mut self, literal: Literal) -> Result<(), ValuationError> {
+    fn check_literal(&self, literal: Literal) -> Result<ValuationOk, ValuationError> {
         if let Some(already_set) = self[literal.v_id as usize] {
             if already_set == literal.polarity {
-                Ok(())
+                Ok(ValuationOk::Match)
             } else {
                 Err(ValuationError::Inconsistent)
             }
         } else {
-            self[literal.v_id as usize] = Some(literal.polarity);
-            Ok(())
+            Ok(ValuationOk::NotSet)
+        }
+    }
+
+    fn set_literal(&mut self, literal: Literal) -> Result<(), ValuationError> {
+        match self[literal.v_id as usize] {
+            Some(_) => Err(ValuationError::AlreadySet),
+            None => {
+                self[literal.v_id as usize] = Some(literal.polarity);
+                Ok(())
+            }
         }
     }
 

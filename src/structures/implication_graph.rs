@@ -61,6 +61,7 @@ impl ImplicationGraph {
         if !conflict {
             self.variable_indicies[literal.v_id] = Some(index);
         }
+        log::trace!(target: target_graph!(), "+Literal @{level}: {literal}");
         index
     }
 
@@ -84,10 +85,6 @@ impl ImplicationGraph {
         literal_index
     }
 
-    pub fn make_conflict(&mut self, literal: Literal, level: usize) -> NodeIndex {
-        self.add_literal(literal, level, true)
-    }
-
     pub fn get_literal(&self, literal: Literal) -> NodeIndex {
         let literal_index = match self.variable_indicies[literal.v_id] {
             Some(index) => {
@@ -104,12 +101,6 @@ impl ImplicationGraph {
         literal_index
     }
 
-    pub fn add_choice(&mut self, literal: Literal, level: usize) -> NodeIndex {
-        let choice_index = self.add_literal(literal, level, false);
-        log::trace!(target: target_graph!(), "+Choice @{level}: {literal}");
-        choice_index
-    }
-
     pub fn add_implication(
         &mut self,
         clause: &Clause,
@@ -118,7 +109,7 @@ impl ImplicationGraph {
         conflict: bool,
     ) -> NodeIndex {
         let (consequent_index, description) = if conflict {
-            (self.make_conflict(to, level), "Conflict")
+            (self.add_literal(to, level, true), "Conflict")
         } else {
             (self.get_or_make_literal(to, level), "Implication")
         };
@@ -163,10 +154,10 @@ impl ImplicationGraph {
 
     pub fn remove_node(&mut self, index: NodeIndex) {
         if let Some(node) = self.graph.remove_node(index) {
-                log::debug!(target: target_graph!(), "-{node:?}");
-            } else {
-                panic!("Failed to remove node")
-            }
+            log::debug!(target: target_graph!(), "-{node:?}");
+        } else {
+            panic!("Failed to remove node")
+        }
     }
 
     pub fn dominators(&self, root: NodeIndex, conflict: NodeIndex) {
@@ -201,15 +192,7 @@ impl<'borrow> ImplicationGraph {
 
     pub fn remove_level(&mut self, level: &Level) {
         self.remove_literals(level.literals());
-
         if self.graph.node_weights().filter(|n| n.conflict).count() != 0 {
-            println!(
-                "{:?}",
-                self.graph
-                    .node_weights()
-                    .filter(|n| n.conflict)
-                    .collect::<Vec<_>>()
-            );
             panic!("Removing a level while conflicts exist");
         };
     }
