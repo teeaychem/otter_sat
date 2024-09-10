@@ -71,12 +71,14 @@ impl Solve<'_> {
     pub fn find_all_unset_on<T: Valuation>(
         &self,
         valuation: &T,
-    ) -> (BTreeSet<(ClauseId, Literal)>, BTreeSet<Literal>) {
+    ) -> Result<(BTreeSet<(ClauseId, Literal)>, BTreeSet<Literal>), SolveError> {
         let mut the_unit_set = BTreeSet::new();
         let mut the_choice_set = BTreeSet::new();
         for clause in &self.formula.clauses {
             if let Some(the_unset) = clause.collect_choices(valuation) {
-                if the_unset.len() == 1 {
+                if the_unset.is_empty() {
+                    return Err(SolveError::Inconsistent);
+                } else if the_unset.len() == 1 {
                     let the_pair: (ClauseId, Literal) = (clause.id, *the_unset.first().unwrap());
                     the_unit_set.insert(the_pair);
                     if the_choice_set.contains(&the_pair.1) {
@@ -89,7 +91,7 @@ impl Solve<'_> {
                 }
             }
         }
-        (the_unit_set, the_choice_set)
+        Ok((the_unit_set, the_choice_set))
     }
 
     pub fn literals_of_polarity(&self, polarity: bool) -> impl Iterator<Item = Literal> {
