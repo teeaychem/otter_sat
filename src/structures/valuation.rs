@@ -25,12 +25,12 @@ pub trait Valuation {
 
 pub enum ValuationError {
     Inconsistent,
-    AlreadySet
+    AlreadySet,
 }
 
 pub enum ValuationOk {
     NotSet,
-    Match
+    Match,
 }
 
 impl Valuation for ValuationVec {
