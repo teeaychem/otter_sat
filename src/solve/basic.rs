@@ -118,12 +118,10 @@ impl Solve<'_> {
                         .find(|x| self.graph.graph.node_weight(*x).unwrap().conflict)
                         .unwrap();
 
-
                     println!("the choice is {} @ {:?}", the_choice, the_choice_index);
                     println!("the conflict is {:?} @ {:?}", conflict_node, conflict_index);
                     self.graph.dominators(the_choice_index, conflict_index);
 
-                    println!("clearing: {:?}", level.literals());
                     for literal in level.literals() {
                         self.graph.remove_literal(literal);
                     }
@@ -136,12 +134,15 @@ impl Solve<'_> {
                     // println!(". {:?}", level.clauses_violated);
                     let x = *level.clauses_violated.first().unwrap();
                     let v_c = self.formula.clauses.iter().find(|c| c.id == x).unwrap();
-                    let c_v = v_c.literals.iter().map(|l| l.v_id).collect::<Vec<_>>();
                     if level.choices.len() == 1 {
                         let the_literal = &level.choices.first().unwrap().negate();
                         let _ = self.set_literal(the_literal, LiteralSource::Conflict);
                         let cl = self.current_level();
                         self.graph.add_literal(*the_literal, cl, false);
+                        if cl > 1 {
+                            let cc = self.levels[cl].choices.first().unwrap();
+                            self.graph.add_contradiction(*cc, *the_literal, cl);
+                        }
                     } else {
                         let the_clause = level.choices.into_iter().map(|l| l.negate()).collect();
                         self.learn_as_clause(the_clause);
@@ -193,6 +194,7 @@ impl Solve<'_> {
             } else if !the_choices.is_empty() {
                 // make a choice
                 let first_choice = the_choices.first().unwrap();
+                println!("\n-------\nmade choice {}\n----\n", first_choice);
                 let _ = self.set_literal(first_choice, LiteralSource::Choice);
                 self.graph.add_choice(*first_choice, self.current_level());
             } else {
