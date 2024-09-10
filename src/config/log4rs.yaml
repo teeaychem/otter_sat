@@ -15,7 +15,7 @@ root:
 
 loggers:
   graph:
-    level: warn
+    level: trace
     appenders:
     - graph_appender
     additive: false

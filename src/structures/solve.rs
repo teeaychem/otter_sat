@@ -167,8 +167,6 @@ impl<'borrow, 'solve> Solve<'solve> {
             }
             Ok(ValuationOk::NotSet) => {
                 let _ = self.valuation.set_literal(*literal);
-                self.graph
-                    .add_literal(*literal, self.current_level_index(), false);
                 match source {
                     LiteralSource::Choice => {
                         self.add_fresh_level();
@@ -179,24 +177,35 @@ impl<'borrow, 'solve> Solve<'solve> {
                     }
                     LiteralSource::Assumption => {
                         self.top_level_mut().record_literal(literal, source);
+                        self.graph.add_literal(*literal, 0, false);
                         log::debug!("+Set assumption: {literal}");
                     }
                     LiteralSource::HobsonChoice => {
                         self.top_level_mut().record_literal(literal, source);
+                        self.graph.add_literal(*literal, 0, false);
                         log::debug!("+Set hobson choice: {literal}");
                     }
-                    LiteralSource::Clause(_) => {
+                    LiteralSource::Clause(clause_id) => {
                         self.current_level_mut().record_literal(literal, source);
+                        self.graph.add_implication(
+                            self.find_clause(clause_id).unwrap(),
+                            *literal,
+                            self.current_level_index(),
+                            false,
+                        );
                         log::debug!("+Set deduction: {literal}");
                     }
                     LiteralSource::Conflict => {
                         self.current_level_mut().record_literal(literal, source);
-                        if self.current_level_index() > 1 {
+                        if self.current_level_index() != 0 {
                             self.graph.add_contradiction(
                                 self.current_level().get_choice(),
                                 *literal,
                                 self.current_level_index(),
                             );
+                        } else {
+                            self.graph
+                                .add_literal(*literal, self.current_level_index(), false);
                         }
                         log::debug!("+Set conflict: {literal}");
                     }

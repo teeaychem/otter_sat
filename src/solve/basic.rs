@@ -84,6 +84,7 @@ impl Solve<'_> {
                     }
 
                     self.graph.remove_level(&level);
+                    println!("Conflict implies {} @ {}", &level.get_choice().negate(), self.current_level_index());
 
                     let _ = self.set_literal(&level.get_choice().negate(), LiteralSource::Conflict);
                 } else {
@@ -94,7 +95,13 @@ impl Solve<'_> {
 
             // 2. search
             match self.find_all_unset_on(&self.valuation_at_level(self.current_level_index())) {
-                Err(SolveError::Inconsistent) => self.sat = Some(false),
+                Err(SolveError::Inconsistent) => {
+                    // if !self.current_level().conflicts().is_empty() {
+                    //     println!("\n\n\nI with {:?}", self.current_level().conflicts());
+                    // }
+                    println!("> > > All false clause");
+                    self.sat = Some(false)
+                }
                 Ok((the_units, the_choices)) => {
                     // 3. decide, either
                     if !the_units.is_empty() {
@@ -104,12 +111,12 @@ impl Solve<'_> {
                             match self.set_literal(consequent, LiteralSource::Clause(*clause_id)) {
                                 Err(SolveError::Inconsistent) => {}
                                 Ok(()) => {
-                                    self.graph.add_implication(
-                                        the_clause,
-                                        *consequent,
-                                        self.current_level_index(),
-                                        false,
-                                    );
+                                    // self.graph.add_implication(
+                                    //     the_clause,
+                                    //     *consequent,
+                                    //     self.current_level_index(),
+                                    //     false,
+                                    // );
                                 }
                                 _ => todo!(),
                             }

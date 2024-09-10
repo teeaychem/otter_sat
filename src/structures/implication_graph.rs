@@ -53,6 +53,7 @@ impl ImplicationGraph {
     }
 
     pub fn add_literal(&mut self, literal: Literal, level: usize, conflict: bool) -> NodeIndex {
+        log::trace!(target: target_graph!(), "?+ Literal @{level}: {literal}");
         let index = self.graph.add_node(ImplicationNode {
             literal,
             level,
@@ -95,6 +96,10 @@ impl ImplicationGraph {
                 index
             }
             None => {
+                println!(
+                "{:?}",
+                Dot::with_config(&self.graph, &[Config::EdgeIndexLabel])
+                );
                 panic!("Unable to get {}", literal)
             }
         };
@@ -108,6 +113,7 @@ impl ImplicationGraph {
         level: usize,
         conflict: bool,
     ) -> NodeIndex {
+        log::warn!(target: target_graph!(), "+Implication {clause:?} -> {to}");
         let (consequent_index, description) = if conflict {
             (self.add_literal(to, level, true), "Conflict")
         } else {
@@ -175,7 +181,8 @@ impl ImplicationGraph {
                 "{:?}",
                 Dot::with_config(&self.graph, &[Config::EdgeIndexLabel])
             );
-            panic!("No dominator")
+            println!("\nNo dominator\n");
+            log::warn!("No dominator")
         }
     }
 }
