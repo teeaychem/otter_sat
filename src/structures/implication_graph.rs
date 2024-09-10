@@ -19,9 +19,9 @@ macro_rules! target_graph {
 
 #[derive(Clone, Debug)]
 pub struct ImplicationNode {
-    pub literal: Literal,
-    pub level: usize,
     pub conflict: bool,
+    pub level: usize,
+    pub literal: Literal,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -40,8 +40,8 @@ The graph will have at most as many nodes as variables, so a fixed size array ca
  */
 #[derive(Debug)]
 pub struct ImplicationGraph {
-    pub variable_indicies: Vec<Option<NodeIndex>>,
-    pub conflict_indicies: Vec<NodeIndex>,
+    variable_indicies: Vec<Option<NodeIndex>>,
+    conflict_indicies: Vec<NodeIndex>,
     pub graph: StableGraph<ImplicationNode, ImplicationEdge>,
 }
 
@@ -157,6 +157,13 @@ impl ImplicationGraph {
         };
     }
 
+    pub fn remove_conflicts(&mut self) {
+        for conflict in &self.conflict_indicies {
+            self.graph.remove_node(*conflict);
+        }
+        self.conflict_indicies.clear();
+    }
+
     pub fn dominators(&self, root: NodeIndex, conflict: NodeIndex) {
         let x = simple_fast(&self.graph, root);
 
@@ -173,6 +180,17 @@ impl ImplicationGraph {
                 Dot::with_config(&self.graph, &[Config::EdgeIndexLabel])
             );
             panic!("No dominator")
+        }
+    }
+}
+
+impl<'borrow> ImplicationGraph {
+    pub fn remove_literals<I>(&'borrow mut self, literals: I)
+    where
+        I: Iterator<Item = &'borrow Literal>,
+    {
+        for literal in literals {
+            self.remove_literal(*literal)
         }
     }
 }
