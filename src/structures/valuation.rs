@@ -75,7 +75,6 @@ impl Valuation for ValuationVec {
         if let Some(level) = maybe_level {
             level
                 .literals()
-                .iter()
                 .for_each(|l| self.clear_v_id(l.v_id));
         }
     }

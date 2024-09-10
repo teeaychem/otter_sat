@@ -36,15 +36,7 @@ impl Level {
         }
     }
 
-    pub fn literals(&self) -> Vec<Literal> {
-        self.choices
-            .iter()
-            .chain(self.observations.iter())
-            .cloned()
-            .collect()
-    }
-
-    pub fn literals_iter<'a>(&'a self) -> impl Iterator<Item = &'a Literal> {
+    pub fn literals<'a>(&'a self) -> impl Iterator<Item = &'a Literal> {
         self.choices
             .iter()
             .chain(self.observations.iter())
@@ -91,7 +83,7 @@ impl Solve<'_> {
     pub fn valuation_at_level(&self, index: usize) -> ValuationVec {
         let mut valuation = ValuationVec::new_for_variables(self.valuation.len());
         (0..=index).for_each(|i| {
-            self.levels[i].literals().iter().for_each(|l| {
+            self.levels[i].literals().for_each(|l| {
                 let _ = valuation.set_literal(l);
             })
         });
