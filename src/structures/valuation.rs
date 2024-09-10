@@ -14,7 +14,7 @@ pub trait Valuation {
 
     fn clear_v_id(&mut self, v_id: VariableId);
 
-    fn clear_if_level(&mut self, maybe_level: &Option<Level>);
+    fn clear_level(&mut self, level: &Level);
 
     fn size(&self) -> usize;
 
@@ -71,12 +71,8 @@ impl Valuation for ValuationVec {
         self[v_id as usize] = None
     }
 
-    fn clear_if_level(&mut self, maybe_level: &Option<Level>) {
-        if let Some(level) = maybe_level {
-            level
-                .literals()
-                .for_each(|l| self.clear_v_id(l.v_id));
-        }
+    fn clear_level(&mut self, level: &Level) {
+        level.literals().for_each(|l| self.clear_v_id(l.v_id));
     }
 
     fn size(&self) -> usize {

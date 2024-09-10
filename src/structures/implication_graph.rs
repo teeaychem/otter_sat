@@ -41,7 +41,6 @@ The graph will have at most as many nodes as variables, so a fixed size array ca
 #[derive(Debug)]
 pub struct ImplicationGraph {
     variable_indicies: Vec<Option<NodeIndex>>,
-    pub conflict_indicies: Vec<NodeIndex>,
     pub graph: StableGraph<ImplicationNode, ImplicationEdge>,
 }
 
@@ -49,7 +48,6 @@ impl ImplicationGraph {
     pub fn new_for(formula: &Formula) -> Self {
         ImplicationGraph {
             variable_indicies: vec![None; formula.var_count()],
-            conflict_indicies: vec![],
             graph: StableGraph::new(),
         }
     }
@@ -87,9 +85,7 @@ impl ImplicationGraph {
     }
 
     pub fn make_conflict(&mut self, literal: Literal, level: usize) -> NodeIndex {
-        let index = self.add_literal(literal, level, true);
-        self.conflict_indicies.push(index);
-        index
+        self.add_literal(literal, level, true)
     }
 
     pub fn get_literal(&self, literal: Literal) -> NodeIndex {
@@ -114,17 +110,21 @@ impl ImplicationGraph {
         choice_index
     }
 
-    pub fn add_implication(&mut self, clause: &Clause, to: Literal, level: usize, conflict: bool) {
+    pub fn add_implication(
+        &mut self,
+        clause: &Clause,
+        to: Literal,
+        level: usize,
+        conflict: bool,
+    ) -> NodeIndex {
         let (consequent_index, description) = if conflict {
             (self.make_conflict(to, level), "Conflict")
         } else {
             (self.get_or_make_literal(to, level), "Implication")
         };
-        let antecedents = clause.literals.iter().filter(|a| a.v_id != to.v_id);
-        for antecedent in antecedents {
-            let antecedent_index = self.get_literal(antecedent.negate());
+        for antecedent in clause.literals.iter().filter(|a| a.v_id != to.v_id) {
             let edge_index = self.graph.add_edge(
-                antecedent_index,
+                self.get_literal(antecedent.negate()),
                 consequent_index,
                 ImplicationEdge {
                     source: Source::Clause(clause.id),
@@ -133,6 +133,7 @@ impl ImplicationGraph {
             log::debug!(target: target_graph!(), "+{description} @{level}: {antecedent} --[{}]-> {to}", edge_index.index());
         }
         log::info!(target: target_graph!(), "+{description} @{level}: {clause} -> {to}");
+        consequent_index
     }
 
     pub fn add_contradiction(&mut self, from: Literal, to: Literal, level: usize) {
@@ -151,17 +152,21 @@ impl ImplicationGraph {
 
     pub fn remove_literal(&mut self, literal: Literal) {
         if let Some(index) = self.variable_indicies[literal.v_id] {
-            let node = self.graph.remove_node(index);
-            log::debug!(target: target_graph!(), "-Removed: {node:?}");
-            self.variable_indicies[literal.v_id] = None;
+            if let Some(node) = self.graph.remove_node(index) {
+                log::debug!(target: target_graph!(), "-{node:?}");
+                self.variable_indicies[literal.v_id] = None;
+            } else {
+                panic!("Failed to remove node")
+            }
         };
     }
 
-    pub fn remove_conflicts(&mut self) {
-        for conflict in &self.conflict_indicies {
-            self.graph.remove_node(*conflict);
-        }
-        self.conflict_indicies.clear();
+    pub fn remove_node(&mut self, index: NodeIndex) {
+        if let Some(node) = self.graph.remove_node(index) {
+                log::debug!(target: target_graph!(), "-{node:?}");
+            } else {
+                panic!("Failed to remove node")
+            }
     }
 
     pub fn dominators(&self, root: NodeIndex, conflict: NodeIndex) {
@@ -192,5 +197,20 @@ impl<'borrow> ImplicationGraph {
         for literal in literals {
             self.remove_literal(literal)
         }
+    }
+
+    pub fn remove_level(&mut self, level: &Level) {
+        self.remove_literals(level.literals());
+
+        if self.graph.node_weights().filter(|n| n.conflict).count() != 0 {
+            println!(
+                "{:?}",
+                self.graph
+                    .node_weights()
+                    .filter(|n| n.conflict)
+                    .collect::<Vec<_>>()
+            );
+            panic!("Removing a level while conflicts exist");
+        };
     }
 }
