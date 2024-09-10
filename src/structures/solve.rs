@@ -134,6 +134,14 @@ impl<'borrow, 'solve> Solve<'solve> {
         self.clauses.push(clause)
     }
 
+    /*
+    Primary function for setting a literal during a solve
+    Control branches on the current valuation and then the source of the literal.
+    A few things may be updated:
+    - The current valuation.
+    - Records at the current level.
+    - The implication graph.
+     */
     pub fn set_literal(
         &'borrow mut self,
         literal: &Literal,
@@ -156,6 +164,8 @@ impl<'borrow, 'solve> Solve<'solve> {
             }
             Ok(ValuationOk::NotSet) => {
                 let _ = self.valuation.set_literal(*literal);
+                self.graph
+                    .add_literal(*literal, self.current_level_index(), false);
                 match source {
                     LiteralSource::Choice => {
                         self.add_fresh_level();
@@ -164,8 +174,15 @@ impl<'borrow, 'solve> Solve<'solve> {
                     LiteralSource::HobsonChoice | LiteralSource::Assumption => {
                         self.top_level_mut().record_literal(literal, source);
                     }
-                    LiteralSource::Clause(_) | LiteralSource::Conflict => {
+                    LiteralSource::Clause(_) => {
                         self.current_level_mut().record_literal(literal, source);
+                    }
+                    LiteralSource::Conflict => {
+                        self.current_level_mut().record_literal(literal, source);
+                        if self.current_level_index() > 1 {
+                            self.graph
+                                .add_contradiction(self.current_level().get_choice(), *literal, self.current_level_index());
+                        }
                     }
                 };
                 Ok(())
@@ -173,7 +190,7 @@ impl<'borrow, 'solve> Solve<'solve> {
             Err(ValuationError::Inconsistent) => {
                 match source {
                     LiteralSource::Clause(c) => {
-                        self.current_level_mut().add_violated_clause(c, *literal)
+                        self.current_level_mut().record_violated_clause(c, *literal)
                     }
                     _ => panic!("unsat without a clause"),
                 }
