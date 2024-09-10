@@ -2,11 +2,18 @@ use crate::structures::{Clause, ClauseId, Formula, Level, Literal, Valuation, Va
 use petgraph::{
     algo::dominators::{self, simple_fast},
     dot::{Config, Dot},
+    graph::edge_index,
     prelude::NodeIndex,
     stable_graph::StableGraph,
     visit::NodeRef,
 };
 use std::collections::{BTreeSet, VecDeque};
+
+macro_rules! target_graph {
+    () => {
+        "graph"
+    };
+}
 
 // Implication graph
 
@@ -102,61 +109,50 @@ impl ImplicationGraph {
     }
 
     pub fn add_choice(&mut self, literal: Literal, level: usize) -> NodeIndex {
-        log::trace!(target: "graph", "adding choice {} @ level {}", literal, level);
-        self.add_literal(literal, level, false)
+        let choice_index = self.add_literal(literal, level, false);
+        log::trace!(target: target_graph!(), "+Choice @{level}: {literal}");
+        choice_index
     }
 
-    pub fn add_implication(&mut self, clause: &Clause, consequent: Literal, level: usize) {
-        let consequent_index = self.get_or_make_literal(consequent, level);
-        let antecedents = clause.literals.iter().filter(|a| a.v_id != consequent.v_id);
+    pub fn add_implication(&mut self, clause: &Clause, to: Literal, level: usize, conflict: bool) {
+        let (consequent_index, description) = if conflict {
+            (self.make_conflict(to, level), "Conflict")
+        } else {
+            (self.get_or_make_literal(to, level), "Implication")
+        };
+        let antecedents = clause.literals.iter().filter(|a| a.v_id != to.v_id);
         for antecedent in antecedents {
             let antecedent_index = self.get_literal(antecedent.negate());
-            let z = self.graph.add_edge(
+            let edge_index = self.graph.add_edge(
                 antecedent_index,
                 consequent_index,
                 ImplicationEdge {
                     source: Source::Clause(clause.id),
                 },
             );
-            log::debug!(target: "graph", "Added {antecedent} -- ({:?}) -> {consequent}", z.index());
+            log::debug!(target: target_graph!(), "+{description} @{level}: {antecedent} --[{}]-> {to}", edge_index.index());
         }
-        log::info!(target: "graph", "Added implication: {clause} -> {consequent}");
-    }
-
-    pub fn add_conflict(&mut self, clause: &Clause, consequent: Literal, level: usize) {
-        let consequent_index = self.make_conflict(consequent, level);
-        let antecedents = clause.literals.iter().filter(|l| l.v_id != consequent.v_id);
-        for antecedent in antecedents {
-            let antecedent_index = self.get_literal(antecedent.negate());
-            self.graph.add_edge(
-                antecedent_index,
-                consequent_index,
-                ImplicationEdge {
-                    source: Source::Clause(clause.id),
-                },
-            );
-        }
-        log::info!(target: "graph", "Added conflict: {clause} -> {consequent}");
+        log::info!(target: target_graph!(), "+{description} @{level}: {clause} -> {to}");
     }
 
     pub fn add_contradiction(&mut self, from: Literal, to: Literal, level: usize) {
         let choice_index = self.get_literal(from);
-        let qed_index = self.get_or_make_literal(to, level);
+        let contradiction_index = self.get_or_make_literal(to, level);
 
         let edge_index = self.graph.add_edge(
             choice_index,
-            qed_index,
+            contradiction_index,
             ImplicationEdge {
                 source: Source::Contradiction,
             },
         );
-        log::debug!(target: "graph", "Contradiction {from} -- ({:?}) -> {to}", edge_index.index());
+        log::debug!(target: target_graph!(), "+Contradiction @{level} {from} --[{}]-> {to}", edge_index.index());
     }
 
     pub fn remove_literal(&mut self, literal: Literal) {
         if let Some(index) = self.variable_indicies[literal.v_id] {
             let node = self.graph.remove_node(index);
-            log::debug!(target: "graph", "Removed: {node:?}");
+            log::debug!(target: target_graph!(), "-Removed: {node:?}");
             self.variable_indicies[literal.v_id] = None;
         };
     }
