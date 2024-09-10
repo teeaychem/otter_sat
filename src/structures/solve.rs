@@ -143,7 +143,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                 self.current_level_mut().add_literal(literal, source);
             }
             LiteralSource::HobsonChoice | LiteralSource::Assumption => {
-                self.top_level_mut().observations.push(*literal);
+                self.top_level_mut().add_literal(literal, source);
             }
             LiteralSource::Clause(_) | LiteralSource::Conflict => {
                 self.current_level_mut().add_literal(literal, source);
@@ -153,7 +153,7 @@ impl<'borrow, 'solve> Solve<'solve> {
         if Some(false) != self.sat {
             if let Err(ValuationError::Inconsistent) = result {
                 match source {
-                    LiteralSource::Clause(c) => self.current_level_mut().clauses_violated.push(c),
+                    LiteralSource::Clause(c) => self.current_level_mut().add_violated_clause(c),
                     _ => panic!("unsat without a clause"),
                 }
                 self.sat = Some(false)
