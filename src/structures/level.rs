@@ -55,7 +55,7 @@ impl Level {
         }
     }
 
-    pub fn add_violated_clause(&mut self, clause: ClauseId, literal: Literal) {
+    pub fn record_violated_clause(&mut self, clause: ClauseId, literal: Literal) {
         self.clauses_violated.push((clause, literal))
     }
 
