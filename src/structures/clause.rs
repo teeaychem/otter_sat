@@ -104,17 +104,6 @@ impl Clause {
                         }
                         None => the_literals.push(*literal),
                     }
-                    // if assigned_value.is_some_and(|v| ) {
-                    //     // the clause is satisfied and so does not provide any new information
-                    //     break;
-                    // } else if assigned_value.is_some() {
-                    //     // either every literal so far has been valued the opposite, or there has been exactly on unvalued literal, so continue
-                    //     continue;
-                    // } else {
-                    //     // if no other literal has been found then this literal may be unit, so mark it and continue
-                    //     // though, if some other literal has already been marked, the clause does not force any literal
-
-                    // }
                 }
                 Err(_) => panic!("Failed to get valuation of variable"),
             }
