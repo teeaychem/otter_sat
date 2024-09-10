@@ -153,7 +153,9 @@ impl<'borrow, 'solve> Solve<'solve> {
         if Some(false) != self.sat {
             if let Err(ValuationError::Inconsistent) = result {
                 match source {
-                    LiteralSource::Clause(c) => self.current_level_mut().add_violated_clause(c),
+                    LiteralSource::Clause(c) => {
+                        self.current_level_mut().add_violated_clause(c, *literal)
+                    }
                     _ => panic!("unsat without a clause"),
                 }
                 self.sat = Some(false)
@@ -169,5 +171,27 @@ impl std::fmt::Display for Solve<'_> {
         let _ = write!(f, "{}", self.formula);
 
         Ok(())
+    }
+}
+
+impl Solve<'_> {
+    pub fn analyse_conflict(&mut self, level: &Level, clause: ClauseId, literal: Literal) {
+        let level_choice = level.get_choice();
+        let the_clause = self
+            .formula
+            .clauses
+            .iter()
+            .find(|c| c.id == clause)
+            .expect("Missing clause");
+
+        let the_choice_index = self.graph.get_literal(level_choice);
+        let conflict_index = self
+            .graph
+            .add_implication(the_clause, literal, level.index(), true);
+
+        self.graph.dominators(the_choice_index, conflict_index);
+
+        self.graph.remove_node(conflict_index);
+        println!("Analysis complete");
     }
 }
