@@ -100,30 +100,25 @@ impl Solve<'_> {
                     let the_choice = level.choices.first().unwrap();
                     let the_choice_index = self.graph.get_literal(*the_choice);
 
-                    let conflict_index = self
-                        .graph
-                        .graph
-                        .node_indices()
-                        .find(|x| self.graph.graph.node_weight(*x).unwrap().conflict)
-                        .unwrap();
+                    let conflict_index = self.graph.conflict_indicies.first().unwrap();
 
-                    self.graph.dominators(the_choice_index, conflict_index);
-
-
-
+                    self.graph.dominators(the_choice_index, *conflict_index);
 
                     self.graph.remove_literals(level.literals());
                     self.graph.remove_conflicts();
 
-                    let x = *level.clauses_violated.first().unwrap();
-                    let v_c = self.formula.clauses.iter().find(|c| c.id == x).unwrap();
                     if level.choices.len() == 1 {
                         let the_literal = &level.choices.first().unwrap().negate();
                         let _ = self.set_literal(the_literal, LiteralSource::Conflict);
-                        self.graph.add_literal(*the_literal, self.current_level_index(), false);
+                        self.graph
+                            .add_literal(*the_literal, self.current_level_index(), false);
                         if self.current_level_index() > 1 {
                             let cc = self.current_level().choices.first().unwrap();
-                            self.graph.add_contradiction(*cc, *the_literal, self.current_level_index());
+                            self.graph.add_contradiction(
+                                *cc,
+                                *the_literal,
+                                self.current_level_index(),
+                            );
                         }
                     } else {
                         let the_clause = level.choices.into_iter().map(|l| l.negate()).collect();
@@ -153,8 +148,12 @@ impl Solve<'_> {
                     match self.set_literal(consequent, LiteralSource::Clause(*clause_id)) {
                         Err(ValuationError::Inconsistent) => {
                             println!("conflict for {} -{}", the_clause, consequent);
-                            self.graph
-                                .add_implication(the_clause, *consequent, self.current_level_index(), true);
+                            self.graph.add_implication(
+                                the_clause,
+                                *consequent,
+                                self.current_level_index(),
+                                true,
+                            );
                             // println!("{:?}", self.formula.clauses.iter().find(|c| c.id == *clause_id).unwrap());
                             // break
                         }
@@ -163,7 +162,7 @@ impl Solve<'_> {
                                 the_clause,
                                 *consequent,
                                 self.current_level_index(),
-                                false
+                                false,
                             );
                             continue;
                         }
@@ -179,7 +178,8 @@ impl Solve<'_> {
                 let first_choice = the_choices.first().unwrap();
                 println!("\n-------\nmade choice {}\n----\n", first_choice);
                 let _ = self.set_literal(first_choice, LiteralSource::Choice);
-                self.graph.add_choice(*first_choice, self.current_level_index());
+                self.graph
+                    .add_choice(*first_choice, self.current_level_index());
             } else {
                 // return sat
                 sat_valuation = Some((true, self.valuation.clone()));

@@ -41,7 +41,7 @@ The graph will have at most as many nodes as variables, so a fixed size array ca
 #[derive(Debug)]
 pub struct ImplicationGraph {
     variable_indicies: Vec<Option<NodeIndex>>,
-    conflict_indicies: Vec<NodeIndex>,
+    pub conflict_indicies: Vec<NodeIndex>,
     pub graph: StableGraph<ImplicationNode, ImplicationEdge>,
 }
 
