@@ -109,12 +109,10 @@ impl Solve<'_> {
 
                     self.graph.dominators(the_choice_index, conflict_index);
 
-                    for literal in level.literals() {
-                        self.graph.remove_literal(literal);
-                    }
 
 
-                    self.graph.remove_literals(level.literals_iter());
+
+                    self.graph.remove_literals(level.literals());
                     self.graph.remove_conflicts();
 
                     let x = *level.clauses_violated.first().unwrap();
