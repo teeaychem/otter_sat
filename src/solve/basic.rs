@@ -50,12 +50,10 @@ impl Solve<'_> {
         // let all_v_ids: BTreeSet<VariableId> = self.vars().iter().map(|v| v.id).collect();
         let the_true: BTreeSet<VariableId> = self
             .literals_of_polarity(true)
-            .iter()
             .map(|l| l.v_id)
             .collect();
         let the_false: BTreeSet<VariableId> = self
             .literals_of_polarity(false)
-            .iter()
             .map(|l| l.v_id)
             .collect();
         let hobson_false: Vec<_> = the_false.difference(&the_true).cloned().collect();
@@ -105,13 +103,7 @@ impl Solve<'_> {
             if !the_units.is_empty() {
                 // apply unit clauses
                 for (clause_id, consequent) in &the_units {
-                    let the_clause = &self
-                        .formula
-                        .clauses
-                        .iter()
-                        .find(|c| c.id == *clause_id)
-                        .unwrap();
-                    // println!("unit {} - {}", the_clause, consequent);
+                    let the_clause = &self.find_clause(*clause_id).unwrap();
                     match self.set_literal(consequent, LiteralSource::Clause(*clause_id)) {
                         Err(SolveError::Inconsistent) => {}
                         Ok(()) => {
@@ -125,18 +117,10 @@ impl Solve<'_> {
                         _ => todo!(),
                     }
                 }
-
-                // self.extend_implication_graph(
-                //     self.current_level(),
-                //     &the_units.iter().cloned().collect()
-                // );
             } else if !the_choices.is_empty() {
                 // make a choice
-                let first_choice = the_choices.first().unwrap();
-                println!("\n-------\nmade choice {}\n----\n", first_choice);
-                let _ = self.set_literal(first_choice, LiteralSource::Choice);
-                self.graph
-                    .add_literal(*first_choice, self.current_level_index(), false);
+                let a_choice = the_choices.first().unwrap();
+                let _ = self.set_literal(a_choice, LiteralSource::Choice);
             } else {
                 // return sat
                 sat_valuation = Some((true, self.valuation.clone()));

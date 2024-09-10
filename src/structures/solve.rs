@@ -92,20 +92,17 @@ impl Solve<'_> {
         (the_unit_set, the_choice_set)
     }
 
-    pub fn literals_of_polarity(&self, polarity: bool) -> BTreeSet<Literal> {
-        self.formula
-            .clauses
-            .iter()
-            .fold(BTreeSet::new(), |mut acc: BTreeSet<Literal>, this| {
-                acc.extend(
-                    this.literals
-                        .iter()
-                        .filter(|&l| l.polarity == polarity)
-                        .cloned()
-                        .collect::<BTreeSet<Literal>>(),
-                );
-                acc
+    pub fn literals_of_polarity(&self, polarity: bool) -> impl Iterator<Item = Literal> {
+        let mut literal_vec: Vec<Option<Literal>> = vec![None; self.formula.var_count()];
+        self.formula.clauses.iter().for_each(|clause| {
+            clause.literals.iter().for_each(|literal| {
+                if literal.polarity == polarity {
+                    literal_vec[literal.v_id] = Some(*literal)
+                }
             })
+        });
+
+        literal_vec.into_iter().flatten()
     }
 
     pub fn fresh_clause_id() -> ClauseId {
@@ -124,6 +121,10 @@ impl Solve<'_> {
 }
 
 impl<'borrow, 'solve> Solve<'solve> {
+    pub fn find_clause(&'borrow self, id: ClauseId) -> Option<&'solve Clause> {
+        self.formula.clauses.iter().find(|c| c.id == id)
+    }
+
     pub fn learn_as_clause(&'borrow mut self, literals: Vec<Literal>) {
         panic!("learn as clause");
         let clause = Clause {
@@ -170,19 +171,32 @@ impl<'borrow, 'solve> Solve<'solve> {
                     LiteralSource::Choice => {
                         self.add_fresh_level();
                         self.current_level_mut().record_literal(literal, source);
+                        self.graph
+                            .add_literal(*literal, self.current_level_index(), false);
+                        log::debug!("+Set choice: {literal}");
                     }
-                    LiteralSource::HobsonChoice | LiteralSource::Assumption => {
+                    LiteralSource::Assumption => {
                         self.top_level_mut().record_literal(literal, source);
+                        log::debug!("+Set assumption: {literal}");
+                    }
+                    LiteralSource::HobsonChoice => {
+                        self.top_level_mut().record_literal(literal, source);
+                        log::debug!("+Set hobson choice: {literal}");
                     }
                     LiteralSource::Clause(_) => {
                         self.current_level_mut().record_literal(literal, source);
+                        log::debug!("+Set deduction: {literal}");
                     }
                     LiteralSource::Conflict => {
                         self.current_level_mut().record_literal(literal, source);
                         if self.current_level_index() > 1 {
-                            self.graph
-                                .add_contradiction(self.current_level().get_choice(), *literal, self.current_level_index());
+                            self.graph.add_contradiction(
+                                self.current_level().get_choice(),
+                                *literal,
+                                self.current_level_index(),
+                            );
                         }
+                        log::debug!("+Set conflict: {literal}");
                     }
                 };
                 Ok(())
