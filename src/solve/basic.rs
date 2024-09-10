@@ -14,7 +14,7 @@ impl Solve<'_> {
             // 1. (un)sat check
             if Some(false) == self.sat {
                 if let Some(level) = self.pop_level() {
-                    let _ = self.set_literal(&level.choice.unwrap().negate(), LiteralSource::Conflict);
+                    let _ = self.set_literal(&level.get_choice().negate(), LiteralSource::Conflict);
                 } else {
                     sat_valuation = Some((false, self.valuation.clone()));
                     break;
@@ -95,7 +95,7 @@ impl Solve<'_> {
             if Some(false) == self.sat {
                 let popped_level = self.pop_level();
                 if let Some(level) = popped_level {
-                    let the_choice = level.choice.unwrap();
+                    let the_choice = level.get_choice();
                     let the_choice_index = self.graph.get_literal(the_choice);
 
                     let conflict_index = self.graph.conflict_indicies.first().unwrap();
@@ -106,12 +106,12 @@ impl Solve<'_> {
                     self.graph.remove_conflicts();
 
 
-                    let the_literal = &level.choice.unwrap().negate();
+                    let the_literal = &level.get_choice().negate();
                     let _ = self.set_literal(the_literal, LiteralSource::Conflict);
                     self.graph
                         .add_literal(*the_literal, self.current_level_index(), false);
                     if self.current_level_index() > 1 {
-                        let cc = self.current_level().choice.unwrap();
+                        let cc = self.current_level().get_choice();
                         self.graph.add_contradiction(
                             cc,
                             *the_literal,

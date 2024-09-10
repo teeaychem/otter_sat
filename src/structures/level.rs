@@ -9,14 +9,14 @@ use std::collections::BTreeSet;
 #[derive(Clone, Debug)]
 pub struct Level {
     index: usize,
-    pub choice: Option<Literal>,
-    pub observations: Vec<Literal>,
-    pub clauses_unit: Vec<(ClauseId, Literal)>,
-    pub clauses_violated: Vec<ClauseId>, // pub clauses_open: Vec<ClauseId>,
+    choice: Option<Literal>,
+    observations: Vec<Literal>,
+    clauses_unit: Vec<(ClauseId, Literal)>,
+    clauses_violated: Vec<ClauseId>, // pub clauses_open: Vec<ClauseId>,
 }
 
 impl<'borrow, 'solve> Level {
-    pub fn new(index: usize, solve: &'borrow Solve<'solve>) -> Self {
+    pub fn new(index: usize, _solve: &'borrow Solve<'solve>) -> Self {
         Level {
             index,
             choice: None,
@@ -28,6 +28,13 @@ impl<'borrow, 'solve> Level {
 }
 
 impl Level {
+    pub fn get_choice(&self) -> Literal {
+        if self.choice.is_none() {
+            panic!("Level {} has no choice", self.index)
+        }
+        self.choice.unwrap()
+    }
+
     pub fn add_literal(&mut self, literal: &Literal, source: LiteralSource) {
         match source {
             LiteralSource::Choice => {
@@ -36,10 +43,17 @@ impl Level {
                 }
                 self.choice = Some(*literal);
             }
-            LiteralSource::Clause(_) | LiteralSource::Conflict => self.observations.push(*literal),
+            LiteralSource::HobsonChoice
+            | LiteralSource::Assumption
+            | LiteralSource::Clause(_)
+            | LiteralSource::Conflict => self.observations.push(*literal),
             _ => todo!(),
         }
     }
+
+    pub fn add_violated_clause(&mut self, clause: ClauseId) {
+        self.clauses_violated.push(clause)
+}
 
     pub fn literals(&self) -> impl Iterator<Item = Literal> + '_ {
         self.choice
@@ -72,8 +86,8 @@ impl<'borrow, 'level, 'solve: 'level> Solve<'solve> {
         self.levels.len() - 1
     }
 
-        pub fn top_level(&'borrow self) -> &Level {
-            &self.levels[0]
+    pub fn top_level(&'borrow self) -> &Level {
+        &self.levels[0]
     }
 
     pub fn top_level_mut(&'borrow mut self) -> &mut Level {
