@@ -17,9 +17,15 @@ pub struct ImplicationNode {
     pub conflict: bool,
 }
 
+#[derive(Clone, Copy, Debug)]
+enum Source {
+    Clause(ClauseId),
+    Contradiction,
+}
+
 #[derive(Clone, Debug)]
 pub struct ImplicationEdge {
-    clause_id: ClauseId,
+    source: Source,
 }
 
 /*
@@ -107,16 +113,17 @@ impl ImplicationGraph {
             clause, consequent
         );
         let consequent_index = self.get_or_make_literal(consequent, level);
-        let antecedents = clause.literals.iter().filter(|l| l.v_id != consequent.v_id);
+        let antecedents = clause.literals.iter().filter(|a| a.v_id != consequent.v_id);
         for antecedent in antecedents {
             let antecedent_index = self.get_literal(antecedent.negate());
-            self.graph.add_edge(
+            let z = self.graph.add_edge(
                 antecedent_index,
                 consequent_index,
                 ImplicationEdge {
-                    clause_id: clause.id,
+                    source: Source::Clause(clause.id),
                 },
             );
+            println!("adding edge {} -- ({:?}) -> {}", antecedent, z, consequent);
         }
     }
 
@@ -133,16 +140,25 @@ impl ImplicationGraph {
                 antecedent_index,
                 consequent_index,
                 ImplicationEdge {
-                    clause_id: clause.id,
+                    source: Source::Clause(clause.id),
                 },
             );
         }
     }
 
+    pub fn add_contradiction(&mut self, from: Literal, to: Literal, level: usize) {
+        println!("Adding qed - {} : {}", from, to);
+        let choice_index = self.get_literal(from);
+        let qed_index = self.get_or_make_literal(to, level);
+
+        self.graph
+            .add_edge(choice_index, qed_index, ImplicationEdge { source: Source::Contradiction });
+    }
+
     pub fn remove_literal(&mut self, literal: Literal) {
         if let Some(index) = self.variable_indicies[literal.v_id] {
             let node = self.graph.remove_node(index);
-            println!("removing: {:?}", node);
+            println!("| | | removing: {:?}", node);
             self.variable_indicies[literal.v_id] = None;
         };
     }
@@ -161,8 +177,9 @@ impl ImplicationGraph {
         if z.is_none() {
             println!(
                 "{:?}",
-                Dot::with_config(&self.graph, &[Config::EdgeNoLabel])
+                Dot::with_config(&self.graph, &[Config::EdgeIndexLabel])
             );
+            panic!("No dominator")
         }
     }
 }
