@@ -8,7 +8,8 @@ mod solve;
 mod structures;
 
 use crate::structures::*;
-
+use log::{warn, info};
+use log4rs;
 
 
 /// Simple program to greet a person
@@ -21,12 +22,11 @@ struct Args {
 }
 
 fn main() {
-    println!("Hello, world!");
+    log4rs::init_file("config/log4rs.yaml", Default::default()).unwrap();
+
     let args = Args::parse();
     // dbg!(&args);
     if let Ok(contents) = fs::read_to_string(args.file) {
-        println!("have string {:?}", contents);
-
         if let Ok(formula) = Formula::from_dimacs(&contents) {
             let mut the_solve = Solve::from_formula(&formula);
 
@@ -38,9 +38,9 @@ fn main() {
             if let Ok((sat, _valuation)) = result {
                 println!("SAT? {:?}", sat);
             }
-
             // println!("{}", the_solve);
             // dbg!(&the_solve);
         }
     }
 }
+3

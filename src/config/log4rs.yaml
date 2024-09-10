@@ -1,0 +1,18 @@
+appenders:
+  # An appender named "stdout" that writes to stdout
+  stdout:
+    kind: console
+
+  graph_appender:
+    kind: console
+
+root:
+  level: debug
+  appenders:
+    - stdout
+
+loggers:
+  graph:
+    level: warn
+    appenders:
+    - graph_appender
