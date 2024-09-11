@@ -12,7 +12,6 @@ pub struct Level {
     choice: Option<Literal>,
     observations: Vec<Literal>,
     clauses_unit: Vec<(ClauseId, Literal)>,
-    clauses_violated: Vec<(ClauseId, Literal)>,
 }
 
 impl<'borrow, 'solve> Level {
@@ -22,7 +21,6 @@ impl<'borrow, 'solve> Level {
             choice: None,
             observations: vec![],
             clauses_unit: vec![],
-            clauses_violated: vec![],
         }
     }
 }
@@ -55,18 +53,10 @@ impl Level {
         }
     }
 
-    pub fn record_violated_clause(&mut self, clause: ClauseId, literal: Literal) {
-        self.clauses_violated.push((clause, literal))
-    }
-
     pub fn literals(&self) -> impl Iterator<Item = Literal> + '_ {
         self.choice
             .into_iter()
             .chain(self.observations.iter().cloned())
-    }
-
-    pub fn conflicts(&self) -> &Vec<(ClauseId, Literal)> {
-        &self.clauses_violated
     }
 }
 

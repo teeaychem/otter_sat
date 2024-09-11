@@ -69,12 +69,11 @@ impl Solve<'_> {
         });
     }
 
-    pub fn attempt_fix(&mut self, clause: ClauseId) -> Result<(), SolveError> {
+    pub fn attempt_fix(&mut self, clause: ClauseId, literal: Literal) -> Result<(), SolveError> {
         let dead_end = self.pop_level();
         if let Some(level) = dead_end {
-            if let Some(conflict_pair) = level.conflicts().first() {
-                self.analyse_conflict(&level, conflict_pair.0, conflict_pair.1);
-            }
+            self.analyse_conflict(&level, clause, literal);
+
             self.graph.remove_level(&level);
             println!(
                 "Conflict implies {} @ {}",
@@ -95,28 +94,27 @@ impl Solve<'_> {
 
         loop {
             match self.find_all_unset_on(&self.valuation_at_level(self.current_level_index())) {
-                Err(SolveError::UnsatClause(id)) => {
-                    // if !self.current_level().conflicts().is_empty() {
-                    //     println!("\n\n\nI with {:?}", self.current_level().conflicts());
-                    // }
-                    println!("\n> > > All false clause\n");
-                    match self.attempt_fix(id) {
-                        Ok(()) => {}
-                        Err(SolveError::NoSolution) => {
-                            return Ok(None);
+                Err(SolveError::UnsatClause(clause_id)) => {
+                    if self.current_level_index() != 0 {
+                        match self.attempt_fix(clause_id, self.current_level().get_choice()) {
+                            Ok(()) => {}
+                            Err(SolveError::NoSolution) => {
+                                return Ok(None);
+                            }
+                            _ => todo!(),
                         }
-                        _ => todo!(),
+                    } else {
+                        return Ok(None);
                     }
                 }
                 Ok((the_units, the_choices)) => {
                     if !the_units.is_empty() {
-                        println!("\nUnits\n");
                         let mut unsat_clauses = vec![];
 
                         for (clause_id, consequent) in &the_units {
                             match self.set_literal(consequent, LiteralSource::Clause(*clause_id)) {
-                                Err(SolveError::UnsatClause(id)) => {
-                                    unsat_clauses.push(id);
+                                Err(SolveError::UnsatClause(clause_id)) => {
+                                    unsat_clauses.push((clause_id, consequent));
                                 }
                                 Ok(()) => {
                                     // self.graph.add_implication(
@@ -130,7 +128,8 @@ impl Solve<'_> {
                             }
                         }
                         if !unsat_clauses.is_empty() {
-                            match self.attempt_fix(*unsat_clauses.first().unwrap()) {
+                            let pair = *unsat_clauses.first().unwrap();
+                            match self.attempt_fix(pair.0, *pair.1) {
                                 Ok(()) => {}
                                 Err(SolveError::NoSolution) => {
                                     return Ok(None);
