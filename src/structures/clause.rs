@@ -3,7 +3,7 @@ use crate::structures::{Literal, LiteralError, Valuation, ValuationVec};
 pub type ClauseVec = Vec<Literal>;
 
 pub trait Clause: IntoIterator {
-    fn add_literal(&mut self, literal: Literal) -> Result<(), ClauseError>;
+    fn add_literal(&mut self, literal: Literal);
 
     fn literals(&self) -> impl Iterator<Item = Literal>;
 
@@ -19,12 +19,6 @@ pub trait Clause: IntoIterator {
 }
 
 pub type ClauseId = usize;
-
-#[derive(Debug)]
-pub enum ClauseError {
-    Literal(LiteralError),
-    Empty,
-}
 
 #[derive(Clone, Debug)]
 pub struct StoredClause {
@@ -46,9 +40,8 @@ impl std::fmt::Display for StoredClause {
 }
 
 impl Clause for ClauseVec {
-    fn add_literal(&mut self, literal: Literal) -> Result<(), ClauseError> {
+    fn add_literal(&mut self, literal: Literal) {
         self.push(literal);
-        Ok(())
     }
 
     fn literals(&self) -> impl Iterator<Item = Literal> {
@@ -138,9 +131,8 @@ impl StoredClause {
         }
     }
 
-    pub fn add_literal(&mut self, literal: Literal) -> Result<(), ClauseError> {
+    pub fn add_literal(&mut self, literal: Literal) {
         self.clause.push(literal);
-        Ok(())
     }
 
     pub fn is_sat_on(&self, valuation: &ValuationVec) -> bool {
