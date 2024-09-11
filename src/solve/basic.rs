@@ -112,7 +112,7 @@ impl Solve<'_> {
                         let mut unsat_clauses = vec![];
 
                         for (clause_id, consequent) in &the_units {
-                            match self.set_literal(consequent, LiteralSource::Clause(*clause_id)) {
+                            match self.set_literal(consequent, LiteralSource::StoredClause(*clause_id)) {
                                 Err(SolveError::UnsatClause(clause_id)) => {
                                     unsat_clauses.push((clause_id, consequent));
                                 }
