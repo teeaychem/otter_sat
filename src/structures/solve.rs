@@ -27,7 +27,7 @@ pub enum SolveError {
     OutOfBounds,
     SetIssue,
     UnsatClause(ClauseId),
-    NoSolution
+    NoSolution,
 }
 
 impl Solve<'_> {
@@ -211,16 +211,10 @@ impl<'borrow, 'solve> Solve<'solve> {
                 };
                 Ok(())
             }
-            Err(ValuationError::Inconsistent) => {
-                match source {
-                    LiteralSource::Clause(c) => {
-                        self.current_level_mut().record_violated_clause(c, *literal);
-                        Err(SolveError::UnsatClause(c))
-                    }
-                    _ => panic!("unsat without a clause"),
-                }
-
-            }
+            Err(ValuationError::Inconsistent) => match source {
+                LiteralSource::Clause(c) => Err(SolveError::UnsatClause(c)),
+                _ => panic!("unsat without a clause"),
+            },
             Err(ValuationError::AlreadySet) => Err(SolveError::SetIssue),
         }
     }
