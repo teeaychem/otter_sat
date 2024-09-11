@@ -1,5 +1,5 @@
 use crate::structures::{
-    Clause, ClauseId, Literal, LiteralError, SolveError, Variable, VariableId,
+    StoredClause, ClauseId, Literal, LiteralError, SolveError, Variable, VariableId,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 #[derive(Debug, Clone)]
 pub struct Formula {
     pub variables: Vec<Variable>,
-    pub clauses: Vec<Clause>,
+    pub clauses: Vec<StoredClause>,
 }
 
 impl Formula {
@@ -23,16 +23,16 @@ impl Formula {
         COUNTER.fetch_add(1, AtomicOrdering::Relaxed) as ClauseId
     }
 
-    pub fn fresh_clause(&self) -> Clause {
-        Clause {
+    pub fn fresh_clause(&self) -> StoredClause {
+        StoredClause {
             id: Self::fresh_clause_id(),
             position: self.clauses.len(),
-            literals: Vec::new(),
+            clause: Vec::new(),
         }
     }
 
     // todo think about the structure to allow dropping clauses, etc
-    pub fn borrow_clause_by_id(&self, id: usize) -> &Clause {
+    pub fn borrow_clause_by_id(&self, id: usize) -> &StoredClause {
         if let Some(clause) = self.clauses.iter().find(|c| c.id == id) {
             clause
         } else {

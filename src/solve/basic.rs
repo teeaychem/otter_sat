@@ -1,6 +1,6 @@
 use crate::{
     structures::{Literal, LiteralSource, Solve, SolveError, ValuationVec, VariableId},
-    Clause, ClauseId, Valuation, ValuationError,
+    StoredClause, ClauseId, Valuation, ValuationError,
 };
 use std::collections::BTreeSet;
 
