@@ -88,8 +88,6 @@ impl<'borrow, 'level, 'solve: 'level> Solve<'solve> {
             self.valuation.clear_level(level);
         };
 
-        self.sat = None;
-
         the_level
     }
 

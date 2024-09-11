@@ -35,8 +35,8 @@ fn main() {
             the_solve.hobson_choices();
 
             let result = the_solve.implication_solve();
-            if let Ok((sat, _valuation)) = result {
-                println!("SAT? {:?}", sat);
+            if let Ok(valuation) = result {
+                println!("Satisfying assignment: {:?}", valuation);
             }
             // println!("{}", the_solve);
             // dbg!(&the_solve);
