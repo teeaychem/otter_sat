@@ -1,4 +1,6 @@
-use crate::structures::{Clause, ClauseId, Formula, Level, Literal, Valuation, VariableId};
+use crate::structures::{
+    Clause, ClauseId, Formula, Level, Literal, StoredClause, Valuation, VariableId,
+};
 use petgraph::{
     algo::dominators::{self, simple_fast},
     dot::{Config, Dot},
@@ -25,14 +27,14 @@ pub struct ImplicationNode {
 }
 
 #[derive(Clone, Copy, Debug)]
-enum Source {
-    Clause(ClauseId),
+pub enum ImplicationSource {
+    StoredClause(ClauseId),
     Contradiction,
 }
 
 #[derive(Clone, Debug)]
 pub struct ImplicationEdge {
-    source: Source,
+    source: ImplicationSource,
 }
 
 /*
@@ -97,8 +99,8 @@ impl ImplicationGraph {
             }
             None => {
                 println!(
-                "{:?}",
-                Dot::with_config(&self.graph, &[Config::EdgeIndexLabel])
+                    "{:?}",
+                    Dot::with_config(&self.graph, &[Config::EdgeIndexLabel])
                 );
                 panic!("Unable to get {}", literal)
             }
@@ -108,28 +110,29 @@ impl ImplicationGraph {
 
     pub fn add_implication(
         &mut self,
-        clause: &Clause,
+        clause: &impl Clause,
         to: Literal,
         level: usize,
         conflict: bool,
+        source: ImplicationSource
     ) -> NodeIndex {
-        log::warn!(target: target_graph!(), "+Implication {clause:?} -> {to}");
+        log::warn!(target: target_graph!(), "+Implication {} -> {to}", clause.as_string());
         let (consequent_index, description) = if conflict {
             (self.add_literal(to, level, true), "Conflict")
         } else {
             (self.get_or_make_literal(to, level), "Implication")
         };
-        for antecedent in clause.literals.iter().filter(|a| a.v_id != to.v_id) {
+        for antecedent in clause.literals().filter(|a| a.v_id != to.v_id) {
             let edge_index = self.graph.add_edge(
                 self.get_literal(antecedent.negate()),
                 consequent_index,
                 ImplicationEdge {
-                    source: Source::Clause(clause.id),
+                    source,
                 },
             );
             log::debug!(target: target_graph!(), "+{description} @{level}: {antecedent} --[{}]-> {to}", edge_index.index());
         }
-        log::info!(target: target_graph!(), "+{description} @{level}: {clause} -> {to}");
+        log::info!(target: target_graph!(), "+{description} @{level}: {} -> {to}", clause.as_string());
         consequent_index
     }
 
@@ -141,7 +144,7 @@ impl ImplicationGraph {
             choice_index,
             contradiction_index,
             ImplicationEdge {
-                source: Source::Contradiction,
+                source: ImplicationSource::Contradiction,
             },
         );
         log::debug!(target: target_graph!(), "+Contradiction @{level} {from} --[{}]-> {to}", edge_index.index());
