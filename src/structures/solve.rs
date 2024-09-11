@@ -51,15 +51,13 @@ impl Solve<'_> {
 impl Solve<'_> {
     pub fn is_unsat_on(&self, valuation: &ValuationVec) -> bool {
         self.formula
-            .clauses
-            .iter()
+            .clauses()
             .any(|clause| clause.is_unsat_on(valuation))
     }
 
     pub fn is_sat_on(&self, valuation: &ValuationVec) -> bool {
         self.formula
-            .clauses
-            .iter()
+            .clauses()
             .all(|clause| clause.is_sat_on(valuation))
     }
 
@@ -74,12 +72,13 @@ impl Solve<'_> {
     ) -> Result<(BTreeSet<(ClauseId, Literal)>, BTreeSet<Literal>), SolveError> {
         let mut the_unit_set = BTreeSet::new();
         let mut the_choice_set = BTreeSet::new();
-        for clause in &self.formula.clauses {
-            if let Some(the_unset) = clause.collect_choices(valuation) {
+        for stored_clause in self.formula.stored_clauses() {
+            if let Some(the_unset) = stored_clause.clause.collect_choices(valuation) {
                 if the_unset.is_empty() {
-                    return Err(SolveError::UnsatClause(clause.id));
+                    return Err(SolveError::UnsatClause(stored_clause.id));
                 } else if the_unset.len() == 1 {
-                    let the_pair: (ClauseId, Literal) = (clause.id, *the_unset.first().unwrap());
+                    let the_pair: (ClauseId, Literal) =
+                        (stored_clause.id, *the_unset.first().unwrap());
                     the_unit_set.insert(the_pair);
                     if the_choice_set.contains(&the_pair.1) {
                         the_choice_set.remove(&the_pair.1);
@@ -96,10 +95,10 @@ impl Solve<'_> {
 
     pub fn literals_of_polarity(&self, polarity: bool) -> impl Iterator<Item = Literal> {
         let mut literal_vec: Vec<Option<Literal>> = vec![None; self.formula.var_count()];
-        self.formula.clauses.iter().for_each(|stored_clause| {
-            stored_clause.clause.iter().for_each(|literal| {
+        self.formula.clauses().for_each(|clause| {
+            clause.literals().for_each(|literal| {
                 if literal.polarity == polarity {
-                    literal_vec[literal.v_id] = Some(*literal)
+                    literal_vec[literal.v_id] = Some(literal)
                 }
             })
         });
@@ -124,11 +123,13 @@ impl Solve<'_> {
 
 impl<'borrow, 'solve> Solve<'solve> {
     pub fn find_stored_clause(&'borrow self, id: ClauseId) -> Option<&'solve StoredClause> {
-        self.formula.clauses.iter().find(|c| c.id == id)
+        self.formula
+            .stored_clauses()
+            .find(|stored_clause| stored_clause.id == id)
     }
 
     pub fn find_clause(&'borrow self, id: ClauseId) -> Option<&'solve impl Clause> {
-        match self.formula.clauses.iter().find(|c| c.id == id) {
+        match self.formula.stored_clauses().find(|c| c.id == id) {
             Some(stored_clause) => Some(&stored_clause.clause),
             None => None,
         }
@@ -166,7 +167,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                     LiteralSource::Assumption => {
                         panic!("Attempting to set a made assumption")
                     }
-                    LiteralSource::Clause(_) | LiteralSource::Conflict => {
+                    LiteralSource::StoredClause(_) | LiteralSource::Conflict => {
                         self.current_level_mut().record_literal(literal, source);
                     }
                 };
@@ -192,7 +193,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                         self.graph.add_literal(*literal, 0, false);
                         log::debug!("+Set hobson choice: {literal}");
                     }
-                    LiteralSource::Clause(clause_id) => {
+                    LiteralSource::StoredClause(clause_id) => {
                         self.current_level_mut().record_literal(literal, source);
                         self.graph.add_implication(
                             self.find_clause(clause_id).unwrap(),
@@ -221,7 +222,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                 Ok(())
             }
             Err(ValuationError::Inconsistent) => match source {
-                LiteralSource::Clause(c) => Err(SolveError::UnsatClause(c)),
+                LiteralSource::StoredClause(c) => Err(SolveError::UnsatClause(c)),
                 _ => panic!("unsat without a clause"),
             },
             Err(ValuationError::AlreadySet) => Err(SolveError::SetIssue),
@@ -243,8 +244,7 @@ impl Solve<'_> {
         let level_choice = level.get_choice();
         let the_clause = self
             .formula
-            .clauses
-            .iter()
+            .stored_clauses()
             .find(|c| c.id == clause)
             .expect("Missing clause");
 

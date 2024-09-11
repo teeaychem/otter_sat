@@ -1,5 +1,5 @@
 use crate::structures::{
-    StoredClause, ClauseId, Literal, LiteralError, SolveError, Variable, VariableId,
+    Clause, StoredClause, ClauseId, Literal, LiteralError, SolveError, Variable, VariableId,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 #[derive(Debug, Clone)]
 pub struct Formula {
     pub variables: Vec<Variable>,
-    pub clauses: Vec<StoredClause>,
+    clauses: Vec<StoredClause>,
 }
 
 impl Formula {
@@ -29,6 +29,20 @@ impl Formula {
             position: self.clauses.len(),
             clause: Vec::new(),
         }
+    }
+
+    pub fn stored_clauses(&self) -> impl Iterator <Item = &StoredClause> {
+        self.clauses.iter()
+    }
+
+    pub fn store_clause(&mut self, clause: impl Clause) {
+        let mut stored_clause = self.fresh_clause();
+        stored_clause.clause = clause.to_vec();
+        self.clauses.push(stored_clause);
+}
+
+    pub fn clauses(&self) -> impl Iterator <Item = & impl Clause> {
+        self.clauses.iter().map(|stored_clause| &stored_clause.clause)
     }
 
     // todo think about the structure to allow dropping clauses, etc
