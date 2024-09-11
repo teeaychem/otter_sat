@@ -77,16 +77,16 @@ impl Formula {
 
     pub fn add_clause(&mut self, string: &str) -> Result<(), SolveError> {
         let string_lterals = string.split_whitespace();
-        let mut the_clause = self.fresh_clause();
+        let mut the_clause = vec![];
         for string_literal in string_lterals {
-            let _ = match self.literal_from_string(string_literal) {
-                Ok(made) => the_clause.add_literal(made),
+            match self.literal_from_string(string_literal) {
+                Ok(made) => the_clause.push(made),
                 Err(e) => {
                     return Err(e);
                 }
             };
         }
-        self.clauses.push(the_clause);
+        self.store_clause(the_clause);
         Ok(())
     }
 }

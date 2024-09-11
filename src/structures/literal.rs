@@ -34,7 +34,7 @@ pub enum LiteralSource {
     Choice,       // a choice made where the alternative may make a SAT difference
     HobsonChoice, // a choice made with a guarantee that the alternative would make no SAT difference
     Conflict,
-    Clause(ClauseId), // the literal must be the case for SAT given some valuation
+    StoredClause(ClauseId), // the literal must be the case for SAT given some valuation
     Assumption,
 }
 

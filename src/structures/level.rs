@@ -47,7 +47,7 @@ impl Level {
             }
             LiteralSource::HobsonChoice
             | LiteralSource::Assumption
-            | LiteralSource::Clause(_)
+            | LiteralSource::StoredClause(_)
             | LiteralSource::Conflict => self.observations.push(*literal),
             _ => todo!(),
         }
