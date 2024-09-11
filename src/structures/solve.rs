@@ -10,7 +10,6 @@ use std::collections::BTreeSet;
 #[derive(Debug)]
 pub struct Solve<'formula> {
     pub formula: &'formula Formula,
-    pub sat: Option<bool>,
     pub valuation: Vec<Option<bool>>,
     pub levels: Vec<Level>,
     pub clauses: Vec<Clause>,
@@ -27,7 +26,8 @@ pub enum SolveError {
     Hek,
     OutOfBounds,
     SetIssue,
-    Inconsistent,
+    UnsatClause(ClauseId),
+    NoSolution
 }
 
 impl Solve<'_> {
@@ -35,7 +35,6 @@ impl Solve<'_> {
         let valuation = Vec::<Option<bool>>::new_for_variables(formula.vars().len());
         let mut the_solve = Solve {
             formula,
-            sat: None,
             valuation,
             levels: vec![],
             clauses: vec![],
@@ -77,7 +76,7 @@ impl Solve<'_> {
         for clause in &self.formula.clauses {
             if let Some(the_unset) = clause.collect_choices(valuation) {
                 if the_unset.is_empty() {
-                    return Err(SolveError::Inconsistent);
+                    return Err(SolveError::UnsatClause(clause.id));
                 } else if the_unset.len() == 1 {
                     let the_pair: (ClauseId, Literal) = (clause.id, *the_unset.first().unwrap());
                     the_unit_set.insert(the_pair);
@@ -215,12 +214,12 @@ impl<'borrow, 'solve> Solve<'solve> {
             Err(ValuationError::Inconsistent) => {
                 match source {
                     LiteralSource::Clause(c) => {
-                        self.current_level_mut().record_violated_clause(c, *literal)
+                        self.current_level_mut().record_violated_clause(c, *literal);
+                        Err(SolveError::UnsatClause(c))
                     }
                     _ => panic!("unsat without a clause"),
                 }
-                self.sat = Some(false);
-                Err(SolveError::Inconsistent)
+
             }
             Err(ValuationError::AlreadySet) => Err(SolveError::SetIssue),
         }

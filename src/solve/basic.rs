@@ -1,6 +1,6 @@
 use crate::{
     structures::{Literal, LiteralSource, Solve, SolveError, ValuationVec, VariableId},
-    Clause, ValuationError,
+    Clause, ClauseId, Valuation, ValuationError,
 };
 use std::collections::BTreeSet;
 
@@ -69,47 +69,55 @@ impl Solve<'_> {
         });
     }
 
-    pub fn implication_solve(&mut self) -> Result<(bool, ValuationVec), SolveError> {
+    pub fn attempt_fix(&mut self, clause: ClauseId) -> Result<(), SolveError> {
+        let dead_end = self.pop_level();
+        if let Some(level) = dead_end {
+            if let Some(conflict_pair) = level.conflicts().first() {
+                self.analyse_conflict(&level, conflict_pair.0, conflict_pair.1);
+            }
+            self.graph.remove_level(&level);
+            println!(
+                "Conflict implies {} @ {}",
+                &level.get_choice().negate(),
+                self.current_level_index()
+            );
+            let _ = self.set_literal(&level.get_choice().negate(), LiteralSource::Conflict);
+            Ok(())
+        } else {
+            Err(SolveError::NoSolution)
+            // sat_valuation = Some((false, self.valuation.clone()));
+        }
+    }
+
+    pub fn implication_solve(&mut self) -> Result<Option<ValuationVec>, SolveError> {
         println!("~~~ an implication solve ~~~");
-        let sat_valuation: Option<(bool, ValuationVec)>;
         // self.settle_hobson_choices(); // settle any literals which do occur with some fixed polarity
 
         loop {
-            // 1. (un)sat check
-            if Some(false) == self.sat {
-                let dead_end = self.pop_level();
-                if let Some(level) = dead_end {
-                    if let Some(conflict_pair) = level.conflicts().first() {
-                        self.analyse_conflict(&level, conflict_pair.0, conflict_pair.1);
-                    }
-
-                    self.graph.remove_level(&level);
-                    println!("Conflict implies {} @ {}", &level.get_choice().negate(), self.current_level_index());
-
-                    let _ = self.set_literal(&level.get_choice().negate(), LiteralSource::Conflict);
-                } else {
-                    sat_valuation = Some((false, self.valuation.clone()));
-                    break;
-                }
-            }
-
-            // 2. search
             match self.find_all_unset_on(&self.valuation_at_level(self.current_level_index())) {
-                Err(SolveError::Inconsistent) => {
+                Err(SolveError::UnsatClause(id)) => {
                     // if !self.current_level().conflicts().is_empty() {
                     //     println!("\n\n\nI with {:?}", self.current_level().conflicts());
                     // }
-                    println!("> > > All false clause");
-                    self.sat = Some(false)
+                    println!("\n> > > All false clause\n");
+                    match self.attempt_fix(id) {
+                        Ok(()) => {}
+                        Err(SolveError::NoSolution) => {
+                            return Ok(None);
+                        }
+                        _ => todo!(),
+                    }
                 }
                 Ok((the_units, the_choices)) => {
-                    // 3. decide, either
                     if !the_units.is_empty() {
-                        // apply unit clauses
+                        println!("\nUnits\n");
+                        let mut unsat_clauses = vec![];
+
                         for (clause_id, consequent) in &the_units {
-                            let the_clause = &self.find_clause(*clause_id).unwrap();
                             match self.set_literal(consequent, LiteralSource::Clause(*clause_id)) {
-                                Err(SolveError::Inconsistent) => {}
+                                Err(SolveError::UnsatClause(id)) => {
+                                    unsat_clauses.push(id);
+                                }
                                 Ok(()) => {
                                     // self.graph.add_implication(
                                     //     the_clause,
@@ -121,22 +129,25 @@ impl Solve<'_> {
                                 _ => todo!(),
                             }
                         }
+                        if !unsat_clauses.is_empty() {
+                            match self.attempt_fix(*unsat_clauses.first().unwrap()) {
+                                Ok(()) => {}
+                                Err(SolveError::NoSolution) => {
+                                    return Ok(None);
+                                }
+                                _ => todo!(),
+                            }
+                        }
                     } else if !the_choices.is_empty() {
                         // make a choice
                         let a_choice = the_choices.first().unwrap();
                         let _ = self.set_literal(a_choice, LiteralSource::Choice);
                     } else {
-                        // return sat
-                        sat_valuation = Some((true, self.valuation.clone()));
-                        break;
+                        return Ok(Some(self.valuation.clone()));
                     }
                 }
                 _ => panic!("Unexpected"),
             }
-        }
-        match sat_valuation {
-            Some(pair) => Ok(pair),
-            None => Err(SolveError::Hek),
         }
     }
 }
