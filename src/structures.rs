@@ -6,10 +6,10 @@ pub mod literal;
 pub mod solve;
 pub mod valuation;
 
-pub use crate::structures::clause::{Clause, ClauseError, ClauseId};
+pub use crate::structures::clause::{Clause, ClauseError, ClauseId, StoredClause};
 pub use crate::structures::formula::Formula;
 pub use crate::structures::implication_graph::{
-    ImplicationEdge, ImplicationGraph, ImplicationNode,
+    ImplicationEdge, ImplicationGraph, ImplicationNode, ImplicationSource
 };
 pub use crate::structures::level::Level;
 pub use crate::structures::literal::{Literal, LiteralError, LiteralSource, Variable, VariableId};

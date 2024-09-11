@@ -1,6 +1,7 @@
 use crate::structures::{
-    Clause, ClauseId, Formula, ImplicationEdge, ImplicationGraph, ImplicationNode, Level, Literal,
-    LiteralError, LiteralSource, Valuation, ValuationError, ValuationOk, ValuationVec, VariableId,
+    Clause, ClauseId, Formula, ImplicationEdge, ImplicationGraph, ImplicationNode,
+    ImplicationSource, Level, Literal, LiteralError, LiteralSource, StoredClause, Valuation,
+    ValuationError, ValuationOk, ValuationVec, VariableId,
 };
 use std::result;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -12,7 +13,7 @@ pub struct Solve<'formula> {
     pub formula: &'formula Formula,
     pub valuation: Vec<Option<bool>>,
     pub levels: Vec<Level>,
-    pub clauses: Vec<Clause>,
+    pub clauses: Vec<StoredClause>,
     pub graph: ImplicationGraph,
 }
 
@@ -95,8 +96,8 @@ impl Solve<'_> {
 
     pub fn literals_of_polarity(&self, polarity: bool) -> impl Iterator<Item = Literal> {
         let mut literal_vec: Vec<Option<Literal>> = vec![None; self.formula.var_count()];
-        self.formula.clauses.iter().for_each(|clause| {
-            clause.literals.iter().for_each(|literal| {
+        self.formula.clauses.iter().for_each(|stored_clause| {
+            stored_clause.clause.iter().for_each(|literal| {
                 if literal.polarity == polarity {
                     literal_vec[literal.v_id] = Some(*literal)
                 }
@@ -122,18 +123,25 @@ impl Solve<'_> {
 }
 
 impl<'borrow, 'solve> Solve<'solve> {
-    pub fn find_clause(&'borrow self, id: ClauseId) -> Option<&'solve Clause> {
+    pub fn find_stored_clause(&'borrow self, id: ClauseId) -> Option<&'solve StoredClause> {
         self.formula.clauses.iter().find(|c| c.id == id)
+    }
+
+    pub fn find_clause(&'borrow self, id: ClauseId) -> Option<&'solve impl Clause> {
+        match self.formula.clauses.iter().find(|c| c.id == id) {
+            Some(stored_clause) => Some(&stored_clause.clause),
+            None => None,
+        }
     }
 
     pub fn learn_as_clause(&'borrow mut self, literals: Vec<Literal>) {
         panic!("learn as clause");
-        let clause = Clause {
-            id: Solve::fresh_clause_id(),
-            position: self.clauses.len(),
-            literals,
-        };
-        self.clauses.push(clause)
+        // let clause = StoredClause {
+        //     id: Solve::fresh_clause_id(),
+        //     position: self.clauses.len(),
+        //     literals,
+        // };
+        // self.clauses.push(clause)
     }
 
     /*
@@ -191,6 +199,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                             *literal,
                             self.current_level_index(),
                             false,
+                            ImplicationSource::StoredClause(clause_id),
                         );
                         log::debug!("+Set deduction: {literal}");
                     }
@@ -240,9 +249,13 @@ impl Solve<'_> {
             .expect("Missing clause");
 
         let the_choice_index = self.graph.get_literal(level_choice);
-        let conflict_index = self
-            .graph
-            .add_implication(the_clause, literal, level.index(), true);
+        let conflict_index = self.graph.add_implication(
+            &the_clause.clause,
+            literal,
+            level.index(),
+            true,
+            ImplicationSource::StoredClause(the_clause.id),
+        );
 
         self.graph.dominators(the_choice_index, conflict_index);
 
