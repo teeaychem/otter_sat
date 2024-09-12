@@ -9,6 +9,22 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
 use std::collections::BTreeSet;
 
+pub struct SolveStatus {
+    pub implications: Vec<(ClauseId, Literal)>,
+    pub choices: BTreeSet<Literal>,
+    pub unsat: Vec<ClauseId>,
+}
+
+impl SolveStatus {
+    pub fn new() -> Self {
+        SolveStatus {
+            implications: vec![],
+            choices: BTreeSet::new(),
+            unsat: vec![],
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Solve<'formula> {
     pub formula: &'formula Formula,
@@ -62,31 +78,27 @@ impl Solve<'_> {
     whether this makes sense to do…
     */
 
-    pub fn find_all_unset_on<T: Valuation>(
-        &self,
-        valuation: &T,
-    ) -> Result<(BTreeSet<(ClauseId, Literal)>, BTreeSet<Literal>), SolveError> {
-        let mut the_unit_set = BTreeSet::new();
-        let mut the_choice_set = BTreeSet::new();
+    pub fn examine_clauses_on<T: Valuation>(&self, valuation: &T) -> SolveStatus {
+        let mut status = SolveStatus::new();
         for stored_clause in self.formula.stored_clauses() {
             if let Some(the_unset) = stored_clause.clause.collect_choices(valuation) {
                 if the_unset.is_empty() {
-                    return Err(SolveError::UnsatClause(stored_clause.id));
+                    status.unsat.push(stored_clause.id);
                 } else if the_unset.len() == 1 {
                     let the_pair: (ClauseId, Literal) =
                         (stored_clause.id, *the_unset.first().unwrap());
-                    the_unit_set.insert(the_pair);
-                    if the_choice_set.contains(&the_pair.1) {
-                        the_choice_set.remove(&the_pair.1);
+                    status.implications.push(the_pair);
+                    if status.choices.contains(&the_pair.1) {
+                        status.choices.remove(&the_pair.1);
                     }
                 } else {
                     for literal in the_unset {
-                        the_choice_set.insert(literal);
+                        status.choices.insert(literal);
                     }
                 }
             }
         }
-        Ok((the_unit_set, the_choice_set))
+        status
     }
 
     pub fn literals_of_polarity(&self, polarity: bool) -> impl Iterator<Item = Literal> {
@@ -189,7 +201,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                         self.current_level_mut().record_literal(literal, source);
                         if self.current_level().index() != 0 {
                             self.graph.add_contradiction(
-                                self.current_level().get_choice(),
+                                self.current_level().get_choice().expect("No choice 0+"),
                                 literal,
                                 self.current_level().index(),
                             );
@@ -224,7 +236,6 @@ impl<'borrow, 'solve> Solve<'solve> {
                     }
                 }
             }
-            _ => todo!(),
         }
     }
 }
@@ -240,7 +251,7 @@ impl std::fmt::Display for Solve<'_> {
 
 impl Solve<'_> {
     pub fn analyse_conflict(&mut self, level: &Level, clause: ClauseId, literal: Literal) {
-        let level_choice = level.get_choice();
+        let level_choice = level.get_choice().expect("No choice 0+");
         let the_clause = self
             .formula
             .stored_clauses()
