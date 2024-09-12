@@ -37,19 +37,18 @@ impl Level {
         self.choice.unwrap()
     }
 
-    pub fn record_literal(&mut self, literal: &Literal, source: LiteralSource) {
+    pub fn record_literal(&mut self, literal: Literal, source: LiteralSource) {
         match source {
             LiteralSource::Choice => {
                 if self.choice.is_some() {
                     panic!("Attempting to make multiple choices on a single level")
                 }
-                self.choice = Some(*literal);
+                self.choice = Some(literal);
             }
             LiteralSource::HobsonChoice
             | LiteralSource::Assumption
             | LiteralSource::StoredClause(_)
-            | LiteralSource::Conflict => self.observations.push(*literal),
-            _ => todo!(),
+            | LiteralSource::Conflict => self.observations.push(literal),
         }
     }
 
@@ -79,10 +78,6 @@ impl<'borrow, 'level, 'solve: 'level> Solve<'solve> {
         };
 
         the_level
-    }
-
-    pub fn current_level_index(&'borrow self) -> usize {
-        self.levels.len() - 1
     }
 
     pub fn top_level(&'borrow self) -> &Level {
