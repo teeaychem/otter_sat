@@ -30,11 +30,8 @@ impl Level {
         self.index
     }
 
-    pub fn get_choice(&self) -> Literal {
-        if self.choice.is_none() {
-            panic!("Level {} has no choice", self.index)
-        }
-        self.choice.unwrap()
+    pub fn get_choice(&self) -> Option<Literal> {
+        self.choice
     }
 
     pub fn record_literal(&mut self, literal: Literal, source: LiteralSource) {
@@ -49,6 +46,7 @@ impl Level {
             | LiteralSource::Assumption
             | LiteralSource::StoredClause(_)
             | LiteralSource::Conflict => self.observations.push(literal),
+            _ => todo!(),
         }
     }
 
@@ -100,9 +98,9 @@ impl<'borrow, 'level, 'solve: 'level> Solve<'solve> {
 }
 
 impl Solve<'_> {
-    pub fn valuation_at_level(&self, index: usize) -> ValuationVec {
+    pub fn valuation_at(&self, level_index: usize) -> ValuationVec {
         let mut valuation = ValuationVec::new_for_variables(self.valuation.len());
-        (0..=index).for_each(|i| {
+        (0..=level_index).for_each(|i| {
             self.levels[i].literals().for_each(|l| {
                 let _ = valuation.set_literal(l);
             })

@@ -1,4 +1,5 @@
 use crate::{
+    clause,
     structures::{Literal, LiteralSource, Solve, SolveError, ValuationVec, VariableId},
     ClauseId, StoredClause, Valuation, ValuationError,
 };
@@ -29,18 +30,24 @@ impl Solve<'_> {
         });
     }
 
-    pub fn attempt_fix(&mut self, clause: ClauseId, literal: Literal) -> Result<(), SolveError> {
-        let dead_end = self.pop_level();
-        if let Some(level) = dead_end {
+    pub fn attempt_fix(
+        &mut self,
+        clause: ClauseId,
+        literal: Option<Literal>,
+    ) -> Result<(), SolveError> {
+        if self.current_level().index() == 0 {
+            return Err(SolveError::NoSolution);
+        } else if let Some(level) = self.pop_level() {
+            let literal = literal.unwrap();
             self.analyse_conflict(&level, clause, literal);
 
             self.graph.remove_level(&level);
             println!(
                 "Conflict implies {} @ {}",
-                &level.get_choice().negate(),
+                &literal.negate(),
                 self.current_level().index()
             );
-            let _ = self.set_literal(level.get_choice().negate(), LiteralSource::Conflict);
+            let _ = self.set_literal(literal.negate(), LiteralSource::Conflict);
             Ok(())
         } else {
             Err(SolveError::NoSolution)
@@ -48,10 +55,7 @@ impl Solve<'_> {
         }
     }
 
-    pub fn select_unsat_clause(
-        &self,
-        clauses: Vec<(ClauseId, Literal)>,
-    ) -> Option<(ClauseId, Literal)> {
+    pub fn select_unsat_clause(&self, clauses: &Vec<ClauseId>) -> Option<ClauseId> {
         if !clauses.is_empty() {
             Some(clauses.first().unwrap()).cloned()
         } else {
@@ -63,55 +67,60 @@ impl Solve<'_> {
         println!("~~~ an implication solve ~~~");
         // self.settle_hobson_choices(); // settle any literals which do occur with some fixed polarity
 
-        loop {
-            match self.find_all_unset_on(&self.valuation_at_level(self.current_level().index())) {
-                Err(SolveError::UnsatClause(clause_id)) => {
-                    if self.current_level().index() != 0 {
-                        match self.attempt_fix(clause_id, self.current_level().get_choice()) {
-                            Ok(()) => {}
-                            Err(SolveError::NoSolution) => {
-                                return Ok(None);
-                            }
-                            _ => todo!(),
-                        }
-                    } else {
+        'main_loop: loop {
+            let status = self.examine_clauses_on(&self.valuation_at(self.current_level().index()));
+
+            if !status.unsat.is_empty() {
+                match self.attempt_fix(
+                    self.select_unsat_clause(&status.unsat).unwrap(),
+                    self.current_level().get_choice(),
+                ) {
+                    Ok(()) => {
+                        continue 'main_loop;
+                    }
+                    Err(SolveError::NoSolution) => {
                         return Ok(None);
                     }
+                    _ => todo!(),
                 }
-                Ok((the_units, the_choices)) => {
-                    if !the_units.is_empty() {
-                        let mut unsat_clauses = vec![];
+            }
 
-                        for (clause_id, consequent) in the_units {
-                            match self
-                                .set_literal(consequent, LiteralSource::StoredClause(clause_id))
-                            {
-                                Err(SolveError::UnsatClause(clause_id)) => {
-                                    unsat_clauses.push((clause_id, consequent));
-                                }
-                                Ok(()) => {}
-                                _ => todo!(),
-                            }
+            if !status.implications.is_empty() {
+                let mut unsat_clauses = vec![];
+
+                'implication: for (clause_id, consequent) in status.implications {
+                    match self.set_literal(consequent, LiteralSource::StoredClause(clause_id)) {
+                        Err(SolveError::UnsatClause(clause_id)) => {
+                            unsat_clauses.push(clause_id);
                         }
-                        if let Some(clause) = self.select_unsat_clause(unsat_clauses) {
-                            match self.attempt_fix(clause.0, clause.1) {
-                                Ok(()) => {}
-                                Err(SolveError::NoSolution) => {
-                                    return Ok(None);
-                                }
-                                _ => todo!(),
-                            }
+                        Ok(()) => {
+                            continue 'implication;
                         }
-                    } else if !the_choices.is_empty() {
-                        // make a choice
-                        let a_choice = the_choices.first().unwrap();
-                        let _ = self.set_literal(*a_choice, LiteralSource::Choice);
-                    } else {
-                        return Ok(Some(self.valuation.clone()));
+                        _ => todo!(),
                     }
                 }
-                _ => panic!("Unexpected"),
+                if let Some(clause) = self.select_unsat_clause(&unsat_clauses) {
+                    match self.attempt_fix(clause, self.current_level().get_choice()) {
+                        Ok(()) => {
+                            continue 'main_loop;
+                        }
+                        Err(SolveError::NoSolution) => {
+                            return Ok(None);
+                        }
+                        _ => todo!(),
+                    }
+                }
+                continue 'main_loop;
             }
+
+            if !status.choices.is_empty() {
+                // make a choice
+                let a_choice = status.choices.first().unwrap();
+                let _ = self.set_literal(*a_choice, LiteralSource::Choice);
+                continue 'main_loop;
+            }
+
+            return Ok(Some(self.valuation.clone()));
         }
     }
 }
