@@ -1,3 +1,4 @@
+use crate::clause::ClauseVec;
 use crate::structures::{
     Clause, ClauseId, Formula, ImplicationEdge, ImplicationGraph, ImplicationNode,
     ImplicationSource, Level, Literal, LiteralError, LiteralSource, StoredClause, Valuation,
@@ -135,7 +136,7 @@ impl<'borrow, 'solve> Solve<'solve> {
         }
     }
 
-    pub fn learn_as_clause(&'borrow mut self, literals: Vec<Literal>) {
+    pub fn learn_clause(&'borrow mut self, clause: ClauseVec) {
         panic!("learn as clause");
         // let clause = StoredClause {
         //     id: Solve::fresh_clause_id(),
@@ -155,10 +156,10 @@ impl<'borrow, 'solve> Solve<'solve> {
      */
     pub fn set_literal(
         &'borrow mut self,
-        literal: &Literal,
+        literal: Literal,
         source: LiteralSource,
     ) -> Result<(), SolveError> {
-        match self.valuation.check_literal(*literal) {
+        match self.valuation.check_literal(literal) {
             Ok(ValuationOk::Match) => {
                 match source {
                     LiteralSource::Choice | LiteralSource::HobsonChoice => {
@@ -174,31 +175,31 @@ impl<'borrow, 'solve> Solve<'solve> {
                 Ok(())
             }
             Ok(ValuationOk::NotSet) => {
-                let _ = self.valuation.set_literal(*literal);
+                let _ = self.valuation.set_literal(literal);
                 match source {
                     LiteralSource::Choice => {
                         self.add_fresh_level();
                         self.current_level_mut().record_literal(literal, source);
                         self.graph
-                            .add_literal(*literal, self.current_level_index(), false);
+                            .add_literal(literal, self.current_level().index(), false);
                         log::debug!("+Set choice: {literal}");
                     }
                     LiteralSource::Assumption => {
                         self.top_level_mut().record_literal(literal, source);
-                        self.graph.add_literal(*literal, 0, false);
+                        self.graph.add_literal(literal, 0, false);
                         log::debug!("+Set assumption: {literal}");
                     }
                     LiteralSource::HobsonChoice => {
                         self.top_level_mut().record_literal(literal, source);
-                        self.graph.add_literal(*literal, 0, false);
+                        self.graph.add_literal(literal, 0, false);
                         log::debug!("+Set hobson choice: {literal}");
                     }
                     LiteralSource::StoredClause(clause_id) => {
                         self.current_level_mut().record_literal(literal, source);
                         self.graph.add_implication(
                             self.find_clause(clause_id).unwrap(),
-                            *literal,
-                            self.current_level_index(),
+                            literal,
+                            self.current_level().index(),
                             false,
                             ImplicationSource::StoredClause(clause_id),
                         );
@@ -206,15 +207,15 @@ impl<'borrow, 'solve> Solve<'solve> {
                     }
                     LiteralSource::Conflict => {
                         self.current_level_mut().record_literal(literal, source);
-                        if self.current_level_index() != 0 {
+                        if self.current_level().index() != 0 {
                             self.graph.add_contradiction(
                                 self.current_level().get_choice(),
-                                *literal,
-                                self.current_level_index(),
+                                literal,
+                                self.current_level().index(),
                             );
                         } else {
                             self.graph
-                                .add_literal(*literal, self.current_level_index(), false);
+                                .add_literal(literal, self.current_level().index(), false);
                         }
                         log::debug!("+Set conflict: {literal}");
                     }
