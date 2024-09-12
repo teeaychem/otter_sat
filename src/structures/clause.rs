@@ -9,6 +9,8 @@ pub trait Clause: IntoIterator {
 
     fn literals(&self) -> impl Iterator<Item = Literal>;
 
+    fn variables(&self) -> impl Iterator<Item = VariableId>;
+
     fn is_sat_on(&self, valuation: &ValuationVec) -> bool;
 
     fn is_unsat_on(&self, valuation: &ValuationVec) -> bool;
@@ -19,17 +21,28 @@ pub trait Clause: IntoIterator {
 
     fn as_string(&self) -> String;
 
+    fn as_vec(&self) -> ClauseVec;
+
     fn to_vec(self) -> ClauseVec;
 
     fn to_sorted_vec(self) -> ClauseVec;
+
+    // fn decision_level(self) -> Option<usize>;
 }
 
 pub type ClauseId = usize;
 
 #[derive(Clone, Debug)]
+pub enum ClauseSource {
+    Formula,
+    Resolution,
+    Temp,
+}
+
+#[derive(Clone, Debug)]
 pub struct StoredClause {
     pub id: usize,
-    pub position: usize,
+    pub source: ClauseSource,
     pub clause: Vec<Literal>,
 }
 
@@ -52,6 +65,10 @@ impl Clause for ClauseVec {
 
     fn literals(&self) -> impl Iterator<Item = Literal> {
         self.iter().cloned()
+    }
+
+    fn variables(&self) -> impl Iterator<Item = VariableId> {
+        self.iter().map(|literal| literal.v_id)
     }
 
     fn is_sat_on(&self, valuation: &ValuationVec) -> bool {
@@ -102,13 +119,11 @@ impl Clause for ClauseVec {
         for literal in self {
             match valuation.of_v_id(literal.v_id) {
                 Ok(assigned_value) => match assigned_value {
-                    Some(value) => {
-                        if value == literal.polarity {
-                            return None;
-                        } else {
-                            continue;
-                        }
+                    Some(value) if value == literal.polarity => {
+                        return None;
                     }
+                    Some(_value) => continue,
+
                     None => the_literals.push(*literal),
                 },
                 Err(_) => panic!("Failed to get valuation of variable"),
@@ -126,6 +141,10 @@ impl Clause for ClauseVec {
         the_string
     }
 
+    fn as_vec(&self) -> ClauseVec {
+        self.clone()
+    }
+
     fn to_vec(self) -> ClauseVec {
         self
     }
@@ -134,23 +153,29 @@ impl Clause for ClauseVec {
         self.sort();
         self
     }
+
+    // fn decision_level(self) -> Option<usize> {
+
+    //     }
+
+
 }
 
 impl StoredClause {
-    pub fn new(id: usize, position: usize) -> StoredClause {
+    pub fn new_from(id: usize, clause: &impl Clause, source: ClauseSource) -> StoredClause {
         StoredClause {
             id,
-            position,
-            clause: Vec::new(),
+            clause: clause.as_vec(),
+            source,
         }
     }
 }
 
-pub fn resolve<T: Clause>(clause_a: T, clause_b: T, v_id: VariableId) -> Option<impl Clause> {
+pub fn binary_resolution<T: Clause>(cls_a: &T, cls_b: &T, v_id: VariableId) -> Option<impl Clause> {
     let mut the_clause = BTreeSet::new();
     let mut clause_a_value = None;
     let mut counterpart_found = false;
-    for literal in clause_a.literals() {
+    for literal in cls_a.literals() {
         if literal.v_id == v_id
             && (clause_a_value.is_none() || clause_a_value == Some(literal.polarity))
         {
@@ -160,10 +185,10 @@ pub fn resolve<T: Clause>(clause_a: T, clause_b: T, v_id: VariableId) -> Option<
         }
     }
     if clause_a_value.is_none() {
-        log::warn!("Resolution: {v_id} not found in {}", clause_a.as_string());
-        return None
+        log::warn!("Resolution: {v_id} not found in {}", cls_a.as_string());
+        return None;
     }
-    for literal in clause_b.literals() {
+    for literal in cls_b.literals() {
         if literal.v_id == v_id && clause_a_value != Some(literal.polarity) {
             counterpart_found = true;
         } else {
@@ -171,8 +196,8 @@ pub fn resolve<T: Clause>(clause_a: T, clause_b: T, v_id: VariableId) -> Option<
         }
     }
     if !counterpart_found {
-        log::warn!("Resolution: {v_id} not found in {}", clause_b.as_string());
-        return None
+        log::warn!("Resolution: {v_id} not found in {}", cls_b.as_string());
+        return None;
     }
     Some(the_clause.iter().cloned().collect::<Vec<_>>())
 }
@@ -183,11 +208,23 @@ mod tests {
 
     #[test]
     fn resolve_ok_check() {
-        let a = vec![Literal::new(1, true), Literal::new(2, false), Literal::new(4, false)];
-        let b = vec![Literal::new(1, false), Literal::new(3, true), Literal::new(4, false)];
+        let a = vec![
+            Literal::new(1, true),
+            Literal::new(2, false),
+            Literal::new(4, false),
+        ];
+        let b = vec![
+            Literal::new(1, false),
+            Literal::new(3, true),
+            Literal::new(4, false),
+        ];
         assert_eq!(
-            vec![Literal::new(2, false), Literal::new(3, true), Literal::new(4, false)],
-            resolve(a, b, 1).unwrap().to_sorted_vec()
+            vec![
+                Literal::new(2, false),
+                Literal::new(3, true),
+                Literal::new(4, false)
+            ],
+            binary_resolution(&a, &b, 1).unwrap().to_sorted_vec()
         )
     }
 
@@ -195,8 +232,6 @@ mod tests {
     fn resolve_nok_check() {
         let a = vec![Literal::new(1, true), Literal::new(2, false)];
         let b = vec![Literal::new(3, true), Literal::new(4, false)];
-        assert!(
-            resolve(a, b, 1).is_none()
-        )
+        assert!(binary_resolution(&a, &b, 1).is_none())
     }
 }

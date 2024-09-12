@@ -5,6 +5,7 @@ pub type VariableId = usize;
 #[derive(Clone, Debug)]
 pub struct Variable {
     pub name: String,
+    pub decision_level: Option<usize>,
     pub id: VariableId,
 }
 

@@ -8,6 +8,8 @@ pub trait Valuation {
 
     fn as_display_string(&self, solve: &Solve) -> String;
 
+    fn as_internal_string(&self) -> String;
+
     fn of_v_id(&self, v_id: VariableId) -> Result<Option<bool>, SolveError>;
 
     fn check_literal(&self, literal: Literal) -> Result<ValuationOk, ValuationError>;
@@ -25,7 +27,7 @@ pub trait Valuation {
 
 pub enum ValuationError {
     Match,
-    Conflict
+    Conflict,
 }
 
 pub enum ValuationOk {
@@ -43,7 +45,7 @@ impl Valuation for ValuationVec {
             .enumerate()
             .filter(|(_, p)| p.is_some())
             .map(|(i, p)| {
-                let variable = solve.formula.var_by_id(i as VariableId).unwrap();
+                let variable = solve.var_by_id(i as VariableId).unwrap();
                 match p {
                     Some(true) => variable.name.to_string(),
                     Some(false) => format!("-{}", variable.name),
@@ -54,35 +56,38 @@ impl Valuation for ValuationVec {
             .join(" ")
     }
 
+    fn as_internal_string(&self) -> String {
+        self.iter()
+            .enumerate()
+            .filter(|(_, p)| p.is_some())
+            .map(|(i, p)| match p {
+                Some(true) => format!("{}", i),
+                Some(false) => format!("-{}", i),
+                _ => String::new(),
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
     fn of_v_id(&self, v_id: VariableId) -> Result<Option<bool>, SolveError> {
-        if let Some(&info) = self.get(v_id as usize) {
-            Ok(info)
-        } else {
-            Err(SolveError::OutOfBounds)
+        match self.get(v_id as usize) {
+            Some(&info) => Ok(info),
+            None => Err(SolveError::OutOfBounds),
         }
     }
 
     fn check_literal(&self, literal: Literal) -> Result<ValuationOk, ValuationError> {
-        if let Some(already_set) = self[literal.v_id as usize] {
-            if already_set == literal.polarity {
-                Ok(ValuationOk::Match)
-            } else {
-                Err(ValuationError::Conflict)
-            }
-        } else {
-            Ok(ValuationOk::NotSet)
+        match self[literal.v_id as usize] {
+            Some(already_set) if already_set == literal.polarity => Ok(ValuationOk::Match),
+            Some(_already_set) => Err(ValuationError::Conflict),
+            None => Ok(ValuationOk::NotSet),
         }
     }
 
     fn set_literal(&mut self, literal: Literal) -> Result<(), ValuationError> {
         match self[literal.v_id as usize] {
-            Some(value) => {
-                if value != literal.polarity {
-                    Err(ValuationError::Conflict)
-                } else {
-                    Err(ValuationError::Match)
-                }
-            },
+            Some(value) if value != literal.polarity => Err(ValuationError::Conflict),
+            Some(_value) => Err(ValuationError::Match),
             None => {
                 self[literal.v_id as usize] = Some(literal.polarity);
                 Ok(())
