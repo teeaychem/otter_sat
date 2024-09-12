@@ -1,14 +1,13 @@
 use crate::{
     clause,
     structures::{Literal, LiteralSource, Solve, SolveError, ValuationVec, VariableId},
-    ClauseId, StoredClause, Valuation, ValuationError,
+    ClauseId, SolveOk, StoredClause, Valuation, ValuationError,
 };
 use std::collections::BTreeSet;
 
 impl Solve<'_> {
     /// general order for pairs related to booleans is 0 is false, 1 is true
     pub fn hobson_choices(&self) -> (Vec<VariableId>, Vec<VariableId>) {
-        // let all_v_ids: BTreeSet<VariableId> = self.vars().iter().map(|v| v.id).collect();
         let the_true: BTreeSet<VariableId> =
             self.literals_of_polarity(true).map(|l| l.v_id).collect();
         let the_false: BTreeSet<VariableId> =
@@ -32,30 +31,49 @@ impl Solve<'_> {
 
     pub fn attempt_fix(
         &mut self,
-        clause: ClauseId,
+        clause_id: ClauseId,
         literal: Option<Literal>,
-    ) -> Result<(), SolveError> {
+    ) -> Result<SolveOk, SolveError> {
         if self.current_level().index() == 0 {
-            return Err(SolveError::NoSolution);
-        } else if let Some(level) = self.pop_level() {
-            let literal = literal.unwrap();
-            self.analyse_conflict(&level, clause, literal);
-
-            self.graph.remove_level(&level);
-            println!(
-                "Conflict implies {} @ {}",
-                &literal.negate(),
-                self.current_level().index()
-            );
-            let _ = self.set_literal(literal.negate(), LiteralSource::Conflict);
-            Ok(())
-        } else {
             Err(SolveError::NoSolution)
-            // sat_valuation = Some((false, self.valuation.clone()));
+        } else {
+            let literal = literal.unwrap();
+            let stored_clause = self.find_stored_clause(clause_id).expect("Missing clause");
+            println!("Attempting fix given clause: {}", stored_clause.to_string());
+
+            match self.analyse_conflict(clause_id, Some(literal)) {
+                Ok(SolveOk::AssertingClause(level)) => {
+                    while self.current_level().index() >= level {
+                        let _ = self.backtrack();
+                    }
+                    Ok(SolveOk::AssertingClause(level))
+                }
+                _ => panic!("Analysis failed"),
+            }
         }
     }
 
-    pub fn select_unsat_clause(&self, clauses: &Vec<ClauseId>) -> Option<ClauseId> {
+    /*
+    If a clause is unsatisfiable due to a valuation which conflicts with each literal of the clause, then at least one such conflicting literal was set at the current level.
+    This function returns some clause and mentioned literal from a list of unsatisfiable clauses.
+     */
+    pub fn select_unsat(&self, clauses: &[ClauseId]) -> Option<(ClauseId, Literal)> {
+        if !clauses.is_empty() {
+            let the_clause_id = *clauses.first().unwrap();
+            let the_stored_clause = self.find_stored_clause(the_clause_id).expect("oops");
+            let current_variables = self.current_level().variables().collect::<BTreeSet<_>>();
+            let mut overlap = the_stored_clause
+                .clause
+                .iter()
+                .filter(|l| current_variables.contains(&l.v_id));
+            let the_literal = *overlap.next().expect("No overlap");
+            Some((the_clause_id, the_literal))
+        } else {
+            None
+        }
+    }
+
+    pub fn select_conflict(&self, clauses: &[(ClauseId, Literal)]) -> Option<(ClauseId, Literal)> {
         if !clauses.is_empty() {
             Some(clauses.first().unwrap()).cloned()
         } else {
@@ -65,23 +83,47 @@ impl Solve<'_> {
 
     pub fn implication_solve(&mut self) -> Result<Option<ValuationVec>, SolveError> {
         println!("~~~ an implication solve ~~~");
-        // self.settle_hobson_choices(); // settle any literals which do occur with some fixed polarity
+        self.settle_hobson_choices(); // settle any literals which occur only as true or only as false
 
         'main_loop: loop {
             let status = self.examine_clauses_on(&self.valuation_at(self.current_level().index()));
 
-            if !status.unsat.is_empty() {
-                match self.attempt_fix(
-                    self.select_unsat_clause(&status.unsat).unwrap(),
-                    self.current_level().get_choice(),
-                ) {
-                    Ok(()) => {
-                        continue 'main_loop;
-                    }
+            if !status.choice_conflicts.is_empty() {
+                let (clause_id, literal) = self.select_conflict(&status.choice_conflicts).unwrap();
+                match self.attempt_fix(clause_id, Some(literal)) {
                     Err(SolveError::NoSolution) => {
                         return Ok(None);
                     }
-                    _ => todo!(),
+                    Ok(SolveOk::AssertingClause(_)) => {
+                        continue 'main_loop;
+                    }
+                    Ok(ok) => panic!("Unexpected ok {ok:?} when attempting a fix"),
+                    Err(err) => panic!("Unexpected error {err:?} when attempting a fix"),
+                }
+
+                // match self.backtrack() {
+                //     Ok(SolveOk::Backtracked) => {
+                //         println!("Backtracked");
+                //         continue 'main_loop;
+                //     }
+                //     Err(SolveError::NoSolution) => {
+                //         return Ok(None);
+                //     }
+                //     _ => panic!("Unexpected outcome of backtracking"),
+                // }
+            }
+
+            if !status.unsat.is_empty() {
+                let (clause_id, literal) = self.select_unsat(&status.unsat).unwrap();
+                match self.attempt_fix(clause_id, Some(literal)) {
+                    Err(SolveError::NoSolution) => {
+                        return Ok(None);
+                    }
+                    Ok(SolveOk::AssertingClause(_)) => {
+                        continue 'main_loop;
+                    }
+                    Ok(ok) => panic!("Unexpected ok {ok:?} when attempting a fix"),
+                    Err(err) => panic!("Unexpected error {err:?} when attempting a fix"),
                 }
             }
 
@@ -90,24 +132,25 @@ impl Solve<'_> {
 
                 'implication: for (clause_id, consequent) in status.implications {
                     match self.set_literal(consequent, LiteralSource::StoredClause(clause_id)) {
-                        Err(SolveError::UnsatClause(clause_id)) => {
-                            unsat_clauses.push(clause_id);
+                        Err(SolveError::Conflict(clause_id, literal)) => {
+                            unsat_clauses.push((clause_id, literal));
                         }
+                        Err(e) => panic!("Unexpected error {e:?} from setting a literal"),
                         Ok(()) => {
                             continue 'implication;
                         }
-                        _ => todo!(),
                     }
                 }
-                if let Some(clause) = self.select_unsat_clause(&unsat_clauses) {
-                    match self.attempt_fix(clause, self.current_level().get_choice()) {
-                        Ok(()) => {
-                            continue 'main_loop;
-                        }
+                if let Some((clause, literal)) = self.select_conflict(&unsat_clauses) {
+                    match self.attempt_fix(clause, Some(literal)) {
                         Err(SolveError::NoSolution) => {
                             return Ok(None);
                         }
-                        _ => todo!(),
+                        Ok(SolveOk::AssertingClause(_)) => {
+                            continue 'main_loop;
+                        }
+                        Ok(ok) => panic!("Unexpected ok {ok:?} when attempting a fix"),
+                        Err(err) => panic!("Unexpected error {err:?} when attempting a fix"),
                     }
                 }
                 continue 'main_loop;
@@ -116,6 +159,9 @@ impl Solve<'_> {
             if !status.choices.is_empty() {
                 // make a choice
                 let a_choice = status.choices.first().unwrap();
+
+                println!("\n\nChose {a_choice}\n\n");
+
                 let _ = self.set_literal(*a_choice, LiteralSource::Choice);
                 continue 'main_loop;
             }

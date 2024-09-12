@@ -1,13 +1,14 @@
 use crate::structures::{
-    Clause, StoredClause, ClauseId, Literal, LiteralError, SolveError, Variable, VariableId,
+    Clause, ClauseId, ClauseVec, Literal, LiteralError, SolveError, StoredClause, Variable,
+    VariableId,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
 #[derive(Debug, Clone)]
 pub struct Formula {
-    pub variables: Vec<Variable>,
-    clauses: Vec<StoredClause>,
+    variables: Vec<Variable>,
+    clauses: Vec<ClauseVec>,
 }
 
 impl Formula {
@@ -23,35 +24,21 @@ impl Formula {
         COUNTER.fetch_add(1, AtomicOrdering::Relaxed) as ClauseId
     }
 
-    pub fn fresh_clause(&self) -> StoredClause {
-        StoredClause {
-            id: Self::fresh_clause_id(),
-            position: self.clauses.len(),
-            clause: Vec::new(),
-        }
-    }
+    // pub fn fresh_clause_from(&self, optional_clause: Option<impl Clause>) -> StoredClause {
+    //     match optional_clause {
+    //         Some(clause) => StoredClause {
+    //             id: Self::fresh_clause_id(),
+    //             clause: clause.to_vec(),
+    //         },
+    //         None => StoredClause {
+    //             id: Self::fresh_clause_id(),
+    //             clause: Vec::new(),
+    //         },
+    //     }
+    // }
 
-    pub fn stored_clauses(&self) -> impl Iterator <Item = &StoredClause> {
+    pub fn clauses(&self) -> impl Iterator<Item = &impl Clause> {
         self.clauses.iter()
-    }
-
-    pub fn store_clause(&mut self, clause: impl Clause) {
-        let mut stored_clause = self.fresh_clause();
-        stored_clause.clause = clause.to_vec();
-        self.clauses.push(stored_clause);
-}
-
-    pub fn clauses(&self) -> impl Iterator <Item = & impl Clause> {
-        self.clauses.iter().map(|stored_clause| &stored_clause.clause)
-    }
-
-    // todo think about the structure to allow dropping clauses, etc
-    pub fn borrow_clause_by_id(&self, id: usize) -> &StoredClause {
-        if let Some(clause) = self.clauses.iter().find(|c| c.id == id) {
-            clause
-        } else {
-            panic!("Searching for a phantom clause");
-        }
     }
 
     pub fn vars(&self) -> &Vec<Variable> {
@@ -65,15 +52,12 @@ impl Formula {
             let the_id = self.variables.len() as VariableId;
             let new_variable = Variable {
                 name: name.to_string(),
+                decision_level: None,
                 id: the_id,
             };
             self.variables.push(new_variable);
             the_id
         }
-    }
-
-    pub fn var_by_id(&self, id: VariableId) -> Option<&Variable> {
-        self.variables.get(id as usize)
     }
 
     pub fn literal_from_string(&mut self, string: &str) -> Result<Literal, SolveError> {
@@ -98,6 +82,30 @@ impl Formula {
     pub fn var_count(&self) -> usize {
         self.variables.len()
     }
+
+    fn clause_vec_from_string(&mut self, string: &str) -> Result<Vec<Literal>, SolveError> {
+        let string_lterals = string.split_whitespace();
+        let mut the_clause = vec![];
+        for string_literal in string_lterals {
+            match self.literal_from_string(string_literal) {
+                Ok(made) => the_clause.push(made),
+                Err(e) => {
+                    return Err(e);
+                }
+            };
+        }
+        Ok(the_clause)
+    }
+
+    pub fn add_clause(&mut self, string: &str) -> Result<(), SolveError> {
+        match self.clause_vec_from_string(string) {
+            Ok(a_clause) => {
+                self.clauses.push(a_clause);
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
 }
 
 impl std::fmt::Display for Formula {
@@ -114,7 +122,7 @@ impl std::fmt::Display for Formula {
         )?;
         writeln!(f, "| Clauses")?;
         for clause in &self.clauses {
-            writeln!(f, "|   {}", clause)?;
+            writeln!(f, "|   {}", clause.as_string())?;
         }
         Ok(())
     }

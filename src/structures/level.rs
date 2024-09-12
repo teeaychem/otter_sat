@@ -6,6 +6,8 @@ use crate::structures::{
 
 use std::collections::BTreeSet;
 
+pub type  LevelIndex = usize;
+
 #[derive(Clone, Debug)]
 pub struct Level {
     index: usize,
@@ -55,22 +57,29 @@ impl Level {
             .into_iter()
             .chain(self.observations.iter().cloned())
     }
+
+    pub fn variables(&self) -> impl Iterator<Item = VariableId> + '_ {
+        self.choice
+            .into_iter().map(|l| l.v_id)
+            .chain(self.observations.iter().map(|l| l.v_id))
+    }
 }
 
 impl<'borrow, 'solve> Solve<'solve> {
-    pub fn add_fresh_level(&'borrow mut self) {
+    pub fn add_fresh_level(&'borrow mut self) -> usize {
         let index = self.levels.len();
         let the_level = Level::new(index, self);
         self.levels.push(the_level);
+        index
     }
 }
 
 impl<'borrow, 'level, 'solve: 'level> Solve<'solve> {
-    pub fn pop_level(&'borrow mut self) -> Option<Level> {
+    pub fn last_choice_level(&'borrow mut self) -> Option<&Level> {
         if self.levels.len() <= 1 {
             return None;
         }
-        let the_level: Option<Level> = self.levels.pop();
+        let the_level: Option<&Level> = self.levels.last();
         if let Some(level) = &the_level {
             self.valuation.clear_level(level);
         };
