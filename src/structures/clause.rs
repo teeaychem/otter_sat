@@ -1,4 +1,6 @@
-use crate::structures::{Literal, LiteralError, Valuation, ValuationVec};
+use crate::structures::{Literal, LiteralError, Valuation, ValuationVec, VariableId};
+
+use std::collections::BTreeSet;
 
 pub type ClauseVec = Vec<Literal>;
 
@@ -18,6 +20,8 @@ pub trait Clause: IntoIterator {
     fn as_string(&self) -> String;
 
     fn to_vec(self) -> ClauseVec;
+
+    fn to_sorted_vec(self) -> ClauseVec;
 }
 
 pub type ClauseId = usize;
@@ -125,8 +129,12 @@ impl Clause for ClauseVec {
     fn to_vec(self) -> ClauseVec {
         self
     }
-}
 
+    fn to_sorted_vec(mut self) -> ClauseVec {
+        self.sort();
+        self
+    }
+}
 
 impl StoredClause {
     pub fn new(id: usize, position: usize) -> StoredClause {
@@ -135,5 +143,60 @@ impl StoredClause {
             position,
             clause: Vec::new(),
         }
+    }
+}
+
+pub fn resolve<T: Clause>(clause_a: T, clause_b: T, v_id: VariableId) -> Option<impl Clause> {
+    let mut the_clause = BTreeSet::new();
+    let mut clause_a_value = None;
+    let mut counterpart_found = false;
+    for literal in clause_a.literals() {
+        if literal.v_id == v_id
+            && (clause_a_value.is_none() || clause_a_value == Some(literal.polarity))
+        {
+            clause_a_value = Some(literal.polarity);
+        } else {
+            the_clause.insert(literal);
+        }
+    }
+    if clause_a_value.is_none() {
+        log::warn!("Resolution: {v_id} not found in {}", clause_a.as_string());
+        return None
+    }
+    for literal in clause_b.literals() {
+        if literal.v_id == v_id && clause_a_value != Some(literal.polarity) {
+            counterpart_found = true;
+        } else {
+            the_clause.insert(literal);
+        }
+    }
+    if !counterpart_found {
+        log::warn!("Resolution: {v_id} not found in {}", clause_b.as_string());
+        return None
+    }
+    Some(the_clause.iter().cloned().collect::<Vec<_>>())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_ok_check() {
+        let a = vec![Literal::new(1, true), Literal::new(2, false), Literal::new(4, false)];
+        let b = vec![Literal::new(1, false), Literal::new(3, true), Literal::new(4, false)];
+        assert_eq!(
+            vec![Literal::new(2, false), Literal::new(3, true), Literal::new(4, false)],
+            resolve(a, b, 1).unwrap().to_sorted_vec()
+        )
+    }
+
+    #[test]
+    fn resolve_nok_check() {
+        let a = vec![Literal::new(1, true), Literal::new(2, false)];
+        let b = vec![Literal::new(3, true), Literal::new(4, false)];
+        assert!(
+            resolve(a, b, 1).is_none()
+        )
     }
 }
