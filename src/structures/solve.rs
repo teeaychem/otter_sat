@@ -4,7 +4,7 @@ use crate::structures::{
     ImplicationSource, Level, Literal, LiteralError, LiteralSource, StoredClause, Valuation,
     ValuationError, ValuationOk, ValuationVec, VariableId,
 };
-use std::result;
+
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
 use std::collections::BTreeSet;
@@ -22,12 +22,7 @@ pub struct Solve<'formula> {
 pub enum SolveError {
     Literal(LiteralError),
     // Clause(ClauseError),
-    ParseFailure,
-    PrefaceLength,
-    PrefaceFormat,
-    Hek,
     OutOfBounds,
-    SetIssue,
     UnsatClause(ClauseId),
     NoSolution,
 }
@@ -159,23 +154,8 @@ impl<'borrow, 'solve> Solve<'solve> {
         literal: Literal,
         source: LiteralSource,
     ) -> Result<(), SolveError> {
-        match self.valuation.check_literal(literal) {
-            Ok(ValuationOk::Match) => {
-                match source {
-                    LiteralSource::Choice | LiteralSource::HobsonChoice => {
-                        panic!("Attempting to set a made choice")
-                    }
-                    LiteralSource::Assumption => {
-                        panic!("Attempting to set a made assumption")
-                    }
-                    LiteralSource::StoredClause(_) | LiteralSource::Conflict => {
-                        self.current_level_mut().record_literal(literal, source);
-                    }
-                };
-                Ok(())
-            }
-            Ok(ValuationOk::NotSet) => {
-                let _ = self.valuation.set_literal(literal);
+        match self.valuation.set_literal(literal) {
+            Ok(()) => {
                 match source {
                     LiteralSource::Choice => {
                         self.add_fresh_level();
@@ -222,11 +202,29 @@ impl<'borrow, 'solve> Solve<'solve> {
                 };
                 Ok(())
             }
-            Err(ValuationError::Inconsistent) => match source {
-                LiteralSource::StoredClause(c) => Err(SolveError::UnsatClause(c)),
-                _ => panic!("unsat without a clause"),
+            Err(ValuationError::Match) => match source {
+                LiteralSource::StoredClause(_) => {
+                    // A literal may be implied by multiple clauses
+                    Ok(())
+                }
+                _ => {
+                    log::error!("Attempting to restate {} via {:?}", literal, source);
+                    panic!("Attempting to restate the valuation")
+                }
             },
-            Err(ValuationError::AlreadySet) => Err(SolveError::SetIssue),
+            Err(ValuationError::Conflict) => {
+                match source {
+                    LiteralSource::StoredClause(id) => {
+                        // A literal may be implied by multiple clauses
+                        Err(SolveError::UnsatClause(id))
+                    }
+                    _ => {
+                        log::error!("Attempting to flip {} via {:?}", literal, source);
+                        panic!("Attempting to flip the valuation")
+                    }
+                }
+            }
+            _ => todo!(),
         }
     }
 }
