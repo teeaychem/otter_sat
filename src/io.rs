@@ -1,9 +1,16 @@
 use std::char;
 
-use crate::structures::*;
+use crate::structures::{Formula, SolveError};
+
+pub enum IOError {
+    ParseFailure,
+    PrefaceLength,
+    PrefaceFormat,
+    AddClauseFailure(SolveError),
+}
 
 impl Formula {
-    pub fn from_dimacs<'formula>(string: &str) -> Result<Formula, SolveError> {
+    pub fn from_dimacs(string: &str) -> Result<Formula, IOError> {
         let mut the_solve = Formula::new();
         let mut from = 0;
         let mut to = 0;
@@ -38,31 +45,31 @@ impl Formula {
                             break;
                         }
                     } else {
-                        return Err(SolveError::ParseFailure);
+                        return Err(IOError::ParseFailure);
                     }
                 }
                 let the_preface = &string[from..to];
                 let preface_parts = the_preface.split_whitespace().collect::<Vec<_>>();
                 if preface_parts.len() != 4 {
-                    return Err(SolveError::PrefaceLength);
-                } else if Some(&"p") != preface_parts.first() {
-                    return Err(SolveError::PrefaceFormat);
-                } else if Some(&"cnf") != preface_parts.get(1) {
-                    return Err(SolveError::PrefaceFormat);
+                    return Err(IOError::PrefaceLength);
+                } else if Some(&"p") != preface_parts.first()
+                    || Some(&"cnf") != preface_parts.get(1)
+                {
+                    return Err(IOError::PrefaceFormat);
                 }
                 let _variables = match preface_parts.get(2) {
                     Some(count) => match count.parse::<usize>() {
                         Ok(count_number) => count_number,
-                        Err(_) => return Err(SolveError::ParseFailure),
+                        Err(_) => return Err(IOError::ParseFailure),
                     },
-                    None => return Err(SolveError::ParseFailure),
+                    None => return Err(IOError::ParseFailure),
                 };
                 let _clauses = match preface_parts.get(3) {
                     Some(count) => match count.parse::<usize>() {
                         Ok(count_number) => count_number,
-                        Err(_) => return Err(SolveError::ParseFailure),
+                        Err(_) => return Err(IOError::ParseFailure),
                     },
-                    None => return Err(SolveError::ParseFailure),
+                    None => return Err(IOError::ParseFailure),
                 };
                 from = to
             }
@@ -75,14 +82,14 @@ impl Formula {
         Ok(the_solve)
     }
 
-    pub fn add_clause(&mut self, string: &str) -> Result<(), SolveError> {
+    pub fn add_clause(&mut self, string: &str) -> Result<(), IOError> {
         let string_lterals = string.split_whitespace();
         let mut the_clause = vec![];
         for string_literal in string_lterals {
             match self.literal_from_string(string_literal) {
                 Ok(made) => the_clause.push(made),
                 Err(e) => {
-                    return Err(e);
+                    return Err(IOError::AddClauseFailure(e));
                 }
             };
         }

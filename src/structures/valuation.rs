@@ -24,8 +24,8 @@ pub trait Valuation {
 }
 
 pub enum ValuationError {
-    Inconsistent,
-    AlreadySet,
+    Match,
+    Conflict
 }
 
 pub enum ValuationOk {
@@ -67,7 +67,7 @@ impl Valuation for ValuationVec {
             if already_set == literal.polarity {
                 Ok(ValuationOk::Match)
             } else {
-                Err(ValuationError::Inconsistent)
+                Err(ValuationError::Conflict)
             }
         } else {
             Ok(ValuationOk::NotSet)
@@ -76,7 +76,13 @@ impl Valuation for ValuationVec {
 
     fn set_literal(&mut self, literal: Literal) -> Result<(), ValuationError> {
         match self[literal.v_id as usize] {
-            Some(_) => Err(ValuationError::AlreadySet),
+            Some(value) => {
+                if value != literal.polarity {
+                    Err(ValuationError::Conflict)
+                } else {
+                    Err(ValuationError::Match)
+                }
+            },
             None => {
                 self[literal.v_id as usize] = Some(literal.polarity);
                 Ok(())
