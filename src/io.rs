@@ -1,6 +1,6 @@
 use std::char;
 
-use crate::structures::{Formula, SolveError};
+use crate::structures::{Formula, Literal, SolveError};
 
 pub enum IOError {
     ParseFailure,
@@ -22,7 +22,10 @@ impl Formula {
                     reading_literal = true
                 } else if ch == '0' {
                     if !reading_comment {
-                        the_solve.add_clause(&string[from..to])?;
+                        match the_solve.add_clause(&string[from..to]) {
+                            Ok(()) => {}
+                            Err(e) => return Err(IOError::AddClauseFailure(e)),
+                        }
                     }
                     from = to + 1;
                 }
@@ -80,20 +83,5 @@ impl Formula {
             to += 1;
         }
         Ok(the_solve)
-    }
-
-    pub fn add_clause(&mut self, string: &str) -> Result<(), IOError> {
-        let string_lterals = string.split_whitespace();
-        let mut the_clause = vec![];
-        for string_literal in string_lterals {
-            match self.literal_from_string(string_literal) {
-                Ok(made) => the_clause.push(made),
-                Err(e) => {
-                    return Err(IOError::AddClauseFailure(e));
-                }
-            };
-        }
-        self.store_clause(the_clause);
-        Ok(())
     }
 }
