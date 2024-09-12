@@ -13,5 +13,5 @@ pub use crate::structures::implication_graph::{
 };
 pub use crate::structures::level::Level;
 pub use crate::structures::literal::{Literal, LiteralError, LiteralSource, Variable, VariableId};
-pub use crate::structures::solve::{Solve, SolveError};
+pub use crate::structures::solve::{Solve, SolveError, SolveStatus};
 pub use crate::structures::valuation::{Valuation, ValuationError, ValuationOk, ValuationVec};
