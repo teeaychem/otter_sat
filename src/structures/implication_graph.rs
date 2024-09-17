@@ -159,12 +159,12 @@ impl ImplicationGraph {
         consequent_index
     }
 
-    pub fn add_temporary_falsum(&mut self, clause: &impl Clause) -> NodeIndex {
+    pub fn add_temporary_falsum(&mut self, literals: impl Iterator<Item = Literal>) -> NodeIndex {
         let falsum = self.graph.add_node(ImplicationNode {
             level: 0, // as the falsum is temporary and the level is unimportant, it's fixed to 0
             item: NodeItem::Falsum,
         });
-        for antecedent in clause.literals() {
+        for antecedent in literals {
             let _edge_index = self.graph.add_edge(
                 self.get_literal(antecedent.negate()),
                 falsum,
@@ -209,12 +209,10 @@ impl ImplicationGraph {
         }
     }
 
-    pub fn immediate_dominator(&self, root: NodeIndex, conflict: NodeIndex) -> Option<Literal> {
+    fn immediate_dominator(&self, root: NodeIndex, conflict: NodeIndex) -> Option<Literal> {
         let dominators = simple_fast(&self.graph, root);
 
         let i_d_index = dominators.immediate_dominator(conflict);
-        println!("the immediate dominator of {:?} is {:?}", root, i_d_index);
-        // println!("the dominators of {:?} are {:?}", root, x.dominators(conflict));
         match i_d_index {
             Some(node_index) => match self.graph.node_weight(node_index) {
                 Some(node) => match node.item {
@@ -229,10 +227,10 @@ impl ImplicationGraph {
 
     pub fn immediate_dominators(
         &mut self,
-        clause: &impl Clause,
+        literals: impl Iterator<Item = Literal>,
         choice_literal: Literal,
     ) -> Option<Literal> {
-        let falsum = self.add_temporary_falsum(clause);
+        let falsum = self.add_temporary_falsum(literals);
         let root = self.get_literal(choice_literal);
         let dominators = simple_fast(&self.graph, root);
         let immediate_dominator = dominators.immediate_dominator(falsum);
@@ -266,10 +264,14 @@ impl ImplicationGraph {
 }
 
 impl<'borrow, 'graph> ImplicationGraph {
-    pub fn remove_literals<I>(&'borrow mut self, literals: I)
-    where
-        I: Iterator<Item = Literal>,
-    {
+    fn get_literal_node(&self, literal: Literal) -> &ImplicationNode {
+        let the_node_index = self.variable_indicies[literal.v_id].expect("Missing node");
+        self.graph
+            .node_weight(the_node_index)
+            .expect("Missing node")
+    }
+
+    pub fn remove_literals(&'borrow mut self, literals: impl Iterator<Item = Literal>) {
         literals.for_each(|literal| self.remove_literal(literal))
     }
 
@@ -289,7 +291,7 @@ impl<'borrow, 'graph> ImplicationGraph {
     /*
     Given a clause and a level, the resolution candidates are those literals set at the level which conflict with some literal in the clause
      */
-    pub fn naive_resolution_candidates<'clause>(
+    pub fn resolution_candidates_at_level<'clause>(
         &'borrow self,
         clause: &'borrow impl Clause,
         level: usize,
@@ -297,42 +299,65 @@ impl<'borrow, 'graph> ImplicationGraph {
         clause
             .literals()
             .filter_map(move |literal| {
-                // get the node index of the literal
                 let the_node_index = self.variable_indicies[literal.v_id].expect("Missing node");
-                // get the literal as a node
                 let the_literal_node = self
                     .graph
                     .node_weight(the_node_index)
                     .expect("Missing node");
                 if the_literal_node.level == level {
                     match the_literal_node.item {
-                        NodeItem::Falsum => panic!("hek"),
-                        NodeItem::Literal(l) => {
-                            // if there's some incoming edge, then there's going to be a possibility to resolve
-                            if true {
-                                //  || l.polarity != literal.polarity {
-                                Some(
-                                    self.graph
-                                        .edges_directed(
-                                            the_node_index,
-                                            petgraph::Direction::Incoming,
-                                        )
-                                        .filter_map(move |edge| match edge.weight().source {
-                                            ImplicationSource::StoredClause(clause_id) => {
-                                                Some((clause_id, l))
-                                            }
-                                            _ => None,
-                                        }),
-                                )
-                            } else {
-                                None
-                            }
-                        }
+                        NodeItem::Falsum => panic!("Literal from falsum"),
+                        NodeItem::Literal(l) => Some(
+                            self.graph
+                                .edges_directed(the_node_index, petgraph::Direction::Incoming)
+                                .filter_map(move |edge| match edge.weight().source {
+                                    ImplicationSource::StoredClause(clause_id) => {
+                                        Some((clause_id, l))
+                                    }
+                                    _ => None,
+                                }),
+                        ),
                     }
                 } else {
                     None
                 }
             })
             .flatten()
+    }
+
+    pub fn resolution_candidates_all<'clause>(
+        &'borrow self,
+        clause: &'borrow impl Clause,
+    ) -> impl Iterator<Item = (ClauseId, Literal)> + 'borrow {
+        clause
+            .literals()
+            .filter_map(move |literal| {
+                let the_node_index = self.variable_indicies[literal.v_id].expect("Missing node");
+                let the_literal_node = self
+                    .graph
+                    .node_weight(the_node_index)
+                    .expect("Missing node");
+
+                match the_literal_node.item {
+                    NodeItem::Falsum => panic!("Literal from falsum"),
+                    NodeItem::Literal(l) => Some(
+                        self.graph
+                            .edges_directed(the_node_index, petgraph::Direction::Incoming)
+                            .filter_map(move |edge| match edge.weight().source {
+                                ImplicationSource::StoredClause(clause_id) => Some((clause_id, l)),
+                                _ => None,
+                            }),
+                    ),
+                }
+            })
+            .flatten()
+    }
+
+    pub fn paths_between(&self, from: Literal, to: Literal) {
+        let from_node = self.get_literal(from).id();
+        let to_node = self.get_literal(to).id();
+        let paths = petgraph::algo::all_simple_paths::<Vec<_>, _>(&self.graph, from_node, to_node, 0, None).collect::<Vec<_>>();
+        println!("Paths between {from} and {to}:");
+        println!("{:?}\n", paths)
     }
 }
