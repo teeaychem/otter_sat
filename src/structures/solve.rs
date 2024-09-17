@@ -170,9 +170,7 @@ impl Solve<'_> {
             .find(|&v| self.valuation.of_v_id(v.id).is_ok_and(|p| p.is_none()))
             .map(|found| found.id)
     }
-}
 
-impl Solve<'_> {
     pub fn find_stored_clause(&self, id: ClauseId) -> Option<&StoredClause> {
         self.clauses
             .iter()
@@ -187,11 +185,6 @@ impl<'borrow, 'solve> Solve<'solve> {
             source: ClauseSource::Temp,
             clause: clause.to_vec(),
         };
-        log::warn!(
-            "Learnt clause: {} @ level {:?}",
-            clause.to_string(),
-            self.decision_level_of(&clause.clause)
-        );
         self.clauses.push(clause);
     }
 
@@ -297,6 +290,10 @@ impl<'borrow, 'solve> Solve<'solve> {
             }
         }
     }
+
+    pub fn level_choice(&'borrow self, index: LevelIndex) -> Literal {
+        self.levels[index].get_choice().expect("No choice at level")
+    }
 }
 
 impl std::fmt::Display for Solve<'_> {
@@ -308,33 +305,37 @@ impl std::fmt::Display for Solve<'_> {
 }
 
 impl Solve<'_> {
+    /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision level.
     fn simple_analysis(&mut self, conflict_clause_id: ClauseId) -> Result<SolveOk, SolveError> {
-        let the_conflict_clause = &self
+        let the_conflict_clause = self
             .find_stored_clause(conflict_clause_id)
             .expect("Hek")
-            .clause;
-        let conflict_decision_level = self
-            .decision_level_of(the_conflict_clause)
-            .expect("No clause decision level");
+            .clause
+            .as_vec();
 
-        let mut the_resolved_clause = the_conflict_clause.as_vec();
+        let mut the_resolved_clause = the_conflict_clause;
 
         'resolution_loop: loop {
             log::trace!("Analysis clause: {}", the_resolved_clause.as_string());
             // the current choice will never be a resolution literal, as these are those literals in the clause which are the result of propagation
             let resolution_literals = self
                 .graph
-                .naive_resolution_candidates(&the_resolved_clause, conflict_decision_level)
+                .resolution_candidates_at_level(&the_resolved_clause, self.current_level().index())
                 .collect::<BTreeSet<_>>();
 
             match resolution_literals.is_empty() {
                 true => {
-                    let decision_level = self
-                        .decision_level_of(&the_resolved_clause)
-                        .expect("Learnt clause without decision level");
+                    // the relevant backtrack level is either 0 is analysis is being performed at 0 or the first decision level in the resolution clause prior to the current level.
+                    // For, if a prior level does *not* appear in the resolution clause then the level provided no relevant information.
+                    let backtrack_level = self
+                        .decision_levels_of(&the_resolved_clause)
+                        .filter(|level| *level != self.current_level().index())
+                        .max()
+                        .unwrap_or(0);
+
                     self.learn_clause(the_resolved_clause);
 
-                    return Ok(SolveOk::AssertingClause(decision_level));
+                    return Ok(SolveOk::AssertingClause(backtrack_level));
                 }
                 false => {
                     let (clause_id, resolution_literal) =
@@ -376,6 +377,7 @@ impl Solve<'_> {
             for literal in the_level.literals() {
                 self.refresh_literal(literal)
             }
+            log::warn!("Backtracked from {}", the_level.index());
             Ok(SolveOk::Backtracked)
         }
     }
@@ -391,10 +393,12 @@ impl Solve<'_> {
         self.variables.get(id as usize)
     }
 
-    pub fn decision_level_of(&self, clause: &impl Clause) -> Option<usize> {
+    pub fn decision_levels_of<'borrow, 'clause: 'borrow>(
+        &'borrow self,
+        clause: &'clause impl Clause,
+    ) -> impl Iterator<Item = usize> + 'borrow {
         clause
             .literals()
-            .filter_map(|literal| self.variables[literal.v_id].decision_level)
-            .max()
+            .filter_map(move |literal| self.variables[literal.v_id].decision_level)
     }
 }
