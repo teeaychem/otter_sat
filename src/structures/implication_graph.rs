@@ -353,11 +353,41 @@ impl<'borrow, 'graph> ImplicationGraph {
             .flatten()
     }
 
-    pub fn paths_between(&self, from: Literal, to: Literal) {
+    pub fn paths_between(
+        &self,
+        from: Literal,
+        to: Literal,
+    ) -> impl Iterator<Item = Vec<NodeIndex>> + '_ {
         let from_node = self.get_literal(from).id();
         let to_node = self.get_literal(to).id();
-        let paths = petgraph::algo::all_simple_paths::<Vec<_>, _>(&self.graph, from_node, to_node, 0, None).collect::<Vec<_>>();
-        println!("Paths between {from} and {to}:");
-        println!("{:?}\n", paths)
+        petgraph::algo::all_simple_paths::<Vec<_>, _>(&self.graph, from_node, to_node, 0, None)
+    }
+
+    /// A path
+    pub fn connecting_clauses(
+        &self,
+        mut path: impl Iterator<Item = &'borrow NodeIndex>,
+    ) -> Vec<ClauseId> {
+        let mut clause_ids = vec![];
+        if let Some(mut from_node) = path.next() {
+            let mut to_node;
+            for node in path {
+                to_node = node;
+                let mut connecting_edges = self.graph.edges_connecting(*from_node, *to_node);
+                let connecting_source = connecting_edges
+                    .next()
+                    .expect("No connecting edge")
+                    .weight()
+                    .source;
+                match connecting_source {
+                    ImplicationSource::StoredClause(clause_id) => {
+                        clause_ids.push(clause_id);
+                    }
+                    _ => panic!("Edge without clause"),
+                }
+                from_node = to_node;
+            }
+        }
+        clause_ids
     }
 }

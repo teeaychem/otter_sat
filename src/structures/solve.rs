@@ -2,6 +2,7 @@ use petgraph::matrix_graph::Zero;
 use petgraph::visit::EdgeRef;
 
 use crate::clause::ClauseVec;
+use crate::literal;
 use crate::structures::{
     binary_resolution, Clause, ClauseId, ClauseSource, Formula, ImplicationEdge, ImplicationGraph,
     ImplicationSource, Level, LevelIndex, Literal, LiteralError, LiteralSource, StoredClause,
@@ -306,7 +307,7 @@ impl std::fmt::Display for Solve<'_> {
 
 impl Solve<'_> {
     /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision level.
-    fn simple_analysis(&mut self, conflict_clause_id: ClauseId) -> Result<SolveOk, SolveError> {
+    fn simple_analysis_one(&mut self, conflict_clause_id: ClauseId) -> Option<ClauseVec> {
         let the_conflict_clause = self
             .find_stored_clause(conflict_clause_id)
             .expect("Hek")
@@ -325,17 +326,7 @@ impl Solve<'_> {
 
             match resolution_literals.is_empty() {
                 true => {
-                    // the relevant backtrack level is either 0 is analysis is being performed at 0 or the first decision level in the resolution clause prior to the current level.
-                    // For, if a prior level does *not* appear in the resolution clause then the level provided no relevant information.
-                    let backtrack_level = self
-                        .decision_levels_of(&the_resolved_clause)
-                        .filter(|level| *level != self.current_level().index())
-                        .max()
-                        .unwrap_or(0);
-
-                    self.learn_clause(the_resolved_clause);
-
-                    return Ok(SolveOk::AssertingClause(backtrack_level));
+                    return Some(the_resolved_clause);
                 }
                 false => {
                     let (clause_id, resolution_literal) =
@@ -359,12 +350,83 @@ impl Solve<'_> {
         }
     }
 
+    fn simple_analysis_two(&mut self, conflict_clause_id: ClauseId) -> Option<ClauseVec> {
+        let the_conflict_clause = &self
+            .find_stored_clause(conflict_clause_id)
+            .expect("Hek")
+            .clause
+            .clone();
+
+        let conflict_decision_level = self
+            .decision_levels_of(the_conflict_clause)
+            .max()
+            .expect("No clause decision level");
+
+        let mut the_resolved_clause = the_conflict_clause.as_vec();
+        let the_conflict_level_choice = self.level_choice(conflict_decision_level);
+
+        let the_immediate_domiator = self
+            .graph
+            .immediate_dominators(
+                the_resolved_clause.iter().cloned(),
+                the_conflict_level_choice,
+            )
+            .expect("No immediate dominator");
+
+        for literal in the_conflict_clause.literals() {
+            let mut paths = self
+                .graph
+                .paths_between(the_immediate_domiator, literal.negate());
+            match paths.next() {
+                None => continue,
+                Some(path) => {
+                    let mut path_clause_ids = self.graph.connecting_clauses(path.iter());
+                    path_clause_ids.reverse();
+                    for clause_id in path_clause_ids {
+                        let path_clause = &self
+                            .find_stored_clause(clause_id)
+                            .expect("Failed to find clause")
+                            .clause;
+                        if let Some(shared_literal) = path_clause.literals().find(|path_literal| {
+                            the_resolved_clause.contains(&path_literal.negate())
+                        }) {
+                            the_resolved_clause = binary_resolution(
+                                &the_resolved_clause,
+                                path_clause,
+                                shared_literal.v_id,
+                            )
+                            .expect("Resolution failed")
+                            .to_vec();
+                        }
+                    }
+                }
+            }
+        }
+
+        return Some(the_resolved_clause);
+    }
+
     pub fn analyse_conflict(
         &mut self,
         clause_id: ClauseId,
         literal: Option<Literal>,
     ) -> Result<SolveOk, SolveError> {
-        self.simple_analysis(clause_id)
+        // match self.simple_analysis_one(clause_id) {
+        match self.simple_analysis_two(clause_id) {
+            Some(clause) => {
+                // the relevant backtrack level is either 0 is analysis is being performed at 0 or the first decision level in the resolution clause prior to the current level.
+                // For, if a prior level does *not* appear in the resolution clause then the level provided no relevant information.
+                let backtrack_level = self
+                    .decision_levels_of(&clause)
+                    .filter(|level| *level != self.current_level().index())
+                    .max()
+                    .unwrap_or(0);
+
+                self.learn_clause(clause);
+                return Ok(SolveOk::AssertingClause(backtrack_level));
+            }
+            None => panic!("Unexpected result from basic analysis"),
+        }
     }
 
     pub fn backtrack(&mut self) -> Result<SolveOk, SolveError> {
