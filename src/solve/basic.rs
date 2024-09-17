@@ -43,7 +43,8 @@ impl Solve<'_> {
 
             match self.analyse_conflict(clause_id, Some(literal)) {
                 Ok(SolveOk::AssertingClause(level)) => {
-                    while self.current_level().index() >= level {
+                    log::warn!("Asserting clause at level {}", level);
+                    while self.current_level().index() != 0 && self.current_level().index() >= level {
                         let _ = self.backtrack();
                     }
                     Ok(SolveOk::AssertingClause(level))
@@ -100,17 +101,6 @@ impl Solve<'_> {
                     Ok(ok) => panic!("Unexpected ok {ok:?} when attempting a fix"),
                     Err(err) => panic!("Unexpected error {err:?} when attempting a fix"),
                 }
-
-                // match self.backtrack() {
-                //     Ok(SolveOk::Backtracked) => {
-                //         println!("Backtracked");
-                //         continue 'main_loop;
-                //     }
-                //     Err(SolveError::NoSolution) => {
-                //         return Ok(None);
-                //     }
-                //     _ => panic!("Unexpected outcome of backtracking"),
-                // }
             }
 
             if !status.unsat.is_empty() {
@@ -160,7 +150,7 @@ impl Solve<'_> {
                 // make a choice
                 let a_choice = status.choices.first().unwrap();
 
-                println!("\n\nChose {a_choice}\n\n");
+                println!("\n\nChose {a_choice} @ {}\n\n", self.current_level().index());
 
                 let _ = self.set_literal(*a_choice, LiteralSource::Choice);
                 continue 'main_loop;

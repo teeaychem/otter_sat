@@ -30,10 +30,6 @@ fn main() {
         if let Ok(formula) = Formula::from_dimacs(&contents) {
             let mut the_solve = Solve::from_formula(&formula);
 
-            the_solve.literals_of_polarity(true);
-            the_solve.literals_of_polarity(false);
-            the_solve.hobson_choices();
-
             let result = the_solve.implication_solve();
             if let Ok(valuation) = result {
                 println!("Satisfying assignment: {:?}", valuation);
