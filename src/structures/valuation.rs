@@ -47,8 +47,8 @@ impl Valuation for ValuationVec {
             .map(|(i, p)| {
                 let variable = solve.var_by_id(i as VariableId).unwrap();
                 match p {
-                    Some(true) => variable.name.to_string(),
-                    Some(false) => format!("-{}", variable.name),
+                    Some(true) => variable.name().to_string(),
+                    Some(false) => format!("-{}", variable.name()),
                     _ => String::new(),
                 }
             })

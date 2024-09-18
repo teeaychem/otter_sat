@@ -168,8 +168,8 @@ impl Solve<'_> {
         solve
             .variables
             .iter()
-            .find(|&v| self.valuation.of_v_id(v.id).is_ok_and(|p| p.is_none()))
-            .map(|found| found.id)
+            .find(|&v| self.valuation.of_v_id(v.id()).is_ok_and(|p| p.is_none()))
+            .map(|found| found.id())
     }
 
     pub fn find_stored_clause(&self, id: ClauseId) -> Option<&StoredClause> {
@@ -210,24 +210,24 @@ impl<'borrow, 'solve> Solve<'solve> {
                         self.current_level_mut().record_literal(literal, source);
                         self.graph
                             .add_literal(literal, self.current_level().index(), false);
-                        self.variables[literal.v_id].decision_level = Some(new_level_index);
+                        self.variables[literal.v_id].set_decision_level(new_level_index);
                         log::debug!("+Set choice: {literal}");
                     }
                     LiteralSource::Assumption => {
-                        self.variables[literal.v_id].decision_level = Some(0);
+                        self.variables[literal.v_id].set_decision_level(0);
                         self.top_level_mut().record_literal(literal, source);
                         self.graph.add_literal(literal, 0, false);
                         log::debug!("+Set assumption: {literal}");
                     }
                     LiteralSource::HobsonChoice => {
-                        self.variables[literal.v_id].decision_level = Some(0);
+                        self.variables[literal.v_id].set_decision_level(0);
                         self.top_level_mut().record_literal(literal, source);
                         self.graph.add_literal(literal, 0, false);
                         log::debug!("+Set hobson choice: {literal}");
                     }
                     LiteralSource::StoredClause(clause_id) => {
-                        self.variables[literal.v_id].decision_level =
-                            Some(self.current_level().index());
+                        let current_level = self.current_level().index();
+                        self.variables[literal.v_id].set_decision_level(current_level);
                         self.current_level_mut().record_literal(literal, source);
 
                         let literals = self
@@ -249,8 +249,8 @@ impl<'borrow, 'solve> Solve<'solve> {
                         log::debug!("+Set deduction: {literal}");
                     }
                     LiteralSource::Conflict => {
-                        self.variables[literal.v_id].decision_level =
-                            Some(self.current_level().index());
+                        let current_level = self.current_level().index();
+                        self.variables[literal.v_id].set_decision_level(current_level);
                         self.current_level_mut().record_literal(literal, source);
                         if self.current_level().index() != 0 {
                             self.graph.add_contradiction(
@@ -448,7 +448,7 @@ impl Solve<'_> {
 impl Solve<'_> {
     pub fn refresh_literal(&mut self, literal: Literal) {
         self.valuation[literal.v_id] = None;
-        self.variables[literal.v_id].decision_level = None;
+        self.variables[literal.v_id].clear_decision_level();
     }
 
     pub fn var_by_id(&self, id: VariableId) -> Option<&Variable> {
@@ -461,6 +461,6 @@ impl Solve<'_> {
     ) -> impl Iterator<Item = usize> + 'borrow {
         clause
             .literals()
-            .filter_map(move |literal| self.variables[literal.v_id].decision_level)
+            .filter_map(move |literal| self.variables[literal.v_id].decision_level())
     }
 }
