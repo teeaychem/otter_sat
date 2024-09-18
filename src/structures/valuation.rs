@@ -20,8 +20,6 @@ pub trait Valuation {
 
     fn clear_level(&mut self, level: &Level);
 
-    fn size(&self) -> usize;
-
     fn literals(&self) -> Vec<Literal>;
 }
 
@@ -37,7 +35,7 @@ pub enum ValuationOk {
 
 impl Valuation for ValuationVec {
     fn new_for_variables(variable_count: usize) -> Self {
-        vec![None; variable_count + 1]
+        vec![None; variable_count]
     }
 
     fn as_display_string(&self, solve: &Solve) -> String {
@@ -70,14 +68,14 @@ impl Valuation for ValuationVec {
     }
 
     fn of_v_id(&self, v_id: VariableId) -> Result<Option<bool>, SolveError> {
-        match self.get(v_id as usize) {
+        match self.get(v_id) {
             Some(&info) => Ok(info),
             None => Err(SolveError::OutOfBounds),
         }
     }
 
     fn check_literal(&self, literal: Literal) -> Result<ValuationOk, ValuationError> {
-        match self[literal.v_id as usize] {
+        match self[literal.v_id] {
             Some(already_set) if already_set == literal.polarity => Ok(ValuationOk::Match),
             Some(_already_set) => Err(ValuationError::Conflict),
             None => Ok(ValuationOk::NotSet),
@@ -85,26 +83,22 @@ impl Valuation for ValuationVec {
     }
 
     fn set_literal(&mut self, literal: Literal) -> Result<(), ValuationError> {
-        match self[literal.v_id as usize] {
+        match self[literal.v_id] {
             Some(value) if value != literal.polarity => Err(ValuationError::Conflict),
             Some(_value) => Err(ValuationError::Match),
             None => {
-                self[literal.v_id as usize] = Some(literal.polarity);
+                self[literal.v_id] = Some(literal.polarity);
                 Ok(())
             }
         }
     }
 
     fn clear_v_id(&mut self, v_id: VariableId) {
-        self[v_id as usize] = None
+        self[v_id] = None
     }
 
     fn clear_level(&mut self, level: &Level) {
         level.literals().for_each(|l| self.clear_v_id(l.v_id));
-    }
-
-    fn size(&self) -> usize {
-        self.len()
     }
 
     fn literals(&self) -> Vec<Literal> {
