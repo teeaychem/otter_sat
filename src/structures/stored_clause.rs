@@ -1,6 +1,6 @@
 use crate::structures::{Clause, ClauseId, Literal};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum ClauseSource {
     Formula,
     Resolution,
@@ -8,21 +8,9 @@ pub enum ClauseSource {
 
 #[derive(Clone, Debug)]
 pub struct StoredClause {
-    pub id: ClauseId,
-    pub source: ClauseSource,
-    pub clause: Vec<Literal>,
-}
-
-impl std::fmt::Display for StoredClause {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "#[{}] ", self.id)?;
-        write!(f, "(")?;
-        for literal in self.clause.iter() {
-            write!(f, " {literal} ")?;
-        }
-        write!(f, ")")?;
-        Ok(())
-    }
+    id: ClauseId,
+    source: ClauseSource,
+    clause: Vec<Literal>,
 }
 
 impl StoredClause {
@@ -32,5 +20,27 @@ impl StoredClause {
             clause: clause.as_vec(),
             source,
         }
+    }
+
+    pub fn id(&self) -> ClauseId {
+        self.id
+    }
+
+    pub fn source(&self) -> ClauseSource {
+        self.source
+    }
+
+    pub fn clause(&self) -> &impl Clause {
+        &self.clause
+    }
+
+    pub fn literals(&self) -> impl Iterator<Item = Literal> + '_ {
+        self.clause.literals()
+    }
+}
+
+impl std::fmt::Display for StoredClause {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "#[{}] {}", self.id, self.clause.as_string())
     }
 }

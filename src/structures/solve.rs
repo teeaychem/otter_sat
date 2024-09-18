@@ -79,13 +79,13 @@ impl Solve<'_> {
     pub fn is_unsat_on(&self, valuation: &ValuationVec) -> bool {
         self.clauses
             .iter()
-            .any(|stored_clause| stored_clause.clause.is_unsat_on(valuation))
+            .any(|stored_clause| stored_clause.clause().is_unsat_on(valuation))
     }
 
     pub fn is_sat_on(&self, valuation: &ValuationVec) -> bool {
         self.clauses
             .iter()
-            .all(|stored_clause| stored_clause.clause.is_sat_on(valuation))
+            .all(|stored_clause| stored_clause.clause().is_sat_on(valuation))
         // self.formula
         //     .clauses()
         //     .all(|clause| clause.is_sat_on(valuation))
@@ -99,23 +99,24 @@ impl Solve<'_> {
     pub fn examine_clauses_on<T: Valuation>(&self, valuation: &T) -> SolveStatus {
         let mut status = SolveStatus::new();
         for stored_clause in &self.clauses {
-            if let Some(the_unset) = stored_clause.clause.collect_choices(valuation) {
+            if let Some(the_unset) = stored_clause.clause().collect_choices(valuation) {
                 if the_unset.is_empty() {
                     if self.current_level().index() > 0
                         && stored_clause
-                            .clause
-                            .iter()
+                            .clause()
+                            .literals()
                             .any(|lit| lit.v_id == self.current_level().get_choice().unwrap().v_id)
                     {
-                        status
-                            .choice_conflicts
-                            .push((stored_clause.id, self.current_level().get_choice().unwrap()));
+                        status.choice_conflicts.push((
+                            stored_clause.id(),
+                            self.current_level().get_choice().unwrap(),
+                        ));
                     } else {
-                        status.unsat.push(stored_clause.id);
+                        status.unsat.push(stored_clause.id());
                     }
                 } else if the_unset.len() == 1 {
                     let the_pair: (ClauseId, Literal) =
-                        (stored_clause.id, *the_unset.first().unwrap());
+                        (stored_clause.id(), *the_unset.first().unwrap());
                     if self.current_level().index() > 0
                         && the_pair.1.v_id == self.current_level().get_choice().unwrap().v_id
                     {
@@ -139,7 +140,7 @@ impl Solve<'_> {
     pub fn literals_of_polarity(&self, polarity: bool) -> impl Iterator<Item = Literal> {
         let mut literal_vec: Vec<Option<Literal>> = vec![None; self.variables.len()];
         self.clauses.iter().for_each(|clause| {
-            clause.clause.literals().for_each(|literal| {
+            clause.literals().for_each(|literal| {
                 if literal.polarity == polarity {
                     literal_vec[literal.v_id] = Some(literal)
                 }
@@ -165,19 +166,15 @@ impl Solve<'_> {
     pub fn find_stored_clause(&self, id: ClauseId) -> Option<&StoredClause> {
         self.clauses
             .iter()
-            .find(|stored_clause| stored_clause.id == id)
+            .find(|stored_clause| stored_clause.id() == id)
     }
 }
 
 impl<'borrow, 'solve> Solve<'solve> {
     pub fn add_clause(&'borrow mut self, clause: impl Clause, source: ClauseSource) {
-        let clause = StoredClause {
-            id: Solve::fresh_clause_id(),
-            source,
-            clause: clause.to_vec(),
-        };
-        for literal in clause.clause.literals() {
-            self.variables[literal.v_id].note_occurence(clause.id)
+        let clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, source);
+        for literal in clause.clause().literals() {
+            self.variables[literal.v_id].note_occurence(clause.id())
         }
 
         self.clauses.push(clause);
@@ -227,9 +224,8 @@ impl<'borrow, 'solve> Solve<'solve> {
                         let literals = self
                             .clauses
                             .iter()
-                            .find(|clause| clause.id == clause_id)
+                            .find(|clause| clause.id() == clause_id)
                             .unwrap()
-                            .clause
                             .literals()
                             .map(|l| l.negate());
 
@@ -305,7 +301,7 @@ impl Solve<'_> {
         let the_conflict_clause = self
             .find_stored_clause(conflict_clause_id)
             .expect("Hek")
-            .clause
+            .clause()
             .as_vec();
 
         let mut the_resolved_clause = the_conflict_clause;
@@ -332,7 +328,7 @@ impl Solve<'_> {
 
                     the_resolved_clause = binary_resolution(
                         &the_resolved_clause.as_vec(),
-                        &resolution_clause.clause,
+                        &resolution_clause.clause().as_vec(),
                         resolution_literal.v_id,
                     )
                     .expect("Resolution failed")
@@ -345,59 +341,64 @@ impl Solve<'_> {
     }
 
     fn simple_analysis_two(&mut self, conflict_clause_id: ClauseId) -> Option<ClauseVec> {
-        let the_conflict_clause = &self
-            .find_stored_clause(conflict_clause_id)
-            .expect("Hek")
-            .clause
-            .clone();
+        /*
+        Unsafe for the moment.
 
-        let conflict_decision_level = self
-            .decision_levels_of(the_conflict_clause)
-            .max()
-            .expect("No clause decision level");
+        At issue is temporarily updating the implication graph to include the conflict clause implying falsum and then examining the conflcit clause.
+        For, ideally a conflict clause is only borrowed from the store of clauses, and this means either retreiving for the stored twice, or dereferencing the borrow so it can be used while mutably borrowing the solve to update the graph.
+        As retreiving the stored clause is a basic find operation, unsafely dereferencing the borrow is preferred.
+         */
+        unsafe {
+            let the_conflict_clause =
+                self.find_stored_clause(conflict_clause_id).expect("Hek") as *const StoredClause;
 
-        let mut the_resolved_clause = the_conflict_clause.as_vec();
-        let the_conflict_level_choice = self.level_choice(conflict_decision_level);
+            let conflict_decision_level = self
+                .decision_levels_of(the_conflict_clause.as_ref()?.clause())
+                .max()
+                .expect("No clause decision level");
 
-        let the_immediate_domiator = self
-            .graph
-            .immediate_dominators(
-                the_resolved_clause.iter().cloned(),
-                the_conflict_level_choice,
-            )
-            .expect("No immediate dominator");
+            let mut the_resolved_clause = the_conflict_clause.as_ref()?.clause().as_vec();
+            let the_conflict_level_choice = self.level_choice(conflict_decision_level);
 
-        for literal in the_conflict_clause.literals() {
-            let mut paths = self
+            let the_immediate_domiator = self
                 .graph
-                .paths_between(the_immediate_domiator, literal.negate());
-            match paths.next() {
-                None => continue,
-                Some(path) => {
-                    let mut path_clause_ids = self.graph.connecting_clauses(path.iter());
-                    path_clause_ids.reverse();
-                    for clause_id in path_clause_ids {
-                        let path_clause = &self
-                            .find_stored_clause(clause_id)
-                            .expect("Failed to find clause")
-                            .clause;
-                        if let Some(shared_literal) = path_clause.literals().find(|path_literal| {
-                            the_resolved_clause.contains(&path_literal.negate())
-                        }) {
-                            the_resolved_clause = binary_resolution(
-                                &the_resolved_clause,
-                                path_clause,
-                                shared_literal.v_id,
-                            )
-                            .expect("Resolution failed")
-                            .to_vec();
+                .immediate_dominators(the_resolved_clause.literals(), the_conflict_level_choice)
+                .expect("No immediate dominator");
+
+            for literal in the_conflict_clause.as_ref()?.literals() {
+                let mut paths = self
+                    .graph
+                    .paths_between(the_immediate_domiator, literal.negate());
+                match paths.next() {
+                    None => continue,
+                    Some(path) => {
+                        let mut path_clause_ids = self.graph.connecting_clauses(path.iter());
+                        path_clause_ids.reverse();
+                        for clause_id in path_clause_ids {
+                            let path_clause = &self
+                                .find_stored_clause(clause_id)
+                                .expect("Failed to find clause")
+                                .clause();
+                            if let Some(shared_literal) =
+                                path_clause.literals().find(|path_literal| {
+                                    the_resolved_clause.contains(&path_literal.negate())
+                                })
+                            {
+                                the_resolved_clause = binary_resolution(
+                                    &the_resolved_clause,
+                                    &path_clause.as_vec(),
+                                    shared_literal.v_id,
+                                )
+                                .expect("Resolution failed")
+                                .to_vec();
+                            }
                         }
                     }
                 }
             }
-        }
 
-        return Some(the_resolved_clause);
+            return Some(the_resolved_clause);
+        }
     }
 
     pub fn analyse_conflict(

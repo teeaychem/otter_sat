@@ -68,52 +68,52 @@ impl ImplicationGraph {
         }
     }
 
-    pub fn add_literal(&mut self, literal: Literal, level: LevelIndex, conflict: bool) -> NodeIndex {
-        log::trace!(target: target_graph!(), "?+ Literal @{level}: {literal}");
+    pub fn add_literal(&mut self, lit: Literal, lvl_idx: LevelIndex, conflict: bool) -> NodeIndex {
+        log::trace!(target: target_graph!(), "?+ Literal @{lvl_idx}: {lit}");
         let index = self.graph.add_node(ImplicationNode {
-            item: NodeItem::Literal(literal),
-            level,
+            item: NodeItem::Literal(lit),
+            level: lvl_idx,
         });
         if !conflict {
-            self.variable_indicies[literal.v_id] = Some(index);
+            self.variable_indicies[lit.v_id] = Some(index);
         }
-        log::trace!(target: target_graph!(), "+Literal @{level}: {literal}");
+        log::trace!(target: target_graph!(), "+Literal @{lvl_idx}: {lit}");
         index
     }
 
-    pub fn get_or_make_literal(&mut self, literal: Literal, level: LevelIndex) -> NodeIndex {
-        let literal_index = match self.variable_indicies[literal.v_id] {
+    pub fn get_or_make_literal(&mut self, lit: Literal, lvl_idx: LevelIndex) -> NodeIndex {
+        let literal_index = match self.variable_indicies[lit.v_id] {
             Some(index) => {
                 let the_node = self.graph.node_weight(index).unwrap();
-                if the_node.level != level {
+                if the_node.level != lvl_idx {
                     panic!("Levels do not match!");
                 }
                 match the_node.item {
                     NodeItem::Falsum => panic!("get falsum"),
                     NodeItem::Literal(l) => {
-                        if l.polarity != literal.polarity {
+                        if l.polarity != lit.polarity {
                             panic!("Graph polarity does not match");
                         }
-                        if l.v_id != literal.v_id {
+                        if l.v_id != lit.v_id {
                             panic!("Variables do not match!");
                         }
                         index
                     }
                 }
             }
-            None => self.add_literal(literal, level, false),
+            None => self.add_literal(lit, lvl_idx, false),
         };
         literal_index
     }
 
-    pub fn get_literal(&self, literal: Literal) -> NodeIndex {
-        let literal_index = match self.variable_indicies[literal.v_id] {
+    pub fn get_literal(&self, lit: Literal) -> NodeIndex {
+        let literal_index = match self.variable_indicies[lit.v_id] {
             Some(index) => {
                 let the_node = self.graph.node_weight(index).unwrap();
                 match the_node.item {
                     NodeItem::Falsum => panic!("Get falsum"),
                     NodeItem::Literal(node_literal) => {
-                        if node_literal.polarity != literal.polarity {
+                        if node_literal.polarity != lit.polarity {
                             panic!("Graph polarity does not match");
                         }
                         index
@@ -125,7 +125,7 @@ impl ImplicationGraph {
                     "{:?}",
                     Dot::with_config(&self.graph, &[Config::EdgeIndexLabel])
                 );
-                panic!("Unable to get {}", literal)
+                panic!("Unable to get {}", lit)
             }
         };
         literal_index
@@ -135,11 +135,12 @@ impl ImplicationGraph {
         &mut self,
         clause: impl Iterator<Item = Literal>,
         to: Literal,
-        level: LevelIndex,
+        lvl_idx: LevelIndex,
         source: ImplicationSource,
     ) -> NodeIndex {
         // log::warn!(target: target_graph!(), "+Implication {} -> {to}", clause.as_string());
-        let (consequent_index, description) = (self.get_or_make_literal(to, level), "Implication");
+        let (consequent_index, description) =
+            (self.get_or_make_literal(to, lvl_idx), "Implication");
         for antecedent in clause.filter(|a| a.v_id != to.v_id) {
             let edge_index = self.graph.add_edge(
                 self.get_literal(antecedent),
@@ -149,10 +150,10 @@ impl ImplicationGraph {
             let the_edge = self.graph.edge_weight(edge_index).unwrap();
             match the_edge.source {
                 ImplicationSource::StoredClause(c) => {
-                    log::debug!(target: target_graph!(), "+{description} @{level}: {antecedent} --[{c}]-> {to}")
+                    log::debug!(target: target_graph!(), "+{description} @{lvl_idx}: {antecedent} --[{c}]-> {to}")
                 }
                 _ => {
-                    log::debug!(target: target_graph!(), "+{description} @{level}: {antecedent} --[{the_edge:?}]-> {to}")
+                    log::debug!(target: target_graph!(), "+{description} @{lvl_idx}: {antecedent} --[{the_edge:?}]-> {to}")
                 }
             }
         }
@@ -160,12 +161,12 @@ impl ImplicationGraph {
         consequent_index
     }
 
-    pub fn add_temporary_falsum(&mut self, literals: impl Iterator<Item = Literal>) -> NodeIndex {
+    fn add_temporary_falsum(&mut self, lits: impl Iterator<Item = Literal>) -> NodeIndex {
         let falsum = self.graph.add_node(ImplicationNode {
             level: 0, // as the falsum is temporary and the level is unimportant, it's fixed to 0
             item: NodeItem::Falsum,
         });
-        for antecedent in literals {
+        for antecedent in lits {
             let _edge_index = self.graph.add_edge(
                 self.get_literal(antecedent.negate()),
                 falsum,
@@ -177,9 +178,9 @@ impl ImplicationGraph {
         falsum
     }
 
-    pub fn add_contradiction(&mut self, from: Literal, to: Literal, level: LevelIndex) {
+    pub fn add_contradiction(&mut self, from: Literal, to: Literal, lvl_idx: LevelIndex) {
         let choice_index = self.get_literal(from);
-        let contradiction_index = self.get_or_make_literal(to, level);
+        let contradiction_index = self.get_or_make_literal(to, lvl_idx);
 
         let edge_index = self.graph.add_edge(
             choice_index,
@@ -188,14 +189,14 @@ impl ImplicationGraph {
                 source: ImplicationSource::Contradiction,
             },
         );
-        log::debug!(target: target_graph!(), "+Contradiction @{level} {from} --[{:?}]-> {to}", self.graph.edge_weight(edge_index));
+        log::debug!(target: target_graph!(), "+Contradiction @{lvl_idx} {from} --[{:?}]-> {to}", self.graph.edge_weight(edge_index));
     }
 
-    pub fn remove_literal(&mut self, literal: Literal) {
-        if let Some(index) = self.variable_indicies[literal.v_id] {
+    pub fn remove_literal(&mut self, lit: Literal) {
+        if let Some(index) = self.variable_indicies[lit.v_id] {
             if let Some(node) = self.graph.remove_node(index) {
                 log::debug!(target: target_graph!(), "-{node:?}");
-                self.variable_indicies[literal.v_id] = None;
+                self.variable_indicies[lit.v_id] = None;
             } else {
                 panic!("Failed to remove node")
             }
@@ -228,36 +229,39 @@ impl ImplicationGraph {
 
     pub fn immediate_dominators(
         &mut self,
-        literals: impl Iterator<Item = Literal>,
-        choice_literal: Literal,
+        lits: impl Iterator<Item = Literal>,
+        choice_lit: Literal,
     ) -> Option<Literal> {
-        let falsum = self.add_temporary_falsum(literals);
-        let root = self.get_literal(choice_literal);
+        let falsum = self.add_temporary_falsum(lits);
+        let root = self.get_literal(choice_lit);
         let dominators = simple_fast(&self.graph, root);
         let immediate_dominator = dominators.immediate_dominator(falsum);
         self.remove_node(falsum);
         match immediate_dominator {
-            Some(i_d) => match self.graph.node_weight(i_d).unwrap().item {
-                NodeItem::Literal(literal) => Some(literal),
-                NodeItem::Falsum => None,
-            },
+            Some(i_d) => {
+                let candidate = &self.graph.node_weight(i_d).unwrap().item;
+                match candidate {
+                    NodeItem::Literal(literal) => Some(*literal),
+                    NodeItem::Falsum => None,
+                }
+            }
             None => None,
         }
     }
 
-    pub fn implying_clauses(&self, literal: Literal) -> impl Iterator<Item = ClauseId> + '_ {
+    pub fn implying_clauses(&self, lit: Literal) -> impl Iterator<Item = ClauseId> + '_ {
         self.graph
-            .edges_directed(self.get_literal(literal), petgraph::Direction::Incoming)
+            .edges_directed(self.get_literal(lit), petgraph::Direction::Incoming)
             .filter_map(|edge| match edge.weight().source {
                 ImplicationSource::StoredClause(clause_id) => Some(clause_id),
                 _ => None,
             })
     }
 
-    pub fn literal_history(&self, literal: Literal) {
+    pub fn literal_history(&self, lit: Literal) {
         let incoming_edges = self
             .graph
-            .edges_directed(self.get_literal(literal), petgraph::Direction::Incoming);
+            .edges_directed(self.get_literal(lit), petgraph::Direction::Incoming);
         for edge in incoming_edges {
             println!("{:?}", edge);
         }
@@ -265,15 +269,15 @@ impl ImplicationGraph {
 }
 
 impl<'borrow, 'graph> ImplicationGraph {
-    fn get_literal_node(&self, literal: Literal) -> &ImplicationNode {
-        let the_node_index = self.variable_indicies[literal.v_id].expect("Missing node");
+    fn get_literal_node(&self, lit: Literal) -> &ImplicationNode {
+        let the_node_index = self.variable_indicies[lit.v_id].expect("Missing node");
         self.graph
             .node_weight(the_node_index)
             .expect("Missing node")
     }
 
-    pub fn remove_literals(&'borrow mut self, literals: impl Iterator<Item = Literal>) {
-        literals.for_each(|literal| self.remove_literal(literal))
+    pub fn remove_literals(&'borrow mut self, lits: impl Iterator<Item = Literal>) {
+        lits.for_each(|literal| self.remove_literal(literal))
     }
 
     pub fn remove_level(&mut self, level: &Level) {
@@ -295,7 +299,7 @@ impl<'borrow, 'graph> ImplicationGraph {
     pub fn resolution_candidates_at_level<'clause>(
         &'borrow self,
         clause: &'borrow impl Clause,
-        level: LevelIndex,
+        lvl_idx: LevelIndex,
     ) -> impl Iterator<Item = (ClauseId, Literal)> + 'borrow {
         clause
             .literals()
@@ -305,7 +309,7 @@ impl<'borrow, 'graph> ImplicationGraph {
                     .graph
                     .node_weight(the_node_index)
                     .expect("Missing node");
-                if the_literal_node.level == level {
+                if the_literal_node.level == lvl_idx {
                     match the_literal_node.item {
                         NodeItem::Falsum => panic!("Literal from falsum"),
                         NodeItem::Literal(l) => Some(
