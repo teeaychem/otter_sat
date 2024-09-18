@@ -64,10 +64,9 @@ impl Solve<'_> {
             let the_stored_clause = self.find_stored_clause(the_clause_id).expect("oops");
             let current_variables = self.current_level().variables().collect::<BTreeSet<_>>();
             let mut overlap = the_stored_clause
-                .clause
-                .iter()
+                .literals()
                 .filter(|l| current_variables.contains(&l.v_id));
-            let the_literal = *overlap.next().expect("No overlap");
+            let the_literal = overlap.next().expect("No overlap");
             Some((the_clause_id, the_literal))
         } else {
             None
