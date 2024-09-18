@@ -1,4 +1,7 @@
-use crate::structures::{Clause, ClauseId, Literal};
+use crate::{
+    structures::{Clause, ClauseId, ClauseVec, Literal},
+    Valuation,
+};
 
 #[derive(Clone, Copy, Debug)]
 pub enum ClauseSource {
@@ -10,15 +13,23 @@ pub enum ClauseSource {
 pub struct StoredClause {
     id: ClauseId,
     source: ClauseSource,
-    clause: Vec<Literal>,
+    clause: ClauseVec,
+    watch_a: usize,
+    watch_b: usize,
 }
 
 impl StoredClause {
     pub fn new_from(id: ClauseId, clause: &impl Clause, source: ClauseSource) -> StoredClause {
+        if clause.as_vec().len() < 2 {
+            panic!("Short clause (≤ 1)")
+        }
+
         StoredClause {
             id,
             clause: clause.as_vec(),
             source,
+            watch_a: 0,
+            watch_b: 1,
         }
     }
 
@@ -36,6 +47,19 @@ impl StoredClause {
 
     pub fn literals(&self) -> impl Iterator<Item = Literal> + '_ {
         self.clause.literals()
+    }
+
+    pub fn watch_status(&self, val: &impl Valuation) -> (Option<bool>, Option<bool>) {
+        let a_status = match val.of_v_id(self.clause[self.watch_a].v_id) {
+            Ok(optional) => optional,
+            _ => panic!("Watch literal without status"),
+        };
+        let b_status = match val.of_v_id(self.clause[self.watch_b].v_id) {
+            Ok(optional) => optional,
+            _ => panic!("Watch literal without status"),
+        };
+
+        (a_status, b_status)
     }
 }
 
