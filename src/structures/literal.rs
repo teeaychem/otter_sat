@@ -1,13 +1,5 @@
-use crate::structures::ClauseId;
+use crate::structures::{ClauseId, VariableId};
 
-pub type VariableId = usize;
-
-#[derive(Clone, Debug)]
-pub struct Variable {
-    pub name: String,
-    pub decision_level: Option<usize>,
-    pub id: VariableId,
-}
 
 #[derive(Clone, Copy, Debug)]
 pub struct Literal {
@@ -84,23 +76,3 @@ impl PartialEq for Literal {
 }
 
 impl Eq for Literal {}
-
-impl PartialOrd for Variable {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Variable {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.name.cmp(&other.name)
-    }
-}
-
-impl PartialEq for Variable {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-impl Eq for Variable {}
