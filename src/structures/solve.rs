@@ -1,12 +1,10 @@
 use petgraph::matrix_graph::Zero;
 use petgraph::visit::EdgeRef;
 
-use crate::clause::ClauseVec;
-use crate::literal;
 use crate::structures::{
-    binary_resolution, Clause, ClauseId, ClauseSource, Formula, ImplicationEdge, ImplicationGraph,
-    ImplicationSource, Level, LevelIndex, Literal, LiteralError, LiteralSource, StoredClause,
-    Valuation, ValuationError, ValuationOk, ValuationVec, Variable, VariableId,
+    binary_resolution, Clause, ClauseId, ClauseSource, ClauseVec, Formula, ImplicationEdge,
+    ImplicationGraph, ImplicationSource, Level, LevelIndex, Literal, LiteralError, LiteralSource,
+    StoredClause, Valuation, ValuationError, ValuationOk, ValuationVec, Variable, VariableId,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -60,26 +58,18 @@ pub enum SolveError {
 
 impl Solve<'_> {
     pub fn from_formula(formula: &Formula) -> Solve {
-        let valuation = Vec::<Option<bool>>::new_for_variables(formula.vars().len());
         let mut the_solve = Solve {
             _formula: formula,
             variables: formula.vars().clone(),
-            valuation,
-            levels: vec![],
-            clauses: formula
-                .clauses()
-                .map(|formula_clause| {
-                    StoredClause::new_from(
-                        Solve::fresh_clause_id(),
-                        formula_clause,
-                        ClauseSource::Formula,
-                    )
-                })
-                .collect(),
+            valuation: Vec::<Option<bool>>::new_for_variables(formula.vars().len()),
+            levels: vec![Level::new(0)],
+            clauses: vec![],
             graph: ImplicationGraph::new_for(formula),
         };
-        let level_zero = Level::new(0, &the_solve);
-        the_solve.levels.push(level_zero);
+        formula.clauses().for_each(|formula_clause| {
+            the_solve.add_clause(formula_clause.as_vec(), ClauseSource::Formula)
+        });
+
         the_solve
     }
 }
@@ -180,12 +170,16 @@ impl Solve<'_> {
 }
 
 impl<'borrow, 'solve> Solve<'solve> {
-    pub fn learn_clause(&'borrow mut self, clause: impl Clause) {
+    pub fn add_clause(&'borrow mut self, clause: impl Clause, source: ClauseSource) {
         let clause = StoredClause {
             id: Solve::fresh_clause_id(),
-            source: ClauseSource::Temp,
+            source,
             clause: clause.to_vec(),
         };
+        for literal in clause.clause.literals() {
+            self.variables[literal.v_id].note_occurence(clause.id)
+        }
+
         self.clauses.push(clause);
     }
 
@@ -422,7 +416,7 @@ impl Solve<'_> {
                     .max()
                     .unwrap_or(0);
 
-                self.learn_clause(clause);
+                self.add_clause(clause, ClauseSource::Resolution);
                 return Ok(SolveOk::AssertingClause(backtrack_level));
             }
             None => panic!("Unexpected result from basic analysis"),

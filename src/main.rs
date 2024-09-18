@@ -34,7 +34,7 @@ fn main() {
             if let Ok(valuation) = result {
                 println!("Satisfying assignment: {:?}", valuation);
             }
-            // println!("{}", the_solve);
+            // println!("{:?}", the_solve.variables);
             // dbg!(&the_solve);
         }
     }
