@@ -26,8 +26,6 @@ pub trait Clause: IntoIterator {
     fn to_vec(self) -> ClauseVec;
 
     fn to_sorted_vec(self) -> ClauseVec;
-
-    // fn decision_level(self) -> Option<usize>;
 }
 
 pub type ClauseId = usize;
@@ -40,7 +38,7 @@ pub enum ClauseSource {
 
 #[derive(Clone, Debug)]
 pub struct StoredClause {
-    pub id: usize,
+    pub id: ClauseId,
     pub source: ClauseSource,
     pub clause: Vec<Literal>,
 }
@@ -152,16 +150,10 @@ impl Clause for ClauseVec {
         self.sort();
         self
     }
-
-    // fn decision_level(self) -> Option<usize> {
-
-    //     }
-
-
 }
 
 impl StoredClause {
-    pub fn new_from(id: usize, clause: &impl Clause, source: ClauseSource) -> StoredClause {
+    pub fn new_from(id: ClauseId, clause: &impl Clause, source: ClauseSource) -> StoredClause {
         StoredClause {
             id,
             clause: clause.as_vec(),

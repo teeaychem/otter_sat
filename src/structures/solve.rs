@@ -446,13 +446,13 @@ impl Solve<'_> {
     }
 
     pub fn var_by_id(&self, id: VariableId) -> Option<&Variable> {
-        self.variables.get(id as usize)
+        self.variables.get(id)
     }
 
     pub fn decision_levels_of<'borrow, 'clause: 'borrow>(
         &'borrow self,
         clause: &'clause impl Clause,
-    ) -> impl Iterator<Item = usize> + 'borrow {
+    ) -> impl Iterator<Item = LevelIndex> + 'borrow {
         clause
             .literals()
             .filter_map(move |literal| self.variables[literal.v_id].decision_level())
