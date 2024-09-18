@@ -127,7 +127,6 @@ impl Clause for ClauseVec {
     }
 }
 
-
 pub fn binary_resolution<T: Clause>(cls_a: &T, cls_b: &T, v_id: VariableId) -> Option<impl Clause> {
     let mut the_clause = BTreeSet::new();
     let mut clause_a_value = None;
