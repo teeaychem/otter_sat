@@ -10,14 +10,14 @@ pub type LevelIndex = usize;
 
 #[derive(Clone, Debug)]
 pub struct Level {
-    index: usize,
+    index: LevelIndex,
     choice: Option<Literal>,
     observations: Vec<Literal>,
     clauses_unit: Vec<(ClauseId, Literal)>,
 }
 
 impl Level {
-    pub fn new(index: usize) -> Self {
+    pub fn new(index: LevelIndex) -> Self {
         Level {
             index,
             choice: None,
@@ -26,7 +26,7 @@ impl Level {
         }
     }
 
-    pub fn index(&self) -> usize {
+    pub fn index(&self) -> LevelIndex {
         self.index
     }
 
@@ -65,7 +65,7 @@ impl Level {
 }
 
 impl<'borrow, 'solve> Solve<'solve> {
-    pub fn add_fresh_level(&'borrow mut self) -> usize {
+    pub fn add_fresh_level(&'borrow mut self) -> LevelIndex {
         let index = self.levels.len();
         let the_level = Level::new(index);
         self.levels.push(the_level);
@@ -106,7 +106,7 @@ impl<'borrow, 'level, 'solve: 'level> Solve<'solve> {
 }
 
 impl Solve<'_> {
-    pub fn valuation_at(&self, level_index: usize) -> ValuationVec {
+    pub fn valuation_at(&self, level_index: LevelIndex) -> ValuationVec {
         let mut valuation = ValuationVec::new_for_variables(self.valuation.len());
         (0..=level_index).for_each(|i| {
             self.levels[i].literals().for_each(|l| {
@@ -115,28 +115,4 @@ impl Solve<'_> {
         });
         valuation
     }
-
-    // pub fn extend_implication_graph(
-    //     &mut self,
-    //     level: usize,
-    //     the_units: &Vec<(ClauseId, Literal)>,
-    // ) {
-    //     // let valuation = self.valuation_at_level(index);
-    //     // let the_graph = ImpGraph::for_level(self, index, &self.formula);
-    //     // self.levels[index].implications = the_graph;
-
-    //     for (clause_id, to_literal) in the_units {
-    //         let the_clause = self.formula.clauses.iter().find(|c| c.id == *clause_id).unwrap();
-    //         let the_level = &self.levels[level];
-    //         let from = the_level.literals().iter().map(|l| l.v_id).collect::<BTreeSet<_>>();
-
-    //         self.levels[level].implications.extend(from, the_clause, to_literal.v_id);
-    //     }
-
-    //     for (clause_id, literal) in the_units {
-    //         let _ = self.set_literal(literal, LiteralSource::Clause(*clause_id));
-    //     }
-
-    //     self.levels[level].clauses_unit.extend(the_units);
-    // }
 }

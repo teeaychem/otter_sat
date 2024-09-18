@@ -2,7 +2,8 @@ use crate::{
     binary_resolution,
     clause::ClauseVec,
     structures::{
-        Clause, ClauseId, Formula, Level, Literal, Solve, StoredClause, Valuation, VariableId,
+        Clause, ClauseId, Formula, Level, LevelIndex, Literal, Solve, StoredClause, Valuation,
+        VariableId,
     },
 };
 use petgraph::{
@@ -34,7 +35,7 @@ enum NodeItem {
 
 #[derive(Clone, Debug)]
 struct ImplicationNode {
-    level: usize,
+    level: LevelIndex,
     item: NodeItem,
 }
 
@@ -67,7 +68,7 @@ impl ImplicationGraph {
         }
     }
 
-    pub fn add_literal(&mut self, literal: Literal, level: usize, conflict: bool) -> NodeIndex {
+    pub fn add_literal(&mut self, literal: Literal, level: LevelIndex, conflict: bool) -> NodeIndex {
         log::trace!(target: target_graph!(), "?+ Literal @{level}: {literal}");
         let index = self.graph.add_node(ImplicationNode {
             item: NodeItem::Literal(literal),
@@ -80,7 +81,7 @@ impl ImplicationGraph {
         index
     }
 
-    pub fn get_or_make_literal(&mut self, literal: Literal, level: usize) -> NodeIndex {
+    pub fn get_or_make_literal(&mut self, literal: Literal, level: LevelIndex) -> NodeIndex {
         let literal_index = match self.variable_indicies[literal.v_id] {
             Some(index) => {
                 let the_node = self.graph.node_weight(index).unwrap();
@@ -134,7 +135,7 @@ impl ImplicationGraph {
         &mut self,
         clause: impl Iterator<Item = Literal>,
         to: Literal,
-        level: usize,
+        level: LevelIndex,
         source: ImplicationSource,
     ) -> NodeIndex {
         // log::warn!(target: target_graph!(), "+Implication {} -> {to}", clause.as_string());
@@ -176,7 +177,7 @@ impl ImplicationGraph {
         falsum
     }
 
-    pub fn add_contradiction(&mut self, from: Literal, to: Literal, level: usize) {
+    pub fn add_contradiction(&mut self, from: Literal, to: Literal, level: LevelIndex) {
         let choice_index = self.get_literal(from);
         let contradiction_index = self.get_or_make_literal(to, level);
 
@@ -294,7 +295,7 @@ impl<'borrow, 'graph> ImplicationGraph {
     pub fn resolution_candidates_at_level<'clause>(
         &'borrow self,
         clause: &'borrow impl Clause,
-        level: usize,
+        level: LevelIndex,
     ) -> impl Iterator<Item = (ClauseId, Literal)> + 'borrow {
         clause
             .literals()
