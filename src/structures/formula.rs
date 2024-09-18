@@ -46,15 +46,11 @@ impl Formula {
     }
 
     pub fn var_id_by_name(&mut self, name: &str) -> VariableId {
-        if let Some(variable) = self.variables.iter().find(|v| v.name == name) {
-            variable.id
+        if let Some(variable) = self.variables.iter().find(|v| v.name() == name) {
+            variable.id()
         } else {
             let the_id = self.variables.len() as VariableId;
-            let new_variable = Variable {
-                name: name.to_string(),
-                decision_level: None,
-                id: the_id,
-            };
+            let new_variable = Variable::new(name, the_id);
             self.variables.push(new_variable);
             the_id
         }
@@ -116,7 +112,7 @@ impl std::fmt::Display for Formula {
             "|   {}",
             self.variables
                 .iter()
-                .map(|v| v.name.clone())
+                .map(|v| v.name())
                 .collect::<Vec<_>>()
                 .join(" ")
         )?;
