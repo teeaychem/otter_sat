@@ -1,6 +1,5 @@
 use crate::structures::{ClauseId, VariableId};
 
-
 #[derive(Clone, Copy, Debug)]
 pub struct Literal {
     pub v_id: VariableId,
@@ -10,15 +9,6 @@ pub struct Literal {
 #[derive(Debug, PartialEq)]
 pub enum LiteralError {
     NoVariable,
-}
-
-impl std::fmt::Display for Literal {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self.polarity {
-            true => write!(f, "{}", self.v_id),
-            false => write!(f, "-{}", self.v_id),
-        }
-    }
 }
 
 /// how a literal was settled
@@ -76,3 +66,12 @@ impl PartialEq for Literal {
 }
 
 impl Eq for Literal {}
+
+impl std::fmt::Display for Literal {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self.polarity {
+            true => write!(f, "{}", self.v_id),
+            false => write!(f, "-{}", self.v_id),
+        }
+    }
+}
