@@ -36,7 +36,6 @@ pub type ClauseId = usize;
 pub enum ClauseSource {
     Formula,
     Resolution,
-    Temp,
 }
 
 #[derive(Clone, Debug)]
