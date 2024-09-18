@@ -4,8 +4,6 @@ use crate::structures::{
     ClauseId, Literal, LiteralSource, Solve, Valuation, ValuationError, ValuationVec, VariableId,
 };
 
-use std::collections::BTreeSet;
-
 pub type LevelIndex = usize;
 
 #[derive(Clone, Debug)]
@@ -45,8 +43,8 @@ impl Level {
             LiteralSource::HobsonChoice
             | LiteralSource::Assumption
             | LiteralSource::StoredClause(_)
+            | LiteralSource::Deduced
             | LiteralSource::Conflict => self.observations.push(literal),
-            _ => todo!(),
         }
     }
 

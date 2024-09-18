@@ -45,9 +45,16 @@ impl Solve<'_> {
                 Ok(SolveOk::AssertingClause(level)) => {
                     log::warn!("Asserting clause at level {}", level);
                     while self.current_level().index() != 0 && self.current_level().index() >= level {
-                        let _ = self.backtrack();
+                        let _ = self.backtrack_once();
                     }
                     Ok(SolveOk::AssertingClause(level))
+                }
+                Ok(SolveOk::Deduction(literal)) => {
+                    while self.current_level().index() != 0 {
+                        let _ = self.backtrack_once();
+                    }
+                    let _ = self.set_literal(literal, LiteralSource::Deduced);
+                    Ok(SolveOk::Deduction(literal))
                 }
                 _ => panic!("Analysis failed"),
             }
@@ -94,7 +101,7 @@ impl Solve<'_> {
                     Err(SolveError::NoSolution) => {
                         return Ok(None);
                     }
-                    Ok(SolveOk::AssertingClause(_)) => {
+                    Ok(SolveOk::AssertingClause(_)) | Ok(SolveOk::Deduction(_)) => {
                         continue 'main_loop;
                     }
                     Ok(ok) => panic!("Unexpected ok {ok:?} when attempting a fix"),
@@ -108,7 +115,7 @@ impl Solve<'_> {
                     Err(SolveError::NoSolution) => {
                         return Ok(None);
                     }
-                    Ok(SolveOk::AssertingClause(_)) => {
+                    Ok(SolveOk::AssertingClause(_))  | Ok(SolveOk::Deduction(_)) => {
                         continue 'main_loop;
                     }
                     Ok(ok) => panic!("Unexpected ok {ok:?} when attempting a fix"),
@@ -135,7 +142,7 @@ impl Solve<'_> {
                         Err(SolveError::NoSolution) => {
                             return Ok(None);
                         }
-                        Ok(SolveOk::AssertingClause(_)) => {
+                        Ok(SolveOk::AssertingClause(_))  | Ok(SolveOk::Deduction(_)) => {
                             continue 'main_loop;
                         }
                         Ok(ok) => panic!("Unexpected ok {ok:?} when attempting a fix"),

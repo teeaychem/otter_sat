@@ -19,6 +19,7 @@ pub enum LiteralSource {
     Conflict,
     StoredClause(ClauseId), // the literal must be the case for SAT given some valuation
     Assumption,
+    Deduced
 }
 
 impl Literal {

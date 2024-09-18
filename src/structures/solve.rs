@@ -1,6 +1,3 @@
-use petgraph::matrix_graph::Zero;
-use petgraph::visit::EdgeRef;
-
 use crate::structures::{
     binary_resolution, Clause, ClauseId, ClauseSource, ClauseVec, Formula, ImplicationEdge,
     ImplicationGraph, ImplicationSource, Level, LevelIndex, Literal, LiteralError, LiteralSource,
@@ -42,6 +39,7 @@ pub struct Solve<'formula> {
 #[derive(Debug, PartialEq)]
 pub enum SolveOk {
     AssertingClause(LevelIndex),
+    Deduction(Literal),
     Backtracked,
 }
 
@@ -172,12 +170,18 @@ impl Solve<'_> {
 
 impl<'borrow, 'solve> Solve<'solve> {
     pub fn add_clause(&'borrow mut self, clause: impl Clause, source: ClauseSource) {
-        let clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, source);
-        for literal in clause.clause().literals() {
-            self.variables[literal.v_id].note_occurence(clause.id())
+        let clause_as_vec = clause.as_vec();
+        match clause_as_vec.len() {
+            0 => panic!("Attempt to add an empty clause"),
+            1 => panic!("Attempt to add an single literal clause"),
+            _ => {
+                let clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, source);
+                for literal in clause.clause().literals() {
+                    self.variables[literal.v_id].note_occurence(clause.id())
+                }
+                self.clauses.push(clause);
+            }
         }
-
-        self.clauses.push(clause);
     }
 
     /*
@@ -204,11 +208,11 @@ impl<'borrow, 'solve> Solve<'solve> {
                         self.variables[literal.v_id].set_decision_level(new_level_index);
                         log::debug!("+Set choice: {literal}");
                     }
-                    LiteralSource::Assumption => {
+                    LiteralSource::Assumption | LiteralSource::Deduced => {
                         self.variables[literal.v_id].set_decision_level(0);
                         self.top_level_mut().record_literal(literal, source);
                         self.graph.add_literal(literal, 0, false);
-                        log::debug!("+Set assumption: {literal}");
+                        log::debug!("+Set assumption/deduction: {literal}");
                     }
                     LiteralSource::HobsonChoice => {
                         self.variables[literal.v_id].set_decision_level(0);
@@ -272,6 +276,9 @@ impl<'borrow, 'solve> Solve<'solve> {
                     LiteralSource::StoredClause(id) => {
                         // A literal may be implied by multiple clauses
                         Err(SolveError::Conflict(id, literal))
+                    }
+                    LiteralSource::Deduced => {
+                        panic!("Attempt to deduce the flip of {}", literal.v_id);
                     }
                     _ => {
                         log::error!("Attempting to flip {} via {:?}", literal, source);
@@ -409,22 +416,31 @@ impl Solve<'_> {
         // match self.simple_analysis_one(clause_id) {
         match self.simple_analysis_two(clause_id) {
             Some(clause) => {
-                // the relevant backtrack level is either 0 is analysis is being performed at 0 or the first decision level in the resolution clause prior to the current level.
-                // For, if a prior level does *not* appear in the resolution clause then the level provided no relevant information.
-                let backtrack_level = self
-                    .decision_levels_of(&clause)
-                    .filter(|level| *level != self.current_level().index())
-                    .max()
-                    .unwrap_or(0);
+                match clause.len() {
+                    0 => panic!("Empty clause from analysis"),
+                    1 => {
+                        let the_literal = *clause.first().unwrap();
+                        return Ok(SolveOk::Deduction(the_literal));
+                    }
+                    _ => {
+                        // the relevant backtrack level is either 0 is analysis is being performed at 0 or the first decision level in the resolution clause prior to the current level.
+                        // For, if a prior level does *not* appear in the resolution clause then the level provided no relevant information.
+                        let backtrack_level = self
+                            .decision_levels_of(&clause)
+                            .filter(|level| *level != self.current_level().index())
+                            .max()
+                            .unwrap_or(0);
 
-                self.add_clause(clause, ClauseSource::Resolution);
-                return Ok(SolveOk::AssertingClause(backtrack_level));
+                        self.add_clause(clause, ClauseSource::Resolution);
+                        return Ok(SolveOk::AssertingClause(backtrack_level));
+                    }
+                }
             }
             None => panic!("Unexpected result from basic analysis"),
         }
     }
 
-    pub fn backtrack(&mut self) -> Result<SolveOk, SolveError> {
+    pub fn backtrack_once(&mut self) -> Result<SolveOk, SolveError> {
         if self.current_level().index() == 0 {
             Err(SolveError::NoSolution)
         } else {
