@@ -1,4 +1,4 @@
-use crate::structures::LevelIndex;
+use crate::{clause, structures::LevelIndex, ClauseId};
 
 pub type VariableId = usize;
 
@@ -7,6 +7,7 @@ pub struct Variable {
     name: String,
     decision_level: Option<LevelIndex>,
     id: VariableId,
+    occurrences: Vec<ClauseId>,
 }
 
 impl Variable {
@@ -15,6 +16,7 @@ impl Variable {
             name: name.to_string(),
             decision_level: None,
             id,
+            occurrences: Vec::new(),
         }
     }
 
@@ -34,9 +36,12 @@ impl Variable {
         self.decision_level = Some(level)
     }
 
-
     pub fn id(&self) -> VariableId {
         self.id
+    }
+
+    pub fn note_occurence(&mut self, clause_id: ClauseId) {
+        self.occurrences.push(clause_id);
     }
 }
 

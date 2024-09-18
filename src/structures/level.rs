@@ -6,7 +6,7 @@ use crate::structures::{
 
 use std::collections::BTreeSet;
 
-pub type  LevelIndex = usize;
+pub type LevelIndex = usize;
 
 #[derive(Clone, Debug)]
 pub struct Level {
@@ -16,8 +16,8 @@ pub struct Level {
     clauses_unit: Vec<(ClauseId, Literal)>,
 }
 
-impl<'borrow, 'solve> Level {
-    pub fn new(index: usize, _solve: &'borrow Solve<'solve>) -> Self {
+impl Level {
+    pub fn new(index: usize) -> Self {
         Level {
             index,
             choice: None,
@@ -25,9 +25,7 @@ impl<'borrow, 'solve> Level {
             clauses_unit: vec![],
         }
     }
-}
 
-impl Level {
     pub fn index(&self) -> usize {
         self.index
     }
@@ -60,7 +58,8 @@ impl Level {
 
     pub fn variables(&self) -> impl Iterator<Item = VariableId> + '_ {
         self.choice
-            .into_iter().map(|l| l.v_id)
+            .into_iter()
+            .map(|l| l.v_id)
             .chain(self.observations.iter().map(|l| l.v_id))
     }
 }
@@ -68,7 +67,7 @@ impl Level {
 impl<'borrow, 'solve> Solve<'solve> {
     pub fn add_fresh_level(&'borrow mut self) -> usize {
         let index = self.levels.len();
-        let the_level = Level::new(index, self);
+        let the_level = Level::new(index);
         self.levels.push(the_level);
         index
     }
