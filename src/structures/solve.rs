@@ -65,7 +65,17 @@ impl Solve<'_> {
             graph: ImplicationGraph::new_for(formula),
         };
         formula.clauses().for_each(|formula_clause| {
-            the_solve.add_clause(formula_clause.as_vec(), ClauseSource::Formula)
+            let as_vec = formula_clause.as_vec();
+            match as_vec.len() {
+                0 => panic!("Zero length clause from formula"),
+                1 => {
+                    match the_solve.set_literal(*as_vec.first().unwrap(), LiteralSource::Deduced) {
+                        Ok(_) => (),
+                        Err(e) => panic!("{e:?}"),
+                    }
+                }
+                _ => the_solve.add_clause(as_vec, ClauseSource::Formula),
+            }
         });
 
         the_solve
