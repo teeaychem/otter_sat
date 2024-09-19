@@ -1,4 +1,4 @@
-use crate::structures::{Level, Literal, Solve, SolveError, VariableId};
+use crate::structures::{Level, Literal, solve::{Solve, SolveError}, VariableId};
 // Valuation
 
 pub type ValuationVec = Vec<Option<bool>>;

@@ -1,4 +1,4 @@
-use crate::{clause, structures::LevelIndex, ClauseId};
+use crate::structures::{LevelIndex, ClauseId};
 
 pub type VariableId = usize;
 
