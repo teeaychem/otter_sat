@@ -4,6 +4,7 @@ use clap::Parser;
 use std::fs;
 mod io;
 mod structures;
+mod procedures;
 
 use crate::structures::solve::Solve;
 use crate::structures::Formula;
