@@ -72,18 +72,6 @@ impl<'borrow, 'solve> Solve<'solve> {
 }
 
 impl<'borrow, 'level, 'solve: 'level> Solve<'solve> {
-    pub fn last_choice_level(&'borrow mut self) -> Option<&Level> {
-        if self.levels.len() <= 1 {
-            return None;
-        }
-        let the_level: Option<&Level> = self.levels.last();
-        if let Some(level) = &the_level {
-            self.valuation.clear_level(level);
-        };
-
-        the_level
-    }
-
     pub fn top_level(&'borrow self) -> &Level {
         &self.levels[0]
     }

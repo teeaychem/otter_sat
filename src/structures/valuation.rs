@@ -98,6 +98,10 @@ impl Valuation for ValuationVec {
     }
 
     fn clear_level(&mut self, level: &Level) {
+        for literal in level.literals() {
+            self.clear_v_id(literal.v_id);
+        }
+
         level.literals().for_each(|l| self.clear_v_id(l.v_id));
     }
 
@@ -105,7 +109,7 @@ impl Valuation for ValuationVec {
         self.iter()
             .enumerate()
             .filter(|(_, v)| v.is_some())
-            .map(|(i, v)| Literal::new(i.try_into().unwrap(), v.unwrap()))
+            .map(|(i, v)| Literal::new(i, v.unwrap()))
             .collect::<Vec<_>>()
     }
 }

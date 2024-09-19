@@ -64,6 +64,9 @@ impl Solve<'_> {
             clauses: vec![],
             graph: ImplicationGraph::new_for(formula),
         };
+
+        let empty_val = the_solve.valuation.clone();
+
         formula.clauses().for_each(|formula_clause| {
             let as_vec = formula_clause.as_vec();
             match as_vec.len() {
@@ -74,7 +77,7 @@ impl Solve<'_> {
                         Err(e) => panic!("{e:?}"),
                     }
                 }
-                _ => the_solve.add_clause(as_vec, ClauseSource::Formula),
+                _ => the_solve.add_clause(as_vec, ClauseSource::Formula, &empty_val),
             }
         });
 
@@ -107,7 +110,9 @@ impl Solve<'_> {
     pub fn examine_clauses_on<T: Valuation>(&self, valuation: &T) -> SolveStatus {
         let mut status = SolveStatus::new();
         for stored_clause in &self.clauses {
-            if let Some(the_unset) = stored_clause.clause().collect_choices(valuation) {
+            // let collected_choices = stored_clause.clause().collect_choices(valuation);
+            let collected_choices = stored_clause.watch_choices(valuation);
+            if let Some(the_unset) = collected_choices {
                 if the_unset.is_empty() {
                     if self.current_level().index() > 0
                         && stored_clause
@@ -176,18 +181,30 @@ impl Solve<'_> {
             .iter()
             .find(|stored_clause| stored_clause.id() == id)
     }
+
+    pub fn stored_clause_mut(&mut self, id: ClauseId) -> &mut StoredClause {
+        self.clauses
+            .iter_mut()
+            .find(|stored_clause| stored_clause.id() == id)
+            .unwrap()
+    }
 }
 
 impl<'borrow, 'solve> Solve<'solve> {
-    pub fn add_clause(&'borrow mut self, clause: impl Clause, source: ClauseSource) {
+    pub fn add_clause(
+        &'borrow mut self,
+        clause: impl Clause,
+        src: ClauseSource,
+        val: &impl Valuation,
+    ) {
         let clause_as_vec = clause.as_vec();
         match clause_as_vec.len() {
             0 => panic!("Attempt to add an empty clause"),
             1 => panic!("Attempt to add an single literal clause"),
             _ => {
-                let clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, source);
+                let clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, src, val);
                 for literal in clause.clause().literals() {
-                    self.variables[literal.v_id].note_occurence(clause.id())
+                    self.variables[literal.v_id].note_occurence(clause.id());
                 }
                 self.clauses.push(clause);
             }
@@ -204,36 +221,45 @@ impl<'borrow, 'solve> Solve<'solve> {
      */
     pub fn set_literal(
         &'borrow mut self,
-        literal: Literal,
-        source: LiteralSource,
+        lit: Literal,
+        src: LiteralSource,
     ) -> Result<(), SolveError> {
-        match self.valuation.set_literal(literal) {
+        log::warn!("Set literal: {} | src: {:?}", lit, src);
+        match self.valuation.set_literal(lit) {
             Ok(()) => {
-                match source {
+                {
+                    let occurrences = self.variables[lit.v_id].occurrences().collect::<Vec<_>>();
+                    let valuation = self.valuation.clone();
+                    for clause_id in occurrences {
+                        let clause = self.stored_clause_mut(clause_id);
+                        clause.update_watch(&valuation, lit.v_id);
+                    }
+                }
+                match src {
                     LiteralSource::Choice => {
                         let new_level_index = self.add_fresh_level();
-                        self.current_level_mut().record_literal(literal, source);
+                        self.current_level_mut().record_literal(lit, src);
                         self.graph
-                            .add_literal(literal, self.current_level().index(), false);
-                        self.variables[literal.v_id].set_decision_level(new_level_index);
-                        log::debug!("+Set choice: {literal}");
+                            .add_literal(lit, self.current_level().index(), false);
+                        self.variables[lit.v_id].set_decision_level(new_level_index);
+                        log::debug!("+Set choice: {lit}");
                     }
                     LiteralSource::Assumption | LiteralSource::Deduced => {
-                        self.variables[literal.v_id].set_decision_level(0);
-                        self.top_level_mut().record_literal(literal, source);
-                        self.graph.add_literal(literal, 0, false);
-                        log::debug!("+Set assumption/deduction: {literal}");
+                        self.variables[lit.v_id].set_decision_level(0);
+                        self.top_level_mut().record_literal(lit, src);
+                        self.graph.add_literal(lit, 0, false);
+                        log::debug!("+Set assumption/deduction: {lit}");
                     }
                     LiteralSource::HobsonChoice => {
-                        self.variables[literal.v_id].set_decision_level(0);
-                        self.top_level_mut().record_literal(literal, source);
-                        self.graph.add_literal(literal, 0, false);
-                        log::debug!("+Set hobson choice: {literal}");
+                        self.variables[lit.v_id].set_decision_level(0);
+                        self.top_level_mut().record_literal(lit, src);
+                        self.graph.add_literal(lit, 0, false);
+                        log::debug!("+Set hobson choice: {lit}");
                     }
                     LiteralSource::StoredClause(clause_id) => {
                         let current_level = self.current_level().index();
-                        self.variables[literal.v_id].set_decision_level(current_level);
-                        self.current_level_mut().record_literal(literal, source);
+                        self.variables[lit.v_id].set_decision_level(current_level);
+                        self.current_level_mut().record_literal(lit, src);
 
                         let literals = self
                             .clauses
@@ -245,58 +271,65 @@ impl<'borrow, 'solve> Solve<'solve> {
 
                         self.graph.add_implication(
                             literals,
-                            literal,
+                            lit,
                             self.current_level().index(),
                             ImplicationSource::StoredClause(clause_id),
                         );
 
-                        log::debug!("+Set deduction: {literal}");
+                        log::debug!("+Set deduction: {lit}");
                     }
                     LiteralSource::Conflict => {
                         let current_level = self.current_level().index();
-                        self.variables[literal.v_id].set_decision_level(current_level);
-                        self.current_level_mut().record_literal(literal, source);
+                        self.variables[lit.v_id].set_decision_level(current_level);
+                        self.current_level_mut().record_literal(lit, src);
                         if self.current_level().index() != 0 {
                             self.graph.add_contradiction(
                                 self.current_level().get_choice().expect("No choice 0+"),
-                                literal,
+                                lit,
                                 self.current_level().index(),
                             );
                         } else {
                             self.graph
-                                .add_literal(literal, self.current_level().index(), false);
+                                .add_literal(lit, self.current_level().index(), false);
                         }
-                        log::debug!("+Set conflict: {literal}");
+                        log::debug!("+Set conflict: {lit}");
                     }
                 };
                 Ok(())
             }
-            Err(ValuationError::Match) => match source {
+            Err(ValuationError::Match) => match src {
                 LiteralSource::StoredClause(_) => {
                     // A literal may be implied by multiple clauses
                     Ok(())
                 }
                 _ => {
-                    log::error!("Attempting to restate {} via {:?}", literal, source);
+                    log::error!("Attempting to restate {} via {:?}", lit, src);
                     panic!("Attempting to restate the valuation")
                 }
             },
             Err(ValuationError::Conflict) => {
-                match source {
+                match src {
                     LiteralSource::StoredClause(id) => {
                         // A literal may be implied by multiple clauses
-                        Err(SolveError::Conflict(id, literal))
+                        Err(SolveError::Conflict(id, lit))
                     }
                     LiteralSource::Deduced => {
-                        panic!("Attempt to deduce the flip of {}", literal.v_id);
+                        panic!("Attempt to deduce the flip of {}", lit.v_id);
                     }
                     _ => {
-                        log::error!("Attempting to flip {} via {:?}", literal, source);
+                        log::error!("Attempting to flip {} via {:?}", lit, src);
                         panic!("Attempting to flip the valuation")
                     }
                 }
             }
         }
+    }
+
+    pub fn unset_literal(&mut self, literal: Literal) {
+        log::warn!("Unset: {}", literal);
+
+        self.valuation[literal.v_id] = None;
+        self.variables[literal.v_id].clear_decision_level();
     }
 
     pub fn level_choice(&'borrow self, index: LevelIndex) -> Literal {
@@ -414,14 +447,14 @@ impl Solve<'_> {
                 }
             }
 
-            return Some(the_resolved_clause);
+            Some(the_resolved_clause)
         }
     }
 
     pub fn analyse_conflict(
         &mut self,
         clause_id: ClauseId,
-        literal: Option<Literal>,
+        _lit: Option<Literal>,
     ) -> Result<SolveOk, SolveError> {
         // match self.simple_analysis_one(clause_id) {
         match self.simple_analysis_two(clause_id) {
@@ -430,7 +463,7 @@ impl Solve<'_> {
                     0 => panic!("Empty clause from analysis"),
                     1 => {
                         let the_literal = *clause.first().unwrap();
-                        return Ok(SolveOk::Deduction(the_literal));
+                        Ok(SolveOk::Deduction(the_literal))
                     }
                     _ => {
                         // the relevant backtrack level is either 0 is analysis is being performed at 0 or the first decision level in the resolution clause prior to the current level.
@@ -440,9 +473,17 @@ impl Solve<'_> {
                             .filter(|level| *level != self.current_level().index())
                             .max()
                             .unwrap_or(0);
+                        log::warn!("Will learn clause: {}", clause.as_string());
 
-                        self.add_clause(clause, ClauseSource::Resolution);
-                        return Ok(SolveOk::AssertingClause(backtrack_level));
+                        let expected_valuation = if backtrack_level > 1 {
+                            self.valuation_at(backtrack_level - 1)
+                        } else {
+                            self.valuation_at(0)
+                        };
+
+                        self.add_clause(clause, ClauseSource::Resolution, &expected_valuation);
+
+                        Ok(SolveOk::AssertingClause(backtrack_level))
                     }
                 }
             }
@@ -458,7 +499,7 @@ impl Solve<'_> {
             log::warn!("Backtracking from {}", the_level.index());
             self.graph.remove_level(&the_level);
             for literal in the_level.literals() {
-                self.refresh_literal(literal)
+                self.unset_literal(literal)
             }
             log::warn!("Backtracked from {}", the_level.index());
             Ok(SolveOk::Backtracked)
@@ -467,11 +508,6 @@ impl Solve<'_> {
 }
 
 impl Solve<'_> {
-    pub fn refresh_literal(&mut self, literal: Literal) {
-        self.valuation[literal.v_id] = None;
-        self.variables[literal.v_id].clear_decision_level();
-    }
-
     pub fn var_by_id(&self, id: VariableId) -> Option<&Variable> {
         self.variables.get(id)
     }
