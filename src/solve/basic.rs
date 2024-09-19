@@ -1,6 +1,6 @@
 use crate::{
     clause,
-    structures::{Literal, LiteralSource, Solve, SolveError, ValuationVec, VariableId},
+    structures::{Literal, LiteralSource, Solve, SolveError, ValuationVec, VariableId, Clause},
     ClauseId, SolveOk, StoredClause, Valuation, ValuationError,
 };
 use std::collections::BTreeSet;
@@ -39,7 +39,11 @@ impl Solve<'_> {
         } else {
             let literal = literal.unwrap();
             let stored_clause = self.find_stored_clause(clause_id).expect("Missing clause");
-            println!("Attempting fix given clause: {}", stored_clause.to_string());
+
+            // println!("");
+            // println!("Attempting fix given clause: {}", stored_clause);
+            // println!("Valuation is: {}", self.valuation.as_internal_string());
+            // println!("");
 
             match self.analyse_conflict(clause_id, Some(literal)) {
                 Ok(SolveOk::AssertingClause(level)) => {
@@ -66,10 +70,13 @@ impl Solve<'_> {
     This function returns some clause and mentioned literal from a list of unsatisfiable clauses.
      */
     pub fn select_unsat(&self, clauses: &[ClauseId]) -> Option<(ClauseId, Literal)> {
+        println!("Select unsat");
         if !clauses.is_empty() {
             let the_clause_id = *clauses.first().unwrap();
             let the_stored_clause = self.find_stored_clause(the_clause_id).expect("oops");
+            println!("Chose: {:?}", the_stored_clause.clause().as_string());
             let current_variables = self.current_level().variables().collect::<BTreeSet<_>>();
+            println!("Current variables: {:?}", current_variables);
             let mut overlap = the_stored_clause
                 .literals()
                 .filter(|l| current_variables.contains(&l.v_id));

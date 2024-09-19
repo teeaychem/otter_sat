@@ -90,11 +90,11 @@ impl ImplicationGraph {
                 }
                 match the_node.item {
                     NodeItem::Falsum => panic!("get falsum"),
-                    NodeItem::Literal(l) => {
-                        if l.polarity != lit.polarity {
-                            panic!("Graph polarity does not match");
+                    NodeItem::Literal(node_literal) => {
+                        if node_literal.polarity != lit.polarity {
+                            panic!("Graph polarity does not match for v_id {}.\nHave: {}\nRequested: {}", lit.v_id, node_literal.polarity, lit.polarity);
                         }
-                        if l.v_id != lit.v_id {
+                        if node_literal.v_id != lit.v_id {
                             panic!("Variables do not match!");
                         }
                         index
@@ -114,7 +114,7 @@ impl ImplicationGraph {
                     NodeItem::Falsum => panic!("Get falsum"),
                     NodeItem::Literal(node_literal) => {
                         if node_literal.polarity != lit.polarity {
-                            panic!("Graph polarity does not match");
+                            panic!("Graph polarity does not match for v_id {}.\nHave: {}\nRequested: {}", lit.v_id, node_literal.polarity, lit.polarity);
                         }
                         index
                     }
@@ -138,12 +138,15 @@ impl ImplicationGraph {
         lvl_idx: LevelIndex,
         source: ImplicationSource,
     ) -> NodeIndex {
-        // log::warn!(target: target_graph!(), "+Implication {} -> {to}", clause.as_string());
+
+        let clause_vec = clause.collect::<Vec<_>>();
+
+        log::warn!(target: target_graph!(), "+Implication {:?} -> {to}", clause_vec.as_string());
         let (consequent_index, description) =
             (self.get_or_make_literal(to, lvl_idx), "Implication");
-        for antecedent in clause.filter(|a| a.v_id != to.v_id) {
+        for antecedent in clause_vec.iter().filter(|a| a.v_id != to.v_id) {
             let edge_index = self.graph.add_edge(
-                self.get_literal(antecedent),
+                self.get_literal(*antecedent),
                 consequent_index,
                 ImplicationEdge { source },
             );
