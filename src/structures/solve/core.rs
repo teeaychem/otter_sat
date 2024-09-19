@@ -1,7 +1,10 @@
+use crate::procedures::{hobson_choices, literals_of_polarity};
+
 use crate::structures::{
-    binary_resolution, Clause, ClauseId, ClauseSource, ClauseVec, Formula, ImplicationEdge,
-    ImplicationGraph, ImplicationSource, Level, LevelIndex, Literal, LiteralError, LiteralSource,
-    StoredClause, Valuation, ValuationError, ValuationOk, ValuationVec, Variable, VariableId,
+    binary_resolution, variable, Clause, ClauseId, ClauseSource, ClauseVec, Formula,
+    ImplicationEdge, ImplicationGraph, ImplicationSource, Level, LevelIndex, Literal, LiteralError,
+    LiteralSource, StoredClause, Valuation, ValuationError, ValuationOk, ValuationVec, Variable,
+    VariableId,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -147,17 +150,10 @@ impl Solve<'_> {
         status
     }
 
-    pub fn literals_of_polarity(&self, polarity: bool) -> impl Iterator<Item = Literal> {
-        let mut literal_vec: Vec<Option<Literal>> = vec![None; self.variables.len()];
-        self.clauses.iter().for_each(|clause| {
-            clause.literals().for_each(|literal| {
-                if literal.polarity == polarity {
-                    literal_vec[literal.v_id] = Some(literal)
-                }
-            })
-        });
-
-        literal_vec.into_iter().flatten()
+    pub fn clauses(&self) -> impl Iterator<Item = &impl Clause> {
+        self.clauses
+            .iter()
+            .map(|stored_clause| stored_clause.clause())
     }
 
     pub fn fresh_clause_id() -> ClauseId {
@@ -196,19 +192,8 @@ impl Solve<'_> {
         self.levels[index].get_choice().expect("No choice at level")
     }
 
-    /// general order for pairs related to booleans is 0 is false, 1 is true
-    pub fn hobson_choices(&self) -> (Vec<VariableId>, Vec<VariableId>) {
-        let the_true: BTreeSet<VariableId> =
-            self.literals_of_polarity(true).map(|l| l.v_id).collect();
-        let the_false: BTreeSet<VariableId> =
-            self.literals_of_polarity(false).map(|l| l.v_id).collect();
-        let hobson_false: Vec<_> = the_false.difference(&the_true).cloned().collect();
-        let hobson_true: Vec<_> = the_true.difference(&the_false).cloned().collect();
-        (hobson_false, hobson_true)
-    }
-
     pub fn settle_hobson_choices(&mut self) {
-        let the_choices = self.hobson_choices();
+        let the_choices = hobson_choices(self.clauses());
         the_choices.0.iter().for_each(|&v_id| {
             let the_choice = Literal::new(v_id, false);
             let _ = self.set_literal(the_choice, LiteralSource::HobsonChoice);
