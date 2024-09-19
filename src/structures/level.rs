@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::structures::{
-    ClauseId, Literal, LiteralSource, Solve, Valuation, ValuationError, ValuationVec, VariableId,
+    ClauseId, Literal, LiteralSource, solve::Solve, Valuation, ValuationError, ValuationVec, VariableId,
 };
 
 pub type LevelIndex = usize;

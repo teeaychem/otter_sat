@@ -1,6 +1,6 @@
 use std::char;
 
-use crate::structures::{Formula, Literal, SolveError};
+use crate::structures::{Formula, Literal, solve::SolveError};
 
 pub enum IOError {
     ParseFailure,

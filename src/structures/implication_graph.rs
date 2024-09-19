@@ -1,10 +1,6 @@
-use crate::{
-    binary_resolution,
-    clause::ClauseVec,
-    structures::{
-        Clause, ClauseId, Formula, Level, LevelIndex, Literal, Solve, StoredClause, Valuation,
-        VariableId,
-    },
+use crate::structures::{
+    binary_resolution, solve::Solve, Clause, ClauseId, ClauseVec, Formula, Level, LevelIndex,
+    Literal, StoredClause, Valuation, VariableId,
 };
 use petgraph::{
     algo::{
@@ -138,7 +134,6 @@ impl ImplicationGraph {
         lvl_idx: LevelIndex,
         source: ImplicationSource,
     ) -> NodeIndex {
-
         let clause_vec = clause.collect::<Vec<_>>();
 
         log::warn!(target: target_graph!(), "+Implication {:?} -> {to}", clause_vec.as_string());

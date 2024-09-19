@@ -1,5 +1,5 @@
 use crate::structures::{
-    Clause, ClauseId, ClauseVec, Literal, LiteralError, SolveError, StoredClause, Variable,
+    Clause, ClauseId, ClauseVec, Literal, LiteralError, solve::SolveError, StoredClause, Variable,
     VariableId,
 };
 
