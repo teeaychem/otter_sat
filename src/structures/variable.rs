@@ -43,6 +43,10 @@ impl Variable {
     pub fn note_occurence(&mut self, clause_id: ClauseId) {
         self.occurrences.push(clause_id);
     }
+
+    pub fn occurrences(&self) -> impl Iterator<Item = ClauseId> + '_ {
+        self.occurrences.iter().cloned()
+    }
 }
 
 impl PartialOrd for Variable {
