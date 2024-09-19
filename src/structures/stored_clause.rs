@@ -1,8 +1,4 @@
-use crate::{
-    literal,
-    structures::{Clause, ClauseId, ClauseVec, Literal},
-    Valuation, VariableId,
-};
+use crate::structures::{Clause, ClauseId, ClauseVec, Literal, Valuation, VariableId};
 
 #[derive(Clone, Copy, Debug)]
 pub enum ClauseSource {
@@ -201,7 +197,6 @@ impl StoredClause {
             }
         }
     }
-
 
     pub fn watch_choices(&self, val: &impl Valuation) -> Option<Vec<Literal>> {
         let a_literal = self.clause[self.watch_a];

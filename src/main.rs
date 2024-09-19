@@ -2,12 +2,11 @@
 
 use clap::Parser;
 use std::fs;
-mod ideas;
 mod io;
-mod solve;
 mod structures;
 
-use crate::structures::*;
+use crate::structures::solve::Solve;
+use crate::structures::Formula;
 use log::{warn, info};
 use log4rs;
 
