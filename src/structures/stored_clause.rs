@@ -43,16 +43,9 @@ impl StoredClause {
             watch_b: 1,
         };
 
-        the_clause.watch_a = the_clause.some_index_tnf(val, None);
+        the_clause.watch_a = the_clause.some_preferred_index(val, None);
         the_clause.watch_b =
-            the_clause.some_index_tnf(val, Some(the_clause.clause[the_clause.watch_a].v_id));
-
-        if the_clause.watch_a == the_clause.watch_b {
-            panic!(
-                "Same watch on new clause {} {}",
-                the_clause.watch_a, the_clause.watch_b
-            );
-        }
+            the_clause.some_preferred_index(val, Some(the_clause.clause[the_clause.watch_a].v_id));
 
         the_clause
     }
@@ -73,33 +66,24 @@ impl StoredClause {
         self.clause.literals()
     }
 
-    pub fn watch_status(&self, val: &impl Valuation) -> (Option<bool>, Option<bool>) {
-        println!("Watch status of clause: {}", self.clause.as_string());
-        println!("A: {}", self.watch_a);
-        println!("B: {}", self.watch_b);
-
-        let a_status = match val.of_v_id(self.clause[self.watch_a].v_id) {
-            Ok(optional) => optional,
-            _ => panic!("Watch literal without status"),
-        };
-        let b_status = match val.of_v_id(self.clause[self.watch_b].v_id) {
-            Ok(optional) => optional,
-            _ => panic!("Watch literal without status"),
-        };
-
-        (a_status, b_status)
+    fn index_of(&self, vid: VariableId) -> usize {
+        self.clause
+            .iter()
+            .enumerate()
+            .find(|(_, l)| l.v_id == vid)
+            .map(|(idx, _)| idx)
+            .expect("Literal not found in clause")
     }
+}
 
-    fn some_none_index(
-        &self,
-        val: &impl Valuation,
-        excluding: Option<VariableId>,
-    ) -> Option<usize> {
+impl StoredClause {
+    /// Finds an index of the clause vec whose value is None on val and differs from but_not.
+    fn some_none_index(&self, val: &impl Valuation, but_not: Option<VariableId>) -> Option<usize> {
         self.clause
             .iter()
             .enumerate()
             .find(|(_, l)| {
-                let excluded = if let Some(to_exclude) = excluding {
+                let excluded = if let Some(to_exclude) = but_not {
                     l.v_id != to_exclude
                 } else {
                     true
@@ -109,7 +93,12 @@ impl StoredClause {
             .map(|(idx, _)| idx)
     }
 
-    fn some_true_index(&self, val: &impl Valuation, but_not: Option<VariableId>) -> Option<usize> {
+    /// Finds an index of the clause vec which witness the clause is true on val and differs from but_not.
+    fn some_witness_index(
+        &self,
+        val: &impl Valuation,
+        but_not: Option<VariableId>,
+    ) -> Option<usize> {
         self.clause
             .iter()
             .enumerate()
@@ -119,8 +108,7 @@ impl StoredClause {
                 } else {
                     true
                 };
-                let l_valuation = val.of_v_id(l.v_id).unwrap();
-                let polarity_match = if let Some(v) = l_valuation {
+                let polarity_match = if let Some(v) = val.of_v_id(l.v_id).unwrap() {
                     v == l.polarity
                 } else {
                     false
@@ -130,7 +118,12 @@ impl StoredClause {
             .map(|(idx, _)| idx)
     }
 
-    fn some_false_index(&self, val: &impl Valuation, but_not: Option<VariableId>) -> Option<usize> {
+    /// Finds an index of the clause vec which witness the clause is false on val and differs from but_not.
+    fn some_differing_index(
+        &self,
+        val: &impl Valuation,
+        but_not: Option<VariableId>,
+    ) -> Option<usize> {
         self.clause
             .iter()
             .enumerate()
@@ -140,8 +133,7 @@ impl StoredClause {
                 } else {
                     true
                 };
-                let l_valuation = val.of_v_id(l.v_id).unwrap();
-                let polarity_match = if let Some(v) = l_valuation {
+                let polarity_match = if let Some(v) = val.of_v_id(l.v_id).unwrap() {
                     v != l.polarity
                 } else {
                     false
@@ -151,25 +143,24 @@ impl StoredClause {
             .map(|(idx, _)| idx)
     }
 
-    fn some_index_tnf(&self, val: &impl Valuation, but_not: Option<usize>) -> usize {
-        if let Some(index) = self.some_true_index(val, but_not) {
+    /// Finds some index of the clause vec which isn't but_not with the preference:
+    ///   A. The index points to a literal which is true on val.
+    ///   B. The index points to a literal which is unassigned on val.
+    ///   C. The index points to a literal which is false on val.
+    /// This preference contributes to maintaining useful watch literals.
+    /// As, it is essentail to know when a clause is true, as it then can provide no useful information.
+    /// And, if a watch is only on a differing literal when there are no other unassigned literals
+    /// it follows the other watched literal must be true on the valuation, or else there's a contradiction
+    fn some_preferred_index(&self, val: &impl Valuation, but_not: Option<usize>) -> usize {
+        if let Some(index) = self.some_witness_index(val, but_not) {
             index
         } else if let Some(index) = self.some_none_index(val, but_not) {
             index
-        } else if let Some(index) = self.some_false_index(val, but_not) {
+        } else if let Some(index) = self.some_differing_index(val, but_not) {
             index
         } else {
             panic!("Could not find a suitable index");
         }
-    }
-
-    fn index_of(&self, vid: VariableId) -> usize {
-        self.clause
-            .iter()
-            .enumerate()
-            .find(|(_, l)| l.v_id == vid)
-            .map(|(idx, _)| idx)
-            .expect("Literal not found in clause")
     }
 
     /// Updates the two watched literals on the assumption that only the valuation of the current literal has changed.
@@ -210,6 +201,7 @@ impl StoredClause {
             }
         }
     }
+
 
     pub fn watch_choices(&self, val: &impl Valuation) -> Option<Vec<Literal>> {
         let a_literal = self.clause[self.watch_a];
