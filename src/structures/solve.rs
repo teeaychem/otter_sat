@@ -120,6 +120,7 @@ impl Solve<'_> {
                             .literals()
                             .any(|lit| lit.v_id == self.current_level().get_choice().unwrap().v_id)
                     {
+
                         status.choice_conflicts.push((
                             stored_clause.id(),
                             self.current_level().get_choice().unwrap(),
@@ -391,6 +392,8 @@ impl Solve<'_> {
     }
 
     fn simple_analysis_two(&mut self, conflict_clause_id: ClauseId) -> Option<ClauseVec> {
+        log::warn!("Simple analysis two");
+        log::warn!("The current valuation is: {}", self.valuation.as_internal_string());
         /*
         Unsafe for the moment.
 
@@ -401,6 +404,7 @@ impl Solve<'_> {
         unsafe {
             let the_conflict_clause =
                 self.find_stored_clause(conflict_clause_id).expect("Hek") as *const StoredClause;
+            log::warn!("Simple analysis two on: {}", the_conflict_clause.as_ref()?.clause().as_string());
 
             let conflict_decision_level = self
                 .decision_levels_of(the_conflict_clause.as_ref()?.clause())

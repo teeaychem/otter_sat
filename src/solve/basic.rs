@@ -38,12 +38,6 @@ impl Solve<'_> {
             Err(SolveError::NoSolution)
         } else {
             let literal = literal.unwrap();
-            let stored_clause = self.find_stored_clause(clause_id).expect("Missing clause");
-
-            // println!("");
-            // println!("Attempting fix given clause: {}", stored_clause);
-            // println!("Valuation is: {}", self.valuation.as_internal_string());
-            // println!("");
 
             match self.analyse_conflict(clause_id, Some(literal)) {
                 Ok(SolveOk::AssertingClause(level)) => {
@@ -100,10 +94,12 @@ impl Solve<'_> {
         self.settle_hobson_choices(); // settle any literals which occur only as true or only as false
 
         'main_loop: loop {
-            let status = self.examine_clauses_on(&self.valuation_at(self.current_level().index()));
+            log::warn!("Loop on valuation: {}", self.valuation.as_internal_string());
+            let status = self.examine_clauses_on(&self.valuation);
 
             if !status.choice_conflicts.is_empty() {
                 let (clause_id, literal) = self.select_conflict(&status.choice_conflicts).unwrap();
+                log::warn!("Selected a conflict");
                 match self.attempt_fix(clause_id, Some(literal)) {
                     Err(SolveError::NoSolution) => {
                         return Ok(None);
@@ -118,6 +114,7 @@ impl Solve<'_> {
 
             if !status.unsat.is_empty() {
                 let (clause_id, literal) = self.select_unsat(&status.unsat).unwrap();
+                log::warn!("Selected an unsatisfied clause");
                 match self.attempt_fix(clause_id, Some(literal)) {
                     Err(SolveError::NoSolution) => {
                         return Ok(None);
