@@ -43,30 +43,9 @@ impl StoredClause {
             watch_b: 1,
         };
 
-        the_clause.watch_a = the_clause
-            .some_status_index(val, None)
-            .expect("Could not set watch A");
-        if let Some(index) = the_clause.some_status_index_ignoring(
-            val,
-            None,
-            the_clause.clause[the_clause.watch_a].v_id,
-        ) {
-            the_clause.watch_b = index
-        } else if let Some(index) = the_clause.some_status_index_ignoring(
-            val,
-            Some(true),
-            the_clause.clause[the_clause.watch_a].v_id,
-        ) {
-            the_clause.watch_b = index
-        } else if let Some(index) = the_clause.some_status_index_ignoring(
-            val,
-            Some(false),
-            the_clause.clause[the_clause.watch_a].v_id,
-        ) {
-            the_clause.watch_b = index
-        } else {
-            panic!("Could not set watch B");
-        };
+        the_clause.watch_a = the_clause.some_index_tnf(val, None);
+        the_clause.watch_b =
+            the_clause.some_index_tnf(val, Some(the_clause.clause[the_clause.watch_a].v_id));
 
         if the_clause.watch_a == the_clause.watch_b {
             panic!(
@@ -111,25 +90,77 @@ impl StoredClause {
         (a_status, b_status)
     }
 
-    fn some_status_index(&self, val: &impl Valuation, status: Option<bool>) -> Option<usize> {
-        self.clause
-            .iter()
-            .enumerate()
-            .find(|(_, l)| val.of_v_id(l.v_id).is_ok_and(|v| v == status))
-            .map(|(idx, _)| idx)
-    }
-
-    fn some_status_index_ignoring(
+    fn some_none_index(
         &self,
         val: &impl Valuation,
-        status: Option<bool>,
-        ignoring: VariableId,
+        excluding: Option<VariableId>,
     ) -> Option<usize> {
         self.clause
             .iter()
             .enumerate()
-            .find(|(_, l)| l.v_id != ignoring && val.of_v_id(l.v_id).is_ok_and(|v| v == status))
+            .find(|(_, l)| {
+                let excluded = if let Some(to_exclude) = excluding {
+                    l.v_id != to_exclude
+                } else {
+                    true
+                };
+                excluded && val.of_v_id(l.v_id).unwrap().is_none()
+            })
             .map(|(idx, _)| idx)
+    }
+
+    fn some_true_index(&self, val: &impl Valuation, but_not: Option<VariableId>) -> Option<usize> {
+        self.clause
+            .iter()
+            .enumerate()
+            .find(|(_, l)| {
+                let excluded = if let Some(to_exclude) = but_not {
+                    l.v_id != to_exclude
+                } else {
+                    true
+                };
+                let l_valuation = val.of_v_id(l.v_id).unwrap();
+                let polarity_match = if let Some(v) = l_valuation {
+                    v == l.polarity
+                } else {
+                    false
+                };
+                excluded && polarity_match
+            })
+            .map(|(idx, _)| idx)
+    }
+
+    fn some_false_index(&self, val: &impl Valuation, but_not: Option<VariableId>) -> Option<usize> {
+        self.clause
+            .iter()
+            .enumerate()
+            .find(|(_, l)| {
+                let excluded = if let Some(to_exclude) = but_not {
+                    l.v_id != to_exclude
+                } else {
+                    true
+                };
+                let l_valuation = val.of_v_id(l.v_id).unwrap();
+                let polarity_match = if let Some(v) = l_valuation {
+                    v != l.polarity
+                } else {
+                    false
+                };
+                excluded && polarity_match
+            })
+            .map(|(idx, _)| idx)
+    }
+
+    fn some_index_tnf(&self, val: &impl Valuation, but_not: Option<usize>) -> usize {
+        if let Some(index) = self.some_true_index(val, but_not) {
+            index
+        } else if let Some(index) = self.some_none_index(val, but_not) {
+            index
+        } else if let Some(index) = self.some_false_index(val, but_not) {
+            index
+        } else {
+            panic!("Could not find a suitable index");
+        }
     }
 
     fn index_of(&self, vid: VariableId) -> usize {
@@ -143,7 +174,6 @@ impl StoredClause {
 
     /// Updates the two watched literals on the assumption that only the valuation of the current literal has changed.
     pub fn update_watch(&mut self, val: &impl Valuation, vid: VariableId) {
-
         let valuation_polarity = val.of_v_id(vid).unwrap().unwrap();
         let clause_polarity = self
             .clause
@@ -167,13 +197,13 @@ impl StoredClause {
         }
         if valuation_polarity != clause_polarity {
             if self.clause[self.watch_a].v_id == vid {
-                if let Some(new_idx) = self.some_status_index_ignoring(val, None, current_b.v_id) {
+                if let Some(new_idx) = self.some_none_index(val, Some(current_b.v_id)) {
                     // println!("Setting A ({}) to {}", self.watch_a, new_idx);
                     self.watch_a = new_idx
                 };
             }
             if self.clause[self.watch_b].v_id == vid {
-                if let Some(new_idx) = self.some_status_index_ignoring(val, None, current_a.v_id) {
+                if let Some(new_idx) = self.some_none_index(val, Some(current_a.v_id)) {
                     // println!("Setting B ({}) to {}", self.watch_b, new_idx);
                     self.watch_b = new_idx
                 };
