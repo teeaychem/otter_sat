@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::structures::{
-    ClauseId, Literal, LiteralSource, solve::Solve, Valuation, ValuationError, ValuationVec, VariableId,
+    solve::Solve, ClauseId, Literal, LiteralSource, Valuation, ValuationVec, VariableId,
 };
 
 pub type LevelIndex = usize;
@@ -11,7 +11,6 @@ pub struct Level {
     index: LevelIndex,
     choice: Option<Literal>,
     observations: Vec<Literal>,
-    clauses_unit: Vec<(ClauseId, Literal)>,
 }
 
 impl Level {
@@ -20,7 +19,6 @@ impl Level {
             index,
             choice: None,
             observations: vec![],
-            clauses_unit: vec![],
         }
     }
 
@@ -88,17 +86,5 @@ impl<'borrow, 'level, 'solve: 'level> Solve<'solve> {
     pub fn current_level_mut(&'borrow mut self) -> &mut Level {
         let index = self.levels.len() - 1;
         &mut self.levels[index]
-    }
-}
-
-impl Solve<'_> {
-    pub fn valuation_at(&self, level_index: LevelIndex) -> ValuationVec {
-        let mut valuation = ValuationVec::new_for_variables(self.valuation.len());
-        (0..=level_index).for_each(|i| {
-            self.levels[i].literals().for_each(|l| {
-                let _ = valuation.set_literal(l);
-            })
-        });
-        valuation
     }
 }

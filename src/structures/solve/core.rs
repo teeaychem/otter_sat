@@ -1,10 +1,6 @@
-use crate::procedures::{hobson_choices, literals_of_polarity};
-
 use crate::structures::{
-    binary_resolution, variable, Clause, ClauseId, ClauseSource, ClauseVec, Formula,
-    ImplicationEdge, ImplicationGraph, ImplicationSource, Level, LevelIndex, Literal, LiteralError,
-    LiteralSource, StoredClause, Valuation, ValuationError, ValuationOk, ValuationVec, Variable,
-    VariableId,
+    Clause, ClauseId, ClauseSource, Formula, ImplicationGraph, Level, LevelIndex, Literal,
+    LiteralError, LiteralSource, StoredClause, Valuation, ValuationVec, Variable, VariableId,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -54,7 +50,6 @@ pub enum SolveError {
     UnsatClause(ClauseId),
     Conflict(ClauseId, Literal),
     NoSolution,
-    Hek,
 }
 
 impl Solve<'_> {
@@ -87,26 +82,30 @@ impl Solve<'_> {
         the_solve
     }
 
+    pub fn valuation_at(&self, level_index: LevelIndex) -> ValuationVec {
+        let mut valuation = ValuationVec::new_for_variables(self.valuation.len());
+        (0..=level_index).for_each(|i| {
+            self.levels[i].literals().for_each(|l| {
+                let _ = valuation.set_literal(l);
+            })
+        });
+        valuation
+    }
+
     pub fn is_unsat_on(&self, valuation: &ValuationVec) -> bool {
-        self.clauses
-            .iter()
-            .any(|stored_clause| stored_clause.clause().is_unsat_on(valuation))
+        self.clauses()
+            .any(|clause| clause.is_unsat_on(valuation))
     }
 
     pub fn is_sat_on(&self, valuation: &ValuationVec) -> bool {
-        self.clauses
-            .iter()
-            .all(|stored_clause| stored_clause.clause().is_sat_on(valuation))
-        // self.formula
-        //     .clauses()
-        //     .all(|clause| clause.is_sat_on(valuation))
+        self.clauses()
+            .all(|clause| clause.is_sat_on(valuation))
     }
 
     /* ideally the check on an ignored unit is improved
      for example, with watched literals a clause can be ignored in advance if the ignored literal is watched and it's negation is not part of the given valuation.
     whether this makes sense to do…
     */
-
     pub fn examine_clauses_on<T: Valuation>(&self, valuation: &T) -> SolveStatus {
         let mut status = SolveStatus::new();
         for stored_clause in &self.clauses {
@@ -192,15 +191,12 @@ impl Solve<'_> {
         self.levels[index].get_choice().expect("No choice at level")
     }
 
-    pub fn settle_hobson_choices(&mut self) {
-        let the_choices = hobson_choices(self.clauses());
+    pub fn settle_choices_lists(&mut self, the_choices: (Vec<VariableId>, Vec<VariableId>)) {
         the_choices.0.iter().for_each(|&v_id| {
-            let the_choice = Literal::new(v_id, false);
-            let _ = self.set_literal(the_choice, LiteralSource::HobsonChoice);
+            let _ = self.set_literal(Literal::new(v_id, false), LiteralSource::HobsonChoice);
         });
         the_choices.1.iter().for_each(|&v_id| {
-            let the_choice = Literal::new(v_id, true);
-            let _ = self.set_literal(the_choice, LiteralSource::HobsonChoice);
+            let _ = self.set_literal(Literal::new(v_id, true), LiteralSource::HobsonChoice);
         });
     }
 

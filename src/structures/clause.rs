@@ -1,6 +1,5 @@
-use crate::structures::{Literal, LiteralError, Valuation, ValuationVec, VariableId};
+use crate::structures::{Literal, Valuation, ValuationVec, VariableId};
 
-use std::collections::BTreeSet;
 
 pub type ClauseVec = Vec<Literal>;
 
@@ -127,40 +126,11 @@ impl Clause for ClauseVec {
     }
 }
 
-pub fn binary_resolution<T: Clause>(cls_a: &T, cls_b: &T, v_id: VariableId) -> Option<impl Clause> {
-    let mut the_clause = BTreeSet::new();
-    let mut clause_a_value = None;
-    let mut counterpart_found = false;
-    for literal in cls_a.literals() {
-        if literal.v_id == v_id
-            && (clause_a_value.is_none() || clause_a_value == Some(literal.polarity))
-        {
-            clause_a_value = Some(literal.polarity);
-        } else {
-            the_clause.insert(literal);
-        }
-    }
-    if clause_a_value.is_none() {
-        log::warn!("Resolution: {v_id} not found in {}", cls_a.as_string());
-        return None;
-    }
-    for literal in cls_b.literals() {
-        if literal.v_id == v_id && clause_a_value != Some(literal.polarity) {
-            counterpart_found = true;
-        } else {
-            the_clause.insert(literal);
-        }
-    }
-    if !counterpart_found {
-        log::warn!("Resolution: {v_id} not found in {}", cls_b.as_string());
-        return None;
-    }
-    Some(the_clause.iter().cloned().collect::<Vec<_>>())
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::procedures::binary_resolution;
 
     #[test]
     fn resolve_ok_check() {

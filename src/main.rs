@@ -1,16 +1,13 @@
-#![allow(dead_code, unused_imports)]
+// #![allow(dead_code, unused_imports)]
 
 use clap::Parser;
 use std::fs;
 mod io;
-mod structures;
 mod procedures;
+mod structures;
 
 use crate::structures::solve::Solve;
 use crate::structures::Formula;
-use log::{warn, info};
-use log4rs;
-
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
