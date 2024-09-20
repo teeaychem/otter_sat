@@ -1,7 +1,7 @@
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{
-    Clause, ClauseId, ClauseSource, ImplicationSource, Literal, LiteralSource, StoredClause,
-    Valuation, ValuationError,
+    Clause, ClauseId, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource,
+    StoredClause, Valuation, ValuationError,
 };
 
 impl<'borrow, 'solve> Solve<'solve> {
@@ -167,6 +167,12 @@ impl Solve<'_> {
             }
             log::warn!("Backtracked from {}", the_level.index());
             Ok(SolveOk::Backtracked)
+        }
+    }
+
+    pub fn backjump(&mut self, to: LevelIndex) {
+        while self.current_level().index() != 0 && self.current_level().index() >= to {
+            let _ = self.backtrack_once();
         }
     }
 }

@@ -3,26 +3,22 @@ use crate::structures::{Clause, Literal, VariableId};
 use std::collections::BTreeSet;
 
 /// Flattens an iterator over clauses to an iterator over the literals of some given polarity occuring in the clauses.
-/// Takes a count of possible variables as a vector of the literals is made at an intermediate stage to avoid some lifetime issues.
-// TODO: avoid the intermediate vector
 pub fn literals_of_polarity<'borrow>(
-    clauses: impl Iterator<Item = &'borrow (impl Clause + 'borrow)>,
-    var_count: usize,
+    clauses: impl Iterator<Item = &'borrow (impl Clause + 'borrow)> + 'borrow,
     polarity: bool,
-) -> impl Iterator<Item = Literal> {
-    let mut literal_vec: Vec<Option<Literal>> = vec![None; var_count];
-    clauses.for_each(|clause| {
-        clause.literals().for_each(|literal| {
+) -> impl Iterator<Item = Literal> + 'borrow {
+    clauses.flat_map(move |clause| {
+        clause.literals().flat_map(move |literal| {
             if literal.polarity == polarity {
-                literal_vec[literal.v_id] = Some(literal)
+                Some(literal)
+            } else {
+                None
             }
         })
-    });
-
-    literal_vec.into_iter().flatten()
+    })
 }
 
-/// general order for pairs related to booleans is 0 is false, 1 is true
+/// General order for pairs related to booleans is 0 is false, 1 is true
 pub fn hobson_choices<'borrow>(
     clauses: impl Iterator<Item = &'borrow (impl Clause + 'borrow)>,
 ) -> (Vec<VariableId>, Vec<VariableId>) {

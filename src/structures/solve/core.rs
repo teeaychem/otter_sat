@@ -92,6 +92,13 @@ impl Solve<'_> {
         valuation
     }
 
+    pub fn valuation_before_choice_at(&self, level_index: LevelIndex) -> ValuationVec {
+        match level_index {
+            0 => self.valuation_at(0),
+            _ => self.valuation_at(level_index - 1),
+        }
+    }
+
     pub fn is_unsat_on(&self, valuation: &ValuationVec) -> bool {
         self.clauses().any(|clause| clause.is_unsat_on(valuation))
     }
@@ -187,10 +194,12 @@ impl Solve<'_> {
     }
 
     pub fn level_choice(&self, index: LevelIndex) -> Literal {
-        self.levels[index].get_choice().expect("No choice at level")
+        self.levels[index]
+            .get_choice()
+            .expect("No choice at level {index}")
     }
 
-    pub fn settle_choices_lists(&mut self, the_choices: (Vec<VariableId>, Vec<VariableId>)) {
+    pub fn set_from_lists(&mut self, the_choices: (Vec<VariableId>, Vec<VariableId>)) {
         the_choices.0.iter().for_each(|&v_id| {
             let _ = self.set_literal(Literal::new(v_id, false), LiteralSource::HobsonChoice);
         });

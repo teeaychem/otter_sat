@@ -5,7 +5,7 @@ use crate::structures::{LiteralSource, Valuation, ValuationVec};
 impl Solve<'_> {
     pub fn implication_solve(&mut self) -> Result<Option<ValuationVec>, SolveError> {
         println!("~~~ an implication solve ~~~");
-        self.settle_choices_lists(hobson_choices(self.clauses())); // settle any literals which occur only as true or only as false
+        self.set_from_lists(hobson_choices(self.clauses())); // settle any literals which occur only as true or only as false
 
         'main_loop: loop {
             log::warn!("Loop on valuation: {}", self.valuation.as_internal_string());
