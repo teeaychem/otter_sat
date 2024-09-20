@@ -8,10 +8,10 @@ pub mod stored_clause;
 pub mod valuation;
 pub mod variable;
 
-pub use crate::structures::clause::{binary_resolution, Clause, ClauseId, ClauseVec};
+pub use crate::structures::clause::{Clause, ClauseId, ClauseVec};
 pub use crate::structures::formula::Formula;
 pub use crate::structures::implication_graph::{
-    ImplicationEdge, ImplicationGraph, ImplicationSource,
+    ImplicationGraph, ImplicationSource,
 };
 pub use crate::structures::level::{Level, LevelIndex};
 pub use crate::structures::literal::{Literal, LiteralError, LiteralSource};

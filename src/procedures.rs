@@ -33,7 +33,7 @@ pub fn hobson_choices<'borrow>(
         clause.literals().for_each(|literal| {
             match literal.polarity {
                 true => the_true.insert(literal.v_id),
-                false => the_false.insert(literal.v_id)
+                false => the_false.insert(literal.v_id),
             };
         })
     });
@@ -41,5 +41,35 @@ pub fn hobson_choices<'borrow>(
     let hobson_false: Vec<_> = the_false.difference(&the_true).cloned().collect();
     let hobson_true: Vec<_> = the_true.difference(&the_false).cloned().collect();
     (hobson_false, hobson_true)
+}
 
+pub fn binary_resolution<T: Clause>(cls_a: &T, cls_b: &T, v_id: VariableId) -> Option<impl Clause> {
+    let mut the_clause = BTreeSet::new();
+    let mut clause_a_value = None;
+    let mut counterpart_found = false;
+    for literal in cls_a.literals() {
+        if literal.v_id == v_id
+            && (clause_a_value.is_none() || clause_a_value == Some(literal.polarity))
+        {
+            clause_a_value = Some(literal.polarity);
+        } else {
+            the_clause.insert(literal);
+        }
+    }
+    if clause_a_value.is_none() {
+        log::warn!("Resolution: {v_id} not found in {}", cls_a.as_string());
+        return None;
+    }
+    for literal in cls_b.literals() {
+        if literal.v_id == v_id && clause_a_value != Some(literal.polarity) {
+            counterpart_found = true;
+        } else {
+            the_clause.insert(literal);
+        }
+    }
+    if !counterpart_found {
+        log::warn!("Resolution: {v_id} not found in {}", cls_b.as_string());
+        return None;
+    }
+    Some(the_clause.iter().cloned().collect::<Vec<_>>())
 }

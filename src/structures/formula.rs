@@ -1,6 +1,5 @@
 use crate::structures::{
-    Clause, ClauseId, ClauseVec, Literal, LiteralError, solve::SolveError, StoredClause, Variable,
-    VariableId,
+    solve::SolveError, Clause, ClauseId, ClauseVec, Literal, LiteralError, Variable, VariableId,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -18,24 +17,6 @@ impl Formula {
             clauses: vec![],
         }
     }
-
-    fn fresh_clause_id() -> ClauseId {
-        static COUNTER: AtomicUsize = AtomicUsize::new(1);
-        COUNTER.fetch_add(1, AtomicOrdering::Relaxed) as ClauseId
-    }
-
-    // pub fn fresh_clause_from(&self, optional_clause: Option<impl Clause>) -> StoredClause {
-    //     match optional_clause {
-    //         Some(clause) => StoredClause {
-    //             id: Self::fresh_clause_id(),
-    //             clause: clause.to_vec(),
-    //         },
-    //         None => StoredClause {
-    //             id: Self::fresh_clause_id(),
-    //             clause: Vec::new(),
-    //         },
-    //     }
-    // }
 
     pub fn clauses(&self) -> impl Iterator<Item = &impl Clause> {
         self.clauses.iter()
