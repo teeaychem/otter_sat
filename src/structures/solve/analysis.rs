@@ -24,22 +24,17 @@ impl Solve<'_> {
                     _ => {
                         // the relevant backtrack level is either 0 is analysis is being performed at 0 or the first decision level in the resolution clause prior to the current level.
                         // For, if a prior level does *not* appear in the resolution clause then the level provided no relevant information.
-                        let backtrack_level = self
+                        let backjump_level = self
                             .decision_levels_of(&clause)
                             .filter(|level| *level != self.current_level().index())
                             .max()
                             .unwrap_or(0);
-                        log::warn!("Will learn clause: {}", clause.as_string());
 
-                        let expected_valuation = if backtrack_level > 1 {
-                            self.valuation_at(backtrack_level - 1)
-                        } else {
-                            self.valuation_at(0)
-                        };
+                        let expected_valuation = self.valuation_before_choice_at(backjump_level);
 
                         self.add_clause(clause, ClauseSource::Resolution, &expected_valuation);
 
-                        Ok(SolveOk::AssertingClause(backtrack_level))
+                        Ok(SolveOk::AssertingClause(backjump_level))
                     }
                 }
             }
@@ -52,29 +47,20 @@ impl Solve<'_> {
         clause_id: ClauseId,
         lit: Option<Literal>,
     ) -> Result<SolveOk, SolveError> {
-        if self.current_level().index() == 0 {
-            Err(SolveError::NoSolution)
-        } else {
-            let literal = lit.unwrap();
-
-            match self.analyse_conflict(clause_id, Some(literal)) {
+        match self.current_level().index() {
+            0 => Err(SolveError::NoSolution),
+            _ => match self.analyse_conflict(clause_id, Some(lit.unwrap())) {
                 Ok(SolveOk::AssertingClause(level)) => {
-                    log::warn!("Asserting clause at level {}", level);
-                    while self.current_level().index() != 0 && self.current_level().index() >= level
-                    {
-                        let _ = self.backtrack_once();
-                    }
+                    self.backjump(level);
                     Ok(SolveOk::AssertingClause(level))
                 }
                 Ok(SolveOk::Deduction(literal)) => {
-                    while self.current_level().index() != 0 {
-                        let _ = self.backtrack_once();
-                    }
+                    self.backjump(0);
                     let _ = self.set_literal(literal, LiteralSource::Deduced);
                     Ok(SolveOk::Deduction(literal))
                 }
-                _ => panic!("Analysis failed"),
-            }
+                _ => panic!("Analysis failed given: Clause: {clause_id} Literal: {lit:?}"),
+            },
         }
     }
 
@@ -132,13 +118,14 @@ impl Solve<'_> {
                 the_conflict_clause.as_ref()?.clause().as_string()
             );
 
-            let conflict_decision_level = self
-                .decision_levels_of(the_conflict_clause.as_ref()?.clause())
-                .max()
-                .expect("No clause decision level");
-
             let mut the_resolved_clause = the_conflict_clause.as_ref()?.clause().as_vec();
-            let the_conflict_level_choice = self.level_choice(conflict_decision_level);
+            let the_conflict_level_choice = {
+                let conflict_decision_level = self
+                    .decision_levels_of(the_conflict_clause.as_ref()?.clause())
+                    .max()
+                    .expect("No clause decision level");
+                self.level_choice(conflict_decision_level)
+            };
 
             let the_immediate_domiator = self
                 .graph
