@@ -80,11 +80,7 @@ impl Solve<'_> {
 
     /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision level.
     pub fn simple_analysis_one(&mut self, conflict_clause_id: ClauseId) -> Option<ClauseVec> {
-        let mut the_resolved_clause = self
-            .find_stored_clause(conflict_clause_id)
-            .expect("Hek")
-            .clause()
-            .as_vec();
+        let mut the_resolved_clause = self.get_stored_clause(conflict_clause_id).clause().as_vec();
 
         'resolution_loop: loop {
             log::trace!("Analysis clause: {}", the_resolved_clause.as_string());
@@ -102,9 +98,7 @@ impl Solve<'_> {
                     let (clause_id, resolution_literal) =
                         resolution_literals.first().expect("No resolution literal");
 
-                    let resolution_clause = self
-                        .find_stored_clause(*clause_id)
-                        .expect("Unable to find clause");
+                    let resolution_clause = self.get_stored_clause(*clause_id);
 
                     the_resolved_clause = binary_resolution(
                         &the_resolved_clause.as_vec(),
@@ -132,7 +126,7 @@ impl Solve<'_> {
          */
         unsafe {
             let the_conflict_clause =
-                self.find_stored_clause(conflict_clause_id).expect("Hek") as *const StoredClause;
+                self.get_stored_clause(conflict_clause_id) as *const StoredClause;
             log::warn!(
                 "Simple analysis two on: {}",
                 the_conflict_clause.as_ref()?.clause().as_string()
@@ -160,10 +154,7 @@ impl Solve<'_> {
                     Some(mut path_clause_ids) => {
                         path_clause_ids.reverse(); // Not strictly necessary
                         for clause_id in path_clause_ids {
-                            let path_clause = &self
-                                .find_stored_clause(clause_id)
-                                .expect("Failed to find clause")
-                                .clause();
+                            let path_clause = &self.get_stored_clause(clause_id).clause();
                             if let Some(shared_literal) =
                                 path_clause.literals().find(|path_literal| {
                                     the_resolved_clause.contains(&path_literal.negate())

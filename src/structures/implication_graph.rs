@@ -343,17 +343,7 @@ impl<'borrow, 'graph> ImplicationGraph {
             .flatten()
     }
 
-    fn nodes_between(
-        &self,
-        from: Literal,
-        to: Literal,
-    ) -> impl Iterator<Item = Vec<NodeIndex>> + '_ {
-        let from_node = self.get_literal(from).id();
-        let to_node = self.get_literal(to).id();
-        petgraph::algo::all_simple_paths::<Vec<_>, _>(&self.graph, from_node, to_node, 0, None)
-    }
-
-    /// A path
+    /// Map a sequence of nodes the clauses which connect them
     fn connecting_clauses(
         &self,
         mut path: impl Iterator<Item = &'borrow NodeIndex>,
