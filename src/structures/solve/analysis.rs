@@ -152,14 +152,13 @@ impl Solve<'_> {
                 .expect("No immediate dominator");
 
             for literal in the_conflict_clause.as_ref()?.literals() {
-                let mut paths = self
+                match self
                     .graph
-                    .paths_between(the_immediate_domiator, literal.negate());
-                match paths.next() {
+                    .some_clause_path_between(the_immediate_domiator, literal.negate())
+                {
                     None => continue,
-                    Some(path) => {
-                        let mut path_clause_ids = self.graph.connecting_clauses(path.iter());
-                        path_clause_ids.reverse();
+                    Some(mut path_clause_ids) => {
+                        path_clause_ids.reverse(); // Not strictly necessary
                         for clause_id in path_clause_ids {
                             let path_clause = &self
                                 .find_stored_clause(clause_id)
