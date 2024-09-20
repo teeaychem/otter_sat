@@ -159,10 +159,14 @@ impl Solve<'_> {
 
     pub fn examine_level_clauses_on<T: Valuation>(&self, valuation: &T) -> SolveStatus {
         let mut status = SolveStatus::new();
-        let literals = self.current_level().literals();
-        let clauses = literals
+
+
+        let literals = self.levels[self.current_level().index()].updated_watches();
+
+        let clauses = literals.iter()
             .flat_map(|l| self.variables[l.v_id].occurrences())
             .collect::<BTreeSet<_>>();
+
         for stored_clause_id in clauses {
             let stored_clause = self.get_stored_clause(stored_clause_id);
             // let collected_choices = stored_clause.clause().collect_choices(valuation);
