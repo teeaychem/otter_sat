@@ -9,7 +9,10 @@ impl Solve<'_> {
 
         'main_loop: loop {
             log::warn!("Loop on valuation: {}", self.valuation.as_internal_string());
-            let status = self.examine_clauses_on(&self.valuation);
+            let status = match self.current_level().get_choice() {
+                None => self.examine_all_clauses_on(&self.valuation),
+                Some(_) => self.examine_level_clauses_on(&self.valuation),
+            };
 
             if !status.choice_conflicts.is_empty() {
                 let (clause_id, literal) = self.select_conflict(&status.choice_conflicts).unwrap();
@@ -74,10 +77,7 @@ impl Solve<'_> {
                 // make a choice
                 let a_choice = status.choices.first().unwrap();
 
-                println!(
-                    "\n\nChose {a_choice} @ {}\n\n",
-                    self.current_level().index()
-                );
+                log::warn!("Choice of {a_choice} @ {}\n", self.current_level().index());
 
                 let _ = self.set_literal(*a_choice, LiteralSource::Choice);
                 continue 'main_loop;
