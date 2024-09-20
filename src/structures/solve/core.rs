@@ -111,42 +111,96 @@ impl Solve<'_> {
      for example, with watched literals a clause can be ignored in advance if the ignored literal is watched and it's negation is not part of the given valuation.
     whether this makes sense to do…
     */
-    pub fn examine_clauses_on<T: Valuation>(&self, valuation: &T) -> SolveStatus {
+    pub fn examine_all_clauses_on<T: Valuation>(&self, valuation: &T) -> SolveStatus {
         let mut status = SolveStatus::new();
         for stored_clause in &self.clauses {
             // let collected_choices = stored_clause.clause().collect_choices(valuation);
             let collected_choices = stored_clause.watch_choices(valuation);
             if let Some(the_unset) = collected_choices {
-                if the_unset.is_empty() {
-                    if self.current_level().index() > 0
-                        && stored_clause
-                            .clause()
-                            .literals()
-                            .any(|lit| lit.v_id == self.current_level().get_choice().unwrap().v_id)
-                    {
-                        status.choice_conflicts.push((
-                            stored_clause.id(),
-                            self.current_level().get_choice().unwrap(),
-                        ));
-                    } else {
-                        status.unsat.push(stored_clause.id());
+                match the_unset.len() {
+                    0 => {
+                        if self.current_level().index() > 0
+                            && stored_clause.clause().literals().any(|lit| {
+                                lit.v_id == self.current_level().get_choice().unwrap().v_id
+                            })
+                        {
+                            status.choice_conflicts.push((
+                                stored_clause.id(),
+                                self.current_level().get_choice().unwrap(),
+                            ));
+                        } else {
+                            status.unsat.push(stored_clause.id());
+                        }
                     }
-                } else if the_unset.len() == 1 {
-                    let the_pair: (ClauseId, Literal) =
-                        (stored_clause.id(), *the_unset.first().unwrap());
-                    if self.current_level().index() > 0
-                        && the_pair.1.v_id == self.current_level().get_choice().unwrap().v_id
-                    {
-                        status.choice_conflicts.push(the_pair)
-                    } else {
-                        status.implications.push(the_pair);
+                    1 => {
+                        let the_pair: (ClauseId, Literal) =
+                            (stored_clause.id(), *the_unset.first().unwrap());
+                        if self.current_level().index() > 0
+                            && the_pair.1.v_id == self.current_level().get_choice().unwrap().v_id
+                        {
+                            status.choice_conflicts.push(the_pair)
+                        } else {
+                            status.implications.push(the_pair);
+                        }
+                        if status.choices.contains(&the_pair.1) {
+                            status.choices.remove(&the_pair.1);
+                        }
                     }
-                    if status.choices.contains(&the_pair.1) {
-                        status.choices.remove(&the_pair.1);
+                    _ => {
+                        for literal in the_unset {
+                            status.choices.insert(literal);
+                        }
                     }
-                } else {
-                    for literal in the_unset {
-                        status.choices.insert(literal);
+                }
+            }
+        }
+        status
+    }
+
+    pub fn examine_level_clauses_on<T: Valuation>(&self, valuation: &T) -> SolveStatus {
+        let mut status = SolveStatus::new();
+        let literals = self.current_level().literals();
+        let clauses = literals
+            .flat_map(|l| self.variables[l.v_id].occurrences())
+            .collect::<BTreeSet<_>>();
+        for stored_clause_id in clauses {
+            let stored_clause = self.get_stored_clause(stored_clause_id);
+            // let collected_choices = stored_clause.clause().collect_choices(valuation);
+            let collected_choices = stored_clause.watch_choices(valuation);
+            if let Some(the_unset) = collected_choices {
+                match the_unset.len() {
+                    0 => {
+                        if self.current_level().index() > 0
+                            && stored_clause.clause().literals().any(|lit| {
+                                lit.v_id == self.current_level().get_choice().unwrap().v_id
+                            })
+                        {
+                            status.choice_conflicts.push((
+                                stored_clause.id(),
+                                self.current_level().get_choice().unwrap(),
+                            ));
+                        } else {
+                            status.unsat.push(stored_clause.id());
+                        }
+                    }
+                    1 => {
+                        let the_pair: (ClauseId, Literal) =
+                            (stored_clause.id(), *the_unset.first().unwrap());
+                        if self.current_level().index() > 0
+                            && the_pair.1.v_id == self.current_level().get_choice().unwrap().v_id
+                        {
+                            status.choice_conflicts.push(the_pair)
+                        } else {
+                            status.implications.push(the_pair);
+                        }
+                        if status.choices.contains(&the_pair.1) {
+                            status.choices.remove(&the_pair.1);
+                        }
+                    }
+                    _ => {
+                        for literal in the_unset {
+                            status.choices.insert(literal);
+                        }
                     }
                 }
             }
@@ -213,13 +267,11 @@ impl Solve<'_> {
     This function returns some clause and mentioned literal from a list of unsatisfiable clauses.
      */
     pub fn select_unsat(&self, clauses: &[ClauseId]) -> Option<(ClauseId, Literal)> {
-        println!("Select unsat");
         if !clauses.is_empty() {
             let the_clause_id = *clauses.first().unwrap();
             let the_stored_clause = self.get_stored_clause(the_clause_id);
-            println!("Chose: {:?}", the_stored_clause.clause().as_string());
+            log::warn!("Chose: {:?}", the_stored_clause.clause().as_string());
             let current_variables = self.current_level().variables().collect::<BTreeSet<_>>();
-            println!("Current variables: {:?}", current_variables);
             let mut overlap = the_stored_clause
                 .literals()
                 .filter(|l| current_variables.contains(&l.v_id));

@@ -159,21 +159,19 @@ impl StoredClause {
         }
     }
 
-    /// Updates the two watched literals on the assumption that only the valuation of the current literal has changed.
-    pub fn update_watch(&mut self, val: &impl Valuation, vid: VariableId) {
-        let valuation_polarity = val.of_v_id(vid).unwrap().unwrap();
-        let clause_polarity = self
-            .clause
-            .literals()
-            .find(|l| l.v_id == vid)
-            .unwrap()
-            .polarity;
-
+    /// Updates the two watched literals on the assumption that only the valuation of the given id has changed.
+    pub fn update_watch(&mut self, val: &impl Valuation, v_id: VariableId) {
         let current_a = self.clause[self.watch_a];
         let current_b = self.clause[self.watch_b];
 
-        if valuation_polarity == clause_polarity {
-            let index_of_literal = self.index_of(vid);
+        let polarity_match = {
+            let valuation_polarity = val.of_v_id(v_id).unwrap().unwrap();
+            let clause_polarity = self.literals().find(|l| l.v_id == v_id).unwrap().polarity;
+            valuation_polarity == clause_polarity
+        };
+
+        if polarity_match {
+            let index_of_literal = self.index_of(v_id);
             if self.watch_a != index_of_literal && self.watch_b != index_of_literal {
                 if Some(current_a.polarity) != val.of_v_id(current_a.v_id).unwrap() {
                     self.watch_a = index_of_literal
@@ -181,20 +179,14 @@ impl StoredClause {
                     self.watch_b = index_of_literal
                 }
             }
-        }
-        if valuation_polarity != clause_polarity {
-            if self.clause[self.watch_a].v_id == vid {
-                if let Some(new_idx) = self.some_none_index(val, Some(current_b.v_id)) {
-                    // println!("Setting A ({}) to {}", self.watch_a, new_idx);
-                    self.watch_a = new_idx
-                };
-            }
-            if self.clause[self.watch_b].v_id == vid {
-                if let Some(new_idx) = self.some_none_index(val, Some(current_a.v_id)) {
-                    // println!("Setting B ({}) to {}", self.watch_b, new_idx);
-                    self.watch_b = new_idx
-                };
-            }
+        } else if current_a.v_id == v_id {
+            if let Some(new_idx) = self.some_none_index(val, Some(current_b.v_id)) {
+                self.watch_a = new_idx
+            };
+        } else if current_b.v_id == v_id {
+            if let Some(new_idx) = self.some_none_index(val, Some(current_a.v_id)) {
+                self.watch_b = new_idx
+            };
         }
     }
 
