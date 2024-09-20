@@ -41,38 +41,49 @@ impl<'borrow, 'solve> Solve<'solve> {
         log::warn!("Set literal: {} | src: {:?}", lit, src);
         match self.valuation.set_literal(lit) {
             Ok(()) => {
+                let level_index = match src {
+                    LiteralSource::Choice => self.add_fresh_level(),
+                    LiteralSource::Assumption
+                    | LiteralSource::Deduced
+                    | LiteralSource::HobsonChoice => 0,
+                    LiteralSource::StoredClause(_) | LiteralSource::Conflict => {
+                        self.current_level().index()
+                    }
+                };
+
                 {
                     let occurrences = self.variables[lit.v_id].occurrences().collect::<Vec<_>>();
                     let valuation = self.valuation.clone();
                     for clause_id in occurrences {
                         let clause = self.stored_clause_mut(clause_id);
-                        clause.update_watch(&valuation, lit.v_id);
+                        match clause.update_watch(&valuation, lit.v_id) {
+                            true => self.current_level_mut().note_watch(lit),
+                            false => (),
+                        };
                     }
                 }
                 match src {
                     LiteralSource::Choice => {
-                        let new_level_index = self.add_fresh_level();
                         self.current_level_mut().record_literal(lit, src);
                         self.graph
                             .add_literal(lit, self.current_level().index(), false);
-                        self.variables[lit.v_id].set_decision_level(new_level_index);
+                        self.variables[lit.v_id].set_decision_level(level_index);
                         log::debug!("+Set choice: {lit}");
                     }
                     LiteralSource::Assumption | LiteralSource::Deduced => {
-                        self.variables[lit.v_id].set_decision_level(0);
+                        self.variables[lit.v_id].set_decision_level(level_index);
                         self.top_level_mut().record_literal(lit, src);
-                        self.graph.add_literal(lit, 0, false);
+                        self.graph.add_literal(lit, level_index, false);
                         log::debug!("+Set assumption/deduction: {lit}");
                     }
                     LiteralSource::HobsonChoice => {
-                        self.variables[lit.v_id].set_decision_level(0);
+                        self.variables[lit.v_id].set_decision_level(level_index);
                         self.top_level_mut().record_literal(lit, src);
-                        self.graph.add_literal(lit, 0, false);
+                        self.graph.add_literal(lit, level_index, false);
                         log::debug!("+Set hobson choice: {lit}");
                     }
                     LiteralSource::StoredClause(clause_id) => {
-                        let current_level = self.current_level().index();
-                        self.variables[lit.v_id].set_decision_level(current_level);
+                        self.variables[lit.v_id].set_decision_level(level_index);
                         self.current_level_mut().record_literal(lit, src);
 
                         let literals = self
@@ -86,25 +97,23 @@ impl<'borrow, 'solve> Solve<'solve> {
                         self.graph.add_implication(
                             literals,
                             lit,
-                            self.current_level().index(),
+                            level_index,
                             ImplicationSource::StoredClause(clause_id),
                         );
 
                         log::debug!("+Set deduction: {lit}");
                     }
                     LiteralSource::Conflict => {
-                        let current_level = self.current_level().index();
-                        self.variables[lit.v_id].set_decision_level(current_level);
+                        self.variables[lit.v_id].set_decision_level(level_index);
                         self.current_level_mut().record_literal(lit, src);
-                        if self.current_level().index() != 0 {
+                        if level_index != 0 {
                             self.graph.add_contradiction(
                                 self.current_level().get_choice().expect("No choice 0+"),
                                 lit,
                                 self.current_level().index(),
                             );
                         } else {
-                            self.graph
-                                .add_literal(lit, self.current_level().index(), false);
+                            self.graph.add_literal(lit, level_index, false);
                         }
                         log::debug!("+Set conflict: {lit}");
                     }
