@@ -146,7 +146,7 @@ impl StoredClause {
     /// This preference contributes to maintaining useful watch literals.
     /// As, it is essentail to know when a clause is true, as it then can provide no useful information.
     /// And, if a watch is only on a differing literal when there are no other unassigned literals
-    /// it follows the other watched literal must be true on the valuation, or else there's a contradiction
+    /// it follows the other watched literal must be true on the valuation, or else there's a contradiction.
     fn some_preferred_index(&self, val: &impl Valuation, but_not: Option<usize>) -> usize {
         if let Some(index) = self.some_witness_index(val, but_not) {
             index
@@ -160,7 +160,8 @@ impl StoredClause {
     }
 
     /// Updates the two watched literals on the assumption that only the valuation of the given id has changed.
-    pub fn update_watch(&mut self, val: &impl Valuation, v_id: VariableId) {
+    /// Return true if the watch is 'informative' (the clause is unit or conflicts on val)
+    pub fn update_watch(&mut self, val: &impl Valuation, v_id: VariableId) -> bool {
         let current_a = self.clause[self.watch_a];
         let current_b = self.clause[self.watch_b];
 
@@ -174,20 +175,27 @@ impl StoredClause {
             let index_of_literal = self.index_of(v_id);
             if self.watch_a != index_of_literal && self.watch_b != index_of_literal {
                 if Some(current_a.polarity) != val.of_v_id(current_a.v_id).unwrap() {
-                    self.watch_a = index_of_literal
+                    self.watch_a = index_of_literal;
                 } else if Some(current_b.polarity) != val.of_v_id(current_b.v_id).unwrap() {
-                    self.watch_b = index_of_literal
+                    self.watch_b = index_of_literal;
                 }
             }
         } else if current_a.v_id == v_id {
             if let Some(new_idx) = self.some_none_index(val, Some(current_b.v_id)) {
-                self.watch_a = new_idx
+                self.watch_a = new_idx;
             };
         } else if current_b.v_id == v_id {
             if let Some(new_idx) = self.some_none_index(val, Some(current_a.v_id)) {
-                self.watch_b = new_idx
+                self.watch_b = new_idx;
             };
         }
+
+        let current_a = self.clause[self.watch_a];
+        let current_a_match = Some(current_a.polarity) == val.of_v_id(current_a.v_id).unwrap();
+        let current_b = self.clause[self.watch_b];
+        let current_b_match = Some(current_b.polarity) == val.of_v_id(current_b.v_id).unwrap();
+
+        !(current_a_match || current_b_match)
     }
 
     pub fn watch_choices(&self, val: &impl Valuation) -> Option<Vec<Literal>> {
