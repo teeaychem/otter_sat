@@ -1,8 +1,6 @@
 use crate::structures::{
-    solve::SolveError, Clause, ClauseId, ClauseVec, Literal, LiteralError, Variable, VariableId,
+    solve::SolveError, Clause, ClauseVec, Literal, LiteralError, Variable, VariableId,
 };
-
-use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
 #[derive(Debug, Clone)]
 pub struct Formula {
@@ -22,8 +20,22 @@ impl Formula {
         self.clauses.iter()
     }
 
+    pub fn add_clause(&mut self, string: &str) -> Result<(), SolveError> {
+        match self.clause_vec_from_string(string) {
+            Ok(a_clause) => {
+                self.clauses.push(a_clause);
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
     pub fn vars(&self) -> &Vec<Variable> {
         &self.variables
+    }
+
+    pub fn var_count(&self) -> usize {
+        self.variables.len()
     }
 
     pub fn var_id_by_name(&mut self, name: &str) -> VariableId {
@@ -56,10 +68,6 @@ impl Formula {
         Ok(the_literal)
     }
 
-    pub fn var_count(&self) -> usize {
-        self.variables.len()
-    }
-
     fn clause_vec_from_string(&mut self, string: &str) -> Result<Vec<Literal>, SolveError> {
         let string_lterals = string.split_whitespace();
         let mut the_clause = vec![];
@@ -72,16 +80,6 @@ impl Formula {
             };
         }
         Ok(the_clause)
-    }
-
-    pub fn add_clause(&mut self, string: &str) -> Result<(), SolveError> {
-        match self.clause_vec_from_string(string) {
-            Ok(a_clause) => {
-                self.clauses.push(a_clause);
-                Ok(())
-            }
-            Err(e) => Err(e),
-        }
     }
 }
 

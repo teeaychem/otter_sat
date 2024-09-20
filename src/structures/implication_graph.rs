@@ -194,7 +194,7 @@ impl ImplicationGraph {
         };
     }
 
-    pub fn remove_node(&mut self, index: NodeIndex) {
+    fn remove_node(&mut self, index: NodeIndex) {
         if let Some(node) = self.graph.remove_node(index) {
             log::debug!(target: target_graph!(), "-{node:?}");
         } else {
@@ -315,7 +315,7 @@ impl<'borrow, 'graph> ImplicationGraph {
             .flatten()
     }
 
-    pub fn resolution_candidates_all<'clause>(
+    pub fn resolution_candidates_all(
         &'borrow self,
         clause: &'borrow impl Clause,
     ) -> impl Iterator<Item = (ClauseId, Literal)> + 'borrow {
@@ -343,7 +343,7 @@ impl<'borrow, 'graph> ImplicationGraph {
             .flatten()
     }
 
-    pub fn paths_between(
+    fn nodes_between(
         &self,
         from: Literal,
         to: Literal,
@@ -354,7 +354,7 @@ impl<'borrow, 'graph> ImplicationGraph {
     }
 
     /// A path
-    pub fn connecting_clauses(
+    fn connecting_clauses(
         &self,
         mut path: impl Iterator<Item = &'borrow NodeIndex>,
     ) -> Vec<ClauseId> {
@@ -379,5 +379,17 @@ impl<'borrow, 'graph> ImplicationGraph {
             }
         }
         clause_ids
+    }
+
+    /// A path
+    pub fn some_clause_path_between(&self, from: Literal, to: Literal) -> Option<Vec<ClauseId>> {
+        let from_node = self.get_literal(from).id();
+        let to_node = self.get_literal(to).id();
+        let mut paths =
+            petgraph::algo::all_simple_paths::<Vec<_>, _>(&self.graph, from_node, to_node, 0, None);
+
+        paths
+            .next()
+            .map(|path| self.connecting_clauses(path.iter()))
     }
 }
