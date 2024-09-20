@@ -93,13 +93,11 @@ impl Solve<'_> {
     }
 
     pub fn is_unsat_on(&self, valuation: &ValuationVec) -> bool {
-        self.clauses()
-            .any(|clause| clause.is_unsat_on(valuation))
+        self.clauses().any(|clause| clause.is_unsat_on(valuation))
     }
 
     pub fn is_sat_on(&self, valuation: &ValuationVec) -> bool {
-        self.clauses()
-            .all(|clause| clause.is_sat_on(valuation))
+        self.clauses().all(|clause| clause.is_sat_on(valuation))
     }
 
     /* ideally the check on an ignored unit is improved
@@ -168,10 +166,11 @@ impl Solve<'_> {
             .map(|found| found.id())
     }
 
-    pub fn find_stored_clause(&self, id: ClauseId) -> Option<&StoredClause> {
+    pub fn get_stored_clause(&self, id: ClauseId) -> &StoredClause {
         self.clauses
             .iter()
             .find(|stored_clause| stored_clause.id() == id)
+            .expect("Unable to find clause with {id}")
     }
 
     pub fn var_by_id(&self, id: VariableId) -> Option<&Variable> {
@@ -208,7 +207,7 @@ impl Solve<'_> {
         println!("Select unsat");
         if !clauses.is_empty() {
             let the_clause_id = *clauses.first().unwrap();
-            let the_stored_clause = self.find_stored_clause(the_clause_id).expect("oops");
+            let the_stored_clause = self.get_stored_clause(the_clause_id);
             println!("Chose: {:?}", the_stored_clause.clause().as_string());
             let current_variables = self.current_level().variables().collect::<BTreeSet<_>>();
             println!("Current variables: {:?}", current_variables);
