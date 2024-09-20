@@ -1,19 +1,11 @@
-use crate::structures::{
-    binary_resolution, solve::Solve, Clause, ClauseId, ClauseVec, Formula, Level, LevelIndex,
-    Literal, StoredClause, Valuation, VariableId,
-};
+use crate::structures::{Clause, ClauseId, Formula, Level, LevelIndex, Literal};
 use petgraph::{
-    algo::{
-        dominators::{self, simple_fast},
-        simple_paths,
-    },
+    algo::dominators::simple_fast,
     dot::{Config, Dot},
-    graph::edge_index,
     prelude::NodeIndex,
     stable_graph::StableGraph,
     visit::NodeRef,
 };
-use std::collections::BTreeSet;
 
 macro_rules! target_graph {
     () => {
@@ -269,34 +261,27 @@ impl ImplicationGraph {
 }
 
 impl<'borrow, 'graph> ImplicationGraph {
-    fn get_literal_node(&self, lit: Literal) -> &ImplicationNode {
-        let the_node_index = self.variable_indicies[lit.v_id].expect("Missing node");
-        self.graph
-            .node_weight(the_node_index)
-            .expect("Missing node")
-    }
-
     pub fn remove_literals(&'borrow mut self, lits: impl Iterator<Item = Literal>) {
         lits.for_each(|literal| self.remove_literal(literal))
     }
 
     pub fn remove_level(&mut self, level: &Level) {
         self.remove_literals(level.literals());
-        if self
-            .graph
-            .node_weights()
-            .filter(|n| n.level == level.index())
-            .count()
-            != 0
-        {
-            panic!("Failed to remove all nodes at level {}", level.index());
-        };
+        // if self
+        //     .graph
+        //     .node_weights()
+        //     .filter(|n| n.level == level.index())
+        //     .count()
+        //     != 0
+        // {
+        //     panic!("Failed to remove all nodes at level {}", level.index());
+        // };
     }
 
     /*
     Given a clause and a level, the resolution candidates are those literals set at the level which conflict with some literal in the clause
      */
-    pub fn resolution_candidates_at_level<'clause>(
+    pub fn resolution_candidates_at_level(
         &'borrow self,
         clause: &'borrow impl Clause,
         lvl_idx: LevelIndex,

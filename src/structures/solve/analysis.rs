@@ -1,7 +1,7 @@
+use crate::procedures::binary_resolution;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{
-    binary_resolution, Clause, ClauseId, ClauseSource, ClauseVec, Literal, LiteralSource,
-    StoredClause, Valuation,
+    Clause, ClauseId, ClauseSource, ClauseVec, Literal, LiteralSource, StoredClause, Valuation,
 };
 
 use std::collections::BTreeSet;
@@ -50,12 +50,12 @@ impl Solve<'_> {
     pub fn attempt_fix(
         &mut self,
         clause_id: ClauseId,
-        literal: Option<Literal>,
+        lit: Option<Literal>,
     ) -> Result<SolveOk, SolveError> {
         if self.current_level().index() == 0 {
             Err(SolveError::NoSolution)
         } else {
-            let literal = literal.unwrap();
+            let literal = lit.unwrap();
 
             match self.analyse_conflict(clause_id, Some(literal)) {
                 Ok(SolveOk::AssertingClause(level)) => {
@@ -77,18 +77,14 @@ impl Solve<'_> {
             }
         }
     }
-}
 
-impl Solve<'_> {
     /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision level.
     pub fn simple_analysis_one(&mut self, conflict_clause_id: ClauseId) -> Option<ClauseVec> {
-        let the_conflict_clause = self
+        let mut the_resolved_clause = self
             .find_stored_clause(conflict_clause_id)
             .expect("Hek")
             .clause()
             .as_vec();
-
-        let mut the_resolved_clause = the_conflict_clause;
 
         'resolution_loop: loop {
             log::trace!("Analysis clause: {}", the_resolved_clause.as_string());
@@ -126,10 +122,7 @@ impl Solve<'_> {
 
     pub fn simple_analysis_two(&mut self, conflict_clause_id: ClauseId) -> Option<ClauseVec> {
         log::warn!("Simple analysis two");
-        log::warn!(
-            "The current valuation is: {}",
-            self.valuation.as_internal_string()
-        );
+        log::warn!("The valuation is: {}", self.valuation.as_internal_string());
         /*
         Unsafe for the moment.
 

@@ -1,15 +1,11 @@
+use crate::procedures::hobson_choices;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
-use crate::structures::{
-    binary_resolution, Clause, ClauseId, ClauseSource, ClauseVec, Formula, ImplicationEdge,
-    ImplicationGraph, ImplicationSource, Level, LevelIndex, Literal, LiteralError, LiteralSource,
-    StoredClause, Valuation, ValuationError, ValuationOk, ValuationVec, Variable, VariableId,
-};
-
+use crate::structures::{LiteralSource, Valuation, ValuationVec};
 
 impl Solve<'_> {
     pub fn implication_solve(&mut self) -> Result<Option<ValuationVec>, SolveError> {
         println!("~~~ an implication solve ~~~");
-        self.settle_hobson_choices(); // settle any literals which occur only as true or only as false
+        self.settle_choices_lists(hobson_choices(self.clauses())); // settle any literals which occur only as true or only as false
 
         'main_loop: loop {
             log::warn!("Loop on valuation: {}", self.valuation.as_internal_string());
