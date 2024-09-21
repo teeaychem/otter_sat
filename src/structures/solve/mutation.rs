@@ -18,7 +18,7 @@ impl<'borrow, 'solve> Solve<'solve> {
             _ => {
                 let clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, src, val);
                 for literal in clause.clause().literals() {
-                    self.variables[literal.v_id].note_occurence(clause.id());
+                    self.variables[literal.v_id].note_occurence(clause.id(), literal.polarity);
                 }
                 self.clauses.push(clause);
             }
