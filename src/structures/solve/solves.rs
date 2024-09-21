@@ -1,6 +1,6 @@
 use crate::procedures::hobson_choices;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
-use crate::structures::{LiteralSource, Valuation, ValuationVec};
+use crate::structures::{Literal, LiteralSource, Valuation, ValuationVec};
 
 impl Solve<'_> {
     pub fn implication_solve(&mut self) -> Result<Option<ValuationVec>, SolveError> {
@@ -73,13 +73,12 @@ impl Solve<'_> {
                 continue 'main_loop;
             }
 
-            if !status.choices.is_empty() {
+            if let Some(available_v_id) = self.valuation.some_none() {
                 // make a choice
-                let a_choice = status.choices.first().unwrap();
 
-                log::warn!("Choice of {a_choice} @ {}\n", self.current_level().index());
+                // log::warn!("Choice of {a_choice} @ {}\n", self.current_level().index());
 
-                let _ = self.set_literal(*a_choice, LiteralSource::Choice);
+                let _ = self.set_literal( Literal::new(available_v_id, true), LiteralSource::Choice);
                 continue 'main_loop;
             }
 

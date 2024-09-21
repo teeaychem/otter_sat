@@ -10,7 +10,6 @@ use std::collections::BTreeSet;
 pub struct SolveStatus {
     pub choice_conflicts: Vec<(ClauseId, Literal)>,
     pub implications: Vec<(ClauseId, Literal)>,
-    pub choices: BTreeSet<Literal>,
     pub unsat: Vec<ClauseId>,
 }
 
@@ -19,7 +18,6 @@ impl SolveStatus {
         SolveStatus {
             choice_conflicts: vec![],
             implications: vec![],
-            choices: BTreeSet::new(),
             unsat: vec![],
         }
     }
@@ -142,15 +140,8 @@ impl Solve<'_> {
                         } else {
                             status.implications.push(the_pair);
                         }
-                        if status.choices.contains(&the_pair.1) {
-                            status.choices.remove(&the_pair.1);
-                        }
                     }
-                    _ => {
-                        for literal in the_unset {
-                            status.choices.insert(literal);
-                        }
-                    }
+                    _ => {}
                 }
             }
         }
@@ -160,10 +151,10 @@ impl Solve<'_> {
     pub fn examine_level_clauses_on<T: Valuation>(&self, valuation: &T) -> SolveStatus {
         let mut status = SolveStatus::new();
 
-
         let literals = self.levels[self.current_level().index()].updated_watches();
 
-        let clauses = literals.iter()
+        let clauses = literals
+            .iter()
             .flat_map(|l| self.variables[l.v_id].occurrences())
             .collect::<BTreeSet<_>>();
 
@@ -197,15 +188,8 @@ impl Solve<'_> {
                         } else {
                             status.implications.push(the_pair);
                         }
-                        if status.choices.contains(&the_pair.1) {
-                            status.choices.remove(&the_pair.1);
-                        }
                     }
-                    _ => {
-                        for literal in the_unset {
-                            status.choices.insert(literal);
-                        }
-                    }
+                    _ => {}
                 }
             }
         }
