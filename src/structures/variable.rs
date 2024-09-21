@@ -7,7 +7,8 @@ pub struct Variable {
     name: String,
     decision_level: Option<LevelIndex>,
     id: VariableId,
-    occurrences: Vec<ClauseId>,
+    positive_occurrences: Vec<ClauseId>,
+    negative_occurrences: Vec<ClauseId>,
 }
 
 impl Variable {
@@ -16,7 +17,8 @@ impl Variable {
             name: name.to_string(),
             decision_level: None,
             id,
-            occurrences: Vec::new(),
+            positive_occurrences: Vec::new(),
+            negative_occurrences: Vec::new(),
         }
     }
 
@@ -40,12 +42,15 @@ impl Variable {
         self.id
     }
 
-    pub fn note_occurence(&mut self, clause_id: ClauseId) {
-        self.occurrences.push(clause_id);
+    pub fn note_occurence(&mut self, clause_id: ClauseId, polarity: bool) {
+        match polarity {
+            true => self.positive_occurrences.push(clause_id),
+            false => self.negative_occurrences.push(clause_id)
+        }
     }
 
     pub fn occurrences(&self) -> impl Iterator<Item = ClauseId> + '_ {
-        self.occurrences.iter().cloned()
+        self.positive_occurrences.iter().chain(&self.negative_occurrences).cloned()
     }
 }
 
