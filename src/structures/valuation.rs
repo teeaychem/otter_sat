@@ -26,6 +26,8 @@ pub trait Valuation {
     fn literals(&self) -> Vec<Literal>;
 
     fn some_none(&self) -> Option<VariableId>;
+
+    fn to_vec(&self) -> ValuationVec;
 }
 
 pub enum ValuationError {
@@ -126,4 +128,9 @@ impl Valuation for ValuationVec {
             .next()
         // .last()
     }
+
+    fn to_vec(&self) -> ValuationVec {
+        self.clone()
+    }
+
 }

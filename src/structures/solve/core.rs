@@ -24,6 +24,7 @@ impl SolveStatus {
 #[derive(Debug)]
 pub struct Solve<'formula> {
     _formula: &'formula Formula,
+    pub conflicts: usize,
     pub variables: Vec<Variable>,
     pub valuation: Vec<Option<bool>>,
     pub levels: Vec<Level>,
@@ -52,6 +53,7 @@ impl Solve<'_> {
     pub fn from_formula(formula: &Formula) -> Solve {
         let mut the_solve = Solve {
             _formula: formula,
+            conflicts: 0,
             variables: formula.vars().clone(),
             valuation: Vec::<Option<bool>>::new_for_variables(formula.vars().len()),
             levels: vec![Level::new(0)],
@@ -210,6 +212,38 @@ impl Solve<'_> {
             .into_iter();
 
         self.examine_clauses(valuation, clauses)
+    }
+}
+
+impl Solve<'_> {
+    pub fn process_unsat(&mut self, clause_ids: &[ClauseId]) {
+        for &conflict in clause_ids {
+            self.conflicts += 1;
+            if self.conflicts % 256 == 0 {
+                for variable in &mut self.variables {
+                    variable.activity /= 2.0
+                }
+            }
+
+            unsafe {
+                let the_stored_conflict = self.get_stored_clause(conflict) as *const StoredClause;
+                if let Some(cls) = the_stored_conflict.as_ref() {
+                    for literal in cls.clause().variables() {
+                        self.variables[literal].activity += 1.0;
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn most_active_none(&self, val: &impl Valuation) -> Option<VariableId> {
+        val.to_vec()
+            .into_iter()
+            .enumerate()
+            .filter(|(_, v)| v.is_none())
+            .map(|(i, _)| (i, self.variables[i].activity))
+            .max_by(|a, b| a.1.total_cmp(&b.1))
+            .map(|(a, _)| a)
     }
 }
 
