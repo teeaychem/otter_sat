@@ -157,27 +157,8 @@ impl Solve<'_> {
         });
     }
 
-    /*
-    If a clause is unsatisfiable due to a valuation which conflicts with each literal of the clause, then at least one such conflicting literal was set at the current level.
-    This function returns some clause and mentioned literal from a list of unsatisfiable clauses.
-     */
     pub fn select_unsat(&self, clauses: &[ClauseId]) -> Option<ClauseId> {
-        if !clauses.is_empty() {
-            let the_clause_id = *clauses.first().unwrap();
-            let the_stored_clause = self.get_stored_clause(the_clause_id);
-            log::warn!("Chose: {:?}", the_stored_clause.clause().as_string());
-            Some(the_clause_id)
-        } else {
-            None
-        }
-    }
-
-    pub fn select_conflict(&self, clauses: &[(ClauseId, Literal)]) -> Option<(ClauseId, Literal)> {
-        if !clauses.is_empty() {
-            Some(clauses.first().unwrap()).cloned()
-        } else {
-            None
-        }
+        clauses.first().copied()
     }
 }
 
