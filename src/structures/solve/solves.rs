@@ -36,6 +36,8 @@ impl Solve<'_> {
             }
 
             if let Some(clause_id) = self.select_unsat(&unsat_clauses) {
+                self.process_unsat(&unsat_clauses);
+
                 log::warn!("Selected an unsatisfied clause");
                 match self.attempt_fix(clause_id) {
                     Err(SolveError::NoSolution) => {
@@ -50,14 +52,22 @@ impl Solve<'_> {
             }
 
             if !some_deduction {
-                if let Some(available_v_id) = self.valuation.some_none() {
+                if let Some(available_v_id) = self.most_active_none(&self.valuation) {
+                    // if let Some(available_v_id) = self.valuation.some_none() {
                     // make a choice
 
-                    // log::warn!("Choice of {a_choice} @ {}\n", self.current_level().index());
+                    log::trace!(
+                        "Choice: {available_v_id} @ {} with activity {}",
+                        self.current_level().index(),
+                        self.variables[available_v_id].activity
+                    );
 
-                    let _ =
-                        self.set_literal(Literal::new(available_v_id, true), LiteralSource::Choice);
+                    let _ = self
+                        .set_literal(Literal::new(available_v_id, false), LiteralSource::Choice);
+
                     continue 'main_loop;
+                } else {
+                    return Ok(Some(self.valuation.to_vec()));
                 }
             }
         }

@@ -18,7 +18,7 @@ impl<'borrow, 'solve> Solve<'solve> {
             _ => {
                 let clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, src, val);
                 for literal in clause.clause().literals() {
-                    self.variables[literal.v_id].note_occurence(clause.id(), literal.polarity);
+                    self.variables[literal.v_id].note_occurence(clause.id(), src, literal.polarity);
                 }
                 self.clauses.push(clause);
             }
@@ -38,7 +38,7 @@ impl<'borrow, 'solve> Solve<'solve> {
         lit: Literal,
         src: LiteralSource,
     ) -> Result<(), SolveError> {
-        log::warn!("Set literal: {} | src: {:?}", lit, src);
+        log::trace!("Set literal: {} | src: {:?}", lit, src);
         match self.valuation.set_literal(lit) {
             Ok(()) => {
                 let level_index = match src {
@@ -149,7 +149,7 @@ impl<'borrow, 'solve> Solve<'solve> {
     }
 
     pub fn unset_literal(&mut self, literal: Literal) {
-        log::warn!("Unset: {}", literal);
+        log::trace!("Unset: {}", literal);
 
         self.valuation[literal.v_id] = None;
         self.variables[literal.v_id].clear_decision_level();
@@ -169,7 +169,6 @@ impl Solve<'_> {
             Err(SolveError::NoSolution)
         } else {
             let the_level = self.levels.pop().unwrap();
-            log::warn!("Backtracking from {}", the_level.index());
             self.graph.remove_level(&the_level);
             for literal in the_level.literals() {
                 self.unset_literal(literal)
