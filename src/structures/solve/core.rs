@@ -105,97 +105,6 @@ impl Solve<'_> {
         self.clauses().all(|clause| clause.is_sat_on(valuation))
     }
 
-    /* ideally the check on an ignored unit is improved
-     for example, with watched literals a clause can be ignored in advance if the ignored literal is watched and it's negation is not part of the given valuation.
-    whether this makes sense to do…
-    */
-    pub fn examine_all_clauses_on<T: Valuation>(&self, valuation: &T) -> SolveStatus {
-        let mut status = SolveStatus::new();
-        for stored_clause in &self.clauses {
-            // let collected_choices = stored_clause.clause().collect_choices(valuation);
-            let collected_choices = stored_clause.watch_choices(valuation);
-            if let Some(the_unset) = collected_choices {
-                match the_unset.len() {
-                    0 => {
-                        if self.current_level().index() > 0
-                            && stored_clause.clause().literals().any(|lit| {
-                                lit.v_id == self.current_level().get_choice().unwrap().v_id
-                            })
-                        {
-                            status.choice_conflicts.push((
-                                stored_clause.id(),
-                                self.current_level().get_choice().unwrap(),
-                            ));
-                        } else {
-                            status.unsat.push(stored_clause.id());
-                        }
-                    }
-                    1 => {
-                        let the_pair: (ClauseId, Literal) =
-                            (stored_clause.id(), *the_unset.first().unwrap());
-                        if self.current_level().index() > 0
-                            && the_pair.1.v_id == self.current_level().get_choice().unwrap().v_id
-                        {
-                            status.choice_conflicts.push(the_pair)
-                        } else {
-                            status.implications.push(the_pair);
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-        status
-    }
-
-    pub fn examine_level_clauses_on<T: Valuation>(&self, valuation: &T) -> SolveStatus {
-        let mut status = SolveStatus::new();
-
-        let literals = self.levels[self.current_level().index()].updated_watches();
-
-        let clauses = literals
-            .iter()
-            .flat_map(|l| self.variables[l.v_id].occurrences())
-            .collect::<BTreeSet<_>>();
-
-        for stored_clause_id in clauses {
-            let stored_clause = self.get_stored_clause(stored_clause_id);
-            // let collected_choices = stored_clause.clause().collect_choices(valuation);
-            let collected_choices = stored_clause.watch_choices(valuation);
-            if let Some(the_unset) = collected_choices {
-                match the_unset.len() {
-                    0 => {
-                        if self.current_level().index() > 0
-                            && stored_clause.clause().literals().any(|lit| {
-                                lit.v_id == self.current_level().get_choice().unwrap().v_id
-                            })
-                        {
-                            status.choice_conflicts.push((
-                                stored_clause.id(),
-                                self.current_level().get_choice().unwrap(),
-                            ));
-                        } else {
-                            status.unsat.push(stored_clause.id());
-                        }
-                    }
-                    1 => {
-                        let the_pair: (ClauseId, Literal) =
-                            (stored_clause.id(), *the_unset.first().unwrap());
-                        if self.current_level().index() > 0
-                            && the_pair.1.v_id == self.current_level().get_choice().unwrap().v_id
-                        {
-                            status.choice_conflicts.push(the_pair)
-                        } else {
-                            status.implications.push(the_pair);
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-        status
-    }
-
     pub fn clauses(&self) -> impl Iterator<Item = &impl Clause> {
         self.clauses
             .iter()
@@ -276,6 +185,76 @@ impl Solve<'_> {
         } else {
             None
         }
+    }
+}
+
+impl Solve<'_> {
+    fn examine_clauses<'a>(
+        &self,
+        valuation: &impl Valuation,
+        clauses: impl Iterator<Item = &'a StoredClause>,
+    ) -> SolveStatus {
+        let mut status = SolveStatus::new();
+
+        for stored_clause in clauses {
+            // let collected_choices = stored_clause.clause().collect_choices(valuation);
+            let collected_choices = stored_clause.watch_choices(valuation);
+            if let Some(the_unset) = collected_choices {
+                match the_unset.len() {
+                    0 => {
+                        if self.current_level().index() > 0
+                            && stored_clause.clause().literals().any(|lit| {
+                                lit.v_id == self.current_level().get_choice().unwrap().v_id
+                            })
+                        {
+                            status.choice_conflicts.push((
+                                stored_clause.id(),
+                                self.current_level().get_choice().unwrap(),
+                            ));
+                        } else {
+                            status.unsat.push(stored_clause.id());
+                        }
+                    }
+                    1 => {
+                        let the_pair: (ClauseId, Literal) =
+                            (stored_clause.id(), *the_unset.first().unwrap());
+                        if self.current_level().index() > 0
+                            && the_pair.1.v_id == self.current_level().get_choice().unwrap().v_id
+                        {
+                            status.choice_conflicts.push(the_pair)
+                        } else {
+                            status.implications.push(the_pair);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        status
+    }
+
+    /* ideally the check on an ignored unit is improved
+     for example, with watched literals a clause can be ignored in advance if the ignored literal is watched and it's negation is not part of the given valuation.
+    whether this makes sense to do…
+    */
+    pub fn examine_all_clauses_on(&self, valuation: &impl Valuation) -> SolveStatus {
+        self.examine_clauses(valuation, &mut self.clauses.iter())
+    }
+
+    pub fn examine_level_clauses_on<T: Valuation>(&self, valuation: &T) -> SolveStatus {
+        let literals = self.levels[self.current_level().index()].updated_watches();
+
+        let clauses = literals
+            .iter()
+            .flat_map(|l| self.variables[l.v_id].occurrences())
+            .map(|clause_id| {
+                let x = self.get_stored_clause(clause_id);
+                x
+            })
+            .collect::<BTreeSet<_>>()
+            .into_iter();
+
+        self.examine_clauses(valuation, clauses)
     }
 }
 
