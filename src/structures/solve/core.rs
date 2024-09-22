@@ -8,7 +8,6 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::collections::BTreeSet;
 
 pub struct SolveStatus {
-    pub choice_conflicts: Vec<(ClauseId, Literal)>,
     pub implications: Vec<(ClauseId, Literal)>,
     pub unsat: Vec<ClauseId>,
 }
@@ -16,7 +15,6 @@ pub struct SolveStatus {
 impl SolveStatus {
     pub fn new() -> Self {
         SolveStatus {
-            choice_conflicts: vec![],
             implications: vec![],
             unsat: vec![],
         }
@@ -163,17 +161,12 @@ impl Solve<'_> {
     If a clause is unsatisfiable due to a valuation which conflicts with each literal of the clause, then at least one such conflicting literal was set at the current level.
     This function returns some clause and mentioned literal from a list of unsatisfiable clauses.
      */
-    pub fn select_unsat(&self, clauses: &[ClauseId]) -> Option<(ClauseId, Literal)> {
+    pub fn select_unsat(&self, clauses: &[ClauseId]) -> Option<ClauseId> {
         if !clauses.is_empty() {
             let the_clause_id = *clauses.first().unwrap();
             let the_stored_clause = self.get_stored_clause(the_clause_id);
             log::warn!("Chose: {:?}", the_stored_clause.clause().as_string());
-            let current_variables = self.current_level().variables().collect::<BTreeSet<_>>();
-            let mut overlap = the_stored_clause
-                .literals()
-                .filter(|l| current_variables.contains(&l.v_id));
-            let the_literal = overlap.next().expect("No overlap");
-            Some((the_clause_id, the_literal))
+            Some(the_clause_id)
         } else {
             None
         }
@@ -189,42 +182,23 @@ impl Solve<'_> {
 }
 
 impl Solve<'_> {
-    fn examine_clauses<'a>(
+    fn examine_clauses<'sc>(
         &self,
-        valuation: &impl Valuation,
-        clauses: impl Iterator<Item = &'a StoredClause>,
+        val: &impl Valuation,
+        clauses: impl Iterator<Item = &'sc StoredClause>,
     ) -> SolveStatus {
         let mut status = SolveStatus::new();
 
         for stored_clause in clauses {
-            // let collected_choices = stored_clause.clause().collect_choices(valuation);
-            let collected_choices = stored_clause.watch_choices(valuation);
-            if let Some(the_unset) = collected_choices {
+            if let Some(the_unset) = stored_clause.watch_choices(val) {
                 match the_unset.len() {
                     0 => {
-                        if self.current_level().index() > 0
-                            && stored_clause.clause().literals().any(|lit| {
-                                lit.v_id == self.current_level().get_choice().unwrap().v_id
-                            })
-                        {
-                            status.choice_conflicts.push((
-                                stored_clause.id(),
-                                self.current_level().get_choice().unwrap(),
-                            ));
-                        } else {
-                            status.unsat.push(stored_clause.id());
-                        }
+                        status.unsat.push(stored_clause.id());
                     }
                     1 => {
                         let the_pair: (ClauseId, Literal) =
                             (stored_clause.id(), *the_unset.first().unwrap());
-                        if self.current_level().index() > 0
-                            && the_pair.1.v_id == self.current_level().get_choice().unwrap().v_id
-                        {
-                            status.choice_conflicts.push(the_pair)
-                        } else {
-                            status.implications.push(the_pair);
-                        }
+                        status.implications.push(the_pair);
                     }
                     _ => {}
                 }

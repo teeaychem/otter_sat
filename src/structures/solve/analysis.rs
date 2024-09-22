@@ -10,7 +10,6 @@ impl Solve<'_> {
     pub fn analyse_conflict(
         &mut self,
         clause_id: ClauseId,
-        _lit: Option<Literal>,
     ) -> Result<SolveOk, SolveError> {
         // match self.simple_analysis_one(clause_id) {
         match self.simple_analysis_two(clause_id) {
@@ -45,11 +44,11 @@ impl Solve<'_> {
     pub fn attempt_fix(
         &mut self,
         clause_id: ClauseId,
-        lit: Option<Literal>,
     ) -> Result<SolveOk, SolveError> {
+        log::warn!("Attempting fix on clause {clause_id} at level {}", self.current_level().index());
         match self.current_level().index() {
             0 => Err(SolveError::NoSolution),
-            _ => match self.analyse_conflict(clause_id, Some(lit.unwrap())) {
+            _ => match self.analyse_conflict(clause_id) {
                 Ok(SolveOk::AssertingClause(level)) => {
                     self.backjump(level);
                     Ok(SolveOk::AssertingClause(level))
@@ -59,7 +58,7 @@ impl Solve<'_> {
                     let _ = self.set_literal(literal, LiteralSource::Deduced);
                     Ok(SolveOk::Deduction(literal))
                 }
-                _ => panic!("Analysis failed given: Clause: {clause_id} Literal: {lit:?}"),
+                _ => panic!("Analysis failed given: Clause: {clause_id}"),
             },
         }
     }
