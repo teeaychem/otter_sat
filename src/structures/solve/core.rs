@@ -28,7 +28,7 @@ pub struct Solve<'formula> {
     pub variables: Vec<Variable>,
     pub valuation: Vec<Option<bool>>,
     pub levels: Vec<Level>,
-    pub clauses: Vec<StoredClause>,
+    pub clauses: BTreeSet<StoredClause>,
     pub graph: ImplicationGraph,
 }
 
@@ -57,7 +57,7 @@ impl Solve<'_> {
             variables: formula.vars().clone(),
             valuation: Vec::<Option<bool>>::new_for_variables(formula.vars().len()),
             levels: vec![Level::new(0)],
-            clauses: vec![],
+            clauses: BTreeSet::new(),
             graph: ImplicationGraph::new_for(formula),
         };
 

@@ -152,7 +152,6 @@ impl ImplicationGraph {
     }
 
     fn add_temporary_falsum(&mut self, lits: impl Iterator<Item = Literal>) -> NodeIndex {
-        log::warn!("Temporary falsum");
         let falsum = self.graph.add_node(ImplicationNode {
             level: 0, // as the falsum is temporary and the level is unimportant, it's fixed to 0
             item: NodeItem::Falsum,
@@ -225,8 +224,10 @@ impl ImplicationGraph {
     ) -> Option<Literal> {
         log::warn!("Finding immediate dominator");
         let falsum = self.add_temporary_falsum(lits);
+        log::warn!("Added falsum");
         let root = self.get_literal(choice_lit);
         let dominators = simple_fast(&self.graph, root);
+        log::warn!("Found dominators");
         let immediate_dominator = dominators.immediate_dominator(falsum);
         self.remove_node(falsum);
         match immediate_dominator {
