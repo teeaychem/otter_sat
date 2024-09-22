@@ -1,4 +1,4 @@
-use crate::structures::{LevelIndex, ClauseId};
+use crate::structures::{ClauseId, ClauseSource, LevelIndex};
 
 pub type VariableId = usize;
 
@@ -9,6 +9,7 @@ pub struct Variable {
     id: VariableId,
     positive_occurrences: Vec<ClauseId>,
     negative_occurrences: Vec<ClauseId>,
+    pub activity: f32,
 }
 
 impl Variable {
@@ -19,6 +20,7 @@ impl Variable {
             id,
             positive_occurrences: Vec::new(),
             negative_occurrences: Vec::new(),
+            activity: 0.0,
         }
     }
 
@@ -42,15 +44,20 @@ impl Variable {
         self.id
     }
 
-    pub fn note_occurence(&mut self, clause_id: ClauseId, polarity: bool) {
+    pub fn note_occurence(&mut self, clause_id: ClauseId, source: ClauseSource, polarity: bool) {
+        if let ClauseSource::Resolution = source { self.activity += 1.0 }
+
         match polarity {
             true => self.positive_occurrences.push(clause_id),
-            false => self.negative_occurrences.push(clause_id)
+            false => self.negative_occurrences.push(clause_id),
         }
     }
 
     pub fn occurrences(&self) -> impl Iterator<Item = ClauseId> + '_ {
-        self.positive_occurrences.iter().chain(&self.negative_occurrences).cloned()
+        self.positive_occurrences
+            .iter()
+            .chain(&self.negative_occurrences)
+            .cloned()
     }
 }
 
