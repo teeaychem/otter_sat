@@ -131,6 +131,7 @@ impl Solve<'_> {
                 .immediate_dominators(the_resolved_clause.literals(), the_conflict_level_choice)
                 .expect("No immediate dominator");
 
+            log::warn!("Resolution on paths…");
             for literal in the_conflict_clause.as_ref()?.literals() {
                 match self
                     .graph

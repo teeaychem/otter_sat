@@ -1,3 +1,5 @@
+use std::borrow::BorrowMut;
+
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{
     Clause, ClauseId, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource,
@@ -20,7 +22,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                 for literal in clause.clause().literals() {
                     self.variables[literal.v_id].note_occurence(clause.id(), src, literal.polarity);
                 }
-                self.clauses.push(clause);
+                self.clauses.insert(clause);
             }
         }
     }
@@ -55,11 +57,25 @@ impl<'borrow, 'solve> Solve<'solve> {
                     let occurrences = self.variables[lit.v_id].occurrences().collect::<Vec<_>>();
                     let valuation = self.valuation.clone();
                     for clause_id in occurrences {
-                        let clause = self.stored_clause_mut(clause_id);
-                        match clause.update_watch(&valuation, lit.v_id) {
-                            true => self.current_level_mut().note_watch(lit),
-                            false => (),
-                        };
+                        let clause = self.get_stored_clause(clause_id);
+
+                        /*
+                        Set does not provide the option of a mutable borrow, but keeping clauses in a vector is less efficient for lookup.
+                        As StoredClause ordering is determined by the clause id and the id is unaffected by updating the watch literals, there's no underlying issue with mutating the stored clause here.
+                         */
+                        unsafe {
+                            let the_clause = clause as *const StoredClause;
+
+                            match Option::expect(
+                                the_clause.cast_mut().as_mut(),
+                                "Failed to get clause",
+                            )
+                            .update_watch(&valuation, lit.v_id)
+                            {
+                                true => self.current_level_mut().note_watch(lit),
+                                false => (),
+                            };
+                        }
                     }
                 }
                 match src {
@@ -157,9 +173,9 @@ impl<'borrow, 'solve> Solve<'solve> {
 }
 
 impl Solve<'_> {
-    pub fn stored_clause_mut(&mut self, id: ClauseId) -> &mut StoredClause {
+    pub fn stored_clause_mut(&mut self, id: ClauseId) -> &StoredClause {
         self.clauses
-            .iter_mut()
+            .iter()
             .find(|stored_clause| stored_clause.id() == id)
             .unwrap()
     }
