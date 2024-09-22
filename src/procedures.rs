@@ -44,27 +44,25 @@ pub fn binary_resolution<T: Clause>(cls_a: &T, cls_b: &T, v_id: VariableId) -> O
     let mut clause_a_value = None;
     let mut counterpart_found = false;
     for literal in cls_a.literals() {
-        if literal.v_id == v_id
-            && (clause_a_value.is_none() || clause_a_value == Some(literal.polarity))
-        {
-            clause_a_value = Some(literal.polarity);
-        } else {
+        if literal.v_id != v_id {
             the_clause.insert(literal);
+        } else if clause_a_value.is_none() {
+            clause_a_value = Some(literal.polarity);
         }
     }
     if clause_a_value.is_none() {
-        log::warn!("Resolution: {v_id} not found in {}", cls_a.as_string());
+        log::error!("Resolution: {v_id} not found in {}", cls_a.as_string());
         return None;
     }
     for literal in cls_b.literals() {
-        if literal.v_id == v_id && clause_a_value != Some(literal.polarity) {
-            counterpart_found = true;
-        } else {
+        if literal.v_id != v_id {
             the_clause.insert(literal);
+        } else if !counterpart_found && Some(literal.polarity) != clause_a_value {
+            counterpart_found = true;
         }
     }
     if !counterpart_found {
-        log::warn!("Resolution: {v_id} not found in {}", cls_b.as_string());
+        log::error!("Resolution: {v_id} not found in {}", cls_b.as_string());
         return None;
     }
     Some(the_clause.iter().cloned().collect::<Vec<_>>())
