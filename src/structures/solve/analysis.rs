@@ -32,8 +32,8 @@ impl Solve<'_> {
 
                         let expected_valuation = self.valuation_before_choice_at(backjump_level);
 
-                        let id = self.add_clause(resolved_clause, ClauseSource::Resolution, &expected_valuation);
-                        self.resolution_graph.add_resolution_by_ids(antecedents.iter().cloned(), id);
+                        let sc = self.add_clause(resolved_clause, ClauseSource::Resolution, &expected_valuation);
+                        self.resolution_graph.add_resolution(antecedents.iter().cloned(), sc);
 
                         Ok(SolveOk::AssertingClause(backjump_level))
                     }
@@ -103,7 +103,7 @@ impl Solve<'_> {
     pub fn simple_analysis_two(
         &mut self,
         stored_clause: Rc<StoredClause>,
-    ) -> Option<(Vec<ClauseId>, ClauseVec)> {
+    ) -> Option<(Vec<Rc<StoredClause>>, ClauseVec)> {
         log::warn!("Simple analysis two");
         log::warn!("The valuation is: {}", self.valuation.as_internal_string());
         /*
@@ -159,14 +159,13 @@ impl Solve<'_> {
                             )
                             .expect("Resolution failed")
                             .as_vec();
-                            clauses_used.push(path_clause.id());
+                            clauses_used.push(path_clause.clone());
                         };
                     }
                 }
             }
         }
 
-        println!("Clauses used: {:?}", clauses_used);
         Some((clauses_used, the_resolved_clause))
     }
 }
