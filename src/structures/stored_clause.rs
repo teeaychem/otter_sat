@@ -1,7 +1,11 @@
 use crate::structures::{Clause, ClauseId, ClauseVec, Literal, Valuation, VariableId};
+use petgraph::prelude::NodeIndex;
 
-use std::{borrow::Borrow, cell::Cell};
 use std::rc::Rc;
+use std::{
+    borrow::Borrow,
+    cell::{Cell, OnceCell},
+};
 
 #[derive(Clone, Copy, Debug)]
 pub enum ClauseSource {
@@ -12,6 +16,7 @@ pub enum ClauseSource {
 #[derive(Clone, Debug)]
 pub struct StoredClause {
     id: ClauseId,
+    nx: OnceCell<NodeIndex>,
     source: ClauseSource,
     clause: ClauseVec,
     watch_a: Cell<usize>,
@@ -36,6 +41,7 @@ impl StoredClause {
 
         let mut the_clause = StoredClause {
             id,
+            nx: OnceCell::new(),
             clause: clause.as_vec(),
             source,
             watch_a: 0.into(),
@@ -56,6 +62,17 @@ impl StoredClause {
 
     pub fn id(&self) -> ClauseId {
         self.id
+    }
+
+    pub fn nx(&self) -> NodeIndex {
+        match self.nx.get() {
+            None => panic!("heck"),
+            Some(&x) => x,
+        }
+    }
+
+    pub fn set_nx(&self, nx: NodeIndex) {
+        let _ = self.nx.set(nx);
     }
 
     pub fn source(&self) -> ClauseSource {

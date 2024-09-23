@@ -78,8 +78,8 @@ impl Solve<'_> {
                     }
                 }
                 _ => {
-                    let clause_id = the_solve.add_clause(as_vec, ClauseSource::Formula, &empty_val);
-                    the_solve.resolution_graph.add_clause(clause_id);
+                    let clause = the_solve.add_clause(as_vec, ClauseSource::Formula, &empty_val);
+                    the_solve.resolution_graph.add_clause(clause);
                 }
             }
         });

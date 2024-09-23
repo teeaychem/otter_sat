@@ -5,6 +5,9 @@ use petgraph::{
 
 use crate::structures::ClauseId;
 use std::collections::BTreeSet;
+use std::rc::Rc;
+
+use super::StoredClause;
 
 #[derive(Debug)]
 enum Node {
@@ -28,13 +31,19 @@ impl ResolutionGraph {
         }
     }
 
-    pub fn add_clause(&mut self, id: ClauseId) {
-        let the_node = self.graph.add_node(Node::Clause(id));
+    pub fn add_clause(&mut self, sc: Rc<StoredClause>) {
+        let the_node = self.graph.add_node(Node::Clause(sc.id()));
+        sc.set_nx(the_node);
         self.graph.add_edge(self.the_true, the_node, ());
     }
 
-    pub fn add_resolution_by_ids(&mut self, from: impl Iterator<Item = ClauseId>, to: ClauseId) {
-        let to_node = self.graph.add_node(Node::Clause(to));
+    pub fn add_resolution_by_ids(
+        &mut self,
+        from: impl Iterator<Item = ClauseId>,
+        to: Rc<StoredClause>,
+    ) {
+        let to_node = self.graph.add_node(Node::Clause(to.id()));
+        to.set_nx(to_node);
 
         let mut bfs = Bfs::new(&self.graph, self.the_true);
 
@@ -67,6 +76,17 @@ impl ResolutionGraph {
         }
     }
 
-    // TODO: store node ids with clauses and refactor for efficient creation.
-    // In particular, as a clause id *could* be known in advance it's possible to add edges during resolution to save visiting a clause multiple times
+    // In particular, a clause id *could* be known in advance it's possible to add edges during resolution to save visiting a clause multiple times
+    pub fn add_resolution(
+        &mut self,
+        from: impl Iterator<Item = Rc<StoredClause>>,
+        to: Rc<StoredClause>,
+    ) {
+        let to_node = self.graph.add_node(Node::Clause(to.id()));
+        to.set_nx(to_node);
+
+        for antecedent in from {
+            self.graph.add_edge(antecedent.nx(), to_node, ());
+        }
+    }
 }
