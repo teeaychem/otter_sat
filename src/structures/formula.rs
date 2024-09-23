@@ -79,6 +79,8 @@ impl Formula {
                 }
             };
         }
+        the_clause.sort_unstable();
+        the_clause.dedup();
         Ok(the_clause)
     }
 }

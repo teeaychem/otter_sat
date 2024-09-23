@@ -46,15 +46,16 @@ impl PartialOrd for Literal {
     }
 }
 
+/// Literals are ordered by id and polarity on a tie with false < true.
 impl Ord for Literal {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         if self.v_id == other.v_id {
             if self.polarity == other.polarity {
                 std::cmp::Ordering::Equal
             } else if self.polarity {
-                std::cmp::Ordering::Less
-            } else {
                 std::cmp::Ordering::Greater
+            } else {
+                std::cmp::Ordering::Less
             }
         } else {
             self.v_id.cmp(&other.v_id)
