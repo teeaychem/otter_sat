@@ -14,25 +14,26 @@ impl Solve<'_> {
     ) -> Result<SolveOk, SolveError> {
         // match self.simple_analysis_one(stored_clause) {
         match self.simple_analysis_two(stored_clause.clone()) {
-            Some(clause) => {
-                match clause.len() {
+            Some((antecedents, resolved_clause)) => {
+                match resolved_clause.len() {
                     0 => panic!("Empty clause from analysis"),
                     1 => {
-                        let the_literal = *clause.first().unwrap();
+                        let the_literal = *resolved_clause.first().unwrap();
                         Ok(SolveOk::Deduction(the_literal))
                     }
                     _ => {
                         // the relevant backtrack level is either 0 is analysis is being performed at 0 or the first decision level in the resolution clause prior to the current level.
                         // For, if a prior level does *not* appear in the resolution clause then the level provided no relevant information.
                         let backjump_level = self
-                            .decision_levels_of(&clause)
+                            .decision_levels_of(&resolved_clause)
                             .filter(|level| *level != self.current_level().index())
                             .max()
                             .unwrap_or(0);
 
                         let expected_valuation = self.valuation_before_choice_at(backjump_level);
 
-                        self.add_clause(clause, ClauseSource::Resolution, &expected_valuation);
+                        let id = self.add_clause(resolved_clause, ClauseSource::Resolution, &expected_valuation);
+                        self.resolution_graph.add_resolution_by_ids(antecedents.iter().cloned(), id);
 
                         Ok(SolveOk::AssertingClause(backjump_level))
                     }
@@ -73,7 +74,7 @@ impl Solve<'_> {
             log::trace!("Analysis clause: {}", the_resolved_clause.as_string());
             // the current choice will never be a resolution literal, as these are those literals in the clause which are the result of propagation
             let resolution_literals = self
-                .graph
+                .implication_graph
                 .resolution_candidates_at_level(&the_resolved_clause, self.current_level().index())
                 .collect::<BTreeSet<_>>();
 
@@ -102,7 +103,7 @@ impl Solve<'_> {
     pub fn simple_analysis_two(
         &mut self,
         stored_clause: Rc<StoredClause>,
-    ) -> Option<ClauseVec> {
+    ) -> Option<(Vec<ClauseId>, ClauseVec)> {
         log::warn!("Simple analysis two");
         log::warn!("The valuation is: {}", self.valuation.as_internal_string());
         /*
@@ -129,14 +130,17 @@ impl Solve<'_> {
         };
 
         let the_immediate_domiator = self
-            .graph
+            .implication_graph
             .immediate_dominators(the_resolved_clause.literals(), the_conflict_level_choice)
             .expect("No immediate dominator");
 
         log::warn!("Resolution on paths…");
+
+        let mut clauses_used = vec![];
+
         for literal in the_conflict_clause.literals() {
             match self
-                .graph
+                .implication_graph
                 .some_clause_path_between(the_immediate_domiator, literal.negate())
             {
                 None => continue,
@@ -155,12 +159,14 @@ impl Solve<'_> {
                             )
                             .expect("Resolution failed")
                             .as_vec();
+                            clauses_used.push(path_clause.id());
                         };
                     }
                 }
             }
         }
 
-        Some(the_resolved_clause)
+        println!("Clauses used: {:?}", clauses_used);
+        Some((clauses_used, the_resolved_clause))
     }
 }
