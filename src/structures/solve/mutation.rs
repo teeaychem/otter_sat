@@ -1,9 +1,7 @@
-use std::borrow::BorrowMut;
-
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{
-    Clause, ClauseId, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource,
-    StoredClause, Valuation, ValuationError,
+    Clause, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource, StoredClause,
+    Valuation, ValuationError,
 };
 
 impl<'borrow, 'solve> Solve<'solve> {
@@ -160,13 +158,6 @@ impl<'borrow, 'solve> Solve<'solve> {
 }
 
 impl Solve<'_> {
-    pub fn stored_clause_mut(&mut self, id: ClauseId) -> &StoredClause {
-        self.clauses
-            .iter()
-            .find(|stored_clause| stored_clause.id() == id)
-            .unwrap()
-    }
-
     pub fn backtrack_once(&mut self) -> Result<SolveOk, SolveError> {
         if self.current_level().index() == 0 {
             Err(SolveError::NoSolution)
