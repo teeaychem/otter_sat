@@ -1,6 +1,7 @@
 use crate::structures::{
     Clause, ClauseId, ClauseSource, Formula, ImplicationGraph, Level, LevelIndex, Literal,
-    LiteralError, LiteralSource, StoredClause, Valuation, ValuationVec, Variable, VariableId,
+    LiteralError, LiteralSource, ResolutionGraph, StoredClause, Valuation, ValuationVec, Variable,
+    VariableId,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -30,7 +31,8 @@ pub struct Solve<'formula> {
     pub valuation: Vec<Option<bool>>,
     pub levels: Vec<Level>,
     pub clauses: BTreeSet<Rc<StoredClause>>,
-    pub graph: ImplicationGraph,
+    pub implication_graph: ImplicationGraph,
+    pub resolution_graph: ResolutionGraph,
 }
 
 #[derive(Debug, PartialEq)]
@@ -59,7 +61,8 @@ impl Solve<'_> {
             valuation: Vec::<Option<bool>>::new_for_variables(formula.vars().len()),
             levels: vec![Level::new(0)],
             clauses: BTreeSet::new(),
-            graph: ImplicationGraph::new_for(formula),
+            implication_graph: ImplicationGraph::new_for(formula),
+            resolution_graph: ResolutionGraph::new(),
         };
 
         let empty_val = the_solve.valuation.clone();
@@ -74,7 +77,10 @@ impl Solve<'_> {
                         Err(e) => panic!("{e:?}"),
                     }
                 }
-                _ => the_solve.add_clause(as_vec, ClauseSource::Formula, &empty_val),
+                _ => {
+                    let clause_id = the_solve.add_clause(as_vec, ClauseSource::Formula, &empty_val);
+                    the_solve.resolution_graph.add_clause(clause_id);
+                }
             }
         });
 
@@ -129,7 +135,8 @@ impl Solve<'_> {
         self.clauses
             .iter()
             .find(|stored_clause| stored_clause.id() == id)
-            .expect("Unable to find clause with {id}").clone()
+            .expect("Unable to find clause with {id}")
+            .clone()
     }
 
     pub fn var_by_id(&self, id: VariableId) -> Option<&Variable> {

@@ -1,7 +1,7 @@
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{
-    Clause, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource, StoredClause,
-    Valuation, ValuationError,
+    Clause, ClauseId, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource,
+    StoredClause, Valuation, ValuationError,
 };
 
 impl<'borrow, 'solve> Solve<'solve> {
@@ -10,13 +10,14 @@ impl<'borrow, 'solve> Solve<'solve> {
         clause: impl Clause,
         src: ClauseSource,
         val: &impl Valuation,
-    ) {
+    ) -> ClauseId {
         let clause_as_vec = clause.as_vec();
         match clause_as_vec.len() {
             0 => panic!("Attempt to add an empty clause"),
             1 => panic!("Attempt to add an single literal clause"),
             _ => {
                 let clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, src, val);
+                let id = clause.id();
                 for literal in clause.clause().literals() {
                     self.variables[literal.v_id].note_occurence(
                         clause.clone(),
@@ -25,6 +26,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                     );
                 }
                 self.clauses.insert(clause);
+                id
             }
         }
     }
@@ -68,21 +70,24 @@ impl<'borrow, 'solve> Solve<'solve> {
                 match &src {
                     LiteralSource::Choice => {
                         self.current_level_mut().record_literal(lit, src);
-                        self.graph
-                            .add_literal(lit, self.current_level().index(), false);
+                        self.implication_graph.add_literal(
+                            lit,
+                            self.current_level().index(),
+                            false,
+                        );
                         self.variables[lit.v_id].set_decision_level(level_index);
                         log::debug!("+Set choice: {lit}");
                     }
                     LiteralSource::Assumption | LiteralSource::Deduced => {
                         self.variables[lit.v_id].set_decision_level(level_index);
                         self.top_level_mut().record_literal(lit, src);
-                        self.graph.add_literal(lit, level_index, false);
+                        self.implication_graph.add_literal(lit, level_index, false);
                         log::debug!("+Set assumption/deduction: {lit}");
                     }
                     LiteralSource::HobsonChoice => {
                         self.variables[lit.v_id].set_decision_level(level_index);
                         self.top_level_mut().record_literal(lit, src);
-                        self.graph.add_literal(lit, level_index, false);
+                        self.implication_graph.add_literal(lit, level_index, false);
                         log::debug!("+Set hobson choice: {lit}");
                     }
                     LiteralSource::StoredClause(stored_clause) => {
@@ -97,7 +102,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                             .literals()
                             .map(|l| l.negate());
 
-                        self.graph.add_implication(
+                        self.implication_graph.add_implication(
                             literals,
                             lit,
                             level_index,
@@ -110,13 +115,13 @@ impl<'borrow, 'solve> Solve<'solve> {
                         self.variables[lit.v_id].set_decision_level(level_index);
                         self.current_level_mut().record_literal(lit, src);
                         if level_index != 0 {
-                            self.graph.add_contradiction(
+                            self.implication_graph.add_contradiction(
                                 self.current_level().get_choice().expect("No choice 0+"),
                                 lit,
                                 self.current_level().index(),
                             );
                         } else {
-                            self.graph.add_literal(lit, level_index, false);
+                            self.implication_graph.add_literal(lit, level_index, false);
                         }
                         log::debug!("+Set conflict: {lit}");
                     }
@@ -165,7 +170,7 @@ impl Solve<'_> {
             Err(SolveError::NoSolution)
         } else {
             let the_level = self.levels.pop().unwrap();
-            self.graph.remove_level(&the_level);
+            self.implication_graph.remove_level(&the_level);
             for literal in the_level.literals() {
                 self.unset_literal(literal)
             }
