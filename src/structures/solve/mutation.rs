@@ -3,6 +3,7 @@ use crate::structures::{
     Clause, ClauseId, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource,
     StoredClause, Valuation, ValuationError,
 };
+use std::rc::Rc;
 
 impl<'borrow, 'solve> Solve<'solve> {
     pub fn add_clause(
@@ -10,14 +11,14 @@ impl<'borrow, 'solve> Solve<'solve> {
         clause: impl Clause,
         src: ClauseSource,
         val: &impl Valuation,
-    ) -> ClauseId {
+    ) -> Rc<StoredClause> {
         let clause_as_vec = clause.as_vec();
         match clause_as_vec.len() {
             0 => panic!("Attempt to add an empty clause"),
             1 => panic!("Attempt to add an single literal clause"),
             _ => {
                 let clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, src, val);
-                let id = clause.id();
+
                 for literal in clause.clause().literals() {
                     self.variables[literal.v_id].note_occurence(
                         clause.clone(),
@@ -25,8 +26,8 @@ impl<'borrow, 'solve> Solve<'solve> {
                         literal.polarity,
                     );
                 }
-                self.clauses.insert(clause);
-                id
+                self.clauses.insert(clause.clone());
+                clause
             }
         }
     }
