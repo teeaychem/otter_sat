@@ -1,6 +1,7 @@
 use crate::structures::{ClauseId, ClauseSource, LevelIndex};
 
 pub type VariableId = usize;
+use std::cell::Cell;
 
 #[derive(Clone, Debug)]
 pub struct Variable {
@@ -9,7 +10,7 @@ pub struct Variable {
     id: VariableId,
     positive_occurrences: Vec<ClauseId>,
     negative_occurrences: Vec<ClauseId>,
-    pub activity: f32,
+    activity: Cell<f32>,
 }
 
 impl Variable {
@@ -20,7 +21,7 @@ impl Variable {
             id,
             positive_occurrences: Vec::new(),
             negative_occurrences: Vec::new(),
-            activity: 0.0,
+            activity: 0.0.into(),
         }
     }
 
@@ -44,8 +45,26 @@ impl Variable {
         self.id
     }
 
+    pub fn increase_activity(&self, by: f32) {
+        let mut activity = self.activity.get();
+        activity += by;
+        self.activity.replace(activity);
+    }
+
+    pub fn divide_activity(&self, by: f32) {
+        let mut activity = self.activity.get();
+        activity /= by;
+        self.activity.replace(activity);
+    }
+
+    pub fn activity(&self) -> f32 {
+        self.activity.get()
+}
+
     pub fn note_occurence(&mut self, clause_id: ClauseId, source: ClauseSource, polarity: bool) {
-        if let ClauseSource::Resolution = source { self.activity += 1.0 }
+        if let ClauseSource::Resolution = source {
+            self.increase_activity(1.0)
+        }
 
         match polarity {
             true => self.positive_occurrences.push(clause_id),
