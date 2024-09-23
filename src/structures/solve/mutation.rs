@@ -59,23 +59,10 @@ impl<'borrow, 'solve> Solve<'solve> {
                     for clause_id in occurrences {
                         let clause = self.get_stored_clause(clause_id);
 
-                        /*
-                        Set does not provide the option of a mutable borrow, but keeping clauses in a vector is less efficient for lookup.
-                        As StoredClause ordering is determined by the clause id and the id is unaffected by updating the watch literals, there's no underlying issue with mutating the stored clause here.
-                         */
-                        unsafe {
-                            let the_clause = clause as *const StoredClause;
-
-                            match Option::expect(
-                                the_clause.cast_mut().as_mut(),
-                                "Failed to get clause",
-                            )
-                            .update_watch(&valuation, lit.v_id)
-                            {
-                                true => self.current_level_mut().note_watch(lit),
-                                false => (),
-                            };
-                        }
+                        match clause.update_watch(&valuation, lit.v_id) {
+                            true => self.current_level_mut().note_watch(lit),
+                            false => (),
+                        };
                     }
                 }
                 match src {
