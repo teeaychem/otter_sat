@@ -1,6 +1,7 @@
 use crate::structures::{Clause, ClauseId, ClauseVec, Literal, Valuation, VariableId};
 
 use std::{borrow::Borrow, cell::Cell};
+use std::rc::Rc;
 
 #[derive(Clone, Copy, Debug)]
 pub enum ClauseSource {
@@ -28,7 +29,7 @@ impl StoredClause {
         clause: &impl Clause,
         source: ClauseSource,
         val: &impl Valuation,
-    ) -> StoredClause {
+    ) -> Rc<StoredClause> {
         if clause.as_vec().len() < 2 {
             panic!("Short clause (≤ 1)")
         }
@@ -50,7 +51,7 @@ impl StoredClause {
                 .into()
         };
 
-        the_clause
+        Rc::new(the_clause)
     }
 
     pub fn id(&self) -> ClauseId {
