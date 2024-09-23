@@ -9,8 +9,8 @@ use std::collections::BTreeSet;
 use std::rc::Rc;
 
 pub struct SolveStatus {
-    pub implications: Vec<(ClauseId, Literal)>,
-    pub unsat: Vec<ClauseId>,
+    pub implications: Vec<(Rc<StoredClause>, Literal)>,
+    pub unsat: Vec<Rc<StoredClause>>,
 }
 
 impl SolveStatus {
@@ -45,8 +45,8 @@ pub enum SolveError {
     Literal(LiteralError),
     // Clause(ClauseError),
     OutOfBounds,
-    UnsatClause(ClauseId),
-    Conflict(ClauseId, Literal),
+    UnsatClause(Rc<StoredClause>),
+    Conflict(Rc<StoredClause>, Literal),
     NoSolution,
 }
 
@@ -160,8 +160,8 @@ impl Solve<'_> {
         });
     }
 
-    pub fn select_unsat(&self, clauses: &[ClauseId]) -> Option<ClauseId> {
-        clauses.first().copied()
+    pub fn select_unsat(&self, clauses: &[Rc<StoredClause>]) -> Option<Rc<StoredClause>> {
+        clauses.first().cloned()
     }
 }
 
@@ -177,11 +177,11 @@ impl Solve<'_> {
             if let Some(the_unset) = stored_clause.watch_choices(val) {
                 match the_unset.len() {
                     0 => {
-                        status.unsat.push(stored_clause.id());
+                        status.unsat.push(stored_clause.clone());
                     }
                     1 => {
-                        let the_pair: (ClauseId, Literal) =
-                            (stored_clause.id(), *the_unset.first().unwrap());
+                        let the_pair: (Rc<StoredClause>, Literal) =
+                            (stored_clause.clone(), *the_unset.first().unwrap());
                         status.implications.push(the_pair);
                     }
                     _ => {}
@@ -205,10 +205,6 @@ impl Solve<'_> {
         let clauses = literals
             .iter()
             .flat_map(|l| self.variables[l.v_id].occurrences())
-            .map(|clause_id| {
-                let x = self.get_stored_clause(clause_id);
-                x
-            })
             .collect::<BTreeSet<_>>()
             .into_iter();
 
@@ -217,8 +213,8 @@ impl Solve<'_> {
 }
 
 impl Solve<'_> {
-    pub fn process_unsat(&mut self, clause_ids: &[ClauseId]) {
-        for &conflict in clause_ids {
+    pub fn process_unsat(&mut self, stored_clauses: &[Rc<StoredClause>]) {
+        for conflict in stored_clauses {
             self.conflicts += 1;
             if self.conflicts % 256 == 0 {
                 for variable in &mut self.variables {
@@ -226,7 +222,7 @@ impl Solve<'_> {
                 }
             }
 
-            for literal in self.get_stored_clause(conflict).clause().variables() {
+            for literal in conflict.clause().variables() {
                 self.variables[literal].increase_activity(1.0);
             }
         }

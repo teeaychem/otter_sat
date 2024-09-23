@@ -355,7 +355,7 @@ impl<'borrow, 'graph> ImplicationGraph {
         &self,
         mut path: impl Iterator<Item = &'borrow NodeIndex>,
     ) -> Vec<Rc<StoredClause>> {
-        let mut clause_ids = vec![];
+        let mut stored_clauses = vec![];
         if let Some(mut from_node) = path.next() {
             let mut to_node;
             for node in path {
@@ -367,15 +367,15 @@ impl<'borrow, 'graph> ImplicationGraph {
                     .weight()
                     .source;
                 match connecting_source {
-                    ImplicationSource::StoredClause(clause_id) => {
-                        clause_ids.push(clause_id.clone());
+                    ImplicationSource::StoredClause(stored_clause) => {
+                        stored_clauses.push(stored_clause.clone());
                     }
                     _ => panic!("Edge without clause"),
                 }
                 from_node = to_node;
             }
         }
-        clause_ids
+        stored_clauses
     }
 
     /// A path

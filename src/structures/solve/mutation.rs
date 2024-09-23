@@ -18,7 +18,11 @@ impl<'borrow, 'solve> Solve<'solve> {
             _ => {
                 let clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, src, val);
                 for literal in clause.clause().literals() {
-                    self.variables[literal.v_id].note_occurence(clause.id(), src, literal.polarity);
+                    self.variables[literal.v_id].note_occurence(
+                        clause.clone(),
+                        src,
+                        literal.polarity,
+                    );
                 }
                 self.clauses.insert(clause);
             }
@@ -54,16 +58,14 @@ impl<'borrow, 'solve> Solve<'solve> {
                 {
                     let occurrences = self.variables[lit.v_id].occurrences().collect::<Vec<_>>();
                     let valuation = self.valuation.clone();
-                    for clause_id in occurrences {
-                        let clause = self.get_stored_clause(clause_id);
-
+                    for clause in occurrences {
                         match clause.update_watch(&valuation, lit.v_id) {
                             true => self.current_level_mut().note_watch(lit),
                             false => (),
                         };
                     }
                 }
-                match src {
+                match &src {
                     LiteralSource::Choice => {
                         self.current_level_mut().record_literal(lit, src);
                         self.graph
@@ -83,14 +85,14 @@ impl<'borrow, 'solve> Solve<'solve> {
                         self.graph.add_literal(lit, level_index, false);
                         log::debug!("+Set hobson choice: {lit}");
                     }
-                    LiteralSource::StoredClause(clause_id) => {
+                    LiteralSource::StoredClause(stored_clause) => {
                         self.variables[lit.v_id].set_decision_level(level_index);
-                        self.current_level_mut().record_literal(lit, src);
+                        self.current_level_mut().record_literal(lit, src.clone());
 
                         let literals = self
                             .clauses
                             .iter()
-                            .find(|clause| clause.id() == clause_id)
+                            .find(|clause| clause.id() == stored_clause.id())
                             .unwrap()
                             .literals()
                             .map(|l| l.negate());
@@ -99,7 +101,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                             literals,
                             lit,
                             level_index,
-                            ImplicationSource::StoredClause(self.get_stored_clause(clause_id)),
+                            ImplicationSource::StoredClause(stored_clause.clone()),
                         );
 
                         log::debug!("+Set deduction: {lit}");
