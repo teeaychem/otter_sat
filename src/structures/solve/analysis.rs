@@ -8,10 +8,7 @@ use std::collections::BTreeSet;
 use std::rc::Rc;
 
 impl Solve<'_> {
-    pub fn analyse_conflict(
-        &mut self,
-        clause_id: ClauseId,
-    ) -> Result<SolveOk, SolveError> {
+    pub fn analyse_conflict(&mut self, clause_id: ClauseId) -> Result<SolveOk, SolveError> {
         // match self.simple_analysis_one(clause_id) {
         match self.simple_analysis_two(clause_id) {
             Some(clause) => {
@@ -42,11 +39,11 @@ impl Solve<'_> {
         }
     }
 
-    pub fn attempt_fix(
-        &mut self,
-        clause_id: ClauseId,
-    ) -> Result<SolveOk, SolveError> {
-        log::warn!("Attempting fix on clause {clause_id} at level {}", self.current_level().index());
+    pub fn attempt_fix(&mut self, clause_id: ClauseId) -> Result<SolveOk, SolveError> {
+        log::warn!(
+            "Attempting fix on clause {clause_id} at level {}",
+            self.current_level().index()
+        );
         match self.current_level().index() {
             0 => Err(SolveError::NoSolution),
             _ => match self.analyse_conflict(clause_id) {
@@ -110,58 +107,56 @@ impl Solve<'_> {
         For, ideally a conflict clause is only borrowed from the store of clauses, and this means either retreiving for the stored twice, or dereferencing the borrow so it can be used while mutably borrowing the solve to update the graph.
         As retreiving the stored clause is a basic find operation, unsafely dereferencing the borrow is preferred.
          */
-        unsafe {
-            let the_conflict_clause =
-                &self.get_stored_clause(conflict_clause_id) as *const Rc<StoredClause>;
-            log::warn!(
-                "Simple analysis two on: {}",
-                the_conflict_clause.as_ref()?.clause().as_string()
-            );
 
-            let mut the_resolved_clause = the_conflict_clause.as_ref()?.clause().as_vec();
-            let the_conflict_level_choice = {
-                let conflict_decision_level = self
-                    .decision_levels_of(the_conflict_clause.as_ref()?.clause())
-                    .max()
-                    .expect("No clause decision level");
-                self.level_choice(conflict_decision_level)
-            };
+        let the_conflict_clause = self.get_stored_clause(conflict_clause_id);
+        log::warn!(
+            "Simple analysis two on: {}",
+            the_conflict_clause.clause().as_string()
+        );
 
-            let the_immediate_domiator = self
+        let mut the_resolved_clause = the_conflict_clause.clause().as_vec();
+        let the_conflict_level_choice = {
+            let conflict_decision_level = self
+                .decision_levels_of(the_conflict_clause.clause())
+                .max()
+                .expect("No clause decision level");
+            self.level_choice(conflict_decision_level)
+        };
+
+        let the_immediate_domiator = self
+            .graph
+            .immediate_dominators(the_resolved_clause.literals(), the_conflict_level_choice)
+            .expect("No immediate dominator");
+
+        log::warn!("Resolution on paths…");
+        for literal in the_conflict_clause.literals() {
+            match self
                 .graph
-                .immediate_dominators(the_resolved_clause.literals(), the_conflict_level_choice)
-                .expect("No immediate dominator");
-
-            log::warn!("Resolution on paths…");
-            for literal in the_conflict_clause.as_ref()?.literals() {
-                match self
-                    .graph
-                    .some_clause_path_between(the_immediate_domiator, literal.negate())
-                {
-                    None => continue,
-                    Some(mut path_clause_ids) => {
-                        path_clause_ids.reverse(); // Not strictly necessary
-                        for clause_id in path_clause_ids {
-                            let path_clause = self.get_stored_clause(clause_id).clone();
-                            if let Some(shared_literal) =
-                                path_clause.clause().literals().find(|path_literal| {
-                                    the_resolved_clause.contains(&path_literal.negate())
-                                })
-                            {
-                                the_resolved_clause = binary_resolution(
-                                    &the_resolved_clause,
-                                    &path_clause.clause().as_vec(),
-                                    shared_literal.v_id,
-                                )
-                                .expect("Resolution failed")
-                                .to_vec();
-                            };
+                .some_clause_path_between(the_immediate_domiator, literal.negate())
+            {
+                None => continue,
+                Some(mut path_clause_ids) => {
+                    path_clause_ids.reverse(); // Not strictly necessary
+                    for clause_id in path_clause_ids {
+                        let path_clause = self.get_stored_clause(clause_id).clone();
+                        if let Some(shared_literal) =
+                            path_clause.clause().literals().find(|path_literal| {
+                                the_resolved_clause.contains(&path_literal.negate())
+                            })
+                        {
+                            the_resolved_clause = binary_resolution(
+                                &the_resolved_clause,
+                                &path_clause.clause().as_vec(),
+                                shared_literal.v_id,
+                            )
+                            .expect("Resolution failed")
+                            .to_vec();
                         };
                     }
                 }
             }
-
-            Some(the_resolved_clause)
         }
+
+        Some(the_resolved_clause)
     }
 }
