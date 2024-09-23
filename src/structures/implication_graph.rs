@@ -7,7 +7,7 @@ use petgraph::{
     visit::NodeRef,
 };
 
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 macro_rules! target_graph {
     () => {
@@ -265,7 +265,7 @@ impl ImplicationGraph {
     }
 }
 
-impl<'borrow, 'graph> ImplicationGraph {
+impl<'borrow> ImplicationGraph {
     pub fn remove_literals(&'borrow mut self, lits: impl Iterator<Item = Literal>) {
         lits.for_each(|literal| self.remove_literal(literal))
     }
@@ -324,30 +324,26 @@ impl<'borrow, 'graph> ImplicationGraph {
         &'borrow self,
         clause: &'borrow impl Clause,
     ) -> impl Iterator<Item = (Rc<StoredClause>, Literal)> + 'borrow {
-        clause
-            .literals()
-            .filter_map(move |literal| {
-                let the_node_index = self.variable_indicies[literal.v_id].expect("Missing node");
-                let the_literal_node = self
-                    .graph
-                    .node_weight(the_node_index)
-                    .expect("Missing node");
+        clause.literals().flat_map(move |literal| {
+            let the_node_index = self.variable_indicies[literal.v_id].expect("Missing node");
+            let the_literal_node = self
+                .graph
+                .node_weight(the_node_index)
+                .expect("Missing node");
 
-                match the_literal_node.item {
-                    NodeItem::Falsum => panic!("Literal from falsum"),
-                    NodeItem::Literal(l) => Some(
-                        self.graph
-                            .edges_directed(the_node_index, petgraph::Direction::Incoming)
-                            .filter_map(move |edge| match &edge.weight().source {
-                                ImplicationSource::StoredClause(stored_clause) => {
-                                    Some((stored_clause.clone(), l))
-                                }
-                                _ => None,
-                            }),
-                    ),
-                }
-            })
-            .flatten()
+            match the_literal_node.item {
+                NodeItem::Falsum => panic!("Literal from falsum"),
+                NodeItem::Literal(l) => self
+                    .graph
+                    .edges_directed(the_node_index, petgraph::Direction::Incoming)
+                    .filter_map(move |edge| match &edge.weight().source {
+                        ImplicationSource::StoredClause(stored_clause) => {
+                            Some((stored_clause.clone(), l))
+                        }
+                        _ => None,
+                    }),
+            }
+        })
     }
 
     /// Map a sequence of nodes the clauses which connect them
