@@ -379,7 +379,11 @@ impl<'borrow, 'graph> ImplicationGraph {
     }
 
     /// A path
-    pub fn some_clause_path_between(&self, from: Literal, to: Literal) -> Option<Vec<Rc<StoredClause>>> {
+    pub fn some_clause_path_between(
+        &self,
+        from: Literal,
+        to: Literal,
+    ) -> Option<Vec<Rc<StoredClause>>> {
         let from_node = self.get_literal(from).id();
         let to_node = self.get_literal(to).id();
         let mut paths =
