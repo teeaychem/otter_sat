@@ -1,5 +1,7 @@
 use crate::structures::{Clause, ClauseId, ClauseVec, Literal, Valuation, VariableId};
 
+use std::{borrow::Borrow, cell::Cell};
+
 #[derive(Clone, Copy, Debug)]
 pub enum ClauseSource {
     Formula,
@@ -11,8 +13,8 @@ pub struct StoredClause {
     id: ClauseId,
     source: ClauseSource,
     clause: ClauseVec,
-    watch_a: usize,
-    watch_b: usize,
+    watch_a: Cell<usize>,
+    watch_b: Cell<usize>,
 }
 
 /*
@@ -35,13 +37,18 @@ impl StoredClause {
             id,
             clause: clause.as_vec(),
             source,
-            watch_a: 0,
-            watch_b: 1,
+            watch_a: 0.into(),
+            watch_b: 1.into(),
         };
 
-        the_clause.watch_a = the_clause.some_preferred_index(val, None);
-        the_clause.watch_b =
-            the_clause.some_preferred_index(val, Some(the_clause.clause[the_clause.watch_a].v_id));
+        the_clause.watch_a = the_clause.some_preferred_index(val, None).into();
+
+        the_clause.watch_b = {
+            let literal_a = the_clause.clause[the_clause.watch_a.get()];
+            the_clause
+                .some_preferred_index(val, Some(literal_a.v_id))
+                .into()
+        };
 
         the_clause
     }
@@ -161,9 +168,9 @@ impl StoredClause {
 
     /// Updates the two watched literals on the assumption that only the valuation of the given id has changed.
     /// Return true if the watch is 'informative' (the clause is unit or conflicts on val)
-    pub fn update_watch(&mut self, val: &impl Valuation, v_id: VariableId) -> bool {
-        let current_a = self.clause[self.watch_a];
-        let current_b = self.clause[self.watch_b];
+    pub fn update_watch(&self, val: &impl Valuation, v_id: VariableId) -> bool {
+        let current_a = self.clause[self.watch_a.get()];
+        let current_b = self.clause[self.watch_b.get()];
 
         let polarity_match = {
             let valuation_polarity = val.of_v_id(v_id).unwrap().unwrap();
@@ -173,34 +180,34 @@ impl StoredClause {
 
         if polarity_match {
             let index_of_literal = self.index_of(v_id);
-            if self.watch_a != index_of_literal && self.watch_b != index_of_literal {
+            if self.watch_a.get() != index_of_literal && self.watch_b.get() != index_of_literal {
                 if Some(current_a.polarity) != val.of_v_id(current_a.v_id).unwrap() {
-                    self.watch_a = index_of_literal;
+                    self.watch_a.replace(index_of_literal);
                 } else if Some(current_b.polarity) != val.of_v_id(current_b.v_id).unwrap() {
-                    self.watch_b = index_of_literal;
+                    self.watch_b.replace(index_of_literal);
                 }
             }
         } else if current_a.v_id == v_id {
             if let Some(new_idx) = self.some_none_index(val, Some(current_b.v_id)) {
-                self.watch_a = new_idx;
+                self.watch_a.replace(new_idx);
             };
         } else if current_b.v_id == v_id {
             if let Some(new_idx) = self.some_none_index(val, Some(current_a.v_id)) {
-                self.watch_b = new_idx;
+                self.watch_b.replace(new_idx);
             };
         }
 
-        let current_a = self.clause[self.watch_a];
+        let current_a = self.clause[self.watch_a.get()];
         let current_a_match = Some(current_a.polarity) == val.of_v_id(current_a.v_id).unwrap();
-        let current_b = self.clause[self.watch_b];
+        let current_b = self.clause[self.watch_b.get()];
         let current_b_match = Some(current_b.polarity) == val.of_v_id(current_b.v_id).unwrap();
 
         !(current_a_match || current_b_match)
     }
 
     pub fn watch_choices(&self, val: &impl Valuation) -> Option<Vec<Literal>> {
-        let a_literal = self.clause[self.watch_a];
-        let b_literal = self.clause[self.watch_b];
+        let a_literal = self.clause[self.watch_a.get()];
+        let b_literal = self.clause[self.watch_b.get()];
 
         let a_val = val.of_v_id(a_literal.v_id);
         let b_val = val.of_v_id(b_literal.v_id);
