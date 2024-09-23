@@ -59,7 +59,7 @@ impl Solve<'_> {
                     log::trace!(
                         "Choice: {available_v_id} @ {} with activity {}",
                         self.current_level().index(),
-                        self.variables[available_v_id].activity
+                        self.variables[available_v_id].activity()
                     );
 
                     let _ = self
