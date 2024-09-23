@@ -221,17 +221,12 @@ impl Solve<'_> {
             self.conflicts += 1;
             if self.conflicts % 256 == 0 {
                 for variable in &mut self.variables {
-                    variable.activity /= 2.0
+                    variable.divide_activity(2.0)
                 }
             }
 
-            unsafe {
-                let the_stored_conflict = self.get_stored_clause(conflict) as *const StoredClause;
-                if let Some(cls) = the_stored_conflict.as_ref() {
-                    for literal in cls.clause().variables() {
-                        self.variables[literal].activity += 1.0;
-                    }
-                }
+            for literal in self.get_stored_clause(conflict).clause().variables() {
+                self.variables[literal].increase_activity(1.0);
             }
         }
     }
@@ -241,7 +236,7 @@ impl Solve<'_> {
             .into_iter()
             .enumerate()
             .filter(|(_, v)| v.is_none())
-            .map(|(i, _)| (i, self.variables[i].activity))
+            .map(|(i, _)| (i, self.variables[i].activity()))
             .max_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(a, _)| a)
     }
