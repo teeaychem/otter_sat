@@ -101,7 +101,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                             literals,
                             lit,
                             level_index,
-                            ImplicationSource::StoredClause(clause_id),
+                            ImplicationSource::StoredClause(self.get_stored_clause(clause_id)),
                         );
 
                         log::debug!("+Set deduction: {lit}");

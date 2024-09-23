@@ -1,4 +1,4 @@
-use crate::structures::{Clause, ClauseId, Formula, Level, LevelIndex, Literal};
+use crate::structures::{Clause, Formula, Level, LevelIndex, Literal, StoredClause};
 use petgraph::{
     algo::dominators::simple_fast,
     dot::{Config, Dot},
@@ -6,6 +6,8 @@ use petgraph::{
     stable_graph::StableGraph,
     visit::NodeRef,
 };
+
+use std::rc::{Rc, Weak};
 
 macro_rules! target_graph {
     () => {
@@ -27,9 +29,9 @@ struct ImplicationNode {
     item: NodeItem,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum ImplicationSource {
-    StoredClause(ClauseId),
+    StoredClause(Rc<StoredClause>),
     Contradiction,
     Conflict,
 }
@@ -135,12 +137,14 @@ impl ImplicationGraph {
             let edge_index = self.graph.add_edge(
                 self.get_literal(*antecedent),
                 consequent_index,
-                ImplicationEdge { source },
+                ImplicationEdge {
+                    source: source.clone(),
+                },
             );
             let the_edge = self.graph.edge_weight(edge_index).unwrap();
-            match the_edge.source {
+            match &the_edge.source {
                 ImplicationSource::StoredClause(c) => {
-                    log::debug!(target: target_graph!(), "+{description} @{lvl_idx}: {antecedent} --[{c}]-> {to}")
+                    log::debug!(target: target_graph!(), "+{description} @{lvl_idx}: {antecedent} --[{}]-> {to}", c.id())
                 }
                 _ => {
                     log::debug!(target: target_graph!(), "+{description} @{lvl_idx}: {antecedent} --[{the_edge:?}]-> {to}")
@@ -242,11 +246,11 @@ impl ImplicationGraph {
         }
     }
 
-    pub fn implying_clauses(&self, lit: Literal) -> impl Iterator<Item = ClauseId> + '_ {
+    pub fn implying_clauses(&self, lit: Literal) -> impl Iterator<Item = Rc<StoredClause>> + '_ {
         self.graph
             .edges_directed(self.get_literal(lit), petgraph::Direction::Incoming)
-            .filter_map(|edge| match edge.weight().source {
-                ImplicationSource::StoredClause(clause_id) => Some(clause_id),
+            .filter_map(|edge| match &edge.weight().source {
+                ImplicationSource::StoredClause(stored_clause) => Some(stored_clause.clone()),
                 _ => None,
             })
     }
@@ -286,7 +290,7 @@ impl<'borrow, 'graph> ImplicationGraph {
         &'borrow self,
         clause: &'borrow impl Clause,
         lvl_idx: LevelIndex,
-    ) -> impl Iterator<Item = (ClauseId, Literal)> + 'borrow {
+    ) -> impl Iterator<Item = (Rc<StoredClause>, Literal)> + 'borrow {
         clause
             .literals()
             .filter_map(move |literal| {
@@ -301,9 +305,9 @@ impl<'borrow, 'graph> ImplicationGraph {
                         NodeItem::Literal(l) => Some(
                             self.graph
                                 .edges_directed(the_node_index, petgraph::Direction::Incoming)
-                                .filter_map(move |edge| match edge.weight().source {
-                                    ImplicationSource::StoredClause(clause_id) => {
-                                        Some((clause_id, l))
+                                .filter_map(move |edge| match &edge.weight().source {
+                                    ImplicationSource::StoredClause(stored_clause) => {
+                                        Some((stored_clause.clone(), l))
                                     }
                                     _ => None,
                                 }),
@@ -319,7 +323,7 @@ impl<'borrow, 'graph> ImplicationGraph {
     pub fn resolution_candidates_all(
         &'borrow self,
         clause: &'borrow impl Clause,
-    ) -> impl Iterator<Item = (ClauseId, Literal)> + 'borrow {
+    ) -> impl Iterator<Item = (Rc<StoredClause>, Literal)> + 'borrow {
         clause
             .literals()
             .filter_map(move |literal| {
@@ -334,8 +338,10 @@ impl<'borrow, 'graph> ImplicationGraph {
                     NodeItem::Literal(l) => Some(
                         self.graph
                             .edges_directed(the_node_index, petgraph::Direction::Incoming)
-                            .filter_map(move |edge| match edge.weight().source {
-                                ImplicationSource::StoredClause(clause_id) => Some((clause_id, l)),
+                            .filter_map(move |edge| match &edge.weight().source {
+                                ImplicationSource::StoredClause(stored_clause) => {
+                                    Some((stored_clause.clone(), l))
+                                }
                                 _ => None,
                             }),
                     ),
@@ -348,21 +354,21 @@ impl<'borrow, 'graph> ImplicationGraph {
     fn connecting_clauses(
         &self,
         mut path: impl Iterator<Item = &'borrow NodeIndex>,
-    ) -> Vec<ClauseId> {
+    ) -> Vec<Rc<StoredClause>> {
         let mut clause_ids = vec![];
         if let Some(mut from_node) = path.next() {
             let mut to_node;
             for node in path {
                 to_node = node;
                 let mut connecting_edges = self.graph.edges_connecting(*from_node, *to_node);
-                let connecting_source = connecting_edges
+                let connecting_source = &connecting_edges
                     .next()
                     .expect("No connecting edge")
                     .weight()
                     .source;
                 match connecting_source {
                     ImplicationSource::StoredClause(clause_id) => {
-                        clause_ids.push(clause_id);
+                        clause_ids.push(clause_id.clone());
                     }
                     _ => panic!("Edge without clause"),
                 }
@@ -373,7 +379,7 @@ impl<'borrow, 'graph> ImplicationGraph {
     }
 
     /// A path
-    pub fn some_clause_path_between(&self, from: Literal, to: Literal) -> Option<Vec<ClauseId>> {
+    pub fn some_clause_path_between(&self, from: Literal, to: Literal) -> Option<Vec<Rc<StoredClause>>> {
         let from_node = self.get_literal(from).id();
         let to_node = self.get_literal(to).id();
         let mut paths =
