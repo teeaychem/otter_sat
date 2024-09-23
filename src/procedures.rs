@@ -67,3 +67,237 @@ pub fn binary_resolution<T: Clause>(cls_a: &T, cls_b: &T, v_id: VariableId) -> O
     }
     Some(the_clause.iter().cloned().collect::<Vec<_>>())
 }
+
+pub fn merge_sorted_clauses<T: Clause>(cls_a: &T, cls_b: &T) -> impl Clause {
+    let mut the_clause = vec![];
+    let mut a_ptr = 0;
+    let mut b_ptr = 0;
+    let a_vec = cls_a.as_vec();
+    let a_max = a_vec.len();
+    let b_vec = cls_b.as_vec();
+    let b_max = b_vec.len();
+
+    loop {
+        if a_ptr >= a_max && b_ptr >= b_max {
+            break;
+        } else if a_ptr < a_max && b_ptr >= b_max {
+            the_clause.push(a_vec[a_ptr]);
+            a_ptr += 1;
+        } else if a_ptr >= a_max && b_ptr < b_max {
+            the_clause.push(b_vec[b_ptr]);
+            b_ptr += 1;
+        } else if a_ptr < a_max && b_ptr < b_max {
+            let a_lit = a_vec[a_ptr];
+            let b_lit = b_vec[b_ptr];
+
+            match a_lit.cmp(&b_lit) {
+                std::cmp::Ordering::Equal => {
+                    the_clause.push(a_lit);
+                    a_ptr += 1;
+                    b_ptr += 1;
+                }
+                std::cmp::Ordering::Less => {
+                    the_clause.push(a_lit);
+                    a_ptr += 1;
+                }
+                std::cmp::Ordering::Greater => {
+                    the_clause.push(b_lit);
+                    b_ptr += 1;
+                }
+            }
+        }
+    }
+    the_clause.dedup();
+
+    the_clause
+}
+
+pub fn binary_resolve_sorted_clauses<T: Clause>(
+    cls_a: &T,
+    cls_b: &T,
+    v_id: VariableId,
+) -> Option<impl Clause> {
+    let mut the_clause = vec![];
+    let mut a_ptr = 0;
+    let mut b_ptr = 0;
+    let a_vec = cls_a.as_vec();
+    let a_max = a_vec.len();
+    let b_vec = cls_b.as_vec();
+    let b_max = b_vec.len();
+    let mut a_found = None;
+    let mut b_found = None;
+
+    loop {
+
+        if a_ptr >= a_max && b_ptr >= b_max {
+            break;
+        } else if a_ptr < a_max && b_ptr >= b_max {
+            let a_lit = a_vec[a_ptr];
+            if a_lit.v_id == v_id {
+                if let Some(existing) = b_found {
+                    if existing != a_lit.polarity {
+                        a_found = Some(a_lit.polarity);
+                        a_ptr += 1;
+                    } else {
+                        return None;
+                    }
+                } else {
+                    a_found = Some(a_lit.polarity);
+                    a_ptr += 1;
+                }
+            } else {
+                the_clause.push(a_lit);
+                a_ptr += 1;
+            }
+        } else if a_ptr >= a_max && b_ptr < b_max {
+            let b_lit = b_vec[b_ptr];
+            if b_lit.v_id == v_id {
+                if let Some(existing) = a_found {
+                    if existing != b_lit.polarity {
+                        b_found = Some(b_lit.polarity);
+                        b_ptr += 1;
+                    } else {
+                        return None;
+                    }
+                } else {
+                    b_found = Some(b_lit.polarity);
+                    b_ptr += 1;
+                }
+            } else {
+                the_clause.push(b_lit);
+                b_ptr += 1;
+            }
+        } else if a_ptr < a_max && b_ptr < b_max {
+            let a_lit = a_vec[a_ptr];
+            let b_lit = b_vec[b_ptr];
+            if a_lit.v_id == v_id {
+                if let Some(existing) = b_found {
+                    if existing != a_lit.polarity {
+                        a_found = Some(a_lit.polarity);
+                        a_ptr += 1;
+                    } else {
+                        return None;
+                    }
+                } else {
+                    a_found = Some(a_lit.polarity);
+                    a_ptr += 1;
+                }
+            } else if b_lit.v_id == v_id {
+                if let Some(existing) = a_found {
+                    if existing != b_lit.polarity {
+                        b_found = Some(b_lit.polarity);
+                        b_ptr += 1;
+                    } else {
+                        return None;
+                    }
+                } else {
+                    b_found = Some(b_lit.polarity);
+                    b_ptr += 1;
+                }
+            } else {
+                match a_lit.cmp(&b_lit) {
+                    std::cmp::Ordering::Equal => {
+                        the_clause.push(a_lit);
+                        a_ptr += 1;
+                        b_ptr += 1;
+                    }
+                    std::cmp::Ordering::Less => {
+                        the_clause.push(a_lit);
+                        a_ptr += 1;
+                    }
+                    std::cmp::Ordering::Greater => {
+                        the_clause.push(b_lit);
+                        b_ptr += 1;
+                    }
+                }
+            }
+        }
+    }
+    the_clause.dedup();
+
+    if a_found.is_none() || b_found.is_none() {
+        None
+    } else {
+        Some(the_clause)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn merge_check_one() {
+        let a = vec![
+            Literal::new(1, true),
+            Literal::new(2, false),
+            Literal::new(4, true),
+        ];
+        let b = vec![
+            Literal::new(1, false),
+            Literal::new(3, true),
+            Literal::new(4, false),
+        ];
+        assert_eq!(
+            vec![
+                Literal::new(1, false),
+                Literal::new(1, true),
+                Literal::new(2, false),
+                Literal::new(3, true),
+                Literal::new(4, false),
+                Literal::new(4, true)
+            ],
+            merge_sorted_clauses(&a, &b).as_vec()
+        )
+    }
+
+    #[test]
+    fn merge_check_two() {
+        let a = vec![Literal::new(1, true), Literal::new(1, true)];
+        let b = vec![Literal::new(2, false), Literal::new(2, true)];
+        assert_eq!(
+            vec![
+                Literal::new(1, true),
+                Literal::new(2, false),
+                Literal::new(2, true),
+            ],
+            merge_sorted_clauses(&a, &b).as_vec()
+        )
+    }
+
+    #[test]
+    fn sorted_resolve_ok_check() {
+        let a = vec![
+            Literal::new(1, true),
+            Literal::new(2, false),
+            Literal::new(4, true),
+        ];
+        let b = vec![
+            Literal::new(1, false),
+            Literal::new(3, true),
+            Literal::new(4, false),
+        ];
+        let result = binary_resolve_sorted_clauses(&a, &b, 1);
+        assert!(result.is_some());
+
+        assert_eq!(
+            vec![
+                Literal::new(2, false),
+                Literal::new(3, true),
+                Literal::new(4, false),
+                Literal::new(4, true)
+            ],
+            result.unwrap().as_vec()
+        )
+    }
+
+    #[test]
+    fn sorted_resolve_nok_check() {
+        let a = vec![Literal::new(1, true), Literal::new(2, false)];
+        let b = vec![Literal::new(3, true), Literal::new(4, false)];
+        if let Some(x) = binary_resolve_sorted_clauses(&a, &b, 1) {
+            println!("{}", x.as_string());
+        }
+        assert!(binary_resolve_sorted_clauses(&a, &b, 1).is_none())
+    }
+}

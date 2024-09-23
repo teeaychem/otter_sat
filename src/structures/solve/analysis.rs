@@ -1,4 +1,4 @@
-use crate::procedures::binary_resolution;
+use crate::procedures::binary_resolve_sorted_clauses;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{
     Clause, ClauseId, ClauseSource, ClauseVec, LiteralSource, StoredClause, Valuation,
@@ -85,8 +85,8 @@ impl Solve<'_> {
                     let (stored_clause, resolution_literal) =
                         resolution_literals.first().expect("No resolution literal");
 
-                    the_resolved_clause = binary_resolution(
-                        &the_resolved_clause.as_vec(),
+                    the_resolved_clause = binary_resolve_sorted_clauses(
+                        &the_resolved_clause.to_vec(),
                         &stored_clause.clause().as_vec(),
                         resolution_literal.v_id,
                     )
@@ -148,13 +148,13 @@ impl Solve<'_> {
                                 the_resolved_clause.contains(&path_literal.negate())
                             })
                         {
-                            the_resolved_clause = binary_resolution(
+                            the_resolved_clause = binary_resolve_sorted_clauses(
                                 &the_resolved_clause,
                                 &path_clause.clause().as_vec(),
                                 shared_literal.v_id,
                             )
                             .expect("Resolution failed")
-                            .to_vec();
+                            .as_vec();
                         };
                     }
                 }

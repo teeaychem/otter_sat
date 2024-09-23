@@ -4,7 +4,7 @@ use crate::structures::{Literal, Valuation, ValuationVec, VariableId};
 pub type ClauseVec = Vec<Literal>;
 
 pub trait Clause: IntoIterator {
-    fn add_literal(&mut self, literal: Literal);
+
 
     fn literals(&self) -> impl Iterator<Item = Literal>;
 
@@ -30,9 +30,6 @@ pub trait Clause: IntoIterator {
 pub type ClauseId = usize;
 
 impl Clause for ClauseVec {
-    fn add_literal(&mut self, literal: Literal) {
-        self.push(literal);
-    }
 
     fn literals(&self) -> impl Iterator<Item = Literal> {
         self.iter().cloned()
