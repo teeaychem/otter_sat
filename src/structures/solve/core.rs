@@ -6,6 +6,7 @@ use crate::structures::{
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
 use std::collections::BTreeSet;
+use std::rc::Rc;
 
 pub struct SolveStatus {
     pub implications: Vec<(ClauseId, Literal)>,
@@ -28,7 +29,7 @@ pub struct Solve<'formula> {
     pub variables: Vec<Variable>,
     pub valuation: Vec<Option<bool>>,
     pub levels: Vec<Level>,
-    pub clauses: BTreeSet<StoredClause>,
+    pub clauses: BTreeSet<Rc<StoredClause>>,
     pub graph: ImplicationGraph,
 }
 
@@ -124,11 +125,11 @@ impl Solve<'_> {
             .map(|found| found.id())
     }
 
-    pub fn get_stored_clause(&self, id: ClauseId) -> &StoredClause {
+    pub fn get_stored_clause(&self, id: ClauseId) -> Rc<StoredClause> {
         self.clauses
             .iter()
             .find(|stored_clause| stored_clause.id() == id)
-            .expect("Unable to find clause with {id}")
+            .expect("Unable to find clause with {id}").clone()
     }
 
     pub fn var_by_id(&self, id: VariableId) -> Option<&Variable> {
@@ -168,7 +169,7 @@ impl Solve<'_> {
     fn examine_clauses<'sc>(
         &self,
         val: &impl Valuation,
-        clauses: impl Iterator<Item = &'sc StoredClause>,
+        clauses: impl Iterator<Item = Rc<StoredClause>>,
     ) -> SolveStatus {
         let mut status = SolveStatus::new();
 
@@ -195,7 +196,7 @@ impl Solve<'_> {
     whether this makes sense to do…
     */
     pub fn examine_all_clauses_on(&self, valuation: &impl Valuation) -> SolveStatus {
-        self.examine_clauses(valuation, &mut self.clauses.iter())
+        self.examine_clauses(valuation, &mut self.clauses.iter().cloned())
     }
 
     pub fn examine_level_clauses_on<T: Valuation>(&self, valuation: &T) -> SolveStatus {

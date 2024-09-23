@@ -21,7 +21,7 @@ impl Variable {
             id,
             positive_occurrences: Vec::new(),
             negative_occurrences: Vec::new(),
-            activity: 0.0.into(),
+            activity: Cell::new(0.0),
         }
     }
 
@@ -63,7 +63,7 @@ impl Variable {
 
     pub fn note_occurence(&mut self, clause_id: ClauseId, source: ClauseSource, polarity: bool) {
         if let ClauseSource::Resolution = source {
-            self.increase_activity(1.0)
+            self.increase_activity(1.0);
         }
 
         match polarity {
