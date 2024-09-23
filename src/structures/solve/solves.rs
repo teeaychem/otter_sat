@@ -19,10 +19,10 @@ impl Solve<'_> {
             let mut some_deduction = false;
 
             if unsat_clauses.is_empty() {
-                'implication: for (clause_id, consequent) in status.implications {
-                    match self.set_literal(consequent, LiteralSource::StoredClause(clause_id)) {
-                        Err(SolveError::Conflict(clause_id, _literal)) => {
-                            unsat_clauses.push(clause_id);
+                'implication: for (stored_clause, consequent) in status.implications {
+                    match self.set_literal(consequent, LiteralSource::StoredClause(stored_clause)) {
+                        Err(SolveError::Conflict(stored_clause, _literal)) => {
+                            unsat_clauses.push(stored_clause);
                         }
                         Err(e) => panic!("Unexpected error {e:?} from setting a literal"),
                         Ok(()) => {
@@ -35,11 +35,11 @@ impl Solve<'_> {
                 }
             }
 
-            if let Some(clause_id) = self.select_unsat(&unsat_clauses) {
+            if let Some(stored_clause) = self.select_unsat(&unsat_clauses) {
                 self.process_unsat(&unsat_clauses);
 
                 log::warn!("Selected an unsatisfied clause");
-                match self.attempt_fix(clause_id) {
+                match self.attempt_fix(stored_clause) {
                     Err(SolveError::NoSolution) => {
                         return Ok(None);
                     }

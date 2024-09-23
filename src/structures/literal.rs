@@ -1,4 +1,6 @@
-use crate::structures::{ClauseId, VariableId};
+use crate::structures::{StoredClause, VariableId};
+
+use std::rc::Rc;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Literal {
@@ -12,12 +14,12 @@ pub enum LiteralError {
 }
 
 /// how a literal was settled
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LiteralSource {
     Choice,       // a choice made where the alternative may make a SAT difference
     HobsonChoice, // a choice made with a guarantee that the alternative would make no SAT difference
     Conflict,
-    StoredClause(ClauseId), // the literal must be the case for SAT given some valuation
+    StoredClause(Rc<StoredClause>), // the literal must be the case for SAT given some valuation
     Assumption,
     Deduced
 }

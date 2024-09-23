@@ -1,16 +1,19 @@
 use crate::procedures::binary_resolution;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{
-    Clause, ClauseId, ClauseSource, ClauseVec, LiteralSource, Valuation,
+    Clause, ClauseId, ClauseSource, ClauseVec, LiteralSource, StoredClause, Valuation,
 };
 
 use std::collections::BTreeSet;
 use std::rc::Rc;
 
 impl Solve<'_> {
-    pub fn analyse_conflict(&mut self, clause_id: ClauseId) -> Result<SolveOk, SolveError> {
-        // match self.simple_analysis_one(clause_id) {
-        match self.simple_analysis_two(clause_id) {
+    pub fn analyse_conflict(
+        &mut self,
+        stored_clause: Rc<StoredClause>,
+    ) -> Result<SolveOk, SolveError> {
+        // match self.simple_analysis_one(stored_clause) {
+        match self.simple_analysis_two(stored_clause.clone()) {
             Some(clause) => {
                 match clause.len() {
                     0 => panic!("Empty clause from analysis"),
@@ -39,14 +42,15 @@ impl Solve<'_> {
         }
     }
 
-    pub fn attempt_fix(&mut self, clause_id: ClauseId) -> Result<SolveOk, SolveError> {
+    pub fn attempt_fix(&mut self, stored_clause: Rc<StoredClause>) -> Result<SolveOk, SolveError> {
+        let the_id = stored_clause.id();
         log::warn!(
-            "Attempting fix on clause {clause_id} at level {}",
+            "Attempting fix on clause {the_id} at level {}",
             self.current_level().index()
         );
         match self.current_level().index() {
             0 => Err(SolveError::NoSolution),
-            _ => match self.analyse_conflict(clause_id) {
+            _ => match self.analyse_conflict(stored_clause) {
                 Ok(SolveOk::AssertingClause(level)) => {
                     self.backjump(level);
                     Ok(SolveOk::AssertingClause(level))
@@ -56,14 +60,14 @@ impl Solve<'_> {
                     let _ = self.set_literal(literal, LiteralSource::Deduced);
                     Ok(SolveOk::Deduction(literal))
                 }
-                _ => panic!("Analysis failed given: Clause: {clause_id}"),
+                _ => panic!("Analysis failed given: Clause: {the_id}"),
             },
         }
     }
 
     /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision level.
-    pub fn simple_analysis_one(&mut self, conflict_clause_id: ClauseId) -> Option<ClauseVec> {
-        let mut the_resolved_clause = self.get_stored_clause(conflict_clause_id).clause().as_vec();
+    pub fn simple_analysis_one(&mut self, stored_clause: Rc<StoredClause>) -> Option<ClauseVec> {
+        let mut the_resolved_clause = stored_clause.clause().as_vec();
 
         'resolution_loop: loop {
             log::trace!("Analysis clause: {}", the_resolved_clause.as_string());
@@ -78,14 +82,12 @@ impl Solve<'_> {
                     return Some(the_resolved_clause);
                 }
                 false => {
-                    let (clause_id, resolution_literal) =
+                    let (stored_clause, resolution_literal) =
                         resolution_literals.first().expect("No resolution literal");
-
-                    let resolution_clause = clause_id;
 
                     the_resolved_clause = binary_resolution(
                         &the_resolved_clause.as_vec(),
-                        &resolution_clause.clause().as_vec(),
+                        &stored_clause.clause().as_vec(),
                         resolution_literal.v_id,
                     )
                     .expect("Resolution failed")
@@ -97,7 +99,10 @@ impl Solve<'_> {
         }
     }
 
-    pub fn simple_analysis_two(&mut self, conflict_clause_id: ClauseId) -> Option<ClauseVec> {
+    pub fn simple_analysis_two(
+        &mut self,
+        stored_clause: Rc<StoredClause>,
+    ) -> Option<ClauseVec> {
         log::warn!("Simple analysis two");
         log::warn!("The valuation is: {}", self.valuation.as_internal_string());
         /*
@@ -108,7 +113,7 @@ impl Solve<'_> {
         As retreiving the stored clause is a basic find operation, unsafely dereferencing the borrow is preferred.
          */
 
-        let the_conflict_clause = self.get_stored_clause(conflict_clause_id);
+        let the_conflict_clause = stored_clause;
         log::warn!(
             "Simple analysis two on: {}",
             the_conflict_clause.clause().as_string()
@@ -135,10 +140,9 @@ impl Solve<'_> {
                 .some_clause_path_between(the_immediate_domiator, literal.negate())
             {
                 None => continue,
-                Some(mut path_clause_ids) => {
-                    path_clause_ids.reverse(); // Not strictly necessary
-                    for clause_id in path_clause_ids {
-                        let path_clause = clause_id;
+                Some(mut path_clauses) => {
+                    path_clauses.reverse(); // Not strictly necessary
+                    for path_clause in path_clauses {
                         if let Some(shared_literal) =
                             path_clause.clause().literals().find(|path_literal| {
                                 the_resolved_clause.contains(&path_literal.negate())
