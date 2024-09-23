@@ -5,6 +5,7 @@ use crate::structures::{
 };
 
 use std::collections::BTreeSet;
+use std::rc::Rc;
 
 impl Solve<'_> {
     pub fn analyse_conflict(
@@ -111,7 +112,7 @@ impl Solve<'_> {
          */
         unsafe {
             let the_conflict_clause =
-                self.get_stored_clause(conflict_clause_id) as *const StoredClause;
+                &self.get_stored_clause(conflict_clause_id) as *const Rc<StoredClause>;
             log::warn!(
                 "Simple analysis two on: {}",
                 the_conflict_clause.as_ref()?.clause().as_string()
@@ -141,21 +142,21 @@ impl Solve<'_> {
                     Some(mut path_clause_ids) => {
                         path_clause_ids.reverse(); // Not strictly necessary
                         for clause_id in path_clause_ids {
-                            let path_clause = &self.get_stored_clause(clause_id).clause();
+                            let path_clause = self.get_stored_clause(clause_id).clone();
                             if let Some(shared_literal) =
-                                path_clause.literals().find(|path_literal| {
+                                path_clause.clause().literals().find(|path_literal| {
                                     the_resolved_clause.contains(&path_literal.negate())
                                 })
                             {
                                 the_resolved_clause = binary_resolution(
                                     &the_resolved_clause,
-                                    &path_clause.as_vec(),
+                                    &path_clause.clause().as_vec(),
                                     shared_literal.v_id,
                                 )
                                 .expect("Resolution failed")
                                 .to_vec();
-                            }
-                        }
+                            };
+                        };
                     }
                 }
             }
