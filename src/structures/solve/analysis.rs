@@ -1,8 +1,6 @@
 use crate::procedures::binary_resolve_sorted_clauses;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
-use crate::structures::{
-    Clause, ClauseId, ClauseSource, ClauseVec, LiteralSource, StoredClause, Valuation,
-};
+use crate::structures::{Clause, ClauseSource, ClauseVec, LiteralSource, StoredClause, Valuation};
 
 use std::collections::BTreeSet;
 use std::rc::Rc;
@@ -32,8 +30,13 @@ impl Solve<'_> {
 
                         let expected_valuation = self.valuation_before_choice_at(backjump_level);
 
-                        let sc = self.add_clause(resolved_clause, ClauseSource::Resolution, &expected_valuation);
-                        self.resolution_graph.add_resolution(antecedents.iter().cloned(), sc);
+                        let sc = self.add_clause(
+                            resolved_clause,
+                            ClauseSource::Resolution,
+                            &expected_valuation,
+                        );
+                        self.resolution_graph
+                            .add_resolution(antecedents.iter().cloned(), sc);
 
                         Ok(SolveOk::AssertingClause(backjump_level))
                     }

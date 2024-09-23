@@ -1,11 +1,8 @@
 use crate::structures::{Clause, ClauseId, ClauseVec, Literal, Valuation, VariableId};
 use petgraph::prelude::NodeIndex;
 
+use std::cell::{Cell, OnceCell};
 use std::rc::Rc;
-use std::{
-    borrow::Borrow,
-    cell::{Cell, OnceCell},
-};
 
 #[derive(Clone, Copy, Debug)]
 pub enum ClauseSource {
@@ -66,7 +63,7 @@ impl StoredClause {
 
     pub fn nx(&self) -> NodeIndex {
         match self.nx.get() {
-            None => panic!("heck"),
+            None => panic!("Attempt to access resolution node index before it has been set"),
             Some(&x) => x,
         }
     }

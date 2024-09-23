@@ -1,7 +1,7 @@
-use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{
-    Clause, ClauseId, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource,
-    StoredClause, Valuation, ValuationError,
+    solve::{Solve, SolveError, SolveOk},
+    Clause, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource, StoredClause,
+    Valuation, ValuationError,
 };
 use std::rc::Rc;
 
