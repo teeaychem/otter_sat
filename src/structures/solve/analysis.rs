@@ -1,7 +1,7 @@
 use crate::procedures::binary_resolution;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{
-    Clause, ClauseId, ClauseSource, ClauseVec, Literal, LiteralSource, StoredClause, Valuation,
+    Clause, ClauseId, ClauseSource, ClauseVec, LiteralSource, Valuation,
 };
 
 use std::collections::BTreeSet;
@@ -81,7 +81,7 @@ impl Solve<'_> {
                     let (clause_id, resolution_literal) =
                         resolution_literals.first().expect("No resolution literal");
 
-                    let resolution_clause = self.get_stored_clause(*clause_id);
+                    let resolution_clause = clause_id;
 
                     the_resolved_clause = binary_resolution(
                         &the_resolved_clause.as_vec(),
@@ -138,7 +138,7 @@ impl Solve<'_> {
                 Some(mut path_clause_ids) => {
                     path_clause_ids.reverse(); // Not strictly necessary
                     for clause_id in path_clause_ids {
-                        let path_clause = self.get_stored_clause(clause_id).clone();
+                        let path_clause = clause_id;
                         if let Some(shared_literal) =
                             path_clause.clause().literals().find(|path_literal| {
                                 the_resolved_clause.contains(&path_literal.negate())
