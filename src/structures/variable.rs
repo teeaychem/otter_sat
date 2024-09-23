@@ -1,4 +1,4 @@
-use crate::structures::{ClauseId, ClauseSource, LevelIndex, StoredClause};
+use crate::structures::{ClauseSource, LevelIndex, StoredClause};
 
 pub type VariableId = usize;
 use std::cell::Cell;
