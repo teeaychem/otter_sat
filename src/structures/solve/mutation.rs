@@ -1,23 +1,33 @@
 use crate::structures::{
     solve::{Solve, SolveError, SolveOk},
-    Clause, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource, StoredClause,
-    Valuation, ValuationError,
+    Clause, ClauseId, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource,
+    StoredClause, Valuation, ValuationError,
 };
 use std::rc::Rc;
 
 impl<'borrow, 'solve> Solve<'solve> {
-    pub fn add_clause(
+    /// Stores a clause with an automatically generated id.
+    /// Note: In order to use the clause the watch literals of the struct must be initialised.
+    pub fn store_clause(
         &'borrow mut self,
         clause: impl Clause,
         src: ClauseSource,
-        val: &impl Valuation,
     ) -> Rc<StoredClause> {
-        let clause_as_vec = clause.as_vec();
-        match clause_as_vec.len() {
+        self.store_clause_using_id(clause, Solve::fresh_clause_id(), src)
+    }
+
+    /// Stores a clause within a StoredClause struct.
+    /// Note: In order to use the clause the watch literals of the struct must be initialised.
+    pub fn store_clause_using_id(
+        &'borrow mut self,
+        clause: impl Clause,
+        id: ClauseId,
+        src: ClauseSource,
+    ) -> Rc<StoredClause> {
+        match clause.len() {
             0 => panic!("Attempt to add an empty clause"),
             _ => {
-                let clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, src);
-                clause.initialise_watches(val);
+                let clause = StoredClause::new_from(id, &clause, src);
 
                 for literal in clause.clause().literals() {
                     self.variables[literal.v_id].note_occurence(

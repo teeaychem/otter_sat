@@ -16,33 +16,21 @@ impl Solve<'_> {
     ) -> Result<SolveOk, SolveError> {
         // match self.simple_analysis_one(stored_clause) {
         match self.simple_analysis_two(conflict_clause.clone()) {
-            Some((antecedents, resolved_clause)) => {
-                match resolved_clause.len() {
-                    0 => panic!("Empty clause from analysis"),
-                    _ => {
-                        // the relevant backtrack level is either 0 is analysis is being performed at 0 or the first decision level in the resolution clause prior to the current level.
-                        // For, if a prior level does *not* appear in the resolution clause then the level provided no relevant information.
-                        let backjump_level = self
-                            .decision_levels_of(&resolved_clause)
-                            .filter(|level| *level != self.current_level().index())
-                            .max()
-                            .unwrap_or(0);
+            AnalysisResult::AssertingClause(sc) => {
+                // the relevant backtrack level is either 0 is analysis is being performed at 0 or the first decision level in the resolution clause prior to the current level.
+                // For, if a prior level does *not* appear in the resolution clause then the level provided no relevant information.
+                let backjump_level = self
+                    .decision_levels_of(sc.clause())
+                    .filter(|level| *level != self.current_level().index())
+                    .max()
+                    .unwrap_or(0);
 
-                        let expected_valuation = self.valuation_before_choice_at(backjump_level);
+                let expected_valuation = self.valuation_before_choice_at(backjump_level);
 
-                        let sc = self.add_clause(
-                            resolved_clause,
-                            ClauseSource::Resolution,
-                            &expected_valuation,
-                        );
-                        self.resolution_graph
-                            .add_resolution(antecedents.iter().cloned(), sc);
+                sc.initialise_watches_for(&expected_valuation);
 
-                        Ok(SolveOk::AssertingClause(backjump_level))
-                    }
-                }
+                Ok(SolveOk::AssertingClause(backjump_level))
             }
-            None => panic!("Unexpected result from basic analysis"),
         }
     }
 
@@ -106,10 +94,7 @@ impl Solve<'_> {
         }
     }
 
-    pub fn simple_analysis_two(
-        &mut self,
-        stored_clause: Rc<StoredClause>,
-    ) -> Option<(Vec<Rc<StoredClause>>, ClauseVec)> {
+    pub fn simple_analysis_two(&mut self, stored_clause: Rc<StoredClause>) -> AnalysisResult {
         log::warn!("Simple analysis two");
         log::warn!("The valuation is: {}", self.valuation.as_internal_string());
         /*
@@ -172,6 +157,10 @@ impl Solve<'_> {
             }
         }
 
-        Some((resolution_history, the_resolved_clause))
+        let sc = self.store_clause(the_resolved_clause, ClauseSource::Resolution);
+        self.resolution_graph
+            .add_resolution(resolution_history.iter().cloned(), sc.clone());
+
+        AnalysisResult::AssertingClause(sc)
     }
 }
