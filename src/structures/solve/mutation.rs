@@ -15,7 +15,6 @@ impl<'borrow, 'solve> Solve<'solve> {
         let clause_as_vec = clause.as_vec();
         match clause_as_vec.len() {
             0 => panic!("Attempt to add an empty clause"),
-            1 => panic!("Attempt to add an single literal clause"),
             _ => {
                 let clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, src, val);
 

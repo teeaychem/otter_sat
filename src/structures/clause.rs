@@ -1,11 +1,8 @@
 use crate::structures::{Literal, Valuation, ValuationVec, VariableId};
 
-
 pub type ClauseVec = Vec<Literal>;
 
 pub trait Clause: IntoIterator {
-
-
     fn literals(&self) -> impl Iterator<Item = Literal>;
 
     fn variables(&self) -> impl Iterator<Item = VariableId>;
@@ -30,7 +27,6 @@ pub trait Clause: IntoIterator {
 pub type ClauseId = usize;
 
 impl Clause for ClauseVec {
-
     fn literals(&self) -> impl Iterator<Item = Literal> {
         self.iter().cloned()
     }
@@ -41,12 +37,12 @@ impl Clause for ClauseVec {
 
     fn is_sat_on(&self, valuation: &ValuationVec) -> bool {
         self.iter()
-            .any(|l| valuation.of_v_id(l.v_id) == Ok(Some(l.polarity)))
+            .any(|l| valuation.of_v_id(l.v_id) == Some(l.polarity))
     }
 
     fn is_unsat_on(&self, valuation: &ValuationVec) -> bool {
         self.iter().all(|l| {
-            if let Ok(Some(var_valuie)) = valuation.of_v_id(l.v_id) {
+            if let Some(var_valuie) = valuation.of_v_id(l.v_id) {
                 var_valuie != l.polarity
             } else {
                 false
@@ -58,23 +54,22 @@ impl Clause for ClauseVec {
         let mut unit = None;
 
         for literal in self {
-            if let Ok(assigned_value) = valuation.of_v_id(literal.v_id) {
-                if assigned_value.is_some_and(|v| v == literal.polarity) {
-                    // the clause is satisfied and so does not provide any new information
-                    break;
-                } else if assigned_value.is_some() {
-                    // either every literal so far has been valued the opposite, or there has been exactly on unvalued literal, so continue
-                    continue;
-                } else {
-                    // if no other literal has been found then this literal may be unit, so mark it and continue
-                    // though, if some other literal has already been marked, the clause does not force any literal
-                    match unit {
-                        Some(_) => {
-                            unit = None;
-                            break;
-                        }
-                        None => unit = Some(*literal),
+            let assigned_value = valuation.of_v_id(literal.v_id);
+            if assigned_value.is_some_and(|v| v == literal.polarity) {
+                // the clause is satisfied and so does not provide any new information
+                break;
+            } else if assigned_value.is_some() {
+                // either every literal so far has been valued the opposite, or there has been exactly on unvalued literal, so continue
+                continue;
+            } else {
+                // if no other literal has been found then this literal may be unit, so mark it and continue
+                // though, if some other literal has already been marked, the clause does not force any literal
+                match unit {
+                    Some(_) => {
+                        unit = None;
+                        break;
                     }
+                    None => unit = Some(*literal),
                 }
             }
         }
@@ -86,15 +81,12 @@ impl Clause for ClauseVec {
 
         for literal in self {
             match valuation.of_v_id(literal.v_id) {
-                Ok(assigned_value) => match assigned_value {
-                    Some(value) if value == literal.polarity => {
-                        return None;
-                    }
-                    Some(_value) => continue,
+                Some(value) if value == literal.polarity => {
+                    return None;
+                }
+                Some(_value) => continue,
 
-                    None => the_literals.push(*literal),
-                },
-                Err(_) => panic!("Failed to get valuation of variable"),
+                None => the_literals.push(*literal),
             }
         }
         Some(the_literals)
@@ -122,7 +114,6 @@ impl Clause for ClauseVec {
         self
     }
 }
-
 
 #[cfg(test)]
 mod tests {

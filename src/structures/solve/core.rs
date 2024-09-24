@@ -1,7 +1,7 @@
 use crate::structures::{
     Clause, ClauseId, ClauseSource, Formula, ImplicationGraph, Level, LevelIndex, Literal,
     LiteralError, LiteralSource, ResolutionGraph, StoredClause, Valuation, ValuationVec, Variable,
-    VariableId,
+    VariableId, ClauseStatus,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -71,12 +71,6 @@ impl Solve<'_> {
             let as_vec = formula_clause.as_vec();
             match as_vec.len() {
                 0 => panic!("Zero length clause from formula"),
-                1 => {
-                    match the_solve.set_literal(*as_vec.first().unwrap(), LiteralSource::Deduced) {
-                        Ok(_) => (),
-                        Err(e) => panic!("{e:?}"),
-                    }
-                }
                 _ => {
                     let clause = the_solve.add_clause(as_vec, ClauseSource::Formula, &empty_val);
                     the_solve.resolution_graph.add_clause(clause);
@@ -127,7 +121,7 @@ impl Solve<'_> {
         solve
             .variables
             .iter()
-            .find(|&v| self.valuation.of_v_id(v.id()).is_ok_and(|p| p.is_none()))
+            .find(|&v| self.valuation.of_v_id(v.id()).is_none())
             .map(|found| found.id())
     }
 
@@ -173,7 +167,7 @@ impl Solve<'_> {
 }
 
 impl Solve<'_> {
-    fn examine_clauses<'sc>(
+    fn examine_clauses(
         &self,
         val: &impl Valuation,
         clauses: impl Iterator<Item = Rc<StoredClause>>,
@@ -181,18 +175,16 @@ impl Solve<'_> {
         let mut status = SolveStatus::new();
 
         for stored_clause in clauses {
-            if let Some(the_unset) = stored_clause.watch_choices(val) {
-                match the_unset.len() {
-                    0 => {
-                        status.unsat.push(stored_clause.clone());
-                    }
-                    1 => {
-                        let the_pair: (Rc<StoredClause>, Literal) =
-                            (stored_clause.clone(), *the_unset.first().unwrap());
-                        status.implications.push(the_pair);
-                    }
-                    _ => {}
+            match stored_clause.watch_choices(val) {
+                ClauseStatus::Conflict => {
+                    status.unsat.push(stored_clause.clone());
                 }
+                ClauseStatus::Entails(the_literal) => {
+                    status
+                        .implications
+                        .push((stored_clause.clone(), the_literal));
+                }
+                _ => {}
             }
         }
         status

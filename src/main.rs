@@ -31,7 +31,6 @@ fn main() {
             if let Ok(valuation) = result {
                 println!("Satisfying assignment: {:?}", valuation);
             }
-            // println!("{:?}", the_solve.resolution_graph);
             // dbg!(&the_solve);
         }
     }
