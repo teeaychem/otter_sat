@@ -44,7 +44,7 @@ impl Solve<'_> {
                         println!("{:?}", self.top_level().literals().collect::<Vec<_>>().as_string());
                         return Ok(None);
                     }
-                    Ok(SolveOk::AssertingClause(_)) | Ok(SolveOk::Deduction(_)) => {
+                    Ok(SolveOk::AssertingClause) | Ok(SolveOk::Deduction(_)) => {
                         continue 'main_loop;
                     }
                     Ok(ok) => panic!("Unexpected ok {ok:?} when attempting a fix"),
