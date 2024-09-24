@@ -5,33 +5,18 @@ use crate::structures::{Clause, ClauseSource, ClauseVec, LiteralSource, StoredCl
 use std::collections::BTreeSet;
 use std::rc::Rc;
 
-enum AnalysisResult {
+pub enum AnalysisResult {
     AssertingClause(Rc<StoredClause>),
 }
 
 impl Solve<'_> {
-    pub fn analyse_conflict(
-        &mut self,
-        conflict_clause: Rc<StoredClause>,
-    ) -> Result<SolveOk, SolveError> {
-        // match self.simple_analysis_one(stored_clause) {
-        match self.simple_analysis_two(conflict_clause.clone()) {
-            AnalysisResult::AssertingClause(sc) => {
-                // the relevant backtrack level is either 0 is analysis is being performed at 0 or the first decision level in the resolution clause prior to the current level.
-                // For, if a prior level does *not* appear in the resolution clause then the level provided no relevant information.
-                let backjump_level = self
-                    .decision_levels_of(sc.clause())
-                    .filter(|level| *level != self.current_level().index())
-                    .max()
-                    .unwrap_or(0);
-
-                let expected_valuation = self.valuation_before_choice_at(backjump_level);
-
-                sc.initialise_watches_for(&expected_valuation);
-
-                Ok(SolveOk::AssertingClause(backjump_level))
-            }
-        }
+    // the relevant backtrack level is either 0 is analysis is being performed at 0 or the first decision level in the resolution clause prior to the current level.
+    // For, if a prior level does *not* appear in the resolution clause then the level provided no relevant information.
+    fn backjump_level(&self, stored_clause: Rc<StoredClause>) -> usize {
+        self.decision_levels_of(stored_clause.clause())
+            .filter(|level| *level != self.current_level().index())
+            .max()
+            .unwrap_or(0)
     }
 
     pub fn attempt_fix(
@@ -45,17 +30,16 @@ impl Solve<'_> {
         );
         match self.current_level().index() {
             0 => Err(SolveError::NoSolution),
-            _ => match self.analyse_conflict(conflict_clause) {
-                Ok(SolveOk::AssertingClause(level)) => {
-                    self.backjump(level);
-                    Ok(SolveOk::AssertingClause(level))
+            _ => match self.simple_analysis_two(conflict_clause) {
+                AnalysisResult::AssertingClause(asserting_clause) => {
+                    let backjump_level = self.backjump_level(asserting_clause.clone());
+                    let expected_valuation = self.valuation_before_choice_at(backjump_level);
+                    asserting_clause.initialise_watches_for(&expected_valuation);
+
+                    self.backjump(backjump_level);
+
+                    Ok(SolveOk::AssertingClause)
                 }
-                Ok(SolveOk::Deduction(literal)) => {
-                    self.backjump(0);
-                    let _ = self.set_literal(literal, LiteralSource::Deduced);
-                    Ok(SolveOk::Deduction(literal))
-                }
-                _ => panic!("Analysis failed given: Clause: {the_id}"),
             },
         }
     }
@@ -67,10 +51,12 @@ impl Solve<'_> {
         'resolution_loop: loop {
             log::trace!("Analysis clause: {}", the_resolved_clause.as_string());
             // the current choice will never be a resolution literal, as these are those literals in the clause which are the result of propagation
-            let resolution_literals = self
+            let mut resolution_literals = self
                 .implication_graph
                 .resolution_candidates_at_level(&the_resolved_clause, self.current_level().index())
-                .collect::<BTreeSet<_>>();
+                .collect::<Vec<_>>();
+            resolution_literals.sort_unstable();
+            resolution_literals.dedup();
 
             match resolution_literals.is_empty() {
                 true => {
