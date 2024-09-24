@@ -1,6 +1,6 @@
 use crate::procedures::hobson_choices;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
-use crate::structures::{Literal, LiteralSource, Valuation, ValuationVec};
+use crate::structures::{Clause, Literal, LiteralSource, Valuation, ValuationVec};
 
 impl Solve<'_> {
     pub fn implication_solve(&mut self) -> Result<Option<ValuationVec>, SolveError> {
@@ -41,6 +41,7 @@ impl Solve<'_> {
                 log::warn!("Selected an unsatisfied clause");
                 match self.attempt_fix(stored_clause) {
                     Err(SolveError::NoSolution) => {
+                        println!("{:?}", self.top_level().literals().collect::<Vec<_>>().as_string());
                         return Ok(None);
                     }
                     Ok(SolveOk::AssertingClause(_)) | Ok(SolveOk::Deduction(_)) => {

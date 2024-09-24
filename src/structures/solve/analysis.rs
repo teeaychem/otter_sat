@@ -15,10 +15,6 @@ impl Solve<'_> {
             Some((antecedents, resolved_clause)) => {
                 match resolved_clause.len() {
                     0 => panic!("Empty clause from analysis"),
-                    1 => {
-                        let the_literal = *resolved_clause.first().unwrap();
-                        Ok(SolveOk::Deduction(the_literal))
-                    }
                     _ => {
                         // the relevant backtrack level is either 0 is analysis is being performed at 0 or the first decision level in the resolution clause prior to the current level.
                         // For, if a prior level does *not* appear in the resolution clause then the level provided no relevant information.

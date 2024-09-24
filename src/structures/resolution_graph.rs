@@ -1,3 +1,4 @@
+use petgraph::visit::{EdgeRef, NodeRef};
 use petgraph::{
     graph::Graph,
     prelude::NodeIndex,
@@ -5,6 +6,7 @@ use petgraph::{
 
 use crate::structures::ClauseId;
 use std::rc::Rc;
+use std::collections::VecDeque;
 
 use super::StoredClause;
 
@@ -16,24 +18,30 @@ enum Node {
 
 #[derive(Debug)]
 pub struct ResolutionGraph {
-    graph: Graph<Node, ()>,
+    graph: Graph<Node, usize>,
     the_true: NodeIndex,
+    resolution_counter: usize,
 }
+
+
 
 impl ResolutionGraph {
     pub fn new() -> Self {
-        let mut the_graph = Graph::<Node, ()>::new();
+        let mut the_graph = Graph::<Node, usize>::new();
         let the_true = the_graph.add_node(Node::True);
         ResolutionGraph {
             graph: the_graph,
             the_true,
+            resolution_counter: 0
         }
     }
+
+
 
     pub fn add_clause(&mut self, sc: Rc<StoredClause>) {
         let the_node = self.graph.add_node(Node::Clause(sc.id()));
         sc.set_nx(the_node);
-        self.graph.add_edge(self.the_true, the_node, ());
+        self.graph.add_edge(self.the_true, the_node, self.resolution_counter);
     }
 
     // pub fn add_resolution_by_ids(
@@ -84,8 +92,33 @@ impl ResolutionGraph {
         let to_node = self.graph.add_node(Node::Clause(to.id()));
         to.set_nx(to_node);
 
+        self.resolution_counter += 1;
         for antecedent in from {
-            self.graph.add_edge(antecedent.nx(), to_node, ());
+            self.graph.add_edge(antecedent.nx(), to_node, self.resolution_counter);
         }
+    }
+
+    pub fn origins(&self, clause: NodeIndex) {
+        let mut origins =  vec![];
+        let mut q: VecDeque<NodeIndex> = VecDeque::new();
+        q.push_back(clause);
+        loop {
+            if q.is_empty() {
+                break;
+            }
+
+            let node = q.pop_front().expect("Ah, the queue was empty…");
+            let incoming = self.graph.edges_directed(node, petgraph::Direction::Incoming);
+            for edge in incoming {
+                let from = self.graph.node_weight(edge.source()).expect("No incoming node");
+                match from {
+                    Node::True => origins.push(edge.target()),
+                    Node::Clause(_) => q.push_back(edge.source())
+                }
+            }
+        }
+        println!("{:?}", origins)
+
+
     }
 }
