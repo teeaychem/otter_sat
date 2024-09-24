@@ -8,6 +8,7 @@ mod structures;
 
 use crate::structures::solve::Solve;
 use crate::structures::Formula;
+use crate::structures::solve::SolveConfig;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -16,6 +17,10 @@ struct Args {
     /// file to parse
     #[arg(short, long)]
     file: String,
+
+    /// Print core on unsat
+    #[arg(short, long, default_value_t = false)]
+    core: bool
 }
 
 fn main() {
@@ -23,9 +28,14 @@ fn main() {
 
     let args = Args::parse();
     // dbg!(&args);
+
+    let config = SolveConfig {
+        core: args.core
+    };
+
     if let Ok(contents) = fs::read_to_string(args.file) {
         if let Ok(formula) = Formula::from_dimacs(&contents) {
-            let mut the_solve = Solve::from_formula(&formula);
+            let mut the_solve = Solve::from_formula(&formula, config);
 
             let result = the_solve.implication_solve();
             if let Ok(valuation) = result {
