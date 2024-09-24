@@ -1,7 +1,7 @@
 use crate::structures::{
     Clause, ClauseId, ClauseSource, ClauseStatus, Formula, ImplicationGraph, Level, LevelIndex,
     Literal, LiteralError, LiteralSource, ResolutionGraph, StoredClause, Valuation, ValuationVec,
-    Variable, VariableId,
+    Variable, VariableId, solve::SolveConfig
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -33,6 +33,7 @@ pub struct Solve<'formula> {
     pub clauses: BTreeSet<Rc<StoredClause>>,
     pub implication_graph: ImplicationGraph,
     pub resolution_graph: ResolutionGraph,
+    pub config: SolveConfig
 }
 
 #[derive(Debug, PartialEq)]
@@ -53,7 +54,7 @@ pub enum SolveError {
 }
 
 impl Solve<'_> {
-    pub fn from_formula(formula: &Formula) -> Solve {
+    pub fn from_formula(formula: &Formula, config: SolveConfig) -> Solve {
         let mut the_solve = Solve {
             _formula: formula,
             conflicts: 0,
@@ -63,6 +64,7 @@ impl Solve<'_> {
             clauses: BTreeSet::new(),
             implication_graph: ImplicationGraph::new_for(formula),
             resolution_graph: ResolutionGraph::new(),
+            config
         };
 
         let empty_val = the_solve.valuation.clone();
