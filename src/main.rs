@@ -7,8 +7,8 @@ mod procedures;
 mod structures;
 
 use crate::structures::solve::Solve;
-use crate::structures::Formula;
 use crate::structures::solve::SolveConfig;
+use crate::structures::Formula;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -20,18 +20,15 @@ struct Args {
 
     /// Print core on unsat
     #[arg(short, long, default_value_t = false)]
-    core: bool
+    core: bool,
 }
 
 fn main() {
     log4rs::init_file("config/log4rs.yaml", Default::default()).unwrap();
 
     let args = Args::parse();
-    // dbg!(&args);
 
-    let config = SolveConfig {
-        core: args.core
-    };
+    let config = SolveConfig { core: args.core };
 
     if let Ok(contents) = fs::read_to_string(args.file) {
         if let Ok(formula) = Formula::from_dimacs(&contents) {
