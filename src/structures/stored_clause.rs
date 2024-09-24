@@ -1,4 +1,5 @@
 use crate::structures::{Clause, ClauseId, ClauseVec, Literal, Valuation, VariableId};
+use petgraph::matrix_graph::Zero;
 use petgraph::prelude::NodeIndex;
 
 use std::cell::{Cell, OnceCell};
@@ -32,8 +33,8 @@ impl StoredClause {
         source: ClauseSource,
         val: &impl Valuation,
     ) -> Rc<StoredClause> {
-        if clause.as_vec().len() < 2 {
-            panic!("Short clause (≤ 1)")
+        if clause.as_vec().len().is_zero() {
+            panic!("An empty clause")
         }
 
         let mut the_clause = StoredClause {
@@ -42,17 +43,19 @@ impl StoredClause {
             clause: clause.as_vec(),
             source,
             watch_a: 0.into(),
-            watch_b: 1.into(),
+            watch_b: 0.into(),
         };
 
-        the_clause.watch_a = the_clause.some_preferred_index(val, None).into();
+        if the_clause.clause.len() > 1 {
+            the_clause.watch_a = the_clause.some_preferred_index(val, None).into();
 
-        the_clause.watch_b = {
-            let literal_a = the_clause.clause[the_clause.watch_a.get()];
-            the_clause
-                .some_preferred_index(val, Some(literal_a.v_id))
-                .into()
-        };
+            the_clause.watch_b = {
+                let literal_a = the_clause.clause[the_clause.watch_a.get()];
+                the_clause
+                    .some_preferred_index(val, Some(literal_a.v_id))
+                    .into()
+            };
+        }
 
         Rc::new(the_clause)
     }
@@ -106,7 +109,7 @@ impl StoredClause {
                 } else {
                     true
                 };
-                excluded && val.of_v_id(l.v_id).unwrap().is_none()
+                excluded && val.of_v_id(l.v_id).is_none()
             })
             .map(|(idx, _)| idx)
     }
@@ -126,7 +129,7 @@ impl StoredClause {
                 } else {
                     true
                 };
-                let polarity_match = if let Some(v) = val.of_v_id(l.v_id).unwrap() {
+                let polarity_match = if let Some(v) = val.of_v_id(l.v_id) {
                     v == l.polarity
                 } else {
                     false
@@ -151,7 +154,7 @@ impl StoredClause {
                 } else {
                     true
                 };
-                let polarity_match = if let Some(v) = val.of_v_id(l.v_id).unwrap() {
+                let polarity_match = if let Some(v) = val.of_v_id(l.v_id) {
                     v != l.polarity
                 } else {
                     false
@@ -184,11 +187,15 @@ impl StoredClause {
     /// Updates the two watched literals on the assumption that only the valuation of the given id has changed.
     /// Return true if the watch is 'informative' (the clause is unit or conflicts on val)
     pub fn update_watch(&self, val: &impl Valuation, v_id: VariableId) -> bool {
+        if self.clause.len() == 1 {
+            return val.of_v_id(self.clause[self.watch_a.get()].v_id).is_none();
+        }
+
         let current_a = self.clause[self.watch_a.get()];
         let current_b = self.clause[self.watch_b.get()];
 
         let polarity_match = {
-            let valuation_polarity = val.of_v_id(v_id).unwrap().unwrap();
+            let valuation_polarity = val.of_v_id(v_id).unwrap();
             let clause_polarity = self.literals().find(|l| l.v_id == v_id).unwrap().polarity;
             valuation_polarity == clause_polarity
         };
@@ -196,9 +203,9 @@ impl StoredClause {
         if polarity_match {
             let index_of_literal = self.index_of(v_id);
             if self.watch_a.get() != index_of_literal && self.watch_b.get() != index_of_literal {
-                if Some(current_a.polarity) != val.of_v_id(current_a.v_id).unwrap() {
+                if Some(current_a.polarity) != val.of_v_id(current_a.v_id) {
                     self.watch_a.replace(index_of_literal);
-                } else if Some(current_b.polarity) != val.of_v_id(current_b.v_id).unwrap() {
+                } else if Some(current_b.polarity) != val.of_v_id(current_b.v_id) {
                     self.watch_b.replace(index_of_literal);
                 }
             }
@@ -213,32 +220,50 @@ impl StoredClause {
         }
 
         let current_a = self.clause[self.watch_a.get()];
-        let current_a_match = Some(current_a.polarity) == val.of_v_id(current_a.v_id).unwrap();
+        let current_a_match = Some(current_a.polarity) == val.of_v_id(current_a.v_id);
         let current_b = self.clause[self.watch_b.get()];
-        let current_b_match = Some(current_b.polarity) == val.of_v_id(current_b.v_id).unwrap();
+        let current_b_match = Some(current_b.polarity) == val.of_v_id(current_b.v_id);
 
         !(current_a_match || current_b_match)
     }
+}
 
-    pub fn watch_choices(&self, val: &impl Valuation) -> Option<Vec<Literal>> {
+pub enum ClauseStatus {
+    Satisfied,
+    Conflict,
+    Entails(Literal),
+    Unsatisfied,
+}
+
+impl StoredClause {
+    pub fn watch_choices(&self, val: &impl Valuation) -> ClauseStatus {
         let a_literal = self.clause[self.watch_a.get()];
-        let b_literal = self.clause[self.watch_b.get()];
-
         let a_val = val.of_v_id(a_literal.v_id);
-        let b_val = val.of_v_id(b_literal.v_id);
 
-        let mut the_vec = vec![];
+        match self.clause.len() {
+            1 => match a_val {
+                // both watches point to the only literal
+                Some(polarity) if polarity == a_literal.polarity => ClauseStatus::Satisfied,
+                Some(_) => ClauseStatus::Conflict,
+                None => ClauseStatus::Entails(a_literal),
+            },
+            _ => {
+                let b_literal = self.clause[self.watch_b.get()];
 
-        if !(Ok(Some(a_literal.polarity)) == a_val || Ok(Some(b_literal.polarity)) == b_val) {
-            if Ok(None) == a_val {
-                the_vec.push(a_literal)
+                let b_val = val.of_v_id(b_literal.v_id);
+
+                if a_val.is_none() && b_val.is_none() {
+                    ClauseStatus::Unsatisfied
+                } else if a_val.is_none() && Some(b_literal.polarity) != b_val {
+                    ClauseStatus::Entails(a_literal)
+                } else if b_val.is_none() && Some(a_literal.polarity) != a_val {
+                    ClauseStatus::Entails(b_literal)
+                } else if Some(a_literal.polarity) == a_val || Some(b_literal.polarity) == b_val {
+                    ClauseStatus::Satisfied
+                } else {
+                    ClauseStatus::Conflict
+                }
             }
-            if Ok(None) == b_val {
-                the_vec.push(b_literal)
-            }
-            Some(the_vec)
-        } else {
-            None
         }
     }
 }

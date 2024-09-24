@@ -13,7 +13,7 @@ pub trait Valuation {
 
     fn as_internal_string(&self) -> String;
 
-    fn of_v_id(&self, v_id: VariableId) -> Result<Option<bool>, SolveError>;
+    fn of_v_id(&self, v_id: VariableId) -> Option<bool>;
 
     fn check_literal(&self, literal: Literal) -> Result<ValuationOk, ValuationError>;
 
@@ -74,10 +74,10 @@ impl Valuation for ValuationVec {
             .join(" ")
     }
 
-    fn of_v_id(&self, v_id: VariableId) -> Result<Option<bool>, SolveError> {
+    fn of_v_id(&self, v_id: VariableId) -> Option<bool> {
         match self.get(v_id) {
-            Some(&info) => Ok(info),
-            None => Err(SolveError::OutOfBounds),
+            Some(&info) => info,
+            None => panic!("Read of variable outside of valuation"),
         }
     }
 
