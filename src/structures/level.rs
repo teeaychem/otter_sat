@@ -8,7 +8,7 @@ pub type LevelIndex = usize;
 pub struct Level {
     index: LevelIndex,
     choice: Option<Literal>,
-    observations: Vec<Literal>,
+    observations: Vec<(LiteralSource, Literal)>,
     updated_watches: BTreeSet<Literal>,
 }
 
@@ -42,21 +42,25 @@ impl Level {
             | LiteralSource::Assumption
             | LiteralSource::StoredClause(_)
             | LiteralSource::Deduced
-            | LiteralSource::Conflict => self.observations.push(literal),
+            | LiteralSource::Conflict => self.observations.push((source, literal)),
         }
+    }
+
+    pub fn observations(&self) -> impl Iterator<Item = &(LiteralSource, Literal)> {
+        self.observations.iter()
     }
 
     pub fn literals(&self) -> impl Iterator<Item = Literal> + '_ {
         self.choice
             .into_iter()
-            .chain(self.observations.iter().cloned())
+            .chain(self.observations.iter().map(|(_, literal)| literal).cloned())
     }
 
     pub fn variables(&self) -> impl Iterator<Item = VariableId> + '_ {
         self.choice
             .into_iter()
             .map(|l| l.v_id)
-            .chain(self.observations.iter().map(|l| l.v_id))
+            .chain(self.observations.iter().map(|(_, l)| l.v_id))
     }
 
     pub fn note_watch(&mut self, lit: Literal) {
