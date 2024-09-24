@@ -1,4 +1,4 @@
-use crate::procedures::binary_resolve_sorted_clauses;
+use crate::procedures::{binary_resolve_sorted_clauses, find_counterpart_literals};
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{Clause, ClauseSource, LiteralSource, StoredClause, Valuation};
 
@@ -29,8 +29,9 @@ impl Solve<'_> {
         );
         match self.current_level().index() {
             0 => Err(SolveError::NoSolution),
-            _ => match self.simple_analysis_one(conflict_clause) {
+            // _ => match self.simple_analysis_one(conflict_clause) {
                 // _ => match self.simple_analysis_two(conflict_clause) {
+            _ => match self.simple_analysis_three(conflict_clause) {
                 AnalysisResult::AssertingClause(asserting_clause) => {
                     let backjump_level = self.backjump_level(asserting_clause.clone());
                     let expected_valuation = self.valuation_before_choice_at(backjump_level);
@@ -141,6 +142,36 @@ impl Solve<'_> {
                         };
                     }
                 }
+            }
+        }
+
+        let sc = self.store_clause(the_resolved_clause, ClauseSource::Resolution);
+        self.resolution_graph
+            .add_resolution(resolution_history.iter().cloned(), sc.clone());
+
+        AnalysisResult::AssertingClause(sc)
+    }
+
+    pub fn simple_analysis_three(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
+        let mut the_resolved_clause = conflict_clause.clause().as_vec();
+        let mut resolution_history = vec![];
+        let mut observations = self.current_level().observations().collect::<Vec<_>>();
+        observations.reverse();
+        let resolution_possibilites = observations.into_iter().filter_map(|(src, lit)| match src {
+            LiteralSource::StoredClause(cls) => Some((cls, lit)),
+            _ => None,
+        });
+
+        for (src, lit) in resolution_possibilites {
+            let src_cls_vec = src.clause().as_vec();
+            let counterparts = find_counterpart_literals(&the_resolved_clause, &src_cls_vec);
+
+            if let Some(counterpart) = counterparts.first() {
+                resolution_history.push(src.clone());
+                the_resolved_clause =
+                    binary_resolve_sorted_clauses(&the_resolved_clause, &src_cls_vec, *counterpart)
+                        .unwrap()
+                        .as_vec()
             }
         }
 

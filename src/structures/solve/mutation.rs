@@ -60,9 +60,7 @@ impl<'borrow, 'solve> Solve<'solve> {
             Ok(()) => {
                 let level_index = match src {
                     LiteralSource::Choice => self.add_fresh_level(),
-                    LiteralSource::Assumption
-                    | LiteralSource::Deduced
-                    | LiteralSource::HobsonChoice => 0,
+                    LiteralSource::Assumption | LiteralSource::HobsonChoice => 0,
                     LiteralSource::StoredClause(_) | LiteralSource::Conflict => {
                         self.current_level().index()
                     }
@@ -89,7 +87,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                         self.variables[lit.v_id].set_decision_level(level_index);
                         log::debug!("+Set choice: {lit}");
                     }
-                    LiteralSource::Assumption | LiteralSource::Deduced => {
+                    LiteralSource::Assumption => {
                         self.variables[lit.v_id].set_decision_level(level_index);
                         self.top_level_mut().record_literal(lit, src);
                         self.implication_graph.add_literal(lit, level_index, false);
@@ -154,9 +152,6 @@ impl<'borrow, 'solve> Solve<'solve> {
                     LiteralSource::StoredClause(id) => {
                         // A literal may be implied by multiple clauses
                         Err(SolveError::Conflict(id, lit))
-                    }
-                    LiteralSource::Deduced => {
-                        panic!("Attempt to deduce the flip of {}", lit.v_id);
                     }
                     _ => {
                         log::error!("Attempting to flip {} via {:?}", lit, src);
