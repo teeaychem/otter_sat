@@ -229,10 +229,10 @@ impl StoredClause {
 }
 
 pub enum ClauseStatus {
-    Satisfied,
-    Conflict,
-    Entails(Literal),
-    Unsatisfied,
+    Satisfied,        // some watch literal matches
+    Conflict,         // no watch literals matches
+    Entails(Literal), // Literal is unassigned and the no other watch matches
+    Unsatisfied,      // more than one literal is unassigned
 }
 
 impl StoredClause {
