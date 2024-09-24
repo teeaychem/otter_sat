@@ -22,6 +22,8 @@ pub trait Clause: IntoIterator {
     fn to_vec(self) -> ClauseVec;
 
     fn to_sorted_vec(self) -> ClauseVec;
+
+    fn len(&self) -> usize;
 }
 
 pub type ClauseId = usize;
@@ -112,6 +114,10 @@ impl Clause for ClauseVec {
     fn to_sorted_vec(mut self) -> ClauseVec {
         self.sort();
         self
+    }
+
+    fn len(&self) -> usize {
+        self.len()
     }
 }
 
