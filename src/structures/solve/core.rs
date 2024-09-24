@@ -37,7 +37,7 @@ pub struct Solve<'formula> {
 
 #[derive(Debug, PartialEq)]
 pub enum SolveOk {
-    AssertingClause(LevelIndex),
+    AssertingClause,
     Deduction(Literal),
     Backtracked,
 }
