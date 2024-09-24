@@ -52,7 +52,7 @@ impl StoredClause {
         self.id
     }
 
-    pub fn initialise_watches(&self, val: &impl Valuation) {
+    pub fn initialise_watches_for(&self, val: &impl Valuation) {
         if self.clause.len() > 1 {
             self.watch_a.replace(self.some_preferred_index(val, None));
 
