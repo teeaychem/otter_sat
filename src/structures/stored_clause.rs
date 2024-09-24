@@ -31,13 +31,12 @@ impl StoredClause {
         id: ClauseId,
         clause: &impl Clause,
         source: ClauseSource,
-        val: &impl Valuation,
     ) -> Rc<StoredClause> {
         if clause.as_vec().len().is_zero() {
             panic!("An empty clause")
         }
 
-        let mut the_clause = StoredClause {
+        let the_clause = StoredClause {
             id,
             nx: OnceCell::new(),
             clause: clause.as_vec(),
@@ -46,22 +45,22 @@ impl StoredClause {
             watch_b: 0.into(),
         };
 
-        if the_clause.clause.len() > 1 {
-            the_clause.watch_a = the_clause.some_preferred_index(val, None).into();
-
-            the_clause.watch_b = {
-                let literal_a = the_clause.clause[the_clause.watch_a.get()];
-                the_clause
-                    .some_preferred_index(val, Some(literal_a.v_id))
-                    .into()
-            };
-        }
-
         Rc::new(the_clause)
     }
 
     pub fn id(&self) -> ClauseId {
         self.id
+    }
+
+    pub fn initialise_watches(&self, val: &impl Valuation) {
+        if self.clause.len() > 1 {
+            self.watch_a.replace(self.some_preferred_index(val, None));
+
+            self.watch_b.replace({
+                let literal_a = self.clause[self.watch_a.get()];
+                self.some_preferred_index(val, Some(literal_a.v_id))
+            });
+        }
     }
 
     pub fn nx(&self) -> NodeIndex {

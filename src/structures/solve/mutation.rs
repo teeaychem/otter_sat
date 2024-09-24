@@ -16,7 +16,8 @@ impl<'borrow, 'solve> Solve<'solve> {
         match clause_as_vec.len() {
             0 => panic!("Attempt to add an empty clause"),
             _ => {
-                let clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, src, val);
+                let clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, src);
+                clause.initialise_watches(val);
 
                 for literal in clause.clause().literals() {
                     self.variables[literal.v_id].note_occurence(
