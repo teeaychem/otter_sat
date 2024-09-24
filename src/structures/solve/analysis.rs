@@ -1,8 +1,7 @@
 use crate::procedures::binary_resolve_sorted_clauses;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
-use crate::structures::{Clause, ClauseSource, ClauseVec, LiteralSource, StoredClause, Valuation};
+use crate::structures::{Clause, ClauseSource, LiteralSource, StoredClause, Valuation};
 
-use std::collections::BTreeSet;
 use std::rc::Rc;
 
 pub enum AnalysisResult {
@@ -10,8 +9,8 @@ pub enum AnalysisResult {
 }
 
 impl Solve<'_> {
-    // the relevant backtrack level is either 0 is analysis is being performed at 0 or the first decision level in the resolution clause prior to the current level.
-    // For, if a prior level does *not* appear in the resolution clause then the level provided no relevant information.
+    /// Either the most recent decision level in the resolution clause prior to the current level.
+    /// Or, level 0.
     fn backjump_level(&self, stored_clause: Rc<StoredClause>) -> usize {
         self.decision_levels_of(stored_clause.clause())
             .filter(|level| *level != self.current_level().index())
@@ -30,7 +29,8 @@ impl Solve<'_> {
         );
         match self.current_level().index() {
             0 => Err(SolveError::NoSolution),
-            _ => match self.simple_analysis_two(conflict_clause) {
+            _ => match self.simple_analysis_one(conflict_clause) {
+                // _ => match self.simple_analysis_two(conflict_clause) {
                 AnalysisResult::AssertingClause(asserting_clause) => {
                     let backjump_level = self.backjump_level(asserting_clause.clone());
                     let expected_valuation = self.valuation_before_choice_at(backjump_level);
@@ -45,7 +45,8 @@ impl Solve<'_> {
     }
 
     /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision level.
-    pub fn simple_analysis_one(&mut self, stored_clause: Rc<StoredClause>) -> Option<ClauseVec> {
+    pub fn simple_analysis_one(&mut self, stored_clause: Rc<StoredClause>) -> AnalysisResult {
+        let mut resolution_history = vec![];
         let mut the_resolved_clause = stored_clause.clause().as_vec();
 
         'resolution_loop: loop {
@@ -60,12 +61,13 @@ impl Solve<'_> {
 
             match resolution_literals.is_empty() {
                 true => {
-                    return Some(the_resolved_clause);
+                    break 'resolution_loop;
                 }
                 false => {
                     let (stored_clause, resolution_literal) =
                         resolution_literals.first().expect("No resolution literal");
 
+                    resolution_history.push(stored_clause.clone());
                     the_resolved_clause = binary_resolve_sorted_clauses(
                         &the_resolved_clause.to_vec(),
                         &stored_clause.clause().as_vec(),
@@ -78,18 +80,17 @@ impl Solve<'_> {
                 }
             }
         }
+
+        let sc = self.store_clause(the_resolved_clause, ClauseSource::Resolution);
+        self.resolution_graph
+            .add_resolution(resolution_history.iter().cloned(), sc.clone());
+
+        AnalysisResult::AssertingClause(sc)
     }
 
     pub fn simple_analysis_two(&mut self, stored_clause: Rc<StoredClause>) -> AnalysisResult {
         log::warn!("Simple analysis two");
         log::warn!("The valuation is: {}", self.valuation.as_internal_string());
-        /*
-        Unsafe for the moment.
-
-        At issue is temporarily updating the implication graph to include the conflict clause implying falsum and then examining the conflcit clause.
-        For, ideally a conflict clause is only borrowed from the store of clauses, and this means either retreiving for the stored twice, or dereferencing the borrow so it can be used while mutably borrowing the solve to update the graph.
-        As retreiving the stored clause is a basic find operation, unsafely dereferencing the borrow is preferred.
-         */
 
         let the_conflict_clause = stored_clause;
         log::warn!(
@@ -151,7 +152,7 @@ impl Solve<'_> {
     }
 
     pub fn core(&self) {
-        println!("Core");
+        println!("An unsatisfiable core of the input formula:");
         let node_indicies =
             self.top_level()
                 .observations()
@@ -163,6 +164,6 @@ impl Solve<'_> {
         let simple_core = self.resolution_graph.extant_origins(node_indicies_vec);
         for clause in simple_core {
             println!("{}", clause.clause().as_string())
-}
+        }
     }
 }
