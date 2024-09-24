@@ -222,7 +222,7 @@ pub fn binary_resolve_sorted_clauses<T: Clause>(
 }
 
 /// Initial placeholder implementation
-pub fn find_counterpart_literals<T: Clause>(cls_a: &T, cls_b: &T) -> Vec<VariableId> {
+pub fn find_counterpart_literals_placeholder<T: Clause>(cls_a: &T, cls_b: &T) -> Vec<VariableId> {
     let mut candidates = vec![];
     let var_a = cls_a.variables();
     let var_b = cls_b.variables();
@@ -236,6 +236,37 @@ pub fn find_counterpart_literals<T: Clause>(cls_a: &T, cls_b: &T) -> Vec<Variabl
             candidates.push(*v_id)
         }
     }
+    candidates
+}
+
+/// Work through two ordered vectors, noting any occurrences of the same variable under contrastring polarity
+pub fn find_counterpart_literals<T: Clause>(cls_a: &T, cls_b: &T) -> Vec<VariableId> {
+    let mut candidates = vec![];
+    let a_vec = cls_a.as_vec();
+    let mut a_ptr = 0;
+    let a_max = cls_a.len();
+    let mut b_ptr = 0;
+    let b_vec = cls_b.as_vec();
+    let b_max = cls_b.len();
+    loop {
+        if a_ptr >= a_max || b_ptr >= b_max {
+            break;
+        }
+        let a_lit = a_vec[a_ptr];
+        let b_lit = b_vec[b_ptr];
+        if a_lit.v_id == b_lit.v_id {
+            if a_lit.polarity != b_lit.polarity {
+                candidates.push(a_lit.v_id);
+            }
+            a_ptr += 1;
+            b_ptr += 1;
+        } else if a_lit < b_lit {
+            a_ptr += 1;
+        } else if b_lit < a_lit {
+            b_ptr += 1;
+        }
+    }
+
     candidates
 }
 
