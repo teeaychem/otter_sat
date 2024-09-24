@@ -1,5 +1,7 @@
 use crate::structures::{Literal, Valuation, ValuationVec, VariableId};
 
+use super::ValuationError;
+
 pub type ClauseVec = Vec<Literal>;
 
 pub trait Clause: IntoIterator {
@@ -24,6 +26,8 @@ pub trait Clause: IntoIterator {
     fn to_sorted_vec(self) -> ClauseVec;
 
     fn len(&self) -> usize;
+
+    fn asserts(&self, val: &impl Valuation) -> Option<Literal>;
 }
 
 pub type ClauseId = usize;
@@ -118,6 +122,23 @@ impl Clause for ClauseVec {
 
     fn len(&self) -> usize {
         self.len()
+    }
+
+    /// Returns the literal asserted by the clause on the given valuation
+    fn asserts(&self, val: &impl Valuation) -> Option<Literal> {
+        let mut the_literal = None;
+        for literal in self.literals() {
+            if let Some(val_polarity) = val.of_v_id(literal.v_id) {
+                if val_polarity == literal.polarity {
+                    return None;
+                }
+            } else if the_literal.is_none() {
+                the_literal = Some(literal);
+            } else {
+                return None;
+            }
+        }
+        the_literal
     }
 }
 
