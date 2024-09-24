@@ -149,4 +149,20 @@ impl Solve<'_> {
 
         AnalysisResult::AssertingClause(sc)
     }
+
+    pub fn core(&self) {
+        println!("Core");
+        let node_indicies =
+            self.top_level()
+                .observations()
+                .filter_map(|(source, _)| match source {
+                    LiteralSource::StoredClause(stored_clause) => Some(stored_clause.nx()),
+                    _ => None,
+                });
+        let node_indicies_vec = node_indicies.collect::<Vec<_>>();
+        let simple_core = self.resolution_graph.extant_origins(node_indicies_vec);
+        for clause in simple_core {
+            println!("{}", clause.clause().as_string())
+}
+    }
 }

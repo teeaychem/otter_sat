@@ -41,7 +41,7 @@ impl Solve<'_> {
                 log::warn!("Selected an unsatisfied clause");
                 match self.attempt_fix(stored_clause) {
                     Err(SolveError::NoSolution) => {
-                        println!("{:?}", self.top_level().literals().collect::<Vec<_>>().as_string());
+                        self.core();
                         return Ok(None);
                     }
                     Ok(SolveOk::AssertingClause) | Ok(SolveOk::Deduction(_)) => {
