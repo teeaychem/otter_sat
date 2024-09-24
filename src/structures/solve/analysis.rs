@@ -30,7 +30,7 @@ impl Solve<'_> {
         match self.current_level().index() {
             0 => Err(SolveError::NoSolution),
             // _ => match self.simple_analysis_one(conflict_clause) {
-                // _ => match self.simple_analysis_two(conflict_clause) {
+            // _ => match self.simple_analysis_two(conflict_clause) {
             _ => match self.simple_analysis_three(conflict_clause) {
                 AnalysisResult::AssertingClause(asserting_clause) => {
                     let backjump_level = self.backjump_level(asserting_clause.clone());
@@ -162,7 +162,11 @@ impl Solve<'_> {
             _ => None,
         });
 
-        for (src, lit) in resolution_possibilites {
+        for (src, _lit) in resolution_possibilites {
+            if the_resolved_clause.asserts(&self.valuation).is_some() {
+                break;
+            }
+
             let src_cls_vec = src.clause().as_vec();
             let counterparts = find_counterpart_literals(&the_resolved_clause, &src_cls_vec);
 
