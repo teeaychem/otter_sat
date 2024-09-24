@@ -5,13 +5,17 @@ use crate::structures::{Clause, ClauseSource, ClauseVec, LiteralSource, StoredCl
 use std::collections::BTreeSet;
 use std::rc::Rc;
 
+enum AnalysisResult {
+    AssertingClause(Rc<StoredClause>),
+}
+
 impl Solve<'_> {
     pub fn analyse_conflict(
         &mut self,
-        stored_clause: Rc<StoredClause>,
+        conflict_clause: Rc<StoredClause>,
     ) -> Result<SolveOk, SolveError> {
         // match self.simple_analysis_one(stored_clause) {
-        match self.simple_analysis_two(stored_clause.clone()) {
+        match self.simple_analysis_two(conflict_clause.clone()) {
             Some((antecedents, resolved_clause)) => {
                 match resolved_clause.len() {
                     0 => panic!("Empty clause from analysis"),
@@ -42,15 +46,18 @@ impl Solve<'_> {
         }
     }
 
-    pub fn attempt_fix(&mut self, stored_clause: Rc<StoredClause>) -> Result<SolveOk, SolveError> {
-        let the_id = stored_clause.id();
+    pub fn attempt_fix(
+        &mut self,
+        conflict_clause: Rc<StoredClause>,
+    ) -> Result<SolveOk, SolveError> {
+        let the_id = conflict_clause.id();
         log::warn!(
             "Attempting fix on clause {the_id} at level {}",
             self.current_level().index()
         );
         match self.current_level().index() {
             0 => Err(SolveError::NoSolution),
-            _ => match self.analyse_conflict(stored_clause) {
+            _ => match self.analyse_conflict(conflict_clause) {
                 Ok(SolveOk::AssertingClause(level)) => {
                     self.backjump(level);
                     Ok(SolveOk::AssertingClause(level))
@@ -135,7 +142,7 @@ impl Solve<'_> {
 
         log::warn!("Resolution on paths…");
 
-        let mut clauses_used = vec![];
+        let mut resolution_history = vec![];
 
         for literal in the_conflict_clause.literals() {
             match self
@@ -151,6 +158,7 @@ impl Solve<'_> {
                                 the_resolved_clause.contains(&path_literal.negate())
                             })
                         {
+                            resolution_history.push(path_clause.clone());
                             the_resolved_clause = binary_resolve_sorted_clauses(
                                 &the_resolved_clause,
                                 &path_clause.clause().as_vec(),
@@ -158,13 +166,12 @@ impl Solve<'_> {
                             )
                             .expect("Resolution failed")
                             .as_vec();
-                            clauses_used.push(path_clause.clone());
                         };
                     }
                 }
             }
         }
 
-        Some((clauses_used, the_resolved_clause))
+        Some((resolution_history, the_resolved_clause))
     }
 }
