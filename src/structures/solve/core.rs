@@ -1,7 +1,7 @@
 use crate::structures::{
-    Clause, ClauseId, ClauseSource, ClauseStatus, Formula, ImplicationGraph, Level, LevelIndex,
-    Literal, LiteralError, LiteralSource, ResolutionGraph, StoredClause, Valuation, ValuationVec,
-    Variable, VariableId, solve::SolveConfig
+    solve::SolveConfig, Clause, ClauseId, ClauseSource, ClauseStatus, Formula, ImplicationGraph,
+    Level, LevelIndex, Literal, LiteralError, LiteralSource, ResolutionGraph, StoredClause,
+    Valuation, ValuationVec, Variable, VariableId,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -33,7 +33,7 @@ pub struct Solve<'formula> {
     pub clauses: BTreeSet<Rc<StoredClause>>,
     pub implication_graph: ImplicationGraph,
     pub resolution_graph: ResolutionGraph,
-    pub config: SolveConfig
+    pub config: SolveConfig,
 }
 
 #[derive(Debug, PartialEq)]
@@ -64,7 +64,7 @@ impl Solve<'_> {
             clauses: BTreeSet::new(),
             implication_graph: ImplicationGraph::new_for(formula),
             resolution_graph: ResolutionGraph::new(),
-            config
+            config,
         };
 
         let empty_val = the_solve.valuation.clone();
@@ -75,7 +75,7 @@ impl Solve<'_> {
                 0 => panic!("Zero length clause from formula"),
                 _ => {
                     let clause = the_solve.store_clause(as_vec, ClauseSource::Formula);
-                    clause.initialise_watches_for(&empty_val);
+                    clause.initialise_watches_for(&empty_val, &the_solve.variables);
                     the_solve.resolution_graph.add_clause(clause);
                 }
             }

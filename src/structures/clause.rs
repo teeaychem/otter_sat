@@ -1,6 +1,5 @@
 use crate::structures::{Literal, Valuation, ValuationVec, VariableId};
 
-use super::ValuationError;
 
 pub type ClauseVec = Vec<Literal>;
 
