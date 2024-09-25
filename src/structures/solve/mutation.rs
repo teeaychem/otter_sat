@@ -1,8 +1,8 @@
 use crate::structures::{
     solve::{Solve, SolveError},
+    stored_clause::update_watch,
     Clause, ClauseId, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource,
     StoredClause, Valuation, ValuationError,
-    stored_clause::update_watch
 };
 use std::rc::Rc;
 
@@ -182,7 +182,7 @@ impl Solve<'_> {
             let the_level = self.levels.pop().unwrap();
             self.implication_graph.remove_level(&the_level);
             for literal in the_level.literals() {
-                self.unset_literal(literal)
+                self.unset_literal(literal);
             }
         }
     }

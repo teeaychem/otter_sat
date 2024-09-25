@@ -19,8 +19,8 @@ pub struct StoredClause {
     nx: OnceCell<NodeIndex>,
     source: ClauseSource,
     clause: ClauseVec,
-    watch_a: Cell<usize>,
-    watch_b: Cell<usize>,
+    pub watch_a: Cell<usize>,
+    pub watch_b: Cell<usize>,
 }
 
 /*
@@ -48,18 +48,6 @@ impl StoredClause {
 
     pub fn id(&self) -> ClauseId {
         self.id
-    }
-
-    pub fn initialise_watches_for(&self, val: &impl Valuation, vars: &Vec<Variable>) {
-        if self.clause.len() > 1 {
-            self.watch_a
-                .replace(self.some_preferred_index(val, None, vars));
-
-            self.watch_b.replace({
-                let literal_a = self.clause[self.watch_a.get()];
-                self.some_preferred_index(val, Some(literal_a.v_id), vars)
-            });
-        }
     }
 
     pub fn nx(&self) -> NodeIndex {
@@ -97,7 +85,7 @@ impl StoredClause {
 
 impl StoredClause {
     /// Finds an index of the clause vec whose value is None on val and differs from but_not.
-    fn some_none_index(&self, val: &impl Valuation, but_not: Option<VariableId>) -> Option<usize> {
+    fn some_none_idx(&self, val: &impl Valuation, but_not: Option<VariableId>) -> Option<usize> {
         self.clause
             .iter()
             .enumerate()
@@ -190,7 +178,7 @@ impl StoredClause {
     ) -> usize {
         if let Some(index) = self.some_witness_index(val, but_not) {
             index
-        } else if let Some(index) = self.some_none_index(val, but_not) {
+        } else if let Some(index) = self.some_none_idx(val, but_not) {
             index
         } else if let Some(index) = self.some_differing_index(val, but_not, vars) {
             index
@@ -225,53 +213,92 @@ impl StoredClause {
                 let b_val = val.of_v_id(b_literal.v_id);
 
                 if a_val.is_none() && b_val.is_none() {
-                    ClauseStatus::Unsatisfied
-                } else if a_val.is_none() && Some(b_literal.polarity) != b_val {
-                    ClauseStatus::Entails(a_literal)
-                } else if b_val.is_none() && Some(a_literal.polarity) != a_val {
-                    ClauseStatus::Entails(b_literal)
-                } else if Some(a_literal.polarity) == a_val || Some(b_literal.polarity) == b_val {
-                    ClauseStatus::Satisfied
-                } else {
-                    ClauseStatus::Conflict
+                    return ClauseStatus::Unsatisfied;
                 }
+
+                if let Some(a_val_polarity) = a_val {
+                    if a_val_polarity == a_literal.polarity {
+                        return ClauseStatus::Satisfied;
+                    } else if b_val.is_none() {
+                        return ClauseStatus::Entails(b_literal);
+                    }
+                }
+
+                if let Some(b_val_polarity) = b_val {
+                    if b_val_polarity == b_literal.polarity {
+                        return ClauseStatus::Satisfied;
+                    } else if a_val.is_none() {
+                        return ClauseStatus::Entails(a_literal);
+                    }
+                }
+
+                if let Some(a_val_polarity) = a_val {
+                    if let Some(b_val_polarity) = b_val {
+                        if a_val_polarity != a_literal.polarity
+                            && b_val_polarity != b_literal.polarity
+                        {
+                            return ClauseStatus::Conflict;
+                        }
+                    }
+                }
+
+                panic!("Uknown")
             }
         }
     }
 }
 
-/// Updates the two watched literals on the assumption that only the valuation of the given id has changed.
-/// Return true if the watch is 'informative' (the clause is unit or conflicts on val)
-pub fn update_watch(
+pub fn initialise_watches_for(
     stored_clause: &Rc<StoredClause>,
     val: &impl Valuation,
-    v_id: VariableId,
     vars: &mut [Variable],
-) -> bool {
-    if stored_clause.clause.len() == 1 {
-        return val
-            .of_v_id(stored_clause.clause[stored_clause.watch_a.get()].v_id)
-            .is_none();
-    }
+) {
+    if stored_clause.clause.len() > 1 {
+        stored_clause
+            .watch_a
+            .replace(stored_clause.some_preferred_index(val, None, vars));
 
-    // let mut update_a = None;
-    // let mut update_b = None;
+        stored_clause.watch_b.replace({
+            let literal_a = stored_clause.clause[stored_clause.watch_a.get()];
+            stored_clause.some_preferred_index(val, Some(literal_a.v_id), vars)
+        });
+
+        let current_a = stored_clause.clause[stored_clause.watch_a.get()].v_id;
+        vars[current_a]
+            .watch_occurrences
+            .insert(stored_clause.clone());
+
+        let current_b = stored_clause.clause[stored_clause.watch_b.get()].v_id;
+        vars[current_b]
+            .watch_occurrences
+            .insert(stored_clause.clone());
+    } else {
+        let watched_variable = stored_clause.clause.first().unwrap().v_id;
+        vars[watched_variable]
+            .watch_occurrences
+            .insert(stored_clause.clone());
+    }
+}
+
+#[rustfmt::skip]
+/// Updates the two watched literals on the assumption that only the valuation of the given id has changed.
+/// Return true if the watch is 'informative' (the clause is unit or conflicts on val)
+pub fn update_watch(stored_clause: &Rc<StoredClause>, val: &impl Valuation, v_id: VariableId, vars: &mut [Variable]) -> bool {
+    if stored_clause.clause.len() == 1 {
+        return val.of_v_id(stored_clause.clause[stored_clause.watch_a.get()].v_id).is_none();
+    }
 
     // If the current a watch already witness satisfaction of the clause, do nothing
-    let current_a = stored_clause.clause[stored_clause.watch_a.get()];
-    let current_a_val = val.of_v_id(current_a.v_id);
-    if let Some(current_a_val_polarity) = current_a_val {
-        if current_a.polarity == current_a_val_polarity {
-            return false;
-        }
+    let watched_a_literal = stored_clause.clause[stored_clause.watch_a.get()];
+    let current_a_value = val.of_v_id(watched_a_literal.v_id);
+    if current_a_value.is_some_and(|p| p == watched_a_literal.polarity) {
+        return true;
     }
     // and likewise for the current b watch
-    let current_b = stored_clause.clause[stored_clause.watch_b.get()];
-    let current_b_val = val.of_v_id(current_b.v_id);
-    if let Some(current_b_val_polarity) = current_b_val {
-        if current_b.polarity == current_b_val_polarity {
-            return false;
-        }
+    let watched_b_literal = stored_clause.clause[stored_clause.watch_b.get()];
+    let current_b_value = val.of_v_id(watched_b_literal.v_id);
+    if current_b_value.is_some_and(|p| p == watched_b_literal.polarity) {
+        return false;
     }
     // as, the decision level of the witnessing literal must be lower than that of the current literal
 
@@ -289,51 +316,49 @@ pub fn update_watch(
     };
 
     if clause_is_satisfied_by_v {
+        let mut update_a = false;
+        let mut update_b = false;
+
         // attempt to update a watch which doesn't interact with the current valuation
-        if current_a_val.is_none() {
-            // first a
-            stored_clause.watch_a.replace(clause_literal_index);
-            return false;
-        } else if current_b_val.is_none() {
-            // then b
-            stored_clause.watch_b.replace(clause_literal_index);
-            return false;
+        if current_a_value.is_none() {
+            update_a = true;
+        } else if current_b_value.is_none() {
+            update_b = true;
         } else {
             // otherwise, both literals must conflict with the current valuation, so update the most recent
-            if vars[current_a.v_id].decision_level().unwrap()
-                <= vars[current_b.v_id].decision_level().unwrap()
-            {
-                stored_clause.watch_b.replace(clause_literal_index);
-                return false;
-            } else {
-                stored_clause.watch_a.replace(clause_literal_index);
-                return false;
-            }
+            if vars[watched_a_literal.v_id].decision_level().expect("No decision level for watch a")
+               >
+               vars[watched_b_literal.v_id].decision_level().expect("No decision level for watch b")
+            {  update_a = true; } else { update_b = true; }
+        }
+
+        if update_a {
+            vars[watched_a_literal.v_id].watch_occurrences.remove(stored_clause);
+            stored_clause.watch_a.replace(clause_literal_index);
+            vars[stored_clause.clause[clause_literal_index].v_id].watch_occurrences.insert(stored_clause.clone());
+            return false;
+        } else if update_b {
+            vars[watched_b_literal.v_id].watch_occurrences.remove(stored_clause);
+            stored_clause.watch_b.replace(clause_literal_index);
+            vars[stored_clause.clause[clause_literal_index].v_id].watch_occurrences.insert(stored_clause.clone());
+            return false;
         }
     }
 
     // otherwise, if either watch conflicts with the current valuation, and attempt should be made to avoid the conflict
     // as both watches must be different, order is irrelvant here
-    if current_a.v_id == v_id {
-        // the watch matches the literal
-        if let Some(current_a_val_polarity) = current_a_val {
-            // the literal has some value on the current valuation
-            if current_a_val_polarity != current_a.polarity {
-                // and the valuation conflicts with the literal
-                if let Some(new_idx) = stored_clause.some_none_index(val, Some(current_b.v_id)) {
-                    // and, there's so literal on the watch which doesn't have a value on the assignment
-                    stored_clause.watch_a.replace(new_idx);
-                }
-            }
+    if watched_a_literal.v_id == v_id && current_a_value.is_some_and(|p| p != watched_a_literal.polarity) {
+        if let Some(idx) = stored_clause.some_none_idx(val, Some(watched_b_literal.v_id)) {
+            // and, there's no literal on the watch which doesn't have a value on the assignment
+            vars[watched_a_literal.v_id].watch_occurrences.remove(stored_clause);
+            stored_clause.watch_a.replace(idx);
+            vars[stored_clause.clause[idx].v_id].watch_occurrences.insert(stored_clause.clone());
         }
-    }
-    if current_b.v_id == v_id {
-        if let Some(current_b_val_polarity) = current_b_val {
-            if current_b_val_polarity != current_b.polarity {
-                if let Some(new_idx) = stored_clause.some_none_index(val, Some(current_a.v_id)) {
-                    stored_clause.watch_b.replace(new_idx);
-                }
-            }
+    } else if watched_b_literal.v_id == v_id && current_b_value.is_some_and(|p| p != watched_b_literal.polarity) {
+        if let Some(idx) = stored_clause.some_none_idx(val, Some(watched_a_literal.v_id)) {
+            vars[watched_b_literal.v_id].watch_occurrences.remove(stored_clause);
+            stored_clause.watch_b.replace(idx);
+            vars[stored_clause.clause[idx].v_id].watch_occurrences.insert(stored_clause.clone());
         }
     }
 
@@ -341,7 +366,6 @@ pub fn update_watch(
     let current_a_match = Some(current_a.polarity) == val.of_v_id(current_a.v_id);
     let current_b = stored_clause.clause[stored_clause.watch_b.get()];
     let current_b_match = Some(current_b.polarity) == val.of_v_id(current_b.v_id);
-
     !(current_a_match || current_b_match)
 }
 
