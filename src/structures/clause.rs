@@ -1,6 +1,5 @@
 use crate::structures::{Literal, Valuation, ValuationVec, VariableId};
 
-
 pub type ClauseVec = Vec<Literal>;
 
 pub trait Clause: IntoIterator {
@@ -126,13 +125,11 @@ impl Clause for ClauseVec {
     /// Returns the literal asserted by the clause on the given valuation
     fn asserts(&self, val: &impl Valuation) -> Option<Literal> {
         let mut the_literal = None;
-        for literal in self.literals() {
-            if let Some(val_polarity) = val.of_v_id(literal.v_id) {
-                if val_polarity == literal.polarity {
-                    return None;
-                }
+        for lit in self.literals() {
+            if val.of_v_id(lit.v_id).is_some_and(|p| p == lit.polarity) {
+                return None;
             } else if the_literal.is_none() {
-                the_literal = Some(literal);
+                the_literal = Some(lit);
             } else {
                 return None;
             }

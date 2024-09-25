@@ -1,4 +1,4 @@
-use crate::structures::{Clause, ClauseSource, LevelIndex, StoredClause, Valuation};
+use crate::structures::{ClauseSource, LevelIndex, StoredClause};
 
 pub type VariableId = usize;
 use std::cell::Cell;
@@ -12,7 +12,7 @@ pub struct Variable {
     id: VariableId,
     positive_occurrences: Vec<Rc<StoredClause>>,
     negative_occurrences: Vec<Rc<StoredClause>>,
-    pub watch_occurrences: BTreeSet<Rc<StoredClause>>,
+    watch_occurrences: BTreeSet<Rc<StoredClause>>,
     activity: Cell<f32>,
 }
 
@@ -89,24 +89,15 @@ impl Variable {
     }
 
     pub fn watch_occurrences(&self) -> impl Iterator<Item = Rc<StoredClause>> + '_ {
-        // println!("Watch occurrences for {}:", self.id);
-        // for wo in &self.watch_occurrences {
-        //     println!("{}", wo.clause().as_string());
-        // }
-
-        // let occurence_set = self.occurrences().collect::<BTreeSet<_>>();
-        // let non_watch_occurrences = occurence_set.difference(&self.watch_occurrences).collect::<Vec<_>>();
-        // println!("Non-watch occurrences for {}:", self.id);
-        // for nwo in non_watch_occurrences {
-        //     println!("{}", nwo.clause().as_string());
-        //     if nwo.clause().is_unsat_on(&val.to_vec()) {
-        //         println!("a {} b {}", nwo.watch_a.get(), nwo.watch_b.get());
-        //         // panic!("unsat");
-        //     }
-
-        // }
-
         self.watch_occurrences.iter().cloned()
+    }
+
+    pub fn watch_removed(&mut self, stored_clause: &Rc<StoredClause>) {
+        self.watch_occurrences.remove(stored_clause);
+    }
+
+    pub fn watch_added(&mut self, stored_clause: Rc<StoredClause>) {
+        self.watch_occurrences.insert(stored_clause);
     }
 }
 

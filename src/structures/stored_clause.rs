@@ -39,8 +39,8 @@ impl StoredClause {
             nx: OnceCell::new(),
             clause: clause.as_vec(),
             source,
-            watch_a: 0.into(),
-            watch_b: 0.into(),
+            watch_a: <Cell<usize>>::from(0),
+            watch_b: <Cell<usize>>::from(0),
         };
 
         Rc::new(the_clause)
@@ -115,11 +115,7 @@ impl StoredClause {
                 } else {
                     true
                 };
-                let polarity_match = if let Some(v) = val.of_v_id(l.v_id) {
-                    v == l.polarity
-                } else {
-                    false
-                };
+                let polarity_match = val.of_v_id(l.v_id).is_some_and(|v| v == l.polarity);
                 excluded && polarity_match
             })
             .map(|(idx, _)| idx)
@@ -136,26 +132,15 @@ impl StoredClause {
         but_not: Option<VariableId>,
         vars: &[Variable],
     ) -> Option<usize> {
-        let clause_vec = self.clause.as_vec();
-        let mut index = None;
-        let mut level = 0;
-        for (i, l) in clause_vec.iter().enumerate() {
-            let val_status = val.of_v_id(l.v_id);
+        let (mut index, mut level) = (None, 0);
 
-            if let Some(val_polarity) = val_status {
-                if val_polarity != l.polarity
-                    && (index.is_none() || level < vars[l.v_id].decision_level().unwrap())
-                {
-                    if let Some(vid) = but_not {
-                        if l.v_id != vid {
-                            index = Some(i);
-                            level = vars[l.v_id].decision_level().unwrap();
-                        }
-                    } else {
-                        index = Some(i);
-                        level = vars[l.v_id].decision_level().unwrap();
-                    }
-                }
+        for (i, l) in self.clause.as_vec().iter().enumerate() {
+            if val.of_v_id(l.v_id).is_some_and(|val_polarity| {
+                (val_polarity != l.polarity
+                    && (index.is_none() || level < vars[l.v_id].decision_level().unwrap()))
+                    && (but_not.is_none() || but_not.is_some_and(|vid| l.v_id != vid))
+            }) {
+                (index, level) = (Some(i), vars[l.v_id].decision_level().unwrap());
             }
         }
 
@@ -213,36 +198,21 @@ impl StoredClause {
                 let b_val = val.of_v_id(b_literal.v_id);
 
                 if a_val.is_none() && b_val.is_none() {
-                    return ClauseStatus::Unsatisfied;
+                    ClauseStatus::Unsatisfied
+                } else if a_val.is_some_and(|p| p == a_literal.polarity)
+                    || b_val.is_some_and(|p| p == b_literal.polarity)
+                {
+                    ClauseStatus::Satisfied
+                } else if b_val.is_none() {
+                    ClauseStatus::Entails(b_literal)
+                } else if a_val.is_none() {
+                    ClauseStatus::Entails(a_literal)
+                } else {
+                    // if a_val.is_some_and(|p_a| { p_a != a_literal.polarity && b_val.is_some_and(|p_b| p_b != b_literal.polarity)}) {
+                    ClauseStatus::Conflict
                 }
 
-                if let Some(a_val_polarity) = a_val {
-                    if a_val_polarity == a_literal.polarity {
-                        return ClauseStatus::Satisfied;
-                    } else if b_val.is_none() {
-                        return ClauseStatus::Entails(b_literal);
-                    }
-                }
-
-                if let Some(b_val_polarity) = b_val {
-                    if b_val_polarity == b_literal.polarity {
-                        return ClauseStatus::Satisfied;
-                    } else if a_val.is_none() {
-                        return ClauseStatus::Entails(a_literal);
-                    }
-                }
-
-                if let Some(a_val_polarity) = a_val {
-                    if let Some(b_val_polarity) = b_val {
-                        if a_val_polarity != a_literal.polarity
-                            && b_val_polarity != b_literal.polarity
-                        {
-                            return ClauseStatus::Conflict;
-                        }
-                    }
-                }
-
-                panic!("Uknown")
+                // panic!("Unexpected combination of watch literals")
             }
         }
     }
@@ -264,19 +234,13 @@ pub fn initialise_watches_for(
         });
 
         let current_a = stored_clause.clause[stored_clause.watch_a.get()].v_id;
-        vars[current_a]
-            .watch_occurrences
-            .insert(stored_clause.clone());
+        vars[current_a].watch_added(stored_clause.clone());
 
         let current_b = stored_clause.clause[stored_clause.watch_b.get()].v_id;
-        vars[current_b]
-            .watch_occurrences
-            .insert(stored_clause.clone());
+        vars[current_b].watch_added(stored_clause.clone());
     } else {
         let watched_variable = stored_clause.clause.first().unwrap().v_id;
-        vars[watched_variable]
-            .watch_occurrences
-            .insert(stored_clause.clone());
+        vars[watched_variable].watch_added(stored_clause.clone());
     }
 }
 
@@ -333,14 +297,14 @@ pub fn update_watch(stored_clause: &Rc<StoredClause>, val: &impl Valuation, v_id
         }
 
         if update_a {
-            vars[watched_a_literal.v_id].watch_occurrences.remove(stored_clause);
+            vars[watched_a_literal.v_id].watch_removed(stored_clause);
             stored_clause.watch_a.replace(clause_literal_index);
-            vars[stored_clause.clause[clause_literal_index].v_id].watch_occurrences.insert(stored_clause.clone());
+            vars[stored_clause.clause[clause_literal_index].v_id].watch_added(stored_clause.clone());
             return false;
         } else if update_b {
-            vars[watched_b_literal.v_id].watch_occurrences.remove(stored_clause);
+            vars[watched_b_literal.v_id].watch_removed(stored_clause);
             stored_clause.watch_b.replace(clause_literal_index);
-            vars[stored_clause.clause[clause_literal_index].v_id].watch_occurrences.insert(stored_clause.clone());
+            vars[stored_clause.clause[clause_literal_index].v_id].watch_added(stored_clause.clone());
             return false;
         }
     }
@@ -350,15 +314,15 @@ pub fn update_watch(stored_clause: &Rc<StoredClause>, val: &impl Valuation, v_id
     if watched_a_literal.v_id == v_id && current_a_value.is_some_and(|p| p != watched_a_literal.polarity) {
         if let Some(idx) = stored_clause.some_none_idx(val, Some(watched_b_literal.v_id)) {
             // and, there's no literal on the watch which doesn't have a value on the assignment
-            vars[watched_a_literal.v_id].watch_occurrences.remove(stored_clause);
+            vars[watched_a_literal.v_id].watch_removed(stored_clause);
             stored_clause.watch_a.replace(idx);
-            vars[stored_clause.clause[idx].v_id].watch_occurrences.insert(stored_clause.clone());
+            vars[stored_clause.clause[idx].v_id].watch_added(stored_clause.clone());
         }
     } else if watched_b_literal.v_id == v_id && current_b_value.is_some_and(|p| p != watched_b_literal.polarity) {
         if let Some(idx) = stored_clause.some_none_idx(val, Some(watched_a_literal.v_id)) {
-            vars[watched_b_literal.v_id].watch_occurrences.remove(stored_clause);
+            vars[watched_b_literal.v_id].watch_removed(stored_clause);
             stored_clause.watch_b.replace(idx);
-            vars[stored_clause.clause[idx].v_id].watch_occurrences.insert(stored_clause.clone());
+            vars[stored_clause.clause[idx].v_id].watch_added(stored_clause.clone());
         }
     }
 
