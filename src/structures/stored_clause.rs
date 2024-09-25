@@ -1,11 +1,9 @@
-use crate::structures::{Clause, ClauseId, ClauseVec, Literal, Valuation, VariableId};
+use crate::structures::{Clause, ClauseId, ClauseVec, Literal, Valuation, Variable, VariableId};
 use petgraph::matrix_graph::Zero;
 use petgraph::prelude::NodeIndex;
 
 use std::cell::{Cell, OnceCell};
 use std::rc::Rc;
-
-use super::Variable;
 
 #[derive(Clone, Copy, Debug)]
 pub enum ClauseSource {
@@ -19,8 +17,8 @@ pub struct StoredClause {
     nx: OnceCell<NodeIndex>,
     source: ClauseSource,
     clause: ClauseVec,
-    pub watch_a: Cell<usize>,
-    pub watch_b: Cell<usize>,
+    watch_a: Cell<usize>,
+    watch_b: Cell<usize>,
 }
 
 /*
