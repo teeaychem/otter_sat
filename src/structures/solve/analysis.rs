@@ -169,7 +169,7 @@ impl Solve<'_> {
     pub fn simple_analysis_three(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
         let mut resolved_clause = conflict_clause.clause().as_vec();
         let mut resolution_trail = vec![];
-        let mut observations = self.current_level().observations().collect::<Vec<_>>();
+        let mut observations = self.current_level().observations().clone();
         observations.reverse();
         let resolution_possibilites = observations.into_iter().filter_map(|(src, lit)| match src {
             LiteralSource::StoredClause(cls) => Some((cls, lit)),
@@ -194,6 +194,24 @@ impl Solve<'_> {
             }
         }
 
+        /*
+        If some literals are known then their negation can be safely removed from the learnt clause.
+        Though, this isn't a particular effective method…
+         */
+        if !self.top_level().observations().is_empty() {
+            resolved_clause = resolved_clause
+                .iter()
+                .filter(|l| {
+                    !self
+                        .top_level()
+                        .observations()
+                        .iter()
+                        .any(|(_, x)| l.negate() == *x)
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+        }
+
         let sc = self.store_clause(resolved_clause, ClauseSource::Resolution);
         self.resolution_graph
             .add_resolution(resolution_trail.iter(), &sc);
@@ -203,13 +221,14 @@ impl Solve<'_> {
 
     pub fn core(&self) {
         println!("An unsatisfiable core of the input formula:");
-        let node_indicies =
-            self.top_level()
-                .observations()
-                .filter_map(|(source, _)| match source {
-                    LiteralSource::StoredClause(stored_clause) => Some(stored_clause.nx()),
-                    _ => None,
-                });
+        let node_indicies = self
+            .top_level()
+            .observations()
+            .iter()
+            .filter_map(|(source, _)| match source {
+                LiteralSource::StoredClause(stored_clause) => Some(stored_clause.nx()),
+                _ => None,
+            });
         let node_indicies_vec = node_indicies.collect::<Vec<_>>();
         let simple_core = self.resolution_graph.extant_origins(node_indicies_vec);
         for clause in simple_core {
