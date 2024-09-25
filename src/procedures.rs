@@ -112,7 +112,7 @@ pub fn merge_sorted_clauses<T: Clause>(cls_a: &T, cls_b: &T) -> impl Clause {
     the_clause
 }
 
-pub fn binary_resolve_sorted_clauses<T: Clause>(
+pub fn resolve_sorted_clauses<T: Clause>(
     cls_a: &T,
     cls_b: &T,
     v_id: VariableId,
@@ -325,7 +325,7 @@ mod tests {
             Literal::new(3, true),
             Literal::new(4, false),
         ];
-        let result = binary_resolve_sorted_clauses(&a, &b, 1);
+        let result = resolve_sorted_clauses(&a, &b, 1);
         assert!(result.is_some());
 
         assert_eq!(
@@ -343,9 +343,6 @@ mod tests {
     fn sorted_resolve_nok_check() {
         let a = vec![Literal::new(1, true), Literal::new(2, false)];
         let b = vec![Literal::new(3, true), Literal::new(4, false)];
-        if let Some(x) = binary_resolve_sorted_clauses(&a, &b, 1) {
-            println!("{}", x.as_string());
-        }
-        assert!(binary_resolve_sorted_clauses(&a, &b, 1).is_none())
+        assert!(resolve_sorted_clauses(&a, &b, 1).is_none())
     }
 }

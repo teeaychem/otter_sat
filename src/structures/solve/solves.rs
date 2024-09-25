@@ -1,6 +1,6 @@
 use crate::procedures::hobson_choices;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
-use crate::structures::{Clause, Literal, LiteralSource, Valuation, ValuationVec};
+use crate::structures::{Literal, LiteralSource, Valuation, ValuationVec};
 
 impl Solve<'_> {
     pub fn implication_solve(&mut self) -> Result<Option<ValuationVec>, SolveError> {

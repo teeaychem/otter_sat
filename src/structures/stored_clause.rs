@@ -5,6 +5,8 @@ use petgraph::prelude::NodeIndex;
 use std::cell::{Cell, OnceCell};
 use std::rc::Rc;
 
+use super::Variable;
+
 #[derive(Clone, Copy, Debug)]
 pub enum ClauseSource {
     Formula,
@@ -27,11 +29,7 @@ A stored clause is implicitly tied to the status of a solve via the two watches.
 - Both watch literals will be set to Some(false)  only  if  it is not possible to find a literal with a value other than Some(false) on the current valuation
  */
 impl StoredClause {
-    pub fn new_from(
-        id: ClauseId,
-        clause: &impl Clause,
-        source: ClauseSource,
-    ) -> Rc<StoredClause> {
+    pub fn new_from(id: ClauseId, clause: &impl Clause, source: ClauseSource) -> Rc<StoredClause> {
         if clause.as_vec().len().is_zero() {
             panic!("An empty clause")
         }
@@ -52,13 +50,14 @@ impl StoredClause {
         self.id
     }
 
-    pub fn initialise_watches_for(&self, val: &impl Valuation) {
+    pub fn initialise_watches_for(&self, val: &impl Valuation, vars: &Vec<Variable>) {
         if self.clause.len() > 1 {
-            self.watch_a.replace(self.some_preferred_index(val, None));
+            self.watch_a
+                .replace(self.some_preferred_index(val, None, vars));
 
             self.watch_b.replace({
                 let literal_a = self.clause[self.watch_a.get()];
-                self.some_preferred_index(val, Some(literal_a.v_id))
+                self.some_preferred_index(val, Some(literal_a.v_id), vars)
             });
         }
     }
@@ -139,28 +138,40 @@ impl StoredClause {
     }
 
     /// Finds an index of the clause vec which witness the clause is false on val and differs from but_not.
+    /// And, in particular, ensures the decision level of the variable corresponding to the index is as high as possible.
+    /*
+    By ensuring the decision level of the variable is as high as possible we guarantee that the watch pair is only revised from some to none if the solve backtracks from the decision level of the watch.
+     */
     fn some_differing_index(
         &self,
         val: &impl Valuation,
         but_not: Option<VariableId>,
+        vars: &[Variable],
     ) -> Option<usize> {
-        self.clause
-            .iter()
-            .enumerate()
-            .find(|(_, l)| {
-                let excluded = if let Some(to_exclude) = but_not {
-                    l.v_id != to_exclude
-                } else {
-                    true
-                };
-                let polarity_match = if let Some(v) = val.of_v_id(l.v_id) {
-                    v != l.polarity
-                } else {
-                    false
-                };
-                excluded && polarity_match
-            })
-            .map(|(idx, _)| idx)
+        let clause_vec = self.clause.as_vec();
+        let mut index = None;
+        let mut level = 0;
+        for (i, l) in clause_vec.iter().enumerate() {
+            let val_status = val.of_v_id(l.v_id);
+
+            if let Some(val_polarity) = val_status {
+                if val_polarity != l.polarity
+                    && (index.is_none() || level < vars[l.v_id].decision_level().unwrap())
+                {
+                    if let Some(vid) = but_not {
+                        if l.v_id != vid {
+                            index = Some(i);
+                            level = vars[l.v_id].decision_level().unwrap();
+                        }
+                    } else {
+                        index = Some(i);
+                        level = vars[l.v_id].decision_level().unwrap();
+                    }
+                }
+            }
+        }
+
+        index
     }
 
     /// Finds some index of the clause vec which isn't but_not with the preference:
@@ -171,12 +182,17 @@ impl StoredClause {
     /// As, it is essentail to know when a clause is true, as it then can provide no useful information.
     /// And, if a watch is only on a differing literal when there are no other unassigned literals
     /// it follows the other watched literal must be true on the valuation, or else there's a contradiction.
-    fn some_preferred_index(&self, val: &impl Valuation, but_not: Option<usize>) -> usize {
+    fn some_preferred_index(
+        &self,
+        val: &impl Valuation,
+        but_not: Option<usize>,
+        vars: &[Variable],
+    ) -> usize {
         if let Some(index) = self.some_witness_index(val, but_not) {
             index
         } else if let Some(index) = self.some_none_index(val, but_not) {
             index
-        } else if let Some(index) = self.some_differing_index(val, but_not) {
+        } else if let Some(index) = self.some_differing_index(val, but_not, vars) {
             index
         } else {
             panic!("Could not find a suitable index");

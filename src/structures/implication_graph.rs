@@ -36,18 +36,13 @@ pub enum ImplicationSource {
     Conflict,
 }
 
-#[derive(Clone, Debug)]
-pub struct ImplicationEdge {
-    pub source: ImplicationSource,
-}
-
 /*
 The graph will have at most as many nodes as variables, so a fixed size array can store where a variable appears in the graph.
  */
 #[derive(Debug)]
 pub struct ImplicationGraph {
     variable_indicies: Vec<Option<NodeIndex>>,
-    graph: StableGraph<ImplicationNode, ImplicationEdge>,
+    graph: StableGraph<ImplicationNode, ImplicationSource>,
 }
 
 impl ImplicationGraph {
@@ -137,12 +132,10 @@ impl ImplicationGraph {
             let edge_index = self.graph.add_edge(
                 self.get_literal(*antecedent),
                 consequent_index,
-                ImplicationEdge {
-                    source: source.clone(),
-                },
+                source.clone(),
             );
             let the_edge = self.graph.edge_weight(edge_index).unwrap();
-            match &the_edge.source {
+            match &the_edge {
                 ImplicationSource::StoredClause(c) => {
                     log::debug!(target: target_graph!(), "+{description} @{lvl_idx}: {antecedent} --[{}]-> {to}", c.id())
                 }
@@ -156,6 +149,7 @@ impl ImplicationGraph {
     }
 
     fn add_temporary_falsum(&mut self, lits: impl Iterator<Item = Literal>) -> NodeIndex {
+        log::warn!("Temporary falsum");
         let falsum = self.graph.add_node(ImplicationNode {
             level: 0, // as the falsum is temporary and the level is unimportant, it's fixed to 0
             item: NodeItem::Falsum,
@@ -164,24 +158,21 @@ impl ImplicationGraph {
             let _edge_index = self.graph.add_edge(
                 self.get_literal(antecedent.negate()),
                 falsum,
-                ImplicationEdge {
-                    source: ImplicationSource::Conflict,
-                },
+                ImplicationSource::Conflict,
             );
         }
         falsum
     }
 
     pub fn add_contradiction(&mut self, from: Literal, to: Literal, lvl_idx: LevelIndex) {
+        log::warn!("Adding contradiction");
         let choice_index = self.get_literal(from);
         let contradiction_index = self.get_or_make_literal(to, lvl_idx);
 
         let edge_index = self.graph.add_edge(
             choice_index,
             contradiction_index,
-            ImplicationEdge {
-                source: ImplicationSource::Contradiction,
-            },
+            ImplicationSource::Contradiction,
         );
         log::debug!(target: target_graph!(), "+Contradiction @{lvl_idx} {from} --[{:?}]-> {to}", self.graph.edge_weight(edge_index));
     }
@@ -246,11 +237,11 @@ impl ImplicationGraph {
         }
     }
 
-    pub fn implying_clauses(&self, lit: Literal) -> impl Iterator<Item = Rc<StoredClause>> + '_ {
+    pub fn implying_clauses(&self, lit: Literal) -> impl Iterator<Item = &Rc<StoredClause>> + '_ {
         self.graph
             .edges_directed(self.get_literal(lit), petgraph::Direction::Incoming)
-            .filter_map(|edge| match &edge.weight().source {
-                ImplicationSource::StoredClause(stored_clause) => Some(stored_clause.clone()),
+            .filter_map(|edge| match &edge.weight() {
+                ImplicationSource::StoredClause(stored_clause) => Some(stored_clause),
                 _ => None,
             })
     }
@@ -305,7 +296,7 @@ impl<'borrow> ImplicationGraph {
                         NodeItem::Literal(l) => Some(
                             self.graph
                                 .edges_directed(the_node_index, petgraph::Direction::Incoming)
-                                .filter_map(move |edge| match &edge.weight().source {
+                                .filter_map(move |edge| match &edge.weight() {
                                     ImplicationSource::StoredClause(stored_clause) => {
                                         Some((stored_clause.clone(), l))
                                     }
@@ -336,7 +327,7 @@ impl<'borrow> ImplicationGraph {
                 NodeItem::Literal(l) => self
                     .graph
                     .edges_directed(the_node_index, petgraph::Direction::Incoming)
-                    .filter_map(move |edge| match &edge.weight().source {
+                    .filter_map(move |edge| match &edge.weight() {
                         ImplicationSource::StoredClause(stored_clause) => {
                             Some((stored_clause.clone(), l))
                         }
@@ -360,8 +351,7 @@ impl<'borrow> ImplicationGraph {
                 let connecting_source = &connecting_edges
                     .next()
                     .expect("No connecting edge")
-                    .weight()
-                    .source;
+                    .weight();
                 match connecting_source {
                     ImplicationSource::StoredClause(stored_clause) => {
                         stored_clauses.push(stored_clause.clone());
