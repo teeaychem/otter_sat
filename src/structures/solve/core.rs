@@ -1,7 +1,7 @@
 use crate::structures::{
     solve::SolveConfig, Clause, ClauseId, ClauseSource, ClauseStatus, Formula, ImplicationGraph,
     Level, LevelIndex, Literal, LiteralError, LiteralSource, ResolutionGraph, StoredClause,
-    Valuation, ValuationVec, Variable, VariableId,
+    Valuation, ValuationVec, Variable, VariableId, stored_clause::initialise_watches_for
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -75,7 +75,7 @@ impl Solve<'_> {
                 0 => panic!("Zero length clause from formula"),
                 _ => {
                     let clause = the_solve.store_clause(as_vec, ClauseSource::Formula);
-                    clause.initialise_watches_for(&empty_val, &the_solve.variables);
+                    initialise_watches_for(&clause, &empty_val, &mut the_solve.variables);
                     the_solve.resolution_graph.add_clause(clause);
                 }
             }
@@ -206,7 +206,7 @@ impl Solve<'_> {
 
         let clauses = literals
             .iter()
-            .flat_map(|l| self.variables[l.v_id].occurrences())
+            .flat_map(|l| self.variables[l.v_id].watch_occurrences())
             .collect::<BTreeSet<_>>()
             .into_iter();
 
