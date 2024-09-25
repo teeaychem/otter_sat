@@ -45,8 +45,8 @@ impl Level {
         }
     }
 
-    pub fn observations(&self) -> impl Iterator<Item = &(LiteralSource, Literal)> {
-        self.observations.iter()
+    pub fn observations(&self) -> &Vec<(LiteralSource, Literal)> {
+        &self.observations
     }
 
     pub fn literals(&self) -> impl Iterator<Item = Literal> + '_ {
