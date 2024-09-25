@@ -1,5 +1,5 @@
 use crate::structures::{
-    solve::{Solve, SolveError},
+    solve::Solve,
     Level, Literal, VariableId,
 };
 // Valuation

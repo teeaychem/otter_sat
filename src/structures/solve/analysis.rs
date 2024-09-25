@@ -1,4 +1,4 @@
-use crate::procedures::{binary_resolve_sorted_clauses, find_counterpart_literals};
+use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{Clause, ClauseSource, LiteralSource, StoredClause, Valuation};
 
@@ -11,11 +11,19 @@ pub enum AnalysisResult {
 impl Solve<'_> {
     /// Either the most recent decision level in the resolution clause prior to the current level.
     /// Or, level 0.
-    fn backjump_level(&self, stored_clause: Rc<StoredClause>) -> usize {
-        self.decision_levels_of(stored_clause.clause())
-            .filter(|level| *level != self.current_level().index())
-            .max()
-            .unwrap_or(0)
+    fn decision_level(&self, stored_clause: &Rc<StoredClause>) -> usize {
+        let mut levels = self
+            .decision_levels_of(stored_clause.clause())
+            .collect::<Vec<_>>();
+        // .filter(|level| *level != self.current_level().index()).collect::<Vec<_>>();
+        levels.sort_unstable();
+        levels.reverse();
+        levels.dedup();
+        if levels.len() > 1 {
+            levels[1]
+        } else {
+            0
+        }
     }
 
     pub fn attempt_fix(
@@ -24,18 +32,21 @@ impl Solve<'_> {
     ) -> Result<SolveOk, SolveError> {
         let the_id = conflict_clause.id();
         log::warn!(
-            "Attempting fix on clause {the_id} at level {}",
+            "Attempt to fix on clause {the_id} at level {}",
             self.current_level().index()
         );
         match self.current_level().index() {
             0 => Err(SolveError::NoSolution),
             // _ => match self.simple_analysis_one(conflict_clause) {
             // _ => match self.simple_analysis_two(conflict_clause) {
-            _ => match self.simple_analysis_three(conflict_clause) {
+            _ => match self.analysis_switch(conflict_clause) {
                 AnalysisResult::AssertingClause(asserting_clause) => {
-                    let backjump_level = self.backjump_level(asserting_clause.clone());
-                    let expected_valuation = self.valuation_before_choice_at(backjump_level);
-                    asserting_clause.initialise_watches_for(&expected_valuation);
+                    let backjump_level = self.decision_level(&asserting_clause);
+
+                    asserting_clause.initialise_watches_for(
+                        &self.valuation_at(backjump_level),
+                        &self.variables,
+                    );
 
                     self.backjump(backjump_level);
 
@@ -44,6 +55,15 @@ impl Solve<'_> {
             },
         }
     }
+
+    pub fn analysis_switch(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
+        match self.config.analysis {
+            1 => self.simple_analysis_one(conflict_clause),
+            2 => self.simple_analysis_two(conflict_clause),
+            3 => self.simple_analysis_three(conflict_clause),
+            _ => panic!("Unknown analysis")
+        }
+}
 
     /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision level.
     pub fn simple_analysis_one(&mut self, stored_clause: Rc<StoredClause>) -> AnalysisResult {
@@ -60,31 +80,25 @@ impl Solve<'_> {
             resolution_literals.sort_unstable();
             resolution_literals.dedup();
 
-            match resolution_literals.is_empty() {
-                true => {
-                    break 'resolution_loop;
-                }
-                false => {
-                    let (stored_clause, resolution_literal) =
-                        resolution_literals.first().expect("No resolution literal");
+            if let Some((stored_clause, resolution_literal)) = resolution_literals.first() {
+                resolution_history.push(stored_clause.clone());
+                the_resolved_clause = resolve_sorted_clauses(
+                    &the_resolved_clause.to_vec(),
+                    &stored_clause.clause().as_vec(),
+                    resolution_literal.v_id,
+                )
+                .expect("Resolution failed")
+                .as_vec();
 
-                    resolution_history.push(stored_clause.clone());
-                    the_resolved_clause = binary_resolve_sorted_clauses(
-                        &the_resolved_clause.to_vec(),
-                        &stored_clause.clause().as_vec(),
-                        resolution_literal.v_id,
-                    )
-                    .expect("Resolution failed")
-                    .as_vec();
-
-                    continue 'resolution_loop;
-                }
+                continue 'resolution_loop;
+            } else {
+                break 'resolution_loop;
             }
         }
 
         let sc = self.store_clause(the_resolved_clause, ClauseSource::Resolution);
         self.resolution_graph
-            .add_resolution(resolution_history.iter().cloned(), sc.clone());
+            .add_resolution(resolution_history.iter(), &sc);
 
         AnalysisResult::AssertingClause(sc)
     }
@@ -132,7 +146,7 @@ impl Solve<'_> {
                             })
                         {
                             resolution_history.push(path_clause.clone());
-                            the_resolved_clause = binary_resolve_sorted_clauses(
+                            the_resolved_clause = resolve_sorted_clauses(
                                 &the_resolved_clause,
                                 &path_clause.clause().as_vec(),
                                 shared_literal.v_id,
@@ -147,41 +161,42 @@ impl Solve<'_> {
 
         let sc = self.store_clause(the_resolved_clause, ClauseSource::Resolution);
         self.resolution_graph
-            .add_resolution(resolution_history.iter().cloned(), sc.clone());
+            .add_resolution(resolution_history.iter(), &sc);
 
         AnalysisResult::AssertingClause(sc)
     }
 
     pub fn simple_analysis_three(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
-        let mut the_resolved_clause = conflict_clause.clause().as_vec();
-        let mut resolution_history = vec![];
+        let mut resolved_clause = conflict_clause.clause().as_vec();
+        let mut resolution_trail = vec![];
         let mut observations = self.current_level().observations().collect::<Vec<_>>();
         observations.reverse();
         let resolution_possibilites = observations.into_iter().filter_map(|(src, lit)| match src {
             LiteralSource::StoredClause(cls) => Some((cls, lit)),
             _ => None,
         });
+        let previous_level_val = self.valuation_at(self.current_level().index() - 1);
 
         for (src, _lit) in resolution_possibilites {
-            if the_resolved_clause.asserts(&self.valuation).is_some() {
+            if resolved_clause.asserts(&previous_level_val).is_some() {
                 break;
             }
 
             let src_cls_vec = src.clause().as_vec();
-            let counterparts = find_counterpart_literals(&the_resolved_clause, &src_cls_vec);
+            let counterparts = find_counterpart_literals(&resolved_clause, &src_cls_vec);
 
             if let Some(counterpart) = counterparts.first() {
-                resolution_history.push(src.clone());
-                the_resolved_clause =
-                    binary_resolve_sorted_clauses(&the_resolved_clause, &src_cls_vec, *counterpart)
+                resolution_trail.push(src.clone());
+                resolved_clause =
+                    resolve_sorted_clauses(&resolved_clause, &src_cls_vec, *counterpart)
                         .unwrap()
                         .as_vec()
             }
         }
 
-        let sc = self.store_clause(the_resolved_clause, ClauseSource::Resolution);
+        let sc = self.store_clause(resolved_clause, ClauseSource::Resolution);
         self.resolution_graph
-            .add_resolution(resolution_history.iter().cloned(), sc.clone());
+            .add_resolution(resolution_trail.iter(), &sc);
 
         AnalysisResult::AssertingClause(sc)
     }

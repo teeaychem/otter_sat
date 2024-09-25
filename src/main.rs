@@ -28,7 +28,10 @@ fn main() {
 
     let args = Args::parse();
 
-    let config = SolveConfig { core: args.core };
+    let config = SolveConfig {
+        core: args.core,
+        analysis: 3,
+    };
 
     if let Ok(contents) = fs::read_to_string(args.file) {
         if let Ok(formula) = Formula::from_dimacs(&contents) {

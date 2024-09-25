@@ -1,5 +1,5 @@
 use crate::structures::{
-    solve::{Solve, SolveError, SolveOk},
+    solve::{Solve, SolveError},
     Clause, ClauseId, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource,
     StoredClause, Valuation, ValuationError,
 };
@@ -13,6 +13,9 @@ impl<'borrow, 'solve> Solve<'solve> {
         clause: impl Clause,
         src: ClauseSource,
     ) -> Rc<StoredClause> {
+        if let ClauseSource::Resolution = src {
+            log::warn!("Learning clause {}", clause.as_string());
+        };
         self.store_clause_using_id(clause, Solve::fresh_clause_id(), src)
     }
 
@@ -171,23 +174,15 @@ impl<'borrow, 'solve> Solve<'solve> {
 }
 
 impl Solve<'_> {
-    pub fn backtrack_once(&mut self) -> Result<SolveOk, SolveError> {
-        if self.current_level().index() == 0 {
-            Err(SolveError::NoSolution)
-        } else {
+    pub fn backjump(&mut self, to: LevelIndex) {
+        log::warn!("Backjump from {} to {}", self.current_level().index(), to);
+
+        for _ in 0..(self.current_level().index() - to) {
             let the_level = self.levels.pop().unwrap();
             self.implication_graph.remove_level(&the_level);
             for literal in the_level.literals() {
                 self.unset_literal(literal)
             }
-            log::warn!("Backtracked from {}", the_level.index());
-            Ok(SolveOk::Backtracked)
-        }
-    }
-
-    pub fn backjump(&mut self, to: LevelIndex) {
-        while self.current_level().index() != 0 && self.current_level().index() >= to {
-            let _ = self.backtrack_once();
         }
     }
 }
