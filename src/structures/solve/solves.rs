@@ -56,9 +56,6 @@ impl Solve<'_> {
 
             if !some_deduction {
                 if let Some(available_v_id) = self.most_active_none(&self.valuation) {
-                    // if let Some(available_v_id) = self.valuation.some_none() {
-                    // make a choice
-
                     log::trace!(
                         "Choice: {available_v_id} @ {} with activity {}",
                         self.current_level().index(),
