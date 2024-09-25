@@ -1,6 +1,9 @@
 use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
 use crate::structures::solve::{Solve, SolveError, SolveOk};
-use crate::structures::{Clause, ClauseSource, LiteralSource, StoredClause, Valuation};
+use crate::structures::{
+    stored_clause::initialise_watches_for, Clause, ClauseSource, LiteralSource, StoredClause,
+    Valuation,
+};
 
 use std::rc::Rc;
 
@@ -39,9 +42,10 @@ impl Solve<'_> {
                 AnalysisResult::AssertingClause(asserting_clause) => {
                     let backjump_level = self.decision_level(&asserting_clause);
 
-                    asserting_clause.initialise_watches_for(
+                    initialise_watches_for(
+                        &asserting_clause,
                         &self.valuation_at(backjump_level),
-                        &self.variables,
+                        &mut self.variables,
                     );
 
                     self.backjump(backjump_level);
