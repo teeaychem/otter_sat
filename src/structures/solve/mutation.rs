@@ -2,6 +2,7 @@ use crate::structures::{
     solve::{Solve, SolveError},
     Clause, ClauseId, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource,
     StoredClause, Valuation, ValuationError,
+    stored_clause::update_watch
 };
 use std::rc::Rc;
 
@@ -73,7 +74,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                     let occurrences = self.variables[lit.v_id].occurrences().collect::<Vec<_>>();
                     let valuation = self.valuation.clone();
                     for clause in occurrences {
-                        match clause.update_watch(&valuation, lit.v_id) {
+                        match update_watch(&clause, &valuation, lit.v_id, &mut self.variables) {
                             true => self.current_level_mut().note_watch(lit),
                             false => (),
                         };

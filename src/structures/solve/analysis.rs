@@ -9,16 +9,14 @@ pub enum AnalysisResult {
 }
 
 impl Solve<'_> {
-    /// Either the most recent decision level in the resolution clause prior to the current level.
-    /// Or, level 0.
+    /// Either the most recent decision level in the resolution clause prior to the current level or 0.
     fn decision_level(&self, stored_clause: &Rc<StoredClause>) -> usize {
         let mut levels = self
             .decision_levels_of(stored_clause.clause())
             .collect::<Vec<_>>();
-        // .filter(|level| *level != self.current_level().index()).collect::<Vec<_>>();
         levels.sort_unstable();
-        levels.reverse();
         levels.dedup();
+        levels.reverse();
         if levels.len() > 1 {
             levels[1]
         } else {
@@ -37,8 +35,6 @@ impl Solve<'_> {
         );
         match self.current_level().index() {
             0 => Err(SolveError::NoSolution),
-            // _ => match self.simple_analysis_one(conflict_clause) {
-            // _ => match self.simple_analysis_two(conflict_clause) {
             _ => match self.analysis_switch(conflict_clause) {
                 AnalysisResult::AssertingClause(asserting_clause) => {
                     let backjump_level = self.decision_level(&asserting_clause);
@@ -61,9 +57,9 @@ impl Solve<'_> {
             1 => self.simple_analysis_one(conflict_clause),
             2 => self.simple_analysis_two(conflict_clause),
             3 => self.simple_analysis_three(conflict_clause),
-            _ => panic!("Unknown analysis")
+            _ => panic!("Unknown analysis"),
         }
-}
+    }
 
     /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision level.
     pub fn simple_analysis_one(&mut self, stored_clause: Rc<StoredClause>) -> AnalysisResult {
