@@ -114,9 +114,7 @@ impl Solve<'_> {
     }
 
     pub fn stored_clauses(&self) -> impl Iterator<Item = &Rc<StoredClause>> {
-        self.formula_clauses
-            .iter()
-            .chain(&self.learnt_clauses)
+        self.formula_clauses.iter().chain(&self.learnt_clauses)
     }
 
     pub fn clauses(&self) -> impl Iterator<Item = &impl Clause> {
@@ -138,7 +136,9 @@ impl Solve<'_> {
     }
 
     pub fn get_stored_clause(&self, id: ClauseId) -> Rc<StoredClause> {
-        self.formula_clauses.iter().chain(&self.learnt_clauses)
+        self.formula_clauses
+            .iter()
+            .chain(&self.learnt_clauses)
             .find(|stored_clause| stored_clause.id() == id)
             .expect("Unable to find clause with {id}")
             .clone()
@@ -246,6 +246,10 @@ impl Solve<'_> {
             .map(|(i, _)| (i, self.variables[i].activity()))
             .max_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(a, _)| a)
+    }
+
+    pub fn time_to_reduce(&self) -> bool {
+        self.conflicts != 0 && self.conflicts % 1000 == 0
     }
 }
 
