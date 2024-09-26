@@ -229,6 +229,14 @@ impl StoredClause {
     pub fn set_lbd(&self, vars: &[Variable]) {
         self.lbd.replace(self.clause.lbd(vars));
     }
+
+    pub fn watched_a(&self) -> Literal {
+        self.clause[self.watch_a.get()]
+    }
+
+    pub fn watched_b(&self) -> Literal {
+        self.clause[self.watch_b.get()]
+    }
 }
 
 pub fn initialise_watches_for(

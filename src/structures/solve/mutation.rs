@@ -14,23 +14,27 @@ impl<'borrow, 'solve> Solve<'solve> {
         clause: impl Clause,
         src: ClauseSource,
     ) -> Rc<StoredClause> {
-        if let ClauseSource::Resolution = src {
-            log::warn!("Learning clause {}", clause.as_string());
-        };
         match clause.len() {
             0 => panic!("Attempt to add an empty clause"),
             _ => {
-                let clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, src);
+                let stored_clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, src);
 
-                for literal in clause.clause().literals() {
+                for literal in stored_clause.clause().literals() {
                     self.variables[literal.v_id].note_occurence(
-                        clause.clone(),
+                        stored_clause.clone(),
                         src,
                         literal.polarity,
                     );
                 }
-                self.learnt_clauses.push(clause.clone());
-                clause
+
+                match src {
+                    ClauseSource::Formula => self.formula_clauses.push(stored_clause.clone()),
+                    ClauseSource::Resolution => {
+                        log::warn!("Learning clause {}", clause.as_string());
+                        self.learnt_clauses.push(stored_clause.clone())
+                    }
+                };
+                stored_clause
             }
         }
     }
@@ -41,7 +45,12 @@ impl<'borrow, 'solve> Solve<'solve> {
             .iter()
             .position(|sc| sc == stored_clause)
         {
-            self.learnt_clauses.swap_remove(p);
+            let removed = self.learnt_clauses.swap_remove(p);
+            let a = removed.watched_a();
+            let b = removed.watched_b();
+            self.variables[a.v_id].watch_removed(&removed);
+            self.variables[b.v_id].watch_removed(&removed);
+            println!("removed: {}", stored_clause);
         } else {
             panic!("Unable to remove: {}", stored_clause);
         }
@@ -108,10 +117,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                         self.variables[lit.v_id].set_decision_level(level_index);
                         self.current_level_mut().record_literal(lit, src.clone());
                         if let Some(stored_clause) = weak.upgrade() {
-                            let literals = self
-                                .stored_clauses()
-                                .find(|clause| clause.id() == stored_clause.id())
-                                .unwrap()
+                            let literals = stored_clause
                                 .literals()
                                 .map(|l| l.negate())
                                 .collect::<Vec<_>>();
