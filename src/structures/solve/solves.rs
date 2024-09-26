@@ -6,7 +6,7 @@ use std::rc::Rc;
 pub enum SolveResult {
     Satisfiable,
     Unsatisfiable,
-    Unkown
+    Unkown,
 }
 
 impl Solve<'_> {
@@ -74,6 +74,22 @@ impl Solve<'_> {
 
             if !some_deduction {
                 if let Some(available_v_id) = self.most_active_none(&self.valuation) {
+                    if self.time_to_reduce() {
+                        println!("time to reduce");
+
+                        let learnt_count = self.learnt_clauses.len();
+                        for _ in 0..learnt_count / 2 {
+                            let first_clause = self
+                                .learnt_clauses
+                                .first()
+                                .expect("No learnt clause")
+                                .clone();
+
+                            self.drop_clause(&first_clause);
+                        }
+                        // self.learnt_clauses.truncate(learnt_count / 2);
+                    }
+
                     log::trace!(
                         "Choice: {available_v_id} @ {} with activity {}",
                         self.current_level().index(),
@@ -85,7 +101,10 @@ impl Solve<'_> {
 
                     continue 'main_loop;
                 } else {
-                    println!("c ASSIGNMENT: {}", self.valuation.to_vec().as_display_string(self));
+                    println!(
+                        "c ASSIGNMENT: {}",
+                        self.valuation.to_vec().as_display_string(self)
+                    );
                     return Ok(SolveResult::Satisfiable);
                 }
             }
