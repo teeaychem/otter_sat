@@ -1,5 +1,5 @@
 use crate::structures::{
-    solve::SolveError, Clause, ClauseVec, Literal, LiteralError, Variable, VariableId,
+    solve::SolveError, Clause, ClauseVec, Literal, Variable, VariableId,
 };
 
 #[derive(Debug, Clone)]
