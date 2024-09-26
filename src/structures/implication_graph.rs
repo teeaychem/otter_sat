@@ -7,7 +7,7 @@ use petgraph::{
     visit::NodeRef,
 };
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 macro_rules! target_graph {
     () => {
@@ -31,7 +31,7 @@ struct ImplicationNode {
 
 #[derive(Clone, Debug)]
 pub enum ImplicationSource {
-    StoredClause(Rc<StoredClause>),
+    StoredClause(Weak<StoredClause>),
     Contradiction,
     Conflict,
 }
@@ -137,7 +137,7 @@ impl ImplicationGraph {
             let the_edge = self.graph.edge_weight(edge_index).unwrap();
             match &the_edge {
                 ImplicationSource::StoredClause(c) => {
-                    log::debug!(target: target_graph!(), "+{description} @{lvl_idx}: {antecedent} --[{}]-> {to}", c.id())
+                    log::debug!(target: target_graph!(), "+{description} @{lvl_idx}: {antecedent} --> {to}")
                 }
                 _ => {
                     log::debug!(target: target_graph!(), "+{description} @{lvl_idx}: {antecedent} --[{the_edge:?}]-> {to}")
@@ -237,7 +237,7 @@ impl ImplicationGraph {
         }
     }
 
-    pub fn implying_clauses(&self, lit: Literal) -> impl Iterator<Item = &Rc<StoredClause>> + '_ {
+    pub fn implying_clauses(&self, lit: Literal) -> impl Iterator<Item = &Weak<StoredClause>> + '_ {
         self.graph
             .edges_directed(self.get_literal(lit), petgraph::Direction::Incoming)
             .filter_map(|edge| match &edge.weight() {
@@ -281,7 +281,7 @@ impl<'borrow> ImplicationGraph {
         &'borrow self,
         clause: &'borrow impl Clause,
         lvl_idx: LevelIndex,
-    ) -> impl Iterator<Item = (Rc<StoredClause>, Literal)> + 'borrow {
+    ) -> impl Iterator<Item = (Weak<StoredClause>, Literal)> + 'borrow {
         clause
             .literals()
             .filter_map(move |literal| {
@@ -314,7 +314,7 @@ impl<'borrow> ImplicationGraph {
     pub fn resolution_candidates_all(
         &'borrow self,
         clause: &'borrow impl Clause,
-    ) -> impl Iterator<Item = (Rc<StoredClause>, Literal)> + 'borrow {
+    ) -> impl Iterator<Item = (Weak<StoredClause>, Literal)> + 'borrow {
         clause.literals().flat_map(move |literal| {
             let the_node_index = self.variable_indicies[literal.v_id].expect("Missing node");
             let the_literal_node = self
@@ -341,7 +341,7 @@ impl<'borrow> ImplicationGraph {
     fn connecting_clauses(
         &self,
         mut path: impl Iterator<Item = &'borrow NodeIndex>,
-    ) -> Vec<Rc<StoredClause>> {
+    ) -> Vec<Weak<StoredClause>> {
         let mut stored_clauses = vec![];
         if let Some(mut from_node) = path.next() {
             let mut to_node;
@@ -369,7 +369,7 @@ impl<'borrow> ImplicationGraph {
         &self,
         from: Literal,
         to: Literal,
-    ) -> Option<Vec<Rc<StoredClause>>> {
+    ) -> Option<Vec<Weak<StoredClause>>> {
         let from_node = self.get_literal(from).id();
         let to_node = self.get_literal(to).id();
         let mut paths =
