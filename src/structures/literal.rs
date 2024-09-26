@@ -1,4 +1,4 @@
-use crate::structures::{StoredClause, VariableId};
+use crate::structures::{StoredClause, Variable, VariableId};
 
 use std::rc::Weak;
 
@@ -37,6 +37,35 @@ impl Literal {
             polarity,
         }
     }
+
+    pub fn from_string(string: &str, vars: &mut Vec<Variable>) -> Result<Literal, LiteralError> {
+    let trimmed_string = string.trim();
+
+    if trimmed_string.is_empty() || trimmed_string == "-" {
+        return Err(LiteralError::NoVariable);
+    }
+
+    let polarity = !trimmed_string.starts_with('-');
+
+    let mut the_name = trimmed_string;
+    if !polarity {
+        the_name = &the_name[1..]
+    }
+
+    let the_variable = {
+        if let Some(variable) = vars.iter().find(|v| v.name() == the_name) {
+            variable.id()
+        } else {
+            let the_id = vars.len() as VariableId;
+            let new_variable = Variable::new(the_name, the_id);
+            vars.push(new_variable);
+            the_id
+        }
+    };
+    let the_literal = Literal::new(the_variable, polarity);
+    Ok(the_literal)
+}
+
 }
 
 impl PartialOrd for Literal {
