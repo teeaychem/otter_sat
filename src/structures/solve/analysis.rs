@@ -76,7 +76,6 @@ impl Solve<'_> {
         self.resolution_graph
             .add_resolution(resolution_tail.iter(), &stored_clause);
         stored_clause.set_lbd(&self.variables);
-        println!("{:?}", stored_clause);
         stored_clause
     }
 

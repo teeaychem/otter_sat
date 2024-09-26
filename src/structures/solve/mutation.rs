@@ -1,8 +1,8 @@
 use crate::structures::{
     solve::{Solve, SolveError},
     stored_clause::update_watch,
-    Clause, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource,
-    StoredClause, Valuation, ValuationError,
+    Clause, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource, StoredClause,
+    Valuation, ValuationError,
 };
 use std::rc::Rc;
 
@@ -29,14 +29,22 @@ impl<'borrow, 'solve> Solve<'solve> {
                         literal.polarity,
                     );
                 }
-                self.clauses.insert(clause.clone());
+                self.learnt_clauses.push(clause.clone());
                 clause
             }
         }
     }
 
     pub fn drop_clause(&mut self, stored_clause: &Rc<StoredClause>) {
-        self.clauses.remove(stored_clause);
+        if let Some(p) = self
+            .learnt_clauses
+            .iter()
+            .position(|sc| sc == stored_clause)
+        {
+            self.learnt_clauses.swap_remove(p);
+        } else {
+            panic!("Unable to remove: {}", stored_clause);
+        }
     }
 
     /*
@@ -101,15 +109,15 @@ impl<'borrow, 'solve> Solve<'solve> {
                         self.current_level_mut().record_literal(lit, src.clone());
                         if let Some(stored_clause) = weak.upgrade() {
                             let literals = self
-                                .clauses
-                                .iter()
+                                .stored_clauses()
                                 .find(|clause| clause.id() == stored_clause.id())
                                 .unwrap()
                                 .literals()
-                                .map(|l| l.negate());
+                                .map(|l| l.negate())
+                                .collect::<Vec<_>>();
 
                             self.implication_graph.add_implication(
-                                literals,
+                                literals.into_iter(),
                                 lit,
                                 level_index,
                                 ImplicationSource::StoredClause(weak.clone()),
