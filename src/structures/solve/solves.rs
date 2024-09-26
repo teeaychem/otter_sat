@@ -1,10 +1,16 @@
 use crate::procedures::hobson_choices;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
-use crate::structures::{Clause, Literal, LiteralSource, Valuation, ValuationVec};
+use crate::structures::{Clause, Literal, LiteralSource, Valuation};
 use std::rc::Rc;
 
+pub enum SolveResult {
+    Satisfiable,
+    Unsatisfiable,
+    Unkown
+}
+
 impl Solve<'_> {
-    pub fn implication_solve(&mut self) -> Result<Option<ValuationVec>, SolveError> {
+    pub fn implication_solve(&mut self) -> Result<SolveResult, SolveError> {
         println!("~~~ an implication solve ~~~");
         self.set_from_lists(hobson_choices(self.clauses())); // settle any literals which occur only as true or only as false
 
@@ -56,7 +62,7 @@ impl Solve<'_> {
                         if self.config.core {
                             self.core();
                         }
-                        return Ok(None);
+                        return Ok(SolveResult::Unsatisfiable);
                     }
                     Ok(SolveOk::AssertingClause) | Ok(SolveOk::Deduction(_)) => {
                         continue 'main_loop;
@@ -79,7 +85,8 @@ impl Solve<'_> {
 
                     continue 'main_loop;
                 } else {
-                    return Ok(Some(self.valuation.to_vec()));
+                    println!("c ASSIGNMENT: {}", self.valuation.to_vec().as_display_string(self));
+                    return Ok(SolveResult::Satisfiable);
                 }
             }
         }

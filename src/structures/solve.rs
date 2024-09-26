@@ -6,3 +6,4 @@ mod config;
 
 pub use crate::structures::solve::core::{Solve, SolveError, SolveOk, SolveStatus};
 pub use crate::structures::solve::config::SolveConfig;
+pub use crate::structures::solve::solves::SolveResult;

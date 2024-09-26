@@ -47,7 +47,6 @@ impl<'borrow, 'solve> Solve<'solve> {
     }
 
     pub fn drop_clause(&mut self, stored_clause: &Rc<StoredClause>) {
-        println!("\n\ndropped\n\n");
         self.clauses.remove(stored_clause);
     }
 
@@ -111,25 +110,24 @@ impl<'borrow, 'solve> Solve<'solve> {
                     LiteralSource::StoredClause(weak) => {
                         self.variables[lit.v_id].set_decision_level(level_index);
                         self.current_level_mut().record_literal(lit, src.clone());
-                        if let Some(stored_clause) = weak.upgrade(){
+                        if let Some(stored_clause) = weak.upgrade() {
+                            let literals = self
+                                .clauses
+                                .iter()
+                                .find(|clause| clause.id() == stored_clause.id())
+                                .unwrap()
+                                .literals()
+                                .map(|l| l.negate());
 
-                        let literals = self
-                            .clauses
-                            .iter()
-                            .find(|clause| clause.id() == stored_clause.id())
-                            .unwrap()
-                            .literals()
-                            .map(|l| l.negate());
-
-                        self.implication_graph.add_implication(
-                            literals,
-                            lit,
-                            level_index,
-                            ImplicationSource::StoredClause(weak.clone()),
-                        );
+                            self.implication_graph.add_implication(
+                                literals,
+                                lit,
+                                level_index,
+                                ImplicationSource::StoredClause(weak.clone()),
+                            );
                         } else {
                             panic!("Lost clause");
-}
+                        }
 
                         log::debug!("+Set deduction: {lit}");
                     }

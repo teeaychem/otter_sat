@@ -6,8 +6,7 @@ mod io;
 mod procedures;
 mod structures;
 
-use crate::structures::solve::Solve;
-use crate::structures::solve::SolveConfig;
+use crate::structures::solve::{Solve, SolveConfig, SolveResult};
 use crate::structures::Formula;
 
 /// Simple program to greet a person
@@ -38,8 +37,20 @@ fn main() {
             let mut the_solve = Solve::from_formula(&formula, config);
 
             let result = the_solve.implication_solve();
-            if let Ok(valuation) = result {
-                println!("Satisfying assignment: {:?}", valuation);
+            match result {
+                Ok(SolveResult::Unsatisfiable) => {
+                    println!("s UNSATISFIABLE");
+                    std::process::exit(00);
+                }
+                Ok(SolveResult::Satisfiable) => {
+                    println!("s SATISFIABLE");
+                    std::process::exit(10);
+                }
+                Ok(SolveResult::Unkown) => {
+                    println!("s Unkown");
+                    std::process::exit(20);
+                }
+                _ => panic!("Solve error"),
             }
             // dbg!(&the_solve);
         }
