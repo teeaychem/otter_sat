@@ -76,16 +76,16 @@ impl Solve<'_> {
                 if let Some(available_v_id) = self.most_active_none(&self.valuation) {
                     if self.time_to_reduce() {
                         println!("time to reduce");
+                        self.learnt_clauses.sort_unstable_by_key(|a| a.lbd());
 
                         let learnt_count = self.learnt_clauses.len();
                         for _ in 0..learnt_count / 2 {
-                            let first_clause = self
-                                .learnt_clauses
-                                .first()
-                                .expect("No learnt clause")
-                                .clone();
-
-                            self.drop_clause(&first_clause);
+                            if self.learnt_clauses.last().is_some_and(|lc| lc.lbd() > 2) {
+                                let goodbye = self.learnt_clauses.last().unwrap().clone();
+                                self.drop_clause(&goodbye);
+                            } else {
+                                break;
+                            }
                         }
                         // self.learnt_clauses.truncate(learnt_count / 2);
                     }

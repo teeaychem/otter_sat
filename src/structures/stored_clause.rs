@@ -230,6 +230,10 @@ impl StoredClause {
         self.lbd.replace(self.clause.lbd(vars));
     }
 
+    pub fn lbd(&self) -> usize {
+        self.lbd.get()
+    }
+
     pub fn watched_a(&self) -> Literal {
         self.clause[self.watch_a.get()]
     }
