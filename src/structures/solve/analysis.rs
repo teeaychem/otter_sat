@@ -5,7 +5,7 @@ use crate::structures::{
     Valuation,
 };
 
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 pub enum AnalysisResult {
     AssertingClause(Rc<StoredClause>),
@@ -230,25 +230,23 @@ impl Solve<'_> {
     }
 
     pub fn core(&self) {
-        println!("An unsatisfiable core of the input formula:");
+        println!();
+        println!("An unsatisfiable core:");
         let node_indicies = self
             .top_level()
             .observations()
             .iter()
             .filter_map(|(source, _)| match source {
                 LiteralSource::StoredClause(weak) => {
-                    if let Some(stored_clause) = weak.upgrade() {
-                        Some(stored_clause.nx())
-                    } else {
-                        None
-                    }
+                    weak.upgrade().map(|stored_clause| stored_clause.nx())
                 }
                 _ => None,
             });
         let node_indicies_vec = node_indicies.collect::<Vec<_>>();
         let simple_core = self.resolution_graph.extant_origins(node_indicies_vec);
         for clause in simple_core {
-            println!("{}", clause.clause().as_string())
+            println!("\t{}", clause.clause().as_string())
         }
+        println!();
     }
 }
