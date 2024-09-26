@@ -11,11 +11,20 @@ pub enum ClauseSource {
     Resolution,
 }
 
+/**
+The stored clause struct associates a clause with metadata relevant for a solve
+and, is intended to be the unique representation of a clause within a solve
+- `nx` is the node index of the stored clause in the resolution graph
+- `lbd` is the literal block distance of the clause
+  - note, this defaults to 0 and should be updated if a clause is stored after some decisions have been made
+- `watch_a` and `watch_b` are pointers to the watched literals, and rely on a vector representation of the clause
+  - note, both default to 0 and should be initialised with `initialise_watches_for` when the clause is stored
+*/
 #[derive(Clone, Debug)]
 pub struct StoredClause {
     id: ClauseId,
     nx: OnceCell<NodeIndex>,
-    lbd: OnceCell<usize>,
+    lbd: Cell<usize>,
     source: ClauseSource,
     clause: ClauseVec,
     watch_a: Cell<usize>,
@@ -36,11 +45,11 @@ impl StoredClause {
         let the_clause = StoredClause {
             id,
             nx: OnceCell::new(),
-            lbd: OnceCell::new(),
+            lbd: Cell::new(0),
             clause: clause.as_vec(),
             source,
-            watch_a: <Cell<usize>>::from(0),
-            watch_b: <Cell<usize>>::from(0),
+            watch_a: Cell::from(0),
+            watch_b: Cell::from(0),
         };
 
         Rc::new(the_clause)
@@ -215,6 +224,10 @@ impl StoredClause {
                 // panic!("Unexpected combination of watch literals")
             }
         }
+    }
+
+    pub fn set_lbd(&self, vars: &[Variable]) {
+        self.lbd.replace(self.clause.lbd(vars));
     }
 }
 
