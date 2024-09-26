@@ -52,7 +52,6 @@ fn main() {
                 }
                 _ => panic!("Solve error"),
             }
-            // dbg!(&the_solve);
         }
     }
 }
