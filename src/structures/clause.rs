@@ -29,7 +29,7 @@ pub trait Clause: IntoIterator {
 
     fn asserts(&self, val: &impl Valuation) -> Option<Literal>;
 
-    fn lbd(&self, val: &impl Valuation, vars: &[Variable]) -> usize;
+    fn lbd(&self, variables: &[Variable]) -> usize;
 }
 
 pub type ClauseId = usize;
@@ -141,7 +141,7 @@ impl Clause for ClauseVec {
         the_literal
     }
 
-    fn lbd(&self, val: &impl Valuation, vars: &[Variable]) -> usize {
+    fn lbd(&self, vars: &[Variable]) -> usize {
         self.iter()
             .map(|l| vars[l.v_id].decision_level())
             .collect::<BTreeSet<_>>()

@@ -1,11 +1,11 @@
 use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{
-    stored_clause::initialise_watches_for, Clause, ClauseSource, LiteralSource, StoredClause,
-    Valuation,
+    stored_clause::initialise_watches_for, Clause, ClauseSource, ClauseVec, LiteralSource,
+    StoredClause, Valuation,
 };
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 pub enum AnalysisResult {
     AssertingClause(Rc<StoredClause>),
@@ -65,17 +65,32 @@ impl Solve<'_> {
         }
     }
 
+    /// Common steps to storing a clause
+    fn store_clause_common(
+        &mut self,
+        resolution_tail: Vec<Weak<StoredClause>>,
+        clause: ClauseVec,
+        source: ClauseSource,
+    ) -> Rc<StoredClause> {
+        let stored_clause = self.store_clause(clause, source);
+        self.resolution_graph
+            .add_resolution(resolution_tail.iter(), &stored_clause);
+        stored_clause.set_lbd(&self.variables);
+        println!("{:?}", stored_clause);
+        stored_clause
+    }
+
     /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision level.
     pub fn simple_analysis_one(&mut self, stored_clause: Rc<StoredClause>) -> AnalysisResult {
-        let mut resolution_history = vec![];
-        let mut the_resolved_clause = stored_clause.clause().as_vec();
+        let mut resolution_tail = vec![];
+        let mut resolved_clause = stored_clause.clause().as_vec();
 
         'resolution_loop: loop {
-            log::trace!("Analysis clause: {}", the_resolved_clause.as_string());
+            log::trace!("Analysis clause: {}", resolved_clause.as_string());
             // the current choice will never be a resolution literal, as these are those literals in the clause which are the result of propagation
             let mut resolution_literals = self
                 .implication_graph
-                .resolution_candidates_at_level(&the_resolved_clause, self.current_level().index())
+                .resolution_candidates_at_level(&resolved_clause, self.current_level().index())
                 .map(|(weak, lit)| (weak.upgrade().expect("Lost clause"), lit))
                 .collect::<Vec<_>>();
 
@@ -83,9 +98,9 @@ impl Solve<'_> {
             resolution_literals.dedup();
 
             if let Some((stored_clause, resolution_literal)) = resolution_literals.first() {
-                resolution_history.push(Rc::downgrade(stored_clause));
-                the_resolved_clause = resolve_sorted_clauses(
-                    &the_resolved_clause.to_vec(),
+                resolution_tail.push(Rc::downgrade(stored_clause));
+                resolved_clause = resolve_sorted_clauses(
+                    &resolved_clause.to_vec(),
                     &stored_clause.clause().as_vec(),
                     resolution_literal.v_id,
                 )
@@ -98,9 +113,8 @@ impl Solve<'_> {
             }
         }
 
-        let sc = self.store_clause(the_resolved_clause, ClauseSource::Resolution);
-        self.resolution_graph
-            .add_resolution(resolution_history.iter(), &sc);
+        let sc =
+            self.store_clause_common(resolution_tail, resolved_clause, ClauseSource::Resolution);
 
         AnalysisResult::AssertingClause(sc)
     }
@@ -115,7 +129,7 @@ impl Solve<'_> {
             the_conflict_clause.clause().as_string()
         );
 
-        let mut the_resolved_clause = the_conflict_clause.clause().as_vec();
+        let mut resolved_clause = the_conflict_clause.clause().as_vec();
         let the_conflict_level_choice = {
             let conflict_decision_level = self
                 .decision_levels_of(the_conflict_clause.clause())
@@ -126,12 +140,12 @@ impl Solve<'_> {
 
         let the_immediate_domiator = self
             .implication_graph
-            .immediate_dominators(the_resolved_clause.literals(), the_conflict_level_choice)
+            .immediate_dominators(resolved_clause.literals(), the_conflict_level_choice)
             .expect("No immediate dominator");
 
         log::warn!("Resolution on paths…");
 
-        let mut resolution_history = vec![];
+        let mut resolution_tail = vec![];
 
         for literal in the_conflict_clause.literals() {
             match self
@@ -145,12 +159,12 @@ impl Solve<'_> {
                         if let Some(path_clause) = weak_path_clause.upgrade() {
                             if let Some(shared_literal) =
                                 path_clause.clause().literals().find(|path_literal| {
-                                    the_resolved_clause.contains(&path_literal.negate())
+                                    resolved_clause.contains(&path_literal.negate())
                                 })
                             {
-                                resolution_history.push(Rc::downgrade(&path_clause));
-                                the_resolved_clause = resolve_sorted_clauses(
-                                    &the_resolved_clause,
+                                resolution_tail.push(Rc::downgrade(&path_clause));
+                                resolved_clause = resolve_sorted_clauses(
+                                    &resolved_clause,
                                     &path_clause.clause().as_vec(),
                                     shared_literal.v_id,
                                 )
@@ -165,11 +179,10 @@ impl Solve<'_> {
             }
         }
 
-        let sc = self.store_clause(the_resolved_clause, ClauseSource::Resolution);
-        self.resolution_graph
-            .add_resolution(resolution_history.iter(), &sc);
+        let stored_clause =
+            self.store_clause_common(resolution_tail, resolved_clause, ClauseSource::Resolution);
 
-        AnalysisResult::AssertingClause(sc)
+        AnalysisResult::AssertingClause(stored_clause)
     }
 
     pub fn simple_analysis_three(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
@@ -221,12 +234,10 @@ impl Solve<'_> {
                 .cloned()
                 .collect::<Vec<_>>();
         }
+        let stored_clause =
+            self.store_clause_common(resolution_trail, resolved_clause, ClauseSource::Resolution);
 
-        let sc = self.store_clause(resolved_clause, ClauseSource::Resolution);
-        self.resolution_graph
-            .add_resolution(resolution_trail.iter(), &sc);
-
-        AnalysisResult::AssertingClause(sc)
+        AnalysisResult::AssertingClause(stored_clause)
     }
 
     pub fn core(&self) {
