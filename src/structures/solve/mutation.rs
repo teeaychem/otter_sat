@@ -1,7 +1,7 @@
 use crate::structures::{
     solve::{Solve, SolveError},
     stored_clause::update_watch,
-    Clause, ClauseId, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource,
+    Clause, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource,
     StoredClause, Valuation, ValuationError,
 };
 use std::rc::Rc;
@@ -17,21 +17,10 @@ impl<'borrow, 'solve> Solve<'solve> {
         if let ClauseSource::Resolution = src {
             log::warn!("Learning clause {}", clause.as_string());
         };
-        self.store_clause_using_id(clause, Solve::fresh_clause_id(), src)
-    }
-
-    /// Stores a clause within a StoredClause struct.
-    /// Note: In order to use the clause the watch literals of the struct must be initialised.
-    pub fn store_clause_using_id(
-        &'borrow mut self,
-        clause: impl Clause,
-        id: ClauseId,
-        src: ClauseSource,
-    ) -> Rc<StoredClause> {
         match clause.len() {
             0 => panic!("Attempt to add an empty clause"),
             _ => {
-                let clause = StoredClause::new_from(id, &clause, src);
+                let clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, src);
 
                 for literal in clause.clause().literals() {
                     self.variables[literal.v_id].note_occurence(
