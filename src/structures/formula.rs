@@ -49,33 +49,14 @@ impl Formula {
         }
     }
 
-    pub fn literal_from_string(&mut self, string: &str) -> Result<Literal, SolveError> {
-        let trimmed_string = string.trim();
-
-        if trimmed_string.is_empty() || trimmed_string == "-" {
-            return Err(SolveError::Literal(LiteralError::NoVariable));
-        }
-
-        let polarity = trimmed_string.chars().nth(0) != Some('-');
-
-        let mut the_name = trimmed_string;
-        if !polarity {
-            the_name = &the_name[1..]
-        }
-
-        let the_variable = self.var_id_by_name(the_name);
-        let the_literal = Literal::new(the_variable, polarity);
-        Ok(the_literal)
-    }
-
     fn clause_vec_from_string(&mut self, string: &str) -> Result<Vec<Literal>, SolveError> {
         let string_lterals = string.split_whitespace();
         let mut the_clause = vec![];
         for string_literal in string_lterals {
-            match self.literal_from_string(string_literal) {
+            match Literal::from_string(string_literal, &mut self.variables) {
                 Ok(made) => the_clause.push(made),
                 Err(e) => {
-                    return Err(e);
+                    return Err(SolveError::Literal(e));
                 }
             };
         }
