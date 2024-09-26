@@ -7,7 +7,7 @@ use crate::structures::{
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
 use std::collections::BTreeSet;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 pub struct SolveStatus {
     pub implications: Vec<(Rc<StoredClause>, Literal)>,
@@ -43,13 +43,13 @@ pub enum SolveOk {
     Backtracked,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum SolveError {
     Literal(LiteralError),
     // Clause(ClauseError),
     OutOfBounds,
     UnsatClause(Rc<StoredClause>),
-    Conflict(Rc<StoredClause>, Literal),
+    Conflict(Weak<StoredClause>, Literal),
     NoSolution,
 }
 

@@ -5,7 +5,7 @@ use crate::structures::{
     Valuation,
 };
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 pub enum AnalysisResult {
     AssertingClause(Rc<StoredClause>),
@@ -76,12 +76,14 @@ impl Solve<'_> {
             let mut resolution_literals = self
                 .implication_graph
                 .resolution_candidates_at_level(&the_resolved_clause, self.current_level().index())
+                .map(|(weak, lit)| (weak.upgrade().expect("Lost clause"), lit))
                 .collect::<Vec<_>>();
+
             resolution_literals.sort_unstable();
             resolution_literals.dedup();
 
             if let Some((stored_clause, resolution_literal)) = resolution_literals.first() {
-                resolution_history.push(stored_clause.clone());
+                resolution_history.push(Rc::downgrade(stored_clause));
                 the_resolved_clause = resolve_sorted_clauses(
                     &the_resolved_clause.to_vec(),
                     &stored_clause.clause().as_vec(),
@@ -139,21 +141,25 @@ impl Solve<'_> {
                 None => continue,
                 Some(mut path_clauses) => {
                     path_clauses.reverse(); // Not strictly necessary
-                    for path_clause in path_clauses {
-                        if let Some(shared_literal) =
-                            path_clause.clause().literals().find(|path_literal| {
-                                the_resolved_clause.contains(&path_literal.negate())
-                            })
-                        {
-                            resolution_history.push(path_clause.clone());
-                            the_resolved_clause = resolve_sorted_clauses(
-                                &the_resolved_clause,
-                                &path_clause.clause().as_vec(),
-                                shared_literal.v_id,
-                            )
-                            .expect("Resolution failed")
-                            .as_vec();
-                        };
+                    for weak_path_clause in path_clauses {
+                        if let Some(path_clause) = weak_path_clause.upgrade() {
+                            if let Some(shared_literal) =
+                                path_clause.clause().literals().find(|path_literal| {
+                                    the_resolved_clause.contains(&path_literal.negate())
+                                })
+                            {
+                                resolution_history.push(Rc::downgrade(&path_clause));
+                                the_resolved_clause = resolve_sorted_clauses(
+                                    &the_resolved_clause,
+                                    &path_clause.clause().as_vec(),
+                                    shared_literal.v_id,
+                                )
+                                .expect("Resolution failed")
+                                .as_vec();
+                            }
+                        } else {
+                            panic!("Lost clause");
+                        }
                     }
                 }
             }
@@ -182,15 +188,19 @@ impl Solve<'_> {
                 break;
             }
 
-            let src_cls_vec = src.clause().as_vec();
-            let counterparts = find_counterpart_literals(&resolved_clause, &src_cls_vec);
+            if let Some(stored_clause) = src.upgrade() {
+                let src_cls_vec = stored_clause.clause().as_vec();
+                let counterparts = find_counterpart_literals(&resolved_clause, &src_cls_vec);
 
-            if let Some(counterpart) = counterparts.first() {
-                resolution_trail.push(src.clone());
-                resolved_clause =
-                    resolve_sorted_clauses(&resolved_clause, &src_cls_vec, *counterpart)
-                        .unwrap()
-                        .as_vec()
+                if let Some(counterpart) = counterparts.first() {
+                    resolution_trail.push(src.clone());
+                    resolved_clause =
+                        resolve_sorted_clauses(&resolved_clause, &src_cls_vec, *counterpart)
+                            .unwrap()
+                            .as_vec()
+                }
+            } else {
+                panic!("Clause has been dropped")
             }
         }
 
@@ -226,7 +236,13 @@ impl Solve<'_> {
             .observations()
             .iter()
             .filter_map(|(source, _)| match source {
-                LiteralSource::StoredClause(stored_clause) => Some(stored_clause.nx()),
+                LiteralSource::StoredClause(weak) => {
+                    if let Some(stored_clause) = weak.upgrade() {
+                        Some(stored_clause.nx())
+                    } else {
+                        None
+                    }
+                }
                 _ => None,
             });
         let node_indicies_vec = node_indicies.collect::<Vec<_>>();
