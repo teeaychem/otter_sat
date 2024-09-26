@@ -1,7 +1,7 @@
 use crate::structures::{
-    solve::SolveConfig, Clause, ClauseId, ClauseSource, ClauseStatus, Formula, ImplicationGraph,
-    Level, LevelIndex, Literal, LiteralError, LiteralSource, ResolutionGraph, StoredClause,
-    Valuation, ValuationVec, Variable, VariableId, stored_clause::initialise_watches_for
+    solve::SolveConfig, stored_clause::initialise_watches_for, Clause, ClauseId, ClauseSource,
+    ClauseStatus, Formula, ImplicationGraph, Level, LevelIndex, Literal, LiteralError,
+    LiteralSource, ResolutionGraph, StoredClause, Valuation, ValuationVec, Variable, VariableId,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -72,7 +72,9 @@ impl Solve<'_> {
         formula.clauses().for_each(|formula_clause| {
             let as_vec = formula_clause.as_vec();
             match as_vec.len() {
-                0 => panic!("Zero length clause from formula"),
+                0 => {
+                    panic!("c The formula contains a zero-length clause");
+                }
                 _ => {
                     let clause = the_solve.store_clause(as_vec, ClauseSource::Formula);
                     initialise_watches_for(&clause, &empty_val, &mut the_solve.variables);
