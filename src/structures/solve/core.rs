@@ -30,7 +30,8 @@ pub struct Solve<'formula> {
     pub variables: Vec<Variable>,
     pub valuation: Vec<Option<bool>>,
     pub levels: Vec<Level>,
-    pub clauses: BTreeSet<Rc<StoredClause>>,
+    pub formula_clauses: Vec<Rc<StoredClause>>,
+    pub learnt_clauses: Vec<Rc<StoredClause>>,
     pub implication_graph: ImplicationGraph,
     pub resolution_graph: ResolutionGraph,
     pub config: SolveConfig,
@@ -61,7 +62,8 @@ impl Solve<'_> {
             variables: formula.vars().clone(),
             valuation: Vec::<Option<bool>>::new_for_variables(formula.vars().len()),
             levels: vec![Level::new(0)],
-            clauses: BTreeSet::new(),
+            formula_clauses: Vec::new(),
+            learnt_clauses: Vec::new(),
             implication_graph: ImplicationGraph::new_for(formula),
             resolution_graph: ResolutionGraph::new(),
             config,
@@ -111,9 +113,14 @@ impl Solve<'_> {
         self.clauses().all(|clause| clause.is_sat_on(valuation))
     }
 
-    pub fn clauses(&self) -> impl Iterator<Item = &impl Clause> {
-        self.clauses
+    pub fn stored_clauses(&self) -> impl Iterator<Item = &Rc<StoredClause>> {
+        self.formula_clauses
             .iter()
+            .chain(&self.learnt_clauses)
+    }
+
+    pub fn clauses(&self) -> impl Iterator<Item = &impl Clause> {
+        self.stored_clauses()
             .map(|stored_clause| stored_clause.clause())
     }
 
@@ -131,8 +138,7 @@ impl Solve<'_> {
     }
 
     pub fn get_stored_clause(&self, id: ClauseId) -> Rc<StoredClause> {
-        self.clauses
-            .iter()
+        self.formula_clauses.iter().chain(&self.learnt_clauses)
             .find(|stored_clause| stored_clause.id() == id)
             .expect("Unable to find clause with {id}")
             .clone()
@@ -200,7 +206,7 @@ impl Solve<'_> {
     whether this makes sense to do…
     */
     pub fn examine_all_clauses_on(&self, valuation: &impl Valuation) -> SolveStatus {
-        self.examine_clauses(valuation, &mut self.clauses.iter().cloned())
+        self.examine_clauses(valuation, &mut self.stored_clauses().cloned())
     }
 
     pub fn examine_level_clauses_on<T: Valuation>(&self, valuation: &T) -> SolveStatus {
