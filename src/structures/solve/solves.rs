@@ -1,6 +1,7 @@
 use crate::procedures::hobson_choices;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
-use crate::structures::{Literal, LiteralSource, Valuation, ValuationVec};
+use crate::structures::{Clause, Literal, LiteralSource, Valuation, ValuationVec};
+use std::rc::Rc;
 
 impl Solve<'_> {
     pub fn implication_solve(&mut self) -> Result<Option<ValuationVec>, SolveError> {
@@ -19,16 +20,27 @@ impl Solve<'_> {
             let mut some_deduction = false;
 
             if unsat_clauses.is_empty() {
-                'implication: for (stored_clause, consequent) in status.implications {
-                    match self.set_literal(consequent, LiteralSource::StoredClause(stored_clause)) {
-                        Err(SolveError::Conflict(stored_clause, _literal)) => {
-                            unsat_clauses.push(stored_clause);
+                'implication: for (stored_clause, consequent) in &status.implications {
+                    match self.set_literal(
+                        *consequent,
+                        LiteralSource::StoredClause(Rc::downgrade(stored_clause)),
+                    ) {
+                        Err(SolveError::Conflict(weak_clause, _literal)) => {
+                            if let Some(stored_clause) = weak_clause.upgrade() {
+                                unsat_clauses.push(stored_clause);
+                            } else {
+                                panic!("Lost conflict clause");
+                            }
                         }
                         Err(e) => panic!("Unexpected error {e:?} from setting a literal"),
                         Ok(()) => {
                             if !some_deduction {
                                 some_deduction = true
                             };
+                            let length = stored_clause.clause().len();
+                            if length == 1 {
+                                self.drop_clause(stored_clause);
+                            }
                             continue 'implication;
                         }
                     }

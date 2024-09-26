@@ -39,16 +39,21 @@ impl ResolutionGraph {
     // In particular, a clause id *could* be known in advance it's possible to add edges during resolution to save visiting a clause multiple times
     pub fn add_resolution<'from>(
         &mut self,
-        from: impl Iterator<Item = &'from Rc<StoredClause>>,
+        from: impl Iterator<Item = &'from Weak<StoredClause>>,
         to: &Rc<StoredClause>,
     ) {
         let to_node = self.graph.add_node(Node::Clause(Rc::downgrade(to)));
         to.set_nx(to_node);
 
         self.resolution_counter += 1;
+
         for antecedent in from {
-            self.graph
-                .add_edge(antecedent.nx(), to_node, self.resolution_counter);
+            if let Some(stored_antecedent) = antecedent.upgrade() {
+                self.graph
+                    .add_edge(stored_antecedent.nx(), to_node, self.resolution_counter);
+            } else {
+                panic!("Need to find antecedent in graph…")
+            }
         }
     }
 
@@ -111,6 +116,7 @@ impl ResolutionGraph {
                 Some(Node::Clause(weak_reference)) => weak_reference.upgrade(),
                 Some(Node::True) => panic!("the true has an incoming node…"),
                 None => panic!("Node has disappeared"),
-            }).collect()
+            })
+            .collect()
     }
 }

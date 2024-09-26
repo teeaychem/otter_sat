@@ -46,6 +46,11 @@ impl<'borrow, 'solve> Solve<'solve> {
         }
     }
 
+    pub fn drop_clause(&mut self, stored_clause: &Rc<StoredClause>) {
+        println!("\n\ndropped\n\n");
+        self.clauses.remove(stored_clause);
+    }
+
     /*
     Primary function for setting a literal during a solve
     Control branches on the current valuation and then the source of the literal.
@@ -103,9 +108,10 @@ impl<'borrow, 'solve> Solve<'solve> {
                         self.implication_graph.add_literal(lit, level_index, false);
                         log::debug!("+Set hobson choice: {lit}");
                     }
-                    LiteralSource::StoredClause(stored_clause) => {
+                    LiteralSource::StoredClause(weak) => {
                         self.variables[lit.v_id].set_decision_level(level_index);
                         self.current_level_mut().record_literal(lit, src.clone());
+                        if let Some(stored_clause) = weak.upgrade(){
 
                         let literals = self
                             .clauses
@@ -119,8 +125,11 @@ impl<'borrow, 'solve> Solve<'solve> {
                             literals,
                             lit,
                             level_index,
-                            ImplicationSource::StoredClause(stored_clause.clone()),
+                            ImplicationSource::StoredClause(weak.clone()),
                         );
+                        } else {
+                            panic!("Lost clause");
+}
 
                         log::debug!("+Set deduction: {lit}");
                     }
