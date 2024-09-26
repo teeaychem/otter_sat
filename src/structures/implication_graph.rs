@@ -7,7 +7,7 @@ use petgraph::{
     visit::NodeRef,
 };
 
-use std::rc::{Rc, Weak};
+use std::rc::Weak;
 
 macro_rules! target_graph {
     () => {
@@ -136,7 +136,7 @@ impl ImplicationGraph {
             );
             let the_edge = self.graph.edge_weight(edge_index).unwrap();
             match &the_edge {
-                ImplicationSource::StoredClause(c) => {
+                ImplicationSource::StoredClause(_) => {
                     log::debug!(target: target_graph!(), "+{description} @{lvl_idx}: {antecedent} --> {to}")
                 }
                 _ => {
