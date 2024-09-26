@@ -1,4 +1,6 @@
-use crate::structures::{Literal, Valuation, ValuationVec, VariableId};
+use crate::structures::{Literal, Valuation, ValuationVec, Variable, VariableId};
+
+use std::collections::BTreeSet;
 
 pub type ClauseVec = Vec<Literal>;
 
@@ -26,6 +28,8 @@ pub trait Clause: IntoIterator {
     fn len(&self) -> usize;
 
     fn asserts(&self, val: &impl Valuation) -> Option<Literal>;
+
+    fn lbd(&self, val: &impl Valuation, vars: &[Variable]) -> usize;
 }
 
 pub type ClauseId = usize;
@@ -135,6 +139,13 @@ impl Clause for ClauseVec {
             }
         }
         the_literal
+    }
+
+    fn lbd(&self, val: &impl Valuation, vars: &[Variable]) -> usize {
+        self.iter()
+            .map(|l| vars[l.v_id].decision_level())
+            .collect::<BTreeSet<_>>()
+            .len()
     }
 }
 

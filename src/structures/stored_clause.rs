@@ -15,6 +15,7 @@ pub enum ClauseSource {
 pub struct StoredClause {
     id: ClauseId,
     nx: OnceCell<NodeIndex>,
+    lbd: OnceCell<usize>,
     source: ClauseSource,
     clause: ClauseVec,
     watch_a: Cell<usize>,
@@ -35,6 +36,7 @@ impl StoredClause {
         let the_clause = StoredClause {
             id,
             nx: OnceCell::new(),
+            lbd: OnceCell::new(),
             clause: clause.as_vec(),
             source,
             watch_a: <Cell<usize>>::from(0),
