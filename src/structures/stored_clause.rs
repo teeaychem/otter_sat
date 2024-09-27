@@ -252,13 +252,13 @@ pub fn initialise_watches_for(
         });
 
         let current_a = stored_clause.clause[stored_clause.watch_a.get()].v_id;
-        vars[current_a].watch_added(stored_clause.clone());
+        vars[current_a].watch_added(stored_clause);
 
         let current_b = stored_clause.clause[stored_clause.watch_b.get()].v_id;
-        vars[current_b].watch_added(stored_clause.clone());
+        vars[current_b].watch_added(stored_clause);
     } else {
         let watched_variable = stored_clause.clause.first().unwrap().v_id;
-        vars[watched_variable].watch_added(stored_clause.clone());
+        vars[watched_variable].watch_added(stored_clause);
     }
 }
 
