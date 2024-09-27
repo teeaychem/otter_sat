@@ -249,7 +249,7 @@ impl Solve<'_> {
     }
 
     pub fn time_to_reduce(&self) -> bool {
-        self.conflicts != 0 && self.conflicts % 1000 == 0
+        self.conflicts != 0 && self.conflicts % 2000 == 0
     }
 }
 

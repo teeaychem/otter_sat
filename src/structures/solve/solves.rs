@@ -56,7 +56,7 @@ impl Solve<'_> {
             if let Some(stored_clause) = self.select_unsat(&unsat_clauses) {
                 self.process_unsat(&unsat_clauses);
 
-                log::warn!("Selected an unsatisfied clause");
+                log::trace!("Selected an unsatisfied clause");
                 match self.attempt_fix(stored_clause) {
                     Err(SolveError::NoSolution) => {
                         if self.config.core {
@@ -87,7 +87,10 @@ impl Solve<'_> {
                                 break;
                             }
                         }
-                        // self.learnt_clauses.truncate(learnt_count / 2);
+                        // println!("Learnt count: {}", self.learnt_clauses.len());
+                        // self.learnt_clauses.retain(|sc| sc.lbd() < 3);
+                        // println!("Reduced to: {}", self.learnt_clauses.len());
+
                     }
 
                     log::trace!(
