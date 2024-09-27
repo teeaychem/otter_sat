@@ -16,26 +16,33 @@ impl<'borrow, 'solve> Solve<'solve> {
     ) -> Rc<StoredClause> {
         match clause.len() {
             0 => panic!("Attempt to add an empty clause"),
-            _ => {
-                let stored_clause = StoredClause::new_from(Solve::fresh_clause_id(), &clause, src);
+            _ => match &src {
+                ClauseSource::Formula => {
+                    let stored_clause =
+                        StoredClause::new_from(Solve::fresh_clause_id(), &clause, src);
 
-                for literal in stored_clause.clause().literals() {
-                    self.variables[literal.v_id].note_occurence(
-                        stored_clause.clone(),
-                        src,
-                        literal.polarity,
-                    );
-                }
-
-                match src {
-                    ClauseSource::Formula => self.formula_clauses.push(stored_clause.clone()),
-                    ClauseSource::Resolution => {
-                        log::warn!("Learning clause {}", clause.as_string());
-                        self.learnt_clauses.push(stored_clause.clone())
+                    for literal in stored_clause.clause().literals() {
+                        self.variables[literal.v_id]
+                            .note_occurence(stored_clause.clone(), literal.polarity);
                     }
-                };
-                stored_clause
-            }
+
+                    self.formula_clauses.push(stored_clause.clone());
+                    stored_clause
+                }
+                ClauseSource::Resolution => {
+                    log::warn!("Learning clause {}", clause.as_string());
+                    let stored_clause =
+                        StoredClause::new_from(Solve::fresh_clause_id(), &clause, src);
+
+                    for literal in stored_clause.clause().literals() {
+                        self.variables[literal.v_id].increase_activity(1.0);
+                        self.variables[literal.v_id]
+                            .note_occurence(stored_clause.clone(), literal.polarity);
+                    }
+                    self.learnt_clauses.push(stored_clause.clone());
+                    stored_clause
+                }
+            },
         }
     }
 
