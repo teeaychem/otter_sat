@@ -5,7 +5,7 @@ use petgraph::prelude::NodeIndex;
 use std::cell::{Cell, OnceCell};
 use std::rc::Rc;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum ClauseSource {
     Formula,
     Resolution,
@@ -70,8 +70,8 @@ impl StoredClause {
         let _ = self.nx.set(nx);
     }
 
-    pub fn source(&self) -> ClauseSource {
-        self.source
+    pub fn source(&self) -> &ClauseSource {
+        &self.source
     }
 
     pub fn clause(&self) -> &impl Clause {
