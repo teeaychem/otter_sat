@@ -117,101 +117,100 @@ pub fn resolve_sorted_clauses<T: Clause>(
     cls_b: &T,
     v_id: VariableId,
 ) -> Option<impl Clause> {
+    let mut clause_a_literals = cls_a.literals();
+    let mut clause_b_literals = cls_b.literals();
+    let mut current_a = clause_a_literals.next();
+    let mut current_b = clause_b_literals.next();
+
     let mut the_clause = vec![];
-    let mut a_ptr = 0;
-    let mut b_ptr = 0;
-    let a_vec = cls_a.as_vec();
-    let a_max = a_vec.len();
-    let b_vec = cls_b.as_vec();
-    let b_max = b_vec.len();
-    let mut a_found = None;
-    let mut b_found = None;
+    let mut a_found: Option<bool> = None;
+    let mut b_found: Option<bool> = None;
 
     loop {
-        if a_ptr >= a_max && b_ptr >= b_max {
-            break;
-        } else if a_ptr < a_max && b_ptr >= b_max {
-            let a_lit = a_vec[a_ptr];
-            if a_lit.v_id == v_id {
-                if let Some(existing) = b_found {
-                    if existing != a_lit.polarity {
+        match (current_a, current_b) {
+            (None, None) => break,
+            (Some(a_lit), None) => {
+                if a_lit.v_id == v_id {
+                    if let Some(existing_b) = b_found {
+                        if existing_b != a_lit.polarity {
+                            a_found = Some(a_lit.polarity);
+                            current_a = clause_a_literals.next();
+                        } else {
+                            return None;
+                        }
+                    } else {
                         a_found = Some(a_lit.polarity);
-                        a_ptr += 1;
-                    } else {
-                        return None;
+                        current_a = clause_a_literals.next();
                     }
                 } else {
-                    a_found = Some(a_lit.polarity);
-                    a_ptr += 1;
+                    the_clause.push(a_lit);
+                    current_a = clause_a_literals.next();
                 }
-            } else {
-                the_clause.push(a_lit);
-                a_ptr += 1;
             }
-        } else if a_ptr >= a_max && b_ptr < b_max {
-            let b_lit = b_vec[b_ptr];
-            if b_lit.v_id == v_id {
-                if let Some(existing) = a_found {
-                    if existing != b_lit.polarity {
+            (None, Some(b_lit)) => {
+                if b_lit.v_id == v_id {
+                    if let Some(existing) = a_found {
+                        if existing != b_lit.polarity {
+                            b_found = Some(b_lit.polarity);
+                            current_b = clause_b_literals.next();
+                        } else {
+                            return None;
+                        }
+                    } else {
                         b_found = Some(b_lit.polarity);
-                        b_ptr += 1;
-                    } else {
-                        return None;
+                        current_a = clause_a_literals.next();
                     }
                 } else {
-                    b_found = Some(b_lit.polarity);
-                    b_ptr += 1;
+                    the_clause.push(b_lit);
+                    current_b = clause_b_literals.next();
                 }
-            } else {
-                the_clause.push(b_lit);
-                b_ptr += 1;
             }
-        } else if a_ptr < a_max && b_ptr < b_max {
-            let a_lit = a_vec[a_ptr];
-            let b_lit = b_vec[b_ptr];
-            if a_lit.v_id == v_id {
-                if let Some(existing) = b_found {
-                    if existing != a_lit.polarity {
+            (Some(a_lit), Some(b_lit)) => {
+                if a_lit.v_id == v_id {
+                    if let Some(existing) = b_found {
+                        if existing != a_lit.polarity {
+                            a_found = Some(a_lit.polarity);
+                            current_a = clause_a_literals.next();
+                        } else {
+                            return None;
+                        }
+                    } else {
                         a_found = Some(a_lit.polarity);
-                        a_ptr += 1;
-                    } else {
-                        return None;
+                        current_a = clause_a_literals.next();
                     }
-                } else {
-                    a_found = Some(a_lit.polarity);
-                    a_ptr += 1;
-                }
-            } else if b_lit.v_id == v_id {
-                if let Some(existing) = a_found {
-                    if existing != b_lit.polarity {
+                } else if b_lit.v_id == v_id {
+                    if let Some(existing) = a_found {
+                        if existing != b_lit.polarity {
+                            b_found = Some(b_lit.polarity);
+                            current_b = clause_b_literals.next();
+                        } else {
+                            return None;
+                        }
+                    } else {
                         b_found = Some(b_lit.polarity);
-                        b_ptr += 1;
-                    } else {
-                        return None;
+                        current_b = clause_b_literals.next();
                     }
                 } else {
-                    b_found = Some(b_lit.polarity);
-                    b_ptr += 1;
-                }
-            } else {
-                match a_lit.cmp(&b_lit) {
-                    std::cmp::Ordering::Equal => {
-                        the_clause.push(a_lit);
-                        a_ptr += 1;
-                        b_ptr += 1;
-                    }
-                    std::cmp::Ordering::Less => {
-                        the_clause.push(a_lit);
-                        a_ptr += 1;
-                    }
-                    std::cmp::Ordering::Greater => {
-                        the_clause.push(b_lit);
-                        b_ptr += 1;
+                    match a_lit.cmp(&b_lit) {
+                        std::cmp::Ordering::Equal => {
+                            the_clause.push(a_lit);
+                            current_a = clause_a_literals.next();
+                            current_b = clause_b_literals.next();
+                        }
+                        std::cmp::Ordering::Less => {
+                            the_clause.push(a_lit);
+                            current_a = clause_a_literals.next();
+                        }
+                        std::cmp::Ordering::Greater => {
+                            the_clause.push(b_lit);
+                            current_b = clause_b_literals.next();
+                        }
                     }
                 }
             }
         }
     }
+
     the_clause.dedup();
 
     if a_found.is_none() || b_found.is_none() {
@@ -277,7 +276,7 @@ mod tests {
                 Literal::new(4, false),
                 Literal::new(4, true)
             ],
-            merge_sorted_clauses(&a, &b).as_vec()
+            merge_sorted_clauses(&a, &b).to_vec()
         )
     }
 
@@ -291,7 +290,7 @@ mod tests {
                 Literal::new(2, false),
                 Literal::new(2, true),
             ],
-            merge_sorted_clauses(&a, &b).as_vec()
+            merge_sorted_clauses(&a, &b).to_vec()
         )
     }
 
@@ -317,7 +316,7 @@ mod tests {
                 Literal::new(4, false),
                 Literal::new(4, true)
             ],
-            result.unwrap().as_vec()
+            result.unwrap().to_vec()
         )
     }
 

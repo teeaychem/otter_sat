@@ -66,18 +66,17 @@ impl Solve<'_> {
 
         let initial_valuation = the_solve.valuation.clone();
 
-        formula.clauses().for_each(|formula_clause| {
-            let as_vec = formula_clause.as_vec();
-            match as_vec.len() {
+        formula
+            .clauses()
+            .for_each(|formula_clause| match formula_clause.len() {
                 0 => {
                     panic!("c The formula contains a zero-length clause");
                 }
                 _ => {
-                    let clause = the_solve.store_clause(as_vec, ClauseSource::Formula);
+                    let clause = the_solve.store_clause(formula_clause.as_vec(), ClauseSource::Formula);
                     initialise_watches_for(&clause, &initial_valuation, &mut the_solve.variables);
                 }
-            }
-        });
+            });
 
         the_solve
     }

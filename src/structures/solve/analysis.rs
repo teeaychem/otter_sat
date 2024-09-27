@@ -102,7 +102,7 @@ impl Solve<'_> {
                         resolved_clause =
                             resolve_sorted_clauses(&resolved_clause, &src_cls_vec, *counterpart)
                                 .unwrap()
-                                .as_vec()
+                                .to_vec()
                     }
                 } else {
                     panic!("Clause has been dropped")

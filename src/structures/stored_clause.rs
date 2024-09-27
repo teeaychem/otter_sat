@@ -34,15 +34,15 @@ A stored clause is implicitly tied to the status of a solve via the two watches.
 - Both watch literals will be set to Some(false)  only  if  it is not possible to find a literal with a value other than Some(false) on the current valuation
  */
 impl StoredClause {
-    pub fn new_from(id: ClauseId, clause: &impl Clause, source: ClauseSource) -> Rc<StoredClause> {
-        if clause.as_vec().is_empty() {
+    pub fn new_from(id: ClauseId, clause: impl Clause, source: ClauseSource) -> Rc<StoredClause> {
+        if clause.is_empty() {
             panic!("An empty clause")
         }
 
         let the_clause = StoredClause {
             id,
             lbd: Cell::new(0),
-            clause: clause.as_vec(),
+            clause: clause.to_vec(),
             source,
             watch_a: Cell::from(0),
             watch_b: Cell::from(0),
@@ -128,7 +128,7 @@ impl StoredClause {
     ) -> Option<usize> {
         let (mut index, mut level) = (None, 0);
 
-        for (i, l) in self.clause.as_vec().iter().enumerate() {
+        for (i, l) in self.clause.iter().enumerate() {
             if val.of_v_id(l.v_id).is_some_and(|val_polarity| {
                 (val_polarity != l.polarity
                     && (index.is_none() || level < vars[l.v_id].decision_level().unwrap()))
