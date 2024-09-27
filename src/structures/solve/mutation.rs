@@ -86,7 +86,6 @@ impl<'borrow, 'solve> Solve<'solve> {
                         self.current_level().index()
                     }
                 };
-
                 {
                     let mut informative_literal = false;
 
@@ -174,12 +173,7 @@ impl<'borrow, 'solve> Solve<'solve> {
         lit: Literal,
         informative_literal: &mut bool,
     ) {
-        match crate::structures::stored_clause::suggest_watch_update(
-            stored_clause,
-            &self.valuation,
-            lit.v_id,
-            self.variables(),
-        ) {
+        match suggest_watch_update(stored_clause, &self.valuation, lit.v_id, self.variables()) {
             (Some(a), None, true) => {
                 self.switch_watch_a(stored_clause, a);
                 *informative_literal = true
