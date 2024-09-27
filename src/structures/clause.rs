@@ -158,10 +158,10 @@ impl Clause for ClauseVec {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::procedures::resolve_sorted_clauses;
 
     #[test]
     fn resolve_ok_check() {
