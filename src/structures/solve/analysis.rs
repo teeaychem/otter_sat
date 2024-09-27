@@ -5,6 +5,7 @@ use crate::structures::{
     StoredClause, Valuation,
 };
 
+use std::collections::{BTreeSet, VecDeque};
 use std::rc::{Rc, Weak};
 
 pub enum AnalysisResult {
@@ -66,15 +67,8 @@ impl Solve<'_> {
     }
 
     /// Common steps to storing a clause
-    fn store_clause_common(
-        &mut self,
-        resolution_tail: Vec<Weak<StoredClause>>,
-        clause: ClauseVec,
-        source: ClauseSource,
-    ) -> Rc<StoredClause> {
+    fn store_clause_common(&mut self, clause: ClauseVec, source: ClauseSource) -> Rc<StoredClause> {
         let stored_clause = self.store_clause(clause, source);
-        self.resolution_graph
-            .add_resolution(resolution_tail.iter(), &stored_clause);
         stored_clause.set_lbd(&self.variables);
         stored_clause
     }
@@ -113,7 +107,7 @@ impl Solve<'_> {
         }
 
         let sc =
-            self.store_clause_common(resolution_tail, resolved_clause, ClauseSource::Resolution);
+            self.store_clause_common(resolved_clause, ClauseSource::Resolution(resolution_tail));
 
         AnalysisResult::AssertingClause(sc)
     }
@@ -179,7 +173,7 @@ impl Solve<'_> {
         }
 
         let stored_clause =
-            self.store_clause_common(resolution_tail, resolved_clause, ClauseSource::Resolution);
+            self.store_clause_common(resolved_clause, ClauseSource::Resolution(resolution_tail));
 
         AnalysisResult::AssertingClause(stored_clause)
     }
@@ -234,7 +228,7 @@ impl Solve<'_> {
                 .collect::<Vec<_>>();
         }
         let stored_clause =
-            self.store_clause_common(resolution_trail, resolved_clause, ClauseSource::Resolution);
+            self.store_clause_common(resolved_clause, ClauseSource::Resolution(resolution_trail));
 
         AnalysisResult::AssertingClause(stored_clause)
     }
@@ -248,15 +242,46 @@ impl Solve<'_> {
             .iter()
             .filter_map(|(source, _)| match source {
                 LiteralSource::StoredClause(weak) => {
-                    weak.upgrade().map(|stored_clause| stored_clause.nx())
+                    Some(weak.clone())
                 }
                 _ => None,
             });
         let node_indicies_vec = node_indicies.collect::<Vec<_>>();
-        let simple_core = self.resolution_graph.extant_origins(node_indicies_vec);
+        let simple_core = extant_origins(node_indicies_vec);
         for clause in simple_core {
             println!("\t{}", clause.clause().as_string())
         }
         println!();
     }
+}
+
+pub fn extant_origins(clauses: Vec<Weak<StoredClause>>) -> Vec<Rc<StoredClause>> {
+    let mut origin_nodes = BTreeSet::new();
+
+    let mut q: VecDeque<Weak<StoredClause>> = VecDeque::new();
+    for clause in clauses {
+        q.push_back(clause);
+    }
+    loop {
+        if q.is_empty() {
+            break;
+        }
+
+        let node = q.pop_front().expect("Ah, the queue was empty…");
+        if let Some(stored_clause) = node.upgrade() {
+            match stored_clause.source() {
+                ClauseSource::Resolution(origins) => {
+                    for antecedent in origins {
+                        q.push_back(antecedent.clone());
+                    }
+                }
+                ClauseSource::Formula => {
+                    origin_nodes.insert(stored_clause.clone());
+                }
+            }
+        } else {
+            panic!("Lost clause")
+        }
+    }
+    origin_nodes.into_iter().collect::<Vec<_>>()
 }

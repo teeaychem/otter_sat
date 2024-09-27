@@ -76,20 +76,20 @@ impl Solve<'_> {
                 if let Some(available_v_id) = self.most_active_none(&self.valuation) {
                     if self.time_to_reduce() {
                         println!("time to reduce");
-                        self.learnt_clauses.sort_unstable_by_key(|a| a.lbd());
+                        // self.learnt_clauses.sort_unstable_by_key(|a| a.lbd());
 
-                        let learnt_count = self.learnt_clauses.len();
-                        for _ in 0..learnt_count / 2 {
-                            if self.learnt_clauses.last().is_some_and(|lc| lc.lbd() > 2) {
-                                let goodbye = self.learnt_clauses.last().unwrap().clone();
-                                self.drop_clause(&goodbye);
-                            } else {
-                                break;
-                            }
-                        }
-                        // println!("Learnt count: {}", self.learnt_clauses.len());
-                        // self.learnt_clauses.retain(|sc| sc.lbd() < 3);
-                        // println!("Reduced to: {}", self.learnt_clauses.len());
+                        // let learnt_count = self.learnt_clauses.len();
+                        // for _ in 0..learnt_count / 2 {
+                        //     if self.learnt_clauses.last().is_some_and(|lc| lc.lbd() > 2) {
+                        //         let goodbye = self.learnt_clauses.last().unwrap().clone();
+                        //         self.drop_clause(&goodbye);
+                        //     } else {
+                        //         break;
+                        //     }
+                        // }
+                        println!("Learnt count: {}", self.learnt_clauses.len());
+                        self.learnt_clauses.retain(|sc| sc.lbd() < 3);
+                        println!("Reduced to: {}", self.learnt_clauses.len());
 
                     }
 
