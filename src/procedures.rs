@@ -39,79 +39,6 @@ pub fn hobson_choices<'borrow>(
     (hobson_false, hobson_true)
 }
 
-// pub fn binary_resolution<T: Clause>(cls_a: &T, cls_b: &T, v_id: VariableId) -> Option<impl Clause> {
-//     let mut the_clause = BTreeSet::new();
-//     let mut clause_a_value = None;
-//     let mut counterpart_found = false;
-//     for literal in cls_a.literals() {
-//         if literal.v_id != v_id {
-//             the_clause.insert(literal);
-//         } else if clause_a_value.is_none() {
-//             clause_a_value = Some(literal.polarity);
-//         }
-//     }
-//     if clause_a_value.is_none() {
-//         log::error!("Resolution: {v_id} not found in {}", cls_a.as_string());
-//         return None;
-//     }
-//     for literal in cls_b.literals() {
-//         if literal.v_id != v_id {
-//             the_clause.insert(literal);
-//         } else if !counterpart_found && Some(literal.polarity) != clause_a_value {
-//             counterpart_found = true;
-//         }
-//     }
-//     if !counterpart_found {
-//         log::error!("Resolution: {v_id} not found in {}", cls_b.as_string());
-//         return None;
-//     }
-//     Some(the_clause.iter().cloned().collect::<Vec<_>>())
-// }
-
-pub fn merge_sorted_clauses<T: Clause>(cls_a: &T, cls_b: &T) -> impl Clause {
-    let mut the_clause = vec![];
-    let mut a_ptr = 0;
-    let mut b_ptr = 0;
-    let a_vec = cls_a.as_vec();
-    let a_max = a_vec.len();
-    let b_vec = cls_b.as_vec();
-    let b_max = b_vec.len();
-
-    loop {
-        if a_ptr >= a_max && b_ptr >= b_max {
-            break;
-        } else if a_ptr < a_max && b_ptr >= b_max {
-            the_clause.push(a_vec[a_ptr]);
-            a_ptr += 1;
-        } else if a_ptr >= a_max && b_ptr < b_max {
-            the_clause.push(b_vec[b_ptr]);
-            b_ptr += 1;
-        } else if a_ptr < a_max && b_ptr < b_max {
-            let a_lit = a_vec[a_ptr];
-            let b_lit = b_vec[b_ptr];
-
-            match a_lit.cmp(&b_lit) {
-                std::cmp::Ordering::Equal => {
-                    the_clause.push(a_lit);
-                    a_ptr += 1;
-                    b_ptr += 1;
-                }
-                std::cmp::Ordering::Less => {
-                    the_clause.push(a_lit);
-                    a_ptr += 1;
-                }
-                std::cmp::Ordering::Greater => {
-                    the_clause.push(b_lit);
-                    b_ptr += 1;
-                }
-            }
-        }
-    }
-    the_clause.dedup();
-
-    the_clause
-}
-
 pub fn resolve_sorted_clauses<T: Clause>(
     cls_a: &T,
     cls_b: &T,
@@ -252,44 +179,6 @@ pub fn find_counterpart_literals<T: Clause>(cls_a: &T, cls_b: &T) -> Vec<Variabl
 mod tests {
     use super::*;
 
-    #[test]
-    fn merge_check_one() {
-        let a = vec![
-            Literal::new(1, true),
-            Literal::new(2, false),
-            Literal::new(4, true),
-        ];
-        let b = vec![
-            Literal::new(1, false),
-            Literal::new(3, true),
-            Literal::new(4, false),
-        ];
-        assert_eq!(
-            vec![
-                Literal::new(1, false),
-                Literal::new(1, true),
-                Literal::new(2, false),
-                Literal::new(3, true),
-                Literal::new(4, false),
-                Literal::new(4, true)
-            ],
-            merge_sorted_clauses(&a, &b).to_vec()
-        )
-    }
-
-    #[test]
-    fn merge_check_two() {
-        let a = vec![Literal::new(1, true), Literal::new(1, true)];
-        let b = vec![Literal::new(2, false), Literal::new(2, true)];
-        assert_eq!(
-            vec![
-                Literal::new(1, true),
-                Literal::new(2, false),
-                Literal::new(2, true),
-            ],
-            merge_sorted_clauses(&a, &b).to_vec()
-        )
-    }
 
     #[test]
     fn sorted_resolve_ok_check() {
