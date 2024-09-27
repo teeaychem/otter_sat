@@ -17,6 +17,8 @@ pub trait Clause: IntoIterator {
 
     fn as_string(&self) -> String;
 
+    fn is_empty(&self) -> bool;
+
     fn as_vec(&self) -> ClauseVec;
 
     fn to_vec(self) -> ClauseVec;
@@ -150,12 +152,16 @@ impl Clause for ClauseVec {
         decision_levels.dedup();
         decision_levels.len()
     }
+
+    fn is_empty(&self) -> bool {
+        self.is_empty()
+    }
 }
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::procedures::resolve_sorted_clauses;
 
     #[test]
     fn resolve_ok_check() {
@@ -169,14 +175,19 @@ mod tests {
             Literal::new(3, true),
             Literal::new(4, false),
         ];
-        assert_eq!(
-            vec![
-                Literal::new(2, false),
-                Literal::new(3, true),
-                Literal::new(4, false)
-            ],
-            resolve_sorted_clauses(&a, &b, 1).unwrap().to_sorted_vec()
-        )
+        let resolution = resolve_sorted_clauses(&a, &b, 1);
+        if let Some(resolved) = resolution {
+            assert_eq!(
+                vec![
+                    Literal::new(2, false),
+                    Literal::new(3, true),
+                    Literal::new(4, false)
+                ],
+                resolved.to_sorted_vec()
+            )
+        } else {
+            panic!("No resolution")
+        }
     }
 
     #[test]

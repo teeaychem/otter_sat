@@ -19,7 +19,7 @@ impl<'borrow, 'solve> Solve<'solve> {
             _ => match &src {
                 ClauseSource::Formula => {
                     let stored_clause =
-                        StoredClause::new_from(Solve::fresh_clause_id(), &clause, src);
+                        StoredClause::new_from(Solve::fresh_clause_id(), clause, src);
 
                     for literal in stored_clause.clause().literals() {
                         self.variables[literal.v_id]
@@ -32,7 +32,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                 ClauseSource::Resolution(_) => {
                     log::warn!("Learning clause {}", clause.as_string());
                     let stored_clause =
-                        StoredClause::new_from(Solve::fresh_clause_id(), &clause, src);
+                        StoredClause::new_from(Solve::fresh_clause_id(), clause, src);
 
                     for literal in stored_clause.clause().literals() {
                         self.variables[literal.v_id].increase_activity(1.0);
