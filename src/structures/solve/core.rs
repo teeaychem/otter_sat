@@ -47,7 +47,7 @@ pub enum SolveError {
     // Clause(ClauseError),
     OutOfBounds,
     UnsatClause(Rc<StoredClause>),
-    Conflict(Weak<StoredClause>, Literal),
+    Conflict(Rc<StoredClause>, Literal),
     NoSolution,
 }
 
@@ -163,10 +163,10 @@ impl Solve<'_> {
 }
 
 impl Solve<'_> {
-    fn examine_clauses(
+    fn examine_clauses<'sc>(
         &self,
         val: &impl Valuation,
-        clauses: impl Iterator<Item = Rc<StoredClause>>,
+        clauses: impl Iterator<Item = &'sc Rc<StoredClause>>,
     ) -> SolveStatus {
         let mut status = SolveStatus::new();
 
@@ -191,7 +191,7 @@ impl Solve<'_> {
     whether this makes sense to do…
     */
     pub fn examine_all_clauses_on(&self, valuation: &impl Valuation) -> SolveStatus {
-        self.examine_clauses(valuation, &mut self.stored_clauses().cloned())
+        self.examine_clauses(valuation, &mut self.stored_clauses())
     }
 
     pub fn examine_level_clauses_on<T: Valuation>(&self, valuation: &T) -> SolveStatus {
@@ -204,7 +204,7 @@ impl Solve<'_> {
         clauses.sort_unstable();
         clauses.dedup();
 
-        self.examine_clauses(valuation, clauses.into_iter())
+        self.examine_clauses(valuation, clauses.iter())
     }
 }
 

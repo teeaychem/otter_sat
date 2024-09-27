@@ -6,7 +6,7 @@ use std::rc::{Rc, Weak};
 #[derive(Clone, Debug)]
 pub enum ClauseSource {
     Formula,
-    Resolution(Vec<Weak<StoredClause>>),
+    Resolution(Vec<Rc<StoredClause>>),
 }
 
 /**

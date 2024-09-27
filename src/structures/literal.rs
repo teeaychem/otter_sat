@@ -1,6 +1,6 @@
 use crate::structures::{StoredClause, Variable, VariableId};
 
-use std::rc::Weak;
+use std::rc::{Rc, Weak};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Literal {
@@ -19,7 +19,7 @@ pub enum LiteralSource {
     Choice,       // a choice made where the alternative may make a SAT difference
     HobsonChoice, // a choice made with a guarantee that the alternative would make no SAT difference
     Conflict,
-    StoredClause(Weak<StoredClause>), // the literal must be the case for SAT given some valuation
+    StoredClause(Rc<StoredClause>), // the literal must be the case for SAT given some valuation
     Assumption,
 }
 
