@@ -6,7 +6,7 @@ use crate::structures::{
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 pub struct SolveStatus {
     pub implications: Vec<(Rc<StoredClause>, Literal)>,
@@ -26,6 +26,8 @@ impl SolveStatus {
 pub struct Solve<'formula> {
     _formula: &'formula Formula,
     pub conflicts: usize,
+    pub conflcits_since_last_forget: usize,
+    pub forgets: usize,
     pub variables: Vec<Variable>,
     pub valuation: Vec<Option<bool>>,
     pub levels: Vec<Level>,
@@ -56,6 +58,8 @@ impl Solve<'_> {
         let mut the_solve = Solve {
             _formula: formula,
             conflicts: 0,
+            conflcits_since_last_forget: 0,
+            forgets: 0,
             variables: formula.vars().clone(),
             valuation: Vec::<Option<bool>>::new_for_variables(formula.vars().len()),
             levels: vec![Level::new(0)],
@@ -92,21 +96,6 @@ impl Solve<'_> {
         valuation
     }
 
-    pub fn valuation_before_choice_at(&self, level_index: LevelIndex) -> ValuationVec {
-        match level_index {
-            0 => self.valuation_at(0),
-            _ => self.valuation_at(level_index - 1),
-        }
-    }
-
-    pub fn is_unsat_on(&self, valuation: &ValuationVec) -> bool {
-        self.clauses().any(|clause| clause.is_unsat_on(valuation))
-    }
-
-    pub fn is_sat_on(&self, valuation: &ValuationVec) -> bool {
-        self.clauses().all(|clause| clause.is_sat_on(valuation))
-    }
-
     pub fn stored_clauses(&self) -> impl Iterator<Item = &Rc<StoredClause>> {
         self.formula_clauses.iter().chain(&self.learnt_clauses)
     }
@@ -131,21 +120,6 @@ impl Solve<'_> {
 
     pub fn var_by_id(&self, id: VariableId) -> Option<&Variable> {
         self.variables.get(id)
-    }
-
-    pub fn decision_levels_of<'borrow, 'clause: 'borrow>(
-        &'borrow self,
-        clause: &'clause impl Clause,
-    ) -> impl Iterator<Item = LevelIndex> + 'borrow {
-        clause
-            .literals()
-            .filter_map(move |literal| self.variables[literal.v_id].decision_level())
-    }
-
-    pub fn level_choice(&self, index: LevelIndex) -> Literal {
-        self.levels[index]
-            .get_choice()
-            .expect("No choice at level {index}")
     }
 
     pub fn set_from_lists(&mut self, the_choices: (Vec<VariableId>, Vec<VariableId>)) {
@@ -212,6 +186,7 @@ impl Solve<'_> {
     pub fn process_unsat(&mut self, stored_clauses: &[Rc<StoredClause>]) {
         for conflict in stored_clauses {
             self.conflicts += 1;
+            self.conflcits_since_last_forget += 1;
             if self.conflicts % 256 == 0 {
                 for variable in &mut self.variables {
                     variable.divide_activity(2.0)
@@ -234,14 +209,7 @@ impl Solve<'_> {
     }
 
     pub fn time_to_reduce(&self) -> bool {
-        self.conflicts != 0 && self.conflicts % 2000 == 0
-    }
-}
-
-impl Solve<'_> {
-    pub fn variables_mut<'b, 'a: 'b>(&'a mut self) -> &'b mut [Variable] {
-        let x: &'b mut [Variable] = &mut self.variables;
-        x
+        self.conflcits_since_last_forget > (2000 + 300 * self.forgets)
     }
 
     pub fn variables(&self) -> &[Variable] {

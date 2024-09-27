@@ -1,7 +1,7 @@
 use crate::structures::{Clause, ClauseId, ClauseVec, Literal, Valuation, Variable, VariableId};
 
 use std::cell::Cell;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub enum ClauseSource {

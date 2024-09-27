@@ -40,8 +40,7 @@ impl Level {
             }
             LiteralSource::HobsonChoice
             | LiteralSource::Assumption
-            | LiteralSource::StoredClause(_)
-            | LiteralSource::Conflict => self.observations.push((source, literal)),
+            | LiteralSource::StoredClause(_) => self.observations.push((source, literal)),
         }
     }
 
@@ -50,9 +49,12 @@ impl Level {
     }
 
     pub fn literals(&self) -> impl Iterator<Item = Literal> + '_ {
-        self.choice
-            .into_iter()
-            .chain(self.observations.iter().map(|(_, literal)| literal).cloned())
+        self.choice.into_iter().chain(
+            self.observations
+                .iter()
+                .map(|(_, literal)| literal)
+                .cloned(),
+        )
     }
 
     pub fn variables(&self) -> impl Iterator<Item = VariableId> + '_ {
