@@ -2,7 +2,7 @@ use crate::structures::{Literal, Valuation, ValuationVec, Variable, VariableId};
 
 pub type ClauseVec = Vec<Literal>;
 
-pub trait Clause: IntoIterator {
+pub trait Clause {
     fn literals(&self) -> impl Iterator<Item = Literal>;
 
     fn variables(&self) -> impl Iterator<Item = VariableId>;
@@ -23,7 +23,7 @@ pub trait Clause: IntoIterator {
 
     fn to_vec(self) -> ClauseVec;
 
-    fn len(&self) -> usize;
+    fn length(&self) -> usize;
 
     fn asserts(&self, val: &impl Valuation) -> Option<Literal>;
 
@@ -115,7 +115,7 @@ impl Clause for ClauseVec {
         self
     }
 
-    fn len(&self) -> usize {
+    fn length(&self) -> usize {
         self.len()
     }
 

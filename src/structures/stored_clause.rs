@@ -271,7 +271,7 @@ pub fn suggest_watch_update(
     v_id: VariableId,
     vars: &[Variable],
 ) -> (Option<usize>, Option<usize>, bool) {
-    if stored_clause.clause.len() == 1 {
+    if stored_clause.length() == 1 {
         let informative = val
             .of_v_id(stored_clause.clause[stored_clause.watch_a.get()].v_id)
             .is_none();
@@ -378,3 +378,57 @@ impl PartialEq for StoredClause {
 }
 
 impl Eq for StoredClause {}
+
+impl Clause for StoredClause {
+    fn literals(&self) -> impl Iterator<Item = Literal> {
+        self.clause.literals()
+    }
+
+    fn variables(&self) -> impl Iterator<Item = VariableId> {
+        self.clause.variables()
+    }
+
+    fn is_sat_on(&self, valuation: &super::ValuationVec) -> bool {
+        self.clause.is_sat_on(valuation)
+    }
+
+    fn is_unsat_on(&self, valuation: &super::ValuationVec) -> bool {
+        self.clause.is_unsat_on(valuation)
+    }
+
+    fn find_unit_literal<T: Valuation>(&self, valuation: &T) -> Option<Literal> {
+        self.clause.find_unit_literal(valuation)
+    }
+
+    fn collect_choices<T: Valuation>(&self, valuation: &T) -> Option<Vec<Literal>> {
+        self.clause.collect_choices(valuation)
+    }
+
+    fn as_string(&self) -> String {
+        self.clause.as_string()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.clause.is_empty()
+    }
+
+    fn as_vec(&self) -> ClauseVec {
+        self.clause.clone()
+    }
+
+    fn to_vec(self) -> ClauseVec {
+        self.clause
+    }
+
+    fn length(&self) -> usize {
+        self.clause.len()
+    }
+
+    fn asserts(&self, val: &impl Valuation) -> Option<Literal> {
+        self.clause.asserts(val)
+    }
+
+    fn lbd(&self, variables: &[Variable]) -> usize {
+        self.clause.lbd(variables)
+    }
+}

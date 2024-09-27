@@ -16,7 +16,7 @@ impl Solve<'_> {
     /// Either the most recent decision level in the resolution clause prior to the current level or 0.
     fn decision_level(&self, stored_clause: &Rc<StoredClause>) -> usize {
         let mut top_two = [None; 2];
-        for lit in stored_clause.clause().literals() {
+        for lit in stored_clause.literals() {
             if let Some(dl) = self.variables[lit.v_id].decision_level() {
                 if top_two[1].is_none() {
                     top_two[1] = Some(dl)
@@ -82,7 +82,7 @@ impl Solve<'_> {
     /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision
 
     pub fn simple_analysis_three(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
-        let mut resolved_clause = conflict_clause.clause().as_vec();
+        let mut resolved_clause = conflict_clause.as_vec();
         let mut resolution_trail = vec![];
 
         let previous_level_val = self.valuation_at(self.current_level().index() - 1);
@@ -98,7 +98,7 @@ impl Solve<'_> {
             }
 
             if let LiteralSource::StoredClause(stored_clause) = src {
-                let src_cls_vec = stored_clause.clause().as_vec();
+                let src_cls_vec = stored_clause.as_vec();
                 let counterparts = find_counterpart_literals(&resolved_clause, &src_cls_vec);
 
                 if let Some(counterpart) = counterparts.first() {
