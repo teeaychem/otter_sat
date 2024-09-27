@@ -1,7 +1,6 @@
 pub mod clause;
 pub mod formula;
 pub mod implication_graph;
-pub mod resolution_graph;
 pub mod level;
 pub mod literal;
 pub mod solve;
@@ -19,4 +18,3 @@ pub use crate::structures::literal::{Literal, LiteralError, LiteralSource};
 pub use crate::structures::stored_clause::{ClauseSource, StoredClause, ClauseStatus};
 pub use crate::structures::valuation::{Valuation, ValuationError, ValuationOk, ValuationVec};
 pub use crate::structures::variable::{Variable, VariableId};
-pub use crate::structures::resolution_graph::*;

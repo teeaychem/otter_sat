@@ -3,12 +3,12 @@ use petgraph::matrix_graph::Zero;
 use petgraph::prelude::NodeIndex;
 
 use std::cell::{Cell, OnceCell};
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 #[derive(Clone, Debug)]
 pub enum ClauseSource {
     Formula,
-    Resolution,
+    Resolution(Vec<Weak<StoredClause>>),
 }
 
 /**
@@ -23,7 +23,6 @@ and, is intended to be the unique representation of a clause within a solve
 #[derive(Clone, Debug)]
 pub struct StoredClause {
     id: ClauseId,
-    nx: OnceCell<NodeIndex>,
     lbd: Cell<usize>,
     source: ClauseSource,
     clause: ClauseVec,
@@ -44,7 +43,6 @@ impl StoredClause {
 
         let the_clause = StoredClause {
             id,
-            nx: OnceCell::new(),
             lbd: Cell::new(0),
             clause: clause.as_vec(),
             source,
@@ -57,17 +55,6 @@ impl StoredClause {
 
     pub fn id(&self) -> ClauseId {
         self.id
-    }
-
-    pub fn nx(&self) -> NodeIndex {
-        match self.nx.get() {
-            None => panic!("Attempt to access resolution node index before it has been set"),
-            Some(&x) => x,
-        }
-    }
-
-    pub fn set_nx(&self, nx: NodeIndex) {
-        let _ = self.nx.set(nx);
     }
 
     pub fn source(&self) -> &ClauseSource {
