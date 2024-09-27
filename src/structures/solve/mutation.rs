@@ -23,7 +23,7 @@ impl<'borrow, 'solve> Solve<'solve> {
 
                     for literal in stored_clause.clause().literals() {
                         self.variables[literal.v_id]
-                            .note_occurence(stored_clause.clone(), literal.polarity);
+                            .note_occurence(&stored_clause, literal.polarity);
                     }
 
                     self.formula_clauses.push(stored_clause.clone());
@@ -37,7 +37,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                     for literal in stored_clause.clause().literals() {
                         self.variables[literal.v_id].increase_activity(1.0);
                         self.variables[literal.v_id]
-                            .note_occurence(stored_clause.clone(), literal.polarity);
+                            .note_occurence(&stored_clause, literal.polarity);
                     }
                     self.learnt_clauses.push(stored_clause.clone());
                     stored_clause

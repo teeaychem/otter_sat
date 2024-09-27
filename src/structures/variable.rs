@@ -65,10 +65,11 @@ impl Variable {
         self.activity.get()
     }
 
-    pub fn note_occurence(&mut self, stored_clause: Rc<StoredClause>, polarity: bool) {
+    pub fn note_occurence(&mut self, stored_clause: &Rc<StoredClause>, polarity: bool) {
+        let cloned = stored_clause.clone();
         match polarity {
-            true => self.positive_occurrences.push(stored_clause),
-            false => self.negative_occurrences.push(stored_clause),
+            true => self.positive_occurrences.push(cloned),
+            false => self.negative_occurrences.push(cloned),
         }
     }
 
@@ -95,8 +96,8 @@ impl Variable {
         self.watch_occurrences.remove(stored_clause);
     }
 
-    pub fn watch_added(&mut self, stored_clause: Rc<StoredClause>) {
-        self.watch_occurrences.insert(stored_clause);
+    pub fn watch_added(&mut self, stored_clause: &Rc<StoredClause>) {
+        self.watch_occurrences.insert(stored_clause.clone());
     }
 }
 
