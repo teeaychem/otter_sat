@@ -81,13 +81,6 @@ impl Variable {
         &self.negative_occurrences
     }
 
-    pub fn occurrences(&self) -> impl Iterator<Item = Rc<StoredClause>> + '_ {
-        self.positive_occurrences
-            .iter()
-            .chain(&self.negative_occurrences)
-            .cloned()
-    }
-
     pub fn watch_occurrences(&self) -> impl Iterator<Item = Rc<StoredClause>> + '_ {
         self.watch_occurrences.iter().cloned()
     }
@@ -98,6 +91,29 @@ impl Variable {
 
     pub fn watch_added(&mut self, stored_clause: &Rc<StoredClause>) {
         self.watch_occurrences.insert(stored_clause.clone());
+    }
+
+    pub fn note_drop(&mut self, polarity: bool, stored_clause: &Rc<StoredClause>) {
+        match polarity {
+            true => {
+                if let Some(p) = self
+                    .positive_occurrences()
+                    .iter()
+                    .position(|sc| sc == stored_clause)
+                {
+                    let _ = self.positive_occurrences.swap_remove(p);
+                }
+            }
+            false => {
+                if let Some(p) = self
+                    .negative_occurrences()
+                    .iter()
+                    .position(|sc| sc == stored_clause)
+                {
+                    let _ = self.negative_occurrences.swap_remove(p);
+                }
+            }
+        }
     }
 }
 
