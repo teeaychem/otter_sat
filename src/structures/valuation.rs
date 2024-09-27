@@ -1,3 +1,5 @@
+use std::collections::binary_heap::Iter;
+
 use crate::structures::{solve::Solve, Level, Literal, VariableId};
 // Valuation
 
@@ -23,6 +25,8 @@ pub trait Valuation {
     fn some_none(&self) -> Option<VariableId>;
 
     fn to_vec(&self) -> ValuationVec;
+
+    fn values(&self) -> impl Iterator<Item = Option<bool>>;
 }
 
 pub enum ValuationError {
@@ -118,5 +122,9 @@ impl Valuation for ValuationVec {
 
     fn to_vec(&self) -> ValuationVec {
         self.clone()
+    }
+
+    fn values(&self) -> impl Iterator<Item = Option<bool>> {
+        self.iter().cloned()
     }
 }

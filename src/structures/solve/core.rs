@@ -73,7 +73,8 @@ impl Solve<'_> {
                     panic!("c The formula contains a zero-length clause");
                 }
                 _ => {
-                    let clause = the_solve.store_clause(formula_clause.as_vec(), ClauseSource::Formula);
+                    let clause =
+                        the_solve.store_clause(formula_clause.as_vec(), ClauseSource::Formula);
                     initialise_watches_for(&clause, &initial_valuation, &mut the_solve.variables);
                 }
             });
@@ -224,8 +225,7 @@ impl Solve<'_> {
     }
 
     pub fn most_active_none(&self, val: &impl Valuation) -> Option<VariableId> {
-        val.to_vec()
-            .into_iter()
+        val.values()
             .enumerate()
             .filter(|(_, v)| v.is_none())
             .map(|(i, _)| (i, self.variables[i].activity()))
