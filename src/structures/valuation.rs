@@ -16,7 +16,7 @@ pub trait Valuation {
 
     fn check_literal(&self, literal: Literal) -> Result<ValuationOk, ValuationError>;
 
-    fn set_literal(&mut self, literal: Literal) -> Result<(), ValuationError>;
+    fn update_value(&mut self, literal: Literal) -> Result<(), ValuationError>;
 
     fn clear_v_id(&mut self, v_id: VariableId);
 
@@ -88,7 +88,7 @@ impl Valuation for ValuationVec {
         }
     }
 
-    fn set_literal(&mut self, literal: Literal) -> Result<(), ValuationError> {
+    fn update_value(&mut self, literal: Literal) -> Result<(), ValuationError> {
         match self[literal.v_id] {
             Some(value) if value != literal.polarity => Err(ValuationError::Conflict),
             Some(_value) => Err(ValuationError::Match),
