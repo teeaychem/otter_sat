@@ -38,7 +38,7 @@ impl Solve<'_> {
                             if !some_deduction {
                                 some_deduction = true
                             };
-                            let length = stored_clause.clause().len();
+                            let length = stored_clause.length();
                             if length == 1 {
                                 self.drop_clause(stored_clause);
                             }
