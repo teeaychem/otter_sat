@@ -254,13 +254,33 @@ impl Solve<'_> {
         x
     }
 
-    pub fn watch_removed(&mut self, v_id: VariableId, sc: &Rc<StoredClause>) {
+    pub fn variables(&self) -> &[Variable] {
+        &self.variables
+    }
+
+    fn watch_removed(&mut self, v_id: VariableId, sc: &Rc<StoredClause>) {
         self.variables[v_id].watch_removed(sc);
     }
 
-    pub fn watch_added(&mut self, v_id: VariableId, sc: &Rc<StoredClause>) {
+    fn watch_added(&mut self, v_id: VariableId, sc: &Rc<StoredClause>) {
         self.variables[v_id].watch_added(sc.clone())
     }
+
+    pub fn switch_watch_a(&mut self, stored_clause: &Rc<StoredClause>, index: usize) {
+        let previous_watch_a = stored_clause.watched_a();
+        stored_clause.update_watch_a(index);
+        self.watch_removed(previous_watch_a.v_id, stored_clause);
+        self.watch_added(stored_clause.watched_a().v_id, stored_clause);
+    }
+
+    pub fn switch_watch_b(&mut self, stored_clause: &Rc<StoredClause>, index: usize) {
+        let previous_watch_b = stored_clause.watched_b();
+        stored_clause.update_watch_b(index);
+        self.watch_removed(previous_watch_b.v_id, stored_clause);
+        self.watch_added(stored_clause.watched_b().v_id, stored_clause);
+    }
+
+
 }
 
 impl std::fmt::Display for Solve<'_> {
