@@ -47,19 +47,21 @@ impl<'borrow, 'solve> Solve<'solve> {
     }
 
     pub fn drop_clause(&mut self, stored_clause: &Rc<StoredClause>) {
+        let a = stored_clause.watched_a();
+        let b = stored_clause.watched_b();
+        self.variables[a.v_id].watch_removed(stored_clause);
+        self.variables[b.v_id].watch_removed(stored_clause);
         if let Some(p) = self
             .learnt_clauses
             .iter()
             .position(|sc| sc == stored_clause)
         {
-            let removed = self.learnt_clauses.swap_remove(p);
-            let a = removed.watched_a();
-            let b = removed.watched_b();
-            self.variables[a.v_id].watch_removed(&removed);
-            self.variables[b.v_id].watch_removed(&removed);
-            // println!("removed: {}", stored_clause);
+            let _ = self.learnt_clauses.swap_remove(p);
         } else {
-            panic!("Unable to remove: {}", stored_clause);
+            panic!("Unable to remove: {} from learnt clauses", stored_clause);
+        }
+        for literal in stored_clause.clause().literals() {
+            self.variables[literal.v_id].note_drop(literal.polarity, stored_clause)
         }
     }
 
@@ -77,7 +79,7 @@ impl<'borrow, 'solve> Solve<'solve> {
         src: LiteralSource,
     ) -> Result<(), SolveError> {
         log::trace!("Set literal: {} | src: {:?}", lit, src);
-        match self.valuation.set_literal(lit) {
+        match self.valuation.update_value(lit) {
             Ok(()) => {
                 let level_index = match src {
                     LiteralSource::Choice => self.add_fresh_level(),

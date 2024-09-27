@@ -86,7 +86,7 @@ impl Solve<'_> {
         let mut valuation = ValuationVec::new_for_variables(self.valuation.len());
         (0..=level_index).for_each(|i| {
             self.levels[i].literals().for_each(|l| {
-                let _ = valuation.set_literal(l);
+                let _ = valuation.update_value(l);
             })
         });
         valuation
