@@ -223,28 +223,25 @@ pub fn resolve_sorted_clauses<T: Clause>(
 /// Work through two ordered vectors, noting any occurrences of the same variable under contrastring polarity
 pub fn find_counterpart_literals<T: Clause>(cls_a: &T, cls_b: &T) -> Vec<VariableId> {
     let mut candidates = vec![];
-    let a_vec = cls_a.as_vec();
-    let mut a_ptr = 0;
-    let a_max = cls_a.len();
-    let mut b_ptr = 0;
-    let b_vec = cls_b.as_vec();
-    let b_max = cls_b.len();
-    loop {
-        if a_ptr >= a_max || b_ptr >= b_max {
-            break;
-        }
-        let a_lit = a_vec[a_ptr];
-        let b_lit = b_vec[b_ptr];
+
+    let mut clause_a_literals = cls_a.literals();
+    let mut clause_b_literals = cls_b.literals();
+    let mut current_a = clause_a_literals.next();
+    let mut current_b = clause_b_literals.next();
+
+    while let (Some(a_lit), Some(b_lit)) = (current_a, current_b) {
         if a_lit.v_id == b_lit.v_id {
             if a_lit.polarity != b_lit.polarity {
                 candidates.push(a_lit.v_id);
             }
-            a_ptr += 1;
-            b_ptr += 1;
+            current_a = clause_a_literals.next();
+            current_b = clause_b_literals.next();
         } else if a_lit < b_lit {
-            a_ptr += 1;
+            current_a = clause_a_literals.next();
         } else if b_lit < a_lit {
-            b_ptr += 1;
+            current_b = clause_b_literals.next();
+        } else {
+            panic!("Incomparable literals found");
         }
     }
 
