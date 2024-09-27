@@ -92,20 +92,16 @@ impl Solve<'_> {
                 break;
             }
 
-            if let LiteralSource::StoredClause(cls) = src {
-                if let Some(stored_clause) = cls.upgrade() {
-                    let src_cls_vec = stored_clause.clause().as_vec();
-                    let counterparts = find_counterpart_literals(&resolved_clause, &src_cls_vec);
+            if let LiteralSource::StoredClause(stored_clause) = src {
+                let src_cls_vec = stored_clause.clause().as_vec();
+                let counterparts = find_counterpart_literals(&resolved_clause, &src_cls_vec);
 
-                    if let Some(counterpart) = counterparts.first() {
-                        resolution_trail.push(cls.clone());
-                        resolved_clause =
-                            resolve_sorted_clauses(&resolved_clause, &src_cls_vec, *counterpart)
-                                .unwrap()
-                                .to_vec()
-                    }
-                } else {
-                    panic!("Clause has been dropped")
+                if let Some(counterpart) = counterparts.first() {
+                    resolution_trail.push(stored_clause.clone());
+                    resolved_clause =
+                        resolve_sorted_clauses(&resolved_clause, &src_cls_vec, *counterpart)
+                            .unwrap()
+                            .to_vec()
                 }
             }
         }
@@ -149,10 +145,10 @@ impl Solve<'_> {
     }
 }
 
-pub fn extant_origins(clauses: Vec<Weak<StoredClause>>) -> Vec<Rc<StoredClause>> {
+pub fn extant_origins(clauses: Vec<Rc<StoredClause>>) -> Vec<Rc<StoredClause>> {
     let mut origin_nodes = BTreeSet::new();
 
-    let mut q: VecDeque<Weak<StoredClause>> = VecDeque::new();
+    let mut q: VecDeque<Rc<StoredClause>> = VecDeque::new();
     for clause in clauses {
         q.push_back(clause);
     }
@@ -161,20 +157,17 @@ pub fn extant_origins(clauses: Vec<Weak<StoredClause>>) -> Vec<Rc<StoredClause>>
             break;
         }
 
-        let node = q.pop_front().expect("Ah, the queue was empty…");
-        if let Some(stored_clause) = node.upgrade() {
-            match stored_clause.source() {
-                ClauseSource::Resolution(origins) => {
-                    for antecedent in origins {
-                        q.push_back(antecedent.clone());
-                    }
-                }
-                ClauseSource::Formula => {
-                    origin_nodes.insert(stored_clause.clone());
+        let stored_clause = q.pop_front().expect("Ah, the queue was empty…");
+
+        match stored_clause.source() {
+            ClauseSource::Resolution(origins) => {
+                for antecedent in origins {
+                    q.push_back(antecedent.clone());
                 }
             }
-        } else {
-            panic!("Lost clause")
+            ClauseSource::Formula => {
+                origin_nodes.insert(stored_clause.clone());
+            }
         }
     }
     origin_nodes.into_iter().collect::<Vec<_>>()
