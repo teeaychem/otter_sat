@@ -76,32 +76,29 @@ impl Solve<'_> {
     pub fn simple_analysis_three(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
         let mut resolved_clause = conflict_clause.clause().as_vec();
         let mut resolution_trail = vec![];
-        let mut observations = self.current_level().observations().clone();
-        observations.reverse();
-        let resolution_possibilites = observations.into_iter().filter_map(|(src, lit)| match src {
-            LiteralSource::StoredClause(cls) => Some((cls, lit)),
-            _ => None,
-        });
+
         let previous_level_val = self.valuation_at(self.current_level().index() - 1);
 
-        for (src, _lit) in resolution_possibilites {
+        for (src, _lit) in self.current_level().observations().iter().rev() {
             if resolved_clause.asserts(&previous_level_val).is_some() {
                 break;
             }
 
-            if let Some(stored_clause) = src.upgrade() {
-                let src_cls_vec = stored_clause.clause().as_vec();
-                let counterparts = find_counterpart_literals(&resolved_clause, &src_cls_vec);
+            if let LiteralSource::StoredClause(cls) = src {
+                if let Some(stored_clause) = cls.upgrade() {
+                    let src_cls_vec = stored_clause.clause().as_vec();
+                    let counterparts = find_counterpart_literals(&resolved_clause, &src_cls_vec);
 
-                if let Some(counterpart) = counterparts.first() {
-                    resolution_trail.push(src.clone());
-                    resolved_clause =
-                        resolve_sorted_clauses(&resolved_clause, &src_cls_vec, *counterpart)
-                            .unwrap()
-                            .as_vec()
+                    if let Some(counterpart) = counterparts.first() {
+                        resolution_trail.push(cls.clone());
+                        resolved_clause =
+                            resolve_sorted_clauses(&resolved_clause, &src_cls_vec, *counterpart)
+                                .unwrap()
+                                .as_vec()
+                    }
+                } else {
+                    panic!("Clause has been dropped")
                 }
-            } else {
-                panic!("Clause has been dropped")
             }
         }
 
