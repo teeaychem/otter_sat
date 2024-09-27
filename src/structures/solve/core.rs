@@ -1,7 +1,7 @@
 use crate::structures::{
     solve::SolveConfig, stored_clause::initialise_watches_for, Clause, ClauseId, ClauseSource,
-    ClauseStatus, Formula, Level, LevelIndex, Literal, LiteralError,
-    LiteralSource, StoredClause, Valuation, ValuationVec, Variable, VariableId,
+    ClauseStatus, Formula, Level, LevelIndex, Literal, LiteralError, LiteralSource, StoredClause,
+    Valuation, ValuationVec, Variable, VariableId,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -245,6 +245,21 @@ impl Solve<'_> {
 
     pub fn time_to_reduce(&self) -> bool {
         self.conflicts != 0 && self.conflicts % 2000 == 0
+    }
+}
+
+impl Solve<'_> {
+    pub fn variables_mut<'b, 'a: 'b>(&'a mut self) -> &'b mut [Variable] {
+        let x: &'b mut [Variable] = &mut self.variables;
+        x
+    }
+
+    pub fn watch_removed(&mut self, v_id: VariableId, sc: &Rc<StoredClause>) {
+        self.variables[v_id].watch_removed(sc);
+    }
+
+    pub fn watch_added(&mut self, v_id: VariableId, sc: &Rc<StoredClause>) {
+        self.variables[v_id].watch_added(sc.clone())
     }
 }
 
