@@ -34,10 +34,6 @@ impl Formula {
         &self.variables
     }
 
-    pub fn var_count(&self) -> usize {
-        self.variables.len()
-    }
-
     pub fn var_id_by_name(&mut self, name: &str) -> VariableId {
         if let Some(variable) = self.variables.iter().find(|v| v.name() == name) {
             variable.id()

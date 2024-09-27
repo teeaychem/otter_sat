@@ -47,10 +47,8 @@ impl<'borrow, 'solve> Solve<'solve> {
     }
 
     pub fn drop_clause(&mut self, stored_clause: &Rc<StoredClause>) {
-        let a = stored_clause.watched_a();
-        let b = stored_clause.watched_b();
-        self.variables[a.v_id].watch_removed(stored_clause);
-        self.variables[b.v_id].watch_removed(stored_clause);
+        self.variables[stored_clause.watched_a().v_id].watch_removed(stored_clause);
+        self.variables[stored_clause.watched_b().v_id].watch_removed(stored_clause);
         if let Some(p) = self
             .learnt_clauses
             .iter()
@@ -84,9 +82,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                 let level_index = match src {
                     LiteralSource::Choice => self.add_fresh_level(),
                     LiteralSource::Assumption | LiteralSource::HobsonChoice => 0,
-                    LiteralSource::StoredClause(_) | LiteralSource::Conflict => {
-                        self.current_level().index()
-                    }
+                    LiteralSource::StoredClause(_) => self.current_level().index(),
                 };
                 {
                     let mut informative_literal = false;
@@ -126,11 +122,6 @@ impl<'borrow, 'solve> Solve<'solve> {
                         self.variables[lit.v_id].set_decision_level(level_index);
                         self.current_level_mut().record_literal(lit, src);
                         log::debug!("+Set deduction: {lit}");
-                    }
-                    LiteralSource::Conflict => {
-                        self.variables[lit.v_id].set_decision_level(level_index);
-                        self.current_level_mut().record_literal(lit, src);
-                        log::debug!("+Set conflict: {lit}");
                     }
                 };
                 Ok(())

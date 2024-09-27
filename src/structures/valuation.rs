@@ -1,5 +1,3 @@
-use std::collections::binary_heap::Iter;
-
 use crate::structures::{solve::Solve, Level, Literal, VariableId};
 // Valuation
 
@@ -19,8 +17,6 @@ pub trait Valuation {
     fn update_value(&mut self, literal: Literal) -> Result<(), ValuationError>;
 
     fn clear_v_id(&mut self, v_id: VariableId);
-
-    fn clear_level(&mut self, level: &Level);
 
     fn some_none(&self) -> Option<VariableId>;
 
@@ -101,14 +97,6 @@ impl Valuation for ValuationVec {
 
     fn clear_v_id(&mut self, v_id: VariableId) {
         self[v_id] = None
-    }
-
-    fn clear_level(&mut self, level: &Level) {
-        for literal in level.literals() {
-            self.clear_v_id(literal.v_id);
-        }
-
-        level.literals().for_each(|l| self.clear_v_id(l.v_id));
     }
 
     fn some_none(&self) -> Option<VariableId> {
