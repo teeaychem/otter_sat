@@ -39,17 +39,18 @@ fn main() {
         if let Ok(formula) = Formula::from_dimacs(&contents) {
             let mut the_solve = Solve::from_formula(&formula, config);
 
-            let result = the_solve.implication_solve();
+            let (result, stats) = the_solve.implication_solve();
+            println!("{stats}");
             match result {
-                Ok(SolveResult::Unsatisfiable) => {
+                SolveResult::Unsatisfiable => {
                     println!("s UNSATISFIABLE");
                     std::process::exit(00);
                 }
-                Ok(SolveResult::Satisfiable) => {
+                SolveResult::Satisfiable => {
                     println!("s SATISFIABLE");
                     std::process::exit(10);
                 }
-                Ok(SolveResult::Unknown) => {
+                SolveResult::Unknown => {
                     println!("s Unkown");
                     std::process::exit(20);
                 }
