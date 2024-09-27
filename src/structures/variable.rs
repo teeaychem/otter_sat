@@ -1,4 +1,4 @@
-use crate::structures::{ClauseSource, LevelIndex, StoredClause};
+use crate::structures::{LevelIndex, StoredClause};
 
 pub type VariableId = usize;
 use std::cell::Cell;
@@ -65,11 +65,7 @@ impl Variable {
         self.activity.get()
     }
 
-    pub fn note_occurence(
-        &mut self,
-        stored_clause: Rc<StoredClause>,
-        polarity: bool,
-    ) {
+    pub fn note_occurence(&mut self, stored_clause: Rc<StoredClause>, polarity: bool) {
         match polarity {
             true => self.positive_occurrences.push(stored_clause),
             false => self.negative_occurrences.push(stored_clause),
