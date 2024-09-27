@@ -1,7 +1,5 @@
 use crate::structures::{Literal, Valuation, ValuationVec, Variable, VariableId};
 
-use std::collections::BTreeSet;
-
 pub type ClauseVec = Vec<Literal>;
 
 pub trait Clause: IntoIterator {

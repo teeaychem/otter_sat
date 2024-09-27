@@ -1,8 +1,6 @@
 use crate::structures::{Clause, ClauseId, ClauseVec, Literal, Valuation, Variable, VariableId};
-use petgraph::matrix_graph::Zero;
-use petgraph::prelude::NodeIndex;
 
-use std::cell::{Cell, OnceCell};
+use std::cell::Cell;
 use std::rc::{Rc, Weak};
 
 #[derive(Clone, Debug)]
@@ -37,7 +35,7 @@ A stored clause is implicitly tied to the status of a solve via the two watches.
  */
 impl StoredClause {
     pub fn new_from(id: ClauseId, clause: &impl Clause, source: ClauseSource) -> Rc<StoredClause> {
-        if clause.as_vec().len().is_zero() {
+        if clause.as_vec().is_empty() {
             panic!("An empty clause")
         }
 

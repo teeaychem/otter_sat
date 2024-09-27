@@ -1,6 +1,6 @@
 use crate::structures::{
     solve::SolveConfig, stored_clause::initialise_watches_for, Clause, ClauseId, ClauseSource,
-    ClauseStatus, Formula, ImplicationGraph, Level, LevelIndex, Literal, LiteralError,
+    ClauseStatus, Formula, Level, LevelIndex, Literal, LiteralError,
     LiteralSource, StoredClause, Valuation, ValuationVec, Variable, VariableId,
 };
 
@@ -32,7 +32,6 @@ pub struct Solve<'formula> {
     pub levels: Vec<Level>,
     pub formula_clauses: Vec<Rc<StoredClause>>,
     pub learnt_clauses: Vec<Rc<StoredClause>>,
-    pub implication_graph: ImplicationGraph,
     pub config: SolveConfig,
 }
 
@@ -63,7 +62,6 @@ impl Solve<'_> {
             levels: vec![Level::new(0)],
             formula_clauses: Vec::new(),
             learnt_clauses: Vec::new(),
-            implication_graph: ImplicationGraph::new_for(formula),
             config,
         };
 
