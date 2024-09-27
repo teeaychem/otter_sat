@@ -88,13 +88,32 @@ impl<'borrow, 'solve> Solve<'solve> {
                 };
 
                 {
-                    let occurrences = self.variables[lit.v_id].occurrences().collect::<Vec<_>>();
-                    let valuation = self.valuation.clone();
-                    for clause in occurrences {
-                        match update_watch(&clause, &valuation, lit.v_id, &mut self.variables) {
-                            true => self.current_level_mut().note_watch(lit),
+                    let val = self.valuation.clone();
+                    let mut informative_literal = false;
+
+                    let mut sc = 0;
+                    while sc < self.variables[lit.v_id].positive_occurrences().len() {
+                        let stored_clause =
+                            &self.variables[lit.v_id].positive_occurrences()[sc].clone();
+                        match update_watch(stored_clause, &val, lit.v_id, self.variables_mut()) {
+                            true => informative_literal = true,
                             false => (),
                         };
+                        sc += 1;
+                    }
+                    sc = 0;
+                    while sc < self.variables[lit.v_id].negative_occurrences().len() {
+                        let stored_clause =
+                            &self.variables[lit.v_id].negative_occurrences()[sc].clone();
+                        match update_watch(stored_clause, &val, lit.v_id, self.variables_mut()) {
+                            true => informative_literal = true,
+                            false => (),
+                        };
+                        sc += 1;
+                    }
+
+                    if informative_literal {
+                        self.current_level_mut().note_watch(lit)
                     }
                 }
                 match &src {
@@ -106,7 +125,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                     LiteralSource::Assumption => {
                         self.variables[lit.v_id].set_decision_level(level_index);
                         self.top_level_mut().record_literal(lit, src);
-                        log::debug!("+Set assumption/deduction: {lit}");
+                        log::debug!("+Set assumption: {lit}");
                     }
                     LiteralSource::HobsonChoice => {
                         self.variables[lit.v_id].set_decision_level(level_index);
@@ -115,8 +134,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                     }
                     LiteralSource::StoredClause(_) => {
                         self.variables[lit.v_id].set_decision_level(level_index);
-                        self.current_level_mut().record_literal(lit, src.clone());
-
+                        self.current_level_mut().record_literal(lit, src);
                         log::debug!("+Set deduction: {lit}");
                     }
                     LiteralSource::Conflict => {
@@ -155,8 +173,10 @@ impl<'borrow, 'solve> Solve<'solve> {
     pub fn unset_literal(&mut self, literal: Literal) {
         log::trace!("Unset: {}", literal);
 
-        self.valuation[literal.v_id] = None;
-        self.variables[literal.v_id].clear_decision_level();
+        let v_id = literal.v_id;
+
+        self.valuation[v_id] = None;
+        self.variables[v_id].clear_decision_level();
     }
 }
 

@@ -72,6 +72,14 @@ impl Variable {
         }
     }
 
+    pub fn positive_occurrences(&self) -> &[Rc<StoredClause>] {
+        &self.positive_occurrences
+    }
+
+    pub fn negative_occurrences(&self) -> &[Rc<StoredClause>] {
+        &self.negative_occurrences
+    }
+
     pub fn occurrences(&self) -> impl Iterator<Item = Rc<StoredClause>> + '_ {
         self.positive_occurrences
             .iter()
