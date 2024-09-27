@@ -115,17 +115,13 @@ impl Solve<'_> {
         Though, this isn't a particular effective method…
          */
         if !self.top_level().observations().is_empty() {
-            resolved_clause = resolved_clause
-                .iter()
-                .filter(|l| {
-                    !self
-                        .top_level()
-                        .observations()
-                        .iter()
-                        .any(|(_, x)| l.negate() == *x)
-                })
-                .cloned()
-                .collect::<Vec<_>>();
+            resolved_clause.retain(|l| {
+                !self
+                    .top_level()
+                    .observations()
+                    .iter()
+                    .any(|(_, x)| l.negate() == *x)
+            })
         }
         let stored_clause =
             self.store_clause_common(resolved_clause, ClauseSource::Resolution(resolution_trail));
