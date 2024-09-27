@@ -72,7 +72,7 @@ impl Solve<'_> {
 
         formula
             .clauses()
-            .for_each(|formula_clause| match formula_clause.len() {
+            .for_each(|formula_clause| match formula_clause.length() {
                 0 => {
                     panic!("c The formula contains a zero-length clause");
                 }
@@ -193,7 +193,7 @@ impl Solve<'_> {
                 }
             }
 
-            for literal in conflict.clause().variables() {
+            for literal in conflict.variables() {
                 self.variables[literal].increase_activity(1.0);
             }
         }

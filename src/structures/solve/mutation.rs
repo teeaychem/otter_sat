@@ -14,14 +14,14 @@ impl<'borrow, 'solve> Solve<'solve> {
         clause: impl Clause,
         src: ClauseSource,
     ) -> Rc<StoredClause> {
-        match clause.len() {
+        match clause.length() {
             0 => panic!("Attempt to add an empty clause"),
             _ => match &src {
                 ClauseSource::Formula => {
                     let stored_clause =
                         StoredClause::new_from(Solve::fresh_clause_id(), clause, src);
 
-                    for literal in stored_clause.clause().literals() {
+                    for literal in stored_clause.literals() {
                         self.variables[literal.v_id]
                             .note_occurence(&stored_clause, literal.polarity);
                     }
@@ -34,7 +34,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                     let stored_clause =
                         StoredClause::new_from(Solve::fresh_clause_id(), clause, src);
 
-                    for literal in stored_clause.clause().literals() {
+                    for literal in stored_clause.literals() {
                         self.variables[literal.v_id].increase_activity(1.0);
                         self.variables[literal.v_id]
                             .note_occurence(&stored_clause, literal.polarity);
@@ -58,7 +58,7 @@ impl<'borrow, 'solve> Solve<'solve> {
         } else {
             panic!("Unable to remove: {} from learnt clauses", stored_clause);
         }
-        for literal in stored_clause.clause().literals() {
+        for literal in stored_clause.literals() {
             self.variables[literal.v_id].note_drop(literal.polarity, stored_clause)
         }
     }
