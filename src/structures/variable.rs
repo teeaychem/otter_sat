@@ -68,13 +68,8 @@ impl Variable {
     pub fn note_occurence(
         &mut self,
         stored_clause: Rc<StoredClause>,
-        source: ClauseSource,
         polarity: bool,
     ) {
-        if let ClauseSource::Resolution = source {
-            self.increase_activity(1.0);
-        }
-
         match polarity {
             true => self.positive_occurrences.push(stored_clause),
             false => self.negative_occurrences.push(stored_clause),
