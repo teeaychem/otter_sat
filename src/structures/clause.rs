@@ -142,17 +142,20 @@ impl Clause for ClauseVec {
     }
 
     fn lbd(&self, vars: &[Variable]) -> usize {
-        self.iter()
+        let mut decision_levels = self
+            .iter()
             .map(|l| vars[l.v_id].decision_level())
-            .collect::<BTreeSet<_>>()
-            .len()
+            .collect::<Vec<_>>();
+        decision_levels.sort_unstable();
+        decision_levels.dedup();
+        decision_levels.len()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::procedures::binary_resolution;
+    use crate::procedures::resolve_sorted_clauses;
 
     #[test]
     fn resolve_ok_check() {
@@ -172,7 +175,7 @@ mod tests {
                 Literal::new(3, true),
                 Literal::new(4, false)
             ],
-            binary_resolution(&a, &b, 1).unwrap().to_sorted_vec()
+            resolve_sorted_clauses(&a, &b, 1).unwrap().to_sorted_vec()
         )
     }
 
@@ -180,6 +183,6 @@ mod tests {
     fn resolve_nok_check() {
         let a = vec![Literal::new(1, true), Literal::new(2, false)];
         let b = vec![Literal::new(3, true), Literal::new(4, false)];
-        assert!(binary_resolution(&a, &b, 1).is_none())
+        assert!(resolve_sorted_clauses(&a, &b, 1).is_none())
     }
 }

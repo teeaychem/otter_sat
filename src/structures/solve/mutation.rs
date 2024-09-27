@@ -30,7 +30,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                 match src {
                     ClauseSource::Formula => self.formula_clauses.push(stored_clause.clone()),
                     ClauseSource::Resolution => {
-                        log::info!("Learning clause {}", clause.as_string());
+                        log::warn!("Learning clause {}", clause.as_string());
                         self.learnt_clauses.push(stored_clause.clone())
                     }
                 };
