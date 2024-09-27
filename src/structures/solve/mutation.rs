@@ -1,8 +1,8 @@
 use crate::structures::{
     solve::{Solve, SolveError},
     stored_clause::update_watch,
-    Clause, ClauseSource, ImplicationSource, LevelIndex, Literal, LiteralSource, StoredClause,
-    Valuation, ValuationError,
+    Clause, ClauseSource, LevelIndex, Literal, LiteralSource, StoredClause, Valuation,
+    ValuationError,
 };
 use std::rc::Rc;
 
@@ -100,59 +100,28 @@ impl<'borrow, 'solve> Solve<'solve> {
                 match &src {
                     LiteralSource::Choice => {
                         self.current_level_mut().record_literal(lit, src);
-                        self.implication_graph.add_literal(
-                            lit,
-                            self.current_level().index(),
-                            false,
-                        );
                         self.variables[lit.v_id].set_decision_level(level_index);
                         log::debug!("+Set choice: {lit}");
                     }
                     LiteralSource::Assumption => {
                         self.variables[lit.v_id].set_decision_level(level_index);
                         self.top_level_mut().record_literal(lit, src);
-                        self.implication_graph.add_literal(lit, level_index, false);
                         log::debug!("+Set assumption/deduction: {lit}");
                     }
                     LiteralSource::HobsonChoice => {
                         self.variables[lit.v_id].set_decision_level(level_index);
                         self.top_level_mut().record_literal(lit, src);
-                        self.implication_graph.add_literal(lit, level_index, false);
                         log::debug!("+Set hobson choice: {lit}");
                     }
-                    LiteralSource::StoredClause(weak) => {
+                    LiteralSource::StoredClause(_) => {
                         self.variables[lit.v_id].set_decision_level(level_index);
                         self.current_level_mut().record_literal(lit, src.clone());
-                        if let Some(stored_clause) = weak.upgrade() {
-                            let literals = stored_clause
-                                .literals()
-                                .map(|l| l.negate())
-                                .collect::<Vec<_>>();
-
-                            self.implication_graph.add_implication(
-                                literals.into_iter(),
-                                lit,
-                                level_index,
-                                ImplicationSource::StoredClause(weak.clone()),
-                            );
-                        } else {
-                            panic!("Lost clause");
-                        }
 
                         log::debug!("+Set deduction: {lit}");
                     }
                     LiteralSource::Conflict => {
                         self.variables[lit.v_id].set_decision_level(level_index);
                         self.current_level_mut().record_literal(lit, src);
-                        if level_index != 0 {
-                            self.implication_graph.add_contradiction(
-                                self.current_level().get_choice().expect("No choice 0+"),
-                                lit,
-                                self.current_level().index(),
-                            );
-                        } else {
-                            self.implication_graph.add_literal(lit, level_index, false);
-                        }
                         log::debug!("+Set conflict: {lit}");
                     }
                 };
@@ -197,7 +166,6 @@ impl Solve<'_> {
 
         for _ in 0..(self.current_level().index() - to) {
             let the_level = self.levels.pop().unwrap();
-            self.implication_graph.remove_level(&the_level);
             for literal in the_level.literals() {
                 self.unset_literal(literal);
             }

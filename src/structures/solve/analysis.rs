@@ -2,7 +2,7 @@ use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{
     stored_clause::initialise_watches_for, Clause, ClauseSource, ClauseVec, LiteralSource,
-    StoredClause, Valuation,
+    StoredClause,
 };
 
 use std::collections::{BTreeSet, VecDeque};
@@ -59,8 +59,6 @@ impl Solve<'_> {
 
     pub fn analysis_switch(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
         match self.config.analysis {
-            1 => self.simple_analysis_one(conflict_clause),
-            2 => self.simple_analysis_two(conflict_clause),
             3 => self.simple_analysis_three(conflict_clause),
             _ => panic!("Unknown analysis"),
         }
@@ -73,110 +71,7 @@ impl Solve<'_> {
         stored_clause
     }
 
-    /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision level.
-    pub fn simple_analysis_one(&mut self, stored_clause: Rc<StoredClause>) -> AnalysisResult {
-        let mut resolution_tail = vec![];
-        let mut resolved_clause = stored_clause.clause().as_vec();
-
-        'resolution_loop: loop {
-            log::trace!("Analysis clause: {}", resolved_clause.as_string());
-            // the current choice will never be a resolution literal, as these are those literals in the clause which are the result of propagation
-            let mut resolution_literals = self
-                .implication_graph
-                .resolution_candidates_at_level(&resolved_clause, self.current_level().index())
-                .map(|(weak, lit)| (weak.upgrade().expect("Lost clause"), lit))
-                .collect::<Vec<_>>();
-
-            resolution_literals.sort_unstable();
-            resolution_literals.dedup();
-
-            if let Some((stored_clause, resolution_literal)) = resolution_literals.first() {
-                resolution_tail.push(Rc::downgrade(stored_clause));
-                resolved_clause = resolve_sorted_clauses(
-                    &resolved_clause.to_vec(),
-                    &stored_clause.clause().as_vec(),
-                    resolution_literal.v_id,
-                )
-                .expect("Resolution failed")
-                .as_vec();
-
-                continue 'resolution_loop;
-            } else {
-                break 'resolution_loop;
-            }
-        }
-
-        let sc =
-            self.store_clause_common(resolved_clause, ClauseSource::Resolution(resolution_tail));
-
-        AnalysisResult::AssertingClause(sc)
-    }
-
-    pub fn simple_analysis_two(&mut self, stored_clause: Rc<StoredClause>) -> AnalysisResult {
-        log::warn!("Simple analysis two");
-        log::warn!("The valuation is: {}", self.valuation.as_internal_string());
-
-        let the_conflict_clause = stored_clause;
-        log::warn!(
-            "Simple analysis two on: {}",
-            the_conflict_clause.clause().as_string()
-        );
-
-        let mut resolved_clause = the_conflict_clause.clause().as_vec();
-        let the_conflict_level_choice = {
-            let conflict_decision_level = self
-                .decision_levels_of(the_conflict_clause.clause())
-                .max()
-                .expect("No clause decision level");
-            self.level_choice(conflict_decision_level)
-        };
-
-        let the_immediate_domiator = self
-            .implication_graph
-            .immediate_dominators(resolved_clause.literals(), the_conflict_level_choice)
-            .expect("No immediate dominator");
-
-        log::warn!("Resolution on paths…");
-
-        let mut resolution_tail = vec![];
-
-        for literal in the_conflict_clause.literals() {
-            match self
-                .implication_graph
-                .some_clause_path_between(the_immediate_domiator, literal.negate())
-            {
-                None => continue,
-                Some(mut path_clauses) => {
-                    path_clauses.reverse(); // Not strictly necessary
-                    for weak_path_clause in path_clauses {
-                        if let Some(path_clause) = weak_path_clause.upgrade() {
-                            if let Some(shared_literal) =
-                                path_clause.clause().literals().find(|path_literal| {
-                                    resolved_clause.contains(&path_literal.negate())
-                                })
-                            {
-                                resolution_tail.push(Rc::downgrade(&path_clause));
-                                resolved_clause = resolve_sorted_clauses(
-                                    &resolved_clause,
-                                    &path_clause.clause().as_vec(),
-                                    shared_literal.v_id,
-                                )
-                                .expect("Resolution failed")
-                                .as_vec();
-                            }
-                        } else {
-                            panic!("Lost clause");
-                        }
-                    }
-                }
-            }
-        }
-
-        let stored_clause =
-            self.store_clause_common(resolved_clause, ClauseSource::Resolution(resolution_tail));
-
-        AnalysisResult::AssertingClause(stored_clause)
-    }
+    /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision
 
     pub fn simple_analysis_three(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
         let mut resolved_clause = conflict_clause.clause().as_vec();
@@ -241,9 +136,7 @@ impl Solve<'_> {
             .observations()
             .iter()
             .filter_map(|(source, _)| match source {
-                LiteralSource::StoredClause(weak) => {
-                    Some(weak.clone())
-                }
+                LiteralSource::StoredClause(weak) => Some(weak.clone()),
                 _ => None,
             });
         let node_indicies_vec = node_indicies.collect::<Vec<_>>();
