@@ -1,7 +1,7 @@
 use crate::structures::{
     solve::SolveConfig, stored_clause::initialise_watches_for, Clause, ClauseId, ClauseSource,
     ClauseStatus, Formula, ImplicationGraph, Level, LevelIndex, Literal, LiteralError,
-    LiteralSource, ResolutionGraph, StoredClause, Valuation, ValuationVec, Variable, VariableId,
+    LiteralSource, StoredClause, Valuation, ValuationVec, Variable, VariableId,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -33,7 +33,6 @@ pub struct Solve<'formula> {
     pub formula_clauses: Vec<Rc<StoredClause>>,
     pub learnt_clauses: Vec<Rc<StoredClause>>,
     pub implication_graph: ImplicationGraph,
-    pub resolution_graph: ResolutionGraph,
     pub config: SolveConfig,
 }
 
@@ -65,7 +64,6 @@ impl Solve<'_> {
             formula_clauses: Vec::new(),
             learnt_clauses: Vec::new(),
             implication_graph: ImplicationGraph::new_for(formula),
-            resolution_graph: ResolutionGraph::new(),
             config,
         };
 
@@ -80,7 +78,6 @@ impl Solve<'_> {
                 _ => {
                     let clause = the_solve.store_clause(as_vec, ClauseSource::Formula);
                     initialise_watches_for(&clause, &empty_val, &mut the_solve.variables);
-                    the_solve.resolution_graph.add_clause(clause);
                 }
             }
         });

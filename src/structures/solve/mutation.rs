@@ -29,7 +29,7 @@ impl<'borrow, 'solve> Solve<'solve> {
                     self.formula_clauses.push(stored_clause.clone());
                     stored_clause
                 }
-                ClauseSource::Resolution => {
+                ClauseSource::Resolution(_) => {
                     log::warn!("Learning clause {}", clause.as_string());
                     let stored_clause =
                         StoredClause::new_from(Solve::fresh_clause_id(), &clause, src);
@@ -57,7 +57,7 @@ impl<'borrow, 'solve> Solve<'solve> {
             let b = removed.watched_b();
             self.variables[a.v_id].watch_removed(&removed);
             self.variables[b.v_id].watch_removed(&removed);
-            println!("removed: {}", stored_clause);
+            // println!("removed: {}", stored_clause);
         } else {
             panic!("Unable to remove: {}", stored_clause);
         }
