@@ -1,7 +1,4 @@
-use crate::structures::{
-    solve::Solve,
-    Level, Literal, VariableId,
-};
+use crate::structures::{solve::Solve, Level, Literal, VariableId};
 // Valuation
 
 pub type ValuationVec = Vec<Option<bool>>;
@@ -22,8 +19,6 @@ pub trait Valuation {
     fn clear_v_id(&mut self, v_id: VariableId);
 
     fn clear_level(&mut self, level: &Level);
-
-    fn literals(&self) -> Vec<Literal>;
 
     fn some_none(&self) -> Option<VariableId>;
 
@@ -112,14 +107,6 @@ impl Valuation for ValuationVec {
         level.literals().for_each(|l| self.clear_v_id(l.v_id));
     }
 
-    fn literals(&self) -> Vec<Literal> {
-        self.iter()
-            .enumerate()
-            .filter(|(_, v)| v.is_some())
-            .map(|(i, v)| Literal::new(i, v.unwrap()))
-            .collect::<Vec<_>>()
-    }
-
     fn some_none(&self) -> Option<VariableId> {
         self.iter()
             .enumerate()
@@ -132,5 +119,4 @@ impl Valuation for ValuationVec {
     fn to_vec(&self) -> ValuationVec {
         self.clone()
     }
-
 }

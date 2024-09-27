@@ -221,24 +221,6 @@ pub fn resolve_sorted_clauses<T: Clause>(
     }
 }
 
-/// Initial placeholder implementation
-pub fn find_counterpart_literals_placeholder<T: Clause>(cls_a: &T, cls_b: &T) -> Vec<VariableId> {
-    let mut candidates = vec![];
-    let var_a = cls_a.variables();
-    let var_b = cls_b.variables();
-    let a_set = var_a.collect::<BTreeSet<_>>();
-    let b_set = var_b.collect::<BTreeSet<_>>();
-    let both = a_set.intersection(&b_set);
-    for v_id in both {
-        let cls_a_lit = cls_a.literals().find(|l| l.v_id == *v_id).unwrap();
-        let cls_b_lit = cls_b.literals().find(|l| l.v_id == *v_id).unwrap();
-        if cls_a_lit.polarity != cls_b_lit.polarity {
-            candidates.push(*v_id)
-        }
-    }
-    candidates
-}
-
 /// Work through two ordered vectors, noting any occurrences of the same variable under contrastring polarity
 pub fn find_counterpart_literals<T: Clause>(cls_a: &T, cls_b: &T) -> Vec<VariableId> {
     let mut candidates = vec![];

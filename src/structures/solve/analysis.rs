@@ -15,16 +15,24 @@ pub enum AnalysisResult {
 impl Solve<'_> {
     /// Either the most recent decision level in the resolution clause prior to the current level or 0.
     fn decision_level(&self, stored_clause: &Rc<StoredClause>) -> usize {
-        let mut levels = self
-            .decision_levels_of(stored_clause.clause())
-            .collect::<Vec<_>>();
-        levels.sort_unstable();
-        levels.dedup();
-        levels.reverse();
-        if levels.len() > 1 {
-            levels[1]
-        } else {
-            0
+        let mut top_two = [None; 2];
+        for lit in stored_clause.clause().literals() {
+            if let Some(dl) = self.variables[lit.v_id].decision_level() {
+                if top_two[1].is_none() {
+                    top_two[1] = Some(dl)
+                } else if top_two[1].is_some_and(|t1| dl > t1) {
+                    top_two[0] = top_two[1];
+                    top_two[1] = Some(dl)
+                } else if top_two[0].is_none() || top_two[0].is_some_and(|t2| dl > t2) {
+                    top_two[0] = Some(dl)
+                };
+            }
+        }
+
+        match top_two {
+            [None, Some(_)] => 0,
+            [Some(x), Some(_)] => x,
+            _ => panic!("!"),
         }
     }
 

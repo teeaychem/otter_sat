@@ -139,6 +139,8 @@ impl Clause for ClauseVec {
         the_literal
     }
 
+    // TODO: consider a different approach to lbd
+    // e.g. an approximate measure of =2, =3, >4 can be settled much more easily
     fn lbd(&self, vars: &[Variable]) -> usize {
         let mut decision_levels = self
             .iter()
