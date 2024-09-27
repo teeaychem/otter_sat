@@ -1,6 +1,6 @@
 use crate::structures::{
     solve::{Solve, SolveError},
-    stored_clause::update_watch,
+    stored_clause::suggest_watch_update,
     Clause, ClauseSource, LevelIndex, Literal, LiteralSource, StoredClause, Valuation,
     ValuationError,
 };
@@ -88,28 +88,17 @@ impl<'borrow, 'solve> Solve<'solve> {
                 };
 
                 {
-                    let val = self.valuation.clone();
                     let mut informative_literal = false;
 
-                    let mut sc = 0;
-                    while sc < self.variables[lit.v_id].positive_occurrences().len() {
+                    for sc in 0..self.variables[lit.v_id].positive_occurrences().len() {
                         let stored_clause =
                             &self.variables[lit.v_id].positive_occurrences()[sc].clone();
-                        match update_watch(stored_clause, &val, lit.v_id, self.variables_mut()) {
-                            true => informative_literal = true,
-                            false => (),
-                        };
-                        sc += 1;
+                        self.process_watches(stored_clause, lit, &mut informative_literal);
                     }
-                    sc = 0;
-                    while sc < self.variables[lit.v_id].negative_occurrences().len() {
+                    for sc in 0..self.variables[lit.v_id].negative_occurrences().len() {
                         let stored_clause =
                             &self.variables[lit.v_id].negative_occurrences()[sc].clone();
-                        match update_watch(stored_clause, &val, lit.v_id, self.variables_mut()) {
-                            true => informative_literal = true,
-                            false => (),
-                        };
-                        sc += 1;
+                        self.process_watches(stored_clause, lit, &mut informative_literal);
                     }
 
                     if informative_literal {
@@ -177,6 +166,39 @@ impl<'borrow, 'solve> Solve<'solve> {
 
         self.valuation[v_id] = None;
         self.variables[v_id].clear_decision_level();
+    }
+
+    fn process_watches(
+        &mut self,
+        stored_clause: &Rc<StoredClause>,
+        lit: Literal,
+        informative_literal: &mut bool,
+    ) {
+        match crate::structures::stored_clause::suggest_watch_update(
+            stored_clause,
+            &self.valuation,
+            lit.v_id,
+            self.variables(),
+        ) {
+            (Some(a), None, true) => {
+                self.switch_watch_a(stored_clause, a);
+                *informative_literal = true
+            }
+            (None, Some(b), true) => {
+                self.switch_watch_b(stored_clause, b);
+
+                *informative_literal = true
+            }
+            (Some(a), None, false) => {
+                self.switch_watch_a(stored_clause, a);
+            }
+            (None, Some(b), false) => {
+                self.switch_watch_b(stored_clause, b);
+            }
+            (None, None, true) => *informative_literal = true,
+            (None, None, false) => (),
+            _ => panic!("Unknown watch update"),
+        };
     }
 }
 
