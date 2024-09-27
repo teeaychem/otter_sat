@@ -2,6 +2,7 @@
 
 use clap::Parser;
 use std::fs;
+use structures::solve::StoppingCriteria;
 mod io;
 mod procedures;
 mod structures;
@@ -30,6 +31,8 @@ fn main() {
     let config = SolveConfig {
         core: args.core,
         analysis: 3,
+        min_glue_strength: 2,
+        stopping_criteria: StoppingCriteria::FirstAssertingUIP,
     };
 
     if let Ok(contents) = fs::read_to_string(args.file) {
@@ -46,7 +49,7 @@ fn main() {
                     println!("s SATISFIABLE");
                     std::process::exit(10);
                 }
-                Ok(SolveResult::Unkown) => {
+                Ok(SolveResult::Unknown) => {
                     println!("s Unkown");
                     std::process::exit(20);
                 }

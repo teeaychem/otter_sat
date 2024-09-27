@@ -1,12 +1,11 @@
 use crate::procedures::hobson_choices;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{Clause, Literal, LiteralSource, Valuation};
-use std::rc::Rc;
 
 pub enum SolveResult {
     Satisfiable,
     Unsatisfiable,
-    Unkown,
+    Unknown,
 }
 
 impl Solve<'_> {
@@ -77,17 +76,16 @@ impl Solve<'_> {
                         let learnt_count = self.learnt_clauses.len();
                         println!("Learnt count: {}", learnt_count);
                         for _ in 0..learnt_count {
-                            if self.learnt_clauses.last().is_some_and(|lc| lc.lbd() > 2) {
+                            if self.learnt_clauses.last().is_some_and(|lc| lc.lbd() > self.config.min_glue_strength) {
                                 let goodbye = self.learnt_clauses.last().unwrap().clone();
                                 self.drop_clause(&goodbye);
                             } else {
                                 break;
                             }
                         }
+                        self.forgets += 1;
+                        self.conflcits_since_last_forget = 0;
                         println!("Reduced to: {}", self.learnt_clauses.len());
-                        // println!("Learnt count: {}", self.learnt_clauses.len());
-                        // self.learnt_clauses.retain(|sc| sc.lbd() < 3);
-                        // println!("Reduced to: {}", self.learnt_clauses.len());
                     }
 
                     log::trace!(

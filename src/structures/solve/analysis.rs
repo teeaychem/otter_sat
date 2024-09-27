@@ -1,12 +1,12 @@
 use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{
-    stored_clause::initialise_watches_for, Clause, ClauseSource, ClauseVec, LiteralSource,
-    StoredClause,
+    solve::StoppingCriteria, stored_clause::initialise_watches_for, Clause, ClauseSource,
+    ClauseVec, LiteralSource, StoredClause,
 };
 
 use std::collections::{BTreeSet, VecDeque};
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 pub enum AnalysisResult {
     AssertingClause(Rc<StoredClause>),
@@ -88,8 +88,13 @@ impl Solve<'_> {
         let previous_level_val = self.valuation_at(self.current_level().index() - 1);
 
         for (src, _lit) in self.current_level().observations().iter().rev() {
-            if resolved_clause.asserts(&previous_level_val).is_some() {
-                break;
+            match self.config.stopping_criteria {
+                StoppingCriteria::FirstAssertingUIP => {
+                    if resolved_clause.asserts(&previous_level_val).is_some() {
+                        break;
+                    }
+                }
+                StoppingCriteria::None => (),
             }
 
             if let LiteralSource::StoredClause(stored_clause) = src {

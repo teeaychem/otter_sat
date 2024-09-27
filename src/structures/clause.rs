@@ -23,8 +23,6 @@ pub trait Clause: IntoIterator {
 
     fn to_vec(self) -> ClauseVec;
 
-    fn to_sorted_vec(self) -> ClauseVec;
-
     fn len(&self) -> usize;
 
     fn asserts(&self, val: &impl Valuation) -> Option<Literal>;
@@ -117,11 +115,6 @@ impl Clause for ClauseVec {
         self
     }
 
-    fn to_sorted_vec(mut self) -> ClauseVec {
-        self.sort();
-        self
-    }
-
     fn len(&self) -> usize {
         self.len()
     }
@@ -183,7 +176,7 @@ mod tests {
                     Literal::new(3, true),
                     Literal::new(4, false)
                 ],
-                resolved.to_sorted_vec()
+                resolved.to_vec()
             )
         } else {
             panic!("No resolution")
