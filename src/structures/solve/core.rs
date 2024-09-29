@@ -10,14 +10,14 @@ use std::rc::Rc;
 
 pub struct SolveStatus {
     pub implications: Vec<(Rc<StoredClause>, Literal)>,
-    pub unsat: Vec<Rc<StoredClause>>,
+    pub conflict_clauses: Vec<Rc<StoredClause>>,
 }
 
 impl SolveStatus {
     pub fn new() -> Self {
         SolveStatus {
             implications: vec![],
-            unsat: vec![],
+            conflict_clauses: vec![],
         }
     }
 }
@@ -131,60 +131,37 @@ impl Solve<'_> {
         });
     }
 
-    pub fn select_unsat(&self, clauses: &[Rc<StoredClause>]) -> Option<Rc<StoredClause>> {
+    pub fn select_conflict(&self, clauses: &[Rc<StoredClause>]) -> Option<Rc<StoredClause>> {
         clauses.first().cloned()
     }
 }
 
 impl Solve<'_> {
-    fn examine_clauses<'sc>(
-        &self,
-        val: &impl Valuation,
-        clauses: impl Iterator<Item = &'sc Rc<StoredClause>>,
-    ) -> SolveStatus {
-        let mut status = SolveStatus::new();
+    pub fn examine_clauses<'a>(
+        &'a self,
+        val: &'a impl Valuation,
+        clauses: impl Iterator<Item = Rc<StoredClause>> + 'a,
+    ) -> impl Iterator<Item = (Rc<StoredClause>, ClauseStatus)> + 'a {
 
-        for stored_clause in clauses {
+
+        clauses.flat_map(|stored_clause| {
             match stored_clause.watch_choices(val) {
                 ClauseStatus::Conflict => {
-                    status.unsat.push(stored_clause.clone());
+                    Some((stored_clause.clone(), ClauseStatus::Conflict))
                 }
                 ClauseStatus::Entails(the_literal) => {
-                    status
-                        .implications
-                        .push((stored_clause.clone(), the_literal));
+                    Some((stored_clause.clone(), ClauseStatus::Entails(the_literal)))
                 }
-                _ => {}
+                _ =>  None
             }
-        }
-        status
-    }
+        })
 
-    /* ideally the check on an ignored unit is improved
-     for example, with watched literals a clause can be ignored in advance if the ignored literal is watched and it's negation is not part of the given valuation.
-    whether this makes sense to do…
-    */
-    pub fn examine_all_clauses_on(&self, valuation: &impl Valuation) -> SolveStatus {
-        self.examine_clauses(valuation, &mut self.stored_clauses())
-    }
-
-    pub fn examine_level_clauses_on<T: Valuation>(&self, valuation: &T) -> SolveStatus {
-        let literals = self.levels[self.current_level().index()].updated_watches();
-
-        let mut clauses = literals
-            .iter()
-            .flat_map(|l| self.variables[l.v_id].watch_occurrences())
-            .collect::<Vec<_>>();
-        clauses.sort_unstable();
-        clauses.dedup();
-
-        self.examine_clauses(valuation, clauses.iter())
     }
 }
 
 impl Solve<'_> {
-    pub fn process_unsat(&mut self, stored_clauses: &[Rc<StoredClause>]) {
-        for conflict in stored_clauses {
+    pub fn notice_conflict(&mut self, stored_clauses: &Rc<StoredClause>) {
+
             self.conflicts += 1;
             self.conflcits_since_last_forget += 1;
             if self.conflicts % 256 == 0 {
@@ -193,10 +170,10 @@ impl Solve<'_> {
                 }
             }
 
-            for literal in conflict.variables() {
+            for literal in stored_clauses.variables() {
                 self.variables[literal].increase_activity(1.0);
             }
-        }
+
     }
 
     pub fn most_active_none(&self, val: &impl Valuation) -> Option<VariableId> {

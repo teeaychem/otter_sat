@@ -32,7 +32,7 @@ impl Solve<'_> {
         match top_two {
             [None, Some(_)] => 0,
             [Some(x), Some(_)] => x,
-            _ => panic!("!"),
+            _ => panic!("Decision level issue: {:?}", top_two),
         }
     }
 
