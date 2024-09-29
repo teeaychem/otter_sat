@@ -54,7 +54,6 @@ fn main() {
                     println!("s Unkown");
                     std::process::exit(20);
                 }
-                _ => panic!("Solve error"),
             }
         }
     }
