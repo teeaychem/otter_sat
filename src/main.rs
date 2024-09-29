@@ -33,6 +33,7 @@ fn main() {
         analysis: 3,
         min_glue_strength: 2,
         stopping_criteria: StoppingCriteria::FirstAssertingUIP,
+        break_on_first: false,
     };
 
     if let Ok(contents) = fs::read_to_string(args.file) {
