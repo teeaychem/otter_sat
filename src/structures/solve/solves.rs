@@ -103,9 +103,13 @@ impl Solve<'_> {
                         stats,
                         conflicts
                     );
-
-                    if self.config.break_on_first && conflicts != Conflicts::None {
-                        break;
+                    match conflicts {
+                        Conflicts::Single(_) | Conflicts::Multiple(_) => {
+                            if self.config.break_on_first {
+                                break;
+                            }
+                        }
+                        _ => (),
                     }
                 }
             } else {
@@ -190,24 +194,28 @@ impl Solve<'_> {
     }
 }
 
-// #[inline(always)]
+#[inline(always)]
 fn reduce(solve: &mut Solve, stats: &mut SolveStats) {
     let this_reduction_time = std::time::Instant::now();
     println!("time to reduce");
-    solve.learnt_clauses.sort_unstable_by_key(|a| a.lbd());
 
     let learnt_count = solve.learnt_clauses.len();
     println!("Learnt count: {}", learnt_count);
-    for _ in 0..learnt_count {
-        if solve
-            .learnt_clauses
-            .last()
-            .is_some_and(|lc| lc.lbd() > solve.config.min_glue_strength)
-        {
-            let goodbye = solve.learnt_clauses.last().unwrap().clone();
-            solve.drop_clause(&goodbye);
-        } else {
+
+    /*
+    Clauses are removed from the learnt clause vector by swap_remove.
+    So, when working through the vector it's importnat to only increment the pointer if no drop takes place.
+     */
+    let mut i = 0;
+    loop {
+        if i >= solve.learnt_clauses.len() {
             break;
+        }
+        let clause = solve.learnt_clauses[i].clone();
+        if clause.lbd() > solve.config.min_glue_strength {
+            solve.drop_clause_by_swap(&clause);
+        } else {
+            i += 1
         }
     }
     solve.forgets += 1;
