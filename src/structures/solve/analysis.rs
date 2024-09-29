@@ -47,7 +47,7 @@ impl Solve<'_> {
         );
         match self.current_level().index() {
             0 => Err(SolveError::NoSolution),
-            _ => match self.analysis_switch(conflict_clause) {
+            _ => match self.conflict_analysis(conflict_clause) {
                 AnalysisResult::AssertingClause(asserting_clause) => {
                     let backjump_level = self.decision_level(&asserting_clause);
 
@@ -65,9 +65,51 @@ impl Solve<'_> {
         }
     }
 
+    pub fn attempt_fixes(
+        &mut self,
+        conflict_clauses: Vec<Rc<StoredClause>>,
+    ) -> Result<SolveOk, SolveError> {
+        if self.current_level().index() == 0 {
+            println!("Base level fix…");
+            return Err(SolveError::NoSolution);
+        } else {
+            let mut analysis_results = vec![];
+
+            let mut the_jump = if self.config.multi_jump_max {
+                usize::MAX
+            } else {
+                usize::MIN
+            };
+
+            for conflict_clause in conflict_clauses {
+                match self.conflict_analysis(conflict_clause) {
+                    AnalysisResult::AssertingClause(asserting_clause) => {
+                        let backjump_level = self.decision_level(&asserting_clause);
+                        if self.config.multi_jump_max && backjump_level < the_jump {
+                            the_jump = backjump_level
+                        } else if backjump_level > the_jump {
+                            the_jump = backjump_level
+                        }
+                        analysis_results.push(asserting_clause);
+                    }
+                }
+            }
+
+            let the_valuation = self.valuation_at(the_jump);
+
+            for asserting_clause in analysis_results {
+                initialise_watches_for(&asserting_clause, &the_valuation, &mut self.variables);
+            }
+
+            self.backjump(the_jump);
+        }
+
+        return Ok(SolveOk::AssertingClause);
+    }
+
     pub fn analysis_switch(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
         match self.config.analysis {
-            3 => self.simple_analysis_three(conflict_clause),
+            3 => self.conflict_analysis(conflict_clause),
             _ => panic!("Unknown analysis"),
         }
     }
@@ -81,7 +123,7 @@ impl Solve<'_> {
 
     /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision
 
-    pub fn simple_analysis_three(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
+    pub fn conflict_analysis(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
         let mut resolved_clause = conflict_clause.as_vec();
         let mut resolution_trail = vec![];
 
