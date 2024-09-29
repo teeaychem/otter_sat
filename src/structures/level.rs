@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, fmt::Debug};
+use std::fmt::Debug;
 
 use crate::structures::{solve::Solve, Literal, LiteralSource, VariableId};
 
@@ -9,7 +9,7 @@ pub struct Level {
     index: LevelIndex,
     choice: Option<Literal>,
     observations: Vec<(LiteralSource, Literal)>,
-    updated_watches: BTreeSet<Literal>,
+    updated_watches: Vec<Literal>,
 }
 
 impl Level {
@@ -18,7 +18,7 @@ impl Level {
             index,
             choice: None,
             observations: vec![],
-            updated_watches: BTreeSet::new(),
+            updated_watches: Vec::new(),
         }
     }
 
@@ -65,10 +65,10 @@ impl Level {
     }
 
     pub fn note_watch(&mut self, lit: Literal) {
-        self.updated_watches.insert(lit);
+        self.updated_watches.push(lit);
     }
 
-    pub fn updated_watches(&self) -> &BTreeSet<Literal> {
+    pub fn updated_watches(&self) -> &Vec<Literal> {
         &self.updated_watches
     }
 }

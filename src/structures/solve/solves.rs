@@ -1,8 +1,6 @@
 use crate::procedures::hobson_choices;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
-use crate::structures::{
-    ClauseStatus, Literal, LiteralSource, StoredClause, Valuation,
-};
+use crate::structures::{ClauseStatus, Literal, LiteralSource, StoredClause, Valuation};
 use std::rc::Rc;
 
 pub enum SolveResult {
@@ -55,7 +53,6 @@ impl std::fmt::Display for SolveStats {
 macro_rules! propagation_macro {
     ($self:ident,
         $sc_vec:expr,
-        $some_conflict:ident,
         $some_deduction:ident,
         $stats:ident,
         $conflict_vec:ident
@@ -71,7 +68,7 @@ macro_rules! propagation_macro {
                         LiteralSource::StoredClause(stored_clause.clone()),
                     ) {
                         Err(SolveError::Conflict(_, _)) => {
-                            $some_conflict = true;
+                            panic!("Conflict when setting a variable")
                         }
                         Err(e) => {
                             panic!("Unexpected error {e:?} when setting literal {consequent}")
@@ -83,17 +80,30 @@ macro_rules! propagation_macro {
                     $stats.implication_time += this_implication_time.elapsed();
                 }
                 ClauseStatus::Conflict => {
-                    $conflict_vec.push(stored_clause);
+                    match $conflict_vec {
+                        Conflicts::None => {
+                            $conflict_vec = Conflicts::Single(stored_clause);
+                        }
+                        Conflicts::Multiple(ref mut vec) => vec.push(stored_clause),
+                        Conflicts::Single(_) => panic!("Conflict already set"),
+                    };
                     match $self.config.break_on_first {
                         true => break,
-                        false => continue
+                        false => continue,
                     };
-                },
+                }
                 ClauseStatus::Unsatisfied => (),
                 ClauseStatus::Satisfied => (),
             }
         }
     };
+}
+
+#[derive(PartialEq)]
+enum Conflicts {
+    None,
+    Single(Rc<StoredClause>),
+    Multiple(Vec<Rc<StoredClause>>),
 }
 
 impl Solve<'_> {
@@ -116,81 +126,72 @@ impl Solve<'_> {
             stats.examination_time += this_examination_time.elapsed();
 
             let mut some_deduction = false;
-            let mut some_conflict = false;
+            let mut conflicts = match self.config.break_on_first {
+                true => Conflicts::None,
+                false => Conflicts::Multiple(vec![]),
+            };
 
             if self.current_level().get_choice().is_some() {
-                let literals = self.levels[self.current_level().index()]
-                    .updated_watches()
-                    .clone();
-
-                let mut conflicts_to_process = vec![];
+                let current_level = self.current_level().index();
+                let literals = self.levels[current_level].updated_watches().clone();
 
                 for literal in literals {
                     let v_id = literal.v_id;
-
                     propagation_macro!(
                         self,
                         self.variables[v_id].watch_occurrences(),
-                        some_conflict,
                         some_deduction,
                         stats,
-                        conflicts_to_process
+                        conflicts
                     );
-                }
 
-                for stored_conflict in conflicts_to_process {
-                    match process_conflict(self, &stored_conflict, &mut stats) {
-                        ProcessOption::ContinueMain => {
-                            if true {
-                                continue 'main_loop;
-                            }
-                        }
-                        ProcessOption::Unsatisfiable => {
-                            stats.total_time = this_total_time.elapsed();
-                            result = SolveResult::Unsatisfiable;
-                            break 'main_loop;
-                        }
-                        _ => panic!("unexp@ected"),
+                    if self.config.break_on_first && conflicts != Conflicts::None {
+                        break;
                     }
                 }
             } else {
-                let mut conflicts_to_process = vec![];
+                propagation_macro!(self, self.formula_clauses, some_deduction, stats, conflicts);
 
-                propagation_macro!(
-                    self,
-                    self.formula_clauses,
-                    some_conflict,
-                    some_deduction,
-                    stats,
-                    conflicts_to_process
-                );
+                propagation_macro!(self, self.learnt_clauses, some_deduction, stats, conflicts);
+            }
 
-                propagation_macro!(
-                    self,
-                    self.learnt_clauses,
-                    some_conflict,
-                    some_deduction,
-                    stats,
-                    conflicts_to_process
-                );
-
-                for stored_conflict in conflicts_to_process {
-                    match process_conflict(self, &stored_conflict, &mut stats) {
-                        ProcessOption::ContinueMain => {
-                            if true {
-                                continue 'main_loop;
+            if conflicts != Conflicts::None {
+                match conflicts {
+                    Conflicts::None => (),
+                    Conflicts::Single(stored_conflict) => {
+                        match process_conflict(self, &stored_conflict, &mut stats) {
+                            ProcessOption::ContinueMain => {
+                                if true {
+                                    continue 'main_loop;
+                                }
+                            }
+                            ProcessOption::Unsatisfiable => {
+                                result = SolveResult::Unsatisfiable;
+                                break 'main_loop;
+                            }
+                            _ => panic!("Unepected process option given a conflict"),
+                        }
+                    }
+                    Conflicts::Multiple(conflict_vec) => {
+                        for stored_conflict in conflict_vec {
+                            match process_conflict(self, &stored_conflict, &mut stats) {
+                                ProcessOption::ContinueMain => {
+                                    if true {
+                                        continue 'main_loop;
+                                    }
+                                }
+                                ProcessOption::Unsatisfiable => {
+                                    result = SolveResult::Unsatisfiable;
+                                    break 'main_loop;
+                                }
+                                _ => panic!("Unepected process option given a conflict"),
                             }
                         }
-                        ProcessOption::Unsatisfiable => {
-                            result = SolveResult::Unsatisfiable;
-                            break 'main_loop;
-                        }
-                        _ => panic!("unexp@ected"),
                     }
                 }
             }
 
-            if !(some_conflict || some_deduction) {
+            if !some_deduction {
                 if let Some(available_v_id) = self.most_active_none(&self.valuation) {
                     if self.time_to_reduce() {
                         reduce(self, &mut stats)
