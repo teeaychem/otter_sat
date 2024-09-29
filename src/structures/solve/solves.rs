@@ -2,7 +2,6 @@ use crate::procedures::hobson_choices;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{
     ClauseStatus, Literal, LiteralSource, StoredClause, Valuation,
-    VariableId,
 };
 use std::rc::Rc;
 
@@ -53,12 +52,6 @@ impl std::fmt::Display for SolveStats {
     }
 }
 
-enum LoopOption {
-    WatchOccurrence(VariableId),
-    Formula,
-    Learnt,
-}
-
 macro_rules! propagation_macro {
     ($self:ident,
         $sc_vec:expr,
@@ -69,9 +62,8 @@ macro_rules! propagation_macro {
     ) => {
         for i in 0..$sc_vec.len() {
             let stored_clause = $sc_vec[i].clone();
-            let clause_status = stored_clause.watch_choices(&$self.valuation);
 
-            match clause_status {
+            match stored_clause.watch_choices(&$self.valuation) {
                 ClauseStatus::Entails(consequent) => {
                     let this_implication_time = std::time::Instant::now();
                     match $self.set_literal(
@@ -90,7 +82,13 @@ macro_rules! propagation_macro {
                     }
                     $stats.implication_time += this_implication_time.elapsed();
                 }
-                ClauseStatus::Conflict => $conflict_vec.push(stored_clause),
+                ClauseStatus::Conflict => {
+                    $conflict_vec.push(stored_clause);
+                    match $self.config.break_on_first {
+                        true => break,
+                        false => continue
+                    };
+                },
                 ClauseStatus::Unsatisfied => (),
                 ClauseStatus::Satisfied => (),
             }
@@ -149,8 +147,8 @@ impl Solve<'_> {
                         }
                         ProcessOption::Unsatisfiable => {
                             stats.total_time = this_total_time.elapsed();
-
-                            return (SolveResult::Unsatisfiable, stats);
+                            result = SolveResult::Unsatisfiable;
+                            break 'main_loop;
                         }
                         _ => panic!("unexp@ected"),
                     }
@@ -224,7 +222,6 @@ impl Solve<'_> {
                     "c ASSIGNMENT: {}",
                     self.valuation.to_vec().as_display_string(self)
                 );
-                return (SolveResult::Satisfiable, stats);
             }
             SolveResult::Unsatisfiable => {}
             SolveResult::Unknown => {}
