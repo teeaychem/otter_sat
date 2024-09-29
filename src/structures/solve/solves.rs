@@ -14,7 +14,7 @@ macro_rules! propagation_macro {
         $sc_vec:expr,
         $some_deduction:ident,
         $stats:ident,
-        $conflict_vec:ident
+        $conflict:ident
     ) => {
         for i in 0..$sc_vec.len() {
             let stored_clause = $sc_vec[i].clone();
@@ -39,9 +39,9 @@ macro_rules! propagation_macro {
                     $stats.implication_time += this_implication_time.elapsed();
                 }
                 ClauseStatus::Conflict => {
-                    match $conflict_vec {
+                    match $conflict {
                         Conflicts::None => {
-                            $conflict_vec = Conflicts::Single(stored_clause);
+                            $conflict = Conflicts::Single(stored_clause);
                         }
                         Conflicts::Multiple(ref mut vec) => vec.push(stored_clause),
                         Conflicts::Single(_) => panic!("Conflict already set"),
@@ -103,6 +103,8 @@ impl Solve<'_> {
                         stats,
                         conflicts
                     );
+                    // TODO: Improve handling of multiple conflicts.
+                    // If the conflict was due to an implication, then the implication is also a conflict…
                     match conflicts {
                         Conflicts::Single(_) | Conflicts::Multiple(_) => {
                             if self.config.break_on_first {
@@ -122,32 +124,24 @@ impl Solve<'_> {
                 match conflicts {
                     Conflicts::None => (),
                     Conflicts::Single(stored_conflict) => {
-                        match process_conflict(self, &stored_conflict, &mut stats) {
-                            ProcessOption::ContinueMain => {
-                                if true {
-                                    continue 'main_loop;
-                                }
-                            }
-                            ProcessOption::Unsatisfiable => {
+                        match process_conflict_and_fix(self, &stored_conflict, &mut stats) {
+                            false => {
                                 result = SolveResult::Unsatisfiable;
                                 break 'main_loop;
                             }
-                            _ => panic!("Unepected process option given a conflict"),
+                            true => {
+                                continue 'main_loop;
+                            }
                         }
                     }
                     Conflicts::Multiple(conflict_vec) => {
-                        for stored_conflict in conflict_vec {
-                            match process_conflict(self, &stored_conflict, &mut stats) {
-                                ProcessOption::ContinueMain => {
-                                    if true {
-                                        continue 'main_loop;
-                                    }
-                                }
-                                ProcessOption::Unsatisfiable => {
+                        if !conflict_vec.is_empty() {
+                            match process_conflicts_and_fixes(self, conflict_vec, &mut stats) {
+                                false => {
                                     result = SolveResult::Unsatisfiable;
                                     break 'main_loop;
                                 }
-                                _ => panic!("Unepected process option given a conflict"),
+                                true => (),
                             }
                         }
                     }
@@ -262,11 +256,11 @@ fn process_clause(
     }
 }
 
-fn process_conflict(
+fn process_conflict_and_fix(
     solve: &mut Solve,
     stored_conflict: &Rc<StoredClause>,
     stats: &mut SolveStats,
-) -> ProcessOption {
+) -> bool {
     let this_unsat_time = std::time::Instant::now();
     solve.notice_conflict(stored_conflict);
     stats.conflicts += 1;
@@ -275,11 +269,40 @@ fn process_conflict(
             if solve.config.core {
                 solve.core();
             }
-            ProcessOption::Unsatisfiable
+            false
         }
         Ok(SolveOk::AssertingClause) | Ok(SolveOk::Deduction(_)) => {
             stats.unsat_time += this_unsat_time.elapsed();
-            ProcessOption::ContinueMain
+            true
+        }
+        Ok(ok) => panic!("Unexpected ok {ok:?} when attempting a fix"),
+        Err(err) => {
+            panic!("Unexpected error {err:?} when attempting a fix")
+        }
+    }
+}
+
+fn process_conflicts_and_fixes(
+    solve: &mut Solve,
+    stored_conflicts: Vec<Rc<StoredClause>>,
+    stats: &mut SolveStats,
+) -> bool {
+    let this_unsat_time = std::time::Instant::now();
+    for conflict in &stored_conflicts {
+        solve.notice_conflict(conflict);
+        stats.conflicts += 1;
+    }
+
+    match solve.attempt_fixes(stored_conflicts) {
+        Err(SolveError::NoSolution) => {
+            if solve.config.core {
+                solve.core();
+            }
+            false
+        }
+        Ok(SolveOk::AssertingClause) | Ok(SolveOk::Deduction(_)) => {
+            stats.unsat_time += this_unsat_time.elapsed();
+            true
         }
         Ok(ok) => panic!("Unexpected ok {ok:?} when attempting a fix"),
         Err(err) => {
