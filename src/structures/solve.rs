@@ -3,7 +3,9 @@ mod analysis;
 mod mutation;
 mod solves;
 mod config;
+mod stats;
 
 pub use crate::structures::solve::core::{Solve, SolveError, SolveOk, SolveStatus};
 pub use crate::structures::solve::config::{SolveConfig, StoppingCriteria};
 pub use crate::structures::solve::solves::SolveResult;
+pub use crate::structures::solve::stats::SolveStats;
