@@ -30,7 +30,7 @@ impl Formula {
         }
     }
 
-    pub fn vars(&self) -> &Vec<Variable> {
+    pub fn vars(&self) -> &[Variable] {
         &self.variables
     }
 

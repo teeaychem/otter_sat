@@ -80,7 +80,7 @@ impl Variable {
         &self.negative_occurrences
     }
 
-    pub fn watch_occurrences(&self) -> &Vec<Rc<StoredClause>> {
+    pub fn watch_occurrences(&self) -> &[Rc<StoredClause>] {
         &self.watch_occurrences
     }
 

@@ -94,7 +94,7 @@ impl Solve<'_> {
 
             if self.current_level().get_choice().is_some() {
                 let current_level = self.current_level().index();
-                let literals = self.levels[current_level].updated_watches().clone();
+                let literals = self.levels[current_level].updated_watches().to_vec();
 
                 for literal in literals {
                     // let update_result = self.valuation.update_value(literal);
