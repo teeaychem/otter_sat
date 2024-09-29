@@ -46,7 +46,7 @@ impl<'borrow, 'solve> Solve<'solve> {
         }
     }
 
-    pub fn drop_clause(&mut self, stored_clause: &Rc<StoredClause>) {
+    pub fn drop_clause_by_swap(&mut self, stored_clause: &Rc<StoredClause>) {
         self.variables[stored_clause.watched_a().v_id].watch_removed(stored_clause);
         self.variables[stored_clause.watched_b().v_id].watch_removed(stored_clause);
         if let Some(p) = self
