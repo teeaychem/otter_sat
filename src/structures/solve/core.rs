@@ -60,7 +60,7 @@ impl Solve<'_> {
             conflicts: 0,
             conflcits_since_last_forget: 0,
             forgets: 0,
-            variables: formula.vars().clone(),
+            variables: formula.vars().to_vec(),
             valuation: Vec::<Option<bool>>::new_for_variables(formula.vars().len()),
             levels: vec![Level::new(0)],
             formula_clauses: Vec::new(),

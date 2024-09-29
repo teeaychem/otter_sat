@@ -44,7 +44,7 @@ impl Level {
         }
     }
 
-    pub fn observations(&self) -> &Vec<(LiteralSource, Literal)> {
+    pub fn observations(&self) -> &[(LiteralSource, Literal)] {
         &self.observations
     }
 
@@ -68,7 +68,7 @@ impl Level {
         self.updated_watches.push(lit);
     }
 
-    pub fn updated_watches(&self) -> &Vec<Literal> {
+    pub fn updated_watches(&self) -> &[Literal] {
         &self.updated_watches
     }
 }
