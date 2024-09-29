@@ -84,6 +84,7 @@ impl Valuation for ValuationVec {
     }
 
     fn update_value(&mut self, literal: Literal) -> Result<(), ValuationError> {
+        log::trace!("Set literal: {}", literal);
         match self[literal.v_id] {
             Some(value) if value != literal.polarity => Err(ValuationError::Conflict),
             Some(_value) => Err(ValuationError::Match),

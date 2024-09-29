@@ -64,21 +64,19 @@ impl<'borrow, 'solve> Solve<'solve> {
     }
 
     /*
-    Primary function for setting a literal during a solve
+    Primary function for figuring out the consequences of setting a literal during a solve.
     Control branches on the current valuation and then the source of the literal.
     A few things may be updated:
     - The current valuation.
     - Records at the current level.
-    - The implication graph.
      */
     pub fn process_update_literal(
         &'borrow mut self,
         lit: Literal,
         src: LiteralSource,
-        update_result: Result<(), ValuationError>,
+        literal_update_result: Result<(), ValuationError>,
     ) -> Result<(), SolveError> {
-        log::trace!("Set literal: {} | src: {:?}", lit, src);
-        match update_result {
+        match literal_update_result {
             Ok(()) => {
                 match &src {
                     LiteralSource::Choice => {
