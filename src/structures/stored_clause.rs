@@ -167,6 +167,7 @@ impl StoredClause {
     }
 }
 
+#[derive(Debug)]
 pub enum ClauseStatus {
     Satisfied,        // some watch literal matches
     Conflict,         // no watch literals matches
