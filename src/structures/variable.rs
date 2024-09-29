@@ -2,7 +2,6 @@ use crate::structures::{LevelIndex, StoredClause};
 
 pub type VariableId = usize;
 use std::cell::Cell;
-use std::collections::BTreeSet;
 use std::rc::Rc;
 
 #[derive(Clone, Debug)]
