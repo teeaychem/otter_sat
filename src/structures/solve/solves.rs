@@ -22,9 +22,11 @@ macro_rules! propagation_macro {
             match stored_clause.watch_choices(&$self.valuation) {
                 ClauseStatus::Entails(consequent) => {
                     let this_implication_time = std::time::Instant::now();
-                    match $self.set_literal(
+                    let update_result = $self.valuation.update_value(consequent);
+                    match $self.process_update_literal(
                         consequent,
                         LiteralSource::StoredClause(stored_clause.clone()),
+                        update_result
                     ) {
                         Err(SolveError::Conflict(_, _)) => {
                             panic!("Conflict when setting a variable")
@@ -95,6 +97,9 @@ impl Solve<'_> {
                 let literals = self.levels[current_level].updated_watches().clone();
 
                 for literal in literals {
+                    // let update_result = self.valuation.update_value(literal);
+
+
                     let v_id = literal.v_id;
                     propagation_macro!(
                         self,
@@ -161,8 +166,10 @@ impl Solve<'_> {
                         self.variables[available_v_id].activity()
                     );
 
+                    let the_literal = Literal::new(available_v_id, false);
+                    let valuation_result = self.valuation.update_value(the_literal);
                     let _ = self
-                        .set_literal(Literal::new(available_v_id, false), LiteralSource::Choice);
+                        .process_update_literal(the_literal, LiteralSource::Choice, valuation_result);
                     stats.choice_time += this_choice_time.elapsed();
 
                     continue 'main_loop;
@@ -225,36 +232,36 @@ enum ProcessOption {
     Conflict,
 }
 
-fn process_clause(
-    solve: &mut Solve,
-    stored_clause: &Rc<StoredClause>,
-    clause_status: &ClauseStatus,
-    stats: &mut SolveStats,
-    some_conflict: &mut bool,
-    some_deduction: &mut bool,
-) -> ProcessOption {
-    match clause_status {
-        ClauseStatus::Entails(consequent) => {
-            let this_implication_time = std::time::Instant::now();
-            match solve.set_literal(
-                *consequent,
-                LiteralSource::StoredClause(stored_clause.clone()),
-            ) {
-                Err(SolveError::Conflict(_, _)) => {
-                    *some_conflict = true;
-                }
-                Err(e) => panic!("Unexpected error {e:?} when setting literal {consequent}"),
-                Ok(()) => {
-                    *some_deduction = true;
-                }
-            }
-            stats.implication_time += this_implication_time.elapsed();
-            ProcessOption::Implicationed
-        }
-        ClauseStatus::Conflict => ProcessOption::Conflict,
-        _ => panic!("Something unexpected"),
-    }
-}
+// fn process_clause(
+//     solve: &mut Solve,
+//     stored_clause: &Rc<StoredClause>,
+//     clause_status: &ClauseStatus,
+//     stats: &mut SolveStats,
+//     some_conflict: &mut bool,
+//     some_deduction: &mut bool,
+// ) -> ProcessOption {
+//     match clause_status {
+//         ClauseStatus::Entails(consequent) => {
+//             let this_implication_time = std::time::Instant::now();
+//             match solve.set_literal(
+//                 *consequent,
+//                 LiteralSource::StoredClause(stored_clause.clone()),
+//             ) {
+//                 Err(SolveError::Conflict(_, _)) => {
+//                     *some_conflict = true;
+//                 }
+//                 Err(e) => panic!("Unexpected error {e:?} when setting literal {consequent}"),
+//                 Ok(()) => {
+//                     *some_deduction = true;
+//                 }
+//             }
+//             stats.implication_time += this_implication_time.elapsed();
+//             ProcessOption::Implicationed
+//         }
+//         ClauseStatus::Conflict => ProcessOption::Conflict,
+//         _ => panic!("Something unexpected"),
+//     }
+// }
 
 fn process_conflict_and_fix(
     solve: &mut Solve,
