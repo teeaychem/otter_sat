@@ -11,4 +11,5 @@ pub struct SolveConfig {
     pub min_glue_strength: usize,
     pub stopping_criteria: StoppingCriteria,
     pub break_on_first: bool,
+    pub multi_jump_max: bool
 }
