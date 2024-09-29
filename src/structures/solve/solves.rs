@@ -1,9 +1,9 @@
 use crate::procedures::hobson_choices;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{
-    stored_clause, Clause, ClauseStatus, Literal, LiteralSource, StoredClause, Valuation,
+    ClauseStatus, Literal, LiteralSource, StoredClause, Valuation,
+    VariableId,
 };
-use std::borrow::BorrowMut;
 use std::rc::Rc;
 
 pub enum SolveResult {
@@ -53,6 +53,51 @@ impl std::fmt::Display for SolveStats {
     }
 }
 
+enum LoopOption {
+    WatchOccurrence(VariableId),
+    Formula,
+    Learnt,
+}
+
+macro_rules! propagation_macro {
+    ($self:ident,
+        $sc_vec:expr,
+        $some_conflict:ident,
+        $some_deduction:ident,
+        $stats:ident,
+        $conflict_vec:ident
+    ) => {
+        for i in 0..$sc_vec.len() {
+            let stored_clause = $sc_vec[i].clone();
+            let clause_status = stored_clause.watch_choices(&$self.valuation);
+
+            match clause_status {
+                ClauseStatus::Entails(consequent) => {
+                    let this_implication_time = std::time::Instant::now();
+                    match $self.set_literal(
+                        consequent,
+                        LiteralSource::StoredClause(stored_clause.clone()),
+                    ) {
+                        Err(SolveError::Conflict(_, _)) => {
+                            $some_conflict = true;
+                        }
+                        Err(e) => {
+                            panic!("Unexpected error {e:?} when setting literal {consequent}")
+                        }
+                        Ok(()) => {
+                            $some_deduction = true;
+                        }
+                    }
+                    $stats.implication_time += this_implication_time.elapsed();
+                }
+                ClauseStatus::Conflict => $conflict_vec.push(stored_clause),
+                ClauseStatus::Unsatisfied => (),
+                ClauseStatus::Satisfied => (),
+            }
+        }
+    };
+}
+
 impl Solve<'_> {
     pub fn implication_solve(&mut self) -> (SolveResult, SolveStats) {
         let this_total_time = std::time::Instant::now();
@@ -83,36 +128,16 @@ impl Solve<'_> {
                 let mut conflicts_to_process = vec![];
 
                 for literal in literals {
-                    for i in 0..self.variables[literal.v_id].watch_occurrences().len() {
-                        let stored_clause =
-                            self.variables[literal.v_id].watch_occurrences()[i].clone();
-                        let clause_status = stored_clause.watch_choices(&self.valuation);
+                    let v_id = literal.v_id;
 
-                        match clause_status {
-                            ClauseStatus::Entails(consequent) => {
-                                let this_implication_time = std::time::Instant::now();
-                                let set_result = self.set_literal(
-                                    consequent,
-                                    LiteralSource::StoredClause(stored_clause.clone()),
-                                );
-                                match set_result {
-                                    Err(SolveError::Conflict(_, _)) => {
-                                        some_conflict = true;
-                                    }
-                                    Err(e) => panic!(
-                                        "Unexpected error {e:?} when setting literal {consequent}"
-                                    ),
-                                    Ok(()) => {
-                                        some_deduction = true;
-                                    }
-                                }
-                                stats.implication_time += this_implication_time.elapsed();
-                            }
-                            ClauseStatus::Conflict => conflicts_to_process.push(stored_clause),
-                            ClauseStatus::Unsatisfied => (),
-                            ClauseStatus::Satisfied => (),
-                        }
-                    }
+                    propagation_macro!(
+                        self,
+                        self.variables[v_id].watch_occurrences(),
+                        some_conflict,
+                        some_deduction,
+                        stats,
+                        conflicts_to_process
+                    );
                 }
 
                 for stored_conflict in conflicts_to_process {
@@ -133,63 +158,23 @@ impl Solve<'_> {
             } else {
                 let mut conflicts_to_process = vec![];
 
-                for i in 0..self.formula_clauses.len() {
-                    let stored_clause = self.formula_clauses[i].clone();
-                    let clause_status = stored_clause.watch_choices(&self.valuation);
+                propagation_macro!(
+                    self,
+                    self.formula_clauses,
+                    some_conflict,
+                    some_deduction,
+                    stats,
+                    conflicts_to_process
+                );
 
-                    match clause_status {
-                        ClauseStatus::Entails(consequent) => {
-                            let this_implication_time = std::time::Instant::now();
-                            match self.set_literal(
-                                consequent,
-                                LiteralSource::StoredClause(stored_clause.clone()),
-                            ) {
-                                Err(SolveError::Conflict(_, _)) => {
-                                    some_conflict = true;
-                                }
-                                Err(e) => panic!(
-                                    "Unexpected error {e:?} when setting literal {consequent}"
-                                ),
-                                Ok(()) => {
-                                    some_deduction = true;
-                                }
-                            }
-                            stats.implication_time += this_implication_time.elapsed();
-                        }
-                        ClauseStatus::Conflict => conflicts_to_process.push(stored_clause),
-                        ClauseStatus::Unsatisfied => (),
-                        ClauseStatus::Satisfied => (),
-                    }
-                }
-
-                for i in 0..self.learnt_clauses.len() {
-                    let stored_clause = self.learnt_clauses[i].clone();
-                    let clause_status = stored_clause.watch_choices(&self.valuation);
-
-                    match clause_status {
-                        ClauseStatus::Entails(consequent) => {
-                            let this_implication_time = std::time::Instant::now();
-                            match self.set_literal(
-                                consequent,
-                                LiteralSource::StoredClause(stored_clause.clone()),
-                            ) {
-                                Err(SolveError::Conflict(_, _)) => {
-                                    some_conflict = true;
-                                }
-                                Err(e) => panic!(
-                                    "Unexpected error {e:?} when setting literal {consequent}"
-                                ),
-                                Ok(()) => {
-                                    some_deduction = true;
-                                }
-                            }
-                            stats.implication_time += this_implication_time.elapsed();
-                        }
-                        ClauseStatus::Conflict => conflicts_to_process.push(stored_clause),
-                        ClauseStatus::Unsatisfied => (),
-                        ClauseStatus::Satisfied => (),
-                    }
-                }
+                propagation_macro!(
+                    self,
+                    self.learnt_clauses,
+                    some_conflict,
+                    some_deduction,
+                    stats,
+                    conflicts_to_process
+                );
 
                 for stored_conflict in conflicts_to_process {
                     match process_conflict(self, &stored_conflict, &mut stats) {
