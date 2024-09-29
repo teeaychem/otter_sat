@@ -12,7 +12,7 @@ pub struct Variable {
     id: VariableId,
     positive_occurrences: Vec<Rc<StoredClause>>,
     negative_occurrences: Vec<Rc<StoredClause>>,
-    watch_occurrences: BTreeSet<Rc<StoredClause>>,
+    watch_occurrences: Vec<Rc<StoredClause>>,
     activity: Cell<f32>,
 }
 
@@ -24,7 +24,7 @@ impl Variable {
             id,
             positive_occurrences: Vec::new(),
             negative_occurrences: Vec::new(),
-            watch_occurrences: BTreeSet::new(),
+            watch_occurrences: Vec::new(),
             activity: Cell::new(0.0),
         }
     }
@@ -81,16 +81,19 @@ impl Variable {
         &self.negative_occurrences
     }
 
-    pub fn watch_occurrences(&self) -> impl Iterator<Item = Rc<StoredClause>> + '_ {
-        self.watch_occurrences.iter().cloned()
+    pub fn watch_occurrences(&self) -> &Vec<Rc<StoredClause>> {
+        &self.watch_occurrences
     }
 
     pub fn watch_removed(&mut self, stored_clause: &Rc<StoredClause>) {
-        self.watch_occurrences.remove(stored_clause);
+        if let Some(p) = self.watch_occurrences.iter().position(|sc| sc == stored_clause)
+        {
+            self.watch_occurrences.swap_remove(p);
+        }
     }
 
     pub fn watch_added(&mut self, stored_clause: &Rc<StoredClause>) {
-        self.watch_occurrences.insert(stored_clause.clone());
+        self.watch_occurrences.push(stored_clause.clone());
     }
 
     pub fn note_drop(&mut self, polarity: bool, stored_clause: &Rc<StoredClause>) {
