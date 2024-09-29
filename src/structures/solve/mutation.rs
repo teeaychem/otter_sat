@@ -2,7 +2,7 @@ use crate::structures::{
     solve::{Solve, SolveError},
     stored_clause::suggest_watch_update,
     Clause, ClauseSource, LevelIndex, Literal, LiteralSource, StoredClause, Valuation,
-    ValuationError,
+    ValuationError, Variable,
 };
 use std::rc::Rc;
 
@@ -71,59 +71,38 @@ impl<'borrow, 'solve> Solve<'solve> {
     - Records at the current level.
     - The implication graph.
      */
-    pub fn set_literal(
+    pub fn process_update_literal(
         &'borrow mut self,
         lit: Literal,
         src: LiteralSource,
+        update_result: Result<(), ValuationError>,
     ) -> Result<(), SolveError> {
         log::trace!("Set literal: {} | src: {:?}", lit, src);
-        match self.valuation.update_value(lit) {
+        match update_result {
             Ok(()) => {
-                let level_index = match src {
-                    LiteralSource::Choice => self.add_fresh_level(),
-                    LiteralSource::Assumption | LiteralSource::HobsonChoice => 0,
-                    LiteralSource::StoredClause(_) => self.current_level().index(),
-                };
-                {
-                    let mut informative_literal = false;
-
-                    for sc in 0..self.variables[lit.v_id].positive_occurrences().len() {
-                        let stored_clause =
-                            &self.variables[lit.v_id].positive_occurrences()[sc].clone();
-                        self.process_watches(stored_clause, lit, &mut informative_literal);
-                    }
-                    for sc in 0..self.variables[lit.v_id].negative_occurrences().len() {
-                        let stored_clause =
-                            &self.variables[lit.v_id].negative_occurrences()[sc].clone();
-                        self.process_watches(stored_clause, lit, &mut informative_literal);
-                    }
-
-                    if informative_literal {
-                        self.current_level_mut().note_watch(lit)
-                    }
-                }
                 match &src {
                     LiteralSource::Choice => {
+                        let new_level = self.add_fresh_level();
+                        self.variables[lit.v_id].set_decision_level(new_level);
                         self.current_level_mut().record_literal(lit, src);
-                        self.variables[lit.v_id].set_decision_level(level_index);
                         log::debug!("+Set choice: {lit}");
                     }
-                    LiteralSource::Assumption => {
-                        self.variables[lit.v_id].set_decision_level(level_index);
-                        self.top_level_mut().record_literal(lit, src);
-                        log::debug!("+Set assumption: {lit}");
-                    }
-                    LiteralSource::HobsonChoice => {
-                        self.variables[lit.v_id].set_decision_level(level_index);
-                        self.top_level_mut().record_literal(lit, src);
-                        log::debug!("+Set hobson choice: {lit}");
-                    }
                     LiteralSource::StoredClause(_) => {
-                        self.variables[lit.v_id].set_decision_level(level_index);
+                        let current_level = self.current_level().index();
+                        self.variables[lit.v_id].set_decision_level(current_level);
                         self.current_level_mut().record_literal(lit, src);
                         log::debug!("+Set deduction: {lit}");
                     }
+                    LiteralSource::Assumption | LiteralSource::HobsonChoice => {
+                        self.variables[lit.v_id].set_decision_level(0);
+                        self.top_level_mut().record_literal(lit, src);
+                        log::debug!("+Set assumption/hobson choice: {lit}");
+                    }
                 };
+
+                if process_variable_occurrence_update(&self.valuation, &mut self.variables, lit) {
+                    self.current_level_mut().note_watch(lit)
+                }
                 Ok(())
             }
             Err(ValuationError::Match) => match src {
@@ -136,18 +115,13 @@ impl<'borrow, 'solve> Solve<'solve> {
                     panic!("Attempting to restate the valuation")
                 }
             },
-            Err(ValuationError::Conflict) => {
-                match src {
-                    LiteralSource::StoredClause(id) => {
-                        // A literal may be implied by multiple clauses
-                        Err(SolveError::Conflict(id, lit))
-                    }
-                    _ => {
-                        log::error!("Attempting to flip {} via {:?}", lit, src);
-                        panic!("Attempting to flip the valuation")
-                    }
+            Err(ValuationError::Conflict) => match src {
+                LiteralSource::StoredClause(id) => Err(SolveError::Conflict(id, lit)),
+                _ => {
+                    log::error!("Attempting to flip {} via {:?}", lit, src);
+                    panic!("Attempting to flip the valuation")
                 }
-            }
+            },
         }
     }
 
@@ -158,34 +132,6 @@ impl<'borrow, 'solve> Solve<'solve> {
 
         self.valuation[v_id] = None;
         self.variables[v_id].clear_decision_level();
-    }
-
-    fn process_watches(
-        &mut self,
-        stored_clause: &Rc<StoredClause>,
-        lit: Literal,
-        informative_literal: &mut bool,
-    ) {
-        match suggest_watch_update(stored_clause, &self.valuation, lit.v_id, self.variables()) {
-            (Some(a), None, true) => {
-                self.switch_watch_a(stored_clause, a);
-                *informative_literal = true
-            }
-            (None, Some(b), true) => {
-                self.switch_watch_b(stored_clause, b);
-
-                *informative_literal = true
-            }
-            (Some(a), None, false) => {
-                self.switch_watch_a(stored_clause, a);
-            }
-            (None, Some(b), false) => {
-                self.switch_watch_b(stored_clause, b);
-            }
-            (None, None, true) => *informative_literal = true,
-            (None, None, false) => (),
-            _ => panic!("Unknown watch update"),
-        };
     }
 }
 
@@ -200,4 +146,76 @@ impl Solve<'_> {
             }
         }
     }
+}
+
+fn process_variable_occurrence_update(
+    valuation: &impl Valuation,
+    variables: &mut [Variable],
+    lit: Literal,
+) -> bool {
+    let mut informative_literal = false;
+
+    for sc in 0..variables[lit.v_id].positive_occurrences().len() {
+        let stored_clause = variables[lit.v_id].positive_occurrences()[sc].clone();
+        process_watches(
+            valuation,
+            variables,
+            &stored_clause,
+            lit,
+            &mut informative_literal,
+        );
+    }
+    for sc in 0..variables[lit.v_id].negative_occurrences().len() {
+        let stored_clause = variables[lit.v_id].negative_occurrences()[sc].clone();
+        process_watches(
+            valuation,
+            variables,
+            &stored_clause,
+            lit,
+            &mut informative_literal,
+        );
+    }
+
+    informative_literal
+}
+
+fn process_watches(
+    valuation: &impl Valuation,
+    variables: &mut [Variable],
+    stored_clause: &Rc<StoredClause>,
+    lit: Literal,
+    informative_literal: &mut bool,
+) {
+    match suggest_watch_update(stored_clause, valuation, lit.v_id, variables) {
+        (Some(a), None, true) => {
+            switch_watch_a(variables, stored_clause, a);
+            *informative_literal = true
+        }
+        (None, Some(b), true) => {
+            switch_watch_b(variables, stored_clause, b);
+
+            *informative_literal = true
+        }
+        (Some(a), None, false) => {
+            switch_watch_a(variables, stored_clause, a);
+        }
+        (None, Some(b), false) => {
+            switch_watch_b(variables, stored_clause, b);
+        }
+        (None, None, true) => *informative_literal = true,
+        (None, None, false) => (),
+        _ => panic!("Unknown watch update"),
+    };
+}
+
+fn switch_watch_a(variables: &mut [Variable], stored_clause: &Rc<StoredClause>, index: usize) {
+    variables[stored_clause.watched_a().v_id].watch_removed(stored_clause);
+    stored_clause.update_watch_a(index);
+    variables[stored_clause.watched_a().v_id].watch_added(stored_clause)
+}
+
+fn switch_watch_b(variables: &mut [Variable], stored_clause: &Rc<StoredClause>, index: usize) {
+    variables[stored_clause.watched_b().v_id].watch_removed(stored_clause);
+    stored_clause.update_watch_b(index);
+    variables[stored_clause.watched_b().v_id].watch_added(stored_clause)
 }
