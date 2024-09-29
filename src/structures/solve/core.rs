@@ -124,10 +124,14 @@ impl Solve<'_> {
 
     pub fn set_from_lists(&mut self, the_choices: (Vec<VariableId>, Vec<VariableId>)) {
         the_choices.0.iter().for_each(|&v_id| {
-            let _ = self.set_literal(Literal::new(v_id, false), LiteralSource::HobsonChoice);
+            let the_literal = Literal::new(v_id, false);
+            let valuation_result = self.valuation.update_value(the_literal);
+            let _ = self.process_update_literal(the_literal, LiteralSource::HobsonChoice, valuation_result);
         });
         the_choices.1.iter().for_each(|&v_id| {
-            let _ = self.set_literal(Literal::new(v_id, true), LiteralSource::HobsonChoice);
+            let the_literal = Literal::new(v_id, true);
+            let valuation_result = self.valuation.update_value(the_literal);
+            let _ = self.process_update_literal(the_literal, LiteralSource::HobsonChoice, valuation_result);
         });
     }
 
@@ -193,17 +197,7 @@ impl Solve<'_> {
         &self.variables
     }
 
-    pub fn switch_watch_a(&mut self, stored_clause: &Rc<StoredClause>, index: usize) {
-        self.variables[stored_clause.watched_a().v_id].watch_removed(stored_clause);
-        stored_clause.update_watch_a(index);
-        self.variables[stored_clause.watched_a().v_id].watch_added(stored_clause)
-    }
 
-    pub fn switch_watch_b(&mut self, stored_clause: &Rc<StoredClause>, index: usize) {
-        self.variables[stored_clause.watched_b().v_id].watch_removed(stored_clause);
-        stored_clause.update_watch_b(index);
-        self.variables[stored_clause.watched_b().v_id].watch_added(stored_clause)
-    }
 }
 
 impl std::fmt::Display for Solve<'_> {
