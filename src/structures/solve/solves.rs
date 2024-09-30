@@ -9,60 +9,9 @@ pub enum SolveResult {
     Unknown,
 }
 
-macro_rules! propagation_macro {
-    ($self:ident,
-        $sc_vec:expr,
-        $some_deduction:ident,
-        $stats:ident,
-        $conflict:ident
-    ) => {
-        for i in 0..$sc_vec.len() {
-            let stored_clause = $sc_vec[i].clone();
-
-            match stored_clause.watch_choices(&$self.valuation) {
-                ClauseStatus::Entails(consequent) => {
-                    let this_implication_time = std::time::Instant::now();
-                    let update_result = $self.valuation.update_value(consequent);
-                    match $self.process_update_literal(
-                        consequent,
-                        LiteralSource::StoredClause(stored_clause.clone()),
-                        update_result
-                    ) {
-                        Err(SolveError::Conflict(_, _)) => {
-                            panic!("Conflict when setting a variable")
-                        }
-                        Err(e) => {
-                            panic!("Unexpected error {e:?} when setting literal {consequent}")
-                        }
-                        Ok(()) => {
-                            $some_deduction = true;
-                        }
-                    }
-                    $stats.implication_time += this_implication_time.elapsed();
-                }
-                ClauseStatus::Conflict => {
-                    match $conflict {
-                        Conflicts::None => {
-                            $conflict = Conflicts::Single(stored_clause);
-                        }
-                        Conflicts::Multiple(ref mut vec) => vec.push(stored_clause),
-                        Conflicts::Single(_) => panic!("Conflict already set"),
-                    };
-                    match $self.config.break_on_first {
-                        true => break,
-                        false => continue,
-                    };
-                }
-                ClauseStatus::Unsatisfied => (),
-                ClauseStatus::Satisfied => (),
-            }
-        }
-    };
-}
-
 #[derive(PartialEq)]
 enum Conflicts {
-    None,
+    No,
     Single(Rc<StoredClause>),
     Multiple(Vec<Rc<StoredClause>>),
 }
@@ -75,111 +24,116 @@ impl Solve<'_> {
 
         self.set_from_lists(hobson_choices(self.clauses())); // settle any literals which occur only as true or only as false
 
+        for var in &self.variables {
+            self.watch_q.push_back(var.id());
+        }
+
         let result: SolveResult;
 
         'main_loop: loop {
             stats.iterations += 1;
 
-            log::trace!("Loop on valuation: {}", self.valuation.as_internal_string());
-
-            let this_examination_time = std::time::Instant::now();
-
-            stats.examination_time += this_examination_time.elapsed();
-
-            let mut some_deduction = false;
             let mut conflicts = match self.config.break_on_first {
-                true => Conflicts::None,
+                true => Conflicts::No,
                 false => Conflicts::Multiple(vec![]),
             };
 
-            if self.current_level().get_choice().is_some() {
-                let current_level = self.current_level().index();
-                let literals = self.levels[current_level].updated_watches().to_vec();
+            'propagation_loop: while let Some(variable_id) = self.watch_q.pop_front() {
+                let the_clauses = self.variables[variable_id].watch_occurrences().to_vec();
 
-                for literal in literals {
-                    // let update_result = self.valuation.update_value(literal);
-
-
-                    let v_id = literal.v_id;
-                    propagation_macro!(
-                        self,
-                        self.variables[v_id].watch_occurrences(),
-                        some_deduction,
-                        stats,
-                        conflicts
-                    );
-                    // TODO: Improve handling of multiple conflicts.
-                    // If the conflict was due to an implication, then the implication is also a conflict…
-                    match conflicts {
-                        Conflicts::Single(_) | Conflicts::Multiple(_) => {
-                            if self.config.break_on_first {
-                                break;
+                for stored_clause in the_clauses {
+                    match stored_clause.watch_choices(&self.valuation) {
+                        ClauseStatus::Entails(consequent) => {
+                            let this_implication_time = std::time::Instant::now();
+                            let update_result = self.valuation.update_value(consequent);
+                            match self.process_update_literal(
+                                consequent,
+                                LiteralSource::StoredClause(stored_clause.clone()),
+                                update_result,
+                            ) {
+                                Err(SolveError::Conflict(_, _)) => {
+                                    panic!("Conflict when setting {consequent}")
+                                }
+                                Err(e) => panic!("Error {e:?} when setting {consequent}"),
+                                Ok(()) => {}
                             }
+                            stats.implication_time += this_implication_time.elapsed();
                         }
-                        _ => (),
+                        ClauseStatus::Conflict => {
+                            match conflicts {
+                                Conflicts::No => {
+                                    conflicts = Conflicts::Single(stored_clause);
+                                }
+                                Conflicts::Multiple(ref mut vec) => vec.push(stored_clause),
+                                Conflicts::Single(_) => panic!("Conflict already set"),
+                            };
+                            match self.config.break_on_first {
+                                true => break 'propagation_loop,
+                                false => continue,
+                            };
+                        }
+                        ClauseStatus::Unsatisfied => (),
+                        ClauseStatus::Satisfied => (),
                     }
                 }
-            } else {
-                propagation_macro!(self, self.formula_clauses, some_deduction, stats, conflicts);
-
-                propagation_macro!(self, self.learnt_clauses, some_deduction, stats, conflicts);
             }
 
-            if conflicts != Conflicts::None {
-                match conflicts {
-                    Conflicts::None => (),
-                    Conflicts::Single(stored_conflict) => {
-                        match process_conflict_and_fix(self, &stored_conflict, &mut stats) {
+            match conflicts {
+                Conflicts::No => {
+                    if let Some(available_v_id) = self.most_active_none(&self.valuation) {
+                        if self.time_to_reduce() {
+                            reduce(self, &mut stats)
+                        }
+
+                        let this_choice_time = std::time::Instant::now();
+                        log::trace!(
+                            "Choice: {available_v_id} @ {} with activity {}",
+                            self.current_level().index(),
+                            self.variables[available_v_id].activity()
+                        );
+
+                        let the_literal = Literal::new(available_v_id, false);
+                        let valuation_result = self.valuation.update_value(the_literal);
+                        let _ = self.process_update_literal(
+                            the_literal,
+                            LiteralSource::Choice,
+                            valuation_result,
+                        );
+                        stats.choice_time += this_choice_time.elapsed();
+
+                        continue 'main_loop;
+                    } else {
+                        result = SolveResult::Satisfiable;
+                        break 'main_loop;
+                    }
+                }
+                Conflicts::Single(stored_conflict) => {
+                    self.watch_q.clear();
+                    match process_conflict_and_fix(self, &stored_conflict, &mut stats) {
+                        false => {
+                            result = SolveResult::Unsatisfiable;
+                            break 'main_loop;
+                        }
+                        true => {
+                            continue 'main_loop;
+                        }
+                    }
+                }
+                Conflicts::Multiple(conflict_vec) => {
+                    self.watch_q.clear();
+                    if !conflict_vec.is_empty() {
+                        match process_conflicts_and_fixes(self, conflict_vec, &mut stats) {
                             false => {
                                 result = SolveResult::Unsatisfiable;
                                 break 'main_loop;
                             }
-                            true => {
-                                continue 'main_loop;
-                            }
+                            true => (),
                         }
                     }
-                    Conflicts::Multiple(conflict_vec) => {
-                        if !conflict_vec.is_empty() {
-                            match process_conflicts_and_fixes(self, conflict_vec, &mut stats) {
-                                false => {
-                                    result = SolveResult::Unsatisfiable;
-                                    break 'main_loop;
-                                }
-                                true => (),
-                            }
-                        }
-                    }
-                }
-            }
-
-            if !some_deduction {
-                if let Some(available_v_id) = self.most_active_none(&self.valuation) {
-                    if self.time_to_reduce() {
-                        reduce(self, &mut stats)
-                    }
-
-                    let this_choice_time = std::time::Instant::now();
-                    log::trace!(
-                        "Choice: {available_v_id} @ {} with activity {}",
-                        self.current_level().index(),
-                        self.variables[available_v_id].activity()
-                    );
-
-                    let the_literal = Literal::new(available_v_id, false);
-                    let valuation_result = self.valuation.update_value(the_literal);
-                    let _ = self
-                        .process_update_literal(the_literal, LiteralSource::Choice, valuation_result);
-                    stats.choice_time += this_choice_time.elapsed();
-
-                    continue 'main_loop;
-                } else {
-                    result = SolveResult::Satisfiable;
-                    break 'main_loop;
                 }
             }
         }
-
+        // loop exit
         stats.total_time = this_total_time.elapsed();
         match result {
             SolveResult::Satisfiable => {
@@ -225,44 +179,7 @@ fn reduce(solve: &mut Solve, stats: &mut SolveStats) {
     println!("Reduced to: {}", solve.learnt_clauses.len());
 }
 
-enum ProcessOption {
-    Unsatisfiable,
-    ContinueMain,
-    Implicationed,
-    Conflict,
-}
-
-// fn process_clause(
-//     solve: &mut Solve,
-//     stored_clause: &Rc<StoredClause>,
-//     clause_status: &ClauseStatus,
-//     stats: &mut SolveStats,
-//     some_conflict: &mut bool,
-//     some_deduction: &mut bool,
-// ) -> ProcessOption {
-//     match clause_status {
-//         ClauseStatus::Entails(consequent) => {
-//             let this_implication_time = std::time::Instant::now();
-//             match solve.set_literal(
-//                 *consequent,
-//                 LiteralSource::StoredClause(stored_clause.clone()),
-//             ) {
-//                 Err(SolveError::Conflict(_, _)) => {
-//                     *some_conflict = true;
-//                 }
-//                 Err(e) => panic!("Unexpected error {e:?} when setting literal {consequent}"),
-//                 Ok(()) => {
-//                     *some_deduction = true;
-//                 }
-//             }
-//             stats.implication_time += this_implication_time.elapsed();
-//             ProcessOption::Implicationed
-//         }
-//         ClauseStatus::Conflict => ProcessOption::Conflict,
-//         _ => panic!("Something unexpected"),
-//     }
-// }
-
+#[inline(always)]
 fn process_conflict_and_fix(
     solve: &mut Solve,
     stored_conflict: &Rc<StoredClause>,
@@ -283,12 +200,11 @@ fn process_conflict_and_fix(
             true
         }
         Ok(ok) => panic!("Unexpected ok {ok:?} when attempting a fix"),
-        Err(err) => {
-            panic!("Unexpected error {err:?} when attempting a fix")
-        }
+        Err(err) => panic!("Unexpected {err:?} when attempting a fix"),
     }
 }
 
+#[inline(always)]
 fn process_conflicts_and_fixes(
     solve: &mut Solve,
     stored_conflicts: Vec<Rc<StoredClause>>,
@@ -311,9 +227,9 @@ fn process_conflicts_and_fixes(
             stats.unsat_time += this_unsat_time.elapsed();
             true
         }
-        Ok(ok) => panic!("Unexpected ok {ok:?} when attempting a fix"),
+        Ok(ok) => panic!("Unexpected {ok:?} when attempting a fix"),
         Err(err) => {
-            panic!("Unexpected error {err:?} when attempting a fix")
+            panic!("Unexpected {err:?} when attempting a fix")
         }
     }
 }

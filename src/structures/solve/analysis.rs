@@ -57,6 +57,9 @@ impl Solve<'_> {
                         &mut self.variables,
                     );
 
+                    self.watch_q.push_back(asserting_clause.watched_a().v_id);
+                    self.watch_q.push_back(asserting_clause.watched_b().v_id);
+
                     self.backjump(backjump_level);
 
                     Ok(SolveOk::AssertingClause)
@@ -85,9 +88,9 @@ impl Solve<'_> {
                 match self.conflict_analysis(conflict_clause) {
                     AnalysisResult::AssertingClause(asserting_clause) => {
                         let backjump_level = self.decision_level(&asserting_clause);
-                        if self.config.multi_jump_max && backjump_level < the_jump {
-                            the_jump = backjump_level
-                        } else if backjump_level > the_jump {
+                        if (self.config.multi_jump_max && backjump_level < the_jump)
+                            || backjump_level > the_jump
+                        {
                             the_jump = backjump_level
                         }
                         analysis_results.push(asserting_clause);
@@ -104,7 +107,7 @@ impl Solve<'_> {
             self.backjump(the_jump);
         }
 
-        return Ok(SolveOk::AssertingClause);
+        Ok(SolveOk::AssertingClause)
     }
 
     pub fn analysis_switch(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
@@ -193,6 +196,7 @@ impl Solve<'_> {
 }
 
 pub fn extant_origins(clauses: Vec<Rc<StoredClause>>) -> Vec<Rc<StoredClause>> {
+    #[allow(clippy::mutable_key_type)]
     let mut origin_nodes = BTreeSet::new();
 
     let mut q: VecDeque<Rc<StoredClause>> = VecDeque::new();

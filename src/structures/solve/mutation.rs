@@ -99,8 +99,9 @@ impl<'borrow, 'solve> Solve<'solve> {
                 };
 
                 if process_variable_occurrence_update(&self.valuation, &mut self.variables, lit) {
-                    self.current_level_mut().note_watch(lit)
+                    self.watch_q.push_back(lit.v_id);
                 }
+
                 Ok(())
             }
             Err(ValuationError::Match) => match src {
