@@ -161,10 +161,12 @@ impl Solve<'_> {
         stats.total_time = this_total_time.elapsed();
         match result {
             SolveResult::Satisfiable => {
-                println!(
-                    "c ASSIGNMENT: {}",
-                    self.valuation.to_vec().as_display_string(self)
-                );
+                if self.config.show_assignment {
+                    println!(
+                        "c ASSIGNMENT: {}",
+                        self.valuation.to_vec().as_display_string(self)
+                    );
+                }
             }
             SolveResult::Unsatisfiable => {}
             SolveResult::Unknown => {}
@@ -190,7 +192,7 @@ fn reduce(solve: &mut Solve, stats: &mut SolveStats) {
             break;
         }
         let clause = solve.learnt_clauses[i].clone();
-        if clause.lbd() > solve.config.min_glue_strength {
+        if clause.lbd() > solve.config.glue_strength {
             solve.drop_clause_by_swap(&clause);
         } else {
             i += 1
