@@ -65,27 +65,34 @@ fn main() {
     };
 
     if let Ok(contents) = fs::read_to_string(args.file) {
-        if let Ok(formula) = Formula::from_dimacs(&contents) {
-            let mut the_solve = Solve::from_formula(&formula, config);
+        match Formula::from_dimacs(&contents) {
+            Ok(formula) => {
+                log::warn!("Formula processed");
+                let mut the_solve = Solve::from_formula(&formula, config);
+                log::warn!("Solve initialised");
 
-            let (result, stats) = the_solve.implication_solve();
-            if the_solve.config.stats {
-                println!("{stats}");
+                let (result, stats) = the_solve.implication_solve();
+                if the_solve.config.stats {
+                    println!("{stats}");
+                }
+                match result {
+                    SolveResult::Unsatisfiable => {
+                        println!("s UNSATISFIABLE");
+                        std::process::exit(00);
+                    }
+                    SolveResult::Satisfiable => {
+                        println!("s SATISFIABLE");
+                        std::process::exit(10);
+                    }
+                    SolveResult::Unknown => {
+                        println!("s Unkown");
+                        std::process::exit(20);
+                    }
+                }
             }
-            match result {
-                SolveResult::Unsatisfiable => {
-                    println!("s UNSATISFIABLE");
-                    std::process::exit(00);
-                }
-                SolveResult::Satisfiable => {
-                    println!("s SATISFIABLE");
-                    std::process::exit(10);
-                }
-                SolveResult::Unknown => {
-                    println!("s Unkown");
-                    std::process::exit(20);
-                }
-            }
+            Err(e) => panic!("{e:?}"),
         }
+    } else {
+        println!("Error reading file")
     }
 }
