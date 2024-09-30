@@ -252,14 +252,14 @@ pub fn initialise_watches_for(
             stored_clause.some_preferred_index(val, Some(literal_a.v_id), vars)
         });
 
-        let current_a = stored_clause.clause[stored_clause.watch_a.get()].v_id;
-        vars[current_a].watch_added(stored_clause);
+        let current_a = stored_clause.clause[stored_clause.watch_a.get()];
+        vars[current_a.v_id].watch_added(stored_clause, current_a.polarity);
 
-        let current_b = stored_clause.clause[stored_clause.watch_b.get()].v_id;
-        vars[current_b].watch_added(stored_clause);
+        let current_b = stored_clause.clause[stored_clause.watch_b.get()];
+        vars[current_b.v_id].watch_added(stored_clause, current_b.polarity);
     } else {
-        let watched_variable = stored_clause.clause.first().unwrap().v_id;
-        vars[watched_variable].watch_added(stored_clause);
+        let watched_variable = stored_clause.clause.first().unwrap();
+        vars[watched_variable.v_id].watch_added(stored_clause, watched_variable.polarity);
     }
 }
 

@@ -1,5 +1,6 @@
 use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
 use crate::structures::solve::{Solve, SolveError, SolveOk};
+use crate::structures::Valuation;
 use crate::structures::{
     solve::StoppingCriteria, stored_clause::initialise_watches_for, Clause, ClauseSource,
     ClauseVec, LiteralSource, StoredClause,
@@ -57,8 +58,19 @@ impl Solve<'_> {
                         &mut self.variables,
                     );
 
-                    self.watch_q.push_back(asserting_clause.watched_a().v_id);
-                    self.watch_q.push_back(asserting_clause.watched_b().v_id);
+                    if let Some(a) = asserting_clause.asserts(&self.valuation_at(backjump_level)) {
+                        if a == asserting_clause.watched_a() {
+                            self.watch_q
+                                .push_back(asserting_clause.watched_b().negate());
+                        } else if a == asserting_clause.watched_b() {
+                            self.watch_q
+                                .push_back(asserting_clause.watched_a().negate());
+                        } else {
+                            panic!("Failed to predict asserting clause")
+                        }
+                    } else {
+                        panic!("Failure to obtain an asserting clause")
+                    }
 
                     self.backjump(backjump_level);
 

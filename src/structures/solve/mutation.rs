@@ -47,8 +47,10 @@ impl<'borrow, 'solve> Solve<'solve> {
     }
 
     pub fn drop_clause_by_swap(&mut self, stored_clause: &Rc<StoredClause>) {
-        self.variables[stored_clause.watched_a().v_id].watch_removed(stored_clause);
-        self.variables[stored_clause.watched_b().v_id].watch_removed(stored_clause);
+        let watched_a_lit = stored_clause.watched_a();
+        let watched_b_lit = stored_clause.watched_b();
+        self.variables[watched_a_lit.v_id].watch_removed(stored_clause, watched_a_lit.polarity);
+        self.variables[watched_b_lit.v_id].watch_removed(stored_clause, watched_b_lit.polarity);
         if let Some(p) = self
             .learnt_clauses
             .iter()
@@ -150,16 +152,18 @@ fn process_watches(
 
 #[inline(always)]
 fn switch_watch_a(variables: &mut [Variable], stored_clause: &Rc<StoredClause>, index: usize) {
-    variables[stored_clause.watched_a().v_id].watch_removed(stored_clause);
+    let watched_a_lit = stored_clause.watched_a();
+    variables[watched_a_lit.v_id].watch_removed(stored_clause, watched_a_lit.polarity);
     stored_clause.update_watch_a(index);
-    variables[stored_clause.watched_a().v_id].watch_added(stored_clause)
+    variables[stored_clause.watched_a().v_id].watch_added(stored_clause, stored_clause.watched_a().polarity)
 }
 
 #[inline(always)]
 fn switch_watch_b(variables: &mut [Variable], stored_clause: &Rc<StoredClause>, index: usize) {
-    variables[stored_clause.watched_b().v_id].watch_removed(stored_clause);
+    let watched_b_lit = stored_clause.watched_b();
+    variables[watched_b_lit.v_id].watch_removed(stored_clause, watched_b_lit.polarity);
     stored_clause.update_watch_b(index);
-    variables[stored_clause.watched_b().v_id].watch_added(stored_clause)
+    variables[stored_clause.watched_b().v_id].watch_added(stored_clause, stored_clause.watched_b().polarity)
 }
 
 /*
