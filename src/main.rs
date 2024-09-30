@@ -18,9 +18,25 @@ struct Args {
     #[arg(short, long)]
     file: String,
 
+    /// Print stats
+    #[arg(short, long, default_value_t = false)]
+    stats: bool,
+
+    /// Print an assignment if formula is satisfiable
+    #[arg(short, long, default_value_t = false)]
+    assignment: bool,
+
     /// Print core on unsat
     #[arg(short, long, default_value_t = false)]
     core: bool,
+
+    /// Specify required glue strength
+    #[arg(short, long, default_value_t = 2)]
+    glue_strength: usize,
+
+    /// Resolution stopping criteria
+    #[arg(long, default_value_t = String::from("FirstUIP"))]
+    stopping_criteria: String,
 }
 
 fn main() {
@@ -29,10 +45,21 @@ fn main() {
     let args = Args::parse();
 
     let config = SolveConfig {
+        stats: args.stats,
+        show_assignment: args.assignment,
+        glue_strength: args.glue_strength,
         core: args.core,
         analysis: 3,
-        min_glue_strength: 2,
-        stopping_criteria: StoppingCriteria::FirstAssertingUIP,
+        stopping_criteria: {
+            let critera = args.stopping_criteria;
+            if critera == "FirstUIP" {
+                StoppingCriteria::FirstAssertingUIP
+            } else if critera == "None" {
+                StoppingCriteria::None
+            } else {
+                panic!("Unknown stopping critera")
+            }
+        },
         break_on_first: true,
         multi_jump_max: true,
     };
@@ -42,7 +69,9 @@ fn main() {
             let mut the_solve = Solve::from_formula(&formula, config);
 
             let (result, stats) = the_solve.implication_solve();
-            println!("{stats}");
+            if the_solve.config.stats {
+                println!("{stats}");
+            }
             match result {
                 SolveResult::Unsatisfiable => {
                     println!("s UNSATISFIABLE");
