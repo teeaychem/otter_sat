@@ -80,7 +80,7 @@ impl Solve<'_> {
         conflict_clauses: Vec<Rc<StoredClause>>,
     ) -> Result<SolveOk, SolveError> {
         if self.current_level().index() == 0 {
-            println!("Base level fix…");
+            log::warn!("Base level fix…");
             return Err(SolveError::NoSolution);
         } else {
             let mut analysis_results = vec![];
@@ -177,7 +177,7 @@ impl Solve<'_> {
         if let Some(asserted) = asserted_literal {
             AnalysisResult::AssertingClause(stored_clause, asserted)
         } else if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
-            AnalysisResult::Asserti[]ngClause(stored_clause, asserted)
+            AnalysisResult::AssertingClause(stored_clause, asserted)
         } else {
             panic!("No assertion…")
         }

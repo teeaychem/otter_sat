@@ -176,10 +176,9 @@ impl Solve<'_> {
 #[inline(always)]
 fn reduce(solve: &mut Solve, stats: &mut SolveStats) {
     let this_reduction_time = std::time::Instant::now();
-    println!("time to reduce");
 
     let learnt_count = solve.learnt_clauses.len();
-    println!("Learnt count: {}", learnt_count);
+    log::warn!(target: "forget", "Learnt count: {}", learnt_count);
 
     /*
     Clauses are removed from the learnt clause vector by swap_remove.
@@ -200,7 +199,7 @@ fn reduce(solve: &mut Solve, stats: &mut SolveStats) {
     solve.forgets += 1;
     solve.conflcits_since_last_forget = 0;
     stats.reduction_time += this_reduction_time.elapsed();
-    println!("Reduced to: {}", solve.learnt_clauses.len());
+    log::warn!(target: "forget", "Reduced to: {}", solve.learnt_clauses.len());
 }
 
 #[inline(always)]
