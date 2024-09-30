@@ -12,7 +12,6 @@ pub enum ClauseSource {
 /**
 The stored clause struct associates a clause with metadata relevant for a solve
 and, is intended to be the unique representation of a clause within a solve
-- `nx` is the node index of the stored clause in the resolution graph
 - `lbd` is the literal block distance of the clause
   - note, this defaults to 0 and should be updated if a clause is stored after some decisions have been made
 - `watch_a` and `watch_b` are pointers to the watched literals, and rely on a vector representation of the clause
