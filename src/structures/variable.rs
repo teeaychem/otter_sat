@@ -11,8 +11,8 @@ pub struct Variable {
     id: VariableId,
     positive_occurrences: Vec<Rc<StoredClause>>,
     negative_occurrences: Vec<Rc<StoredClause>>,
-    positive_watch_occurrences: Vec<Rc<StoredClause>>,
-    negative_watch_occurrences: Vec<Rc<StoredClause>>,
+    pub positive_watch_occurrences: Vec<Rc<StoredClause>>,
+    pub negative_watch_occurrences: Vec<Rc<StoredClause>>,
     activity: Cell<f32>,
 }
 

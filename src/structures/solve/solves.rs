@@ -4,6 +4,7 @@ use crate::structures::solve::{
     Solve, SolveError, SolveOk, SolveStats,
 };
 use crate::structures::{ClauseStatus, Literal, LiteralSource, StoredClause, Valuation};
+use std::mem;
 use std::rc::Rc;
 
 pub enum SolveResult {
@@ -38,16 +39,28 @@ impl Solve<'_> {
             };
 
             'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
-                let the_clauses = match literal.polarity {
-                    false => self.variables[literal.v_id]
-                        .positive_watch_occurrences()
-                        .to_vec(),
-                    true => self.variables[literal.v_id]
-                        .negative_watch_occurrences()
-                        .to_vec(),
-                };
+                let mut temprary_clause_vec: Vec<Rc<StoredClause>> = Vec::default();
+                macro_rules! swap_occurrence_vecs {
+                    /* perform a temporary swap of the relevant occurrence vector to allow mutable borrows of the solve variables when processing watch choices
+                    the first swap takes place immediately, and the remaining swaps happen whenever the current iteration of the loop exits
+                    the swap is safe, as the literal has been set already and will never be chosen as a watch
+                     */
+                    () => {
+                        match literal.polarity {
+                            false => mem::swap(
+                                &mut self.variables[literal.v_id].positive_watch_occurrences,
+                                &mut temprary_clause_vec,
+                            ),
+                            true => mem::swap(
+                                &mut self.variables[literal.v_id].negative_watch_occurrences,
+                                &mut temprary_clause_vec,
+                            ),
+                        };
+                    };
+                }
+                swap_occurrence_vecs!();
 
-                for stored_clause in the_clauses {
+                for stored_clause in &temprary_clause_vec {
                     match stored_clause.watch_choices(&self.valuation) {
                         ClauseStatus::Entails(consequent) => {
                             let this_implication_time = std::time::Instant::now();
@@ -55,7 +68,7 @@ impl Solve<'_> {
                             match process_update_literal(
                                 consequent,
                                 LiteralSource::StoredClause(stored_clause.clone()),
-                                &mut self.variables,
+                                &mut self.variables[consequent.v_id],
                                 &mut self.levels,
                                 update_result,
                             ) {
@@ -77,13 +90,20 @@ impl Solve<'_> {
                         ClauseStatus::Conflict => {
                             match conflicts {
                                 Conflicts::No => {
-                                    conflicts = Conflicts::Single(stored_clause);
+                                    conflicts = Conflicts::Single(stored_clause.clone());
                                 }
-                                Conflicts::Multiple(ref mut vec) => vec.push(stored_clause),
+                                Conflicts::Multiple(ref mut vec) => vec.push(stored_clause.clone()),
                                 Conflicts::Single(_) => panic!("Conflict already set"),
                             };
                             match self.config.break_on_first {
-                                true => break 'propagation_loop,
+                                true => {
+                                    swap_occurrence_vecs!();
+                                    if !temprary_clause_vec.is_empty() {
+                                        println!("{}", temprary_clause_vec.len());
+                                        panic!("wft {:?}", temprary_clause_vec);
+                                    }
+                                    break 'propagation_loop;
+                                }
                                 false => continue,
                             };
                         }
@@ -91,6 +111,7 @@ impl Solve<'_> {
                         ClauseStatus::Satisfied => (),
                     }
                 }
+                swap_occurrence_vecs!();
             }
 
             match conflicts {
@@ -112,7 +133,7 @@ impl Solve<'_> {
                         let _chose_literal_without_value = process_update_literal(
                             the_literal,
                             LiteralSource::Choice,
-                            &mut self.variables,
+                            &mut self.variables[the_literal.v_id],
                             &mut self.levels,
                             valuation_result,
                         );
