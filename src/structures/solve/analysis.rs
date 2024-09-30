@@ -1,5 +1,8 @@
 use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
+use crate::structures::solve::mutation::process_update_literal;
+use crate::structures::solve::mutation::process_variable_occurrence_update;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
+use crate::structures::valuation::Valuation;
 use crate::structures::{
     solve::StoppingCriteria, stored_clause::initialise_watches_for, Clause, ClauseSource, Literal,
     LiteralSource, StoredClause,
@@ -68,6 +71,23 @@ impl Solve<'_> {
                     }
 
                     self.backjump(backjump_level);
+
+                    // updating the valuation needs to happen here to ensure the watches for any queued literal during propagaion are fixed
+                    let valuation_result = self.valuation.update_value(assertion);
+                    let _chose_literal_without_value = process_update_literal(
+                        assertion,
+                        LiteralSource::StoredClause(asserting_clause),
+                        &mut self.variables[assertion.v_id],
+                        &mut self.levels,
+                        valuation_result,
+                    );
+                    if process_variable_occurrence_update(
+                        &self.valuation,
+                        &mut self.variables,
+                        assertion,
+                    ) {
+                        self.watch_q.push_back(assertion);
+                    }
 
                     Ok(SolveOk::AssertingClause)
                 }

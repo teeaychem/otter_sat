@@ -28,7 +28,7 @@ impl Formula {
             }
             Err(e) => {
                 panic!("{e:?}");
-                Err(e)},
+            },
         }
     }
 
@@ -55,7 +55,6 @@ impl Formula {
                 Ok(made) => the_clause.push(made),
                 Err(e) => {
                     panic!("{e:?}");
-                    return Err(SolveError::Literal(e));
                 }
             };
         }

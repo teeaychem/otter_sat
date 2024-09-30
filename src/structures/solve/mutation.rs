@@ -177,7 +177,7 @@ A few things may be updated:
 pub fn process_update_literal(
     lit: Literal,
     src: LiteralSource,
-    variables: &mut [Variable],
+    variable: &mut Variable,
     levels: &mut [Level],
     literal_update_result: Result<(), ValuationError>,
 ) -> Result<(), SolveError> {
@@ -186,18 +186,18 @@ pub fn process_update_literal(
             match &src {
                 LiteralSource::Choice => {
                     let current_level = levels.len() - 1;
-                    variables[lit.v_id].set_decision_level(current_level);
+                    variable.set_decision_level(current_level);
                     levels[current_level].record_literal(lit, src);
                     log::debug!("+Set choice: {lit}");
                 }
                 LiteralSource::StoredClause(_) => {
                     let current_level = levels.len() - 1;
-                    variables[lit.v_id].set_decision_level(current_level);
+                    variable.set_decision_level(current_level);
                     levels[current_level].record_literal(lit, src);
                     log::debug!("+Set deduction: {lit}");
                 }
                 LiteralSource::Assumption | LiteralSource::HobsonChoice => {
-                    variables[lit.v_id].set_decision_level(0);
+                    variable.set_decision_level(0);
                     levels[0].record_literal(lit, src);
                     log::debug!("+Set assumption/hobson choice: {lit}");
                 }
