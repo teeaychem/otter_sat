@@ -26,7 +26,7 @@ loggers:
     additive: false
 
   forget:
-    level: on
+    level: warn
     appenders:
     - forget_appender
     additive: false
