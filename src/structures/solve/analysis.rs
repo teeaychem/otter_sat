@@ -1,16 +1,15 @@
 use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
 use crate::structures::solve::{Solve, SolveError, SolveOk};
-use crate::structures::Valuation;
 use crate::structures::{
     solve::StoppingCriteria, stored_clause::initialise_watches_for, Clause, ClauseSource,
-    ClauseVec, LiteralSource, StoredClause,
+    Literal, LiteralSource, StoredClause,
 };
 
 use std::collections::{BTreeSet, VecDeque};
 use std::rc::Rc;
 
 pub enum AnalysisResult {
-    AssertingClause(Rc<StoredClause>),
+    AssertingClause(Rc<StoredClause>, Literal),
 }
 
 impl Solve<'_> {
@@ -49,7 +48,7 @@ impl Solve<'_> {
         match self.current_level().index() {
             0 => Err(SolveError::NoSolution),
             _ => match self.conflict_analysis(conflict_clause) {
-                AnalysisResult::AssertingClause(asserting_clause) => {
+                AnalysisResult::AssertingClause(asserting_clause, assertion) => {
                     let backjump_level = self.decision_level(&asserting_clause);
 
                     initialise_watches_for(
@@ -58,18 +57,14 @@ impl Solve<'_> {
                         &mut self.variables,
                     );
 
-                    if let Some(a) = asserting_clause.asserts(&self.valuation_at(backjump_level)) {
-                        if a == asserting_clause.watched_a() {
-                            self.watch_q
-                                .push_back(asserting_clause.watched_b().negate());
-                        } else if a == asserting_clause.watched_b() {
-                            self.watch_q
-                                .push_back(asserting_clause.watched_a().negate());
-                        } else {
-                            panic!("Failed to predict asserting clause")
-                        }
+                    if assertion == asserting_clause.watched_a() {
+                        self.watch_q
+                            .push_back(asserting_clause.watched_b().negate());
+                    } else if assertion == asserting_clause.watched_b() {
+                        self.watch_q
+                            .push_back(asserting_clause.watched_a().negate());
                     } else {
-                        panic!("Failure to obtain an asserting clause")
+                        panic!("Failed to predict asserting clause")
                     }
 
                     self.backjump(backjump_level);
@@ -98,7 +93,7 @@ impl Solve<'_> {
 
             for conflict_clause in conflict_clauses {
                 match self.conflict_analysis(conflict_clause) {
-                    AnalysisResult::AssertingClause(asserting_clause) => {
+                    AnalysisResult::AssertingClause(asserting_clause, _) => {
                         let backjump_level = self.decision_level(&asserting_clause);
                         if (self.config.multi_jump_max && backjump_level < the_jump)
                             || backjump_level > the_jump
@@ -129,25 +124,19 @@ impl Solve<'_> {
         }
     }
 
-    /// Common steps to storing a clause
-    fn store_clause_common(&mut self, clause: ClauseVec, source: ClauseSource) -> Rc<StoredClause> {
-        let stored_clause = self.store_clause(clause, source);
-        stored_clause.set_lbd(&self.variables);
-        stored_clause
-    }
-
     /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision
-
     pub fn conflict_analysis(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
         let mut resolved_clause = conflict_clause.as_vec();
         let mut resolution_trail = vec![];
 
         let previous_level_val = self.valuation_at(self.current_level().index() - 1);
+        let mut asserted_literal = None;
 
         for (src, _lit) in self.current_level().observations().iter().rev() {
             match self.config.stopping_criteria {
                 StoppingCriteria::FirstAssertingUIP => {
-                    if resolved_clause.asserts(&previous_level_val).is_some() {
+                    if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
+                        asserted_literal = Some(asserted);
                         break;
                     }
                 }
@@ -182,9 +171,16 @@ impl Solve<'_> {
             })
         }
         let stored_clause =
-            self.store_clause_common(resolved_clause, ClauseSource::Resolution(resolution_trail));
+            self.store_clause(resolved_clause.clone(), ClauseSource::Resolution(resolution_trail));
+        stored_clause.set_lbd(&self.variables);
 
-        AnalysisResult::AssertingClause(stored_clause)
+        if let Some(asserted) = asserted_literal {
+            AnalysisResult::AssertingClause(stored_clause, asserted)
+        } else if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
+            AnalysisResult::Asserti[]ngClause(stored_clause, asserted)
+        } else {
+            panic!("No assertion…")
+        }
     }
 
     pub fn core(&self) {
