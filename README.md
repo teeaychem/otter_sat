@@ -14,15 +14,16 @@ At present, features include:
 - A very long list of todos!
 
 Arguments (with the help of [clap](https://docs.rs/clap/latest/clap/)):
+|                       |       |                                                                 |
+| Long                  | Short | Use                                                             |
+|-----------------------|-------|-----------------------------------------------------------------|
+| `--file`              | `-f`  | The formula to use, in DIMACS form                              |
+| `--core`              | `-c`  | Display an unsatisfiable core on UNSAT                          |
+| `--stats`             | `-s`  | Display some stats on SAT/UNSAT                                 |
+| `--assignment`        | `-a`  | Display a satisfying assignment on SAT                          |
+| `--glue-strength`     | `-g`  | Specify the lbd value required to retain a clause               |
+| `--stopping-criteria` |       | The stopping criteria to use (default: `FirstUIP`, alt: `None`) |
 
-| Long                | Short | Use                                                         |
-|---------------------|-------|-------------------------------------------------------------|
-| --file              | -f    | The formula to use, in DIMACS form                          |
-| --core              | -c    | Display an unsatisfiable core on UNSAT                      |
-| --stats             | -s    | Display some stats on SAT/UNSAT                             |
-| --assignment        | -a    | Display a satisfying assignment on SAT                      |
-| --glue-strength     | -g    | Specify the lbd value required to retain a clause           |
-| --stopping-criteria |       | The stopping criteria to use (default: FirstUIP, alt: None) |
 
 Docmentation and tests are moslty added as the solver develops and parts solidify.
 For the moment, things are fairly green.
