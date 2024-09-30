@@ -8,14 +8,25 @@ appenders:
     encoder:
       pattern: "{d(%H:%M:%S)} | {({l}):5.5} | {f}:{L}\t {m}{n}"
 
+  forget_appender:
+    kind: console
+    encoder:
+      pattern: "{d(%H:%M:%S)} | {({l}):5.5} | {f}:{L}\t {m}{n}"
+
 root:
-  level: warn
+  level: off
   appenders:
     - stdout
 
 loggers:
   graph:
-    level: warn
+    level: off
     appenders:
     - graph_appender
+    additive: false
+
+  forget:
+    level: on
+    appenders:
+    - forget_appender
     additive: false
