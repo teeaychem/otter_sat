@@ -16,6 +16,7 @@ At present, features include:
 Arguments (with the help of [clap](https://docs.rs/clap/latest/clap/)):
 
 | Long                | Short | Use                                                         |
+|---------------------|-------|-------------------------------------------------------------|
 | --file              | -f    | The formula to use, in DIMACS form                          |
 | --core              | -c    | Display an unsatisfiable core on UNSAT                      |
 | --stats             | -s    | Display some stats on SAT/UNSAT                             |
