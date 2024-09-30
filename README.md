@@ -14,7 +14,7 @@ At present, features include:
 - A very long list of todos!
 
 Arguments (with the help of [clap](https://docs.rs/clap/latest/clap/)):
-|                       |       |                                                                                                     |
+
 | Long                  | Short | Use                                                                                                 |
 |-----------------------|-------|-----------------------------------------------------------------------------------------------------|
 | `--file`              | `-f`  | The formula to use, in [DIMACS CNF](https://jix.github.io/varisat/manual/0.2.0/formats/dimacs.html) |

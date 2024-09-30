@@ -26,7 +26,9 @@ impl Formula {
                 self.clauses.push(a_clause);
                 Ok(())
             }
-            Err(e) => Err(e),
+            Err(e) => {
+                panic!("{e:?}");
+                Err(e)},
         }
     }
 
@@ -52,6 +54,7 @@ impl Formula {
             match Literal::from_string(string_literal, &mut self.variables) {
                 Ok(made) => the_clause.push(made),
                 Err(e) => {
+                    panic!("{e:?}");
                     return Err(SolveError::Literal(e));
                 }
             };

@@ -1,7 +1,8 @@
 use std::char;
 
-use crate::structures::{Formula, solve::SolveError};
+use crate::structures::{solve::SolveError, Formula};
 
+#[derive(Debug)]
 pub enum IOError {
     ParseFailure,
     PrefaceLength,
@@ -36,9 +37,10 @@ impl Formula {
 
             if ch == 'c' {
                 reading_comment = true;
+                from += 1
             } else if ch == 0xA as char {
                 // newline check
-                from += 1;
+                from = to;
                 reading_comment = false;
             } else if !reading_comment && ch == 'p' {
                 loop {
@@ -77,9 +79,6 @@ impl Formula {
                 from = to
             }
 
-            if reading_comment {
-                from += 1
-            }
             to += 1;
         }
         Ok(the_solve)
