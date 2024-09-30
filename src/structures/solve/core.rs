@@ -38,7 +38,7 @@ pub struct Solve<'formula> {
     pub levels: Vec<Level>,
     pub formula_clauses: Vec<Rc<StoredClause>>,
     pub learnt_clauses: Vec<Rc<StoredClause>>,
-    pub watch_q: VecDeque<VariableId>,
+    pub watch_q: VecDeque<Literal>,
     pub config: SolveConfig,
 }
 
@@ -142,7 +142,7 @@ impl Solve<'_> {
             );
             if process_variable_occurrence_update(&self.valuation, &mut self.variables, the_literal)
             {
-                self.watch_q.push_back(the_literal.v_id);
+                self.watch_q.push_back(the_literal);
             }
         });
         the_choices.1.iter().for_each(|&v_id| {
@@ -157,7 +157,7 @@ impl Solve<'_> {
             );
             if process_variable_occurrence_update(&self.valuation, &mut self.variables, the_literal)
             {
-                self.watch_q.push_back(the_literal.v_id);
+                self.watch_q.push_back(the_literal);
             }
         });
     }

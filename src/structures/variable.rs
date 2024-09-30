@@ -11,7 +11,8 @@ pub struct Variable {
     id: VariableId,
     positive_occurrences: Vec<Rc<StoredClause>>,
     negative_occurrences: Vec<Rc<StoredClause>>,
-    watch_occurrences: Vec<Rc<StoredClause>>,
+    positive_watch_occurrences: Vec<Rc<StoredClause>>,
+    negative_watch_occurrences: Vec<Rc<StoredClause>>,
     activity: Cell<f32>,
 }
 
@@ -23,7 +24,8 @@ impl Variable {
             id,
             positive_occurrences: Vec::new(),
             negative_occurrences: Vec::new(),
-            watch_occurrences: Vec::new(),
+            positive_watch_occurrences: Vec::new(),
+            negative_watch_occurrences: Vec::new(),
             activity: Cell::new(0.0),
         }
     }
@@ -80,19 +82,46 @@ impl Variable {
         &self.negative_occurrences
     }
 
-    pub fn watch_occurrences(&self) -> &[Rc<StoredClause>] {
-        &self.watch_occurrences
+    pub fn positive_watch_occurrences(&self) -> &[Rc<StoredClause>] {
+        &self.positive_watch_occurrences
     }
 
-    pub fn watch_removed(&mut self, stored_clause: &Rc<StoredClause>) {
-        if let Some(p) = self.watch_occurrences.iter().position(|sc| sc == stored_clause)
-        {
-            self.watch_occurrences.swap_remove(p);
+    pub fn negative_watch_occurrences(&self) -> &[Rc<StoredClause>] {
+        &self.negative_watch_occurrences
+    }
+
+    pub fn watch_removed(&mut self, stored_clause: &Rc<StoredClause>, polarity: bool) {
+        match polarity {
+            true => {
+                if let Some(p) = self
+                    .positive_watch_occurrences
+                    .iter()
+                    .position(|sc| sc == stored_clause)
+                {
+                    self.positive_watch_occurrences.swap_remove(p);
+                }
+            }
+            false => {
+                if let Some(p) = self
+                    .negative_watch_occurrences
+                    .iter()
+                    .position(|sc| sc == stored_clause)
+                {
+                    self.negative_watch_occurrences.swap_remove(p);
+                }
+            }
         }
     }
 
-    pub fn watch_added(&mut self, stored_clause: &Rc<StoredClause>) {
-        self.watch_occurrences.push(stored_clause.clone());
+    pub fn watch_added(&mut self, stored_clause: &Rc<StoredClause>, polarity: bool) {
+        match polarity {
+            true => {
+                self.positive_watch_occurrences.push(stored_clause.clone());
+            }
+            false => {
+                self.negative_watch_occurrences.push(stored_clause.clone());
+            }
+        }
     }
 
     pub fn note_drop(&mut self, polarity: bool, stored_clause: &Rc<StoredClause>) {

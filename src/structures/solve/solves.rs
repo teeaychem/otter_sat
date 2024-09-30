@@ -27,10 +27,6 @@ impl Solve<'_> {
 
         self.set_from_lists(hobson_choices(self.clauses())); // settle any literals which occur only as true or only as false
 
-        for var in &self.variables {
-            self.watch_q.push_back(var.id());
-        }
-
         let result: SolveResult;
 
         'main_loop: loop {
@@ -41,8 +37,15 @@ impl Solve<'_> {
                 false => Conflicts::Multiple(vec![]),
             };
 
-            'propagation_loop: while let Some(variable_id) = self.watch_q.pop_front() {
-                let the_clauses = self.variables[variable_id].watch_occurrences().to_vec();
+            'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
+                let the_clauses = match literal.polarity {
+                    false => self.variables[literal.v_id]
+                        .positive_watch_occurrences()
+                        .to_vec(),
+                    true => self.variables[literal.v_id]
+                        .negative_watch_occurrences()
+                        .to_vec(),
+                };
 
                 for stored_clause in the_clauses {
                     match stored_clause.watch_choices(&self.valuation) {
@@ -67,7 +70,7 @@ impl Solve<'_> {
                                 &mut self.variables,
                                 consequent,
                             ) {
-                                self.watch_q.push_back(consequent.v_id);
+                                self.watch_q.push_back(consequent);
                             }
                             stats.implication_time += this_implication_time.elapsed();
                         }
@@ -106,7 +109,7 @@ impl Solve<'_> {
                         let _new_level = self.add_fresh_level();
                         let the_literal = Literal::new(available_v_id, false);
                         let valuation_result = self.valuation.update_value(the_literal);
-                        let _ = process_update_literal(
+                        let _chose_literal_without_value = process_update_literal(
                             the_literal,
                             LiteralSource::Choice,
                             &mut self.variables,
@@ -118,7 +121,7 @@ impl Solve<'_> {
                             &mut self.variables,
                             the_literal,
                         ) {
-                            self.watch_q.push_back(the_literal.v_id);
+                            self.watch_q.push_back(the_literal);
                         }
                         stats.choice_time += this_choice_time.elapsed();
 
