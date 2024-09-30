@@ -136,7 +136,7 @@ impl Solve<'_> {
             let _ = process_update_literal(
                 the_literal,
                 LiteralSource::HobsonChoice,
-                &mut self.variables,
+                &mut self.variables[the_literal.v_id],
                 &mut self.levels,
                 valuation_result,
             );
@@ -151,7 +151,7 @@ impl Solve<'_> {
             let _ = process_update_literal(
                 the_literal,
                 LiteralSource::HobsonChoice,
-                &mut self.variables,
+                &mut self.variables[the_literal.v_id],
                 &mut self.levels,
                 valuation_result,
             );
