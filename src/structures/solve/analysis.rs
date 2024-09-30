@@ -1,8 +1,8 @@
 use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
 use crate::structures::solve::{Solve, SolveError, SolveOk};
 use crate::structures::{
-    solve::StoppingCriteria, stored_clause::initialise_watches_for, Clause, ClauseSource,
-    Literal, LiteralSource, StoredClause,
+    solve::StoppingCriteria, stored_clause::initialise_watches_for, Clause, ClauseSource, Literal,
+    LiteralSource, StoredClause,
 };
 
 use std::collections::{BTreeSet, VecDeque};
@@ -170,8 +170,10 @@ impl Solve<'_> {
                     .any(|(_, x)| l.negate() == *x)
             })
         }
-        let stored_clause =
-            self.store_clause(resolved_clause.clone(), ClauseSource::Resolution(resolution_trail));
+        let stored_clause = self.store_clause(
+            resolved_clause.clone(),
+            ClauseSource::Resolution(resolution_trail),
+        );
         stored_clause.set_lbd(&self.variables);
 
         if let Some(asserted) = asserted_literal {
@@ -185,7 +187,7 @@ impl Solve<'_> {
 
     pub fn core(&self) {
         println!();
-        println!("An unsatisfiable core:");
+        println!("c An unsatisfiable core of the original formula:\n");
         let node_indicies = self
             .top_level()
             .observations()
@@ -197,7 +199,7 @@ impl Solve<'_> {
         let node_indicies_vec = node_indicies.collect::<Vec<_>>();
         let simple_core = extant_origins(node_indicies_vec);
         for clause in simple_core {
-            println!("\t{}", clause.clause().as_string())
+            println!("{}", clause.clause().as_dimacs(&self.variables))
         }
         println!();
     }

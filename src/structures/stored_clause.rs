@@ -409,6 +409,10 @@ impl Clause for StoredClause {
         self.clause.as_string()
     }
 
+    fn as_dimacs(&self, variables: &[Variable]) -> String {
+        self.clause.as_dimacs(variables)
+    }
+
     fn is_empty(&self) -> bool {
         self.clause.is_empty()
     }
