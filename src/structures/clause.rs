@@ -63,7 +63,7 @@ impl Clause for ClauseVec {
             let assigned_value = valuation.of_v_id(literal.v_id);
             if assigned_value.is_some_and(|v| v == literal.polarity) {
                 // the clause is satisfied and so does not provide any new information
-                break;
+               break;
             } else if assigned_value.is_some() {
                 // either every literal so far has been valued the opposite, or there has been exactly on unvalued literal, so continue
                 continue;
