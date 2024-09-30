@@ -6,6 +6,7 @@ use crate::structures::{
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
+use std::collections::VecDeque;
 use std::rc::Rc;
 
 pub struct SolveStatus {
@@ -33,6 +34,7 @@ pub struct Solve<'formula> {
     pub levels: Vec<Level>,
     pub formula_clauses: Vec<Rc<StoredClause>>,
     pub learnt_clauses: Vec<Rc<StoredClause>>,
+    pub watch_q: VecDeque<VariableId>,
     pub config: SolveConfig,
 }
 
@@ -61,6 +63,7 @@ impl Solve<'_> {
             conflcits_since_last_forget: 0,
             forgets: 0,
             variables: formula.vars().to_vec(),
+            watch_q: VecDeque::with_capacity(formula.vars().len() / 4), // I expect this to be mostly empty
             valuation: Vec::<Option<bool>>::new_for_variables(formula.vars().len()),
             levels: vec![Level::new(0)],
             formula_clauses: Vec::new(),
@@ -126,12 +129,20 @@ impl Solve<'_> {
         the_choices.0.iter().for_each(|&v_id| {
             let the_literal = Literal::new(v_id, false);
             let valuation_result = self.valuation.update_value(the_literal);
-            let _ = self.process_update_literal(the_literal, LiteralSource::HobsonChoice, valuation_result);
+            let _ = self.process_update_literal(
+                the_literal,
+                LiteralSource::HobsonChoice,
+                valuation_result,
+            );
         });
         the_choices.1.iter().for_each(|&v_id| {
             let the_literal = Literal::new(v_id, true);
             let valuation_result = self.valuation.update_value(the_literal);
-            let _ = self.process_update_literal(the_literal, LiteralSource::HobsonChoice, valuation_result);
+            let _ = self.process_update_literal(
+                the_literal,
+                LiteralSource::HobsonChoice,
+                valuation_result,
+            );
         });
     }
 
@@ -146,38 +157,29 @@ impl Solve<'_> {
         val: &'a impl Valuation,
         clauses: impl Iterator<Item = Rc<StoredClause>> + 'a,
     ) -> impl Iterator<Item = (Rc<StoredClause>, ClauseStatus)> + 'a {
-
-
-        clauses.flat_map(|stored_clause| {
-            match stored_clause.watch_choices(val) {
-                ClauseStatus::Conflict => {
-                    Some((stored_clause.clone(), ClauseStatus::Conflict))
-                }
-                ClauseStatus::Entails(the_literal) => {
-                    Some((stored_clause.clone(), ClauseStatus::Entails(the_literal)))
-                }
-                _ =>  None
+        clauses.flat_map(|stored_clause| match stored_clause.watch_choices(val) {
+            ClauseStatus::Conflict => Some((stored_clause.clone(), ClauseStatus::Conflict)),
+            ClauseStatus::Entails(the_literal) => {
+                Some((stored_clause.clone(), ClauseStatus::Entails(the_literal)))
             }
+            _ => None,
         })
-
     }
 }
 
 impl Solve<'_> {
     pub fn notice_conflict(&mut self, stored_clauses: &Rc<StoredClause>) {
-
-            self.conflicts += 1;
-            self.conflcits_since_last_forget += 1;
-            if self.conflicts % 256 == 0 {
-                for variable in &mut self.variables {
-                    variable.divide_activity(2.0)
-                }
+        self.conflicts += 1;
+        self.conflcits_since_last_forget += 1;
+        if self.conflicts % 256 == 0 {
+            for variable in &mut self.variables {
+                variable.divide_activity(2.0)
             }
+        }
 
-            for literal in stored_clauses.variables() {
-                self.variables[literal].increase_activity(1.0);
-            }
-
+        for literal in stored_clauses.variables() {
+            self.variables[literal].increase_activity(1.0);
+        }
     }
 
     pub fn most_active_none(&self, val: &impl Valuation) -> Option<VariableId> {
@@ -196,8 +198,6 @@ impl Solve<'_> {
     pub fn variables(&self) -> &[Variable] {
         &self.variables
     }
-
-
 }
 
 impl std::fmt::Display for Solve<'_> {

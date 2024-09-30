@@ -9,7 +9,6 @@ pub struct Level {
     index: LevelIndex,
     choice: Option<Literal>,
     observations: Vec<(LiteralSource, Literal)>,
-    updated_watches: Vec<Literal>,
 }
 
 impl Level {
@@ -18,7 +17,6 @@ impl Level {
             index,
             choice: None,
             observations: vec![],
-            updated_watches: Vec::new(),
         }
     }
 
@@ -62,14 +60,6 @@ impl Level {
             .into_iter()
             .map(|l| l.v_id)
             .chain(self.observations.iter().map(|(_, l)| l.v_id))
-    }
-
-    pub fn note_watch(&mut self, lit: Literal) {
-        self.updated_watches.push(lit);
-    }
-
-    pub fn updated_watches(&self) -> &[Literal] {
-        &self.updated_watches
     }
 }
 
