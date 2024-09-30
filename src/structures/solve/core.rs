@@ -1,7 +1,11 @@
 use crate::structures::{
-    solve::SolveConfig, stored_clause::initialise_watches_for, Clause, ClauseId, ClauseSource,
-    ClauseStatus, Formula, Level, LevelIndex, Literal, LiteralError, LiteralSource, StoredClause,
-    Valuation, ValuationVec, Variable, VariableId,
+    solve::{
+        mutation::{process_update_literal, process_variable_occurrence_update},
+        SolveConfig,
+    },
+    stored_clause::initialise_watches_for,
+    Clause, ClauseId, ClauseSource, ClauseStatus, Formula, Level, LevelIndex, Literal,
+    LiteralError, LiteralSource, StoredClause, Valuation, ValuationVec, Variable, VariableId,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -129,20 +133,32 @@ impl Solve<'_> {
         the_choices.0.iter().for_each(|&v_id| {
             let the_literal = Literal::new(v_id, false);
             let valuation_result = self.valuation.update_value(the_literal);
-            let _ = self.process_update_literal(
+            let _ = process_update_literal(
                 the_literal,
                 LiteralSource::HobsonChoice,
+                &mut self.variables,
+                &mut self.levels,
                 valuation_result,
             );
+            if process_variable_occurrence_update(&self.valuation, &mut self.variables, the_literal)
+            {
+                self.watch_q.push_back(the_literal.v_id);
+            }
         });
         the_choices.1.iter().for_each(|&v_id| {
             let the_literal = Literal::new(v_id, true);
             let valuation_result = self.valuation.update_value(the_literal);
-            let _ = self.process_update_literal(
+            let _ = process_update_literal(
                 the_literal,
                 LiteralSource::HobsonChoice,
+                &mut self.variables,
+                &mut self.levels,
                 valuation_result,
             );
+            if process_variable_occurrence_update(&self.valuation, &mut self.variables, the_literal)
+            {
+                self.watch_q.push_back(the_literal.v_id);
+            }
         });
     }
 

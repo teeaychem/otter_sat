@@ -1,5 +1,8 @@
 use crate::procedures::hobson_choices;
-use crate::structures::solve::{Solve, SolveError, SolveOk, SolveStats};
+use crate::structures::solve::{
+    mutation::{process_update_literal, process_variable_occurrence_update},
+    Solve, SolveError, SolveOk, SolveStats,
+};
 use crate::structures::{ClauseStatus, Literal, LiteralSource, StoredClause, Valuation};
 use std::rc::Rc;
 
@@ -46,9 +49,11 @@ impl Solve<'_> {
                         ClauseStatus::Entails(consequent) => {
                             let this_implication_time = std::time::Instant::now();
                             let update_result = self.valuation.update_value(consequent);
-                            match self.process_update_literal(
+                            match process_update_literal(
                                 consequent,
                                 LiteralSource::StoredClause(stored_clause.clone()),
+                                &mut self.variables,
+                                &mut self.levels,
                                 update_result,
                             ) {
                                 Err(SolveError::Conflict(_, _)) => {
@@ -56,6 +61,13 @@ impl Solve<'_> {
                                 }
                                 Err(e) => panic!("Error {e:?} when setting {consequent}"),
                                 Ok(()) => {}
+                            }
+                            if process_variable_occurrence_update(
+                                &self.valuation,
+                                &mut self.variables,
+                                consequent,
+                            ) {
+                                self.watch_q.push_back(consequent.v_id);
                             }
                             stats.implication_time += this_implication_time.elapsed();
                         }
@@ -91,14 +103,23 @@ impl Solve<'_> {
                             self.current_level().index(),
                             self.variables[available_v_id].activity()
                         );
-
+                        let _new_level = self.add_fresh_level();
                         let the_literal = Literal::new(available_v_id, false);
                         let valuation_result = self.valuation.update_value(the_literal);
-                        let _ = self.process_update_literal(
+                        let _ = process_update_literal(
                             the_literal,
                             LiteralSource::Choice,
+                            &mut self.variables,
+                            &mut self.levels,
                             valuation_result,
                         );
+                        if process_variable_occurrence_update(
+                            &self.valuation,
+                            &mut self.variables,
+                            the_literal,
+                        ) {
+                            self.watch_q.push_back(the_literal.v_id);
+                        }
                         stats.choice_time += this_choice_time.elapsed();
 
                         continue 'main_loop;

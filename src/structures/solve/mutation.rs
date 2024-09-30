@@ -1,7 +1,7 @@
 use crate::structures::{
     solve::{Solve, SolveError},
     stored_clause::suggest_watch_update,
-    Clause, ClauseSource, LevelIndex, Literal, LiteralSource, StoredClause, Valuation,
+    Clause, ClauseSource, Level, LevelIndex, Literal, LiteralSource, StoredClause, Valuation,
     ValuationError, Variable,
 };
 use std::rc::Rc;
@@ -63,67 +63,6 @@ impl<'borrow, 'solve> Solve<'solve> {
         }
     }
 
-    /*
-    Primary function for figuring out the consequences of setting a literal during a solve.
-    Control branches on the current valuation and then the source of the literal.
-    A few things may be updated:
-    - The current valuation.
-    - Records at the current level.
-     */
-    pub fn process_update_literal(
-        &'borrow mut self,
-        lit: Literal,
-        src: LiteralSource,
-        literal_update_result: Result<(), ValuationError>,
-    ) -> Result<(), SolveError> {
-        match literal_update_result {
-            Ok(()) => {
-                match &src {
-                    LiteralSource::Choice => {
-                        let new_level = self.add_fresh_level();
-                        self.variables[lit.v_id].set_decision_level(new_level);
-                        self.current_level_mut().record_literal(lit, src);
-                        log::debug!("+Set choice: {lit}");
-                    }
-                    LiteralSource::StoredClause(_) => {
-                        let current_level = self.current_level().index();
-                        self.variables[lit.v_id].set_decision_level(current_level);
-                        self.current_level_mut().record_literal(lit, src);
-                        log::debug!("+Set deduction: {lit}");
-                    }
-                    LiteralSource::Assumption | LiteralSource::HobsonChoice => {
-                        self.variables[lit.v_id].set_decision_level(0);
-                        self.top_level_mut().record_literal(lit, src);
-                        log::debug!("+Set assumption/hobson choice: {lit}");
-                    }
-                };
-
-                if process_variable_occurrence_update(&self.valuation, &mut self.variables, lit) {
-                    self.watch_q.push_back(lit.v_id);
-                }
-
-                Ok(())
-            }
-            Err(ValuationError::Match) => match src {
-                LiteralSource::StoredClause(_) => {
-                    // A literal may be implied by multiple clauses
-                    Ok(())
-                }
-                _ => {
-                    log::error!("Attempting to restate {} via {:?}", lit, src);
-                    panic!("Attempting to restate the valuation")
-                }
-            },
-            Err(ValuationError::Conflict) => match src {
-                LiteralSource::StoredClause(id) => Err(SolveError::Conflict(id, lit)),
-                _ => {
-                    log::error!("Attempting to flip {} via {:?}", lit, src);
-                    panic!("Attempting to flip the valuation")
-                }
-            },
-        }
-    }
-
     pub fn unset_literal(&mut self, literal: Literal) {
         log::trace!("Unset: {}", literal);
 
@@ -147,7 +86,8 @@ impl Solve<'_> {
     }
 }
 
-fn process_variable_occurrence_update(
+#[inline(always)]
+pub fn process_variable_occurrence_update(
     valuation: &impl Valuation,
     variables: &mut [Variable],
     lit: Literal,
@@ -178,6 +118,7 @@ fn process_variable_occurrence_update(
     informative_literal
 }
 
+#[inline(always)]
 fn process_watches(
     valuation: &impl Valuation,
     variables: &mut [Variable],
@@ -207,14 +148,75 @@ fn process_watches(
     };
 }
 
+#[inline(always)]
 fn switch_watch_a(variables: &mut [Variable], stored_clause: &Rc<StoredClause>, index: usize) {
     variables[stored_clause.watched_a().v_id].watch_removed(stored_clause);
     stored_clause.update_watch_a(index);
     variables[stored_clause.watched_a().v_id].watch_added(stored_clause)
 }
 
+#[inline(always)]
 fn switch_watch_b(variables: &mut [Variable], stored_clause: &Rc<StoredClause>, index: usize) {
     variables[stored_clause.watched_b().v_id].watch_removed(stored_clause);
     stored_clause.update_watch_b(index);
     variables[stored_clause.watched_b().v_id].watch_added(stored_clause)
+}
+
+/*
+Primary function for figuring out the consequences of setting a literal during a solve.
+Control branches on the current valuation and then the source of the literal.
+A few things may be updated:
+- The current valuation.
+- Records at the current level.
+ */
+#[inline(always)]
+pub fn process_update_literal(
+    lit: Literal,
+    src: LiteralSource,
+    variables: &mut [Variable],
+    levels: &mut [Level],
+    literal_update_result: Result<(), ValuationError>,
+) -> Result<(), SolveError> {
+    match literal_update_result {
+        Ok(()) => {
+            match &src {
+                LiteralSource::Choice => {
+                    let current_level = levels.len() - 1;
+                    variables[lit.v_id].set_decision_level(current_level);
+                    levels[current_level].record_literal(lit, src);
+                    log::debug!("+Set choice: {lit}");
+                }
+                LiteralSource::StoredClause(_) => {
+                    let current_level = levels.len() - 1;
+                    variables[lit.v_id].set_decision_level(current_level);
+                    levels[current_level].record_literal(lit, src);
+                    log::debug!("+Set deduction: {lit}");
+                }
+                LiteralSource::Assumption | LiteralSource::HobsonChoice => {
+                    variables[lit.v_id].set_decision_level(0);
+                    levels[0].record_literal(lit, src);
+                    log::debug!("+Set assumption/hobson choice: {lit}");
+                }
+            };
+
+            Ok(())
+        }
+        Err(ValuationError::Match) => match src {
+            LiteralSource::StoredClause(_) => {
+                // A literal may be implied by multiple clauses
+                Ok(())
+            }
+            _ => {
+                log::error!("Attempting to restate {} via {:?}", lit, src);
+                panic!("Attempting to restate the valuation")
+            }
+        },
+        Err(ValuationError::Conflict) => match src {
+            LiteralSource::StoredClause(id) => Err(SolveError::Conflict(id, lit)),
+            _ => {
+                log::error!("Attempting to flip {} via {:?}", lit, src);
+                panic!("Attempting to flip the valuation")
+            }
+        },
+    }
 }
