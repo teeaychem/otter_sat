@@ -40,7 +40,12 @@ struct Args {
 }
 
 fn main() {
-    log4rs::init_file("config/log4rs.yaml", Default::default()).unwrap();
+    match log4rs::init_file("config/log4rs.yaml", Default::default()) {
+        Ok(_) => log::trace!("Log find loaded"),
+        Err(e) => {
+            log::warn!("{e:?}")
+        }
+    }
 
     let args = Args::parse();
 
@@ -64,9 +69,17 @@ fn main() {
         multi_jump_max: true,
     };
 
-    if let Ok(contents) = fs::read_to_string(args.file) {
+    if let Ok(contents) = fs::read_to_string(&args.file) {
         match Formula::from_dimacs(&contents) {
             Ok(formula) => {
+                if config.stats {
+                    println!("c Parsing formula from file: {}", args.file);
+                    println!(
+                        "c Parsed formula with {} variables and {} clauses",
+                        formula.vars().len(),
+                        formula.clauses().count()
+                    );
+                }
                 log::warn!("Formula processed");
                 let mut the_solve = Solve::from_formula(&formula, config);
                 log::warn!("Solve initialised");
