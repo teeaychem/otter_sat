@@ -17,6 +17,8 @@ pub trait Clause {
 
     fn as_string(&self) -> String;
 
+    fn as_dimacs(&self, variables: &[Variable]) -> String;
+
     fn is_empty(&self) -> bool;
 
     fn as_vec(&self) -> ClauseVec;
@@ -104,6 +106,19 @@ impl Clause for ClauseVec {
             the_string.push_str(format!(" {} ", literal).as_str())
         }
         the_string += ")";
+        the_string
+    }
+
+    fn as_dimacs(&self, variables: &[Variable]) -> String {
+        let mut the_string = String::from("");
+        for literal in self {
+            let the_represenetation = match literal.polarity {
+                true => format!("{} ", variables[literal.v_id].name()),
+                false =>  format!("-{} ", variables[literal.v_id].name())
+            };
+            the_string.push_str(the_represenetation.as_str())
+        }
+        the_string += "0";
         the_string
     }
 
