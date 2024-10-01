@@ -30,6 +30,8 @@ pub trait Clause {
     fn asserts(&self, val: &impl Valuation) -> Option<Literal>;
 
     fn lbd(&self, variables: &[Variable]) -> usize;
+
+    fn find_literal_by_id(&self, id: VariableId) -> Option<Literal>;
 }
 
 pub type ClauseId = usize;
@@ -114,7 +116,7 @@ impl Clause for ClauseVec {
         for literal in self {
             let the_represenetation = match literal.polarity {
                 true => format!("{} ", variables[literal.v_id].name()),
-                false =>  format!("-{} ", variables[literal.v_id].name())
+                false => format!("-{} ", variables[literal.v_id].name()),
             };
             the_string.push_str(the_represenetation.as_str())
         }
@@ -167,6 +169,38 @@ impl Clause for ClauseVec {
     fn is_empty(&self) -> bool {
         self.is_empty()
     }
+
+    /// Returns Some(literal) whose variable id matches the given id
+    /// Uses binary search on longer clauses, as literals are ordered by variable ids
+    #[inline(always)]
+    fn find_literal_by_id(&self, id: VariableId) -> Option<Literal> {
+        if self.len() < 5 {
+            self.iter().find(|l| l.v_id == id).copied()
+        } else {
+            let mut min = 0;
+            let mut max = self.len() - 1;
+            let mut midpoint;
+            let mut attempt;
+            loop {
+                midpoint = min + ((max - min) / 2);
+                attempt = self[midpoint];
+                if max - min == 0 {
+                    if attempt.v_id == id {
+                        return Some(attempt);
+                    } else {
+                        return None;
+                    }
+                }
+                match attempt.v_id.cmp(&id) {
+                    std::cmp::Ordering::Less => min = midpoint + 1,
+                    std::cmp::Ordering::Equal => {
+                        return Some(attempt);
+                    }
+                    std::cmp::Ordering::Greater => max = midpoint - 1,
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -206,5 +240,44 @@ mod tests {
         let a = vec![Literal::new(1, true), Literal::new(2, false)];
         let b = vec![Literal::new(3, true), Literal::new(4, false)];
         assert!(resolve_sorted_clauses(&a, &b, 1).is_none())
+    }
+
+    #[test]
+    fn find_check_one() {
+        let test_clause = vec![Literal::new(1, true)];
+        assert_eq!(
+            Some(Literal::new(1, true)),
+            test_clause.find_literal_by_id(1)
+        );
+        assert_eq!(None, test_clause.find_literal_by_id(2));
+    }
+
+    #[test]
+    fn find_check_multiple_found() {
+        let test_clause = vec![
+            Literal::new(1, true),
+            Literal::new(2, false),
+            Literal::new(3, false),
+            Literal::new(4, false),
+            Literal::new(7, false),
+        ];
+        assert_eq!(
+            Some(Literal::new(1, true)),
+            test_clause.find_literal_by_id(1)
+        );
+        assert_eq!(
+            Some(Literal::new(2, false)),
+            test_clause.find_literal_by_id(2)
+        );
+        assert_eq!(
+            Some(Literal::new(4, false)),
+            test_clause.find_literal_by_id(4)
+        );
+        assert_eq!(None, test_clause.find_literal_by_id(5));
+        assert_eq!(None, test_clause.find_literal_by_id(6));
+        assert_eq!(
+            Some(Literal::new(7, false)),
+            test_clause.find_literal_by_id(7)
+        );
     }
 }

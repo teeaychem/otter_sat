@@ -1,7 +1,7 @@
 use crate::procedures::hobson_choices;
 use crate::structures::solve::{mutation::process_watches, Solve, SolveError, SolveOk, SolveStats};
 use crate::structures::{
-    stored_clause, ClauseStatus, Level, Literal, LiteralSource, StoredClause, Valuation,
+    ClauseStatus, Level, Literal, LiteralSource, StoredClause, Valuation,
     ValuationError, Variable,
 };
 use std::collections::VecDeque;
