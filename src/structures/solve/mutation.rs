@@ -1,8 +1,6 @@
 use crate::structures::{
-    solve::Solve,
-    stored_clause::suggest_watch_update,
-    Clause, ClauseSource, LevelIndex, Literal, StoredClause, Valuation,
-    Variable,
+    solve::Solve, stored_clause::suggest_watch_update, Clause, ClauseSource, LevelIndex, Literal,
+    StoredClause, Valuation, Variable,
 };
 use std::rc::Rc;
 
@@ -88,35 +86,28 @@ impl Solve<'_> {
     }
 }
 
-
 #[inline(always)]
 pub fn process_watches(
     valuation: &impl Valuation,
     variables: &mut [Variable],
     stored_clause: &Rc<StoredClause>,
     lit: Literal,
-    informative_literal: &mut bool,
-) {
-    match suggest_watch_update(stored_clause, valuation, lit.v_id, variables) {
-        (Some(a), None, true) => {
-            switch_watch_a(variables, stored_clause, a);
-            *informative_literal = true
-        }
-        (None, Some(b), true) => {
-            switch_watch_b(variables, stored_clause, b);
+) -> bool {
+    let (a_update, b_update, propagation_ready) =
+        suggest_watch_update(stored_clause, valuation, lit.v_id, variables);
 
-            *informative_literal = true
-        }
-        (Some(a), None, false) => {
+
+    match (a_update, b_update) {
+        (Some(a), None) => {
             switch_watch_a(variables, stored_clause, a);
         }
-        (None, Some(b), false) => {
+        (None, Some(b)) => {
             switch_watch_b(variables, stored_clause, b);
         }
-        (None, None, true) => *informative_literal = true,
-        (None, None, false) => (),
+        (None, None) => (),
         _ => panic!("Unknown watch update"),
     };
+    propagation_ready
 }
 
 #[inline(always)]
@@ -124,7 +115,8 @@ fn switch_watch_a(variables: &mut [Variable], stored_clause: &Rc<StoredClause>, 
     let watched_a_lit = stored_clause.watched_a();
     variables[watched_a_lit.v_id].watch_removed(stored_clause, watched_a_lit.polarity);
     stored_clause.update_watch_a(index);
-    variables[stored_clause.watched_a().v_id].watch_added(stored_clause, stored_clause.watched_a().polarity)
+    variables[stored_clause.watched_a().v_id]
+        .watch_added(stored_clause, stored_clause.watched_a().polarity)
 }
 
 #[inline(always)]
@@ -132,5 +124,6 @@ fn switch_watch_b(variables: &mut [Variable], stored_clause: &Rc<StoredClause>, 
     let watched_b_lit = stored_clause.watched_b();
     variables[watched_b_lit.v_id].watch_removed(stored_clause, watched_b_lit.polarity);
     stored_clause.update_watch_b(index);
-    variables[stored_clause.watched_b().v_id].watch_added(stored_clause, stored_clause.watched_b().polarity)
+    variables[stored_clause.watched_b().v_id]
+        .watch_added(stored_clause, stored_clause.watched_b().polarity)
 }

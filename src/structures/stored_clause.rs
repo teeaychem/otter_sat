@@ -264,7 +264,7 @@ pub fn initialise_watches_for(
 
 // #[rustfmt::skip]
 /// Updates the two watched literals on the assumption that only the valuation of the given id has changed.
-/// Return true if the watch is 'informative' (the clause is unit or conflicts on val)
+/// Return true if the watch allows for propagation
 pub fn suggest_watch_update(
     stored_clause: &Rc<StoredClause>,
     val: &impl Valuation,
@@ -332,9 +332,9 @@ pub fn suggest_watch_update(
     {
         if let Some(idx) = stored_clause.some_none_idx(val, Some(watched_b_literal.v_id)) {
             // and, there's no literal on the watch which doesn't have a value on the assignment
-            (Some(idx), None, !current_b_match) // todo: fix true return to actual
+            (Some(idx), None, !current_b_match)
         } else {
-            (None, None, true)
+            (None, None, current_b_value.is_none())
         }
     } else if watched_b_literal.v_id == v_id
         && current_b_value.is_some_and(|p| p != watched_b_literal.polarity)
@@ -342,10 +342,10 @@ pub fn suggest_watch_update(
         if let Some(idx) = stored_clause.some_none_idx(val, Some(watched_a_literal.v_id)) {
             (None, Some(idx), !current_a_match)
         } else {
-            (None, None, true)
+            (None, None, current_a_value.is_none())
         }
     } else {
-        (None, None, true)
+        (None, None, false)
     }
 }
 
