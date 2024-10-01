@@ -172,9 +172,8 @@ impl Clause for ClauseVec {
 
     /// Returns Some(literal) whose variable id matches the given id
     /// Uses binary search on longer clauses, as literals are ordered by variable ids
-    #[inline(always)]
     fn find_literal_by_id(&self, id: VariableId) -> Option<Literal> {
-        if self.len() < 5 {
+        if self.len() < 64 {
             self.iter().find(|l| l.v_id == id).copied()
         } else {
             let mut min = 0;
@@ -185,10 +184,9 @@ impl Clause for ClauseVec {
                 midpoint = min + ((max - min) / 2);
                 attempt = self[midpoint];
                 if max - min == 0 {
-                    if attempt.v_id == id {
-                        return Some(attempt);
-                    } else {
-                        return None;
+                    match attempt.v_id == id {
+                        true => return Some(attempt),
+                        false => return None,
                     }
                 }
                 match attempt.v_id.cmp(&id) {

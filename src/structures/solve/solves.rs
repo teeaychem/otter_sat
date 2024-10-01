@@ -1,8 +1,7 @@
 use crate::procedures::hobson_choices;
 use crate::structures::solve::{mutation::process_watches, Solve, SolveError, SolveOk, SolveStats};
 use crate::structures::{
-    ClauseStatus, Level, Literal, LiteralSource, StoredClause, Valuation,
-    ValuationError, Variable,
+    ClauseStatus, Level, Literal, LiteralSource, StoredClause, Valuation, ValuationError, Variable,
 };
 use std::collections::VecDeque;
 use std::mem;
@@ -106,7 +105,9 @@ impl Solve<'_> {
                 Conflicts::No => {
                     if let Some(available_v_id) = self.most_active_none(&self.valuation) {
                         if self.time_to_reduce() {
-                            reduce(self, &mut stats)
+                            let this_reduction_time = std::time::Instant::now();
+                            reduce(self);
+                            stats.reduction_time += this_reduction_time.elapsed();
                         }
 
                         let this_choice_time = std::time::Instant::now();
@@ -137,12 +138,16 @@ impl Solve<'_> {
                 }
                 Conflicts::Single(stored_conflict) => {
                     self.watch_q.clear();
-                    match process_conflict_and_fix(self, &stored_conflict, &mut stats) {
+                    let this_unsat_time = std::time::Instant::now();
+                    let analysis_result = process_conflict_and_fix(self, &stored_conflict);
+                    stats.unsat_time += this_unsat_time.elapsed();
+                    match analysis_result {
                         false => {
                             result = SolveResult::Unsatisfiable;
                             break 'main_loop;
                         }
                         true => {
+                            stats.conflicts += 1;
                             continue 'main_loop;
                         }
                     }
@@ -180,9 +185,7 @@ impl Solve<'_> {
 }
 
 #[inline(always)]
-fn reduce(solve: &mut Solve, stats: &mut SolveStats) {
-    let this_reduction_time = std::time::Instant::now();
-
+fn reduce(solve: &mut Solve) {
     let learnt_count = solve.learnt_clauses.len();
     log::warn!(target: "forget", "Learnt count: {}", learnt_count);
 
@@ -204,19 +207,13 @@ fn reduce(solve: &mut Solve, stats: &mut SolveStats) {
     }
     solve.forgets += 1;
     solve.conflcits_since_last_forget = 0;
-    stats.reduction_time += this_reduction_time.elapsed();
     log::warn!(target: "forget", "Reduced to: {}", solve.learnt_clauses.len());
 }
 
 #[inline(always)]
-fn process_conflict_and_fix(
-    solve: &mut Solve,
-    stored_conflict: &Rc<StoredClause>,
-    stats: &mut SolveStats,
-) -> bool {
-    let this_unsat_time = std::time::Instant::now();
+fn process_conflict_and_fix(solve: &mut Solve, stored_conflict: &Rc<StoredClause>) -> bool {
     solve.notice_conflict(stored_conflict);
-    stats.conflicts += 1;
+
     match solve.attempt_fix(stored_conflict.clone()) {
         Err(SolveError::NoSolution) => {
             if solve.config.core {
@@ -224,10 +221,7 @@ fn process_conflict_and_fix(
             }
             false
         }
-        Ok(SolveOk::AssertingClause) | Ok(SolveOk::Deduction(_)) => {
-            stats.unsat_time += this_unsat_time.elapsed();
-            true
-        }
+        Ok(SolveOk::AssertingClause) | Ok(SolveOk::Deduction(_)) => true,
         Ok(ok) => panic!("Unexpected ok {ok:?} when attempting a fix"),
         Err(err) => panic!("Unexpected {err:?} when attempting a fix"),
     }
@@ -288,30 +282,22 @@ pub fn literal_update(
 
             // and, process whether any change to the watch literals is required, given an update has happened
             {
-                let mut informative_literal = false;
+                let mut propagation_ready = false;
 
                 for sc in 0..variables[literal.v_id].positive_occurrences().len() {
                     let stored_clause = variables[literal.v_id].positive_occurrences()[sc].clone();
-                    process_watches(
-                        valuation,
-                        variables,
-                        &stored_clause,
-                        literal,
-                        &mut informative_literal,
-                    );
+                    if process_watches(valuation, variables, &stored_clause, literal) {
+                        propagation_ready = true;
+                    };
                 }
                 for sc in 0..variables[literal.v_id].negative_occurrences().len() {
                     let stored_clause = variables[literal.v_id].negative_occurrences()[sc].clone();
-                    process_watches(
-                        valuation,
-                        variables,
-                        &stored_clause,
-                        literal,
-                        &mut informative_literal,
-                    );
+                    if process_watches(valuation, variables, &stored_clause, literal) {
+                        propagation_ready = true
+                    };
                 }
 
-                if informative_literal {
+                if propagation_ready {
                     watch_q.push_back(literal);
                 }
             }
