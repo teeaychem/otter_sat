@@ -1,9 +1,10 @@
 use crate::procedures::hobson_choices;
-use crate::structures::solve::{
-    mutation::{process_update_literal, process_variable_occurrence_update},
-    Solve, SolveError, SolveOk, SolveStats,
+use crate::structures::solve::{mutation::process_watches, Solve, SolveError, SolveOk, SolveStats};
+use crate::structures::{
+    stored_clause, ClauseStatus, Level, Literal, LiteralSource, StoredClause, Valuation,
+    ValuationError, Variable,
 };
-use crate::structures::{ClauseStatus, Literal, LiteralSource, StoredClause, Valuation};
+use std::collections::VecDeque;
 use std::mem;
 use std::rc::Rc;
 
@@ -64,27 +65,14 @@ impl Solve<'_> {
                     match stored_clause.watch_choices(&self.valuation) {
                         ClauseStatus::Entails(consequent) => {
                             let this_implication_time = std::time::Instant::now();
-                            let update_result = self.valuation.update_value(consequent);
-                            match process_update_literal(
+                            literal_update(
                                 consequent,
                                 LiteralSource::StoredClause(stored_clause.clone()),
-                                &mut self.variables[consequent.v_id],
                                 &mut self.levels,
-                                update_result,
-                            ) {
-                                Err(SolveError::Conflict(_, _)) => {
-                                    panic!("Conflict when setting {consequent}")
-                                }
-                                Err(e) => panic!("Error {e:?} when setting {consequent}"),
-                                Ok(()) => {}
-                            }
-                            if process_variable_occurrence_update(
-                                &self.valuation,
                                 &mut self.variables,
-                                consequent,
-                            ) {
-                                self.watch_q.push_back(consequent);
-                            }
+                                &mut self.valuation,
+                                &mut self.watch_q,
+                            );
                             stats.implication_time += this_implication_time.elapsed();
                         }
                         ClauseStatus::Conflict => {
@@ -129,21 +117,16 @@ impl Solve<'_> {
                         );
                         let _new_level = self.add_fresh_level();
                         let the_literal = Literal::new(available_v_id, false);
-                        let valuation_result = self.valuation.update_value(the_literal);
-                        let _chose_literal_without_value = process_update_literal(
+
+                        literal_update(
                             the_literal,
                             LiteralSource::Choice,
-                            &mut self.variables[the_literal.v_id],
                             &mut self.levels,
-                            valuation_result,
-                        );
-                        if process_variable_occurrence_update(
-                            &self.valuation,
                             &mut self.variables,
-                            the_literal,
-                        ) {
-                            self.watch_q.push_back(the_literal);
-                        }
+                            &mut self.valuation,
+                            &mut self.watch_q,
+                        );
+
                         stats.choice_time += this_choice_time.elapsed();
 
                         continue 'main_loop;
@@ -276,6 +259,76 @@ fn process_conflicts_and_fixes(
         Ok(ok) => panic!("Unexpected {ok:?} when attempting a fix"),
         Err(err) => {
             panic!("Unexpected {err:?} when attempting a fix")
+        }
+    }
+}
+
+#[inline(always)]
+pub fn literal_update(
+    literal: Literal,
+    source: LiteralSource,
+    levels: &mut [Level],
+    variables: &mut [Variable],
+    valuation: &mut impl Valuation,
+    watch_q: &mut VecDeque<Literal>,
+) {
+    let variable = &mut variables[literal.v_id];
+
+    // update the valuation and match the result
+    match valuation.update_value(literal) {
+        // if update occurrs, make records at the relevant level
+        Ok(()) => {
+            let level_index = match &source {
+                LiteralSource::Choice | LiteralSource::StoredClause(_) => levels.len() - 1,
+                LiteralSource::Assumption | LiteralSource::HobsonChoice => 0,
+            };
+            variable.set_decision_level(level_index);
+            levels[level_index].record_literal(literal, &source);
+            log::debug!("Set {source:?}: {literal}");
+
+            // and, process whether any change to the watch literals is required, given an update has happened
+            {
+                let mut informative_literal = false;
+
+                for sc in 0..variables[literal.v_id].positive_occurrences().len() {
+                    let stored_clause = variables[literal.v_id].positive_occurrences()[sc].clone();
+                    process_watches(
+                        valuation,
+                        variables,
+                        &stored_clause,
+                        literal,
+                        &mut informative_literal,
+                    );
+                }
+                for sc in 0..variables[literal.v_id].negative_occurrences().len() {
+                    let stored_clause = variables[literal.v_id].negative_occurrences()[sc].clone();
+                    process_watches(
+                        valuation,
+                        variables,
+                        &stored_clause,
+                        literal,
+                        &mut informative_literal,
+                    );
+                }
+
+                if informative_literal {
+                    watch_q.push_back(literal);
+                }
+            }
+        }
+        Err(ValuationError::Match) => match source {
+            LiteralSource::StoredClause(_) => {
+                // A literal may be implied by multiple clauses, so there's no need to panic
+                // rather, there's no need to do anything at all
+            }
+            _ => {
+                log::error!("Attempt to restate {} via {:?}", literal, source);
+                panic!("Attempt to restate {} via {:?}", literal, source)
+            }
+        },
+        Err(ValuationError::Conflict) => {
+            log::error!("Conflict when updating {literal} via {:?}", source);
+            panic!("Conflict when updating {literal} via {:?}", source);
         }
     }
 }
