@@ -5,6 +5,14 @@ pub enum StoppingCriteria {
 }
 
 #[derive(Debug)]
+pub enum ConflictPriority {
+    High,
+    Low,
+    Default
+}
+
+
+#[derive(Debug)]
 pub struct SolveConfig {
     pub glue_strength: usize,
     pub stats: bool,
@@ -13,5 +21,6 @@ pub struct SolveConfig {
     pub analysis: usize,
     pub stopping_criteria: StoppingCriteria,
     pub break_on_first: bool,
-    pub multi_jump_max: bool
+    pub multi_jump_max: bool,
+    pub conflict_priority: ConflictPriority
 }

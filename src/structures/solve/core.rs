@@ -1,8 +1,9 @@
 use crate::structures::{
-    solve::{solves::literal_update, SolveConfig},
+    solve::{solves::literal_update, ConflictPriority, SolveConfig},
     stored_clause::initialise_watches_for,
     Clause, ClauseId, ClauseSource, ClauseStatus, Formula, Level, LevelIndex, Literal,
-    LiteralError, LiteralSource, StoredClause, Valuation, ValuationVec, Variable, VariableId, WatchStatus
+    LiteralError, LiteralSource, StoredClause, Valuation, ValuationVec, Variable, VariableId,
+    WatchStatus,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -136,8 +137,15 @@ impl Solve<'_> {
                 &mut self.variables,
                 &mut self.valuation,
             ) {
-                WatchStatus::Implication => self.watch_q.push_back(the_literal),
-                WatchStatus::Conflict => self.watch_q.push_front(the_literal),
+                WatchStatus::Implication => match self.config.conflict_priority {
+                    ConflictPriority::Low => self.watch_q.push_front(the_literal),
+                    _ => self.watch_q.push_back(the_literal),
+                },
+
+                WatchStatus::Conflict => match self.config.conflict_priority {
+                    ConflictPriority::High => self.watch_q.push_front(the_literal),
+                    _ => self.watch_q.push_back(the_literal),
+                },
                 _ => {}
             };
         });
@@ -150,8 +158,15 @@ impl Solve<'_> {
                 &mut self.variables,
                 &mut self.valuation,
             ) {
-                WatchStatus::Implication => self.watch_q.push_back(the_literal),
-                WatchStatus::Conflict => self.watch_q.push_front(the_literal),
+                WatchStatus::Implication => match self.config.conflict_priority {
+                    ConflictPriority::Low => self.watch_q.push_front(the_literal),
+                    _ => self.watch_q.push_back(the_literal),
+                },
+
+                WatchStatus::Conflict => match self.config.conflict_priority {
+                    ConflictPriority::High => self.watch_q.push_front(the_literal),
+                    _ => self.watch_q.push_back(the_literal),
+                },
                 _ => {}
             };
         });
