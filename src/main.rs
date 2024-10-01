@@ -49,29 +49,10 @@ fn main() {
 
     let args = Args::parse();
 
-    let config = SolveConfig {
-        stats: args.stats,
-        show_assignment: args.assignment,
-        glue_strength: args.glue_strength,
-        core: args.core,
-        analysis: 3,
-        stopping_criteria: {
-            let critera = args.stopping_criteria;
-            if critera == "FirstUIP" {
-                StoppingCriteria::FirstAssertingUIP
-            } else if critera == "None" {
-                StoppingCriteria::None
-            } else {
-                panic!("Unknown stopping critera")
-            }
-        },
-        break_on_first: true,
-        multi_jump_max: true,
-    };
-
     if let Ok(contents) = fs::read_to_string(&args.file) {
         match Formula::from_dimacs(&contents) {
             Ok(formula) => {
+                let config = config_builder(&args);
                 if config.stats {
                     println!("c Parsing formula from file: {}", args.file);
                     println!(
@@ -107,5 +88,27 @@ fn main() {
         }
     } else {
         println!("Error reading file")
+    }
+}
+
+fn config_builder(clap_args: &Args) -> SolveConfig {
+    SolveConfig {
+        stats: clap_args.stats,
+        show_assignment: clap_args.assignment,
+        glue_strength: clap_args.glue_strength,
+        core: clap_args.core,
+        analysis: 3,
+        stopping_criteria: {
+            let critera = &clap_args.stopping_criteria;
+            if critera == "FirstUIP" {
+                StoppingCriteria::FirstAssertingUIP
+            } else if critera == "None" {
+                StoppingCriteria::None
+            } else {
+                panic!("Unknown stopping critera")
+            }
+        },
+        break_on_first: true,
+        multi_jump_max: true,
     }
 }

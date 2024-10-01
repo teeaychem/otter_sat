@@ -1,8 +1,8 @@
 use crate::structures::{
-    solve::{Solve, SolveError},
+    solve::Solve,
     stored_clause::suggest_watch_update,
-    Clause, ClauseSource, Level, LevelIndex, Literal, LiteralSource, StoredClause, Valuation,
-    ValuationError, Variable,
+    Clause, ClauseSource, LevelIndex, Literal, StoredClause, Valuation,
+    Variable,
 };
 use std::rc::Rc;
 
@@ -88,40 +88,9 @@ impl Solve<'_> {
     }
 }
 
-#[inline(always)]
-pub fn process_variable_occurrence_update(
-    valuation: &impl Valuation,
-    variables: &mut [Variable],
-    lit: Literal,
-) -> bool {
-    let mut informative_literal = false;
-
-    for sc in 0..variables[lit.v_id].positive_occurrences().len() {
-        let stored_clause = variables[lit.v_id].positive_occurrences()[sc].clone();
-        process_watches(
-            valuation,
-            variables,
-            &stored_clause,
-            lit,
-            &mut informative_literal,
-        );
-    }
-    for sc in 0..variables[lit.v_id].negative_occurrences().len() {
-        let stored_clause = variables[lit.v_id].negative_occurrences()[sc].clone();
-        process_watches(
-            valuation,
-            variables,
-            &stored_clause,
-            lit,
-            &mut informative_literal,
-        );
-    }
-
-    informative_literal
-}
 
 #[inline(always)]
-fn process_watches(
+pub fn process_watches(
     valuation: &impl Valuation,
     variables: &mut [Variable],
     stored_clause: &Rc<StoredClause>,
@@ -164,63 +133,4 @@ fn switch_watch_b(variables: &mut [Variable], stored_clause: &Rc<StoredClause>, 
     variables[watched_b_lit.v_id].watch_removed(stored_clause, watched_b_lit.polarity);
     stored_clause.update_watch_b(index);
     variables[stored_clause.watched_b().v_id].watch_added(stored_clause, stored_clause.watched_b().polarity)
-}
-
-/*
-Primary function for figuring out the consequences of setting a literal during a solve.
-Control branches on the current valuation and then the source of the literal.
-A few things may be updated:
-- The current valuation.
-- Records at the current level.
- */
-#[inline(always)]
-pub fn process_update_literal(
-    lit: Literal,
-    src: LiteralSource,
-    variable: &mut Variable,
-    levels: &mut [Level],
-    literal_update_result: Result<(), ValuationError>,
-) -> Result<(), SolveError> {
-    match literal_update_result {
-        Ok(()) => {
-            match &src {
-                LiteralSource::Choice => {
-                    let current_level = levels.len() - 1;
-                    variable.set_decision_level(current_level);
-                    levels[current_level].record_literal(lit, src);
-                    log::debug!("+Set choice: {lit}");
-                }
-                LiteralSource::StoredClause(_) => {
-                    let current_level = levels.len() - 1;
-                    variable.set_decision_level(current_level);
-                    levels[current_level].record_literal(lit, src);
-                    log::debug!("+Set deduction: {lit}");
-                }
-                LiteralSource::Assumption | LiteralSource::HobsonChoice => {
-                    variable.set_decision_level(0);
-                    levels[0].record_literal(lit, src);
-                    log::debug!("+Set assumption/hobson choice: {lit}");
-                }
-            };
-
-            Ok(())
-        }
-        Err(ValuationError::Match) => match src {
-            LiteralSource::StoredClause(_) => {
-                // A literal may be implied by multiple clauses
-                Ok(())
-            }
-            _ => {
-                log::error!("Attempting to restate {} via {:?}", lit, src);
-                panic!("Attempting to restate the valuation")
-            }
-        },
-        Err(ValuationError::Conflict) => match src {
-            LiteralSource::StoredClause(id) => Err(SolveError::Conflict(id, lit)),
-            _ => {
-                log::error!("Attempting to flip {} via {:?}", lit, src);
-                panic!("Attempting to flip the valuation")
-            }
-        },
-    }
 }

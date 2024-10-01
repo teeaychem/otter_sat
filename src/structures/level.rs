@@ -28,7 +28,7 @@ impl Level {
         self.choice
     }
 
-    pub fn record_literal(&mut self, literal: Literal, source: LiteralSource) {
+    pub fn record_literal(&mut self, literal: Literal, source: &LiteralSource) {
         match source {
             LiteralSource::Choice => {
                 if self.choice.is_some() {
@@ -38,7 +38,7 @@ impl Level {
             }
             LiteralSource::HobsonChoice
             | LiteralSource::Assumption
-            | LiteralSource::StoredClause(_) => self.observations.push((source, literal)),
+            | LiteralSource::StoredClause(_) => self.observations.push((source.clone(), literal)),
         }
     }
 
