@@ -2,7 +2,7 @@
 
 use clap::Parser;
 use std::fs;
-use structures::solve::StoppingCriteria;
+use structures::solve::{ConflictPriority, StoppingCriteria};
 mod io;
 mod procedures;
 mod structures;
@@ -37,6 +37,10 @@ struct Args {
     /// Resolution stopping criteria
     #[arg(long, default_value_t = String::from("FirstUIP"))]
     stopping_criteria: String,
+
+    /// Conflict priority
+    #[arg(long, default_value_t = String::from("Default"))]
+    conflict_priority: String,
 }
 
 fn main() {
@@ -110,5 +114,17 @@ fn config_builder(clap_args: &Args) -> SolveConfig {
         },
         break_on_first: true,
         multi_jump_max: true,
+        conflict_priority: {
+            let critera = &clap_args.conflict_priority;
+            if critera == "Low" {
+                ConflictPriority::Low
+            } else if critera == "High" {
+                ConflictPriority::High
+            } else if critera == "Default" {
+                ConflictPriority::Default
+            } else {
+                panic!("Unknown conflict priority")
+            }
+        },
     }
 }

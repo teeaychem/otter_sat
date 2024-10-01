@@ -1,8 +1,10 @@
 use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
-use crate::structures::solve::{solves::literal_update, Solve, SolveError, SolveOk};
+use crate::structures::solve::{
+    solves::literal_update, ConflictPriority, Solve, SolveError, SolveOk,
+};
 use crate::structures::{
     solve::StoppingCriteria, stored_clause::initialise_watches_for, Clause, ClauseSource, Literal,
-    LiteralSource, StoredClause, WatchStatus
+    LiteralSource, StoredClause, WatchStatus,
 };
 
 use std::collections::{BTreeSet, VecDeque};
@@ -77,8 +79,15 @@ impl Solve<'_> {
                         &mut self.variables,
                         &mut self.valuation,
                     ) {
-                        WatchStatus::Implication => self.watch_q.push_back(assertion),
-                        WatchStatus::Conflict => self.watch_q.push_front(assertion),
+                        WatchStatus::Implication => match self.config.conflict_priority {
+                            ConflictPriority::Low => self.watch_q.push_front(assertion),
+                            _ => self.watch_q.push_back(assertion),
+                        },
+
+                        WatchStatus::Conflict => match self.config.conflict_priority {
+                            ConflictPriority::High => self.watch_q.push_front(assertion),
+                            _ => self.watch_q.push_back(assertion),
+                        },
                         _ => {}
                     };
 
