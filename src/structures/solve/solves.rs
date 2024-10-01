@@ -1,5 +1,7 @@
 use crate::procedures::hobson_choices;
-use crate::structures::solve::{mutation::process_watches, Solve, SolveError, SolveOk, SolveStats};
+use crate::structures::solve::{
+    mutation::process_watches, ConflictPriority, Solve, SolveError, SolveOk, SolveStats,
+};
 use crate::structures::{
     ClauseStatus, Level, Literal, LiteralSource, StoredClause, Valuation, ValuationError, Variable,
     WatchStatus,
@@ -71,8 +73,15 @@ impl Solve<'_> {
                                 &mut self.variables,
                                 &mut self.valuation,
                             ) {
-                                WatchStatus::Implication => self.watch_q.push_back(consequent),
-                                WatchStatus::Conflict => self.watch_q.push_front(consequent),
+                                WatchStatus::Implication => match self.config.conflict_priority {
+                                    ConflictPriority::Low => self.watch_q.push_front(consequent),
+                                    _ => self.watch_q.push_back(consequent),
+                                },
+
+                                WatchStatus::Conflict => match self.config.conflict_priority {
+                                    ConflictPriority::High => self.watch_q.push_front(consequent),
+                                    _ => self.watch_q.push_back(consequent),
+                                },
                                 _ => {}
                             }
 
@@ -126,8 +135,15 @@ impl Solve<'_> {
                             &mut self.variables,
                             &mut self.valuation,
                         ) {
-                            WatchStatus::Implication => self.watch_q.push_back(the_literal),
-                            WatchStatus::Conflict => self.watch_q.push_front(the_literal),
+                            WatchStatus::Implication => match self.config.conflict_priority {
+                                ConflictPriority::Low => self.watch_q.push_front(the_literal),
+                                _ => self.watch_q.push_back(the_literal),
+                            },
+
+                            WatchStatus::Conflict => match self.config.conflict_priority {
+                                ConflictPriority::High => self.watch_q.push_front(the_literal),
+                                _ => self.watch_q.push_back(the_literal),
+                            },
                             _ => {}
                         };
 
@@ -288,22 +304,16 @@ pub fn literal_update(
 
                 for sc in 0..variables[literal.v_id].positive_occurrences().len() {
                     let stored_clause = variables[literal.v_id].positive_occurrences()[sc].clone();
-                    match process_watches(valuation, variables, &stored_clause, literal) {
-                        status => {
-                            if watch_status != WatchStatus::Conflict {
-                                watch_status = status
-                            }
-                        }
+                    let status = process_watches(valuation, variables, &stored_clause, literal);
+                    if watch_status != WatchStatus::Conflict {
+                        watch_status = status
                     };
                 }
                 for sc in 0..variables[literal.v_id].negative_occurrences().len() {
                     let stored_clause = variables[literal.v_id].negative_occurrences()[sc].clone();
-                    match process_watches(valuation, variables, &stored_clause, literal) {
-                        status => {
-                            if watch_status != WatchStatus::Conflict {
-                                watch_status = status
-                            }
-                        }
+                    let status = process_watches(valuation, variables, &stored_clause, literal);
+                    if watch_status != WatchStatus::Conflict {
+                        watch_status = status
                     };
                 }
 
