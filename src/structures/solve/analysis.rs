@@ -1,8 +1,5 @@
 use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
-use crate::structures::solve::mutation::process_update_literal;
-use crate::structures::solve::mutation::process_variable_occurrence_update;
 use crate::structures::solve::{Solve, SolveError, SolveOk};
-use crate::structures::valuation::Valuation;
 use crate::structures::{
     solve::StoppingCriteria, stored_clause::initialise_watches_for, Clause, ClauseSource, Literal,
     LiteralSource, StoredClause,
@@ -73,21 +70,44 @@ impl Solve<'_> {
                     self.backjump(backjump_level);
 
                     // updating the valuation needs to happen here to ensure the watches for any queued literal during propagaion are fixed
-                    let valuation_result = self.valuation.update_value(assertion);
-                    let _chose_literal_without_value = process_update_literal(
-                        assertion,
-                        LiteralSource::StoredClause(asserting_clause),
-                        &mut self.variables[assertion.v_id],
-                        &mut self.levels,
-                        valuation_result,
-                    );
-                    if process_variable_occurrence_update(
-                        &self.valuation,
-                        &mut self.variables,
-                        assertion,
-                    ) {
-                        self.watch_q.push_back(assertion);
-                    }
+                    {
+                        let literal = assertion;
+                        let source = LiteralSource::StoredClause(asserting_clause);
+                        let levels: &mut [Level] = &mut self.levels;
+                        let variables: &mut [Variable] = &mut self.variables;
+                        let valuation: &mut impl Valuation = &mut self.valuation;
+                        let watch_q: &mut VecDeque<Literal> = &mut self.watch_q;
+                        let variable = &mut variables[literal.v_id];
+                        let update_result = valuation.update_value(literal);
+                        match update_result {
+                            Ok(()) => {
+                                let level_index = match &source {
+                                    LiteralSource::Choice | LiteralSource::StoredClause(_) => levels.len() - 1,
+                                    LiteralSource::Assumption | LiteralSource::HobsonChoice => 0,
+                                };
+                                variable.set_decision_level(level_index);
+                                levels[level_index].record_literal(literal, &source);
+                                log::debug!("+Set {source:?}: {literal}");
+                            }
+                            Err(ValuationError::Match) => match source {
+                                LiteralSource::StoredClause(_) => {
+                                    // A literal may be implied by multiple clauses
+                                }
+                                _ => {
+                                    log::error!("Attempting to restate {} via {:?}", literal, source);
+                                    panic!("Attempting to restate the valuation")
+                                }
+                            },
+                            Err(ValuationError::Conflict) => {
+                                log::error!("Conflict when updating {literal} via {:?}", source);
+                                panic!();
+                            }
+                        }
+
+                        if process_variable_occurrence_update(valuation, variables, literal) {
+                            watch_q.push_back(literal);
+                        }
+                    };
 
                     Ok(SolveOk::AssertingClause)
                 }
