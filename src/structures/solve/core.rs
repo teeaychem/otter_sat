@@ -34,7 +34,7 @@ pub struct Solve<'formula> {
     pub levels: Vec<Level>,
     pub formula_clauses: Vec<Rc<StoredClause>>,
     pub learnt_clauses: Vec<Rc<StoredClause>>,
-    pub watch_q: VecDeque<Literal>,
+    pub watch_q: VecDeque<Rc<StoredClause>>,
     pub config: SolveConfig,
 }
 
@@ -63,7 +63,7 @@ impl Solve<'_> {
             conflcits_since_last_forget: 0,
             forgets: 0,
             variables: formula.vars().to_vec(),
-            watch_q: VecDeque::with_capacity(formula.vars().len() / 4), // I expect this to be mostly empty
+            watch_q: VecDeque::with_capacity(formula.vars().len() / 4),
             valuation: Vec::<Option<bool>>::new_for_variables(formula.vars().len()),
             levels: vec![Level::new(0)],
             formula_clauses: Vec::new(),
