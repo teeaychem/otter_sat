@@ -1,7 +1,8 @@
 use crate::structures::{
-    solve::{SolveConfig, solves::literal_update}, stored_clause::initialise_watches_for, Clause, ClauseId, ClauseSource,
-    ClauseStatus, Formula, Level, LevelIndex, Literal, LiteralError, LiteralSource, StoredClause,
-    Valuation, ValuationVec, Variable, VariableId,
+    solve::{solves::literal_update, SolveConfig},
+    stored_clause::initialise_watches_for,
+    Clause, ClauseId, ClauseSource, ClauseStatus, Formula, Level, LevelIndex, Literal,
+    LiteralError, LiteralSource, StoredClause, Valuation, ValuationVec, Variable, VariableId, WatchStatus
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -128,25 +129,31 @@ impl Solve<'_> {
     pub fn set_from_lists(&mut self, the_choices: (Vec<VariableId>, Vec<VariableId>)) {
         the_choices.0.iter().for_each(|&v_id| {
             let the_literal = Literal::new(v_id, false);
-            literal_update(
+            match literal_update(
                 the_literal,
                 LiteralSource::HobsonChoice,
                 &mut self.levels,
                 &mut self.variables,
                 &mut self.valuation,
-                &mut self.watch_q,
-            );
+            ) {
+                WatchStatus::Implication => self.watch_q.push_back(the_literal),
+                WatchStatus::Conflict => self.watch_q.push_front(the_literal),
+                _ => {}
+            };
         });
         the_choices.1.iter().for_each(|&v_id| {
             let the_literal = Literal::new(v_id, true);
-            literal_update(
+            match literal_update(
                 the_literal,
                 LiteralSource::HobsonChoice,
                 &mut self.levels,
                 &mut self.variables,
                 &mut self.valuation,
-                &mut self.watch_q,
-            );
+            ) {
+                WatchStatus::Implication => self.watch_q.push_back(the_literal),
+                WatchStatus::Conflict => self.watch_q.push_front(the_literal),
+                _ => {}
+            };
         });
     }
 
@@ -196,7 +203,7 @@ impl Solve<'_> {
     }
 
     pub fn time_to_reduce(&self) -> bool {
-        self.conflcits_since_last_forget > (2000 + 300 * self.forgets)
+        self.conflcits_since_last_forget > (1000 + 300 * self.forgets)
     }
 
     pub fn variables(&self) -> &[Variable] {

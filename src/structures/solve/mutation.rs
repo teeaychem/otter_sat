@@ -1,6 +1,6 @@
 use crate::structures::{
     solve::Solve, stored_clause::suggest_watch_update, Clause, ClauseSource, LevelIndex, Literal,
-    StoredClause, Valuation, Variable,
+    StoredClause, Valuation, Variable, WatchStatus
 };
 use std::rc::Rc;
 
@@ -59,7 +59,7 @@ impl<'borrow, 'solve> Solve<'solve> {
             panic!("Unable to remove: {} from learnt clauses", stored_clause);
         }
         for literal in stored_clause.literals() {
-            self.variables[literal.v_id].watch_removed(stored_clause, literal.polarity)
+            self.variables[literal.v_id].note_drop(stored_clause, literal.polarity)
         }
     }
 
@@ -86,14 +86,16 @@ impl Solve<'_> {
     }
 }
 
+
+
 #[inline(always)]
 pub fn process_watches(
     valuation: &impl Valuation,
     variables: &mut [Variable],
     stored_clause: &Rc<StoredClause>,
     lit: Literal,
-) -> bool {
-    let (a_update, b_update, propagation_ready) =
+) -> WatchStatus {
+    let (a_update, b_update, watch_status) =
         suggest_watch_update(stored_clause, valuation, lit.v_id, variables);
 
     match (a_update, b_update) {
@@ -106,7 +108,7 @@ pub fn process_watches(
         (None, None) => (),
         _ => panic!("Unknown watch update"),
     };
-    propagation_ready
+    watch_status
 }
 
 #[inline(always)]

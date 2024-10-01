@@ -2,7 +2,7 @@ use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
 use crate::structures::solve::{solves::literal_update, Solve, SolveError, SolveOk};
 use crate::structures::{
     solve::StoppingCriteria, stored_clause::initialise_watches_for, Clause, ClauseSource, Literal,
-    LiteralSource, StoredClause,
+    LiteralSource, StoredClause, WatchStatus
 };
 
 use std::collections::{BTreeSet, VecDeque};
@@ -70,14 +70,17 @@ impl Solve<'_> {
                     self.backjump(backjump_level);
 
                     // updating the valuation needs to happen here to ensure the watches for any queued literal during propagaion are fixed
-                    literal_update(
+                    match literal_update(
                         assertion,
                         LiteralSource::StoredClause(asserting_clause),
                         &mut self.levels,
                         &mut self.variables,
                         &mut self.valuation,
-                        &mut self.watch_q,
-                    );
+                    ) {
+                        WatchStatus::Implication => self.watch_q.push_back(assertion),
+                        WatchStatus::Conflict => self.watch_q.push_front(assertion),
+                        _ => {}
+                    };
 
                     Ok(SolveOk::AssertingClause)
                 }

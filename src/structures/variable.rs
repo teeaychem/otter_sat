@@ -74,6 +74,29 @@ impl Variable {
         }
     }
 
+    pub fn note_drop(&mut self, stored_clause: &Rc<StoredClause>, polarity: bool) {
+        match polarity {
+            true => {
+                if let Some(p) = self
+                    .positive_occurrences
+                    .iter()
+                    .position(|sc| sc == stored_clause)
+                {
+                    let _ = self.positive_occurrences.swap_remove(p);
+                }
+            }
+            false => {
+                if let Some(p) = self
+                    .negative_occurrences
+                    .iter()
+                    .position(|sc| sc == stored_clause)
+                {
+                    let _ = self.negative_occurrences.swap_remove(p);
+                }
+            }
+        }
+    }
+
     pub fn positive_occurrences(&self) -> &[Rc<StoredClause>] {
         &self.positive_occurrences
     }
