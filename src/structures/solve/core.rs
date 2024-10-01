@@ -1,5 +1,5 @@
 use crate::structures::{
-    solve::SolveConfig, stored_clause::initialise_watches_for, Clause, ClauseId, ClauseSource,
+    solve::{SolveConfig, solves::literal_update}, stored_clause::initialise_watches_for, Clause, ClauseId, ClauseSource,
     ClauseStatus, Formula, Level, LevelIndex, Literal, LiteralError, LiteralSource, StoredClause,
     Valuation, ValuationVec, Variable, VariableId,
 };
@@ -128,85 +128,25 @@ impl Solve<'_> {
     pub fn set_from_lists(&mut self, the_choices: (Vec<VariableId>, Vec<VariableId>)) {
         the_choices.0.iter().for_each(|&v_id| {
             let the_literal = Literal::new(v_id, false);
-            {
-                let literal = the_literal;
-                let source = LiteralSource::HobsonChoice;
-                let levels: &mut [Level] = &mut self.levels;
-                let variables: &mut [Variable] = &mut self.variables;
-                let valuation: &mut impl Valuation = &mut self.valuation;
-                let watch_q: &mut VecDeque<Literal> = &mut self.watch_q;
-                let variable = &mut variables[literal.v_id];
-                let update_result = valuation.update_value(literal);
-                match update_result {
-                    Ok(()) => {
-                        let level_index = match &source {
-                            LiteralSource::Choice | LiteralSource::StoredClause(_) => levels.len() - 1,
-                            LiteralSource::Assumption | LiteralSource::HobsonChoice => 0,
-                        };
-                        variable.set_decision_level(level_index);
-                        levels[level_index].record_literal(literal, &source);
-                        log::debug!("+Set {source:?}: {literal}");
-                    }
-                    Err(ValuationError::Match) => match source {
-                        LiteralSource::StoredClause(_) => {
-                            // A literal may be implied by multiple clauses
-                        }
-                        _ => {
-                            log::error!("Attempting to restate {} via {:?}", literal, source);
-                            panic!("Attempting to restate the valuation")
-                        }
-                    },
-                    Err(ValuationError::Conflict) => {
-                        log::error!("Conflict when updating {literal} via {:?}", source);
-                        panic!();
-                    }
-                }
-
-                if process_variable_occurrence_update(valuation, variables, literal) {
-                    watch_q.push_back(literal);
-                }
-            };
+            literal_update(
+                the_literal,
+                LiteralSource::HobsonChoice,
+                &mut self.levels,
+                &mut self.variables,
+                &mut self.valuation,
+                &mut self.watch_q,
+            );
         });
         the_choices.1.iter().for_each(|&v_id| {
             let the_literal = Literal::new(v_id, true);
-            {
-                let literal = the_literal;
-                let source = LiteralSource::HobsonChoice;
-                let levels: &mut [Level] = &mut self.levels;
-                let variables: &mut [Variable] = &mut self.variables;
-                let valuation: &mut impl Valuation = &mut self.valuation;
-                let watch_q: &mut VecDeque<Literal> = &mut self.watch_q;
-                let variable = &mut variables[literal.v_id];
-                let update_result = valuation.update_value(literal);
-                match update_result {
-                    Ok(()) => {
-                        let level_index = match &source {
-                            LiteralSource::Choice | LiteralSource::StoredClause(_) => levels.len() - 1,
-                            LiteralSource::Assumption | LiteralSource::HobsonChoice => 0,
-                        };
-                        variable.set_decision_level(level_index);
-                        levels[level_index].record_literal(literal, &source);
-                        log::debug!("+Set {source:?}: {literal}");
-                    }
-                    Err(ValuationError::Match) => match source {
-                        LiteralSource::StoredClause(_) => {
-                            // A literal may be implied by multiple clauses
-                        }
-                        _ => {
-                            log::error!("Attempting to restate {} via {:?}", literal, source);
-                            panic!("Attempting to restate the valuation")
-                        }
-                    },
-                    Err(ValuationError::Conflict) => {
-                        log::error!("Conflict when updating {literal} via {:?}", source);
-                        panic!();
-                    }
-                }
-
-                if process_variable_occurrence_update(valuation, variables, literal) {
-                    watch_q.push_back(literal);
-                }
-            };
+            literal_update(
+                the_literal,
+                LiteralSource::HobsonChoice,
+                &mut self.levels,
+                &mut self.variables,
+                &mut self.valuation,
+                &mut self.watch_q,
+            );
         });
     }
 
