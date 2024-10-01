@@ -283,7 +283,7 @@ pub fn suggest_watch_update(
     let current_a_value = val.of_v_id(watched_a_literal.v_id);
     let current_a_match = current_a_value.is_some_and(|p| p == watched_a_literal.polarity);
     if current_a_match {
-        return (None, None, true);
+        return (None, None, false);
     }
     // and likewise for the current b watch
     let watched_b_literal = stored_clause.clause[stored_clause.watch_b.get()];
@@ -299,10 +299,7 @@ pub fn suggest_watch_update(
     // check to see if the clause is satisfied, if so, the previous two checks imply one watch must be updated to witness the satisfaction
     let clause_is_satisfied_by_v = {
         let valuation_polarity = val.of_v_id(v_id).unwrap();
-        let clause_polarity = stored_clause
-            .find_literal_by_id(v_id)
-            .unwrap()
-            .polarity;
+        let clause_polarity = stored_clause.find_literal_by_id(v_id).unwrap().polarity;
         valuation_polarity == clause_polarity
     };
 
