@@ -57,7 +57,15 @@ impl Solve<'_> {
                         &mut self.variables,
                     );
 
-                    self.watch_q.push_back(asserting_clause.clone());
+                    if assertion == asserting_clause.watched_a() {
+                        self.watch_q
+                            .push_back(asserting_clause.watched_b().negate());
+                    } else if assertion == asserting_clause.watched_b() {
+                        self.watch_q
+                            .push_back(asserting_clause.watched_a().negate());
+                    } else {
+                        panic!("Failed to predict asserting clause")
+                    }
 
                     self.backjump(backjump_level);
 
