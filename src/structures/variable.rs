@@ -82,14 +82,6 @@ impl Variable {
         &self.negative_occurrences
     }
 
-    pub fn positive_watch_occurrences(&self) -> &[Rc<StoredClause>] {
-        &self.positive_watch_occurrences
-    }
-
-    pub fn negative_watch_occurrences(&self) -> &[Rc<StoredClause>] {
-        &self.negative_watch_occurrences
-    }
-
     pub fn watch_removed(&mut self, stored_clause: &Rc<StoredClause>, polarity: bool) {
         match polarity {
             true => {
@@ -120,29 +112,6 @@ impl Variable {
             }
             false => {
                 self.negative_watch_occurrences.push(stored_clause.clone());
-            }
-        }
-    }
-
-    pub fn note_drop(&mut self, polarity: bool, stored_clause: &Rc<StoredClause>) {
-        match polarity {
-            true => {
-                if let Some(p) = self
-                    .positive_occurrences
-                    .iter()
-                    .position(|sc| sc == stored_clause)
-                {
-                    let _ = self.positive_occurrences.swap_remove(p);
-                }
-            }
-            false => {
-                if let Some(p) = self
-                    .negative_occurrences
-                    .iter()
-                    .position(|sc| sc == stored_clause)
-                {
-                    let _ = self.negative_occurrences.swap_remove(p);
-                }
             }
         }
     }

@@ -59,7 +59,7 @@ impl<'borrow, 'solve> Solve<'solve> {
             panic!("Unable to remove: {} from learnt clauses", stored_clause);
         }
         for literal in stored_clause.literals() {
-            self.variables[literal.v_id].note_drop(literal.polarity, stored_clause)
+            self.variables[literal.v_id].watch_removed(stored_clause, literal.polarity)
         }
     }
 
@@ -95,7 +95,6 @@ pub fn process_watches(
 ) -> bool {
     let (a_update, b_update, propagation_ready) =
         suggest_watch_update(stored_clause, valuation, lit.v_id, variables);
-
 
     match (a_update, b_update) {
         (Some(a), None) => {
