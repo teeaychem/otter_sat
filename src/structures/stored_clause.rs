@@ -300,8 +300,7 @@ pub fn suggest_watch_update(
     let clause_is_satisfied_by_v = {
         let valuation_polarity = val.of_v_id(v_id).unwrap();
         let clause_polarity = stored_clause
-            .literals()
-            .find(|l| l.v_id == v_id)
+            .find_literal_by_id(v_id)
             .unwrap()
             .polarity;
         valuation_polarity == clause_polarity
@@ -434,5 +433,9 @@ impl Clause for StoredClause {
 
     fn lbd(&self, variables: &[Variable]) -> usize {
         self.clause.lbd(variables)
+    }
+
+    fn find_literal_by_id(&self, id: VariableId) -> Option<Literal> {
+        self.clause.find_literal_by_id(id)
     }
 }
