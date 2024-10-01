@@ -2,9 +2,8 @@ use crate::procedures::hobson_choices;
 use crate::structures::solve::{mutation::process_watches, Solve, SolveError, SolveOk, SolveStats};
 use crate::structures::{
     ClauseStatus, Level, Literal, LiteralSource, StoredClause, Valuation, ValuationError, Variable,
+    WatchStatus,
 };
-use std::collections::VecDeque;
-use std::mem;
 use std::rc::Rc;
 
 pub enum SolveResult {
@@ -41,17 +40,18 @@ impl Solve<'_> {
             'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
                 let mut temprary_clause_vec: Vec<Rc<StoredClause>> = Vec::default();
                 macro_rules! swap_occurrence_vecs {
-                    /* perform a temporary swap of the relevant occurrence vector to allow mutable borrows of the solve variables when processing watch choices
+                    /*
+                    perform a temporary swap of the relevant occurrence vector to allow mutable borrows of the solve variables when processing watch choices
                     the first swap takes place immediately, and the remaining swaps happen whenever the current iteration of the loop exits
                     the swap is safe, as the literal has been set already and will never be chosen as a watch
                      */
                     () => {
                         match literal.polarity {
-                            false => mem::swap(
+                            false => std::mem::swap(
                                 &mut self.variables[literal.v_id].positive_watch_occurrences,
                                 &mut temprary_clause_vec,
                             ),
-                            true => mem::swap(
+                            true => std::mem::swap(
                                 &mut self.variables[literal.v_id].negative_watch_occurrences,
                                 &mut temprary_clause_vec,
                             ),
@@ -64,14 +64,18 @@ impl Solve<'_> {
                     match stored_clause.watch_choices(&self.valuation) {
                         ClauseStatus::Entails(consequent) => {
                             let this_implication_time = std::time::Instant::now();
-                            literal_update(
+                            match literal_update(
                                 consequent,
                                 LiteralSource::StoredClause(stored_clause.clone()),
                                 &mut self.levels,
                                 &mut self.variables,
                                 &mut self.valuation,
-                                &mut self.watch_q,
-                            );
+                            ) {
+                                WatchStatus::Implication => self.watch_q.push_back(consequent),
+                                WatchStatus::Conflict => self.watch_q.push_front(consequent),
+                                _ => {}
+                            }
+
                             stats.implication_time += this_implication_time.elapsed();
                         }
                         ClauseStatus::Conflict => {
@@ -85,10 +89,6 @@ impl Solve<'_> {
                             match self.config.break_on_first {
                                 true => {
                                     swap_occurrence_vecs!();
-                                    if !temprary_clause_vec.is_empty() {
-                                        println!("{}", temprary_clause_vec.len());
-                                        panic!("wft {:?}", temprary_clause_vec);
-                                    }
                                     break 'propagation_loop;
                                 }
                                 false => continue,
@@ -119,14 +119,17 @@ impl Solve<'_> {
                         let _new_level = self.add_fresh_level();
                         let the_literal = Literal::new(available_v_id, false);
 
-                        literal_update(
+                        match literal_update(
                             the_literal,
                             LiteralSource::Choice,
                             &mut self.levels,
                             &mut self.variables,
                             &mut self.valuation,
-                            &mut self.watch_q,
-                        );
+                        ) {
+                            WatchStatus::Implication => self.watch_q.push_back(the_literal),
+                            WatchStatus::Conflict => self.watch_q.push_front(the_literal),
+                            _ => {}
+                        };
 
                         stats.choice_time += this_choice_time.elapsed();
 
@@ -264,8 +267,7 @@ pub fn literal_update(
     levels: &mut [Level],
     variables: &mut [Variable],
     valuation: &mut impl Valuation,
-    watch_q: &mut VecDeque<Literal>,
-) {
+) -> WatchStatus {
     let variable = &mut variables[literal.v_id];
 
     // update the valuation and match the result
@@ -282,30 +284,37 @@ pub fn literal_update(
 
             // and, process whether any change to the watch literals is required, given an update has happened
             {
-                let mut propagation_ready = false;
+                let mut watch_status = WatchStatus::None;
 
                 for sc in 0..variables[literal.v_id].positive_occurrences().len() {
                     let stored_clause = variables[literal.v_id].positive_occurrences()[sc].clone();
-                    if process_watches(valuation, variables, &stored_clause, literal) {
-                        propagation_ready = true;
+                    match process_watches(valuation, variables, &stored_clause, literal) {
+                        status => {
+                            if watch_status != WatchStatus::Conflict {
+                                watch_status = status
+                            }
+                        }
                     };
                 }
                 for sc in 0..variables[literal.v_id].negative_occurrences().len() {
                     let stored_clause = variables[literal.v_id].negative_occurrences()[sc].clone();
-                    if process_watches(valuation, variables, &stored_clause, literal) {
-                        propagation_ready = true
+                    match process_watches(valuation, variables, &stored_clause, literal) {
+                        status => {
+                            if watch_status != WatchStatus::Conflict {
+                                watch_status = status
+                            }
+                        }
                     };
                 }
 
-                if propagation_ready {
-                    watch_q.push_back(literal);
-                }
+                watch_status
             }
         }
         Err(ValuationError::Match) => match source {
             LiteralSource::StoredClause(_) => {
                 // A literal may be implied by multiple clauses, so there's no need to panic
                 // rather, there's no need to do anything at all
+                WatchStatus::None
             }
             _ => {
                 log::error!("Attempt to restate {} via {:?}", literal, source);
