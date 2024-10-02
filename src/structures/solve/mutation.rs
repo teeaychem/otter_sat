@@ -28,12 +28,12 @@ impl<'borrow, 'solve> Solve<'solve> {
                     stored_clause
                 }
                 ClauseSource::Resolution(_) => {
-                    log::warn!("Learning clause {}", clause.as_string());
+                    log::trace!("Learning clause {}", clause.as_string());
                     let stored_clause =
                         StoredClause::new_from(Solve::fresh_clause_id(), clause, src);
 
                     for literal in stored_clause.literals() {
-                        self.variables[literal.v_id].increase_activity(1.0);
+                        self.variables[literal.v_id].add_activity(1.0);
                         self.variables[literal.v_id]
                             .note_occurence(&stored_clause, literal.polarity);
                     }
@@ -75,7 +75,7 @@ impl<'borrow, 'solve> Solve<'solve> {
 
 impl Solve<'_> {
     pub fn backjump(&mut self, to: LevelIndex) {
-        log::warn!("Backjump from {} to {}", self.current_level().index(), to);
+        log::trace!("Backjump from {} to {}", self.current_level().index(), to);
 
         for _ in 0..(self.current_level().index() - to) {
             let the_level = self.levels.pop().unwrap();

@@ -2,7 +2,7 @@
 
 use clap::Parser;
 use std::fs;
-use structures::solve::{ConflictPriority, StoppingCriteria};
+use structures::solve::{ExplorationPriority, StoppingCriteria};
 mod io;
 mod procedures;
 mod structures;
@@ -14,23 +14,23 @@ use crate::structures::Formula;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// file to parse
+    /// The DIMACS form CNF file to parse
     #[arg(short, long)]
     file: String,
 
-    /// Print stats
+    /// Display stats
     #[arg(short, long, default_value_t = false)]
     stats: bool,
 
-    /// Print an assignment if formula is satisfiable
+    /// Display an assignment on SAT
     #[arg(short, long, default_value_t = false)]
     assignment: bool,
 
-    /// Print core on unsat
+    /// Display an unsatisfiable core on UNSAT
     #[arg(short, long, default_value_t = false)]
     core: bool,
 
-    /// Specify required glue strength
+    /// Required glue strength
     #[arg(short, long, default_value_t = 2)]
     glue_strength: usize,
 
@@ -40,14 +40,14 @@ struct Args {
 
     /// Conflict priority
     #[arg(long, default_value_t = String::from("Default"))]
-    conflict_priority: String,
+    exploration_priority: String,
 }
 
 fn main() {
     match log4rs::init_file("config/log4rs.yaml", Default::default()) {
         Ok(_) => log::trace!("Log find loaded"),
         Err(e) => {
-            log::warn!("{e:?}")
+            log::error!("{e:?}")
         }
     }
 
@@ -65,9 +65,9 @@ fn main() {
                         formula.clauses().count()
                     );
                 }
-                log::warn!("Formula processed");
+                log::trace!("Formula processed");
                 let mut the_solve = Solve::from_formula(&formula, config);
-                log::warn!("Solve initialised");
+                log::trace!("Solve initialised");
 
                 let (result, stats) = the_solve.implication_solve();
                 if the_solve.config.stats {
@@ -103,27 +103,20 @@ fn config_builder(clap_args: &Args) -> SolveConfig {
         core: clap_args.core,
         analysis: 3,
         stopping_criteria: {
-            let critera = &clap_args.stopping_criteria;
-            if critera == "FirstUIP" {
-                StoppingCriteria::FirstAssertingUIP
-            } else if critera == "None" {
-                StoppingCriteria::None
-            } else {
-                panic!("Unknown stopping critera")
+            match clap_args.stopping_criteria.as_str() {
+                "FirstUIP" | "firstUIP" | "1UIP" | "1uip" => StoppingCriteria::FirstAssertingUIP,
+                "None" | "none" => StoppingCriteria::None,
+                _ => panic!("Unknown stopping critera"),
             }
         },
         break_on_first: true,
         multi_jump_max: true,
         conflict_priority: {
-            let critera = &clap_args.conflict_priority;
-            if critera == "Low" {
-                ConflictPriority::Low
-            } else if critera == "High" {
-                ConflictPriority::High
-            } else if critera == "Default" {
-                ConflictPriority::Default
-            } else {
-                panic!("Unknown conflict priority")
+            match clap_args.exploration_priority.as_str() {
+                "Implication" | "implication" | "imp" => ExplorationPriority::Implication,
+                "Conflict" | "conflict" | "conf" => ExplorationPriority::Conflict,
+                "Default" | "default" => ExplorationPriority::Default,
+                _ => panic!("Unknown conflict priority"),
             }
         },
     }
