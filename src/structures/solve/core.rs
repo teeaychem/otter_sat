@@ -310,9 +310,7 @@ pub fn process_watches_two(
     variables: &mut [Variable],
     stored_clause: &Rc<StoredClause>,
 ) -> WatchStatus {
-    let (a_update, b_update, watch_status) =
-        // suggest_watch_update(stored_clause, valuation, lit.v_id, variables);
-        suggest_watch_update_two(stored_clause, valuation);
+    let (a_update, b_update, watch_status) = suggest_watch_update_two(stored_clause, valuation);
 
     match (a_update, b_update) {
         (Some(a), Some(b)) => {
