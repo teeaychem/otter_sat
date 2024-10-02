@@ -2,13 +2,13 @@
 
 use clap::Parser;
 use std::fs;
-use structures::solve::{ExplorationPriority, StoppingCriteria};
+use structures::solve::config::{ExplorationPriority, StoppingCriteria};
 mod io;
 mod procedures;
 mod structures;
 
+use crate::structures::formula::Formula;
 use crate::structures::solve::{config::config_show_stats, Solve, SolveResult};
-use crate::structures::Formula;
 
 // Configuration variables
 static mut CONFIG_GLUE_STRENGTH: usize = 2;
@@ -85,40 +85,37 @@ fn main() {
     }
 
     if let Ok(contents) = fs::read_to_string(&args.formula_file) {
-        match Formula::from_dimacs(&contents) {
-            Ok(formula) => {
-                if config_show_stats() {
-                    println!("c Parsing formula from file: {:?}", args.formula_file);
-                    println!(
-                        "c Parsed formula with {} variables and {} clauses",
-                        formula.vars().len(),
-                        formula.clauses().count()
-                    );
-                }
-                log::trace!("Formula processed");
-                let mut the_solve = Solve::from_formula(&formula);
-                log::trace!("Solve initialised");
+        let formula = Formula::from_dimacs(&contents);
 
-                let (result, stats) = the_solve.implication_solve();
-                if config_show_stats() {
-                    println!("{stats}");
-                }
-                match result {
-                    SolveResult::Unsatisfiable => {
-                        println!("s UNSATISFIABLE");
-                        std::process::exit(00);
-                    }
-                    SolveResult::Satisfiable => {
-                        println!("s SATISFIABLE");
-                        std::process::exit(10);
-                    }
-                    SolveResult::Unknown => {
-                        println!("s Unkown");
-                        std::process::exit(20);
-                    }
-                }
+        if config_show_stats() {
+            println!("c Parsing formula from file: {:?}", args.formula_file);
+            println!(
+                "c Parsed formula with {} variables and {} clauses",
+                formula.vars().len(),
+                formula.clauses().count()
+            );
+        }
+        log::trace!("Formula processed");
+        let mut the_solve = Solve::from_formula(&formula);
+        log::trace!("Solve initialised");
+
+        let (result, stats) = the_solve.implication_solve();
+        if config_show_stats() {
+            println!("{stats}");
+        }
+        match result {
+            SolveResult::Unsatisfiable => {
+                println!("s UNSATISFIABLE");
+                std::process::exit(00);
             }
-            Err(e) => panic!("{e:?}"),
+            SolveResult::Satisfiable => {
+                println!("s SATISFIABLE");
+                std::process::exit(10);
+            }
+            SolveResult::Unknown => {
+                println!("s Unkown");
+                std::process::exit(20);
+            }
         }
     } else {
         println!("Error reading file")

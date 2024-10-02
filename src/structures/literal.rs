@@ -1,4 +1,7 @@
-use crate::structures::{StoredClause, Variable, VariableId};
+use crate::structures::{
+    clause::stored_clause::StoredClause,
+    variable::{Variable, VariableId},
+};
 
 use std::rc::Rc;
 
@@ -7,7 +10,6 @@ pub struct Literal {
     pub v_id: VariableId,
     pub polarity: bool,
 }
-
 
 /// how a literal was settled
 #[derive(Clone, Debug)]

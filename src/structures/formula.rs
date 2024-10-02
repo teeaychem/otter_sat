@@ -1,4 +1,8 @@
-use crate::structures::{Clause, ClauseVec, Literal, Variable, VariableId};
+use crate::structures::{
+    clause::{Clause,  clause_vec::ClauseVec},
+    literal::Literal,
+    variable::{Variable, VariableId},
+};
 
 #[derive(Debug, Clone)]
 pub struct Formula {
