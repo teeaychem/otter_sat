@@ -50,7 +50,7 @@ impl Variable {
         self.id
     }
 
-    pub fn increase_activity(&self, by: f32) {
+    pub fn add_activity(&self, by: f32) {
         let mut activity = self.activity.get();
         activity += by;
         self.activity.replace(activity);

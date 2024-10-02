@@ -1,6 +1,6 @@
 use crate::procedures::hobson_choices;
 use crate::structures::solve::{
-    mutation::process_watches, ConflictPriority, Solve, SolveError, SolveOk, SolveStats,
+    mutation::process_watches, ExplorationPriority, Solve, SolveError, SolveOk, SolveStats,
 };
 use crate::structures::{
     ClauseStatus, Level, Literal, LiteralSource, StoredClause, Valuation, ValuationError, Variable,
@@ -74,12 +74,12 @@ impl Solve<'_> {
                                 &mut self.valuation,
                             ) {
                                 WatchStatus::Implication => match self.config.conflict_priority {
-                                    ConflictPriority::Low => self.watch_q.push_front(consequent),
+                                    ExplorationPriority::Implication => self.watch_q.push_front(consequent),
                                     _ => self.watch_q.push_back(consequent),
                                 },
 
                                 WatchStatus::Conflict => match self.config.conflict_priority {
-                                    ConflictPriority::High => self.watch_q.push_front(consequent),
+                                    ExplorationPriority::Conflict => self.watch_q.push_front(consequent),
                                     _ => self.watch_q.push_back(consequent),
                                 },
                                 _ => {}
@@ -136,12 +136,12 @@ impl Solve<'_> {
                             &mut self.valuation,
                         ) {
                             WatchStatus::Implication => match self.config.conflict_priority {
-                                ConflictPriority::Low => self.watch_q.push_front(the_literal),
+                                ExplorationPriority::Implication => self.watch_q.push_front(the_literal),
                                 _ => self.watch_q.push_back(the_literal),
                             },
 
                             WatchStatus::Conflict => match self.config.conflict_priority {
-                                ConflictPriority::High => self.watch_q.push_front(the_literal),
+                                ExplorationPriority::Conflict => self.watch_q.push_front(the_literal),
                                 _ => self.watch_q.push_back(the_literal),
                             },
                             _ => {}
@@ -206,7 +206,7 @@ impl Solve<'_> {
 #[inline(always)]
 fn reduce(solve: &mut Solve) {
     let learnt_count = solve.learnt_clauses.len();
-    log::warn!(target: "forget", "Learnt count: {}", learnt_count);
+    log::trace!(target: "forget", "Learnt count: {}", learnt_count);
 
     /*
     Clauses are removed from the learnt clause vector by swap_remove.
@@ -226,7 +226,7 @@ fn reduce(solve: &mut Solve) {
     }
     solve.forgets += 1;
     solve.conflcits_since_last_forget = 0;
-    log::warn!(target: "forget", "Reduced to: {}", solve.learnt_clauses.len());
+    log::trace!(target: "forget", "Reduced to: {}", solve.learnt_clauses.len());
 }
 
 #[inline(always)]
@@ -296,7 +296,7 @@ pub fn literal_update(
             };
             variable.set_decision_level(level_index);
             levels[level_index].record_literal(literal, &source);
-            log::debug!("Set {source:?}: {literal}");
+            log::trace!("Set {source:?}: {literal}");
 
             // and, process whether any change to the watch literals is required, given an update has happened
             {

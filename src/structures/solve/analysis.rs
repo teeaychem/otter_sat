@@ -1,6 +1,6 @@
 use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
 use crate::structures::solve::{
-    solves::literal_update, ConflictPriority, Solve, SolveError, SolveOk,
+    solves::literal_update, ExplorationPriority, Solve, SolveError, SolveOk,
 };
 use crate::structures::{
     solve::StoppingCriteria, stored_clause::initialise_watches_for, Clause, ClauseSource, Literal,
@@ -43,7 +43,7 @@ impl Solve<'_> {
         conflict_clause: Rc<StoredClause>,
     ) -> Result<SolveOk, SolveError> {
         let the_id = conflict_clause.id();
-        log::warn!(
+        log::trace!(
             "Attempt to fix on clause {the_id} at level {}",
             self.current_level().index()
         );
@@ -80,12 +80,12 @@ impl Solve<'_> {
                         &mut self.valuation,
                     ) {
                         WatchStatus::Implication => match self.config.conflict_priority {
-                            ConflictPriority::Low => self.watch_q.push_front(assertion),
+                            ExplorationPriority::Implication => self.watch_q.push_front(assertion),
                             _ => self.watch_q.push_back(assertion),
                         },
 
                         WatchStatus::Conflict => match self.config.conflict_priority {
-                            ConflictPriority::High => self.watch_q.push_front(assertion),
+                            ExplorationPriority::Conflict => self.watch_q.push_front(assertion),
                             _ => self.watch_q.push_back(assertion),
                         },
                         _ => {}
@@ -101,37 +101,32 @@ impl Solve<'_> {
         &mut self,
         conflict_clauses: Vec<Rc<StoredClause>>,
     ) -> Result<SolveOk, SolveError> {
-        if self.current_level().index() == 0 {
-            log::warn!("Base level fix…");
-            return Err(SolveError::NoSolution);
+        let mut analysis_results = vec![];
+
+        let mut the_jump = if self.config.multi_jump_max {
+            usize::MAX
         } else {
-            let mut analysis_results = vec![];
+            usize::MIN
+        };
 
-            let mut the_jump = if self.config.multi_jump_max {
-                usize::MAX
-            } else {
-                usize::MIN
-            };
-
-            for conflict_clause in conflict_clauses {
-                match self.conflict_analysis(conflict_clause) {
-                    AnalysisResult::AssertingClause(asserting_clause, _) => {
-                        let backjump_level = self.decision_level(&asserting_clause);
-                        if (self.config.multi_jump_max && backjump_level < the_jump)
-                            || backjump_level > the_jump
-                        {
-                            the_jump = backjump_level
-                        }
-                        analysis_results.push(asserting_clause);
+        for conflict_clause in conflict_clauses {
+            match self.conflict_analysis(conflict_clause) {
+                AnalysisResult::AssertingClause(asserting_clause, _) => {
+                    let backjump_level = self.decision_level(&asserting_clause);
+                    if (self.config.multi_jump_max && backjump_level < the_jump)
+                        || backjump_level > the_jump
+                    {
+                        the_jump = backjump_level
                     }
+                    analysis_results.push(asserting_clause);
                 }
             }
+        }
 
-            let the_valuation = self.valuation_at(the_jump);
+        let the_valuation = self.valuation_at(the_jump);
 
-            for asserting_clause in analysis_results {
-                initialise_watches_for(&asserting_clause, &the_valuation, &mut self.variables);
-            }
+        for asserting_clause in analysis_results {
+            initialise_watches_for(&asserting_clause, &the_valuation, &mut self.variables);
 
             self.backjump(the_jump);
         }
