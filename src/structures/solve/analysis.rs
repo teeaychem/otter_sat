@@ -1,4 +1,5 @@
 use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
+use crate::structures::valuation::Valuation;
 use crate::structures::{
     clause::{
         stored_clause::{initialise_watches_for, ClauseSource, StoredClause, WatchStatus},
@@ -143,8 +144,10 @@ impl Solve<'_> {
         let previous_level_val = self.valuation_at(self.current_level().index() - 1);
         let mut asserted_literal = None;
 
+        let stopping_criteria = config_stopping_criteria();
         for (src, _lit) in self.current_level().observations().iter().rev() {
-            match config_stopping_criteria() {
+            // println!("C {}", resolved_clause.as_string());
+            match stopping_criteria {
                 StoppingCriteria::FirstAssertingUIP => {
                     if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
                         asserted_literal = Some(asserted);
@@ -192,6 +195,8 @@ impl Solve<'_> {
         } else if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
             AnalysisResult::AssertingClause(stored_clause, asserted)
         } else {
+            println!("PV {}", previous_level_val.as_internal_string());
+            println!("CV {}", self.valuation.as_internal_string());
             panic!("No assertion…")
         }
     }

@@ -81,7 +81,36 @@ impl StoredClause {
     }
 }
 
+pub enum WatchUpdateEnum {
+    Witness,
+    OtherNone(usize),
+    OnlyNone,
+}
+
 impl StoredClause {
+    fn some_useful_idx(
+        &self,
+        val: &impl Valuation,
+        but_not: Option<VariableId>,
+    ) -> Option<(usize, WatchUpdateEnum)> {
+        let mut first_none = None;
+        for (idx, literal) in self.clause.iter().enumerate() {
+            if !(but_not.is_some_and(|f_v_id| f_v_id == literal.v_id)) {
+                if let Some(val) = val.of_v_id(literal.v_id) {
+                    if val == literal.polarity {
+                        return Some((idx, WatchUpdateEnum::Witness));
+                        // useful, as this witnesses
+                    } // otherwise conflict so skip
+                } else if let Some(first) = first_none {
+                    return Some((idx, WatchUpdateEnum::OtherNone(first)));
+                } else {
+                    first_none = Some(idx);
+                }
+            }
+        }
+        first_none.map(|none| (none, WatchUpdateEnum::OnlyNone))
+    }
+
     /// Finds an index of the clause vec whose value is None on val and differs from but_not.
     fn some_none_idx(&self, val: &impl Valuation, but_not: Option<VariableId>) -> Option<usize> {
         self.clause
@@ -277,7 +306,6 @@ pub enum WatchStatus {
 
 // #[rustfmt::skip]
 /// Updates the two watched literals on the assumption that only the valuation of the given id has changed.
-/// Return true if the watch allows for propagation
 pub fn suggest_watch_update(
     stored_clause: &Rc<StoredClause>,
     val: &impl Valuation,
@@ -365,6 +393,94 @@ pub fn suggest_watch_update(
                 }
             } else {
                 (None, None, WatchStatus::Conflict)
+            }
+        }
+    }
+}
+
+/// Updates the two watched literals without making any assumption about the status of the valuation since the watches were set.
+pub fn suggest_watch_update_two(
+    stored_clause: &Rc<StoredClause>,
+    val: &impl Valuation,
+) -> (Option<usize>, Option<usize>, WatchStatus) {
+    match stored_clause.length() {
+        1 => match val.of_v_id(stored_clause.clause[stored_clause.watch_a.get()].v_id) {
+            None => (None, None, WatchStatus::Implication),
+            Some(_) => (None, None, WatchStatus::Satisfied),
+        },
+        _ => {
+            // If the current a watch already witness satisfaction of the clause, do nothing
+            let watched_a_literal = stored_clause.clause[stored_clause.watch_a.get()];
+            let current_a_value = val.of_v_id(watched_a_literal.v_id);
+            if current_a_value.is_some_and(|p| p == watched_a_literal.polarity) {
+                return (None, None, WatchStatus::Satisfied);
+            }
+            // and likewise for the current b watch
+            let watched_b_literal = stored_clause.clause[stored_clause.watch_b.get()];
+            let current_b_value = val.of_v_id(watched_b_literal.v_id);
+            if current_b_value.is_some_and(|p| p == watched_b_literal.polarity) {
+                return (None, None, WatchStatus::Satisfied);
+            }
+            // as, the decision level of the witnessing literal must be lower than that of the current literal
+
+            // otherwise, if either watch conflicts with the current valuation,
+            // an attempt is made to keep both watches on variables without a value
+            if current_a_value.is_some() {
+                match stored_clause.some_useful_idx(val, Some(watched_b_literal.v_id)) {
+                    Some((idx, WatchUpdateEnum::Witness)) => {
+                        (Some(idx), None, WatchStatus::Satisfied)
+                    }
+                    Some((idx, WatchUpdateEnum::OtherNone(new_b))) => {
+                        if current_b_value.is_some() {
+                            (Some(idx), Some(new_b), WatchStatus::None)
+                        } else {
+                            (Some(idx), None, WatchStatus::None)
+                        }
+                    }
+                    Some((idx, WatchUpdateEnum::OnlyNone)) => {
+                        if current_b_value.is_some() {
+                            (Some(idx), None, WatchStatus::Implication)
+                        } else {
+                            (Some(idx), None, WatchStatus::None)
+                        }
+                    }
+                    None => {
+                        if current_b_value.is_none() {
+                            (None, None, WatchStatus::Implication)
+                        } else {
+                            (None, None, WatchStatus::Conflict)
+                        }
+                    }
+                }
+            } else if current_b_value.is_some() {
+                match stored_clause.some_useful_idx(val, Some(watched_a_literal.v_id)) {
+                    Some((idx, WatchUpdateEnum::Witness)) => {
+                        return (None, Some(idx), WatchStatus::Satisfied);
+                    }
+                    Some((idx, WatchUpdateEnum::OtherNone(new_a))) => {
+                        if current_b_value.is_some() {
+                            return (Some(new_a), Some(idx), WatchStatus::None);
+                        } else {
+                            return (None, Some(idx), WatchStatus::None);
+                        }
+                    }
+                    Some((idx, WatchUpdateEnum::OnlyNone)) => {
+                        if current_b_value.is_some() {
+                            return (None, Some(idx), WatchStatus::Implication);
+                        } else {
+                            return (None, Some(idx), WatchStatus::None);
+                        }
+                    }
+                    None => {
+                        if current_b_value.is_none() {
+                            return (None, None, WatchStatus::Implication);
+                        } else {
+                            return (None, None, WatchStatus::Conflict);
+                        }
+                    }
+                }
+            } else {
+                return (None, None, WatchStatus::None);
             }
         }
     }
