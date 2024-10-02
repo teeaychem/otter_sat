@@ -4,11 +4,11 @@ use crate::structures::solve::{
         config_exploration_priority, config_glue_strength, config_show_assignment, config_show_core,
     },
     mutation::process_watches,
-    ExplorationPriority, Solve, SolveError, SolveOk, SolveStats,
+    ExplorationPriority, Solve, SolveStatus, SolveStats,
 };
 use crate::structures::{
-    ClauseStatus, Level, Literal, LiteralSource, StoredClause, Valuation, ValuationError, Variable,
-    WatchStatus,
+    ClauseStatus, Level, Literal, LiteralSource, StoredClause, Valuation, ValuationStatus,
+    Variable, WatchStatus,
 };
 use std::rc::Rc;
 
@@ -122,7 +122,7 @@ impl Solve<'_> {
             match conflicts {
                 Conflicts::No => {
                     if let Some(available_v_id) = self.most_active_none(&self.valuation) {
-                        if self.time_to_reduce() {
+                        if self.is_it_time_to_reduce() {
                             let this_reduction_time = std::time::Instant::now();
                             reduce(self);
                             stats.reduction_time += this_reduction_time.elapsed();
@@ -171,29 +171,37 @@ impl Solve<'_> {
                 Conflicts::Single(stored_conflict) => {
                     self.watch_q.clear();
                     let this_unsat_time = std::time::Instant::now();
-                    let analysis_result = process_conflict_and_fix(self, &stored_conflict);
+                    self.notice_conflict(&stored_conflict);
+                    let analysis_result = self.attempt_fix(stored_conflict.clone());
                     stats.unsat_time += this_unsat_time.elapsed();
                     match analysis_result {
-                        false => {
+                        SolveStatus::NoSolution => {
                             result = SolveResult::Unsatisfiable;
                             break 'main_loop;
                         }
-                        true => {
+                        SolveStatus::AssertingClause | SolveStatus::Deduction(_) => {
                             stats.conflicts += 1;
                             continue 'main_loop;
                         }
+                        other => panic!("Unexpected {other:?} when attempting a fix"),
                     }
                 }
                 Conflicts::Multiple(conflict_vec) => {
                     self.watch_q.clear();
-                    if !conflict_vec.is_empty() {
-                        match process_conflicts_and_fixes(self, conflict_vec, &mut stats) {
-                            false => {
-                                result = SolveResult::Unsatisfiable;
-                                break 'main_loop;
-                            }
-                            true => (),
+                    let this_unsat_time = std::time::Instant::now();
+                    for conflict in &conflict_vec {
+                        self.notice_conflict(conflict);
+                        stats.conflicts += 1;
+                    }
+                    match self.attempt_fixes(conflict_vec) {
+                        SolveStatus::NoSolution => {
+                            result = SolveResult::Unsatisfiable;
+                            break 'main_loop;
                         }
+                        SolveStatus::AssertingClause | SolveStatus::Deduction(_) => {
+                            stats.unsat_time += this_unsat_time.elapsed();
+                        }
+                        other => panic!("Unexpected {other:?} when attempting a fix"),
                     }
                 }
             }
@@ -209,7 +217,11 @@ impl Solve<'_> {
                     );
                 }
             }
-            SolveResult::Unsatisfiable => {}
+            SolveResult::Unsatisfiable => {
+                if config_show_core() {
+                    self.core();
+                }
+            }
             SolveResult::Unknown => {}
         }
         (result, stats)
@@ -246,53 +258,6 @@ fn reduce(solve: &mut Solve) {
 }
 
 #[inline(always)]
-fn process_conflict_and_fix(solve: &mut Solve, stored_conflict: &Rc<StoredClause>) -> bool {
-    solve.notice_conflict(stored_conflict);
-
-    match solve.attempt_fix(stored_conflict.clone()) {
-        Err(SolveError::NoSolution) => {
-            if config_show_core() {
-                solve.core();
-            }
-            false
-        }
-        Ok(SolveOk::AssertingClause) | Ok(SolveOk::Deduction(_)) => true,
-        Ok(ok) => panic!("Unexpected ok {ok:?} when attempting a fix"),
-        Err(err) => panic!("Unexpected {err:?} when attempting a fix"),
-    }
-}
-
-#[inline(always)]
-fn process_conflicts_and_fixes(
-    solve: &mut Solve,
-    stored_conflicts: Vec<Rc<StoredClause>>,
-    stats: &mut SolveStats,
-) -> bool {
-    let this_unsat_time = std::time::Instant::now();
-    for conflict in &stored_conflicts {
-        solve.notice_conflict(conflict);
-        stats.conflicts += 1;
-    }
-
-    match solve.attempt_fixes(stored_conflicts) {
-        Err(SolveError::NoSolution) => {
-            if config_show_core() {
-                solve.core();
-            }
-            false
-        }
-        Ok(SolveOk::AssertingClause) | Ok(SolveOk::Deduction(_)) => {
-            stats.unsat_time += this_unsat_time.elapsed();
-            true
-        }
-        Ok(ok) => panic!("Unexpected {ok:?} when attempting a fix"),
-        Err(err) => {
-            panic!("Unexpected {err:?} when attempting a fix")
-        }
-    }
-}
-
-#[inline(always)]
 pub fn literal_update(
     literal: Literal,
     source: LiteralSource,
@@ -325,6 +290,7 @@ pub fn literal_update(
                         watch_status = status
                     };
                 }
+
                 for sc in 0..variables[literal.v_id].negative_occurrences().len() {
                     let stored_clause = variables[literal.v_id].negative_occurrences()[sc].clone();
                     let status = process_watches(valuation, variables, &stored_clause, literal);
@@ -336,7 +302,7 @@ pub fn literal_update(
                 watch_status
             }
         }
-        Err(ValuationError::Match) => match source {
+        Err(ValuationStatus::Match) => match source {
             LiteralSource::StoredClause(_) => {
                 // A literal may be implied by multiple clauses, so there's no need to panic
                 // rather, there's no need to do anything at all
@@ -347,9 +313,10 @@ pub fn literal_update(
                 panic!("Attempt to restate {} via {:?}", literal, source)
             }
         },
-        Err(ValuationError::Conflict) => {
+        Err(ValuationStatus::Conflict) => {
             log::error!("Conflict when updating {literal} via {:?}", source);
             panic!("Conflict when updating {literal} via {:?}", source);
         }
+        Err(_) => todo!(),
     }
 }
