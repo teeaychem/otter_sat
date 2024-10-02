@@ -43,6 +43,7 @@ impl Solve<'_> {
                 false => Conflicts::Multiple(vec![]),
             };
 
+            let this_implication_time = std::time::Instant::now();
             'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
                 let mut temprary_clause_vec: Vec<Rc<StoredClause>> = Vec::default();
                 macro_rules! swap_occurrence_vecs {
@@ -69,7 +70,6 @@ impl Solve<'_> {
                 for stored_clause in &temprary_clause_vec {
                     match stored_clause.watch_choices(&self.valuation) {
                         ClauseStatus::Entails(consequent) => {
-                            let this_implication_time = std::time::Instant::now();
                             match literal_update(
                                 consequent,
                                 LiteralSource::StoredClause(stored_clause.clone()),
@@ -92,8 +92,6 @@ impl Solve<'_> {
                                 },
                                 _ => {}
                             }
-
-                            stats.implication_time += this_implication_time.elapsed();
                         }
                         ClauseStatus::Conflict => {
                             match conflicts {
@@ -117,6 +115,7 @@ impl Solve<'_> {
                 }
                 swap_occurrence_vecs!();
             }
+            stats.implication_time += this_implication_time.elapsed();
 
             match conflicts {
                 Conflicts::No => {
@@ -197,11 +196,10 @@ impl Solve<'_> {
                             result = SolveResult::Unsatisfiable;
                             break 'main_loop;
                         }
-                        SolveStatus::AssertingClause | SolveStatus::Deduction(_) => {
-                            stats.unsat_time += this_unsat_time.elapsed();
-                        }
+                        SolveStatus::AssertingClause | SolveStatus::Deduction(_) => {}
                         other => panic!("Unexpected {other:?} when attempting a fix"),
                     }
+                    stats.unsat_time += this_unsat_time.elapsed();
                 }
             }
         }
@@ -282,20 +280,30 @@ pub fn literal_update(
             {
                 let mut watch_status = WatchStatus::None;
 
-                for sc in 0..variables[literal.v_id].positive_occurrences().len() {
-                    let stored_clause = variables[literal.v_id].positive_occurrences()[sc].clone();
-                    let status = process_watches(valuation, variables, &stored_clause, literal);
-                    if watch_status != WatchStatus::Conflict {
-                        watch_status = status
-                    };
-                }
-
-                for sc in 0..variables[literal.v_id].negative_occurrences().len() {
-                    let stored_clause = variables[literal.v_id].negative_occurrences()[sc].clone();
-                    let status = process_watches(valuation, variables, &stored_clause, literal);
-                    if watch_status != WatchStatus::Conflict {
-                        watch_status = status
-                    };
+                // do not split when using suggest_watch_update in process_watches
+                match literal.polarity {
+                    true => {
+                        for sc in 0..variables[literal.v_id].negative_occurrences().len() {
+                            let stored_clause =
+                                variables[literal.v_id].negative_occurrences()[sc].clone();
+                            let status =
+                                process_watches(valuation, variables, &stored_clause, literal);
+                            if watch_status != WatchStatus::Conflict {
+                                watch_status = status
+                            };
+                        }
+                    }
+                    false => {
+                        for sc in 0..variables[literal.v_id].positive_occurrences().len() {
+                            let stored_clause =
+                                variables[literal.v_id].positive_occurrences()[sc].clone();
+                            let status =
+                                process_watches(valuation, variables, &stored_clause, literal);
+                            if watch_status != WatchStatus::Conflict {
+                                watch_status = status
+                            };
+                        }
+                    }
                 }
 
                 watch_status
