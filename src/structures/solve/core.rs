@@ -1,29 +1,14 @@
 use crate::structures::{
-    solve::{solves::literal_update, ExplorationPriority, config::config_exploration_priority},
+    solve::{config::config_exploration_priority, solves::literal_update, ExplorationPriority},
     stored_clause::initialise_watches_for,
     Clause, ClauseId, ClauseSource, ClauseStatus, Formula, Level, LevelIndex, Literal,
-    LiteralError, LiteralSource, StoredClause, Valuation, ValuationVec, Variable, VariableId,
-    WatchStatus,
+    LiteralSource, StoredClause, Valuation, ValuationVec, Variable, VariableId, WatchStatus,
 };
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
 use std::collections::VecDeque;
 use std::rc::Rc;
-
-pub struct SolveStatus {
-    pub implications: Vec<(Rc<StoredClause>, Literal)>,
-    pub conflict_clauses: Vec<Rc<StoredClause>>,
-}
-
-impl SolveStatus {
-    pub fn new() -> Self {
-        SolveStatus {
-            implications: vec![],
-            conflict_clauses: vec![],
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct Solve<'formula> {
@@ -40,19 +25,10 @@ pub struct Solve<'formula> {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum SolveOk {
+pub enum SolveStatus {
     AssertingClause,
     Deduction(Literal),
     Backtracked,
-}
-
-#[derive(Debug)]
-pub enum SolveError {
-    Literal(LiteralError),
-    // Clause(ClauseError),
-    OutOfBounds,
-    UnsatClause(Rc<StoredClause>),
-    Conflict(Rc<StoredClause>, Literal),
     NoSolution,
 }
 
@@ -213,7 +189,7 @@ impl Solve<'_> {
             .map(|(a, _)| a)
     }
 
-    pub fn time_to_reduce(&self) -> bool {
+    pub fn is_it_time_to_reduce(&self) -> bool {
         self.conflcits_since_last_forget > (1000 + 300 * self.forgets)
     }
 }

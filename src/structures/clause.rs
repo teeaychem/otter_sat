@@ -176,27 +176,31 @@ impl Clause for ClauseVec {
         if self.len() < 64 {
             self.iter().find(|l| l.v_id == id).copied()
         } else {
-            let mut min = 0;
-            let mut max = self.len() - 1;
-            let mut midpoint;
-            let mut attempt;
-            loop {
-                midpoint = min + ((max - min) / 2);
-                attempt = self[midpoint];
-                if max - min == 0 {
-                    match attempt.v_id == id {
-                        true => return Some(attempt),
-                        false => return None,
-                    }
-                }
-                match attempt.v_id.cmp(&id) {
-                    std::cmp::Ordering::Less => min = midpoint + 1,
-                    std::cmp::Ordering::Equal => {
-                        return Some(attempt);
-                    }
-                    std::cmp::Ordering::Greater => max = midpoint - 1,
-                }
+            find_literal_by_id_binary(self, id)
+        }
+    }
+}
+
+fn find_literal_by_id_binary(clause: &[Literal], id: VariableId) -> Option<Literal> {
+    let mut min = 0;
+    let mut max = clause.len() - 1;
+    let mut midpoint;
+    let mut attempt;
+    loop {
+        midpoint = min + ((max - min) / 2);
+        attempt = clause[midpoint];
+        if max - min == 0 {
+            match attempt.v_id == id {
+                true => return Some(attempt),
+                false => return None,
             }
+        }
+        match attempt.v_id.cmp(&id) {
+            std::cmp::Ordering::Less => min = midpoint + 1,
+            std::cmp::Ordering::Equal => {
+                return Some(attempt);
+            }
+            std::cmp::Ordering::Greater => max = midpoint - 1,
         }
     }
 }
@@ -261,21 +265,21 @@ mod tests {
         ];
         assert_eq!(
             Some(Literal::new(1, true)),
-            test_clause.find_literal_by_id(1)
+            find_literal_by_id_binary(&test_clause, 1)
         );
         assert_eq!(
             Some(Literal::new(2, false)),
-            test_clause.find_literal_by_id(2)
+            find_literal_by_id_binary(&test_clause, 2)
         );
         assert_eq!(
             Some(Literal::new(4, false)),
             test_clause.find_literal_by_id(4)
         );
-        assert_eq!(None, test_clause.find_literal_by_id(5));
-        assert_eq!(None, test_clause.find_literal_by_id(6));
+        assert_eq!(None, find_literal_by_id_binary(&test_clause, 5));
+        assert_eq!(None, find_literal_by_id_binary(&test_clause, 6));
         assert_eq!(
             Some(Literal::new(7, false)),
-            test_clause.find_literal_by_id(7)
+            find_literal_by_id_binary(&test_clause, 7)
         );
     }
 }

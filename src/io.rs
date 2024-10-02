@@ -1,13 +1,12 @@
 use std::char;
 
-use crate::structures::{solve::SolveError, Formula};
+use crate::structures::Formula;
 
 #[derive(Debug)]
 pub enum IOError {
     ParseFailure,
     PrefaceLength,
     PrefaceFormat,
-    AddClauseFailure(SolveError),
 }
 
 impl Formula {
@@ -23,10 +22,7 @@ impl Formula {
                     reading_literal = true
                 } else if ch == '0' {
                     if !reading_comment {
-                        match the_solve.add_clause(&string[from..to]) {
-                            Ok(()) => {}
-                            Err(e) => return Err(IOError::AddClauseFailure(e)),
-                        }
+                        the_solve.add_clause(&string[from..to])
                     }
                     from = to + 1;
                 }

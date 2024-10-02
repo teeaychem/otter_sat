@@ -2,7 +2,7 @@ use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
 use crate::structures::solve::{
     config::{config_exploration_priority, config_stopping_criteria},
     solves::literal_update,
-    ExplorationPriority, Solve, SolveError, SolveOk,
+    ExplorationPriority, Solve, SolveStatus,
 };
 use crate::structures::{
     solve::StoppingCriteria, stored_clause::initialise_watches_for, Clause, ClauseSource, Literal,
@@ -43,14 +43,14 @@ impl Solve<'_> {
     pub fn attempt_fix(
         &mut self,
         conflict_clause: Rc<StoredClause>,
-    ) -> Result<SolveOk, SolveError> {
+    ) -> SolveStatus {
         let the_id = conflict_clause.id();
         log::trace!(
             "Attempt to fix on clause {the_id} at level {}",
             self.current_level().index()
         );
         match self.current_level().index() {
-            0 => Err(SolveError::NoSolution),
+            0 => SolveStatus::NoSolution,
             _ => match self.conflict_analysis(conflict_clause) {
                 AnalysisResult::AssertingClause(asserting_clause, assertion) => {
                     let backjump_level = self.decision_level(&asserting_clause);
@@ -92,7 +92,7 @@ impl Solve<'_> {
                         _ => {}
                     };
 
-                    Ok(SolveOk::AssertingClause)
+                    SolveStatus::AssertingClause
                 }
             },
         }
@@ -101,7 +101,7 @@ impl Solve<'_> {
     pub fn attempt_fixes(
         &mut self,
         conflict_clauses: Vec<Rc<StoredClause>>,
-    ) -> Result<SolveOk, SolveError> {
+    ) -> SolveStatus {
         let mut analysis_results = vec![];
 
         let mut the_jump = if crate::CONFIG_MULTI_JUMP_MAX {
@@ -132,7 +132,7 @@ impl Solve<'_> {
             self.backjump(the_jump);
         }
 
-        Ok(SolveOk::AssertingClause)
+        SolveStatus::AssertingClause
     }
 
     /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision

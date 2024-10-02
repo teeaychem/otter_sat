@@ -11,9 +11,9 @@ pub trait Valuation {
 
     fn of_v_id(&self, v_id: VariableId) -> Option<bool>;
 
-    fn check_literal(&self, literal: Literal) -> Result<ValuationOk, ValuationError>;
+    fn check_literal(&self, literal: Literal) -> ValuationStatus;
 
-    fn update_value(&mut self, literal: Literal) -> Result<(), ValuationError>;
+    fn update_value(&mut self, literal: Literal) -> Result<(), ValuationStatus>;
 
     fn clear_v_id(&mut self, v_id: VariableId);
 
@@ -24,14 +24,10 @@ pub trait Valuation {
     fn values(&self) -> impl Iterator<Item = Option<bool>>;
 }
 
-pub enum ValuationError {
-    Match,
-    Conflict,
-}
-
-pub enum ValuationOk {
+pub enum ValuationStatus {
     NotSet,
     Match,
+    Conflict,
 }
 
 impl Valuation for ValuationVec {
@@ -75,19 +71,19 @@ impl Valuation for ValuationVec {
         }
     }
 
-    fn check_literal(&self, literal: Literal) -> Result<ValuationOk, ValuationError> {
+    fn check_literal(&self, literal: Literal) -> ValuationStatus {
         match self[literal.v_id] {
-            Some(already_set) if already_set == literal.polarity => Ok(ValuationOk::Match),
-            Some(_already_set) => Err(ValuationError::Conflict),
-            None => Ok(ValuationOk::NotSet),
+            Some(already_set) if already_set == literal.polarity => ValuationStatus::Match,
+            Some(_already_set) => ValuationStatus::Conflict,
+            None => ValuationStatus::NotSet,
         }
     }
 
-    fn update_value(&mut self, literal: Literal) -> Result<(), ValuationError> {
+    fn update_value(&mut self, literal: Literal) -> Result<(), ValuationStatus> {
         log::trace!("Set literal: {}", literal);
         match self[literal.v_id] {
-            Some(value) if value != literal.polarity => Err(ValuationError::Conflict),
-            Some(_value) => Err(ValuationError::Match),
+            Some(value) if value != literal.polarity => Err(ValuationStatus::Conflict),
+            Some(_value) => Err(ValuationStatus::Match),
             None => {
                 self[literal.v_id] = Some(literal.polarity);
                 Ok(())

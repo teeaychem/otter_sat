@@ -1,6 +1,4 @@
-use crate::structures::{
-    solve::SolveError, Clause, ClauseVec, Literal, Variable, VariableId,
-};
+use crate::structures::{Clause, ClauseVec, Literal, Variable, VariableId};
 
 #[derive(Debug, Clone)]
 pub struct Formula {
@@ -20,16 +18,9 @@ impl Formula {
         self.clauses.iter()
     }
 
-    pub fn add_clause(&mut self, string: &str) -> Result<(), SolveError> {
-        match self.clause_vec_from_string(string) {
-            Ok(a_clause) => {
-                self.clauses.push(a_clause);
-                Ok(())
-            }
-            Err(e) => {
-                panic!("{e:?}");
-            },
-        }
+    pub fn add_clause(&mut self, string: &str) {
+        let clause = self.clause_vec_from_string(string);
+        self.clauses.push(clause);
     }
 
     pub fn vars(&self) -> &[Variable] {
@@ -47,20 +38,16 @@ impl Formula {
         }
     }
 
-    fn clause_vec_from_string(&mut self, string: &str) -> Result<Vec<Literal>, SolveError> {
+    fn clause_vec_from_string(&mut self, string: &str) -> ClauseVec {
         let string_lterals = string.split_whitespace();
         let mut the_clause = vec![];
         for string_literal in string_lterals {
-            match Literal::from_string(string_literal, &mut self.variables) {
-                Ok(made) => the_clause.push(made),
-                Err(e) => {
-                    panic!("{e:?}");
-                }
-            };
+            let the_literal = Literal::from_string(string_literal, &mut self.variables);
+            the_clause.push(the_literal)
         }
         the_clause.sort_unstable();
         the_clause.dedup();
-        Ok(the_clause)
+        the_clause
     }
 }
 
