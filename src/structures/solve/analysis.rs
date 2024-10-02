@@ -85,11 +85,11 @@ impl Solve<'_> {
                         &mut self.variables,
                         &mut self.valuation,
                     ) {
-                        WatchStatus::Implication => match config_exploration_priority() {
+                        WatchStatus::NewImplication | WatchStatus::AlreadyImplication => match config_exploration_priority() {
                             ExplorationPriority::Implication => self.watch_q.push_front(assertion),
                             _ => self.watch_q.push_back(assertion),
                         },
-                        WatchStatus::Conflict => match config_exploration_priority() {
+                        WatchStatus::AlreadyConflict => match config_exploration_priority() {
                             ExplorationPriority::Conflict => self.watch_q.push_front(assertion),
                             _ => self.watch_q.push_back(assertion),
                         },

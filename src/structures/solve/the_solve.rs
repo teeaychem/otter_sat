@@ -8,7 +8,7 @@ use crate::structures::{
             config_exploration_priority, config_glue_strength, config_show_assignment,
             config_show_core, ExplorationPriority,
         },
-        core::process_watches,
+        core::process_watches_two,
         stats::SolveStats,
         Solve, {SolveResult, SolveStatus},
     },
@@ -77,14 +77,16 @@ impl Solve<'_> {
                                 &mut self.variables,
                                 &mut self.valuation,
                             ) {
-                                WatchStatus::Implication => match exploration_priority {
-                                    ExplorationPriority::Implication => {
-                                        self.watch_q.push_front(consequent)
+                                WatchStatus::NewImplication | WatchStatus::AlreadyImplication => {
+                                    match exploration_priority {
+                                        ExplorationPriority::Implication => {
+                                            self.watch_q.push_front(consequent)
+                                        }
+                                        _ => self.watch_q.push_back(consequent),
                                     }
-                                    _ => self.watch_q.push_back(consequent),
-                                },
+                                }
 
-                                WatchStatus::Conflict => match exploration_priority {
+                                WatchStatus::AlreadyConflict => match exploration_priority {
                                     ExplorationPriority::Conflict => {
                                         self.watch_q.push_front(consequent)
                                     }
@@ -142,14 +144,16 @@ impl Solve<'_> {
                             &mut self.variables,
                             &mut self.valuation,
                         ) {
-                            WatchStatus::Implication => match exploration_priority {
-                                ExplorationPriority::Implication => {
-                                    self.watch_q.push_front(the_literal)
+                            WatchStatus::NewImplication | WatchStatus::AlreadyImplication => {
+                                match exploration_priority {
+                                    ExplorationPriority::Implication => {
+                                        self.watch_q.push_front(the_literal)
+                                    }
+                                    _ => self.watch_q.push_back(the_literal),
                                 }
-                                _ => self.watch_q.push_back(the_literal),
-                            },
+                            }
 
-                            WatchStatus::Conflict => match exploration_priority {
+                            WatchStatus::AlreadyConflict => match exploration_priority {
                                 ExplorationPriority::Conflict => {
                                     self.watch_q.push_front(the_literal)
                                 }
@@ -278,15 +282,13 @@ pub fn literal_update(
 
             // and, process whether any change to the watch literals is required, given an update has happened
             {
-                let mut watch_status = WatchStatus::None;
+                let mut watch_status = WatchStatus::TwoNone;
 
                 // do not split when using suggest_watch_update in process_watches
                 match literal.polarity {
                     true => {
                         let mut index = 0;
                         loop {
-                            let before_length =
-                                variables[literal.v_id].negative_watch_occurrences.len();
                             if index >= variables[literal.v_id].negative_watch_occurrences.len() {
                                 break;
                             } else {
@@ -294,20 +296,18 @@ pub fn literal_update(
                                     .negative_watch_occurrences[index]
                                     .clone();
                                 let status =
-                                    process_watches(valuation, variables, &stored_clause, literal);
+                                    process_watches_two(valuation, variables, &stored_clause);
                                 match status {
-                                    WatchStatus::None => {}
-                                    _ => {
-                                        if watch_status != WatchStatus::Conflict {
-                                            watch_status = status
-                                        };
+                                    WatchStatus::AlreadyImplication
+                                    | WatchStatus::AlreadySatisfied => {
+                                        index += 1;
                                     }
+                                    WatchStatus::AlreadyConflict => {
+                                        watch_status = status;
+                                        index += 1
+                                    }
+                                    _ => {}
                                 };
-                            }
-                            let current_legnth =
-                                variables[literal.v_id].negative_watch_occurrences.len();
-                            if before_length == current_legnth {
-                                index += 1;
                             }
                         }
                     }
@@ -323,11 +323,11 @@ pub fn literal_update(
                                     .positive_watch_occurrences[index]
                                     .clone();
                                 let status =
-                                    process_watches(valuation, variables, &stored_clause, literal);
+                                    process_watches_two(valuation, variables, &stored_clause);
                                 match status {
-                                    WatchStatus::None => {}
+                                    WatchStatus::TwoNone => {}
                                     _ => {
-                                        if watch_status != WatchStatus::Conflict {
+                                        if watch_status != WatchStatus::AlreadyConflict {
                                             watch_status = status
                                         };
                                     }
@@ -349,7 +349,7 @@ pub fn literal_update(
             LiteralSource::StoredClause(_) => {
                 // A literal may be implied by multiple clauses, so there's no need to panic
                 // rather, there's no need to do anything at all
-                WatchStatus::None
+                WatchStatus::TwoNone
             }
             _ => {
                 log::error!("Attempt to restate {} via {:?}", literal, source);
