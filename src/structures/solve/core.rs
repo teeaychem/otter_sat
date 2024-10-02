@@ -1,5 +1,5 @@
 use crate::structures::{
-    solve::{solves::literal_update, ConflictPriority, SolveConfig},
+    solve::{solves::literal_update, ExplorationPriority, SolveConfig},
     stored_clause::initialise_watches_for,
     Clause, ClauseId, ClauseSource, ClauseStatus, Formula, Level, LevelIndex, Literal,
     LiteralError, LiteralSource, StoredClause, Valuation, ValuationVec, Variable, VariableId,
@@ -138,12 +138,11 @@ impl Solve<'_> {
                 &mut self.valuation,
             ) {
                 WatchStatus::Implication => match self.config.conflict_priority {
-                    ConflictPriority::Low => self.watch_q.push_front(the_literal),
+                    ExplorationPriority::Implication => self.watch_q.push_front(the_literal),
                     _ => self.watch_q.push_back(the_literal),
                 },
-
                 WatchStatus::Conflict => match self.config.conflict_priority {
-                    ConflictPriority::High => self.watch_q.push_front(the_literal),
+                    ExplorationPriority::Conflict => self.watch_q.push_front(the_literal),
                     _ => self.watch_q.push_back(the_literal),
                 },
                 _ => {}
@@ -159,12 +158,11 @@ impl Solve<'_> {
                 &mut self.valuation,
             ) {
                 WatchStatus::Implication => match self.config.conflict_priority {
-                    ConflictPriority::Low => self.watch_q.push_front(the_literal),
+                    ExplorationPriority::Implication => self.watch_q.push_front(the_literal),
                     _ => self.watch_q.push_back(the_literal),
                 },
-
                 WatchStatus::Conflict => match self.config.conflict_priority {
-                    ConflictPriority::High => self.watch_q.push_front(the_literal),
+                    ExplorationPriority::Conflict => self.watch_q.push_front(the_literal),
                     _ => self.watch_q.push_back(the_literal),
                 },
                 _ => {}
@@ -204,7 +202,7 @@ impl Solve<'_> {
         }
 
         for literal in stored_clauses.variables() {
-            self.variables[literal].increase_activity(1.0);
+            self.variables[literal].add_activity(1.0);
         }
     }
 
@@ -219,10 +217,6 @@ impl Solve<'_> {
 
     pub fn time_to_reduce(&self) -> bool {
         self.conflcits_since_last_forget > (1000 + 300 * self.forgets)
-    }
-
-    pub fn variables(&self) -> &[Variable] {
-        &self.variables
     }
 }
 

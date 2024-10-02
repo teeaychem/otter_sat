@@ -5,9 +5,9 @@ pub enum StoppingCriteria {
 }
 
 #[derive(Debug)]
-pub enum ConflictPriority {
-    High,
-    Low,
+pub enum ExplorationPriority {
+    Conflict,
+    Implication,
     Default
 }
 
@@ -22,5 +22,5 @@ pub struct SolveConfig {
     pub stopping_criteria: StoppingCriteria,
     pub break_on_first: bool,
     pub multi_jump_max: bool,
-    pub conflict_priority: ConflictPriority
+    pub conflict_priority: ExplorationPriority
 }

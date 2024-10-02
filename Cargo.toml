@@ -1,9 +1,9 @@
 [package]
-name = "vsat"
+name = "otter_sat"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.15", features = ["derive"] }
-log = { version = "0.4.22" }
+log = { version = "0.4.22", features = ["max_level_debug", "release_max_level_off"] }
 log4rs = { version = "1.3.0" }
