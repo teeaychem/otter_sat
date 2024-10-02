@@ -1,8 +1,8 @@
 use crate::structures::{
     clause::{
         stored_clause::{
-            initialise_watches_for, suggest_watch_update_two, ClauseSource, ClauseStatus,
-            StoredClause, WatchStatus,
+            initialise_watches_for, suggest_watch_update, suggest_watch_update_two, ClauseSource,
+            ClauseStatus, StoredClause, WatchStatus,
         },
         Clause, ClauseId,
     },
@@ -102,11 +102,13 @@ impl Solve<'_> {
                 &mut self.variables,
                 &mut self.valuation,
             ) {
-                WatchStatus::Implication => match config_exploration_priority() {
-                    ExplorationPriority::Implication => self.watch_q.push_front(the_literal),
-                    _ => self.watch_q.push_back(the_literal),
-                },
-                WatchStatus::Conflict => match config_exploration_priority() {
+                WatchStatus::NewImplication | WatchStatus::AlreadyImplication => {
+                    match config_exploration_priority() {
+                        ExplorationPriority::Implication => self.watch_q.push_front(the_literal),
+                        _ => self.watch_q.push_back(the_literal),
+                    }
+                }
+                WatchStatus::AlreadyConflict => match config_exploration_priority() {
                     ExplorationPriority::Conflict => self.watch_q.push_front(the_literal),
                     _ => self.watch_q.push_back(the_literal),
                 },
@@ -122,11 +124,13 @@ impl Solve<'_> {
                 &mut self.variables,
                 &mut self.valuation,
             ) {
-                WatchStatus::Implication => match config_exploration_priority() {
-                    ExplorationPriority::Implication => self.watch_q.push_front(the_literal),
-                    _ => self.watch_q.push_back(the_literal),
-                },
-                WatchStatus::Conflict => match config_exploration_priority() {
+                WatchStatus::NewImplication | WatchStatus::AlreadyImplication => {
+                    match config_exploration_priority() {
+                        ExplorationPriority::Implication => self.watch_q.push_front(the_literal),
+                        _ => self.watch_q.push_back(the_literal),
+                    }
+                }
+                WatchStatus::AlreadyConflict => match config_exploration_priority() {
                     ExplorationPriority::Conflict => self.watch_q.push_front(the_literal),
                     _ => self.watch_q.push_back(the_literal),
                 },
@@ -281,6 +285,30 @@ pub fn process_watches(
     variables: &mut [Variable],
     stored_clause: &Rc<StoredClause>,
     lit: Literal,
+) -> WatchStatus {
+    let (a_update, b_update, watch_status) =
+        suggest_watch_update(stored_clause, valuation, lit.v_id, variables);
+
+    match (a_update, b_update) {
+        (Some(a), Some(b)) => {
+            switch_watch_a(variables, stored_clause, a);
+            switch_watch_b(variables, stored_clause, b);
+        }
+        (Some(a), None) => {
+            switch_watch_a(variables, stored_clause, a);
+        }
+        (None, Some(b)) => {
+            switch_watch_b(variables, stored_clause, b);
+        }
+        (None, None) => (),
+    };
+    watch_status
+}
+
+pub fn process_watches_two(
+    valuation: &impl Valuation,
+    variables: &mut [Variable],
+    stored_clause: &Rc<StoredClause>,
 ) -> WatchStatus {
     let (a_update, b_update, watch_status) =
         // suggest_watch_update(stored_clause, valuation, lit.v_id, variables);
