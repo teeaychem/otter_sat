@@ -283,65 +283,85 @@ pub fn literal_update(
             // and, process whether any change to the watch literals is required, given an update has happened
             {
                 let mut watch_status = WatchStatus::TwoNone;
-
                 // do not split when using suggest_watch_update in process_watches
                 match literal.polarity {
                     true => {
                         let mut index = 0;
-                        loop {
-                            if index >= variables[literal.v_id].negative_watch_occurrences.len() {
-                                break;
-                            } else {
-                                let stored_clause = variables[literal.v_id]
-                                    .negative_watch_occurrences[index]
-                                    .clone();
-                                let status =
-                                    process_watches_two(valuation, variables, &stored_clause);
-                                match status {
-                                    WatchStatus::AlreadyImplication
-                                    | WatchStatus::AlreadySatisfied => {
-                                        index += 1;
+                        while index < variables[literal.v_id].negative_watch_occurrences.len() {
+                            match process_watches_two(
+                                valuation,
+                                variables,
+                                &variables[literal.v_id].negative_watch_occurrences[index].clone(),
+                            ) {
+                                WatchStatus::AlreadySatisfied => {
+                                    index += 1;
+                                    if watch_status != WatchStatus::AlreadyConflict {
+                                        watch_status = WatchStatus::AlreadySatisfied
                                     }
-                                    WatchStatus::AlreadyConflict => {
-                                        watch_status = status;
-                                        index += 1
+                                }
+                                WatchStatus::AlreadyImplication => {
+                                    index += 1;
+                                    if watch_status != WatchStatus::AlreadyConflict {
+                                        watch_status = WatchStatus::AlreadyImplication
                                     }
-                                    _ => {}
-                                };
-                            }
+                                }
+                                WatchStatus::AlreadyConflict => {
+                                    watch_status = WatchStatus::AlreadyConflict;
+                                    index += 1
+                                }
+                                WatchStatus::NewImplication => {
+                                    if watch_status != WatchStatus::AlreadyConflict {
+                                        watch_status = WatchStatus::NewImplication
+                                    }
+                                }
+                                WatchStatus::NewSatisfied => {
+                                    if watch_status != WatchStatus::AlreadyConflict {
+                                        watch_status = WatchStatus::NewSatisfied
+                                    }
+                                }
+                                _ => {}
+                            };
                         }
                     }
                     false => {
                         let mut index = 0;
-                        loop {
-                            let before_length =
-                                variables[literal.v_id].positive_watch_occurrences.len();
-                            if index >= variables[literal.v_id].positive_watch_occurrences.len() {
-                                break;
-                            } else {
-                                let stored_clause = variables[literal.v_id]
-                                    .positive_watch_occurrences[index]
-                                    .clone();
-                                let status =
-                                    process_watches_two(valuation, variables, &stored_clause);
-                                match status {
-                                    WatchStatus::TwoNone => {}
-                                    _ => {
-                                        if watch_status != WatchStatus::AlreadyConflict {
-                                            watch_status = status
-                                        };
+                        while index < variables[literal.v_id].positive_watch_occurrences.len() {
+                            match process_watches_two(
+                                valuation,
+                                variables,
+                                &variables[literal.v_id].positive_watch_occurrences[index].clone(),
+                            ) {
+                                WatchStatus::AlreadySatisfied => {
+                                    index += 1;
+                                    if watch_status != WatchStatus::AlreadyConflict {
+                                        watch_status = WatchStatus::AlreadySatisfied
                                     }
-                                };
-                            }
-                            let current_legnth =
-                                variables[literal.v_id].positive_watch_occurrences.len();
-                            if before_length == current_legnth {
-                                index += 1;
-                            }
+                                }
+                                WatchStatus::AlreadyImplication => {
+                                    index += 1;
+                                    if watch_status != WatchStatus::AlreadyConflict {
+                                        watch_status = WatchStatus::AlreadyImplication
+                                    }
+                                }
+                                WatchStatus::AlreadyConflict => {
+                                    watch_status = WatchStatus::AlreadyConflict;
+                                    index += 1
+                                }
+                                WatchStatus::NewImplication => {
+                                    if watch_status != WatchStatus::AlreadyConflict {
+                                        watch_status = WatchStatus::NewImplication
+                                    }
+                                }
+                                WatchStatus::NewSatisfied => {
+                                    if watch_status != WatchStatus::AlreadyConflict {
+                                        watch_status = WatchStatus::NewSatisfied
+                                    }
+                                }
+                                _ => {}
+                            };
                         }
                     }
                 }
-
                 watch_status
             }
         }
