@@ -1,12 +1,18 @@
 use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
-use crate::structures::solve::{
-    config::{config_exploration_priority, config_stopping_criteria},
-    solves::literal_update,
-    ExplorationPriority, Solve, SolveStatus,
-};
 use crate::structures::{
-    solve::StoppingCriteria, stored_clause::initialise_watches_for, Clause, ClauseSource, Literal,
-    LiteralSource, StoredClause, WatchStatus,
+    clause::{
+        stored_clause::{initialise_watches_for, ClauseSource, StoredClause, WatchStatus},
+        Clause,
+    },
+    literal::{Literal, LiteralSource},
+    solve::{
+        config::{
+            config_exploration_priority, config_stopping_criteria, ExplorationPriority,
+            StoppingCriteria,
+        },
+        the_solve::literal_update,
+        Solve, SolveStatus,
+    },
 };
 
 use std::collections::{BTreeSet, VecDeque};
@@ -40,10 +46,7 @@ impl Solve<'_> {
         }
     }
 
-    pub fn attempt_fix(
-        &mut self,
-        conflict_clause: Rc<StoredClause>,
-    ) -> SolveStatus {
+    pub fn attempt_fix(&mut self, conflict_clause: Rc<StoredClause>) -> SolveStatus {
         let the_id = conflict_clause.id();
         log::trace!(
             "Attempt to fix on clause {the_id} at level {}",
@@ -98,10 +101,7 @@ impl Solve<'_> {
         }
     }
 
-    pub fn attempt_fixes(
-        &mut self,
-        conflict_clauses: Vec<Rc<StoredClause>>,
-    ) -> SolveStatus {
+    pub fn attempt_fixes(&mut self, conflict_clauses: Vec<Rc<StoredClause>>) -> SolveStatus {
         let mut analysis_results = vec![];
 
         let mut the_jump = if crate::CONFIG_MULTI_JUMP_MAX {

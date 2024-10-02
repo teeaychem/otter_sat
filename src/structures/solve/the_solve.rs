@@ -1,22 +1,21 @@
 use crate::procedures::hobson_choices;
-use crate::structures::solve::{
-    config::{
-        config_exploration_priority, config_glue_strength, config_show_assignment, config_show_core,
-    },
-    mutation::process_watches,
-    ExplorationPriority, Solve, SolveStatus, SolveStats,
-};
 use crate::structures::{
-    ClauseStatus, Level, Literal, LiteralSource, StoredClause, Valuation, ValuationStatus,
-    Variable, WatchStatus,
+    clause::stored_clause::{ClauseStatus, StoredClause, WatchStatus},
+    level::Level,
+    literal::{Literal, LiteralSource},
+    solve::{
+        config::{
+            config_exploration_priority, config_glue_strength, config_show_assignment,
+            config_show_core, ExplorationPriority,
+        },
+        core::process_watches,
+        stats::SolveStats,
+        Solve, {SolveResult, SolveStatus},
+    },
+    valuation::{Valuation, ValuationStatus},
+    variable::Variable,
 };
 use std::rc::Rc;
-
-pub enum SolveResult {
-    Satisfiable,
-    Unsatisfiable,
-    Unknown,
-}
 
 #[derive(PartialEq)]
 enum Conflicts {
