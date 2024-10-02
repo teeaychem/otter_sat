@@ -1,8 +1,8 @@
 use crate::structures::{
     clause::{
         stored_clause::{
-            initialise_watches_for, suggest_watch_update, ClauseSource, ClauseStatus, StoredClause,
-            WatchStatus,
+            initialise_watches_for, suggest_watch_update_two, ClauseSource, ClauseStatus,
+            StoredClause, WatchStatus,
         },
         Clause, ClauseId,
     },
@@ -283,9 +283,14 @@ pub fn process_watches(
     lit: Literal,
 ) -> WatchStatus {
     let (a_update, b_update, watch_status) =
-        suggest_watch_update(stored_clause, valuation, lit.v_id, variables);
+        // suggest_watch_update(stored_clause, valuation, lit.v_id, variables);
+        suggest_watch_update_two(stored_clause, valuation);
 
     match (a_update, b_update) {
+        (Some(a), Some(b)) => {
+            switch_watch_a(variables, stored_clause, a);
+            switch_watch_b(variables, stored_clause, b);
+        }
         (Some(a), None) => {
             switch_watch_a(variables, stored_clause, a);
         }
@@ -293,7 +298,6 @@ pub fn process_watches(
             switch_watch_b(variables, stored_clause, b);
         }
         (None, None) => (),
-        _ => panic!("Unknown watch update"),
     };
     watch_status
 }
