@@ -1,6 +1,10 @@
 use crate::procedures::hobson_choices;
 use crate::structures::solve::{
-    mutation::process_watches, ExplorationPriority, Solve, SolveError, SolveOk, SolveStats,
+    config::{
+        config_exploration_priority, config_glue_strength, config_show_assignment, config_show_core,
+    },
+    mutation::process_watches,
+    ExplorationPriority, Solve, SolveError, SolveOk, SolveStats,
 };
 use crate::structures::{
     ClauseStatus, Level, Literal, LiteralSource, StoredClause, Valuation, ValuationError, Variable,
@@ -24,6 +28,7 @@ enum Conflicts {
 impl Solve<'_> {
     pub fn implication_solve(&mut self) -> (SolveResult, SolveStats) {
         let this_total_time = std::time::Instant::now();
+        let exploration_priority = config_exploration_priority();
 
         let mut stats = SolveStats::new();
 
@@ -34,7 +39,7 @@ impl Solve<'_> {
         'main_loop: loop {
             stats.iterations += 1;
 
-            let mut conflicts = match self.config.break_on_first {
+            let mut conflicts = match crate::CONFIG_BREAK_ON_FIRST {
                 true => Conflicts::No,
                 false => Conflicts::Multiple(vec![]),
             };
@@ -73,13 +78,17 @@ impl Solve<'_> {
                                 &mut self.variables,
                                 &mut self.valuation,
                             ) {
-                                WatchStatus::Implication => match self.config.conflict_priority {
-                                    ExplorationPriority::Implication => self.watch_q.push_front(consequent),
+                                WatchStatus::Implication => match exploration_priority {
+                                    ExplorationPriority::Implication => {
+                                        self.watch_q.push_front(consequent)
+                                    }
                                     _ => self.watch_q.push_back(consequent),
                                 },
 
-                                WatchStatus::Conflict => match self.config.conflict_priority {
-                                    ExplorationPriority::Conflict => self.watch_q.push_front(consequent),
+                                WatchStatus::Conflict => match exploration_priority {
+                                    ExplorationPriority::Conflict => {
+                                        self.watch_q.push_front(consequent)
+                                    }
                                     _ => self.watch_q.push_back(consequent),
                                 },
                                 _ => {}
@@ -95,7 +104,7 @@ impl Solve<'_> {
                                 Conflicts::Multiple(ref mut vec) => vec.push(stored_clause.clone()),
                                 Conflicts::Single(_) => panic!("Conflict already set"),
                             };
-                            match self.config.break_on_first {
+                            match crate::CONFIG_BREAK_ON_FIRST {
                                 true => {
                                     swap_occurrence_vecs!();
                                     break 'propagation_loop;
@@ -135,13 +144,17 @@ impl Solve<'_> {
                             &mut self.variables,
                             &mut self.valuation,
                         ) {
-                            WatchStatus::Implication => match self.config.conflict_priority {
-                                ExplorationPriority::Implication => self.watch_q.push_front(the_literal),
+                            WatchStatus::Implication => match exploration_priority {
+                                ExplorationPriority::Implication => {
+                                    self.watch_q.push_front(the_literal)
+                                }
                                 _ => self.watch_q.push_back(the_literal),
                             },
 
-                            WatchStatus::Conflict => match self.config.conflict_priority {
-                                ExplorationPriority::Conflict => self.watch_q.push_front(the_literal),
+                            WatchStatus::Conflict => match exploration_priority {
+                                ExplorationPriority::Conflict => {
+                                    self.watch_q.push_front(the_literal)
+                                }
                                 _ => self.watch_q.push_back(the_literal),
                             },
                             _ => {}
@@ -189,7 +202,7 @@ impl Solve<'_> {
         stats.total_time = this_total_time.elapsed();
         match result {
             SolveResult::Satisfiable => {
-                if self.config.show_assignment {
+                if config_show_assignment() {
                     println!(
                         "c ASSIGNMENT: {}",
                         self.valuation.to_vec().as_display_string(self)
@@ -212,16 +225,19 @@ fn reduce(solve: &mut Solve) {
     Clauses are removed from the learnt clause vector by swap_remove.
     So, when working through the vector it's importnat to only increment the pointer if no drop takes place.
      */
-    let mut i = 0;
-    loop {
-        if i >= solve.learnt_clauses.len() {
-            break;
-        }
-        let clause = solve.learnt_clauses[i].clone();
-        if clause.lbd() > solve.config.glue_strength {
-            solve.drop_clause_by_swap(&clause);
-        } else {
-            i += 1
+    {
+        let mut i = 0;
+        loop {
+            if i >= solve.learnt_clauses.len() {
+                break;
+            }
+            let clause = solve.learnt_clauses[i].clone();
+
+            if clause.lbd() > config_glue_strength() {
+                solve.drop_clause_by_swap(&clause);
+            } else {
+                i += 1
+            }
         }
     }
     solve.forgets += 1;
@@ -235,7 +251,7 @@ fn process_conflict_and_fix(solve: &mut Solve, stored_conflict: &Rc<StoredClause
 
     match solve.attempt_fix(stored_conflict.clone()) {
         Err(SolveError::NoSolution) => {
-            if solve.config.core {
+            if config_show_core() {
                 solve.core();
             }
             false
@@ -260,7 +276,7 @@ fn process_conflicts_and_fixes(
 
     match solve.attempt_fixes(stored_conflicts) {
         Err(SolveError::NoSolution) => {
-            if solve.config.core {
+            if config_show_core() {
                 solve.core();
             }
             false

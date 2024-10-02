@@ -7,8 +7,19 @@ mod io;
 mod procedures;
 mod structures;
 
-use crate::structures::solve::{Solve, SolveConfig, SolveResult};
+use crate::structures::solve::{config::config_show_stats, Solve, SolveResult};
 use crate::structures::Formula;
+
+// Configuration variables
+static mut CONFIG_GLUE_STRENGTH: usize = 2;
+static mut CONFIG_SHOW_STATS: bool = false;
+static mut CONFIG_SHOW_CORE: bool = false;
+static mut CONFIG_SHOW_ASSIGNMENT: bool = false;
+static mut CONFIG_EXPLORATION_PRIORITY: ExplorationPriority = ExplorationPriority::Default;
+static mut CONFIG_STOPPING_CRITERIA: StoppingCriteria = StoppingCriteria::FirstAssertingUIP;
+
+static CONFIG_BREAK_ON_FIRST: bool = true;
+static CONFIG_MULTI_JUMP_MAX: bool = true;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -16,7 +27,7 @@ use crate::structures::Formula;
 struct Args {
     /// The DIMACS form CNF file to parse
     #[arg(short, long)]
-    file: String,
+    formula_file: std::path::PathBuf,
 
     /// Display stats
     #[arg(short, long, default_value_t = false)]
@@ -53,12 +64,31 @@ fn main() {
 
     let args = Args::parse();
 
-    if let Ok(contents) = fs::read_to_string(&args.file) {
+    // set up the configuration, unsafely as global variables are used
+    // see the config file for access procedures
+    unsafe {
+        CONFIG_GLUE_STRENGTH = args.glue_strength;
+        CONFIG_SHOW_STATS = args.stats;
+        CONFIG_EXPLORATION_PRIORITY = match args.exploration_priority.as_str() {
+            "Implication" | "implication" | "imp" => ExplorationPriority::Implication,
+            "Conflict" | "conflict" | "conf" => ExplorationPriority::Conflict,
+            "Default" | "default" => ExplorationPriority::Default,
+            _ => panic!("Unknown conflict priority"),
+        };
+        CONFIG_STOPPING_CRITERIA = match args.stopping_criteria.as_str() {
+            "FirstUIP" | "firstUIP" | "1UIP" | "1uip" => StoppingCriteria::FirstAssertingUIP,
+            "None" | "none" => StoppingCriteria::None,
+            _ => panic!("Unknown stopping critera"),
+        };
+        CONFIG_SHOW_CORE = args.core;
+        CONFIG_SHOW_ASSIGNMENT = args.assignment;
+    }
+
+    if let Ok(contents) = fs::read_to_string(&args.formula_file) {
         match Formula::from_dimacs(&contents) {
             Ok(formula) => {
-                let config = config_builder(&args);
-                if config.stats {
-                    println!("c Parsing formula from file: {}", args.file);
+                if config_show_stats() {
+                    println!("c Parsing formula from file: {:?}", args.formula_file);
                     println!(
                         "c Parsed formula with {} variables and {} clauses",
                         formula.vars().len(),
@@ -66,11 +96,11 @@ fn main() {
                     );
                 }
                 log::trace!("Formula processed");
-                let mut the_solve = Solve::from_formula(&formula, config);
+                let mut the_solve = Solve::from_formula(&formula);
                 log::trace!("Solve initialised");
 
                 let (result, stats) = the_solve.implication_solve();
-                if the_solve.config.stats {
+                if config_show_stats() {
                     println!("{stats}");
                 }
                 match result {
@@ -92,32 +122,5 @@ fn main() {
         }
     } else {
         println!("Error reading file")
-    }
-}
-
-fn config_builder(clap_args: &Args) -> SolveConfig {
-    SolveConfig {
-        stats: clap_args.stats,
-        show_assignment: clap_args.assignment,
-        glue_strength: clap_args.glue_strength,
-        core: clap_args.core,
-        analysis: 3,
-        stopping_criteria: {
-            match clap_args.stopping_criteria.as_str() {
-                "FirstUIP" | "firstUIP" | "1UIP" | "1uip" => StoppingCriteria::FirstAssertingUIP,
-                "None" | "none" => StoppingCriteria::None,
-                _ => panic!("Unknown stopping critera"),
-            }
-        },
-        break_on_first: true,
-        multi_jump_max: true,
-        conflict_priority: {
-            match clap_args.exploration_priority.as_str() {
-                "Implication" | "implication" | "imp" => ExplorationPriority::Implication,
-                "Conflict" | "conflict" | "conf" => ExplorationPriority::Conflict,
-                "Default" | "default" => ExplorationPriority::Default,
-                _ => panic!("Unknown conflict priority"),
-            }
-        },
     }
 }

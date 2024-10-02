@@ -1,12 +1,12 @@
-pub mod core;
 mod analysis;
+pub mod config;
+pub mod core;
 mod mutation;
 mod solves;
-mod config;
 mod stats;
 
+pub use crate::structures::solve::config::{ExplorationPriority, StoppingCriteria};
 #[allow(unused_imports)]
 pub use crate::structures::solve::core::{Solve, SolveError, SolveOk, SolveStatus};
-pub use crate::structures::solve::config::{SolveConfig, StoppingCriteria, ExplorationPriority};
 pub use crate::structures::solve::solves::SolveResult;
 pub use crate::structures::solve::stats::SolveStats;

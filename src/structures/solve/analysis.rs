@@ -1,6 +1,8 @@
 use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
 use crate::structures::solve::{
-    solves::literal_update, ExplorationPriority, Solve, SolveError, SolveOk,
+    config::{config_exploration_priority, config_stopping_criteria},
+    solves::literal_update,
+    ExplorationPriority, Solve, SolveError, SolveOk,
 };
 use crate::structures::{
     solve::StoppingCriteria, stored_clause::initialise_watches_for, Clause, ClauseSource, Literal,
@@ -79,12 +81,11 @@ impl Solve<'_> {
                         &mut self.variables,
                         &mut self.valuation,
                     ) {
-                        WatchStatus::Implication => match self.config.conflict_priority {
+                        WatchStatus::Implication => match config_exploration_priority() {
                             ExplorationPriority::Implication => self.watch_q.push_front(assertion),
                             _ => self.watch_q.push_back(assertion),
                         },
-
-                        WatchStatus::Conflict => match self.config.conflict_priority {
+                        WatchStatus::Conflict => match config_exploration_priority() {
                             ExplorationPriority::Conflict => self.watch_q.push_front(assertion),
                             _ => self.watch_q.push_back(assertion),
                         },
@@ -103,7 +104,7 @@ impl Solve<'_> {
     ) -> Result<SolveOk, SolveError> {
         let mut analysis_results = vec![];
 
-        let mut the_jump = if self.config.multi_jump_max {
+        let mut the_jump = if crate::CONFIG_MULTI_JUMP_MAX {
             usize::MAX
         } else {
             usize::MIN
@@ -113,7 +114,7 @@ impl Solve<'_> {
             match self.conflict_analysis(conflict_clause) {
                 AnalysisResult::AssertingClause(asserting_clause, _) => {
                     let backjump_level = self.decision_level(&asserting_clause);
-                    if (self.config.multi_jump_max && backjump_level < the_jump)
+                    if (crate::CONFIG_MULTI_JUMP_MAX && backjump_level < the_jump)
                         || backjump_level > the_jump
                     {
                         the_jump = backjump_level
@@ -134,13 +135,6 @@ impl Solve<'_> {
         Ok(SolveOk::AssertingClause)
     }
 
-    pub fn analysis_switch(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
-        match self.config.analysis {
-            3 => self.conflict_analysis(conflict_clause),
-            _ => panic!("Unknown analysis"),
-        }
-    }
-
     /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision
     pub fn conflict_analysis(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
         let mut resolved_clause = conflict_clause.as_vec();
@@ -150,7 +144,7 @@ impl Solve<'_> {
         let mut asserted_literal = None;
 
         for (src, _lit) in self.current_level().observations().iter().rev() {
-            match self.config.stopping_criteria {
+            match config_stopping_criteria() {
                 StoppingCriteria::FirstAssertingUIP => {
                     if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
                         asserted_literal = Some(asserted);
