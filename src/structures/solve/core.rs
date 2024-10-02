@@ -1,5 +1,5 @@
 use crate::structures::{
-    solve::{solves::literal_update, ExplorationPriority, SolveConfig},
+    solve::{solves::literal_update, ExplorationPriority, config::config_exploration_priority},
     stored_clause::initialise_watches_for,
     Clause, ClauseId, ClauseSource, ClauseStatus, Formula, Level, LevelIndex, Literal,
     LiteralError, LiteralSource, StoredClause, Valuation, ValuationVec, Variable, VariableId,
@@ -37,7 +37,6 @@ pub struct Solve<'formula> {
     pub formula_clauses: Vec<Rc<StoredClause>>,
     pub learnt_clauses: Vec<Rc<StoredClause>>,
     pub watch_q: VecDeque<Literal>,
-    pub config: SolveConfig,
 }
 
 #[derive(Debug, PartialEq)]
@@ -58,7 +57,7 @@ pub enum SolveError {
 }
 
 impl Solve<'_> {
-    pub fn from_formula(formula: &Formula, config: SolveConfig) -> Solve {
+    pub fn from_formula(formula: &Formula) -> Solve {
         let mut the_solve = Solve {
             _formula: formula,
             conflicts: 0,
@@ -70,7 +69,6 @@ impl Solve<'_> {
             levels: vec![Level::new(0)],
             formula_clauses: Vec::new(),
             learnt_clauses: Vec::new(),
-            config,
         };
 
         let initial_valuation = the_solve.valuation.clone();
@@ -137,11 +135,11 @@ impl Solve<'_> {
                 &mut self.variables,
                 &mut self.valuation,
             ) {
-                WatchStatus::Implication => match self.config.conflict_priority {
+                WatchStatus::Implication => match config_exploration_priority() {
                     ExplorationPriority::Implication => self.watch_q.push_front(the_literal),
                     _ => self.watch_q.push_back(the_literal),
                 },
-                WatchStatus::Conflict => match self.config.conflict_priority {
+                WatchStatus::Conflict => match config_exploration_priority() {
                     ExplorationPriority::Conflict => self.watch_q.push_front(the_literal),
                     _ => self.watch_q.push_back(the_literal),
                 },
@@ -157,11 +155,11 @@ impl Solve<'_> {
                 &mut self.variables,
                 &mut self.valuation,
             ) {
-                WatchStatus::Implication => match self.config.conflict_priority {
+                WatchStatus::Implication => match config_exploration_priority() {
                     ExplorationPriority::Implication => self.watch_q.push_front(the_literal),
                     _ => self.watch_q.push_back(the_literal),
                 },
-                WatchStatus::Conflict => match self.config.conflict_priority {
+                WatchStatus::Conflict => match config_exploration_priority() {
                     ExplorationPriority::Conflict => self.watch_q.push_front(the_literal),
                     _ => self.watch_q.push_back(the_literal),
                 },
