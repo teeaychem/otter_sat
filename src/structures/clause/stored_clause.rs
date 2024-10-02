@@ -1,4 +1,9 @@
-use crate::structures::{Clause, ClauseId, ClauseVec, Literal, Valuation, Variable, VariableId};
+use crate::structures::{
+    clause::{Clause, ClauseId, ClauseVec},
+    literal::Literal,
+    valuation::{Valuation, ValuationVec},
+    variable::{Variable, VariableId},
+};
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -400,11 +405,11 @@ impl Clause for StoredClause {
         self.clause.variables()
     }
 
-    fn is_sat_on(&self, valuation: &super::ValuationVec) -> bool {
+    fn is_sat_on(&self, valuation: &ValuationVec) -> bool {
         self.clause.is_sat_on(valuation)
     }
 
-    fn is_unsat_on(&self, valuation: &super::ValuationVec) -> bool {
+    fn is_unsat_on(&self, valuation: &ValuationVec) -> bool {
         self.clause.is_unsat_on(valuation)
     }
 

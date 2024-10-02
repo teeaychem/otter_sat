@@ -1,16 +1,9 @@
 use std::char;
 
-use crate::structures::Formula;
-
-#[derive(Debug)]
-pub enum IOError {
-    ParseFailure,
-    PrefaceLength,
-    PrefaceFormat,
-}
+use crate::structures::formula::Formula;
 
 impl Formula {
-    pub fn from_dimacs(string: &str) -> Result<Formula, IOError> {
+    pub fn from_dimacs(string: &str) -> Formula {
         let mut the_solve = Formula::new();
         let mut from = 0;
         let mut to = 0;
@@ -46,37 +39,37 @@ impl Formula {
                             break;
                         }
                     } else {
-                        return Err(IOError::ParseFailure);
+                        panic!("IO: Parse failure");
                     }
                 }
                 let the_preface = &string[from..to];
                 let preface_parts = the_preface.split_whitespace().collect::<Vec<_>>();
                 if preface_parts.len() != 4 {
-                    return Err(IOError::PrefaceLength);
+                    panic!("IO: Puzzled by preface length");
                 } else if Some(&"p") != preface_parts.first()
                     || Some(&"cnf") != preface_parts.get(1)
                 {
-                    return Err(IOError::PrefaceFormat);
+                    panic!("IO: Puzzled by preface format");
                 }
                 let _variables = match preface_parts.get(2) {
                     Some(count) => match count.parse::<usize>() {
                         Ok(count_number) => count_number,
-                        Err(_) => return Err(IOError::ParseFailure),
+                        Err(_) => panic!("IO: Parse failure"),
                     },
-                    None => return Err(IOError::ParseFailure),
+                    None => panic!("IO: Parse failure"),
                 };
                 let _clauses = match preface_parts.get(3) {
                     Some(count) => match count.parse::<usize>() {
                         Ok(count_number) => count_number,
-                        Err(_) => return Err(IOError::ParseFailure),
+                        Err(_) => panic!("IO: Parse failure"),
                     },
-                    None => return Err(IOError::ParseFailure),
+                    None => panic!("IO: Parse failure"),
                 };
                 from = to
             }
 
             to += 1;
         }
-        Ok(the_solve)
+        the_solve
     }
 }

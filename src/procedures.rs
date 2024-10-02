@@ -1,4 +1,4 @@
-use crate::structures::{Clause, Literal, VariableId};
+use crate::structures::{clause::Clause, literal::Literal, variable::VariableId};
 
 use std::collections::BTreeSet;
 
@@ -178,7 +178,6 @@ pub fn find_counterpart_literals<T: Clause>(cls_a: &T, cls_b: &T) -> Vec<Variabl
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[test]
     fn sorted_resolve_ok_check() {
