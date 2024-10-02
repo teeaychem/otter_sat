@@ -283,25 +283,61 @@ pub fn literal_update(
                 // do not split when using suggest_watch_update in process_watches
                 match literal.polarity {
                     true => {
-                        for sc in 0..variables[literal.v_id].negative_occurrences().len() {
-                            let stored_clause =
-                                variables[literal.v_id].negative_occurrences()[sc].clone();
-                            let status =
-                                process_watches(valuation, variables, &stored_clause, literal);
-                            if watch_status != WatchStatus::Conflict {
-                                watch_status = status
-                            };
+                        let mut index = 0;
+                        loop {
+                            let before_length =
+                                variables[literal.v_id].negative_watch_occurrences.len();
+                            if index >= variables[literal.v_id].negative_watch_occurrences.len() {
+                                break;
+                            } else {
+                                let stored_clause = variables[literal.v_id]
+                                    .negative_watch_occurrences[index]
+                                    .clone();
+                                let status =
+                                    process_watches(valuation, variables, &stored_clause, literal);
+                                match status {
+                                    WatchStatus::None => {}
+                                    _ => {
+                                        if watch_status != WatchStatus::Conflict {
+                                            watch_status = status
+                                        };
+                                    }
+                                };
+                            }
+                            let current_legnth =
+                                variables[literal.v_id].negative_watch_occurrences.len();
+                            if before_length == current_legnth {
+                                index += 1;
+                            }
                         }
                     }
                     false => {
-                        for sc in 0..variables[literal.v_id].positive_occurrences().len() {
-                            let stored_clause =
-                                variables[literal.v_id].positive_occurrences()[sc].clone();
-                            let status =
-                                process_watches(valuation, variables, &stored_clause, literal);
-                            if watch_status != WatchStatus::Conflict {
-                                watch_status = status
-                            };
+                        let mut index = 0;
+                        loop {
+                            let before_length =
+                                variables[literal.v_id].positive_watch_occurrences.len();
+                            if index >= variables[literal.v_id].positive_watch_occurrences.len() {
+                                break;
+                            } else {
+                                let stored_clause = variables[literal.v_id]
+                                    .positive_watch_occurrences[index]
+                                    .clone();
+                                let status =
+                                    process_watches(valuation, variables, &stored_clause, literal);
+                                match status {
+                                    WatchStatus::None => {}
+                                    _ => {
+                                        if watch_status != WatchStatus::Conflict {
+                                            watch_status = status
+                                        };
+                                    }
+                                };
+                            }
+                            let current_legnth =
+                                variables[literal.v_id].positive_watch_occurrences.len();
+                            if before_length == current_legnth {
+                                index += 1;
+                            }
                         }
                     }
                 }
