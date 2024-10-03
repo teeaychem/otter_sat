@@ -50,6 +50,7 @@ impl Variable {
         self.id
     }
 
+
     pub fn add_activity(&self, by: f32) {
         let mut activity = self.activity.get();
         activity += by;

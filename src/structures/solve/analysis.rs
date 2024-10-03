@@ -85,15 +85,19 @@ impl Solve<'_> {
                         &mut self.variables,
                         &mut self.valuation,
                     ) {
-                        WatchStatus::NewImplication | WatchStatus::AlreadyImplication => match config_exploration_priority() {
-                            ExplorationPriority::Implication => self.watch_q.push_front(assertion),
-                            _ => self.watch_q.push_back(assertion),
-                        },
+                        WatchStatus::NewImplication | WatchStatus::AlreadyImplication => {
+                            match config_exploration_priority() {
+                                ExplorationPriority::Implication => {
+                                    self.watch_q.push_front(assertion)
+                                }
+                                _ => self.watch_q.push_back(assertion),
+                            }
+                        }
                         WatchStatus::AlreadyConflict => match config_exploration_priority() {
                             ExplorationPriority::Conflict => self.watch_q.push_front(assertion),
                             _ => self.watch_q.push_back(assertion),
                         },
-                        _ => {}
+                        _ => self.watch_q.push_back(assertion),
                     };
 
                     SolveStatus::AssertingClause
