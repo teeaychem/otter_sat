@@ -48,7 +48,7 @@ pub enum WatchStatus {
     AlreadySatisfied,
     NewImplication,
     NewSatisfied,
-    TwoNone,
+    NewTwoNone,
 }
 
 /// The value is used to suggest an updated index
@@ -105,7 +105,11 @@ impl StoredClause {
 
 impl StoredClause {
     /// Find the index of a literal which has not been valued, if possible, else if there was some witness for the clause, return that
-    pub fn some_none_or_else_witness_idx(&self, val: &impl Valuation, but_not: VariableId) -> WatchUpdateEnum {
+    pub fn some_none_or_else_witness_idx(
+        &self,
+        val: &impl Valuation,
+        but_not: VariableId,
+    ) -> WatchUpdateEnum {
         let mut witness = None;
         for (idx, literal) in self.clause.iter().enumerate() {
             if but_not != literal.v_id {
@@ -372,7 +376,7 @@ pub fn suggest_watch_update(
                     // and, there's no literal on the watch which doesn't have a value on the assignment
                     match current_b_match {
                         false => (Some(idx), None, WatchStatus::NewImplication),
-                        true => (Some(idx), None, WatchStatus::TwoNone),
+                        true => (Some(idx), None, WatchStatus::NewTwoNone),
                     }
                 } else {
                     (None, None, WatchStatus::AlreadyConflict)
@@ -383,7 +387,7 @@ pub fn suggest_watch_update(
                 if let Some(idx) = stored_clause.some_none_idx(val, Some(watched_a_literal.v_id)) {
                     match current_a_match {
                         false => (None, Some(idx), WatchStatus::NewImplication),
-                        true => (None, Some(idx), WatchStatus::TwoNone),
+                        true => (None, Some(idx), WatchStatus::NewTwoNone),
                     }
                 } else {
                     (None, None, WatchStatus::AlreadyConflict)
@@ -478,7 +482,6 @@ pub fn suggest_watch_update(
 //         }
 //     }
 // }
-
 
 impl std::fmt::Display for StoredClause {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

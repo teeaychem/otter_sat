@@ -1,6 +1,9 @@
 use crate::procedures::hobson_choices;
 use crate::structures::{
-    clause::stored_clause::{ClauseStatus, StoredClause, WatchStatus},
+    clause::{
+        stored_clause::{ClauseStatus, StoredClause, WatchStatus, WatchUpdateEnum},
+        Clause,
+    },
     level::Level,
     literal::{Literal, LiteralSource},
     solve::{
@@ -8,7 +11,6 @@ use crate::structures::{
             config_exploration_priority, config_glue_strength, config_show_assignment,
             config_show_core, ExplorationPriority,
         },
-        core::{process_watches_two_a, process_watches_two_b},
         stats::SolveStats,
         Solve, {SolveResult, SolveStatus},
     },
@@ -92,7 +94,7 @@ impl Solve<'_> {
                                     }
                                     _ => self.watch_q.push_back(consequent),
                                 },
-                                _ => {}
+                                _ => self.watch_q.push_back(consequent),
                             }
                         }
                         ClauseStatus::Conflict => {
@@ -126,6 +128,9 @@ impl Solve<'_> {
                             log::debug!(target: "forget", "{stats}");
                             let this_reduction_time = std::time::Instant::now();
                             reduce(self);
+                            // self.watch_q.clear();
+                            // self.backjump(0);
+
                             stats.reduction_time += this_reduction_time.elapsed();
                         }
 
@@ -160,7 +165,7 @@ impl Solve<'_> {
                                 }
                                 _ => self.watch_q.push_back(the_literal),
                             },
-                            _ => {}
+                            _ => self.watch_q.push_back(the_literal),
                         };
 
                         stats.choice_time += this_choice_time.elapsed();
@@ -240,10 +245,10 @@ fn reduce(solve: &mut Solve) {
     So, when working through the vector it's importnat to only increment the pointer if no drop takes place.
      */
     {
+        // solve.learnt_clauses.truncate(learnt_count / 2);
         let mut i = 0;
-        let limit = learnt_count / 2;
         loop {
-            if i >= solve.learnt_clauses.len() || i > limit {
+            if i >= solve.learnt_clauses.len() {
                 break;
             }
             let clause = solve.learnt_clauses[i].clone();
@@ -265,10 +270,10 @@ pub fn literal_update(
     literal: Literal,
     source: LiteralSource,
     levels: &mut [Level],
-    variables: &mut [Variable],
+    vars: &mut [Variable],
     valuation: &mut impl Valuation,
 ) -> WatchStatus {
-    let variable = &mut variables[literal.v_id];
+    let variable = &mut vars[literal.v_id];
 
     // update the valuation and match the result
     match valuation.update_value(literal) {
@@ -284,17 +289,15 @@ pub fn literal_update(
 
             // and, process whether any change to the watch literals is required, given an update has happened
             {
-                let mut watch_status = WatchStatus::TwoNone;
+                let mut watch_status = WatchStatus::NewTwoNone;
                 // note: when using simple watch update inspect all possible occurrences
 
                 // TODO: this is slower than duplicating the following loop for both +/- occurrence vecs
                 // Though, as a function is not viable given the use of variables in the process functions,
                 // this while unstable this allows updating code in only one place
                 let mut working_clause_vec = match literal.polarity {
-                    true => std::mem::take(&mut variables[literal.v_id].negative_watch_occurrences),
-                    false => {
-                        std::mem::take(&mut variables[literal.v_id].positive_watch_occurrences)
-                    }
+                    true => std::mem::take(&mut vars[literal.v_id].negative_watch_occurrences),
+                    false => std::mem::take(&mut vars[literal.v_id].positive_watch_occurrences),
                 };
 
                 let mut index = 0;
@@ -302,9 +305,9 @@ pub fn literal_update(
                     let stored_clause = working_clause_vec[index].clone();
 
                     let process_update = if stored_clause.watched_a().v_id == literal.v_id {
-                        process_watches_two_a(valuation, variables, &stored_clause)
+                        process_watches_two_a(valuation, vars, &stored_clause)
                     } else {
-                        process_watches_two_b(valuation, variables, &stored_clause)
+                        process_watches_two_b(valuation, vars, &stored_clause)
                     };
 
                     match process_update {
@@ -336,7 +339,7 @@ pub fn literal_update(
                                 watch_status = WatchStatus::NewSatisfied
                             }
                         }
-                        WatchStatus::TwoNone => {
+                        WatchStatus::NewTwoNone => {
                             working_clause_vec.swap_remove(index);
                         }
                     };
@@ -344,11 +347,11 @@ pub fn literal_update(
 
                 match literal.polarity {
                     true => std::mem::replace(
-                        &mut variables[literal.v_id].negative_watch_occurrences,
+                        &mut vars[literal.v_id].negative_watch_occurrences,
                         working_clause_vec,
                     ),
                     false => std::mem::replace(
-                        &mut variables[literal.v_id].positive_watch_occurrences,
+                        &mut vars[literal.v_id].positive_watch_occurrences,
                         working_clause_vec,
                     ),
                 };
@@ -360,17 +363,147 @@ pub fn literal_update(
             LiteralSource::StoredClause(_) => {
                 // A literal may be implied by multiple clauses, so there's no need to panic
                 // rather, there's no need to do anything at all
-                WatchStatus::TwoNone
+                WatchStatus::NewTwoNone
             }
-            _ => {
-                log::error!("Attempt to restate {} via {:?}", literal, source);
-                panic!("Attempt to restate {} via {:?}", literal, source)
-            }
+            _ => panic!("Attempt to restate {} via {:?}", literal, source),
         },
-        Err(ValuationStatus::Conflict) => {
-            log::error!("Conflict when updating {literal} via {:?}", source);
-            panic!("Conflict when updating {literal} via {:?}", source);
-        }
+        Err(ValuationStatus::Conflict) => panic!("Conflict when update {literal} via {:?}", source),
         Err(_) => todo!(),
+    }
+}
+
+pub fn process_watches_two_a(
+    val: &impl Valuation,
+    variables: &mut [Variable],
+    stored_clause: &Rc<StoredClause>,
+) -> WatchStatus {
+    match stored_clause.length() {
+        1 => match val.of_v_id(stored_clause.clause[stored_clause.watch_a.get()].v_id) {
+            None => WatchStatus::AlreadyImplication,
+            Some(_) => WatchStatus::AlreadySatisfied,
+        },
+        _ => {
+            macro_rules! update_a {
+                ($a:expr) => {
+                    stored_clause.update_watch_a($a);
+                    let watched_a = stored_clause.watched_a();
+                    variables[watched_a.v_id].watch_added(stored_clause, watched_a.polarity)
+                };
+            }
+
+            let watched_a_literal = stored_clause.clause[stored_clause.watch_a.get()];
+
+            let watched_b_literal = stored_clause.clause[stored_clause.watch_b.get()];
+            let watched_b_value = val.of_v_id(watched_b_literal.v_id);
+            let watched_b_match = watched_b_value.is_some_and(|p| p == watched_b_literal.polarity);
+
+            if let Some(_current_a_value) = val.of_v_id(watched_a_literal.v_id) {
+                // if _current_a_value == watched_a_literal.polarity {
+                //     panic!("watch already sat on watched")
+                // }
+
+                match stored_clause.some_none_or_else_witness_idx(val, watched_b_literal.v_id) {
+                    WatchUpdateEnum::Witness(idx) => {
+                        if watched_b_match {
+                            WatchStatus::AlreadySatisfied
+                        } else {
+                            update_a!(idx);
+                            WatchStatus::NewSatisfied
+                        }
+                    }
+                    WatchUpdateEnum::None(idx) => {
+                        update_a!(idx);
+                        if watched_b_value.is_some() {
+                            if watched_b_match {
+                                WatchStatus::NewSatisfied
+                            } else {
+                                WatchStatus::NewImplication
+                            }
+                        } else {
+                            WatchStatus::NewTwoNone
+                        }
+                    }
+                    WatchUpdateEnum::No => {
+                        if watched_b_value.is_none() {
+                            WatchStatus::AlreadyImplication
+                        } else if watched_b_match {
+                            return WatchStatus::AlreadySatisfied;
+                        } else {
+                            WatchStatus::AlreadyConflict
+                        }
+                    }
+                }
+            } else {
+                panic!("Process watches two a without value");
+            }
+        }
+    }
+}
+
+pub fn process_watches_two_b(
+    val: &impl Valuation,
+    variables: &mut [Variable],
+    stored_clause: &Rc<StoredClause>,
+) -> WatchStatus {
+    match stored_clause.length() {
+        1 => match val.of_v_id(stored_clause.clause[stored_clause.watch_a.get()].v_id) {
+            None => WatchStatus::AlreadyImplication,
+            Some(_) => WatchStatus::AlreadySatisfied,
+        },
+        _ => {
+            macro_rules! update_b {
+                ($a:expr) => {
+                    stored_clause.update_watch_b($a);
+                    let watched_b = stored_clause.watched_b();
+                    variables[watched_b.v_id].watch_added(stored_clause, watched_b.polarity)
+                };
+            }
+
+            let watched_a_literal = stored_clause.clause[stored_clause.watch_a.get()];
+            let watched_a_value = val.of_v_id(watched_a_literal.v_id);
+            let watched_a_match = watched_a_value.is_some_and(|p| p == watched_a_literal.polarity);
+
+            let watched_b_literal = stored_clause.clause[stored_clause.watch_b.get()];
+
+            if let Some(_current_b_value) = val.of_v_id(watched_b_literal.v_id) {
+                // if _current_b_value == watched_b_literal.polarity {
+                //     panic!("watch already sat on watched")
+                // }
+
+                match stored_clause.some_none_or_else_witness_idx(val, watched_a_literal.v_id) {
+                    WatchUpdateEnum::Witness(idx) => {
+                        if watched_a_match {
+                            WatchStatus::AlreadySatisfied
+                        } else {
+                            update_b!(idx);
+                            WatchStatus::NewSatisfied
+                        }
+                    }
+                    WatchUpdateEnum::None(idx) => {
+                        update_b!(idx);
+                        if watched_a_value.is_some() {
+                            if watched_a_match {
+                                WatchStatus::NewSatisfied
+                            } else {
+                                WatchStatus::NewImplication
+                            }
+                        } else {
+                            WatchStatus::NewTwoNone
+                        }
+                    }
+                    WatchUpdateEnum::No => {
+                        if watched_a_value.is_none() {
+                            WatchStatus::AlreadyImplication
+                        } else if watched_a_match {
+                            WatchStatus::AlreadySatisfied
+                        } else {
+                            WatchStatus::AlreadyConflict
+                        }
+                    }
+                }
+            } else {
+                panic!("Process watches two b without value");
+            }
+        }
     }
 }
