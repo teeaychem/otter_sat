@@ -27,9 +27,9 @@ pub struct StoredClause {
     id: ClauseId,
     lbd: Cell<usize>,
     source: ClauseSource,
-    clause: ClauseVec,
-    watch_a: Cell<usize>,
-    watch_b: Cell<usize>,
+    pub clause: ClauseVec,
+    pub watch_a: Cell<usize>,
+    pub watch_b: Cell<usize>,
 }
 
 #[derive(Debug)]
@@ -41,7 +41,7 @@ pub enum ClauseStatus {
 }
 
 /// The already/new variants allow for contrast with a known previous state
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum WatchStatus {
     AlreadyConflict,
     AlreadyImplication,
@@ -51,11 +51,11 @@ pub enum WatchStatus {
     TwoNone,
 }
 
-/// The first value is used to suggest an updated index, the second is to save re-inspection when both watches need updating to avoid implication/conflict
+/// The value is used to suggest an updated index
+#[derive(Debug)]
 pub enum WatchUpdateEnum {
     Witness(usize),
-    OtherNone(usize, usize),
-    OnlyNone(usize),
+    None(usize),
     No,
 }
 
@@ -104,23 +104,22 @@ impl StoredClause {
 }
 
 impl StoredClause {
-    fn some_useful_idx(&self, val: &impl Valuation, but_not: VariableId) -> WatchUpdateEnum {
-        let mut first_none = None;
+    /// Find the index of a literal which has not been valued, if possible, else if there was some witness for the clause, return that
+    pub fn some_none_or_else_witness_idx(&self, val: &impl Valuation, but_not: VariableId) -> WatchUpdateEnum {
+        let mut witness = None;
         for (idx, literal) in self.clause.iter().enumerate() {
             if but_not != literal.v_id {
                 if let Some(val) = val.of_v_id(literal.v_id) {
                     if val == literal.polarity {
-                        return WatchUpdateEnum::Witness(idx);
+                        witness = Some(idx);
                     }
-                } else if let Some(first) = first_none {
-                    return WatchUpdateEnum::OtherNone(idx, first);
                 } else {
-                    first_none = Some(idx);
+                    return WatchUpdateEnum::None(idx);
                 }
             }
         }
-        match first_none {
-            Some(none) => WatchUpdateEnum::OnlyNone(none),
+        match witness {
+            Some(idx) => WatchUpdateEnum::Witness(idx),
             None => WatchUpdateEnum::No,
         }
     }
@@ -396,91 +395,90 @@ pub fn suggest_watch_update(
     }
 }
 
-/// Updates the two watched literals without making any assumption about the status of the valuation since the watches were set.
-pub fn suggest_watch_update_two(
-    stored_clause: &Rc<StoredClause>,
-    val: &impl Valuation,
-) -> (Option<usize>, Option<usize>, WatchStatus) {
-    match stored_clause.length() {
-        1 => match val.of_v_id(stored_clause.clause[stored_clause.watch_a.get()].v_id) {
-            None => (None, None, WatchStatus::AlreadyImplication),
-            Some(_) => (None, None, WatchStatus::AlreadySatisfied),
-        },
-        _ => {
-            // If the current a watch already witness satisfaction of the clause, do nothing
-            let watched_a_literal = stored_clause.clause[stored_clause.watch_a.get()];
-            let current_a_value = val.of_v_id(watched_a_literal.v_id);
-            if current_a_value.is_some_and(|p| p == watched_a_literal.polarity) {
-                return (None, None, WatchStatus::AlreadySatisfied);
-            }
-            // and likewise for the current b watch
-            let watched_b_literal = stored_clause.clause[stored_clause.watch_b.get()];
-            let current_b_value = val.of_v_id(watched_b_literal.v_id);
-            if current_b_value.is_some_and(|p| p == watched_b_literal.polarity) {
-                return (None, None, WatchStatus::AlreadySatisfied);
-            }
-            // as, the decision level of the witnessing literal must be lower than that of the current literal
+// /// Updates the two watched literals without making any assumption about the status of the valuation since the watches were set.
+// pub fn suggest_watch_update_two(
+//     stored_clause: &Rc<StoredClause>,
+//     val: &impl Valuation,
+// ) -> (Option<usize>, Option<usize>, WatchStatus) {
+//     match stored_clause.length() {
+//         1 => match val.of_v_id(stored_clause.clause[stored_clause.watch_a.get()].v_id) {
+//             None => (None, None, WatchStatus::AlreadyImplication),
+//             Some(_) => (None, None, WatchStatus::AlreadySatisfied),
+//         },
+//         _ => {
+//             // If the current a watch already witness satisfaction of the clause, do nothing
+//             let watched_a_literal = stored_clause.clause[stored_clause.watch_a.get()];
+//             let current_a_value = val.of_v_id(watched_a_literal.v_id);
+//             if current_a_value.is_some_and(|p| p == watched_a_literal.polarity) {
+//                 return (None, None, WatchStatus::AlreadySatisfied);
+//             }
+//             // and likewise for the current b watch
+//             let watched_b_literal = stored_clause.clause[stored_clause.watch_b.get()];
+//             let current_b_value = val.of_v_id(watched_b_literal.v_id);
+//             if current_b_value.is_some_and(|p| p == watched_b_literal.polarity) {
+//                 return (None, None, WatchStatus::AlreadySatisfied);
+//             }
+//             // as, the decision level of the witnessing literal must be lower than that of the current literal
 
-            // otherwise, if either watch conflicts with the current valuation,
-            // an attempt is made to keep both watches on variables without a value
-            if current_a_value.is_some() {
-                match stored_clause.some_useful_idx(val, watched_b_literal.v_id) {
-                    WatchUpdateEnum::Witness(idx) => (Some(idx), None, WatchStatus::NewSatisfied),
-                    WatchUpdateEnum::OtherNone(idx, new_b) => {
-                        if current_b_value.is_some() {
-                            (Some(idx), Some(new_b), WatchStatus::TwoNone)
-                        } else {
-                            (Some(idx), None, WatchStatus::TwoNone)
-                        }
-                    }
-                    WatchUpdateEnum::OnlyNone(idx) => {
-                        if current_b_value.is_some() {
-                            (Some(idx), None, WatchStatus::NewImplication)
-                        } else {
-                            (Some(idx), None, WatchStatus::TwoNone)
-                        }
-                    }
-                    WatchUpdateEnum::No => {
-                        if current_b_value.is_none() {
-                            (None, None, WatchStatus::AlreadyImplication)
-                        } else {
-                            (None, None, WatchStatus::AlreadyConflict)
-                        }
-                    }
-                }
-            } else if current_b_value.is_some() {
-                match stored_clause.some_useful_idx(val, watched_a_literal.v_id) {
-                    WatchUpdateEnum::Witness(idx) => {
-                        return (None, Some(idx), WatchStatus::NewSatisfied);
-                    }
-                    WatchUpdateEnum::OtherNone(idx, new_a) => {
-                        if current_b_value.is_some() {
-                            return (Some(new_a), Some(idx), WatchStatus::TwoNone);
-                        } else {
-                            return (None, Some(idx), WatchStatus::TwoNone);
-                        }
-                    }
-                    WatchUpdateEnum::OnlyNone(idx) => {
-                        if current_b_value.is_some() {
-                            return (None, Some(idx), WatchStatus::NewImplication);
-                        } else {
-                            return (None, Some(idx), WatchStatus::TwoNone);
-                        }
-                    }
-                    WatchUpdateEnum::No => {
-                        if current_b_value.is_none() {
-                            return (None, None, WatchStatus::AlreadyImplication);
-                        } else {
-                            return (None, None, WatchStatus::AlreadyConflict);
-                        }
-                    }
-                }
-            } else {
-                return (None, None, WatchStatus::TwoNone);
-            }
-        }
-    }
-}
+//             // otherwise, if either watch conflicts with the current valuation,
+//             // an attempt is made to keep both watches on variables without a value
+//             if current_a_value.is_some() {
+//                 match stored_clause.some_useful_idx(val, watched_b_literal.v_id) {
+//                     WatchUpdateEnum::Witness(idx) => (Some(idx), None, WatchStatus::NewSatisfied),
+//                     WatchUpdateEnum::None(idx, new_b) => {
+//                         if current_b_value.is_some() {
+//                             (Some(idx), Some(new_b), WatchStatus::TwoNone)
+//                         } else {
+//                             (Some(idx), None, WatchStatus::TwoNone)
+//                         }
+//                     }
+//                     WatchUpdateEnum::OnlyNone(idx) => {
+//                         if current_b_value.is_some() {
+//                             (Some(idx), None, WatchStatus::NewImplication)
+//                         } else {
+//                             (Some(idx), None, WatchStatus::TwoNone)
+//                         }
+//                     }
+//                     WatchUpdateEnum::No => {
+//                         if current_b_value.is_none() {
+//                             (None, None, WatchStatus::AlreadyImplication)
+//                         } else {
+//                             (None, None, WatchStatus::AlreadyConflict)
+//                         }
+//                     }
+//                 }
+//             } else if current_b_value.is_some() {
+//                 match stored_clause.some_useful_idx(val, watched_a_literal.v_id) {
+//                     WatchUpdateEnum::Witness(idx) => (None, Some(idx), WatchStatus::NewSatisfied),
+//                     WatchUpdateEnum::OtherNone(idx, new_a) => {
+//                         if current_a_value.is_some() {
+//                             (Some(new_a), Some(idx), WatchStatus::TwoNone)
+//                         } else {
+//                             (None, Some(idx), WatchStatus::TwoNone)
+//                         }
+//                     }
+//                     WatchUpdateEnum::OnlyNone(idx) => {
+//                         if current_a_value.is_some() {
+//                             (None, Some(idx), WatchStatus::NewImplication)
+//                         } else {
+//                             (None, Some(idx), WatchStatus::TwoNone)
+//                         }
+//                     }
+//                     WatchUpdateEnum::No => {
+//                         if current_a_value.is_none() {
+//                             (None, None, WatchStatus::AlreadyImplication)
+//                         } else {
+//                             (None, None, WatchStatus::AlreadyConflict)
+//                         }
+//                     }
+//                 }
+//             } else {
+//                 (None, None, WatchStatus::TwoNone)
+//             }
+//         }
+//     }
+// }
+
 
 impl std::fmt::Display for StoredClause {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
