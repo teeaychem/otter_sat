@@ -8,7 +8,7 @@ use crate::structures::{
             config_exploration_priority, config_glue_strength, config_show_assignment,
             config_show_core, ExplorationPriority,
         },
-        core::process_watches_two,
+        core::{process_watches_two_a, process_watches_two_b},
         stats::SolveStats,
         Solve, {SolveResult, SolveStatus},
     },
@@ -123,6 +123,7 @@ impl Solve<'_> {
                 Conflicts::No => {
                     if let Some(available_v_id) = self.most_active_none(&self.valuation) {
                         if self.is_it_time_to_reduce() {
+                            log::debug!(target: "forget", "{stats}");
                             let this_reduction_time = std::time::Instant::now();
                             reduce(self);
                             stats.reduction_time += this_reduction_time.elapsed();
@@ -232,7 +233,7 @@ impl Solve<'_> {
 #[inline(always)]
 fn reduce(solve: &mut Solve) {
     let learnt_count = solve.learnt_clauses.len();
-    log::trace!(target: "forget", "Learnt count: {}", learnt_count);
+    log::debug!(target: "forget", "Learnt count: {}", learnt_count);
 
     /*
     Clauses are removed from the learnt clause vector by swap_remove.
@@ -240,8 +241,9 @@ fn reduce(solve: &mut Solve) {
      */
     {
         let mut i = 0;
+        let limit = learnt_count / 2;
         loop {
-            if i >= solve.learnt_clauses.len() {
+            if i >= solve.learnt_clauses.len() || i > limit {
                 break;
             }
             let clause = solve.learnt_clauses[i].clone();
@@ -255,7 +257,7 @@ fn reduce(solve: &mut Solve) {
     }
     solve.forgets += 1;
     solve.conflcits_since_last_forget = 0;
-    log::trace!(target: "forget", "Reduced to: {}", solve.learnt_clauses.len());
+    log::debug!(target: "forget", "Reduced to: {}", solve.learnt_clauses.len());
 }
 
 #[inline(always)]
@@ -283,85 +285,74 @@ pub fn literal_update(
             // and, process whether any change to the watch literals is required, given an update has happened
             {
                 let mut watch_status = WatchStatus::TwoNone;
-                // do not split when using suggest_watch_update in process_watches
-                match literal.polarity {
-                    true => {
-                        let mut index = 0;
-                        while index < variables[literal.v_id].negative_watch_occurrences.len() {
-                            match process_watches_two(
-                                valuation,
-                                variables,
-                                &variables[literal.v_id].negative_watch_occurrences[index].clone(),
-                            ) {
-                                WatchStatus::AlreadySatisfied => {
-                                    index += 1;
-                                    if watch_status != WatchStatus::AlreadyConflict {
-                                        watch_status = WatchStatus::AlreadySatisfied
-                                    }
-                                }
-                                WatchStatus::AlreadyImplication => {
-                                    index += 1;
-                                    if watch_status != WatchStatus::AlreadyConflict {
-                                        watch_status = WatchStatus::AlreadyImplication
-                                    }
-                                }
-                                WatchStatus::AlreadyConflict => {
-                                    watch_status = WatchStatus::AlreadyConflict;
-                                    index += 1
-                                }
-                                WatchStatus::NewImplication => {
-                                    if watch_status != WatchStatus::AlreadyConflict {
-                                        watch_status = WatchStatus::NewImplication
-                                    }
-                                }
-                                WatchStatus::NewSatisfied => {
-                                    if watch_status != WatchStatus::AlreadyConflict {
-                                        watch_status = WatchStatus::NewSatisfied
-                                    }
-                                }
-                                _ => {}
-                            };
-                        }
-                    }
+                // note: when using simple watch update inspect all possible occurrences
+
+                // TODO: this is slower than duplicating the following loop for both +/- occurrence vecs
+                // Though, as a function is not viable given the use of variables in the process functions,
+                // this while unstable this allows updating code in only one place
+                let mut working_clause_vec = match literal.polarity {
+                    true => std::mem::take(&mut variables[literal.v_id].negative_watch_occurrences),
                     false => {
-                        let mut index = 0;
-                        while index < variables[literal.v_id].positive_watch_occurrences.len() {
-                            match process_watches_two(
-                                valuation,
-                                variables,
-                                &variables[literal.v_id].positive_watch_occurrences[index].clone(),
-                            ) {
-                                WatchStatus::AlreadySatisfied => {
-                                    index += 1;
-                                    if watch_status != WatchStatus::AlreadyConflict {
-                                        watch_status = WatchStatus::AlreadySatisfied
-                                    }
-                                }
-                                WatchStatus::AlreadyImplication => {
-                                    index += 1;
-                                    if watch_status != WatchStatus::AlreadyConflict {
-                                        watch_status = WatchStatus::AlreadyImplication
-                                    }
-                                }
-                                WatchStatus::AlreadyConflict => {
-                                    watch_status = WatchStatus::AlreadyConflict;
-                                    index += 1
-                                }
-                                WatchStatus::NewImplication => {
-                                    if watch_status != WatchStatus::AlreadyConflict {
-                                        watch_status = WatchStatus::NewImplication
-                                    }
-                                }
-                                WatchStatus::NewSatisfied => {
-                                    if watch_status != WatchStatus::AlreadyConflict {
-                                        watch_status = WatchStatus::NewSatisfied
-                                    }
-                                }
-                                _ => {}
-                            };
-                        }
+                        std::mem::take(&mut variables[literal.v_id].positive_watch_occurrences)
                     }
+                };
+
+                let mut index = 0;
+                while index < working_clause_vec.len() {
+                    let stored_clause = working_clause_vec[index].clone();
+
+                    let process_update = if stored_clause.watched_a().v_id == literal.v_id {
+                        process_watches_two_a(valuation, variables, &stored_clause)
+                    } else {
+                        process_watches_two_b(valuation, variables, &stored_clause)
+                    };
+
+                    match process_update {
+                        WatchStatus::AlreadySatisfied => {
+                            index += 1;
+                            if watch_status != WatchStatus::AlreadyConflict {
+                                watch_status = WatchStatus::AlreadySatisfied
+                            }
+                        }
+                        WatchStatus::AlreadyImplication => {
+                            index += 1;
+                            if watch_status != WatchStatus::AlreadyConflict {
+                                watch_status = WatchStatus::AlreadyImplication
+                            }
+                        }
+                        WatchStatus::AlreadyConflict => {
+                            watch_status = WatchStatus::AlreadyConflict;
+                            index += 1;
+                        }
+                        WatchStatus::NewImplication => {
+                            working_clause_vec.swap_remove(index);
+                            if watch_status != WatchStatus::AlreadyConflict {
+                                watch_status = WatchStatus::NewImplication
+                            }
+                        }
+                        WatchStatus::NewSatisfied => {
+                            working_clause_vec.swap_remove(index);
+                            if watch_status != WatchStatus::AlreadyConflict {
+                                watch_status = WatchStatus::NewSatisfied
+                            }
+                        }
+                        WatchStatus::TwoNone => {
+                            working_clause_vec.swap_remove(index);
+                        }
+                    };
                 }
+
+                match literal.polarity {
+                    true => std::mem::replace(
+                        &mut variables[literal.v_id].negative_watch_occurrences,
+                        working_clause_vec,
+                    ),
+                    false => std::mem::replace(
+                        &mut variables[literal.v_id].positive_watch_occurrences,
+                        working_clause_vec,
+                    ),
+                };
+
                 watch_status
             }
         }

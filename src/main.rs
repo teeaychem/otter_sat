@@ -19,7 +19,7 @@ static mut CONFIG_EXPLORATION_PRIORITY: ExplorationPriority = ExplorationPriorit
 static mut CONFIG_STOPPING_CRITERIA: StoppingCriteria = StoppingCriteria::FirstAssertingUIP;
 
 static CONFIG_BREAK_ON_FIRST: bool = true;
-static CONFIG_MULTI_JUMP_MAX: bool = true;
+static CONFIG_MULTI_JUMP_MAX: bool = false;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]

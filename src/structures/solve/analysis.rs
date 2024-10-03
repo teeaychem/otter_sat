@@ -146,7 +146,6 @@ impl Solve<'_> {
 
         let stopping_criteria = config_stopping_criteria();
         for (src, _lit) in self.current_level().observations().iter().rev() {
-            // println!("C {}", resolved_clause.as_string());
             match stopping_criteria {
                 StoppingCriteria::FirstAssertingUIP => {
                     if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
