@@ -1,8 +1,7 @@
 use crate::structures::{
     clause::{
         stored_clause::{
-            initialise_watches_for, suggest_watch_update, ClauseSource, ClauseStatus, StoredClause,
-            WatchStatus
+            initialise_watches_for, ClauseSource, ClauseStatus, StoredClause,
         },
         Clause, ClauseId,
     },
@@ -10,10 +9,7 @@ use crate::structures::{
     level::{Level, LevelIndex},
     literal::{Literal, LiteralSource},
     solve::Solve,
-    solve::{
-        config::{config_exploration_priority, ExplorationPriority},
-        the_solve::literal_update,
-    },
+    solve::the_solve::literal_update,
     valuation::{Valuation, ValuationVec},
     variable::{Variable, VariableId},
 };
@@ -95,47 +91,25 @@ impl Solve<'_> {
     pub fn set_from_lists(&mut self, the_choices: (Vec<VariableId>, Vec<VariableId>)) {
         the_choices.0.iter().for_each(|&v_id| {
             let the_literal = Literal::new(v_id, false);
-            match literal_update(
+            literal_update(
                 the_literal,
                 LiteralSource::HobsonChoice,
                 &mut self.levels,
                 &mut self.variables,
                 &mut self.valuation,
-            ) {
-                WatchStatus::NewImplication | WatchStatus::AlreadyImplication => {
-                    match config_exploration_priority() {
-                        ExplorationPriority::Implication => self.watch_q.push_front(the_literal),
-                        _ => self.watch_q.push_back(the_literal),
-                    }
-                }
-                WatchStatus::AlreadyConflict => match config_exploration_priority() {
-                    ExplorationPriority::Conflict => self.watch_q.push_front(the_literal),
-                    _ => self.watch_q.push_back(the_literal),
-                },
-                _ => {self.watch_q.push_back(the_literal)}
-            };
+            );
+            self.watch_q.push_back(the_literal);
         });
         the_choices.1.iter().for_each(|&v_id| {
             let the_literal = Literal::new(v_id, true);
-            match literal_update(
+            literal_update(
                 the_literal,
                 LiteralSource::HobsonChoice,
                 &mut self.levels,
                 &mut self.variables,
                 &mut self.valuation,
-            ) {
-                WatchStatus::NewImplication | WatchStatus::AlreadyImplication => {
-                    match config_exploration_priority() {
-                        ExplorationPriority::Implication => self.watch_q.push_front(the_literal),
-                        _ => self.watch_q.push_back(the_literal),
-                    }
-                }
-                WatchStatus::AlreadyConflict => match config_exploration_priority() {
-                    ExplorationPriority::Conflict => self.watch_q.push_front(the_literal),
-                    _ => self.watch_q.push_back(the_literal),
-                },
-                _ => {self.watch_q.push_back(the_literal)}
-            };
+            );
+            self.watch_q.push_back(the_literal);
         });
     }
 
@@ -281,72 +255,4 @@ impl Solve<'_> {
             }
         }
     }
-}
-
-#[inline(always)]
-pub fn process_watches(
-    valuation: &impl Valuation,
-    variables: &mut [Variable],
-    stored_clause: &Rc<StoredClause>,
-    lit: Literal,
-) -> WatchStatus {
-    let (a_update, b_update, watch_status) =
-        suggest_watch_update(stored_clause, valuation, lit.v_id, variables);
-
-    match (a_update, b_update) {
-        (Some(a), Some(b)) => {
-            switch_watch_a(variables, stored_clause, a);
-            switch_watch_b(variables, stored_clause, b);
-        }
-        (Some(a), None) => {
-            switch_watch_a(variables, stored_clause, a);
-        }
-        (None, Some(b)) => {
-            switch_watch_b(variables, stored_clause, b);
-        }
-        (None, None) => (),
-    };
-    watch_status
-}
-
-// pub fn process_watches_two(
-//     valuation: &impl Valuation,
-//     variables: &mut [Variable],
-//     stored_clause: &Rc<StoredClause>,
-// ) -> WatchStatus {
-//     let (a_update, b_update, watch_status) = suggest_watch_update_two(stored_clause, valuation);
-
-//     match (a_update, b_update) {
-//         (Some(a), Some(b)) => {
-//             switch_watch_a(variables, stored_clause, a);
-//             switch_watch_b(variables, stored_clause, b);
-//         }
-//         (Some(a), None) => {
-//             switch_watch_a(variables, stored_clause, a);
-//         }
-//         (None, Some(b)) => {
-//             switch_watch_b(variables, stored_clause, b);
-//         }
-//         (None, None) => (),
-//     };
-//     watch_status
-// }
-
-
-#[inline(always)]
-fn switch_watch_a(variables: &mut [Variable], stored_clause: &Rc<StoredClause>, index: usize) {
-    let watched_a_lit = stored_clause.watched_a();
-    variables[watched_a_lit.v_id].watch_removed(stored_clause, watched_a_lit.polarity);
-    stored_clause.update_watch_a(index);
-    variables[stored_clause.watched_a().v_id]
-        .watch_added(stored_clause, stored_clause.watched_a().polarity)
-}
-
-#[inline(always)]
-fn switch_watch_b(variables: &mut [Variable], stored_clause: &Rc<StoredClause>, index: usize) {
-    let watched_b_lit = stored_clause.watched_b();
-    variables[watched_b_lit.v_id].watch_removed(stored_clause, watched_b_lit.polarity);
-    stored_clause.update_watch_b(index);
-    variables[stored_clause.watched_b().v_id]
-        .watch_added(stored_clause, stored_clause.watched_b().polarity)
 }
