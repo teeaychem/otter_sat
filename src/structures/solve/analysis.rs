@@ -2,14 +2,13 @@ use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
 use crate::structures::valuation::Valuation;
 use crate::structures::{
     clause::{
-        stored_clause::{initialise_watches_for, ClauseSource, StoredClause, WatchStatus},
+        stored_clause::{initialise_watches_for, ClauseSource, StoredClause},
         Clause,
     },
     literal::{Literal, LiteralSource},
     solve::{
         config::{
-            config_exploration_priority, config_stopping_criteria, ExplorationPriority,
-            StoppingCriteria,
+            config_stopping_criteria, StoppingCriteria,
         },
         the_solve::literal_update,
         Solve, SolveStatus,
@@ -78,27 +77,14 @@ impl Solve<'_> {
                     self.backjump(backjump_level);
 
                     // updating the valuation needs to happen here to ensure the watches for any queued literal during propagaion are fixed
-                    match literal_update(
+                    literal_update(
                         assertion,
                         LiteralSource::StoredClause(asserting_clause),
                         &mut self.levels,
                         &mut self.variables,
                         &mut self.valuation,
-                    ) {
-                        WatchStatus::NewImplication | WatchStatus::AlreadyImplication => {
-                            match config_exploration_priority() {
-                                ExplorationPriority::Implication => {
-                                    self.watch_q.push_front(assertion)
-                                }
-                                _ => self.watch_q.push_back(assertion),
-                            }
-                        }
-                        WatchStatus::AlreadyConflict => match config_exploration_priority() {
-                            ExplorationPriority::Conflict => self.watch_q.push_front(assertion),
-                            _ => self.watch_q.push_back(assertion),
-                        },
-                        _ => self.watch_q.push_back(assertion),
-                    };
+                    );
+                    self.watch_q.push_back(assertion);
 
                     SolveStatus::AssertingClause
                 }
