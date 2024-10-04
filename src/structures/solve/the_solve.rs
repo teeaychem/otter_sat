@@ -7,7 +7,10 @@ use crate::structures::{
     level::Level,
     literal::{Literal, LiteralSource},
     solve::{
-        config::{config_glue_strength, config_show_assignment, config_show_core},
+        config::{
+            config_glue_strength, config_hobson, config_restarts_allowed, config_show_assignment,
+            config_show_core, config_show_stats, config_time_limit,
+        },
         stats::SolveStats,
         Solve, {SolveResult, SolveStatus},
     },
@@ -29,14 +32,22 @@ impl Solve<'_> {
 
         let mut stats = SolveStats::new();
 
-        if crate::HOBSON_CHOICES {
-            // settle any literals which occur only as true or only as false
+        if config_hobson() {
             self.set_from_lists(hobson_choices(self.clauses()));
         }
 
         let result: SolveResult;
 
         'main_loop: loop {
+            stats.total_time = this_total_time.elapsed();
+            if config_time_limit().is_some_and(|t| stats.total_time > t) {
+                if config_show_stats() {
+                    println!("c TIME LIMIT EXCEEDED");
+                }
+                result = SolveResult::Unknown;
+                break 'main_loop;
+            }
+
             stats.iterations += 1;
 
             let mut conflicts = match crate::CONFIG_BREAK_ON_FIRST {
@@ -111,7 +122,7 @@ impl Solve<'_> {
                             log::debug!(target: "forget", "{stats}");
                             let this_reduction_time = std::time::Instant::now();
                             reduce(self);
-                            if crate::RESTART {
+                            if config_restarts_allowed() {
                                 self.watch_q.clear();
                                 self.backjump(0);
                             }

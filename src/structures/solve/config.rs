@@ -34,3 +34,15 @@ pub fn config_show_core() -> bool {
 pub fn config_show_assignment() -> bool {
     unsafe { crate::CONFIG_SHOW_ASSIGNMENT }
 }
+
+pub fn config_restarts_allowed() -> bool {
+    unsafe { crate::RESTARTS_ALLOWED }
+}
+
+pub fn config_hobson() -> bool {
+    unsafe { crate::HOBSON_CHOICES }
+}
+
+pub fn config_time_limit() -> Option<std::time::Duration> {
+    unsafe { crate::TIME_LIMIT }
+}
