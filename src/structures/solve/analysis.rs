@@ -7,9 +7,7 @@ use crate::structures::{
     },
     literal::{Literal, LiteralSource},
     solve::{
-        config::{
-            config_stopping_criteria, StoppingCriteria,
-        },
+        config::{config_stopping_criteria, StoppingCriteria},
         the_solve::literal_update,
         Solve, SolveStatus,
     },
@@ -160,6 +158,16 @@ impl Solve<'_> {
             }
         }
 
+        if asserted_literal.is_none() {
+            if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
+                asserted_literal = Some(asserted);
+            } else {
+                println!("PV {}", previous_level_val.as_internal_string());
+                println!("CV {}", self.valuation.as_internal_string());
+                panic!("No assertion…")
+            }
+        }
+
         /*
         If some literals are known then their negation can be safely removed from the learnt clause.
         Though, this isn't a particular effective method…
@@ -173,21 +181,11 @@ impl Solve<'_> {
                     .any(|(_, x)| l.negate() == *x)
             })
         }
-        let stored_clause = self.store_clause(
-            resolved_clause.clone(),
-            ClauseSource::Resolution(resolution_trail),
-        );
+        let stored_clause =
+            self.store_clause(resolved_clause, ClauseSource::Resolution(resolution_trail));
         stored_clause.set_lbd(&self.variables);
 
-        if let Some(asserted) = asserted_literal {
-            AnalysisResult::AssertingClause(stored_clause, asserted)
-        } else if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
-            AnalysisResult::AssertingClause(stored_clause, asserted)
-        } else {
-            println!("PV {}", previous_level_val.as_internal_string());
-            println!("CV {}", self.valuation.as_internal_string());
-            panic!("No assertion…")
-        }
+        AnalysisResult::AssertingClause(stored_clause, asserted_literal.unwrap())
     }
 
     pub fn core(&self) {
