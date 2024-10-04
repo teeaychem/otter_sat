@@ -105,6 +105,7 @@ fn main() {
         let formula = Formula::from_dimacs(&contents);
 
         if config_show_stats() {
+            println!("c 🦦");
             println!("c Parsing formula from file: {:?}", args.formula_file);
             println!(
                 "c Parsed formula with {} variables and {} clauses",
