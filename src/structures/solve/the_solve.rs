@@ -29,7 +29,10 @@ impl Solve<'_> {
 
         let mut stats = SolveStats::new();
 
-        // self.set_from_lists(hobson_choices(self.clauses())); // settle any literals which occur only as true or only as false
+        if crate::HOBSON_CHOICES {
+            // settle any literals which occur only as true or only as false
+            self.set_from_lists(hobson_choices(self.clauses()));
+        }
 
         let result: SolveResult;
 
@@ -108,8 +111,10 @@ impl Solve<'_> {
                             log::debug!(target: "forget", "{stats}");
                             let this_reduction_time = std::time::Instant::now();
                             reduce(self);
-                            // self.watch_q.clear();
-                            // self.backjump(0);
+                            if crate::RESTART {
+                                self.watch_q.clear();
+                                self.backjump(0);
+                            }
 
                             stats.reduction_time += this_reduction_time.elapsed();
                         }
@@ -144,7 +149,7 @@ impl Solve<'_> {
                     self.watch_q.clear();
                     let this_unsat_time = std::time::Instant::now();
                     self.notice_conflict(&stored_conflict);
-                    let analysis_result = self.attempt_fix(stored_conflict.clone());
+                    let analysis_result = self.attempt_fix(stored_conflict);
                     stats.unsat_time += this_unsat_time.elapsed();
                     match analysis_result {
                         SolveStatus::NoSolution => {
@@ -201,24 +206,16 @@ impl Solve<'_> {
 
 #[inline(always)]
 fn reduce(solve: &mut Solve) {
-    let learnt_count = solve.learnt_clauses.len();
-    log::debug!(target: "forget", "Learnt count: {}", learnt_count);
+    log::debug!(target: "forget", "Learnt count: {}", solve.learnt_clauses.len());
 
-    /*
-    Clauses are removed from the learnt clause vector by swap_remove.
-    So, when working through the vector it's importnat to only increment the pointer if no drop takes place.
-     */
     {
         // solve.learnt_clauses.truncate(learnt_count / 2);
         let mut i = 0;
-        loop {
-            if i >= solve.learnt_clauses.len() {
-                break;
-            }
-            let clause = solve.learnt_clauses[i].clone();
-
-            if clause.lbd() > config_glue_strength() {
-                solve.drop_clause_by_swap(&clause);
+        let mut length = solve.learnt_clauses.len();
+        while i < length {
+            if solve.learnt_clauses[i].lbd() > config_glue_strength() {
+                solve.drop_learnt_clause_by_swap(i);
+                length -= 1;
             } else {
                 i += 1
             }
@@ -241,15 +238,15 @@ pub fn literal_update(
 
     // update the valuation and match the result
     match valuation.update_value(literal) {
-        // if update occurrs, make records at the relevant level
         Ok(()) => {
+            log::trace!("Set {source:?}: {literal}");
+            // if update occurrs, make records at the relevant level
             let level_index = match &source {
                 LiteralSource::Choice | LiteralSource::StoredClause(_) => levels.len() - 1,
                 LiteralSource::Assumption | LiteralSource::HobsonChoice => 0,
             };
             variable.set_decision_level(level_index);
             levels[level_index].record_literal(literal, &source);
-            log::trace!("Set {source:?}: {literal}");
 
             // and, process whether any change to the watch literals is required
 
@@ -264,11 +261,11 @@ pub fn literal_update(
             let mut index = 0;
             let mut length = working_clause_vec.len();
             while index < length {
-                let stored_clause = working_clause_vec[index].clone();
+                let stored_clause = &working_clause_vec[index];
 
                 let process_update = match stored_clause.watched_a().v_id == literal.v_id {
-                    true => process_watches(valuation, vars, &stored_clause, Watch::A),
-                    false => process_watches(valuation, vars, &stored_clause, Watch::B),
+                    true => process_watches(valuation, vars, stored_clause, Watch::A),
+                    false => process_watches(valuation, vars, stored_clause, Watch::B),
                 };
 
                 match process_update {
