@@ -2,7 +2,7 @@
 
 use clap::Parser;
 use std::fs;
-use structures::solve::config::{ExplorationPriority, StoppingCriteria};
+use structures::solve::config::{config_time_limit, ExplorationPriority, StoppingCriteria};
 mod io;
 mod procedures;
 mod structures;
@@ -17,12 +17,12 @@ static mut CONFIG_SHOW_CORE: bool = false;
 static mut CONFIG_SHOW_ASSIGNMENT: bool = false;
 static mut CONFIG_EXPLORATION_PRIORITY: ExplorationPriority = ExplorationPriority::Default;
 static mut CONFIG_STOPPING_CRITERIA: StoppingCriteria = StoppingCriteria::FirstAssertingUIP;
+static mut RESTARTS_ALLOWED: bool = false;
+static mut HOBSON_CHOICES: bool = false;
+static mut TIME_LIMIT: Option<std::time::Duration> = None; // Some(std::time::Duration::new(10, 0));
 
 static CONFIG_BREAK_ON_FIRST: bool = true;
 static CONFIG_MULTI_JUMP_MAX: bool = false;
-static HOBSON_CHOICES: bool = false;
-static RESTART: bool = false;
-
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -32,7 +32,7 @@ struct Args {
     #[arg(short, long)]
     formula_file: std::path::PathBuf,
 
-    /// Display stats
+    /// Display stats on completion
     #[arg(short, long, default_value_t = false)]
     stats: bool,
 
@@ -52,9 +52,21 @@ struct Args {
     #[arg(long, default_value_t = String::from("FirstUIP"))]
     stopping_criteria: String,
 
-    /// Conflict priority
+    /// Suggest priority exploring conflcits, implications, or take no interest
     #[arg(long, default_value_t = String::from("Default"))]
     exploration_priority: String,
+
+    /// Allow for the decisions to be forgotten, on occassion
+    #[arg(short, long, default_value_t = false)]
+    restarts: bool,
+
+    /// Initially settle all atoms which occur with a unique polarity
+    #[arg(long, default_value_t = false)]
+    hobson: bool,
+
+    /// Time limit for the solve
+    #[arg(short, long, value_parser = |seconds: &str| seconds.parse().map(std::time::Duration::from_secs))]
+    time: Option<std::time::Duration>,
 }
 
 fn main() {
@@ -85,6 +97,8 @@ fn main() {
         };
         CONFIG_SHOW_CORE = args.core;
         CONFIG_SHOW_ASSIGNMENT = args.assignment;
+        RESTARTS_ALLOWED = args.restarts;
+        TIME_LIMIT = args.time
     }
 
     if let Ok(contents) = fs::read_to_string(&args.formula_file) {
@@ -97,6 +111,9 @@ fn main() {
                 formula.vars().len(),
                 formula.clauses().count()
             );
+            if let Some(limit) = config_time_limit() {
+                println!("c TIME LIMIT: {:.2?}", limit);
+            }
         }
         log::trace!("Formula processed");
         let mut the_solve = Solve::from_formula(&formula);
@@ -116,7 +133,7 @@ fn main() {
                 std::process::exit(10);
             }
             SolveResult::Unknown => {
-                println!("s Unkown");
+                println!("s UNKNOWN");
                 std::process::exit(20);
             }
         }

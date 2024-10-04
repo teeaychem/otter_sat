@@ -136,11 +136,11 @@ impl Solve<'_> {
     pub fn notice_conflict(&mut self, stored_clauses: &Rc<StoredClause>) {
         self.conflicts += 1;
         self.conflcits_since_last_forget += 1;
-        // if self.conflicts % 1024 == 0 {
-        // for variable in &mut self.variables {
-        //     variable.divide_activity(2.0)
-        // }
-        // }
+        if self.conflicts % 1024 == 0 {
+            for variable in &mut self.variables {
+                variable.divide_activity(2.0)
+            }
+        }
 
         for literal in stored_clauses.variables() {
             self.variables[literal].add_activity(1.0);
