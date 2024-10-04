@@ -20,6 +20,9 @@ static mut CONFIG_STOPPING_CRITERIA: StoppingCriteria = StoppingCriteria::FirstA
 
 static CONFIG_BREAK_ON_FIRST: bool = true;
 static CONFIG_MULTI_JUMP_MAX: bool = false;
+static HOBSON_CHOICES: bool = false;
+static RESTART: bool = false;
+
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]

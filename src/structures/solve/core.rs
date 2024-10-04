@@ -1,15 +1,13 @@
 use crate::structures::{
     clause::{
-        stored_clause::{
-            initialise_watches_for, ClauseSource, ClauseStatus, StoredClause,
-        },
+        stored_clause::{initialise_watches_for, ClauseSource, ClauseStatus, StoredClause},
         Clause, ClauseId,
     },
     formula::Formula,
     level::{Level, LevelIndex},
     literal::{Literal, LiteralSource},
-    solve::Solve,
     solve::the_solve::literal_update,
+    solve::Solve,
     valuation::{Valuation, ValuationVec},
     variable::{Variable, VariableId},
 };
@@ -215,23 +213,20 @@ impl<'borrow, 'solve> Solve<'solve> {
         }
     }
 
-    pub fn drop_clause_by_swap(&mut self, stored_clause: &Rc<StoredClause>) {
+    pub fn drop_learnt_clause_by_swap(&mut self, index: usize) {
+        let stored_clause = &self.learnt_clauses[index];
+
         let watched_a_lit = stored_clause.watched_a();
-        let watched_b_lit = stored_clause.watched_b();
         self.variables[watched_a_lit.v_id].watch_removed(stored_clause, watched_a_lit.polarity);
+
+        let watched_b_lit = stored_clause.watched_b();
         self.variables[watched_b_lit.v_id].watch_removed(stored_clause, watched_b_lit.polarity);
-        if let Some(p) = self
-            .learnt_clauses
-            .iter()
-            .position(|sc| sc == stored_clause)
-        {
-            let _ = self.learnt_clauses.swap_remove(p);
-        } else {
-            panic!("Unable to remove: {} from learnt clauses", stored_clause);
-        }
+
         for literal in stored_clause.literals() {
             self.variables[literal.v_id].note_drop(stored_clause, literal.polarity)
         }
+
+        let _ = self.learnt_clauses.swap_remove(index);
     }
 
     pub fn unset_literal(&mut self, literal: Literal) {
