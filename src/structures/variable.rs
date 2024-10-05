@@ -1,4 +1,4 @@
-use crate::structures::{level::LevelIndex, clause::stored_clause::StoredClause};
+use crate::structures::{clause::stored_clause::StoredClause, level::LevelIndex};
 
 pub type VariableId = usize;
 use std::cell::Cell;
@@ -49,7 +49,6 @@ impl Variable {
     pub fn id(&self) -> VariableId {
         self.id
     }
-
 
     pub fn add_activity(&self, by: f32) {
         let mut activity = self.activity.get();
@@ -109,20 +108,18 @@ impl Variable {
     pub fn watch_removed(&mut self, stored_clause: &Rc<StoredClause>, polarity: bool) {
         match polarity {
             true => {
-                if let Some(p) = self
-                    .positive_watch_occurrences
-                    .iter()
-                    .position(|sc| sc == stored_clause)
-                {
+                let temporary = std::mem::take(&mut self.positive_watch_occurrences);
+                let position = temporary.iter().position(|sc| sc == stored_clause);
+                let _ = std::mem::replace(&mut self.positive_watch_occurrences, temporary);
+                if let Some(p) = position {
                     self.positive_watch_occurrences.swap_remove(p);
                 }
             }
             false => {
-                if let Some(p) = self
-                    .negative_watch_occurrences
-                    .iter()
-                    .position(|sc| sc == stored_clause)
-                {
+                let temporary = std::mem::take(&mut self.negative_watch_occurrences);
+                let position = temporary.iter().position(|sc| sc == stored_clause);
+                let _ = std::mem::replace(&mut self.negative_watch_occurrences, temporary);
+                if let Some(p) = position {
                     self.negative_watch_occurrences.swap_remove(p);
                 }
             }
@@ -132,10 +129,14 @@ impl Variable {
     pub fn watch_added(&mut self, stored_clause: &Rc<StoredClause>, polarity: bool) {
         match polarity {
             true => {
-                self.positive_watch_occurrences.push(stored_clause.clone());
+                let mut temporary = std::mem::take(&mut self.positive_watch_occurrences);
+                temporary.push(stored_clause.clone());
+                let _ = std::mem::replace(&mut self.positive_watch_occurrences, temporary);
             }
             false => {
-                self.negative_watch_occurrences.push(stored_clause.clone());
+                let mut temporary = std::mem::take(&mut self.negative_watch_occurrences);
+                temporary.push(stored_clause.clone());
+                let _ = std::mem::replace(&mut self.negative_watch_occurrences, temporary);
             }
         }
     }
