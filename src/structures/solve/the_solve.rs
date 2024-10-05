@@ -58,12 +58,12 @@ impl Solve {
             let this_implication_time = std::time::Instant::now();
             'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
                 let temprary_clause_vec: Vec<Rc<StoredClause>> = match literal.polarity {
-                    false => {
-                        std::mem::take(&mut self.variables[literal.v_id].positive_watch_occurrences)
-                    }
-                    true => {
-                        std::mem::take(&mut self.variables[literal.v_id].negative_watch_occurrences)
-                    }
+                    false => self.variables[literal.v_id]
+                        .positive_watch_occurrences
+                        .take(),
+                    true => self.variables[literal.v_id]
+                        .negative_watch_occurrences
+                        .take(),
                 };
                 macro_rules! replace_occurrence_vecs {
                     /*
@@ -73,14 +73,12 @@ impl Solve {
                      */
                     () => {
                         match literal.polarity {
-                            false => std::mem::replace(
-                                &mut self.variables[literal.v_id].positive_watch_occurrences,
-                                temprary_clause_vec,
-                            ),
-                            true => std::mem::replace(
-                                &mut self.variables[literal.v_id].negative_watch_occurrences,
-                                temprary_clause_vec,
-                            ),
+                            false => self.variables[literal.v_id]
+                                .positive_watch_occurrences
+                                .replace(temprary_clause_vec),
+                            true => self.variables[literal.v_id]
+                                .negative_watch_occurrences
+                                .replace(temprary_clause_vec),
                         };
                     };
                 }
@@ -271,8 +269,8 @@ pub fn literal_update(
             // Though, as a function is not viable given the use of variables in the process functions,
             // this while unstable this allows updating code in only one place
             let mut working_clause_vec = match literal.polarity {
-                true => std::mem::take(&mut vars[literal.v_id].negative_watch_occurrences),
-                false => std::mem::take(&mut vars[literal.v_id].positive_watch_occurrences),
+                true => vars[literal.v_id].negative_watch_occurrences.take(),
+                false => vars[literal.v_id].positive_watch_occurrences.take(),
             };
 
             let mut index = 0;
@@ -301,14 +299,12 @@ pub fn literal_update(
             }
 
             match literal.polarity {
-                true => std::mem::replace(
-                    &mut vars[literal.v_id].negative_watch_occurrences,
-                    working_clause_vec,
-                ),
-                false => std::mem::replace(
-                    &mut vars[literal.v_id].positive_watch_occurrences,
-                    working_clause_vec,
-                ),
+                true => vars[literal.v_id]
+                    .negative_watch_occurrences
+                    .replace(working_clause_vec),
+                false => vars[literal.v_id]
+                    .positive_watch_occurrences
+                    .replace(working_clause_vec),
             };
         }
         Err(ValuationStatus::Match) => match source {
