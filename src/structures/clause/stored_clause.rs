@@ -276,7 +276,7 @@ impl StoredClause {
     }
 
     pub fn set_lbd(&self, vars: &[Variable]) {
-        self.lbd.replace(self.clause.lbd(vars));
+        self.lbd.set(self.clause.lbd(vars));
     }
 
     pub fn lbd(&self) -> usize {
@@ -292,11 +292,11 @@ impl StoredClause {
     }
 
     pub fn update_watch_a(&self, val: usize) {
-        self.watch_a.replace(val);
+        self.watch_a.set(val);
     }
 
     pub fn update_watch_b(&self, val: usize) {
-        self.watch_b.replace(val);
+        self.watch_b.set(val);
     }
 
     pub fn clause_clone(&self) -> ClauseVec {
@@ -312,9 +312,9 @@ pub fn initialise_watches_for(
     if stored_clause.clause.len() > 1 {
         stored_clause
             .watch_a
-            .replace(stored_clause.some_preferred_index(val, None, vars));
+            .set(stored_clause.some_preferred_index(val, None, vars));
 
-        stored_clause.watch_b.replace({
+        stored_clause.watch_b.set({
             let literal_a = stored_clause.clause[stored_clause.watch_a.get()];
             stored_clause.some_preferred_index(val, Some(literal_a.v_id), vars)
         });
