@@ -61,62 +61,56 @@ pub fn resolve_sorted_clauses<T: Clause>(
                     if let Some(existing_b) = b_found {
                         if existing_b != a_lit.polarity {
                             a_found = Some(a_lit.polarity);
-                            current_a = clause_a_literals.next();
                         } else {
                             return None;
                         }
                     } else {
                         a_found = Some(a_lit.polarity);
-                        current_a = clause_a_literals.next();
                     }
                 } else {
                     the_clause.push(a_lit);
-                    current_a = clause_a_literals.next();
                 }
+                current_a = clause_a_literals.next();
             }
             (None, Some(b_lit)) => {
                 if b_lit.v_id == v_id {
                     if let Some(existing) = a_found {
                         if existing != b_lit.polarity {
                             b_found = Some(b_lit.polarity);
-                            current_b = clause_b_literals.next();
                         } else {
                             return None;
                         }
                     } else {
                         b_found = Some(b_lit.polarity);
-                        current_a = clause_a_literals.next();
                     }
                 } else {
                     the_clause.push(b_lit);
-                    current_b = clause_b_literals.next();
                 }
+                current_b = clause_b_literals.next();
             }
             (Some(a_lit), Some(b_lit)) => {
                 if a_lit.v_id == v_id {
                     if let Some(existing) = b_found {
                         if existing != a_lit.polarity {
                             a_found = Some(a_lit.polarity);
-                            current_a = clause_a_literals.next();
                         } else {
                             return None;
                         }
                     } else {
                         a_found = Some(a_lit.polarity);
-                        current_a = clause_a_literals.next();
                     }
+                    current_a = clause_a_literals.next();
                 } else if b_lit.v_id == v_id {
                     if let Some(existing) = a_found {
                         if existing != b_lit.polarity {
                             b_found = Some(b_lit.polarity);
-                            current_b = clause_b_literals.next();
                         } else {
                             return None;
                         }
                     } else {
                         b_found = Some(b_lit.polarity);
-                        current_b = clause_b_literals.next();
                     }
+                    current_b = clause_b_literals.next();
                 } else {
                     match a_lit.cmp(&b_lit) {
                         std::cmp::Ordering::Equal => {
