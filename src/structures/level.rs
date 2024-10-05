@@ -3,12 +3,11 @@ use std::fmt::Debug;
 use crate::structures::{
     literal::{Literal, LiteralSource},
     solve::Solve,
-    variable::VariableId,
 };
 
 pub type LevelIndex = usize;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Level {
     index: LevelIndex,
     choice: Option<Literal>,
@@ -58,40 +57,18 @@ impl Level {
                 .cloned(),
         )
     }
-
-    pub fn variables(&self) -> impl Iterator<Item = VariableId> + '_ {
-        self.choice
-            .into_iter()
-            .map(|l| l.v_id)
-            .chain(self.observations.iter().map(|(_, l)| l.v_id))
-    }
 }
 
-impl<'borrow, 'solve> Solve {
-    pub fn add_fresh_level(&'borrow mut self) -> LevelIndex {
+impl Solve {
+    pub fn add_fresh_level(&mut self) -> LevelIndex {
         let index = self.levels.len();
         let the_level = Level::new(index);
         self.levels.push(the_level);
         index
     }
-}
 
-impl<'borrow, 'level, 'solve: 'level> Solve {
-    pub fn top_level(&'borrow self) -> &Level {
-        &self.levels[0]
-    }
-
-    pub fn top_level_mut(&'borrow mut self) -> &mut Level {
-        &mut self.levels[0]
-    }
-
-    pub fn current_level(&'borrow self) -> &Level {
+    pub fn current_level(&self) -> &Level {
         let index = self.levels.len() - 1;
         &self.levels[index]
-    }
-
-    pub fn current_level_mut(&'borrow mut self) -> &mut Level {
-        let index = self.levels.len() - 1;
-        &mut self.levels[index]
     }
 }

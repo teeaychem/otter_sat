@@ -28,7 +28,7 @@ and, is intended to be the unique representation of a clause within a solve
 - `watch_a` and `watch_b` are pointers to the watched literals, and rely on a vector representation of the clause
   - note, both default to 0 and should be initialised with `initialise_watches_for` when the clause is stored
 */
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct StoredClause {
     id: ClauseId,
     lbd: Cell<usize>,
@@ -298,6 +298,10 @@ impl StoredClause {
     pub fn update_watch_b(&self, val: usize) {
         self.watch_b.replace(val);
     }
+
+    pub fn clause_clone(&self) -> ClauseVec {
+        self.clause.clone()
+}
 }
 
 pub fn initialise_watches_for(
@@ -482,10 +486,6 @@ impl Clause for StoredClause {
 
     fn is_empty(&self) -> bool {
         self.clause.is_empty()
-    }
-
-    fn as_vec(&self) -> ClauseVec {
-        self.clause.clone()
     }
 
     fn to_vec(self) -> ClauseVec {

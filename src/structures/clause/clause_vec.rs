@@ -1,8 +1,11 @@
-use crate::structures::{literal::Literal, variable::{Variable, VariableId}, valuation::{Valuation, ValuationVec}, clause::Clause};
-
+use crate::structures::{
+    clause::Clause,
+    literal::Literal,
+    valuation::{Valuation, ValuationVec},
+    variable::{Variable, VariableId},
+};
 
 pub type ClauseVec = Vec<Literal>;
-
 
 impl Clause for ClauseVec {
     fn literals(&self) -> impl Iterator<Item = Literal> {
@@ -90,10 +93,6 @@ impl Clause for ClauseVec {
         }
         the_string += "0";
         the_string
-    }
-
-    fn as_vec(&self) -> ClauseVec {
-        self.clone()
     }
 
     fn to_vec(self) -> ClauseVec {
@@ -190,7 +189,7 @@ mod tests {
             Literal::new(3, true),
             Literal::new(4, false),
         ];
-        let resolution = resolve_sorted_clauses(&a, &b, 1);
+        let resolution = resolve_sorted_clauses(a.literals(), b.literals(), 1);
         if let Some(resolved) = resolution {
             assert_eq!(
                 vec![
@@ -209,7 +208,7 @@ mod tests {
     fn resolve_nok_check() {
         let a = vec![Literal::new(1, true), Literal::new(2, false)];
         let b = vec![Literal::new(3, true), Literal::new(4, false)];
-        assert!(resolve_sorted_clauses(&a, &b, 1).is_none())
+        assert!(resolve_sorted_clauses(a.literals(), b.literals(), 1).is_none())
     }
 
     #[test]

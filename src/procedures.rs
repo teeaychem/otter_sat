@@ -39,13 +39,11 @@ pub fn hobson_choices<'borrow>(
     (hobson_false, hobson_true)
 }
 
-pub fn resolve_sorted_clauses<T: Clause>(
-    cls_a: &T,
-    cls_b: &T,
+pub fn resolve_sorted_clauses(
+    mut clause_a_literals: impl Iterator<Item = Literal>,
+    mut clause_b_literals: impl Iterator<Item = Literal>,
     v_id: VariableId,
 ) -> Option<impl Clause> {
-    let mut clause_a_literals = cls_a.literals();
-    let mut clause_b_literals = cls_b.literals();
     let mut current_a = clause_a_literals.next();
     let mut current_b = clause_b_literals.next();
 
@@ -142,25 +140,26 @@ pub fn resolve_sorted_clauses<T: Clause>(
 }
 
 /// Work through two ordered vectors, noting any occurrences of the same variable under contrastring polarity
-pub fn find_counterpart_literals<T: Clause>(cls_a: &T, cls_b: &T) -> Vec<VariableId> {
+pub fn find_counterpart_literals(
+    mut cls_a: impl Iterator<Item = Literal>,
+    mut cls_b: impl Iterator<Item = Literal>,
+) -> Vec<VariableId> {
     let mut candidates = vec![];
 
-    let mut clause_a_literals = cls_a.literals();
-    let mut clause_b_literals = cls_b.literals();
-    let mut current_a = clause_a_literals.next();
-    let mut current_b = clause_b_literals.next();
+    let mut current_a = cls_a.next();
+    let mut current_b = cls_b.next();
 
     while let (Some(a_lit), Some(b_lit)) = (current_a, current_b) {
         if a_lit.v_id == b_lit.v_id {
             if a_lit.polarity != b_lit.polarity {
                 candidates.push(a_lit.v_id);
             }
-            current_a = clause_a_literals.next();
-            current_b = clause_b_literals.next();
+            current_a = cls_a.next();
+            current_b = cls_b.next();
         } else if a_lit < b_lit {
-            current_a = clause_a_literals.next();
+            current_a = cls_a.next();
         } else if b_lit < a_lit {
-            current_b = clause_b_literals.next();
+            current_b = cls_b.next();
         } else {
             panic!("Incomparable literals found");
         }
@@ -185,7 +184,7 @@ mod tests {
             Literal::new(3, true),
             Literal::new(4, false),
         ];
-        let result = resolve_sorted_clauses(&a, &b, 1);
+        let result = resolve_sorted_clauses(a.literals(), b.literals(), 1);
         assert!(result.is_some());
 
         assert_eq!(
@@ -203,6 +202,6 @@ mod tests {
     fn sorted_resolve_nok_check() {
         let a = vec![Literal::new(1, true), Literal::new(2, false)];
         let b = vec![Literal::new(3, true), Literal::new(4, false)];
-        assert!(resolve_sorted_clauses(&a, &b, 1).is_none())
+        assert!(resolve_sorted_clauses(a.literals(), b.literals(), 1).is_none())
     }
 }
