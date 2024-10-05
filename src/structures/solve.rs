@@ -12,9 +12,9 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 
 pub struct Solve {
-    pub conflicts: usize,
-    pub conflcits_since_last_forget: usize,
-    pub forgets: usize,
+    conflicts: usize,
+    conflcits_since_last_forget: usize,
+    forgets: usize,
     pub variables: Vec<Variable>,
     pub valuation: Vec<Option<bool>>,
     pub levels: Vec<Level>,
