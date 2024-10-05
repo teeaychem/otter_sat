@@ -61,7 +61,7 @@ impl Solve {
                     true => self.variables[literal.v_id].take_occurrence_vec(false),
                     false => self.variables[literal.v_id].take_occurrence_vec(true),
                 };
-                macro_rules! replace_occurrence_vecs {
+                macro_rules! restore_occurrence_vecs {
                     () => {
                         match literal.polarity {
                             true => self.variables[literal.v_id]
@@ -94,7 +94,7 @@ impl Solve {
                             };
                             match crate::CONFIG_BREAK_ON_FIRST {
                                 true => {
-                                    replace_occurrence_vecs!();
+                                    restore_occurrence_vecs!();
                                     break 'propagation_loop;
                                 }
                                 false => continue,
@@ -104,7 +104,7 @@ impl Solve {
                         ClauseStatus::Satisfied => (),
                     }
                 }
-                replace_occurrence_vecs!();
+                restore_occurrence_vecs!();
             }
             stats.implication_time += this_implication_time.elapsed();
 

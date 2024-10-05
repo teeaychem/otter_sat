@@ -51,13 +51,13 @@ impl Variable {
     pub fn add_activity(&self, by: f32) {
         let mut activity = self.activity.get();
         activity += by;
-        self.activity.replace(activity);
+        self.activity.set(activity);
     }
 
     pub fn divide_activity(&self, by: f32) {
         let mut activity = self.activity.get();
         activity /= by;
-        self.activity.replace(activity);
+        self.activity.set(activity);
     }
 
     pub fn activity(&self) -> f32 {
@@ -70,12 +70,12 @@ impl Variable {
             true => {
                 let mut temporary = self.positive_occurrences.take();
                 temporary.push(cloned);
-                let _ = self.positive_occurrences.replace(temporary);
+                self.positive_occurrences.set(temporary);
             }
             false => {
                 let mut temporary = self.negative_occurrences.take();
                 temporary.push(cloned);
-                let _ = self.negative_occurrences.replace(temporary);
+                self.negative_occurrences.set(temporary);
             }
         }
     }
@@ -88,7 +88,7 @@ impl Variable {
                 if let Some(p) = position {
                     temporary.swap_remove(p);
                 }
-                let _ = self.positive_occurrences.replace(temporary);
+                self.positive_occurrences.set(temporary);
             }
             false => {
                 let mut temporary = self.negative_occurrences.take();
@@ -96,7 +96,7 @@ impl Variable {
                 if let Some(p) = position {
                     temporary.swap_remove(p);
                 }
-                let _ = self.negative_occurrences.replace(temporary);
+                self.negative_occurrences.set(temporary);
             }
         }
     }
@@ -109,7 +109,7 @@ impl Variable {
                 if let Some(p) = position {
                     temporary.swap_remove(p);
                 }
-                let _ = self.positive_watch_occurrences.replace(temporary);
+                self.positive_watch_occurrences.set(temporary);
             }
             false => {
                 let mut temporary = self.negative_watch_occurrences.take();
@@ -117,7 +117,7 @@ impl Variable {
                 if let Some(p) = position {
                     temporary.swap_remove(p);
                 }
-                let _ = self.negative_watch_occurrences.replace(temporary);
+                self.negative_watch_occurrences.set(temporary);
             }
         }
     }
@@ -127,12 +127,12 @@ impl Variable {
             true => {
                 let mut temporary = self.positive_watch_occurrences.take();
                 temporary.push(stored_clause.clone());
-                let _ = self.positive_watch_occurrences.replace(temporary);
+                self.positive_watch_occurrences.set(temporary);
             }
             false => {
                 let mut temporary = self.negative_watch_occurrences.take();
                 temporary.push(stored_clause.clone());
-                let _ = self.negative_watch_occurrences.replace(temporary);
+                self.negative_watch_occurrences.set(temporary);
             }
         }
     }
@@ -145,9 +145,9 @@ impl Variable {
     }
 
     pub fn restore_occurrence_vec(&self, polarity: bool, vec: Vec<Rc<StoredClause>>) {
-        let _ = match polarity {
-            true => self.positive_watch_occurrences.replace(vec),
-            false => self.negative_watch_occurrences.replace(vec),
+        match polarity {
+            true => self.positive_watch_occurrences.set(vec),
+            false => self.negative_watch_occurrences.set(vec),
         };
     }
 }
