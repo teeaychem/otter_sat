@@ -58,12 +58,8 @@ impl Solve {
             let this_implication_time = std::time::Instant::now();
             'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
                 let temprary_clause_vec: Vec<Rc<StoredClause>> = match literal.polarity {
-                    false => self.variables[literal.v_id]
-                        .positive_watch_occurrences
-                        .take(),
-                    true => self.variables[literal.v_id]
-                        .negative_watch_occurrences
-                        .take(),
+                    true => self.variables[literal.v_id].take_occurrence_vec(false),
+                    false => self.variables[literal.v_id].take_occurrence_vec(true),
                 };
                 macro_rules! replace_occurrence_vecs {
                     /*
@@ -73,12 +69,10 @@ impl Solve {
                      */
                     () => {
                         match literal.polarity {
-                            false => self.variables[literal.v_id]
-                                .positive_watch_occurrences
-                                .replace(temprary_clause_vec),
                             true => self.variables[literal.v_id]
-                                .negative_watch_occurrences
-                                .replace(temprary_clause_vec),
+                                .restore_occurrence_vec(false, temprary_clause_vec),
+                            false => self.variables[literal.v_id]
+                                .restore_occurrence_vec(true, temprary_clause_vec),
                         };
                     };
                 }
@@ -90,7 +84,7 @@ impl Solve {
                                 consequent,
                                 LiteralSource::StoredClause(stored_clause.clone()),
                                 &mut self.levels,
-                                &mut self.variables,
+                                &self.variables,
                                 &mut self.valuation,
                             );
                             self.watch_q.push_back(consequent);
@@ -147,7 +141,7 @@ impl Solve {
                             the_literal,
                             LiteralSource::Choice,
                             &mut self.levels,
-                            &mut self.variables,
+                            &self.variables,
                             &mut self.valuation,
                         );
                         self.watch_q.push_back(the_literal);
@@ -246,10 +240,10 @@ pub fn literal_update(
     literal: Literal,
     source: LiteralSource,
     levels: &mut [Level],
-    vars: &mut [Variable],
+    vars: &[Variable],
     valuation: &mut impl Valuation,
 ) {
-    let variable = &mut vars[literal.v_id];
+    let variable = &vars[literal.v_id];
 
     // update the valuation and match the result
     match valuation.update_value(literal) {
@@ -269,8 +263,8 @@ pub fn literal_update(
             // Though, as a function is not viable given the use of variables in the process functions,
             // this while unstable this allows updating code in only one place
             let mut working_clause_vec = match literal.polarity {
-                true => vars[literal.v_id].negative_watch_occurrences.take(),
-                false => vars[literal.v_id].positive_watch_occurrences.take(),
+                true => vars[literal.v_id].take_occurrence_vec(false),
+                false => vars[literal.v_id].take_occurrence_vec(true),
             };
 
             let mut index = 0;
@@ -299,12 +293,8 @@ pub fn literal_update(
             }
 
             match literal.polarity {
-                true => vars[literal.v_id]
-                    .negative_watch_occurrences
-                    .replace(working_clause_vec),
-                false => vars[literal.v_id]
-                    .positive_watch_occurrences
-                    .replace(working_clause_vec),
+                true => vars[literal.v_id].restore_occurrence_vec(false, working_clause_vec),
+                false => vars[literal.v_id].restore_occurrence_vec(true, working_clause_vec),
             };
         }
         Err(ValuationStatus::Match) => match source {
@@ -326,7 +316,7 @@ pub enum Watch {
 
 pub fn process_watches(
     val: &impl Valuation,
-    variables: &mut [Variable],
+    variables: &[Variable],
     stored_clause: &Rc<StoredClause>,
     chosen_watch: Watch,
 ) -> WatchStatus {
