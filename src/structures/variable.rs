@@ -7,8 +7,8 @@ pub struct Variable {
     name: String,
     decision_level: Option<LevelIndex>,
     id: VariableId,
-    positive_occurrences: Vec<Rc<StoredClause>>,
-    negative_occurrences: Vec<Rc<StoredClause>>,
+    positive_occurrences: Cell<Vec<Rc<StoredClause>>>,
+    negative_occurrences: Cell<Vec<Rc<StoredClause>>>,
     pub positive_watch_occurrences: Cell<Vec<Rc<StoredClause>>>,
     pub negative_watch_occurrences: Cell<Vec<Rc<StoredClause>>>,
     activity: Cell<f32>,
@@ -20,10 +20,10 @@ impl Variable {
             name: name.to_string(),
             decision_level: None,
             id,
-            positive_occurrences: Vec::new(),
-            negative_occurrences: Vec::new(),
-            positive_watch_occurrences: Vec::new().into(),
-            negative_watch_occurrences: Vec::new().into(),
+            positive_occurrences: Cell::new(Vec::new()),
+            negative_occurrences: Cell::new(Vec::new()),
+            positive_watch_occurrences: Cell::new(Vec::new()),
+            negative_watch_occurrences: Cell::new(Vec::new()),
             activity: Cell::new(0.0),
         }
     }
@@ -64,46 +64,44 @@ impl Variable {
         self.activity.get()
     }
 
-    pub fn note_occurence(&mut self, stored_clause: &Rc<StoredClause>, polarity: bool) {
+    pub fn note_occurence(&self, stored_clause: &Rc<StoredClause>, polarity: bool) {
         let cloned = stored_clause.clone();
         match polarity {
-            true => self.positive_occurrences.push(cloned),
-            false => self.negative_occurrences.push(cloned),
-        }
-    }
-
-    pub fn note_drop(&mut self, stored_clause: &Rc<StoredClause>, polarity: bool) {
-        match polarity {
             true => {
-                if let Some(p) = self
-                    .positive_occurrences
-                    .iter()
-                    .position(|sc| sc == stored_clause)
-                {
-                    let _ = self.positive_occurrences.swap_remove(p);
-                }
+                let mut temporary = self.positive_occurrences.take();
+                temporary.push(cloned);
+                let _ = self.positive_occurrences.replace(temporary);
             }
             false => {
-                if let Some(p) = self
-                    .negative_occurrences
-                    .iter()
-                    .position(|sc| sc == stored_clause)
-                {
-                    let _ = self.negative_occurrences.swap_remove(p);
-                }
+                let mut temporary = self.negative_occurrences.take();
+                temporary.push(cloned);
+                let _ = self.negative_occurrences.replace(temporary);
             }
         }
     }
 
-    pub fn positive_occurrences(&self) -> &[Rc<StoredClause>] {
-        &self.positive_occurrences
+    pub fn note_drop(&self, stored_clause: &Rc<StoredClause>, polarity: bool) {
+        match polarity {
+            true => {
+                let mut temporary = self.positive_occurrences.take();
+                let position = temporary.iter().position(|sc| sc == stored_clause);
+                if let Some(p) = position {
+                    temporary.swap_remove(p);
+                }
+                let _ = self.positive_occurrences.replace(temporary);
+            }
+            false => {
+                let mut temporary = self.negative_occurrences.take();
+                let position = temporary.iter().position(|sc| sc == stored_clause);
+                if let Some(p) = position {
+                    temporary.swap_remove(p);
+                }
+                let _ = self.negative_occurrences.replace(temporary);
+            }
+        }
     }
 
-    pub fn negative_occurrences(&self) -> &[Rc<StoredClause>] {
-        &self.negative_occurrences
-    }
-
-    pub fn watch_removed(&mut self, stored_clause: &Rc<StoredClause>, polarity: bool) {
+    pub fn watch_removed(&self, stored_clause: &Rc<StoredClause>, polarity: bool) {
         match polarity {
             true => {
                 let mut temporary = self.positive_watch_occurrences.take();
@@ -124,7 +122,7 @@ impl Variable {
         }
     }
 
-    pub fn watch_added(&mut self, stored_clause: &Rc<StoredClause>, polarity: bool) {
+    pub fn watch_added(&self, stored_clause: &Rc<StoredClause>, polarity: bool) {
         match polarity {
             true => {
                 let mut temporary = self.positive_watch_occurrences.take();
