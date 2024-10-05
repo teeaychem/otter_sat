@@ -21,7 +21,6 @@ static mut RESTARTS_ALLOWED: bool = false;
 static mut HOBSON_CHOICES: bool = false;
 static mut TIME_LIMIT: Option<std::time::Duration> = None; // Some(std::time::Duration::new(10, 0));
 
-static CONFIG_BREAK_ON_FIRST: bool = true;
 static CONFIG_MULTI_JUMP_MAX: bool = false;
 
 /// Simple program to greet a person
