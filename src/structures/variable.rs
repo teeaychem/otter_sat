@@ -9,8 +9,8 @@ pub struct Variable {
     decision_level: Cell<Option<LevelIndex>>,
     positive_occurrences: Cell<Vec<Rc<StoredClause>>>,
     negative_occurrences: Cell<Vec<Rc<StoredClause>>>,
-    pub positive_watch_occurrences: Cell<Vec<Rc<StoredClause>>>,
-    pub negative_watch_occurrences: Cell<Vec<Rc<StoredClause>>>,
+    positive_watch_occurrences: Cell<Vec<Rc<StoredClause>>>,
+    negative_watch_occurrences: Cell<Vec<Rc<StoredClause>>>,
     activity: Cell<f32>,
 }
 
@@ -135,6 +135,20 @@ impl Variable {
                 let _ = self.negative_watch_occurrences.replace(temporary);
             }
         }
+    }
+
+    pub fn take_occurrence_vec(&self, polarity: bool) -> Vec<Rc<StoredClause>> {
+        match polarity {
+            true => self.positive_watch_occurrences.take(),
+            false => self.negative_watch_occurrences.take(),
+        }
+    }
+
+    pub fn restore_occurrence_vec(&self, polarity: bool, vec: Vec<Rc<StoredClause>>) {
+        let _ = match polarity {
+            true => self.positive_watch_occurrences.replace(vec),
+            false => self.negative_watch_occurrences.replace(vec),
+        };
     }
 }
 
