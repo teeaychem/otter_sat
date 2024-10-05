@@ -14,6 +14,12 @@ pub enum ClauseSource {
     Resolution(Vec<Rc<StoredClause>>),
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Watch {
+    A,
+    B,
+}
+
 /**
 The stored clause struct associates a clause with metadata relevant for a solve
 and, is intended to be the unique representation of a clause within a solve
@@ -28,8 +34,8 @@ pub struct StoredClause {
     lbd: Cell<usize>,
     source: ClauseSource,
     pub clause: ClauseVec,
-    pub watch_a: Cell<usize>,
-    pub watch_b: Cell<usize>,
+    watch_a: Cell<usize>,
+    watch_b: Cell<usize>,
 }
 
 #[derive(Debug)]
@@ -101,6 +107,14 @@ impl StoredClause {
             .map(|(idx, _)| idx)
             .expect("Literal not found in clause")
     }
+
+    pub fn get_watch(&self, a_or_b: Watch) -> usize {
+        match a_or_b {
+            Watch::A => self.watch_a.get(),
+            Watch::B => self.watch_b.get(),
+        }
+
+}
 }
 
 impl StoredClause {

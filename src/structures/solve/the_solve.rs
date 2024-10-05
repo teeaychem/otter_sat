@@ -1,7 +1,7 @@
 use crate::procedures::hobson_choices;
 use crate::structures::{
     clause::{
-        stored_clause::{ClauseStatus, StoredClause, WatchStatus, WatchUpdateEnum},
+        stored_clause::{ClauseStatus, StoredClause, Watch, WatchStatus, WatchUpdateEnum},
         Clause,
     },
     level::Level,
@@ -62,11 +62,6 @@ impl Solve {
                     false => self.variables[literal.v_id].take_occurrence_vec(true),
                 };
                 macro_rules! replace_occurrence_vecs {
-                    /*
-                    perform a temporary swap of the relevant occurrence vector to allow mutable borrows of the solve variables when processing watch choices
-                    the first swap takes place immediately, and the remaining swaps happen whenever the current iteration of the loop exits
-                    the swap is safe, as the literal has been set already and will never be chosen as a watch
-                     */
                     () => {
                         match literal.polarity {
                             true => self.variables[literal.v_id]
@@ -308,12 +303,6 @@ pub fn literal_update(
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum Watch {
-    A,
-    B,
-}
-
 pub fn process_watches(
     val: &impl Valuation,
     variables: &[Variable],
@@ -321,7 +310,7 @@ pub fn process_watches(
     chosen_watch: Watch,
 ) -> WatchStatus {
     match stored_clause.length() {
-        1 => match val.of_v_id(stored_clause.clause[stored_clause.watch_a.get()].v_id) {
+        1 => match val.of_v_id(stored_clause.clause[stored_clause.get_watch(Watch::A)].v_id) {
             None => WatchStatus::AlreadyImplication,
             Some(_) => WatchStatus::AlreadySatisfied,
         },
@@ -343,14 +332,11 @@ pub fn process_watches(
                 };
             }
 
-            let watched_x_literal = match chosen_watch {
-                Watch::A => stored_clause.clause[stored_clause.watch_a.get()],
-                Watch::B => stored_clause.clause[stored_clause.watch_b.get()],
-            };
+            let watched_x_literal = stored_clause.clause[stored_clause.get_watch(chosen_watch)];
 
             let watched_y_literal = match chosen_watch {
-                Watch::A => stored_clause.clause[stored_clause.watch_b.get()],
-                Watch::B => stored_clause.clause[stored_clause.watch_a.get()],
+                Watch::A => stored_clause.clause[stored_clause.get_watch(Watch::B)],
+                Watch::B => stored_clause.clause[stored_clause.get_watch(Watch::A)],
             };
 
             let watched_y_value = val.of_v_id(watched_y_literal.v_id);
