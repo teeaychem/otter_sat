@@ -18,17 +18,21 @@ impl Formula {
         }
     }
 
-    pub fn clauses(&self) -> impl Iterator<Item = &impl Clause> {
-        self.clauses.iter()
+    pub fn clauses(&self) -> Vec<ClauseVec> {
+        self.clauses.clone()
     }
+
+    pub fn clause_count(&self) -> usize {
+        self.clauses.len()
+}
 
     pub fn add_clause(&mut self, string: &str) {
         let clause = self.clause_vec_from_string(string);
         self.clauses.push(clause);
     }
 
-    pub fn vars(&self) -> &[Variable] {
-        &self.variables
+    pub fn vars(&self) -> Vec<Variable> {
+        self.variables.clone()
     }
 
     pub fn var_id_by_name(&mut self, name: &str) -> VariableId {

@@ -67,7 +67,7 @@ impl Level {
     }
 }
 
-impl<'borrow, 'solve> Solve<'solve> {
+impl<'borrow, 'solve> Solve {
     pub fn add_fresh_level(&'borrow mut self) -> LevelIndex {
         let index = self.levels.len();
         let the_level = Level::new(index);
@@ -76,7 +76,7 @@ impl<'borrow, 'solve> Solve<'solve> {
     }
 }
 
-impl<'borrow, 'level, 'solve: 'level> Solve<'solve> {
+impl<'borrow, 'level, 'solve: 'level> Solve {
     pub fn top_level(&'borrow self) -> &Level {
         &self.levels[0]
     }
