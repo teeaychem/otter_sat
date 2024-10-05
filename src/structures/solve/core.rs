@@ -17,16 +17,18 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::collections::VecDeque;
 use std::rc::Rc;
 
-impl Solve<'_> {
-    pub fn from_formula(formula: &Formula) -> Solve {
+impl Solve {
+    pub fn from_formula(formula: Formula) -> Solve {
+        let variables = formula.vars();
+        let clauses = formula.clauses();
+
         let mut the_solve = Solve {
-            _formula: formula,
             conflicts: 0,
             conflcits_since_last_forget: 0,
             forgets: 0,
-            variables: formula.vars().to_vec(),
-            watch_q: VecDeque::with_capacity(formula.vars().len() / 4), // I expect this to be mostly empty
-            valuation: Vec::<Option<bool>>::new_for_variables(formula.vars().len()),
+            watch_q: VecDeque::with_capacity(variables.len() / 4), // I expect this to be mostly empty
+            valuation: Vec::<Option<bool>>::new_for_variables(variables.len()),
+            variables,
             levels: vec![Level::new(0)],
             formula_clauses: Vec::new(),
             learnt_clauses: Vec::new(),
@@ -34,18 +36,15 @@ impl Solve<'_> {
 
         let initial_valuation = the_solve.valuation.clone();
 
-        formula
-            .clauses()
-            .for_each(|formula_clause| match formula_clause.length() {
-                0 => {
-                    panic!("c The formula contains a zero-length clause");
-                }
-                _ => {
-                    let clause =
-                        the_solve.store_clause(formula_clause.as_vec(), ClauseSource::Formula);
-                    initialise_watches_for(&clause, &initial_valuation, &mut the_solve.variables);
-                }
-            });
+        clauses.iter().for_each(|formula_clause| match formula_clause.length() {
+            0 => {
+                panic!("c The formula contains a zero-length clause");
+            }
+            _ => {
+                let clause = the_solve.store_clause(formula_clause.as_vec(), ClauseSource::Formula);
+                initialise_watches_for(&clause, &initial_valuation, &mut the_solve.variables);
+            }
+        });
 
         the_solve
     }
@@ -116,7 +115,7 @@ impl Solve<'_> {
     }
 }
 
-impl Solve<'_> {
+impl Solve {
     pub fn examine_clauses<'a>(
         &'a self,
         val: &'a impl Valuation,
@@ -130,9 +129,7 @@ impl Solve<'_> {
             _ => None,
         })
     }
-}
 
-impl Solve<'_> {
     pub fn notice_conflict(&mut self, stored_clauses: &Rc<StoredClause>) {
         self.conflicts += 1;
         self.conflcits_since_last_forget += 1;
@@ -161,7 +158,7 @@ impl Solve<'_> {
     }
 }
 
-impl std::fmt::Display for Solve<'_> {
+impl std::fmt::Display for Solve {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let _ = writeln!(f, "Valuation: {}", self.valuation.as_display_string(self));
         let _ = write!(f, "More to be added…");
@@ -169,7 +166,7 @@ impl std::fmt::Display for Solve<'_> {
     }
 }
 
-impl<'borrow, 'solve> Solve<'solve> {
+impl<'borrow, 'solve> Solve {
     /// Stores a clause with an automatically generated id.
     /// Note: In order to use the clause the watch literals of the struct must be initialised.
     pub fn store_clause(
@@ -239,7 +236,7 @@ impl<'borrow, 'solve> Solve<'solve> {
     }
 }
 
-impl Solve<'_> {
+impl Solve {
     pub fn backjump(&mut self, to: LevelIndex) {
         log::trace!("Backjump from {} to {}", self.current_level().index(), to);
 

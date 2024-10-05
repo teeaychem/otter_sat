@@ -110,14 +110,14 @@ fn main() {
             println!(
                 "c Parsed formula with {} variables and {} clauses",
                 formula.vars().len(),
-                formula.clauses().count()
+                formula.clause_count()
             );
             if let Some(limit) = config_time_limit() {
                 println!("c TIME LIMIT: {:.2?}", limit);
             }
         }
         log::trace!("Formula processed");
-        let mut the_solve = Solve::from_formula(&formula);
+        let mut the_solve = Solve::from_formula(formula);
         log::trace!("Solve initialised");
 
         let (result, stats) = the_solve.implication_solve();
