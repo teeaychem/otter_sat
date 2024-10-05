@@ -5,8 +5,8 @@ use std::cell::Cell;
 use std::rc::Rc;
 pub struct Variable {
     name: String,
-    decision_level: Option<LevelIndex>,
     id: VariableId,
+    decision_level: Cell<Option<LevelIndex>>,
     positive_occurrences: Cell<Vec<Rc<StoredClause>>>,
     negative_occurrences: Cell<Vec<Rc<StoredClause>>>,
     pub positive_watch_occurrences: Cell<Vec<Rc<StoredClause>>>,
@@ -18,7 +18,7 @@ impl Variable {
     pub fn new(name: &str, id: VariableId) -> Self {
         Variable {
             name: name.to_string(),
-            decision_level: None,
+            decision_level: Cell::new(None),
             id,
             positive_occurrences: Cell::new(Vec::new()),
             negative_occurrences: Cell::new(Vec::new()),
@@ -33,15 +33,15 @@ impl Variable {
     }
 
     pub fn decision_level(&self) -> Option<LevelIndex> {
-        self.decision_level
+        self.decision_level.get()
     }
 
-    pub fn clear_decision_level(&mut self) {
-        self.decision_level = None
+    pub fn clear_decision_level(&self) {
+        self.decision_level.set(None);
     }
 
-    pub fn set_decision_level(&mut self, level: LevelIndex) {
-        self.decision_level = Some(level)
+    pub fn set_decision_level(&self, level: LevelIndex) {
+        self.decision_level.set(Some(level))
     }
 
     pub fn id(&self) -> VariableId {
