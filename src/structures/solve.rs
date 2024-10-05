@@ -11,7 +11,6 @@ use crate::structures::{
 use std::collections::VecDeque;
 use std::rc::Rc;
 
-#[derive(Debug)]
 pub struct Solve {
     pub conflicts: usize,
     pub conflcits_since_last_forget: usize,

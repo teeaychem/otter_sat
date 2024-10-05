@@ -109,7 +109,7 @@ fn main() {
             println!("c Parsing formula from file: {:?}", args.formula_file);
             println!(
                 "c Parsed formula with {} variables and {} clauses",
-                formula.vars().len(),
+                formula.variables.len(),
                 formula.clause_count()
             );
             if let Some(limit) = config_time_limit() {
