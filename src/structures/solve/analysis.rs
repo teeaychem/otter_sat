@@ -202,7 +202,7 @@ impl Solve {
         let node_indicies_vec = node_indicies.collect::<Vec<_>>();
         let simple_core = extant_origins(node_indicies_vec);
         for clause in simple_core {
-            println!("{}", clause.clause().as_dimacs(&self.variables))
+            println!("{}", clause.clause_impl().as_dimacs(&self.variables))
         }
         println!();
     }
