@@ -310,7 +310,11 @@ pub fn process_watches(
     chosen_watch: Watch,
 ) -> WatchStatus {
     match stored_clause.length() {
-        1 => match val.of_v_id(stored_clause.clause[stored_clause.get_watch(Watch::A)].v_id) {
+        1 => match val.of_v_id(
+            stored_clause
+                .literal_at(stored_clause.get_watch(Watch::A))
+                .v_id,
+        ) {
             None => WatchStatus::AlreadyImplication,
             Some(_) => WatchStatus::AlreadySatisfied,
         },
@@ -332,11 +336,11 @@ pub fn process_watches(
                 };
             }
 
-            let watched_x_literal = stored_clause.clause[stored_clause.get_watch(chosen_watch)];
+            let watched_x_literal = stored_clause.literal_at(stored_clause.get_watch(chosen_watch));
 
             let watched_y_literal = match chosen_watch {
-                Watch::A => stored_clause.clause[stored_clause.get_watch(Watch::B)],
-                Watch::B => stored_clause.clause[stored_clause.get_watch(Watch::A)],
+                Watch::A => stored_clause.literal_at(stored_clause.get_watch(Watch::B)),
+                Watch::B => stored_clause.literal_at(stored_clause.get_watch(Watch::A)),
             };
 
             let watched_y_value = val.of_v_id(watched_y_literal.v_id);
