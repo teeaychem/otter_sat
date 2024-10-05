@@ -65,7 +65,7 @@ impl Solve {
 
     pub fn clauses(&self) -> impl Iterator<Item = &impl Clause> {
         self.stored_clauses()
-            .map(|stored_clause| stored_clause.clause())
+            .map(|stored_clause| stored_clause.clause_impl())
     }
 
     pub fn fresh_clause_id() -> ClauseId {

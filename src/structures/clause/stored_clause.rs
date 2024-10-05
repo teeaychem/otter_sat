@@ -33,7 +33,7 @@ pub struct StoredClause {
     id: ClauseId,
     lbd: Cell<usize>,
     source: ClauseSource,
-    pub clause: ClauseVec,
+    clause: ClauseVec,
     watch_a: Cell<usize>,
     watch_b: Cell<usize>,
 }
@@ -91,8 +91,16 @@ impl StoredClause {
         &self.source
     }
 
-    pub fn clause(&self) -> &impl Clause {
+    pub fn clause_impl(&self) -> &impl Clause {
         &self.clause
+    }
+
+    pub fn clause(&self) -> &[Literal] {
+        &self.clause
+    }
+
+    pub fn literal_at(&self, position: usize) -> Literal {
+        self.clause[position]
     }
 
     pub fn literals(&self) -> impl Iterator<Item = Literal> + '_ {
@@ -113,8 +121,7 @@ impl StoredClause {
             Watch::A => self.watch_a.get(),
             Watch::B => self.watch_b.get(),
         }
-
-}
+    }
 }
 
 impl StoredClause {
@@ -296,7 +303,7 @@ impl StoredClause {
 pub fn initialise_watches_for(
     stored_clause: &Rc<StoredClause>,
     val: &impl Valuation,
-    vars: &mut [Variable],
+    vars: &[Variable],
 ) {
     if stored_clause.clause.len() > 1 {
         stored_clause
