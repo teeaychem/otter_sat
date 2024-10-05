@@ -57,8 +57,15 @@ impl Solve {
 
             let this_implication_time = std::time::Instant::now();
             'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
-                let mut temprary_clause_vec: Vec<Rc<StoredClause>> = Vec::default();
-                macro_rules! swap_occurrence_vecs {
+                let temprary_clause_vec: Vec<Rc<StoredClause>> = match literal.polarity {
+                    false => {
+                        std::mem::take(&mut self.variables[literal.v_id].positive_watch_occurrences)
+                    }
+                    true => {
+                        std::mem::take(&mut self.variables[literal.v_id].negative_watch_occurrences)
+                    }
+                };
+                macro_rules! replace_occurrence_vecs {
                     /*
                     perform a temporary swap of the relevant occurrence vector to allow mutable borrows of the solve variables when processing watch choices
                     the first swap takes place immediately, and the remaining swaps happen whenever the current iteration of the loop exits
@@ -66,18 +73,17 @@ impl Solve {
                      */
                     () => {
                         match literal.polarity {
-                            false => std::mem::swap(
+                            false => std::mem::replace(
                                 &mut self.variables[literal.v_id].positive_watch_occurrences,
-                                &mut temprary_clause_vec,
+                                temprary_clause_vec,
                             ),
-                            true => std::mem::swap(
+                            true => std::mem::replace(
                                 &mut self.variables[literal.v_id].negative_watch_occurrences,
-                                &mut temprary_clause_vec,
+                                temprary_clause_vec,
                             ),
                         };
                     };
                 }
-                swap_occurrence_vecs!();
 
                 for stored_clause in &temprary_clause_vec {
                     match stored_clause.watch_choices(&self.valuation) {
@@ -101,7 +107,7 @@ impl Solve {
                             };
                             match crate::CONFIG_BREAK_ON_FIRST {
                                 true => {
-                                    swap_occurrence_vecs!();
+                                    replace_occurrence_vecs!();
                                     break 'propagation_loop;
                                 }
                                 false => continue,
@@ -111,7 +117,7 @@ impl Solve {
                         ClauseStatus::Satisfied => (),
                     }
                 }
-                swap_occurrence_vecs!();
+                replace_occurrence_vecs!();
             }
             stats.implication_time += this_implication_time.elapsed();
 
