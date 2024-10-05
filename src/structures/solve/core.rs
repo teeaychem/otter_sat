@@ -37,14 +37,14 @@ impl Solve {
         let initial_valuation = the_solve.valuation.clone();
 
         clauses
-            .iter()
+            .into_iter()
             .for_each(|formula_clause| match formula_clause.length() {
                 0 => {
                     panic!("c The formula contains a zero-length clause");
                 }
                 _ => {
                     let clause =
-                        the_solve.store_clause(formula_clause.as_vec(), ClauseSource::Formula);
+                        the_solve.store_clause(formula_clause.to_vec(), ClauseSource::Formula);
                     initialise_watches_for(&clause, &initial_valuation, &the_solve.variables);
                 }
             });

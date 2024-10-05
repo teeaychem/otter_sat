@@ -59,7 +59,7 @@ impl Solve {
                     initialise_watches_for(
                         &asserting_clause,
                         &self.valuation_at(backjump_level),
-                        &mut self.variables,
+                        &self.variables,
                     );
 
                     if assertion == asserting_clause.watched_a() {
@@ -79,7 +79,7 @@ impl Solve {
                         assertion,
                         LiteralSource::StoredClause(asserting_clause),
                         &mut self.levels,
-                        &mut self.variables,
+                        &self.variables,
                         &mut self.valuation,
                     );
                     self.watch_q.push_back(assertion);
@@ -116,7 +116,7 @@ impl Solve {
         let the_valuation = self.valuation_at(the_jump);
 
         for asserting_clause in analysis_results {
-            initialise_watches_for(&asserting_clause, &the_valuation, &mut self.variables);
+            initialise_watches_for(&asserting_clause, &the_valuation, &self.variables);
 
             self.backjump(the_jump);
         }
@@ -126,7 +126,7 @@ impl Solve {
 
     /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision
     pub fn conflict_analysis(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
-        let mut resolved_clause = conflict_clause.as_vec();
+        let mut resolved_clause = conflict_clause.clause_clone();
         let mut resolution_trail = vec![];
 
         let previous_level_val = self.valuation_at(self.current_level().index() - 1);
@@ -145,15 +145,19 @@ impl Solve {
             }
 
             if let LiteralSource::StoredClause(stored_clause) = src {
-                let src_cls_vec = stored_clause.as_vec();
-                let counterparts = find_counterpart_literals(&resolved_clause, &src_cls_vec);
+                let src_cls_vec = stored_clause.clause_impl();
+                let counterparts =
+                    find_counterpart_literals(resolved_clause.literals(), src_cls_vec.literals());
 
                 if let Some(counterpart) = counterparts.first() {
                     resolution_trail.push(stored_clause.clone());
-                    resolved_clause =
-                        resolve_sorted_clauses(&resolved_clause, &src_cls_vec, *counterpart)
-                            .unwrap()
-                            .to_vec()
+                    resolved_clause = resolve_sorted_clauses(
+                        resolved_clause.literals(),
+                        src_cls_vec.literals(),
+                        *counterpart,
+                    )
+                    .unwrap()
+                    .to_vec();
                 }
             }
         }
@@ -172,10 +176,9 @@ impl Solve {
         If some literals are known then their negation can be safely removed from the learnt clause.
         Though, this isn't a particular effective method…
          */
-        if !self.top_level().observations().is_empty() {
+        if !self.levels[0].observations().is_empty() {
             resolved_clause.retain(|l| {
-                !self
-                    .top_level()
+                !self.levels[0]
                     .observations()
                     .iter()
                     .any(|(_, x)| l.negate() == *x)
@@ -191,8 +194,7 @@ impl Solve {
     pub fn core(&self) {
         println!();
         println!("c An unsatisfiable core of the original formula:\n");
-        let node_indicies = self
-            .top_level()
+        let node_indicies = self.levels[0]
             .observations()
             .iter()
             .filter_map(|(source, _)| match source {

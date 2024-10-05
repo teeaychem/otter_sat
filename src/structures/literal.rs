@@ -59,8 +59,7 @@ impl Literal {
                 the_id
             }
         };
-        let the_literal = Literal::new(the_variable, polarity);
-        the_literal
+        Literal::new(the_variable, polarity)
     }
 }
 

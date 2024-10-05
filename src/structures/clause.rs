@@ -28,8 +28,6 @@ pub trait Clause {
 
     fn is_empty(&self) -> bool;
 
-    fn as_vec(&self) -> ClauseVec;
-
     fn to_vec(self) -> ClauseVec;
 
     fn length(&self) -> usize;
