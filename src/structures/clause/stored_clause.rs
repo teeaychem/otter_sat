@@ -301,9 +301,10 @@ impl StoredClause {
 
     pub fn clause_clone(&self) -> ClauseVec {
         self.clause.clone()
-}
+    }
 }
 
+/// Initialises the watches for a stored clause, is not a method as requires pointer information
 pub fn initialise_watches_for(
     stored_clause: &Rc<StoredClause>,
     val: &impl Valuation,
