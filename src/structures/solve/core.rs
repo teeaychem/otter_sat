@@ -19,8 +19,8 @@ use std::rc::Rc;
 
 impl Solve {
     pub fn from_formula(formula: Formula) -> Solve {
-        let variables = formula.vars();
-        let clauses = formula.clauses();
+        let variables = formula.variables;
+        let clauses = formula.clauses;
 
         let mut the_solve = Solve {
             conflicts: 0,

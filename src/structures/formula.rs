@@ -4,10 +4,9 @@ use crate::structures::{
     variable::{Variable, VariableId},
 };
 
-#[derive(Debug, Clone)]
 pub struct Formula {
-    variables: Vec<Variable>,
-    clauses: Vec<ClauseVec>,
+    pub variables: Vec<Variable>,
+    pub clauses: Vec<ClauseVec>,
 }
 
 impl Formula {
@@ -18,9 +17,6 @@ impl Formula {
         }
     }
 
-    pub fn clauses(&self) -> Vec<ClauseVec> {
-        self.clauses.clone()
-    }
 
     pub fn clause_count(&self) -> usize {
         self.clauses.len()
@@ -29,10 +25,6 @@ impl Formula {
     pub fn add_clause(&mut self, string: &str) {
         let clause = self.clause_vec_from_string(string);
         self.clauses.push(clause);
-    }
-
-    pub fn vars(&self) -> Vec<Variable> {
-        self.variables.clone()
     }
 
     pub fn var_id_by_name(&mut self, name: &str) -> VariableId {
