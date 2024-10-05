@@ -26,7 +26,7 @@ enum Conflicts {
     Multiple(Vec<Rc<StoredClause>>),
 }
 
-impl Solve<'_> {
+impl Solve {
     pub fn implication_solve(&mut self) -> (SolveResult, SolveStats) {
         let this_total_time = std::time::Instant::now();
 

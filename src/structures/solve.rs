@@ -5,15 +5,14 @@ mod the_solve;
 mod stats;
 
 use crate::structures::{
-    formula::Formula, level::Level, literal::Literal, clause::stored_clause::StoredClause,
+    level::Level, literal::Literal, clause::stored_clause::StoredClause,
     variable::Variable,
 };
 use std::collections::VecDeque;
 use std::rc::Rc;
 
 #[derive(Debug)]
-pub struct Solve<'formula> {
-    _formula: &'formula Formula,
+pub struct Solve {
     pub conflicts: usize,
     pub conflcits_since_last_forget: usize,
     pub forgets: usize,

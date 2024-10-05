@@ -20,7 +20,7 @@ pub enum AnalysisResult {
     AssertingClause(Rc<StoredClause>, Literal),
 }
 
-impl Solve<'_> {
+impl Solve {
     /// Either the most recent decision level in the resolution clause prior to the current level or 0.
     fn decision_level(&self, stored_clause: &Rc<StoredClause>) -> usize {
         let mut top_two = [None; 2];
