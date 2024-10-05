@@ -36,15 +36,18 @@ impl Solve {
 
         let initial_valuation = the_solve.valuation.clone();
 
-        clauses.iter().for_each(|formula_clause| match formula_clause.length() {
-            0 => {
-                panic!("c The formula contains a zero-length clause");
-            }
-            _ => {
-                let clause = the_solve.store_clause(formula_clause.as_vec(), ClauseSource::Formula);
-                initialise_watches_for(&clause, &initial_valuation, &mut the_solve.variables);
-            }
-        });
+        clauses
+            .iter()
+            .for_each(|formula_clause| match formula_clause.length() {
+                0 => {
+                    panic!("c The formula contains a zero-length clause");
+                }
+                _ => {
+                    let clause =
+                        the_solve.store_clause(formula_clause.as_vec(), ClauseSource::Formula);
+                    initialise_watches_for(&clause, &initial_valuation, &the_solve.variables);
+                }
+            });
 
         the_solve
     }
@@ -92,7 +95,7 @@ impl Solve {
                 the_literal,
                 LiteralSource::HobsonChoice,
                 &mut self.levels,
-                &mut self.variables,
+                &self.variables,
                 &mut self.valuation,
             );
             self.watch_q.push_back(the_literal);
@@ -103,7 +106,7 @@ impl Solve {
                 the_literal,
                 LiteralSource::HobsonChoice,
                 &mut self.levels,
-                &mut self.variables,
+                &self.variables,
                 &mut self.valuation,
             );
             self.watch_q.push_back(the_literal);
@@ -113,9 +116,7 @@ impl Solve {
     pub fn select_conflict(&self, clauses: &[Rc<StoredClause>]) -> Option<Rc<StoredClause>> {
         clauses.first().cloned()
     }
-}
 
-impl Solve {
     pub fn examine_clauses<'a>(
         &'a self,
         val: &'a impl Valuation,
@@ -134,7 +135,7 @@ impl Solve {
         self.conflicts += 1;
         self.conflcits_since_last_forget += 1;
         if self.conflicts % 1024 == 0 {
-            for variable in &mut self.variables {
+            for variable in &self.variables {
                 variable.divide_activity(2.0)
             }
         }
@@ -156,24 +157,10 @@ impl Solve {
     pub fn is_it_time_to_reduce(&self) -> bool {
         self.conflcits_since_last_forget > (1000 + 200 * self.forgets)
     }
-}
 
-impl std::fmt::Display for Solve {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let _ = writeln!(f, "Valuation: {}", self.valuation.as_display_string(self));
-        let _ = write!(f, "More to be added…");
-        Ok(())
-    }
-}
-
-impl<'borrow, 'solve> Solve {
     /// Stores a clause with an automatically generated id.
     /// Note: In order to use the clause the watch literals of the struct must be initialised.
-    pub fn store_clause(
-        &'borrow mut self,
-        clause: impl Clause,
-        src: ClauseSource,
-    ) -> Rc<StoredClause> {
+    pub fn store_clause(&mut self, clause: impl Clause, src: ClauseSource) -> Rc<StoredClause> {
         match clause.length() {
             0 => panic!("Attempt to add an empty clause"),
             _ => match &src {
@@ -226,25 +213,27 @@ impl<'borrow, 'solve> Solve {
         let _ = self.learnt_clauses.swap_remove(index);
     }
 
-    pub fn unset_literal(&mut self, literal: Literal) {
-        log::trace!("Unset: {}", literal);
-
-        let v_id = literal.v_id;
-
-        self.valuation[v_id] = None;
-        self.variables[v_id].clear_decision_level();
-    }
-}
-
-impl Solve {
     pub fn backjump(&mut self, to: LevelIndex) {
         log::trace!("Backjump from {} to {}", self.current_level().index(), to);
 
         for _ in 0..(self.current_level().index() - to) {
             let the_level = self.levels.pop().unwrap();
             for literal in the_level.literals() {
-                self.unset_literal(literal);
+                log::trace!("Unset: {}", literal);
+
+                let v_id = literal.v_id;
+
+                self.valuation[v_id] = None;
+                self.variables[v_id].clear_decision_level();
             }
         }
+    }
+}
+
+impl std::fmt::Display for Solve {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let _ = writeln!(f, "Valuation: {}", self.valuation.as_display_string(self));
+        let _ = write!(f, "More to be added…");
+        Ok(())
     }
 }
