@@ -19,13 +19,6 @@ use crate::structures::{
 };
 use std::rc::Rc;
 
-#[derive(PartialEq)]
-enum Conflicts {
-    No,
-    Single(Rc<StoredClause>),
-    Multiple(Vec<Rc<StoredClause>>),
-}
-
 impl Solve {
     pub fn implication_solve(&mut self) -> (SolveResult, SolveStats) {
         let this_total_time = std::time::Instant::now();
@@ -50,14 +43,11 @@ impl Solve {
 
             stats.iterations += 1;
 
-            let mut conflicts = match crate::CONFIG_BREAK_ON_FIRST {
-                true => Conflicts::No,
-                false => Conflicts::Multiple(vec![]),
-            };
+            let mut found_conflict = None;
 
             let this_implication_time = std::time::Instant::now();
             'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
-                let temprary_clause_vec: Vec<Rc<StoredClause>> = match literal.polarity {
+                let temprary_clause_vec = match literal.polarity {
                     true => self.variables[literal.v_id].take_occurrence_vec(false),
                     false => self.variables[literal.v_id].take_occurrence_vec(true),
                 };
@@ -85,20 +75,12 @@ impl Solve {
                             self.watch_q.push_back(consequent);
                         }
                         ClauseStatus::Conflict => {
-                            match conflicts {
-                                Conflicts::No => {
-                                    conflicts = Conflicts::Single(stored_clause.clone());
-                                }
-                                Conflicts::Multiple(ref mut vec) => vec.push(stored_clause.clone()),
-                                Conflicts::Single(_) => panic!("Conflict already set"),
+                            if found_conflict.is_none() {
+                                found_conflict = Some(stored_clause.clone())
                             };
-                            match crate::CONFIG_BREAK_ON_FIRST {
-                                true => {
-                                    restore_occurrence_vecs!();
-                                    break 'propagation_loop;
-                                }
-                                false => continue,
-                            };
+
+                            restore_occurrence_vecs!();
+                            break 'propagation_loop;
                         }
                         ClauseStatus::Unsatisfied => (),
                         ClauseStatus::Satisfied => (),
@@ -108,8 +90,8 @@ impl Solve {
             }
             stats.implication_time += this_implication_time.elapsed();
 
-            match conflicts {
-                Conflicts::No => {
+            match found_conflict {
+                None => {
                     if let Some(available_v_id) = self.most_active_none(&self.valuation) {
                         if self.is_it_time_to_reduce() {
                             log::debug!(target: "forget", "{stats}");
@@ -149,7 +131,7 @@ impl Solve {
                         break 'main_loop;
                     }
                 }
-                Conflicts::Single(stored_conflict) => {
+                Some(stored_conflict) => {
                     self.watch_q.clear();
                     let this_unsat_time = std::time::Instant::now();
                     self.notice_conflict(&stored_conflict);
@@ -166,23 +148,6 @@ impl Solve {
                         }
                         other => panic!("Unexpected {other:?} when attempting a fix"),
                     }
-                }
-                Conflicts::Multiple(conflict_vec) => {
-                    self.watch_q.clear();
-                    let this_unsat_time = std::time::Instant::now();
-                    for conflict in &conflict_vec {
-                        self.notice_conflict(conflict);
-                        stats.conflicts += 1;
-                    }
-                    match self.attempt_fixes(conflict_vec) {
-                        SolveStatus::NoSolution => {
-                            result = SolveResult::Unsatisfiable;
-                            break 'main_loop;
-                        }
-                        SolveStatus::AssertingClause | SolveStatus::Deduction(_) => {}
-                        other => panic!("Unexpected {other:?} when attempting a fix"),
-                    }
-                    stats.unsat_time += this_unsat_time.elapsed();
                 }
             }
         }
