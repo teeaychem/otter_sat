@@ -16,13 +16,9 @@ use crate::structures::{
 use std::collections::{BTreeSet, VecDeque};
 use std::rc::Rc;
 
-pub enum AnalysisResult {
-    AssertingClause(Rc<StoredClause>, Literal),
-}
-
 impl Solve {
     /// Either the most recent decision level in the resolution clause prior to the current level or 0.
-    fn decision_level(&self, stored_clause: &Rc<StoredClause>) -> usize {
+    fn decision_level(&self, stored_clause: &StoredClause) -> usize {
         let mut top_two = [None; 2];
         for lit in stored_clause.literals() {
             if let Some(dl) = self.variables[lit.v_id].decision_level() {
@@ -44,7 +40,7 @@ impl Solve {
         }
     }
 
-    pub fn attempt_fix(&mut self, conflict_clause: Rc<StoredClause>) -> SolveStatus {
+    pub fn attempt_fix(&mut self, conflict_clause: &StoredClause) -> SolveStatus {
         let the_id = conflict_clause.id();
         log::trace!(
             "Attempt to fix on clause {the_id} at level {}",
@@ -52,80 +48,49 @@ impl Solve {
         );
         match self.current_level().index() {
             0 => SolveStatus::NoSolution,
-            _ => match self.conflict_analysis(conflict_clause) {
-                AnalysisResult::AssertingClause(asserting_clause, assertion) => {
-                    let backjump_level = self.decision_level(&asserting_clause);
+            _ => {
+                let (asserting_clause, assertion) = self.conflict_analysis(conflict_clause);
 
-                    initialise_watches_for(
-                        &asserting_clause,
-                        &self.valuation_at(backjump_level),
-                        &self.variables,
-                    );
+                let backjump_level = self.decision_level(&asserting_clause);
 
-                    if assertion == asserting_clause.watched_a() {
-                        self.watch_q
-                            .push_back(asserting_clause.watched_b().negate());
-                    } else if assertion == asserting_clause.watched_b() {
-                        self.watch_q
-                            .push_back(asserting_clause.watched_a().negate());
-                    } else {
-                        panic!("Failed to predict asserting clause")
-                    }
+                initialise_watches_for(
+                    &asserting_clause,
+                    &self.valuation_at(backjump_level),
+                    &self.variables,
+                );
 
-                    self.backjump(backjump_level);
-
-                    // updating the valuation needs to happen here to ensure the watches for any queued literal during propagaion are fixed
-                    literal_update(
-                        assertion,
-                        LiteralSource::StoredClause(asserting_clause),
-                        &mut self.levels,
-                        &self.variables,
-                        &mut self.valuation,
-                    );
-                    self.watch_q.push_back(assertion);
-
-                    SolveStatus::AssertingClause
+                if assertion == asserting_clause.watched_a() {
+                    self.watch_q
+                        .push_back(asserting_clause.watched_b().negate());
+                } else if assertion == asserting_clause.watched_b() {
+                    self.watch_q
+                        .push_back(asserting_clause.watched_a().negate());
+                } else {
+                    panic!("Failed to predict asserting clause")
                 }
-            },
-        }
-    }
 
-    pub fn attempt_fixes(&mut self, conflict_clauses: Vec<Rc<StoredClause>>) -> SolveStatus {
-        let mut analysis_results = vec![];
+                self.backjump(backjump_level);
 
-        let mut the_jump = if crate::CONFIG_MULTI_JUMP_MAX {
-            usize::MAX
-        } else {
-            usize::MIN
-        };
+                // updating the valuation needs to happen here to ensure the watches for any queued literal during propagaion are fixed
+                literal_update(
+                    assertion,
+                    LiteralSource::StoredClause(asserting_clause),
+                    &mut self.levels,
+                    &self.variables,
+                    &mut self.valuation,
+                );
+                self.watch_q.push_back(assertion);
 
-        for conflict_clause in conflict_clauses {
-            match self.conflict_analysis(conflict_clause) {
-                AnalysisResult::AssertingClause(asserting_clause, _) => {
-                    let backjump_level = self.decision_level(&asserting_clause);
-                    if (crate::CONFIG_MULTI_JUMP_MAX && backjump_level < the_jump)
-                        || backjump_level > the_jump
-                    {
-                        the_jump = backjump_level
-                    }
-                    analysis_results.push(asserting_clause);
-                }
+                SolveStatus::AssertingClause
             }
         }
-
-        let the_valuation = self.valuation_at(the_jump);
-
-        for asserting_clause in analysis_results {
-            initialise_watches_for(&asserting_clause, &the_valuation, &self.variables);
-
-            self.backjump(the_jump);
-        }
-
-        SolveStatus::AssertingClause
     }
 
     /// Simple analysis performs resolution on any clause used to obtain a conflict literal at the current decision
-    pub fn conflict_analysis(&mut self, conflict_clause: Rc<StoredClause>) -> AnalysisResult {
+    pub fn conflict_analysis(
+        &mut self,
+        conflict_clause: &StoredClause,
+    ) -> (Rc<StoredClause>, Literal) {
         let mut resolved_clause = conflict_clause.clause_clone();
         let mut resolution_trail = vec![];
 
@@ -188,7 +153,7 @@ impl Solve {
             self.store_clause(resolved_clause, ClauseSource::Resolution(resolution_trail));
         stored_clause.set_lbd(&self.variables);
 
-        AnalysisResult::AssertingClause(stored_clause, asserted_literal.unwrap())
+        (stored_clause, asserted_literal.unwrap())
     }
 
     pub fn core(&self) {
@@ -214,7 +179,7 @@ pub fn extant_origins(clauses: Vec<Rc<StoredClause>>) -> Vec<Rc<StoredClause>> {
     #[allow(clippy::mutable_key_type)]
     let mut origin_nodes = BTreeSet::new();
 
-    let mut q: VecDeque<Rc<StoredClause>> = VecDeque::new();
+    let mut q = VecDeque::new();
     for clause in clauses {
         q.push_back(clause);
     }

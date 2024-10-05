@@ -1,6 +1,6 @@
 use crate::structures::{
     clause::{
-        stored_clause::{initialise_watches_for, ClauseSource, ClauseStatus, StoredClause},
+        stored_clause::{initialise_watches_for, ClauseSource, StoredClause},
         Clause, ClauseId,
     },
     formula::Formula,
@@ -117,21 +117,7 @@ impl Solve {
         clauses.first().cloned()
     }
 
-    pub fn examine_clauses<'a>(
-        &'a self,
-        val: &'a impl Valuation,
-        clauses: impl Iterator<Item = Rc<StoredClause>> + 'a,
-    ) -> impl Iterator<Item = (Rc<StoredClause>, ClauseStatus)> + 'a {
-        clauses.flat_map(|stored_clause| match stored_clause.watch_choices(val) {
-            ClauseStatus::Conflict => Some((stored_clause.clone(), ClauseStatus::Conflict)),
-            ClauseStatus::Entails(the_literal) => {
-                Some((stored_clause.clone(), ClauseStatus::Entails(the_literal)))
-            }
-            _ => None,
-        })
-    }
-
-    pub fn notice_conflict(&mut self, stored_clauses: &Rc<StoredClause>) {
+    pub fn notice_conflict(&mut self, stored_clauses: &StoredClause) {
         self.conflicts += 1;
         self.conflcits_since_last_forget += 1;
         if self.conflicts % 1024 == 0 {
@@ -207,7 +193,7 @@ impl Solve {
         self.variables[watched_b_lit.v_id].watch_removed(stored_clause, watched_b_lit.polarity);
 
         for literal in stored_clause.literals() {
-            self.variables[literal.v_id].note_drop(stored_clause, literal.polarity)
+            self.variables[literal.v_id].note_clause_drop(stored_clause, literal.polarity)
         }
 
         let _ = self.learnt_clauses.swap_remove(index);

@@ -135,7 +135,7 @@ impl Solve {
                     self.watch_q.clear();
                     let this_unsat_time = std::time::Instant::now();
                     self.notice_conflict(&stored_conflict);
-                    let analysis_result = self.attempt_fix(stored_conflict);
+                    let analysis_result = self.attempt_fix(&stored_conflict);
                     stats.unsat_time += this_unsat_time.elapsed();
                     match analysis_result {
                         SolveStatus::NoSolution => {
@@ -232,12 +232,12 @@ pub fn literal_update(
             while index < length {
                 let stored_clause = &working_clause_vec[index];
 
-                let process_update = match stored_clause.watched_a().v_id == literal.v_id {
-                    true => process_watches(valuation, vars, stored_clause, Watch::A),
-                    false => process_watches(valuation, vars, stored_clause, Watch::B),
+                let the_watch = match stored_clause.watched_a().v_id == literal.v_id {
+                    true => Watch::A,
+                    false => Watch::B,
                 };
 
-                match process_update {
+                match process_watches(valuation, vars, stored_clause, the_watch) {
                     WatchStatus::AlreadySatisfied
                     | WatchStatus::AlreadyImplication
                     | WatchStatus::AlreadyConflict => {
