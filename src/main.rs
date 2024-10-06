@@ -17,7 +17,7 @@ static mut CONFIG_SHOW_CORE: bool = false;
 static mut CONFIG_SHOW_ASSIGNMENT: bool = false;
 static mut CONFIG_EXPLORATION_PRIORITY: ExplorationPriority = ExplorationPriority::Default;
 static mut CONFIG_STOPPING_CRITERIA: StoppingCriteria = StoppingCriteria::FirstAssertingUIP;
-static mut RESTARTS_ALLOWED: bool = false;
+static mut RESTARTS_ALLOWED: bool = true;
 static mut HOBSON_CHOICES: bool = false;
 static mut TIME_LIMIT: Option<std::time::Duration> = None; // Some(std::time::Duration::new(10, 0));
 
@@ -56,7 +56,7 @@ struct Args {
     exploration_priority: String,
 
     /// Allow for the decisions to be forgotten, on occassion
-    #[arg(short, long, default_value_t = false)]
+    #[arg(short, long)]
     restarts: bool,
 
     /// Initially settle all atoms which occur with a unique polarity

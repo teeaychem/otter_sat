@@ -1,6 +1,8 @@
+use slotmap::SlotMap;
+
 use crate::structures::{
     clause::{
-        stored_clause::{initialise_watches_for, ClauseSource, StoredClause},
+        stored_clause::{initialise_watches_for, ClauseKey, ClauseSource, StoredClause},
         Clause, ClauseId,
     },
     formula::Formula,
@@ -30,8 +32,8 @@ impl Solve {
             valuation: Vec::<Option<bool>>::new_for_variables(variables.len()),
             variables,
             levels: vec![Level::new(0)],
-            formula_clauses: Vec::new(),
-            learnt_clauses: Vec::new(),
+            formula_clauses: SlotMap::new(),
+            learnt_clauses: SlotMap::new(),
         };
 
         let initial_valuation = the_solve.valuation.clone();
@@ -43,9 +45,19 @@ impl Solve {
                     panic!("c The formula contains a zero-length clause");
                 }
                 _ => {
-                    let clause =
+                    let clause_key =
                         the_solve.store_clause(formula_clause.to_vec(), ClauseSource::Formula);
-                    initialise_watches_for(&clause, &initial_valuation, &the_solve.variables);
+
+                    let stored_clause = match clause_key {
+                        ClauseKey::Formula(key) => &the_solve.formula_clauses[key],
+                        ClauseKey::Learnt(key) => &the_solve.learnt_clauses[key],
+                    };
+
+                    initialise_watches_for(
+                        stored_clause,
+                        &initial_valuation,
+                        &the_solve.variables,
+                    );
                 }
             });
 
@@ -62,8 +74,11 @@ impl Solve {
         valuation
     }
 
-    pub fn stored_clauses(&self) -> impl Iterator<Item = &Rc<StoredClause>> {
-        self.formula_clauses.iter().chain(&self.learnt_clauses)
+    pub fn stored_clauses(&self) -> impl Iterator<Item = &StoredClause> {
+        self.formula_clauses
+            .iter()
+            .chain(&self.learnt_clauses)
+            .map(|(_, sc)| sc)
     }
 
     pub fn clauses(&self) -> impl Iterator<Item = &impl Clause> {
@@ -97,6 +112,8 @@ impl Solve {
                 &mut self.levels,
                 &self.variables,
                 &mut self.valuation,
+                &self.formula_clauses,
+                &self.learnt_clauses,
             );
             self.watch_q.push_back(the_literal);
         });
@@ -108,6 +125,8 @@ impl Solve {
                 &mut self.levels,
                 &self.variables,
                 &mut self.valuation,
+                &self.formula_clauses,
+                &self.learnt_clauses,
             );
             self.watch_q.push_back(the_literal);
         });
@@ -115,20 +134,6 @@ impl Solve {
 
     pub fn select_conflict(&self, clauses: &[Rc<StoredClause>]) -> Option<Rc<StoredClause>> {
         clauses.first().cloned()
-    }
-
-    pub fn notice_conflict(&mut self, stored_clauses: &StoredClause) {
-        self.conflicts += 1;
-        self.conflicts_since_last_forget += 1;
-        if self.conflicts % 2_usize.pow(10) == 0 {
-            for variable in &self.variables {
-                variable.divide_activity(1.4)
-            }
-        }
-
-        for literal in stored_clauses.variables() {
-            self.variables[literal].add_activity(1.0);
-        }
     }
 
     pub fn most_active_none(&self, val: &impl Valuation) -> Option<VariableId> {
@@ -141,62 +146,80 @@ impl Solve {
     }
 
     pub fn it_is_time_to_reduce(&self) -> bool {
-        self.conflicts_since_last_forget > (2_usize.pow(9) * self.forgets)
+        self.conflicts_since_last_forget > (2_usize.pow(6) * self.forgets)
     }
 
     /// Stores a clause with an automatically generated id.
     /// Note: In order to use the clause the watch literals of the struct must be initialised.
-    pub fn store_clause(&mut self, clause: impl Clause, src: ClauseSource) -> Rc<StoredClause> {
+    pub fn store_clause(&mut self, clause: impl Clause, src: ClauseSource) -> ClauseKey {
         match clause.length() {
             0 => panic!("Attempt to add an empty clause"),
             _ => match &src {
                 ClauseSource::Formula => {
-                    let stored_clause =
-                        StoredClause::new_from(Solve::fresh_clause_id(), clause, src);
+                    let key = self.formula_clauses.insert_with_key(|k| {
+                        StoredClause::new_from(
+                            Solve::fresh_clause_id(),
+                            ClauseKey::Formula(k),
+                            clause,
+                            src,
+                        )
+                    });
 
-                    for literal in stored_clause.literals() {
+                    let bc = &self.formula_clauses[key];
+
+                    for literal in bc.literals() {
                         self.variables[literal.v_id]
-                            .note_occurence(&stored_clause, literal.polarity);
+                            .note_occurence(ClauseKey::Formula(key), literal.polarity);
                     }
 
-                    self.formula_clauses.push(stored_clause.clone());
-                    stored_clause
+                    ClauseKey::Formula(key)
                 }
                 ClauseSource::Resolution(_) => {
                     log::trace!("Learning clause {}", clause.as_string());
-                    let stored_clause =
-                        StoredClause::new_from(Solve::fresh_clause_id(), clause, src);
+                    let key = self.learnt_clauses.insert_with_key(|k| {
+                        StoredClause::new_from(
+                            Solve::fresh_clause_id(),
+                            ClauseKey::Learnt(k),
+                            clause,
+                            src,
+                        )
+                    });
+
+                    let bc = &self.learnt_clauses[key];
 
                     for variable in &mut self.variables {
                         variable.divide_activity(1.2)
                     }
-                    for literal in stored_clause.literals() {
+                    for literal in bc.literals() {
                         self.variables[literal.v_id].add_activity(1.0);
                         self.variables[literal.v_id]
-                            .note_occurence(&stored_clause, literal.polarity);
+                            .note_occurence(ClauseKey::Learnt(key), literal.polarity);
                     }
 
-                    self.learnt_clauses.push(stored_clause.clone());
-                    stored_clause
+                    ClauseKey::Learnt(key)
                 }
             },
         }
     }
 
-    pub fn drop_learnt_clause_by_swap(&mut self, index: usize) {
-        let stored_clause = &self.learnt_clauses[index];
+    pub fn drop_learnt_clause_by_swap(&mut self, clause_key: ClauseKey) {
+        if let ClauseKey::Learnt(key) = clause_key {
+            let stored_clause = &self.learnt_clauses[key];
 
-        let watched_a_lit = stored_clause.watched_a();
-        self.variables[watched_a_lit.v_id].watch_removed(stored_clause, watched_a_lit.polarity);
+            let watched_a_lit = stored_clause.watched_a();
+            self.variables[watched_a_lit.v_id].watch_removed(stored_clause, watched_a_lit.polarity);
 
-        let watched_b_lit = stored_clause.watched_b();
-        self.variables[watched_b_lit.v_id].watch_removed(stored_clause, watched_b_lit.polarity);
+            let watched_b_lit = stored_clause.watched_b();
+            self.variables[watched_b_lit.v_id].watch_removed(stored_clause, watched_b_lit.polarity);
 
-        for literal in stored_clause.literals() {
-            self.variables[literal.v_id].note_clause_drop(stored_clause, literal.polarity)
+            for literal in stored_clause.literals() {
+                self.variables[literal.v_id].note_clause_drop(clause_key, literal.polarity)
+            }
+
+            let _ = self.learnt_clauses.remove(key);
+        } else {
+            panic!("hek")
         }
-
-        let _ = self.learnt_clauses.swap_remove(index);
     }
 
     pub fn backjump(&mut self, to: LevelIndex) {
