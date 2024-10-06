@@ -1,16 +1,19 @@
-use crate::structures::{clause::stored_clause::StoredClause, level::LevelIndex};
+use crate::structures::{
+    clause::stored_clause::{ClauseKey, StoredClause},
+    level::LevelIndex,
+};
 
 pub type VariableId = usize;
 use std::cell::Cell;
-use std::rc::Rc;
+
 pub struct Variable {
     name: String,
     id: VariableId,
     decision_level: Cell<Option<LevelIndex>>,
-    positive_occurrences: Cell<Vec<Rc<StoredClause>>>,
-    negative_occurrences: Cell<Vec<Rc<StoredClause>>>,
-    positive_watch_occurrences: Cell<Vec<Rc<StoredClause>>>,
-    negative_watch_occurrences: Cell<Vec<Rc<StoredClause>>>,
+    positive_occurrences: Cell<Vec<ClauseKey>>,
+    negative_occurrences: Cell<Vec<ClauseKey>>,
+    positive_watch_occurrences: Cell<Vec<ClauseKey>>,
+    negative_watch_occurrences: Cell<Vec<ClauseKey>>,
     activity: Cell<f32>,
 }
 
@@ -64,31 +67,28 @@ impl Variable {
         self.activity.get()
     }
 
-    pub fn note_occurence(&self, stored_clause: &Rc<StoredClause>, polarity: bool) {
-        let cloned = stored_clause.clone();
+    pub fn note_occurence(&self, stored_clause: ClauseKey, polarity: bool) {
         match polarity {
             true => {
                 let mut temporary = self.positive_occurrences.take();
-                temporary.push(cloned);
+                temporary.push(stored_clause);
                 self.positive_occurrences.set(temporary);
             }
             false => {
                 let mut temporary = self.negative_occurrences.take();
-                temporary.push(cloned);
+                temporary.push(stored_clause);
                 self.negative_occurrences.set(temporary);
             }
         }
     }
 
-    pub fn note_clause_drop(&self, stored_clause: &StoredClause, polarity: bool) {
+    pub fn note_clause_drop(&self, stored_clause: ClauseKey, polarity: bool) {
         let mut temporary = match polarity {
             true => self.positive_occurrences.take(),
             false => self.negative_occurrences.take(),
         };
 
-        let position = temporary
-            .iter()
-            .position(|sc| sc.id() == stored_clause.id());
+        let position = temporary.iter().position(|sc| *sc == stored_clause);
         if let Some(p) = position {
             temporary.swap_remove(p);
         }
@@ -105,9 +105,7 @@ impl Variable {
             false => self.negative_watch_occurrences.take(),
         };
 
-        let position = temporary
-            .iter()
-            .position(|sc| sc.id() == stored_clause.id());
+        let position = temporary.iter().position(|sc| *sc == stored_clause.key);
         if let Some(p) = position {
             temporary.swap_remove(p);
         }
@@ -118,29 +116,29 @@ impl Variable {
         };
     }
 
-    pub fn watch_added(&self, stored_clause: &Rc<StoredClause>, polarity: bool) {
+    pub fn watch_added(&self, stored_clause: ClauseKey, polarity: bool) {
         match polarity {
             true => {
                 let mut temporary = self.positive_watch_occurrences.take();
-                temporary.push(stored_clause.clone());
+                temporary.push(stored_clause);
                 self.positive_watch_occurrences.set(temporary);
             }
             false => {
                 let mut temporary = self.negative_watch_occurrences.take();
-                temporary.push(stored_clause.clone());
+                temporary.push(stored_clause);
                 self.negative_watch_occurrences.set(temporary);
             }
         }
     }
 
-    pub fn take_occurrence_vec(&self, polarity: bool) -> Vec<Rc<StoredClause>> {
+    pub fn take_occurrence_vec(&self, polarity: bool) -> Vec<ClauseKey> {
         match polarity {
             true => self.positive_watch_occurrences.take(),
             false => self.negative_watch_occurrences.take(),
         }
     }
 
-    pub fn restore_occurrence_vec(&self, polarity: bool, vec: Vec<Rc<StoredClause>>) {
+    pub fn restore_occurrence_vec(&self, polarity: bool, vec: Vec<ClauseKey>) {
         match polarity {
             true => self.positive_watch_occurrences.set(vec),
             false => self.negative_watch_occurrences.set(vec),

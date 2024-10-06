@@ -1,9 +1,7 @@
 use crate::structures::{
-    clause::stored_clause::StoredClause,
+    clause::stored_clause::ClauseKey,
     variable::{Variable, VariableId},
 };
-
-use std::rc::Rc;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Literal {
@@ -14,9 +12,9 @@ pub struct Literal {
 /// how a literal was settled
 #[derive(Clone, Debug)]
 pub enum LiteralSource {
-    Choice,       // a choice made where the alternative may make a SAT difference
+    Choice,                  // a choice made where the alternative may make a SAT difference
     HobsonChoice, // a choice made with a guarantee that the alternative would make no SAT difference
-    StoredClause(Rc<StoredClause>), // the literal must be the case for SAT given some valuation
+    StoredClause(ClauseKey), // the literal must be the case for SAT given some valuation
     Assumption,
 }
 

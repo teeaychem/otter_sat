@@ -6,18 +6,23 @@ use crate::structures::{
 };
 
 use std::cell::Cell;
-use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub enum ClauseSource {
     Formula,
-    Resolution(Vec<Rc<StoredClause>>),
+    Resolution(Vec<ClauseKey>),
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum Watch {
     A,
     B,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ClauseKey {
+    Formula(slotmap::DefaultKey),
+    Learnt(slotmap::DefaultKey),
 }
 
 /**
@@ -31,6 +36,7 @@ and, is intended to be the unique representation of a clause within a solve
 #[derive(Debug)]
 pub struct StoredClause {
     id: ClauseId,
+    pub key: ClauseKey,
     lbd: Cell<usize>,
     source: ClauseSource,
     clause: ClauseVec,
@@ -66,21 +72,25 @@ pub enum WatchUpdateEnum {
 }
 
 impl StoredClause {
-    pub fn new_from(id: ClauseId, clause: impl Clause, source: ClauseSource) -> Rc<StoredClause> {
+    pub fn new_from(
+        id: ClauseId,
+        key: ClauseKey,
+        clause: impl Clause,
+        source: ClauseSource,
+    ) -> StoredClause {
         if clause.is_empty() {
             panic!("An empty clause")
         }
 
-        let the_clause = StoredClause {
+        StoredClause {
             id,
+            key,
             lbd: Cell::new(0),
             clause: clause.to_vec(),
             source,
             watch_a: Cell::from(0),
             watch_b: Cell::from(0),
-        };
-
-        Rc::new(the_clause)
+        }
     }
 
     pub fn id(&self) -> ClauseId {
@@ -306,7 +316,7 @@ impl StoredClause {
 
 /// Initialises the watches for a stored clause, is not a method as requires pointer information
 pub fn initialise_watches_for(
-    stored_clause: &Rc<StoredClause>,
+    stored_clause: &StoredClause,
     val: &impl Valuation,
     vars: &[Variable],
 ) {
@@ -321,20 +331,20 @@ pub fn initialise_watches_for(
         });
 
         let current_a = stored_clause.clause[stored_clause.watch_a.get()];
-        vars[current_a.v_id].watch_added(stored_clause, current_a.polarity);
+        vars[current_a.v_id].watch_added(stored_clause.key, current_a.polarity);
 
         let current_b = stored_clause.clause[stored_clause.watch_b.get()];
-        vars[current_b.v_id].watch_added(stored_clause, current_b.polarity);
+        vars[current_b.v_id].watch_added(stored_clause.key, current_b.polarity);
     } else {
         let watched_variable = stored_clause.clause.first().unwrap();
-        vars[watched_variable.v_id].watch_added(stored_clause, watched_variable.polarity);
+        vars[watched_variable.v_id].watch_added(stored_clause.key, watched_variable.polarity);
     }
 }
 
 // #[rustfmt::skip]
 /// Updates the two watched literals on the assumption that only the valuation of the given id has changed.
 pub fn relic_suggest_watch_update(
-    stored_clause: &Rc<StoredClause>,
+    stored_clause: &StoredClause,
     val: &impl Valuation,
     v_id: VariableId,
     vars: &[Variable],

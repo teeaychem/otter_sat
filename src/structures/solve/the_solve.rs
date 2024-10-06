@@ -1,7 +1,10 @@
 use crate::procedures::hobson_choices;
+use crate::structures::clause::stored_clause;
 use crate::structures::{
     clause::{
-        stored_clause::{ClauseStatus, StoredClause, Watch, WatchStatus, WatchUpdateEnum},
+        stored_clause::{
+            ClauseKey, ClauseStatus, StoredClause, Watch, WatchStatus, WatchUpdateEnum,
+        },
         Clause,
     },
     level::Level,
@@ -17,7 +20,8 @@ use crate::structures::{
     valuation::{Valuation, ValuationStatus},
     variable::Variable,
 };
-use std::rc::Rc;
+
+use slotmap::{DefaultKey, SlotMap};
 
 impl Solve {
     #[allow(unused_labels)]
@@ -53,20 +57,27 @@ impl Solve {
                     false => self.variables[literal.v_id].take_occurrence_vec(true),
                 };
 
-                'clause_loop: for stored_clause in &temprary_clause_vec {
+                'clause_loop: for clause_key in &temprary_clause_vec {
+                    let stored_clause = match clause_key {
+                        stored_clause::ClauseKey::Formula(key) => &self.formula_clauses[*key],
+                        stored_clause::ClauseKey::Learnt(key) => &self.learnt_clauses[*key],
+                    };
+
                     match stored_clause.watch_choices(&self.valuation) {
                         ClauseStatus::Entails(consequent) => {
                             literal_update(
                                 consequent,
-                                LiteralSource::StoredClause(stored_clause.clone()),
+                                LiteralSource::StoredClause(*clause_key),
                                 &mut self.levels,
                                 &self.variables,
                                 &mut self.valuation,
+                                &self.formula_clauses,
+                                &self.learnt_clauses,
                             );
                             self.watch_q.push_back(consequent);
                         }
                         ClauseStatus::Conflict => {
-                            found_conflict = Some(stored_clause.clone());
+                            found_conflict = Some(*clause_key);
                             self.watch_q.clear();
                             break 'clause_loop;
                         }
@@ -87,13 +98,26 @@ impl Solve {
                 None => {
                     if let Some(available_v_id) = self.most_active_none(&self.valuation) {
                         if self.it_is_time_to_reduce() {
-                            log::debug!(target: "forget", "{stats}");
+                            log::debug!(target: "forget", "{stats} @ {}", self.forgets);
                             let this_reduction_time = std::time::Instant::now();
-                            reduce(self);
                             if config_restarts_allowed() {
+                                {
+                                    let mut keys_to_drop = vec![];
+                                    for (k, v) in &self.learnt_clauses {
+                                        if v.lbd() > config_glue_strength() {
+                                            keys_to_drop.push(k);
+                                        }
+                                    }
+                                    for k in keys_to_drop {
+                                        self.drop_learnt_clause_by_swap(ClauseKey::Learnt(k))
+                                    }
+                                }
                                 self.watch_q.clear();
-                                self.backjump(1);
+                                self.backjump(0);
                             }
+                            self.forgets += 1;
+                            self.conflicts_since_last_forget = 0;
+                            log::debug!(target: "forget", "Reduced to: {}", self.learnt_clauses.len());
 
                             stats.reduction_time += this_reduction_time.elapsed();
                         }
@@ -113,6 +137,8 @@ impl Solve {
                             &mut self.levels,
                             &self.variables,
                             &mut self.valuation,
+                            &self.formula_clauses,
+                            &self.learnt_clauses,
                         );
                         self.watch_q.push_back(the_literal);
 
@@ -124,11 +150,31 @@ impl Solve {
                         break 'main_loop;
                     }
                 }
-                Some(stored_conflict) => {
+                Some(clause_key) => {
                     self.watch_q.clear();
                     let this_unsat_time = std::time::Instant::now();
-                    self.notice_conflict(&stored_conflict);
-                    let analysis_result = self.attempt_fix(&stored_conflict);
+
+                    let stored_clause = match clause_key {
+                        stored_clause::ClauseKey::Formula(key) => &self.formula_clauses[key],
+                        stored_clause::ClauseKey::Learnt(key) => &self.learnt_clauses[key],
+                    };
+
+                    // notice_conflict
+                    {
+                        self.conflicts += 1;
+                        self.conflicts_since_last_forget += 1;
+                        if self.conflicts % 2_usize.pow(10) == 0 {
+                            for variable in &self.variables {
+                                variable.divide_activity(2.0)
+                            }
+                        }
+
+                        for literal in stored_clause.variables() {
+                            self.variables[literal].add_activity(2.0);
+                        }
+                    }
+
+                    let analysis_result = self.attempt_fix(clause_key);
                     stats.unsat_time += this_unsat_time.elapsed();
                     match analysis_result {
                         SolveStatus::NoSolution => {
@@ -166,38 +212,17 @@ impl Solve {
     }
 }
 
-#[inline(always)]
-fn reduce(solve: &mut Solve) {
-    log::debug!(target: "forget", "Learnt count: {}", solve.learnt_clauses.len());
-
-    {
-        // solve.learnt_clauses.truncate(learnt_count / 2);
-        let mut i = 0;
-        let mut length = solve.learnt_clauses.len();
-        while i < length {
-            if solve.learnt_clauses[i].lbd() > config_glue_strength() {
-                solve.drop_learnt_clause_by_swap(i);
-                length -= 1;
-            } else {
-                i += 1
-            }
-        }
-    }
-    solve.forgets += 1;
-    solve.conflicts_since_last_forget = 0;
-    log::debug!(target: "forget", "Reduced to: {}", solve.learnt_clauses.len());
-}
-
-#[inline(always)]
 pub fn literal_update(
     literal: Literal,
     source: LiteralSource,
     levels: &mut [Level],
     vars: &[Variable],
     valuation: &mut impl Valuation,
+    formula_clauses: &SlotMap<DefaultKey, StoredClause>,
+    learnt_clauses: &SlotMap<DefaultKey, StoredClause>,
 ) {
     let variable = &vars[literal.v_id];
-    variable.add_activity(0.2);
+    variable.add_activity(1.0);
 
     // update the valuation and match the result
     match valuation.update_value(literal) {
@@ -224,7 +249,12 @@ pub fn literal_update(
             let mut index = 0;
             let mut length = working_clause_vec.len();
             while index < length {
-                let stored_clause = &working_clause_vec[index];
+                let clause_key = &working_clause_vec[index];
+
+                let stored_clause = match clause_key {
+                    ClauseKey::Formula(key) => &formula_clauses[*key],
+                    ClauseKey::Learnt(key) => &learnt_clauses[*key],
+                };
 
                 let the_watch = match stored_clause.watched_a().v_id == literal.v_id {
                     true => Watch::A,
@@ -265,7 +295,7 @@ pub fn literal_update(
 pub fn process_watches(
     val: &impl Valuation,
     variables: &[Variable],
-    stored_clause: &Rc<StoredClause>,
+    stored_clause: &StoredClause,
     chosen_watch: Watch,
 ) -> WatchStatus {
     match stored_clause.length() {
@@ -284,12 +314,14 @@ pub fn process_watches(
                         Watch::A => {
                             stored_clause.update_watch_a($a);
                             let watched_a = stored_clause.watched_a();
-                            variables[watched_a.v_id].watch_added(stored_clause, watched_a.polarity)
+                            variables[watched_a.v_id]
+                                .watch_added(stored_clause.key, watched_a.polarity)
                         }
                         Watch::B => {
                             stored_clause.update_watch_b($a);
                             let watched_b = stored_clause.watched_b();
-                            variables[watched_b.v_id].watch_added(stored_clause, watched_b.polarity)
+                            variables[watched_b.v_id]
+                                .watch_added(stored_clause.key, watched_b.polarity)
                         }
                     }
                 };
