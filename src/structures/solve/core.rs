@@ -2,22 +2,22 @@ use slotmap::SlotMap;
 
 use crate::structures::{
     clause::{
-        stored_clause::{initialise_watches_for, ClauseKey, ClauseSource, StoredClause, Watch},
-        Clause, ClauseId,
+        stored_clause::{initialise_watches_for, ClauseSource, StoredClause, Watch},
+        Clause,
     },
     formula::Formula,
     level::{Level, LevelIndex},
     literal::{Literal, LiteralSource},
     solve::the_solve::literal_update,
-    solve::{retreive, ClauseStore, Solve},
+    solve::{
+        clause_store::{retreive, ClauseKey, ClauseStore},
+        Solve,
+    },
     valuation::{Valuation, ValuationVec},
     variable::{Variable, VariableId},
 };
 
-use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-
 use std::collections::VecDeque;
-use std::rc::Rc;
 
 impl Solve {
     pub fn from_formula(formula: Formula) -> Solve {
@@ -32,7 +32,7 @@ impl Solve {
             valuation: Vec::<Option<bool>>::new_for_variables(variables.len()),
             variables,
             levels: vec![Level::new(0)],
-            stored_clauses: ClauseStore {
+            clauses_stored: ClauseStore {
                 formula_clauses: SlotMap::new(),
                 learnt_clauses: SlotMap::new(),
             },
@@ -40,9 +40,8 @@ impl Solve {
 
         let initial_valuation = the_solve.valuation.clone();
 
-        clauses
-            .into_iter()
-            .for_each(|formula_clause| match formula_clause.length() {
+        for formula_clause in clauses {
+            match formula_clause.length() {
                 0 => {
                     panic!("c The formula contains a zero-length clause");
                 }
@@ -50,11 +49,12 @@ impl Solve {
                     let clause_key =
                         the_solve.store_clause(formula_clause.to_vec(), ClauseSource::Formula);
 
-                    let stored_clause = retreive(&the_solve.stored_clauses, clause_key);
+                    let stored_clause = retreive(&the_solve.clauses_stored, clause_key);
 
                     initialise_watches_for(stored_clause, &initial_valuation, &the_solve.variables);
                 }
-            });
+            }
+        }
 
         the_solve
     }
@@ -70,10 +70,10 @@ impl Solve {
     }
 
     pub fn stored_clauses(&self) -> impl Iterator<Item = &StoredClause> {
-        self.stored_clauses
+        self.clauses_stored
             .formula_clauses
             .iter()
-            .chain(&self.stored_clauses.learnt_clauses)
+            .chain(&self.clauses_stored.learnt_clauses)
             .map(|(_, sc)| sc)
     }
 
@@ -82,25 +82,12 @@ impl Solve {
             .map(|stored_clause| stored_clause.clause_impl())
     }
 
-    pub fn fresh_clause_id() -> ClauseId {
-        static COUNTER: AtomicUsize = AtomicUsize::new(1);
-        COUNTER.fetch_add(1, AtomicOrdering::Relaxed) as ClauseId
-    }
-
-    pub fn get_unassigned_id(&self, solve: &Solve) -> Option<VariableId> {
-        solve
-            .variables
-            .iter()
-            .find(|&v| self.valuation.of_v_id(v.id()).is_none())
-            .map(|found| found.id())
-    }
-
     pub fn var_by_id(&self, id: VariableId) -> Option<&Variable> {
         self.variables.get(id)
     }
 
-    pub fn set_from_lists(&mut self, the_choices: (Vec<VariableId>, Vec<VariableId>)) {
-        the_choices.0.iter().for_each(|&v_id| {
+    pub fn literal_set_from_vec(&mut self, choices: Vec<VariableId>) {
+        choices.iter().for_each(|&v_id| {
             let the_literal = Literal::new(v_id, false);
             literal_update(
                 the_literal,
@@ -108,26 +95,10 @@ impl Solve {
                 &mut self.levels,
                 &self.variables,
                 &mut self.valuation,
-                &self.stored_clauses,
+                &self.clauses_stored,
             );
             self.watch_q.push_back(the_literal);
         });
-        the_choices.1.iter().for_each(|&v_id| {
-            let the_literal = Literal::new(v_id, true);
-            literal_update(
-                the_literal,
-                LiteralSource::HobsonChoice,
-                &mut self.levels,
-                &self.variables,
-                &mut self.valuation,
-                &self.stored_clauses,
-            );
-            self.watch_q.push_back(the_literal);
-        });
-    }
-
-    pub fn select_conflict(&self, clauses: &[Rc<StoredClause>]) -> Option<Rc<StoredClause>> {
-        clauses.first().cloned()
     }
 
     pub fn most_active_none(&self, val: &impl Valuation) -> Option<VariableId> {
@@ -150,11 +121,11 @@ impl Solve {
             0 => panic!("Attempt to add an empty clause"),
             _ => match &src {
                 ClauseSource::Formula => {
-                    let key = self.stored_clauses.formula_clauses.insert_with_key(|k| {
+                    let key = self.clauses_stored.formula_clauses.insert_with_key(|k| {
                         StoredClause::new_from(ClauseKey::Formula(k), clause, src)
                     });
 
-                    let bc = &self.stored_clauses.formula_clauses[key];
+                    let bc = &self.clauses_stored.formula_clauses[key];
 
                     for literal in bc.literals() {
                         self.variables[literal.v_id]
@@ -165,11 +136,11 @@ impl Solve {
                 }
                 ClauseSource::Resolution(_) => {
                     log::trace!("Learning clause {}", clause.as_string());
-                    let key = self.stored_clauses.learnt_clauses.insert_with_key(|k| {
+                    let key = self.clauses_stored.learnt_clauses.insert_with_key(|k| {
                         StoredClause::new_from(ClauseKey::Learnt(k), clause, src)
                     });
 
-                    let bc = &self.stored_clauses.learnt_clauses[key];
+                    let bc = &self.clauses_stored.learnt_clauses[key];
 
                     for variable in &mut self.variables {
                         variable.divide_activity(1.2)
@@ -188,7 +159,7 @@ impl Solve {
 
     pub fn drop_learnt_clause_by_swap(&mut self, clause_key: ClauseKey) {
         if let ClauseKey::Learnt(key) = clause_key {
-            let stored_clause = &self.stored_clauses.learnt_clauses[key];
+            let stored_clause = &self.clauses_stored.learnt_clauses[key];
 
             let watched_a_lit = stored_clause.literal_of(Watch::A);
             self.variables[watched_a_lit.v_id].watch_removed(stored_clause, watched_a_lit.polarity);
@@ -200,7 +171,7 @@ impl Solve {
                 self.variables[literal.v_id].note_clause_drop(clause_key, literal.polarity)
             }
 
-            let _ = self.stored_clauses.learnt_clauses.remove(key);
+            let _ = self.clauses_stored.learnt_clauses.remove(key);
         } else {
             panic!("hek")
         }

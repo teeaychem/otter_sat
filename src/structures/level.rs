@@ -27,10 +27,6 @@ impl Level {
         self.index
     }
 
-    pub fn get_choice(&self) -> Option<Literal> {
-        self.choice
-    }
-
     pub fn record_literal(&mut self, literal: Literal, source: &LiteralSource) {
         match source {
             LiteralSource::Choice => {

@@ -1,5 +1,5 @@
 use crate::structures::{
-    clause::stored_clause::ClauseKey,
+    solve::clause_store::ClauseKey,
     variable::{Variable, VariableId},
 };
 
