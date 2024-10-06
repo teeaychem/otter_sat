@@ -9,6 +9,7 @@ use crate::structures::{
     literal::{Literal, LiteralSource},
     solve::{
         config::{config_stopping_criteria, StoppingCriteria},
+        retreive,
         the_solve::literal_update,
         Solve, SolveStatus,
     },
@@ -19,10 +20,7 @@ use std::collections::{BTreeSet, VecDeque};
 
 impl Solve {
     pub fn attempt_fix(&mut self, clause_key: ClauseKey) -> SolveStatus {
-        let conflict_clause = match clause_key {
-            ClauseKey::Formula(key) => &self.formula_clauses[key],
-            ClauseKey::Learnt(key) => &self.learnt_clauses[key],
-        };
+        let conflict_clause = retreive(&self.stored_clauses, clause_key);
 
         let the_id = conflict_clause.id();
         log::trace!(
@@ -36,10 +34,7 @@ impl Solve {
                     self.conflict_analysis(conflict_clause);
 
                 let clause_key = self.store_clause(asserting_clause, clause_source);
-                let stored_clause = match clause_key {
-                    ClauseKey::Formula(key) => &self.formula_clauses[key],
-                    ClauseKey::Learnt(key) => &self.learnt_clauses[key],
-                };
+                let stored_clause = retreive(&self.stored_clauses, clause_key);
 
                 let anticipated_literal_source = LiteralSource::StoredClause(stored_clause.key);
 
@@ -67,8 +62,7 @@ impl Solve {
                     &mut self.levels,
                     &self.variables,
                     &mut self.valuation,
-                    &self.formula_clauses,
-                    &self.learnt_clauses,
+                    &self.stored_clauses,
                 );
                 self.watch_q.push_back(assertion);
 
@@ -101,10 +95,7 @@ impl Solve {
             }
 
             if let LiteralSource::StoredClause(clause_key) = src {
-                let stored_clause = match clause_key {
-                    ClauseKey::Formula(key) => &self.formula_clauses[*key],
-                    ClauseKey::Learnt(key) => &self.learnt_clauses[*key],
-                };
+                let stored_clause = retreive(&self.stored_clauses, *clause_key);
                 let src_cls_vec = stored_clause.clause_impl();
                 let counterparts =
                     find_counterpart_literals(resolved_clause.literals(), src_cls_vec.literals());
@@ -184,10 +175,7 @@ impl Solve {
             }
 
             let clause_key = q.pop_front().expect("Ah, the queue was empty…");
-            let stored_clause = match clause_key {
-                ClauseKey::Formula(key) => &self.formula_clauses[key],
-                ClauseKey::Learnt(key) => &self.learnt_clauses[key],
-            };
+            let stored_clause = retreive(&self.stored_clauses, clause_key);
 
             match stored_clause.source() {
                 ClauseSource::Resolution(origins) => {
