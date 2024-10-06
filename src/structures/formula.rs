@@ -1,5 +1,5 @@
 use crate::structures::{
-    clause::{Clause,  clause_vec::ClauseVec},
+    clause::{clause_vec::ClauseVec, Clause},
     literal::Literal,
     variable::{Variable, VariableId},
 };
@@ -17,10 +17,9 @@ impl Formula {
         }
     }
 
-
     pub fn clause_count(&self) -> usize {
         self.clauses.len()
-}
+    }
 
     pub fn add_clause(&mut self, string: &str) {
         let clause = self.clause_vec_from_string(string);
