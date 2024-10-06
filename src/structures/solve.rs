@@ -13,7 +13,7 @@ use std::rc::Rc;
 
 pub struct Solve {
     conflicts: usize,
-    conflcits_since_last_forget: usize,
+    conflicts_since_last_forget: usize,
     forgets: usize,
     pub variables: Vec<Variable>,
     pub valuation: Vec<Option<bool>>,

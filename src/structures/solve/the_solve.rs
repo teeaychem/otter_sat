@@ -20,6 +20,7 @@ use crate::structures::{
 use std::rc::Rc;
 
 impl Solve {
+    #[allow(unused_labels)]
     pub fn implication_solve(&mut self) -> (SolveResult, SolveStats) {
         let this_total_time = std::time::Instant::now();
 
@@ -51,18 +52,8 @@ impl Solve {
                     true => self.variables[literal.v_id].take_occurrence_vec(false),
                     false => self.variables[literal.v_id].take_occurrence_vec(true),
                 };
-                macro_rules! restore_occurrence_vecs {
-                    () => {
-                        match literal.polarity {
-                            true => self.variables[literal.v_id]
-                                .restore_occurrence_vec(false, temprary_clause_vec),
-                            false => self.variables[literal.v_id]
-                                .restore_occurrence_vec(true, temprary_clause_vec),
-                        };
-                    };
-                }
 
-                for stored_clause in &temprary_clause_vec {
+                'clause_loop: for stored_clause in &temprary_clause_vec {
                     match stored_clause.watch_choices(&self.valuation) {
                         ClauseStatus::Entails(consequent) => {
                             literal_update(
@@ -75,31 +66,33 @@ impl Solve {
                             self.watch_q.push_back(consequent);
                         }
                         ClauseStatus::Conflict => {
-                            if found_conflict.is_none() {
-                                found_conflict = Some(stored_clause.clone())
-                            };
-
-                            restore_occurrence_vecs!();
-                            break 'propagation_loop;
+                            found_conflict = Some(stored_clause.clone());
+                            self.watch_q.clear();
+                            break 'clause_loop;
                         }
                         ClauseStatus::Unsatisfied => (),
                         ClauseStatus::Satisfied => (),
                     }
                 }
-                restore_occurrence_vecs!();
+                match literal.polarity {
+                    true => self.variables[literal.v_id]
+                        .restore_occurrence_vec(false, temprary_clause_vec),
+                    false => self.variables[literal.v_id]
+                        .restore_occurrence_vec(true, temprary_clause_vec),
+                };
             }
             stats.implication_time += this_implication_time.elapsed();
 
             match found_conflict {
                 None => {
                     if let Some(available_v_id) = self.most_active_none(&self.valuation) {
-                        if self.is_it_time_to_reduce() {
+                        if self.it_is_time_to_reduce() {
                             log::debug!(target: "forget", "{stats}");
                             let this_reduction_time = std::time::Instant::now();
                             reduce(self);
                             if config_restarts_allowed() {
                                 self.watch_q.clear();
-                                self.backjump(0);
+                                self.backjump(1);
                             }
 
                             stats.reduction_time += this_reduction_time.elapsed();
@@ -191,7 +184,7 @@ fn reduce(solve: &mut Solve) {
         }
     }
     solve.forgets += 1;
-    solve.conflcits_since_last_forget = 0;
+    solve.conflicts_since_last_forget = 0;
     log::debug!(target: "forget", "Reduced to: {}", solve.learnt_clauses.len());
 }
 
@@ -204,6 +197,7 @@ pub fn literal_update(
     valuation: &mut impl Valuation,
 ) {
     let variable = &vars[literal.v_id];
+    variable.add_activity(0.2);
 
     // update the valuation and match the result
     match valuation.update_value(literal) {
