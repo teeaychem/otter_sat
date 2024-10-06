@@ -1,5 +1,5 @@
 use crate::structures::{
-    clause::{Clause, ClauseId, ClauseVec},
+    clause::{Clause, ClauseVec},
     literal::Literal,
     valuation::{Valuation, ValuationVec},
     variable::{Variable, VariableId},
@@ -35,7 +35,6 @@ and, is intended to be the unique representation of a clause within a solve
 */
 #[derive(Debug)]
 pub struct StoredClause {
-    id: ClauseId,
     pub key: ClauseKey,
     lbd: Cell<usize>,
     source: ClauseSource,
@@ -52,12 +51,12 @@ pub enum ClauseStatus {
     Unsatisfied,      // more than one literal is unassigned
 }
 
-/// The already/new variants allow for contrast with a known previous state
+/// The same/new variants allow for contrast with a known previous state
 #[derive(PartialEq, Debug)]
 pub enum WatchStatus {
-    AlreadyConflict,
-    AlreadyImplication,
-    AlreadySatisfied,
+    SameConflict,
+    SameImplication,
+    SameSatisfied,
     NewImplication,
     NewSatisfied,
     NewTwoNone,
@@ -72,18 +71,10 @@ pub enum WatchUpdateEnum {
 }
 
 impl StoredClause {
-    pub fn new_from(
-        id: ClauseId,
-        key: ClauseKey,
-        clause: impl Clause,
-        source: ClauseSource,
-    ) -> StoredClause {
-        if clause.is_empty() {
-            panic!("An empty clause")
-        }
+    pub fn new_from(key: ClauseKey, clause: impl Clause, source: ClauseSource) -> StoredClause {
+        clause.is_empty().then(|| panic!("An empty clause"));
 
         StoredClause {
-            id,
             key,
             lbd: Cell::new(0),
             clause: clause.to_vec(),
@@ -91,10 +82,6 @@ impl StoredClause {
             watch_a: Cell::from(0),
             watch_b: Cell::from(0),
         }
-    }
-
-    pub fn id(&self) -> ClauseId {
-        self.id
     }
 
     pub fn source(&self) -> &ClauseSource {
@@ -117,19 +104,17 @@ impl StoredClause {
         self.clause.literals()
     }
 
-    fn index_of(&self, vid: VariableId) -> usize {
-        self.clause
-            .iter()
-            .enumerate()
-            .find(|(_, l)| l.v_id == vid)
-            .map(|(idx, _)| idx)
-            .expect("Literal not found in clause")
-    }
-
     pub fn get_watch(&self, a_or_b: Watch) -> usize {
         match a_or_b {
             Watch::A => self.watch_a.get(),
             Watch::B => self.watch_b.get(),
+        }
+    }
+
+    pub fn set_watch(&self, watch: Watch, index: usize) {
+        match watch {
+            Watch::A => self.watch_a.set(index),
+            Watch::B => self.watch_b.set(index),
         }
     }
 }
@@ -293,20 +278,11 @@ impl StoredClause {
         self.lbd.get()
     }
 
-    pub fn watched_a(&self) -> Literal {
-        self.clause[self.watch_a.get()]
-    }
-
-    pub fn watched_b(&self) -> Literal {
-        self.clause[self.watch_b.get()]
-    }
-
-    pub fn update_watch_a(&self, val: usize) {
-        self.watch_a.set(val);
-    }
-
-    pub fn update_watch_b(&self, val: usize) {
-        self.watch_b.set(val);
+    pub fn literal_of(&self, watch: Watch) -> Literal {
+        match watch {
+            Watch::A => self.clause[self.watch_a.get()],
+            Watch::B => self.clause[self.watch_b.get()],
+        }
     }
 
     pub fn clause_clone(&self) -> ClauseVec {
@@ -341,125 +317,11 @@ pub fn initialise_watches_for(
     }
 }
 
-// #[rustfmt::skip]
-/// Updates the two watched literals on the assumption that only the valuation of the given id has changed.
-pub fn relic_suggest_watch_update(
-    stored_clause: &StoredClause,
-    val: &impl Valuation,
-    v_id: VariableId,
-    vars: &[Variable],
-) -> (Option<usize>, Option<usize>, WatchStatus) {
-    match stored_clause.length() {
-        1 => match val.of_v_id(stored_clause.clause[stored_clause.watch_a.get()].v_id) {
-            None => (None, None, WatchStatus::AlreadyImplication),
-            Some(_) => (None, None, WatchStatus::AlreadySatisfied),
-        },
-        _ => {
-            // If the current a watch already witness satisfaction of the clause, do nothing
-            let watched_a_literal = stored_clause.clause[stored_clause.watch_a.get()];
-            let current_a_value = val.of_v_id(watched_a_literal.v_id);
-            let current_a_match = current_a_value.is_some_and(|p| p == watched_a_literal.polarity);
-            if current_a_match {
-                return (None, None, WatchStatus::AlreadySatisfied);
-            }
-            // and likewise for the current b watch
-            let watched_b_literal = stored_clause.clause[stored_clause.watch_b.get()];
-            let current_b_value = val.of_v_id(watched_b_literal.v_id);
-            let current_b_match = current_b_value.is_some_and(|p| p == watched_b_literal.polarity);
-            if current_b_match {
-                return (None, None, WatchStatus::AlreadySatisfied);
-            }
-            // as, the decision level of the witnessing literal must be lower than that of the current literal
-
-            let clause_literal_index = stored_clause.index_of(v_id);
-
-            // check to see if the clause is satisfied, if so, the previous two checks imply one watch must be updated to witness the satisfaction
-            let clause_is_satisfied_by_v = {
-                let valuation_polarity = val.of_v_id(v_id).unwrap();
-                let clause_polarity = stored_clause.find_literal_by_id(v_id).unwrap().polarity;
-                valuation_polarity == clause_polarity
-            };
-
-            if clause_is_satisfied_by_v {
-                // attempt to update a watch which doesn't interact with the current valuation
-                if current_a_value.is_none() {
-                    return (Some(clause_literal_index), None, WatchStatus::NewSatisfied);
-                } else if current_b_value.is_none() {
-                    return (None, Some(clause_literal_index), WatchStatus::NewSatisfied);
-                } else {
-                    // otherwise, both literals must conflict with the current valuation, so update the most recent
-                    if vars[watched_a_literal.v_id]
-                        .decision_level()
-                        .expect("No decision level for watch a")
-                        > vars[watched_b_literal.v_id]
-                            .decision_level()
-                            .expect("No decision level for watch b")
-                    {
-                        return (Some(clause_literal_index), None, WatchStatus::NewSatisfied);
-                    } else {
-                        return (None, Some(clause_literal_index), WatchStatus::NewSatisfied);
-                    }
-                }
-            }
-
-            // otherwise, if either watch conflicts with the current valuation,
-            // an attempt should be made to avoid the conflict
-            // as both watches must be different, order is irrelvant here
-            if watched_a_literal.v_id == v_id
-                && current_a_value.is_some_and(|p| p != watched_a_literal.polarity)
-            {
-                if let Some(idx) = stored_clause.some_none_idx(val, Some(watched_b_literal.v_id)) {
-                    // and, there's no literal on the watch which doesn't have a value on the assignment
-                    match current_b_match {
-                        false => (Some(idx), None, WatchStatus::NewImplication),
-                        true => (Some(idx), None, WatchStatus::NewTwoNone),
-                    }
-                } else {
-                    (None, None, WatchStatus::AlreadyConflict)
-                }
-            } else if watched_b_literal.v_id == v_id
-                && current_b_value.is_some_and(|p| p != watched_b_literal.polarity)
-            {
-                if let Some(idx) = stored_clause.some_none_idx(val, Some(watched_a_literal.v_id)) {
-                    match current_a_match {
-                        false => (None, Some(idx), WatchStatus::NewImplication),
-                        true => (None, Some(idx), WatchStatus::NewTwoNone),
-                    }
-                } else {
-                    (None, None, WatchStatus::AlreadyConflict)
-                }
-            } else {
-                (None, None, WatchStatus::AlreadyConflict)
-            }
-        }
-    }
-}
-
 impl std::fmt::Display for StoredClause {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "#[{}] {}", self.id, self.clause.as_string())
+        write!(f, "{}", self.clause.as_string())
     }
 }
-
-impl PartialOrd for StoredClause {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for StoredClause {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.id.cmp(&other.id)
-    }
-}
-
-impl PartialEq for StoredClause {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-impl Eq for StoredClause {}
 
 /// Lift the method from the clause stored to the stored clause
 impl Clause for StoredClause {
