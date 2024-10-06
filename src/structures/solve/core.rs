@@ -24,7 +24,7 @@ impl Solve {
 
         let mut the_solve = Solve {
             conflicts: 0,
-            conflcits_since_last_forget: 0,
+            conflicts_since_last_forget: 0,
             forgets: 0,
             watch_q: VecDeque::with_capacity(variables.len() / 4), // I expect this to be mostly empty
             valuation: Vec::<Option<bool>>::new_for_variables(variables.len()),
@@ -119,10 +119,10 @@ impl Solve {
 
     pub fn notice_conflict(&mut self, stored_clauses: &StoredClause) {
         self.conflicts += 1;
-        self.conflcits_since_last_forget += 1;
-        if self.conflicts % 1024 == 0 {
+        self.conflicts_since_last_forget += 1;
+        if self.conflicts % 2_usize.pow(10) == 0 {
             for variable in &self.variables {
-                variable.divide_activity(2.0)
+                variable.divide_activity(1.4)
             }
         }
 
@@ -140,8 +140,8 @@ impl Solve {
             .map(|(a, _)| a)
     }
 
-    pub fn is_it_time_to_reduce(&self) -> bool {
-        self.conflcits_since_last_forget > (1000 + 200 * self.forgets)
+    pub fn it_is_time_to_reduce(&self) -> bool {
+        self.conflicts_since_last_forget > (2_usize.pow(9) * self.forgets)
     }
 
     /// Stores a clause with an automatically generated id.
