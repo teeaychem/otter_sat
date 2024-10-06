@@ -56,7 +56,7 @@ struct Args {
     exploration_priority: String,
 
     /// Allow for the decisions to be forgotten, on occassion
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t = true)]
     restarts: bool,
 
     /// Initially settle all atoms which occur with a unique polarity
@@ -97,7 +97,7 @@ fn main() {
         CONFIG_SHOW_CORE = args.core;
         CONFIG_SHOW_ASSIGNMENT = args.assignment;
         RESTARTS_ALLOWED = args.restarts;
-        TIME_LIMIT = args.time
+        TIME_LIMIT = args.time;
     }
 
     if let Ok(contents) = fs::read_to_string(&args.formula_file) {
