@@ -1,16 +1,14 @@
 mod analysis;
+pub mod clause_store;
 pub mod config;
 pub mod core;
 mod stats;
 mod the_solve;
 
-use crate::structures::{
-    clause::stored_clause::StoredClause, level::Level, literal::Literal, variable::Variable,
-};
-use slotmap::{DefaultKey, SlotMap};
-use std::collections::VecDeque;
+use crate::structures::{level::Level, literal::Literal, variable::Variable};
+use clause_store::ClauseStore;
 
-use super::clause::stored_clause::ClauseKey;
+use std::collections::VecDeque;
 
 pub struct Solve {
     conflicts: usize,
@@ -19,23 +17,13 @@ pub struct Solve {
     pub variables: Vec<Variable>,
     pub valuation: Vec<Option<bool>>,
     pub levels: Vec<Level>,
-    pub stored_clauses: ClauseStore,
+    pub clauses_stored: ClauseStore,
     pub watch_q: VecDeque<Literal>,
-}
-
-pub struct ClauseStore {
-    pub formula_clauses: SlotMap<DefaultKey, StoredClause>,
-    pub learnt_clauses: SlotMap<DefaultKey, StoredClause>,
-}
-
-impl ClauseStore {
-
 }
 
 #[derive(Debug, PartialEq)]
 pub enum SolveStatus {
     AssertingClause,
-    Backtracked,
     NoSolution,
 }
 
@@ -44,10 +32,3 @@ pub enum SolveResult {
     Unsatisfiable,
     Unknown,
 }
-
-pub fn retreive(store: &ClauseStore, key: ClauseKey) -> &StoredClause {
-        match key {
-            ClauseKey::Formula(key) => &store.formula_clauses[key],
-            ClauseKey::Learnt(key) => &store.learnt_clauses[key],
-        }
-    }

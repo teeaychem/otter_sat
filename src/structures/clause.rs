@@ -38,5 +38,3 @@ pub trait Clause {
 
     fn find_literal_by_id(&self, id: VariableId) -> Option<Literal>;
 }
-
-pub type ClauseId = usize;

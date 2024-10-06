@@ -19,9 +19,7 @@ static mut CONFIG_EXPLORATION_PRIORITY: ExplorationPriority = ExplorationPriorit
 static mut CONFIG_STOPPING_CRITERIA: StoppingCriteria = StoppingCriteria::FirstAssertingUIP;
 static mut RESTARTS_ALLOWED: bool = true;
 static mut HOBSON_CHOICES: bool = false;
-static mut TIME_LIMIT: Option<std::time::Duration> = None; // Some(std::time::Duration::new(10, 0));
-
-static CONFIG_MULTI_JUMP_MAX: bool = false;
+static mut TIME_LIMIT: Option<std::time::Duration> = None;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -68,12 +66,11 @@ struct Args {
     time: Option<std::time::Duration>,
 }
 
+#[rustfmt::skip]
 fn main() {
     match log4rs::init_file("config/log4rs.yaml", Default::default()) {
         Ok(_) => log::trace!("Log find loaded"),
-        Err(e) => {
-            log::error!("{e:?}")
-        }
+        Err(e) => log::error!("{e:?}"),
     }
 
     let args = Args::parse();
@@ -106,11 +103,7 @@ fn main() {
         if config_show_stats() {
             println!("c 🦦");
             println!("c Parsing formula from file: {:?}", args.formula_file);
-            println!(
-                "c Parsed formula with {} variables and {} clauses",
-                formula.variables.len(),
-                formula.clause_count()
-            );
+            println!("c Parsed formula with {} variables and {} clauses", formula.variable_count(), formula.clause_count());
             if let Some(limit) = config_time_limit() {
                 println!("c TIME LIMIT: {:.2?}", limit);
             }
