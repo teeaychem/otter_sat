@@ -119,7 +119,7 @@ fn main() {
         let mut the_solve = Solve::from_formula(formula);
         log::trace!("Solve initialised");
 
-        let (result, stats) = the_solve.implication_solve();
+        let (result, stats) = the_solve.do_solve();
         if config_show_stats() {
             println!("{stats}");
         }

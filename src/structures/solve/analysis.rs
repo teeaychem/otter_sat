@@ -3,7 +3,7 @@ use crate::structures::valuation::Valuation;
 use crate::structures::{
     clause::{
         clause_vec::ClauseVec,
-        stored_clause::{initialise_watches_for, ClauseKey, ClauseSource, StoredClause},
+        stored_clause::{initialise_watches_for, ClauseKey, ClauseSource, StoredClause, Watch},
         Clause,
     },
     literal::{Literal, LiteralSource},
@@ -16,15 +16,14 @@ use crate::structures::{
     variable::Variable,
 };
 
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::VecDeque;
 
 impl Solve {
     pub fn attempt_fix(&mut self, clause_key: ClauseKey) -> SolveStatus {
         let conflict_clause = retreive(&self.stored_clauses, clause_key);
 
-        let the_id = conflict_clause.id();
         log::trace!(
-            "Attempt to fix on clause {the_id} at level {}",
+            "Attempt to fix on clause {conflict_clause} at level {}",
             self.current_level().index()
         );
         match self.current_level().index() {
@@ -45,10 +44,12 @@ impl Solve {
                 let backjump_valuation = self.valuation_at(backjump_level);
                 initialise_watches_for(stored_clause, &backjump_valuation, &self.variables);
 
-                if assertion == stored_clause.watched_a() {
-                    self.watch_q.push_back(stored_clause.watched_b().negate());
-                } else if assertion == stored_clause.watched_b() {
-                    self.watch_q.push_back(stored_clause.watched_a().negate());
+                if assertion == stored_clause.literal_of(Watch::A) {
+                    self.watch_q
+                        .push_back(stored_clause.literal_of(Watch::B).negate());
+                } else if assertion == stored_clause.literal_of(Watch::B) {
+                    self.watch_q
+                        .push_back(stored_clause.literal_of(Watch::A).negate());
                 } else {
                     panic!("Failed to predict asserting clause")
                 }
@@ -163,7 +164,7 @@ impl Solve {
 
     pub fn extant_origins(&self, clauses: Vec<ClauseKey>) -> Vec<&StoredClause> {
         #[allow(clippy::mutable_key_type)]
-        let mut origin_nodes = BTreeSet::new();
+        let mut origin_nodes = vec![];
 
         let mut q = VecDeque::new();
         for clause in clauses {
@@ -184,11 +185,11 @@ impl Solve {
                     }
                 }
                 ClauseSource::Formula => {
-                    origin_nodes.insert(stored_clause);
+                    origin_nodes.push(stored_clause);
                 }
             }
         }
-        origin_nodes.into_iter().collect::<Vec<_>>()
+        origin_nodes
     }
 }
 

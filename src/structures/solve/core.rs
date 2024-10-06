@@ -2,7 +2,7 @@ use slotmap::SlotMap;
 
 use crate::structures::{
     clause::{
-        stored_clause::{initialise_watches_for, ClauseKey, ClauseSource, StoredClause},
+        stored_clause::{initialise_watches_for, ClauseKey, ClauseSource, StoredClause, Watch},
         Clause, ClauseId,
     },
     formula::Formula,
@@ -151,12 +151,7 @@ impl Solve {
             _ => match &src {
                 ClauseSource::Formula => {
                     let key = self.stored_clauses.formula_clauses.insert_with_key(|k| {
-                        StoredClause::new_from(
-                            Solve::fresh_clause_id(),
-                            ClauseKey::Formula(k),
-                            clause,
-                            src,
-                        )
+                        StoredClause::new_from(ClauseKey::Formula(k), clause, src)
                     });
 
                     let bc = &self.stored_clauses.formula_clauses[key];
@@ -171,12 +166,7 @@ impl Solve {
                 ClauseSource::Resolution(_) => {
                     log::trace!("Learning clause {}", clause.as_string());
                     let key = self.stored_clauses.learnt_clauses.insert_with_key(|k| {
-                        StoredClause::new_from(
-                            Solve::fresh_clause_id(),
-                            ClauseKey::Learnt(k),
-                            clause,
-                            src,
-                        )
+                        StoredClause::new_from(ClauseKey::Learnt(k), clause, src)
                     });
 
                     let bc = &self.stored_clauses.learnt_clauses[key];
@@ -200,10 +190,10 @@ impl Solve {
         if let ClauseKey::Learnt(key) = clause_key {
             let stored_clause = &self.stored_clauses.learnt_clauses[key];
 
-            let watched_a_lit = stored_clause.watched_a();
+            let watched_a_lit = stored_clause.literal_of(Watch::A);
             self.variables[watched_a_lit.v_id].watch_removed(stored_clause, watched_a_lit.polarity);
 
-            let watched_b_lit = stored_clause.watched_b();
+            let watched_b_lit = stored_clause.literal_of(Watch::B);
             self.variables[watched_b_lit.v_id].watch_removed(stored_clause, watched_b_lit.polarity);
 
             for literal in stored_clause.literals() {
