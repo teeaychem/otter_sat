@@ -13,7 +13,7 @@ use crate::structures::{
             config_glue_strength, config_hobson, config_restarts_allowed, config_show_assignment,
             config_show_core, config_show_stats, config_time_limit,
         },
-        retreive,
+        retreive as retreive_stored_clause,
         stats::SolveStats,
         ClauseStore, Solve, {SolveResult, SolveStatus},
     },
@@ -23,14 +23,12 @@ use crate::structures::{
 
 impl Solve {
     #[allow(unused_labels)]
-    pub fn implication_solve(&mut self) -> (SolveResult, SolveStats) {
+    pub fn do_solve(&mut self) -> (SolveResult, SolveStats) {
         let this_total_time = std::time::Instant::now();
 
         let mut stats = SolveStats::new();
 
-        if config_hobson() {
-            self.set_from_lists(hobson_choices(self.clauses()));
-        }
+        config_hobson().then(|| self.set_from_lists(hobson_choices(self.clauses())));
 
         let result: SolveResult;
 
@@ -50,19 +48,21 @@ impl Solve {
 
             let this_implication_time = std::time::Instant::now();
             'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
-                let temprary_clause_vec = match literal.polarity {
-                    true => self.variables[literal.v_id].take_occurrence_vec(false),
-                    false => self.variables[literal.v_id].take_occurrence_vec(true),
+                let the_variable = &self.variables[literal.v_id];
+
+                let borrowed_occurrences = match literal.polarity {
+                    true => the_variable.take_occurrence_vec(false),
+                    false => the_variable.take_occurrence_vec(true),
                 };
 
-                'clause_loop: for clause_key in &temprary_clause_vec {
-                    let stored_clause = retreive(&self.stored_clauses, *clause_key);
+                'clause_loop: for clause_key in borrowed_occurrences.iter().cloned() {
+                    let stored_clause = retreive_stored_clause(&self.stored_clauses, clause_key);
 
                     match stored_clause.watch_choices(&self.valuation) {
                         ClauseStatus::Entails(consequent) => {
                             literal_update(
                                 consequent,
-                                LiteralSource::StoredClause(*clause_key),
+                                LiteralSource::StoredClause(clause_key),
                                 &mut self.levels,
                                 &self.variables,
                                 &mut self.valuation,
@@ -71,7 +71,7 @@ impl Solve {
                             self.watch_q.push_back(consequent);
                         }
                         ClauseStatus::Conflict => {
-                            found_conflict = Some(*clause_key);
+                            found_conflict = Some(clause_key);
                             self.watch_q.clear();
                             break 'clause_loop;
                         }
@@ -80,10 +80,8 @@ impl Solve {
                     }
                 }
                 match literal.polarity {
-                    true => self.variables[literal.v_id]
-                        .restore_occurrence_vec(false, temprary_clause_vec),
-                    false => self.variables[literal.v_id]
-                        .restore_occurrence_vec(true, temprary_clause_vec),
+                    true => the_variable.restore_occurrence_vec(false, borrowed_occurrences),
+                    false => the_variable.restore_occurrence_vec(true, borrowed_occurrences),
                 };
             }
             stats.implication_time += this_implication_time.elapsed();
@@ -97,6 +95,7 @@ impl Solve {
                             let this_reduction_time = std::time::Instant::now();
                             if config_restarts_allowed() {
                                 {
+                                    // TODO: figure some improvement…
                                     let mut keys_to_drop = vec![];
                                     for (k, v) in &self.stored_clauses.learnt_clauses {
                                         if v.lbd() > config_glue_strength() {
@@ -123,17 +122,17 @@ impl Solve {
                             self.variables[available_v_id].activity()
                         );
                         let _new_level = self.add_fresh_level();
-                        let chosen_literal = Literal::new(available_v_id, false);
+                        let choice_literal = Literal::new(available_v_id, false);
 
                         literal_update(
-                            chosen_literal,
+                            choice_literal,
                             LiteralSource::Choice,
                             &mut self.levels,
                             &self.variables,
                             &mut self.valuation,
                             &self.stored_clauses,
                         );
-                        self.watch_q.push_back(chosen_literal);
+                        self.watch_q.push_back(choice_literal);
 
                         stats.choice_time += this_choice_time.elapsed();
                         continue 'main_loop;
@@ -147,7 +146,7 @@ impl Solve {
                     self.watch_q.clear();
                     let this_unsat_time = std::time::Instant::now();
 
-                    let conflict_clause = retreive(&self.stored_clauses, clause_key);
+                    let conflict_clause = retreive_stored_clause(&self.stored_clauses, clause_key);
 
                     // notice_conflict
                     {
@@ -204,11 +203,11 @@ pub fn literal_update(
     literal: Literal,
     source: LiteralSource,
     levels: &mut [Level],
-    vars: &[Variable],
+    variables: &[Variable],
     valuation: &mut impl Valuation,
     stored_clauses: &ClauseStore,
 ) {
-    let variable = &vars[literal.v_id];
+    let variable = &variables[literal.v_id];
     variable.add_activity(1.0);
 
     // update the valuation and match the result
@@ -225,12 +224,9 @@ pub fn literal_update(
 
             // and, process whether any change to the watch literals is required
 
-            // TODO: this is slower than duplicating the following loop for both +/- occurrence vecs
-            // Though, as a function is not viable given the use of variables in the process functions,
-            // this while unstable this allows updating code in only one place
             let mut working_clause_vec = match literal.polarity {
-                true => vars[literal.v_id].take_occurrence_vec(false),
-                false => vars[literal.v_id].take_occurrence_vec(true),
+                true => variable.take_occurrence_vec(false),
+                false => variable.take_occurrence_vec(true),
             };
 
             let mut index = 0;
@@ -238,17 +234,17 @@ pub fn literal_update(
             while index < length {
                 let clause_key = working_clause_vec[index];
 
-                let stored_clause = retreive(stored_clauses, clause_key);
+                let stored_clause = retreive_stored_clause(stored_clauses, clause_key);
 
-                let the_watch = match stored_clause.watched_a().v_id == literal.v_id {
+                let the_watch = match stored_clause.literal_of(Watch::A).v_id == literal.v_id {
                     true => Watch::A,
                     false => Watch::B,
                 };
 
-                match process_watches(valuation, vars, stored_clause, the_watch) {
-                    WatchStatus::AlreadySatisfied
-                    | WatchStatus::AlreadyImplication
-                    | WatchStatus::AlreadyConflict => {
+                match process_watches(valuation, variables, stored_clause, the_watch) {
+                    WatchStatus::SameSatisfied
+                    | WatchStatus::SameImplication
+                    | WatchStatus::SameConflict => {
                         index += 1;
                     }
                     WatchStatus::NewImplication
@@ -261,17 +257,17 @@ pub fn literal_update(
             }
 
             match literal.polarity {
-                true => vars[literal.v_id].restore_occurrence_vec(false, working_clause_vec),
-                false => vars[literal.v_id].restore_occurrence_vec(true, working_clause_vec),
+                true => variable.restore_occurrence_vec(false, working_clause_vec),
+                false => variable.restore_occurrence_vec(true, working_clause_vec),
             };
         }
         Err(ValuationStatus::Match) => match source {
             LiteralSource::StoredClause(_) => {
                 // A literal may be implied by multiple clauses, so there's no need to do anything
             }
-            _ => panic!("Attempt to restate {} via {:?}", literal, source),
+            _ => panic!("Restatement of {} via {:?}", literal, source),
         },
-        Err(ValuationStatus::Conflict) => panic!("Conflict when update {literal} via {:?}", source),
+        Err(ValuationStatus::Conflict) => panic!("Conflict given {literal} via {:?}", source),
         Err(_) => todo!(),
     }
 }
@@ -288,22 +284,22 @@ pub fn process_watches(
                 .literal_at(stored_clause.get_watch(Watch::A))
                 .v_id,
         ) {
-            None => WatchStatus::AlreadyImplication,
-            Some(_) => WatchStatus::AlreadySatisfied,
+            None => WatchStatus::SameImplication,
+            Some(_) => WatchStatus::SameSatisfied,
         },
         _ => {
             macro_rules! update_the_watch_to {
-                ($a:expr) => {
+                ($idx:expr) => {
                     match chosen_watch {
                         Watch::A => {
-                            stored_clause.update_watch_a($a);
-                            let watched_a = stored_clause.watched_a();
+                            stored_clause.set_watch(Watch::A, $idx);
+                            let watched_a = stored_clause.literal_of(Watch::A);
                             variables[watched_a.v_id]
                                 .watch_added(stored_clause.key, watched_a.polarity)
                         }
                         Watch::B => {
-                            stored_clause.update_watch_b($a);
-                            let watched_b = stored_clause.watched_b();
+                            stored_clause.set_watch(Watch::B, $idx);
+                            let watched_b = stored_clause.literal_of(Watch::B);
                             variables[watched_b.v_id]
                                 .watch_added(stored_clause.key, watched_b.polarity)
                         }
@@ -311,7 +307,11 @@ pub fn process_watches(
                 };
             }
 
-            let watched_x_literal = stored_clause.literal_at(stored_clause.get_watch(chosen_watch));
+            let watched_x_value = val.of_v_id(
+                stored_clause
+                    .literal_at(stored_clause.get_watch(chosen_watch))
+                    .v_id,
+            );
 
             let watched_y_literal = match chosen_watch {
                 Watch::A => stored_clause.literal_at(stored_clause.get_watch(Watch::B)),
@@ -320,23 +320,11 @@ pub fn process_watches(
 
             let watched_y_value = val.of_v_id(watched_y_literal.v_id);
 
-            // the match below is ordered to avoid this comparison when possible
-            // and the macro ensures it's only calculated when required
-            macro_rules! watched_y_match {
-                () => {
-                    watched_y_value.is_some_and(|p| p == watched_y_literal.polarity)
-                };
-            }
-
-            if let Some(_current_x_value) = val.of_v_id(watched_x_literal.v_id) {
-                // if _current_a_value == watched_a_literal.polarity {
-                //     panic!("watch already sat on watched")
-                // }
-
+            if let Some(_current_x_value) = watched_x_value {
                 match stored_clause.some_none_or_else_witness_idx(val, watched_y_literal.v_id) {
                     WatchUpdateEnum::Witness(idx) => {
-                        if watched_y_match!() {
-                            WatchStatus::AlreadySatisfied
+                        if watched_y_value.is_some_and(|p| p == watched_y_literal.polarity) {
+                            WatchStatus::SameSatisfied
                         } else {
                             update_the_watch_to!(idx);
                             WatchStatus::NewSatisfied
@@ -344,23 +332,18 @@ pub fn process_watches(
                     }
                     WatchUpdateEnum::None(idx) => {
                         update_the_watch_to!(idx);
-                        if watched_y_value.is_none() {
-                            WatchStatus::NewTwoNone
-                        } else if watched_y_match!() {
-                            WatchStatus::NewSatisfied
-                        } else {
-                            WatchStatus::NewImplication
+
+                        match watched_y_value {
+                            None => WatchStatus::NewTwoNone,
+                            Some(p) if p == watched_y_literal.polarity => WatchStatus::NewSatisfied,
+                            _ => WatchStatus::NewImplication,
                         }
                     }
-                    WatchUpdateEnum::No => {
-                        if watched_y_value.is_none() {
-                            WatchStatus::AlreadyImplication
-                        } else if watched_y_match!() {
-                            WatchStatus::AlreadySatisfied
-                        } else {
-                            WatchStatus::AlreadyConflict
-                        }
-                    }
+                    WatchUpdateEnum::No => match watched_y_value {
+                        None => WatchStatus::SameImplication,
+                        Some(p) if p == watched_y_literal.polarity => WatchStatus::SameSatisfied,
+                        _ => WatchStatus::SameConflict,
+                    },
                 }
             } else {
                 panic!("Process watches without value");
