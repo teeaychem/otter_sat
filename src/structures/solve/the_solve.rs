@@ -1,5 +1,4 @@
 use crate::procedures::hobson_choices;
-use crate::structures::clause::stored_clause;
 use crate::structures::{
     clause::{
         stored_clause::{
@@ -14,14 +13,13 @@ use crate::structures::{
             config_glue_strength, config_hobson, config_restarts_allowed, config_show_assignment,
             config_show_core, config_show_stats, config_time_limit,
         },
+        retreive,
         stats::SolveStats,
-        Solve, {SolveResult, SolveStatus},
+        ClauseStore, Solve, {SolveResult, SolveStatus},
     },
     valuation::{Valuation, ValuationStatus},
     variable::Variable,
 };
-
-use slotmap::{DefaultKey, SlotMap};
 
 impl Solve {
     #[allow(unused_labels)]
@@ -58,10 +56,7 @@ impl Solve {
                 };
 
                 'clause_loop: for clause_key in &temprary_clause_vec {
-                    let stored_clause = match clause_key {
-                        stored_clause::ClauseKey::Formula(key) => &self.formula_clauses[*key],
-                        stored_clause::ClauseKey::Learnt(key) => &self.learnt_clauses[*key],
-                    };
+                    let stored_clause = retreive(&self.stored_clauses, *clause_key);
 
                     match stored_clause.watch_choices(&self.valuation) {
                         ClauseStatus::Entails(consequent) => {
@@ -71,8 +66,7 @@ impl Solve {
                                 &mut self.levels,
                                 &self.variables,
                                 &mut self.valuation,
-                                &self.formula_clauses,
-                                &self.learnt_clauses,
+                                &self.stored_clauses,
                             );
                             self.watch_q.push_back(consequent);
                         }
@@ -96,6 +90,7 @@ impl Solve {
 
             match found_conflict {
                 None => {
+                    let this_choice_time = std::time::Instant::now();
                     if let Some(available_v_id) = self.most_active_none(&self.valuation) {
                         if self.it_is_time_to_reduce() {
                             log::debug!(target: "forget", "{stats} @ {}", self.forgets);
@@ -103,13 +98,13 @@ impl Solve {
                             if config_restarts_allowed() {
                                 {
                                     let mut keys_to_drop = vec![];
-                                    for (k, v) in &self.learnt_clauses {
+                                    for (k, v) in &self.stored_clauses.learnt_clauses {
                                         if v.lbd() > config_glue_strength() {
                                             keys_to_drop.push(k);
                                         }
                                     }
-                                    for k in keys_to_drop {
-                                        self.drop_learnt_clause_by_swap(ClauseKey::Learnt(k))
+                                    for key in keys_to_drop {
+                                        self.drop_learnt_clause_by_swap(ClauseKey::Learnt(key))
                                     }
                                 }
                                 self.watch_q.clear();
@@ -117,36 +112,34 @@ impl Solve {
                             }
                             self.forgets += 1;
                             self.conflicts_since_last_forget = 0;
-                            log::debug!(target: "forget", "Reduced to: {}", self.learnt_clauses.len());
+                            log::debug!(target: "forget", "Reduced to: {}", self.stored_clauses.learnt_clauses.len());
 
                             stats.reduction_time += this_reduction_time.elapsed();
                         }
 
-                        let this_choice_time = std::time::Instant::now();
                         log::trace!(
                             "Choice: {available_v_id} @ {} with activity {}",
                             self.current_level().index(),
                             self.variables[available_v_id].activity()
                         );
                         let _new_level = self.add_fresh_level();
-                        let the_literal = Literal::new(available_v_id, false);
+                        let chosen_literal = Literal::new(available_v_id, false);
 
                         literal_update(
-                            the_literal,
+                            chosen_literal,
                             LiteralSource::Choice,
                             &mut self.levels,
                             &self.variables,
                             &mut self.valuation,
-                            &self.formula_clauses,
-                            &self.learnt_clauses,
+                            &self.stored_clauses,
                         );
-                        self.watch_q.push_back(the_literal);
+                        self.watch_q.push_back(chosen_literal);
 
                         stats.choice_time += this_choice_time.elapsed();
-
                         continue 'main_loop;
                     } else {
                         result = SolveResult::Satisfiable;
+                        stats.choice_time += this_choice_time.elapsed();
                         break 'main_loop;
                     }
                 }
@@ -154,38 +147,35 @@ impl Solve {
                     self.watch_q.clear();
                     let this_unsat_time = std::time::Instant::now();
 
-                    let stored_clause = match clause_key {
-                        stored_clause::ClauseKey::Formula(key) => &self.formula_clauses[key],
-                        stored_clause::ClauseKey::Learnt(key) => &self.learnt_clauses[key],
-                    };
+                    let conflict_clause = retreive(&self.stored_clauses, clause_key);
 
                     // notice_conflict
                     {
                         self.conflicts += 1;
                         self.conflicts_since_last_forget += 1;
-                        if self.conflicts % 2_usize.pow(10) == 0 {
+                        if self.conflicts % 2_usize.pow(9) == 0 {
                             for variable in &self.variables {
-                                variable.divide_activity(2.0)
+                                variable.divide_activity(1.2)
                             }
                         }
 
-                        for literal in stored_clause.variables() {
-                            self.variables[literal].add_activity(2.0);
+                        for variable in conflict_clause.variables() {
+                            self.variables[variable].add_activity(2.0);
                         }
                     }
 
                     let analysis_result = self.attempt_fix(clause_key);
+                    stats.conflicts += 1;
                     stats.unsat_time += this_unsat_time.elapsed();
                     match analysis_result {
                         SolveStatus::NoSolution => {
                             result = SolveResult::Unsatisfiable;
                             break 'main_loop;
                         }
-                        SolveStatus::AssertingClause | SolveStatus::Deduction(_) => {
-                            stats.conflicts += 1;
+                        SolveStatus::AssertingClause => {
                             continue 'main_loop;
                         }
-                        other => panic!("Unexpected {other:?} when attempting a fix"),
+                        other => panic!("Unexpected {other:?} after analysis"),
                     }
                 }
             }
@@ -194,17 +184,15 @@ impl Solve {
         stats.total_time = this_total_time.elapsed();
         match result {
             SolveResult::Satisfiable => {
-                if config_show_assignment() {
+                config_show_assignment().then(|| {
                     println!(
                         "c ASSIGNMENT: {}",
                         self.valuation.to_vec().as_display_string(self)
-                    );
-                }
+                    )
+                });
             }
             SolveResult::Unsatisfiable => {
-                if config_show_core() {
-                    self.core();
-                }
+                config_show_core().then(|| self.core());
             }
             SolveResult::Unknown => {}
         }
@@ -218,8 +206,7 @@ pub fn literal_update(
     levels: &mut [Level],
     vars: &[Variable],
     valuation: &mut impl Valuation,
-    formula_clauses: &SlotMap<DefaultKey, StoredClause>,
-    learnt_clauses: &SlotMap<DefaultKey, StoredClause>,
+    stored_clauses: &ClauseStore,
 ) {
     let variable = &vars[literal.v_id];
     variable.add_activity(1.0);
@@ -249,12 +236,9 @@ pub fn literal_update(
             let mut index = 0;
             let mut length = working_clause_vec.len();
             while index < length {
-                let clause_key = &working_clause_vec[index];
+                let clause_key = working_clause_vec[index];
 
-                let stored_clause = match clause_key {
-                    ClauseKey::Formula(key) => &formula_clauses[*key],
-                    ClauseKey::Learnt(key) => &learnt_clauses[*key],
-                };
+                let stored_clause = retreive(stored_clauses, clause_key);
 
                 let the_watch = match stored_clause.watched_a().v_id == literal.v_id {
                     true => Watch::A,
