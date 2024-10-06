@@ -2,22 +2,6 @@ use crate::structures::{clause::Clause, literal::Literal, variable::VariableId};
 
 use std::collections::BTreeSet;
 
-/// Flattens an iterator over clauses to an iterator over the literals of some given polarity occuring in the clauses.
-pub fn literals_of_polarity<'borrow>(
-    clauses: impl Iterator<Item = &'borrow (impl Clause + 'borrow)> + 'borrow,
-    polarity: bool,
-) -> impl Iterator<Item = Literal> + 'borrow {
-    clauses.flat_map(move |clause| {
-        clause.literals().flat_map(move |literal| {
-            if literal.polarity == polarity {
-                Some(literal)
-            } else {
-                None
-            }
-        })
-    })
-}
-
 /// General order for pairs related to booleans is 0 is false, 1 is true
 pub fn hobson_choices<'borrow>(
     clauses: impl Iterator<Item = &'borrow (impl Clause + 'borrow)>,

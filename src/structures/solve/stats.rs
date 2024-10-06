@@ -32,8 +32,8 @@ impl std::fmt::Display for SolveStats {
         writeln!(f, "c | TIME:          {:.2?}", self.total_time)?;
         writeln!(f, "c | | IMPLICATION: {:.2?}", self.implication_time)?;
         writeln!(f, "c | | UNSAT:       {:.2?}", self.unsat_time)?;
-        writeln!(f, "c | | REDUCTION:   {:.2?}", self.reduction_time)?;
         writeln!(f, "c | | CHOICE:      {:.2?}", self.choice_time)?;
+        writeln!(f, "c | |   REDUCTION:   {:.2?}", self.reduction_time)?;
         Ok(())
     }
 }

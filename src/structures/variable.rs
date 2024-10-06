@@ -1,6 +1,5 @@
 use crate::structures::{
-    clause::stored_clause::{ClauseKey, StoredClause},
-    level::LevelIndex,
+    clause::stored_clause::StoredClause, level::LevelIndex, solve::clause_store::ClauseKey,
 };
 
 pub type VariableId = usize;
@@ -67,28 +66,28 @@ impl Variable {
         self.activity.get()
     }
 
-    pub fn note_occurence(&self, stored_clause: ClauseKey, polarity: bool) {
+    pub fn note_occurence(&self, clause_key: ClauseKey, polarity: bool) {
         match polarity {
             true => {
                 let mut temporary = self.positive_occurrences.take();
-                temporary.push(stored_clause);
+                temporary.push(clause_key);
                 self.positive_occurrences.set(temporary);
             }
             false => {
                 let mut temporary = self.negative_occurrences.take();
-                temporary.push(stored_clause);
+                temporary.push(clause_key);
                 self.negative_occurrences.set(temporary);
             }
         }
     }
 
-    pub fn note_clause_drop(&self, stored_clause: ClauseKey, polarity: bool) {
+    pub fn note_clause_drop(&self, clause_key: ClauseKey, polarity: bool) {
         let mut temporary = match polarity {
             true => self.positive_occurrences.take(),
             false => self.negative_occurrences.take(),
         };
 
-        let position = temporary.iter().position(|sc| *sc == stored_clause);
+        let position = temporary.iter().position(|sc| *sc == clause_key);
         if let Some(p) = position {
             temporary.swap_remove(p);
         }
@@ -116,16 +115,16 @@ impl Variable {
         };
     }
 
-    pub fn watch_added(&self, stored_clause: ClauseKey, polarity: bool) {
+    pub fn watch_added(&self, clause_key: ClauseKey, polarity: bool) {
         match polarity {
             true => {
                 let mut temporary = self.positive_watch_occurrences.take();
-                temporary.push(stored_clause);
+                temporary.push(clause_key);
                 self.positive_watch_occurrences.set(temporary);
             }
             false => {
                 let mut temporary = self.negative_watch_occurrences.take();
-                temporary.push(stored_clause);
+                temporary.push(clause_key);
                 self.negative_watch_occurrences.set(temporary);
             }
         }

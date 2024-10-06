@@ -1,7 +1,7 @@
 use crate::structures::{
     clause::{clause_vec::ClauseVec, Clause},
     literal::Literal,
-    variable::{Variable, VariableId},
+    variable::Variable,
 };
 
 pub struct Formula {
@@ -21,20 +21,13 @@ impl Formula {
         self.clauses.len()
     }
 
+    pub fn variable_count(&self) -> usize {
+        self.variables.len()
+    }
+
     pub fn add_clause(&mut self, string: &str) {
         let clause = self.clause_vec_from_string(string);
         self.clauses.push(clause);
-    }
-
-    pub fn var_id_by_name(&mut self, name: &str) -> VariableId {
-        if let Some(variable) = self.variables.iter().find(|v| v.name() == name) {
-            variable.id()
-        } else {
-            let the_id = self.variables.len() as VariableId;
-            let new_variable = Variable::new(name, the_id);
-            self.variables.push(new_variable);
-            the_id
-        }
     }
 
     fn clause_vec_from_string(&mut self, string: &str) -> ClauseVec {

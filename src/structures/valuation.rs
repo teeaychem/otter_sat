@@ -15,10 +15,6 @@ pub trait Valuation {
 
     fn update_value(&mut self, literal: Literal) -> Result<(), ValuationStatus>;
 
-    fn clear_v_id(&mut self, v_id: VariableId);
-
-    fn some_none(&self) -> Option<VariableId>;
-
     fn to_vec(&self) -> ValuationVec;
 
     fn values(&self) -> impl Iterator<Item = Option<bool>>;
@@ -89,19 +85,6 @@ impl Valuation for ValuationVec {
                 Ok(())
             }
         }
-    }
-
-    fn clear_v_id(&mut self, v_id: VariableId) {
-        self[v_id] = None
-    }
-
-    fn some_none(&self) -> Option<VariableId> {
-        self.iter()
-            .enumerate()
-            .filter(|(_, val)| val.is_none())
-            .map(|(i, _)| i)
-            .next()
-        // .last()
     }
 
     fn to_vec(&self) -> ValuationVec {

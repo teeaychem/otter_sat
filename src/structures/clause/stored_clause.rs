@@ -1,6 +1,7 @@
 use crate::structures::{
     clause::{Clause, ClauseVec},
     literal::Literal,
+    solve::clause_store::ClauseKey,
     valuation::{Valuation, ValuationVec},
     variable::{Variable, VariableId},
 };
@@ -17,12 +18,6 @@ pub enum ClauseSource {
 pub enum Watch {
     A,
     B,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ClauseKey {
-    Formula(slotmap::DefaultKey),
-    Learnt(slotmap::DefaultKey),
 }
 
 /**
@@ -89,10 +84,6 @@ impl StoredClause {
     }
 
     pub fn clause_impl(&self) -> &impl Clause {
-        &self.clause
-    }
-
-    pub fn clause(&self) -> &[Literal] {
         &self.clause
     }
 

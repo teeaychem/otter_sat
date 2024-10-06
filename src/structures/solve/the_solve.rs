@@ -1,19 +1,17 @@
 use crate::procedures::hobson_choices;
 use crate::structures::{
     clause::{
-        stored_clause::{
-            ClauseKey, ClauseStatus, StoredClause, Watch, WatchStatus, WatchUpdateEnum,
-        },
+        stored_clause::{ClauseStatus, StoredClause, Watch, WatchStatus, WatchUpdateEnum},
         Clause,
     },
     level::Level,
     literal::{Literal, LiteralSource},
     solve::{
+        clause_store::{retreive, ClauseKey},
         config::{
             config_glue_strength, config_hobson, config_restarts_allowed, config_show_assignment,
             config_show_core, config_show_stats, config_time_limit,
         },
-        retreive as retreive_stored_clause,
         stats::SolveStats,
         ClauseStore, Solve, {SolveResult, SolveStatus},
     },
@@ -28,7 +26,11 @@ impl Solve {
 
         let mut stats = SolveStats::new();
 
-        config_hobson().then(|| self.set_from_lists(hobson_choices(self.clauses())));
+        if config_hobson() {
+            let (f, t) = hobson_choices(self.clauses());
+            self.literal_set_from_vec(f);
+            self.literal_set_from_vec(t);
+        }
 
         let result: SolveResult;
 
@@ -56,7 +58,7 @@ impl Solve {
                 };
 
                 'clause_loop: for clause_key in borrowed_occurrences.iter().cloned() {
-                    let stored_clause = retreive_stored_clause(&self.stored_clauses, clause_key);
+                    let stored_clause = retreive(&self.clauses_stored, clause_key);
 
                     match stored_clause.watch_choices(&self.valuation) {
                         ClauseStatus::Entails(consequent) => {
@@ -66,7 +68,7 @@ impl Solve {
                                 &mut self.levels,
                                 &self.variables,
                                 &mut self.valuation,
-                                &self.stored_clauses,
+                                &self.clauses_stored,
                             );
                             self.watch_q.push_back(consequent);
                         }
@@ -97,7 +99,7 @@ impl Solve {
                                 {
                                     // TODO: figure some improvement…
                                     let mut keys_to_drop = vec![];
-                                    for (k, v) in &self.stored_clauses.learnt_clauses {
+                                    for (k, v) in &self.clauses_stored.learnt_clauses {
                                         if v.lbd() > config_glue_strength() {
                                             keys_to_drop.push(k);
                                         }
@@ -111,7 +113,7 @@ impl Solve {
                             }
                             self.forgets += 1;
                             self.conflicts_since_last_forget = 0;
-                            log::debug!(target: "forget", "Reduced to: {}", self.stored_clauses.learnt_clauses.len());
+                            log::debug!(target: "forget", "Reduced to: {}", self.clauses_stored.learnt_clauses.len());
 
                             stats.reduction_time += this_reduction_time.elapsed();
                         }
@@ -130,7 +132,7 @@ impl Solve {
                             &mut self.levels,
                             &self.variables,
                             &mut self.valuation,
-                            &self.stored_clauses,
+                            &self.clauses_stored,
                         );
                         self.watch_q.push_back(choice_literal);
 
@@ -146,7 +148,7 @@ impl Solve {
                     self.watch_q.clear();
                     let this_unsat_time = std::time::Instant::now();
 
-                    let conflict_clause = retreive_stored_clause(&self.stored_clauses, clause_key);
+                    let conflict_clause = retreive(&self.clauses_stored, clause_key);
 
                     // notice_conflict
                     {
@@ -174,7 +176,6 @@ impl Solve {
                         SolveStatus::AssertingClause => {
                             continue 'main_loop;
                         }
-                        other => panic!("Unexpected {other:?} after analysis"),
                     }
                 }
             }
@@ -234,7 +235,7 @@ pub fn literal_update(
             while index < length {
                 let clause_key = working_clause_vec[index];
 
-                let stored_clause = retreive_stored_clause(stored_clauses, clause_key);
+                let stored_clause = retreive(stored_clauses, clause_key);
 
                 let the_watch = match stored_clause.literal_of(Watch::A).v_id == literal.v_id {
                     true => Watch::A,
