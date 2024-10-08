@@ -37,7 +37,7 @@ impl std::fmt::Display for SolveStats {
         #[cfg(feature = "time")]
         {
         writeln!(f, "c     PROPAGATION: {:.2?}", unsafe {PROPAGATION_TIME})?;
-        writeln!(f, "c       BORRIW:            {:.2?}", unsafe {PROP_BORROW_TIME})?;
+        writeln!(f, "c       BORROW:            {:.2?}", unsafe {PROP_BORROW_TIME})?;
         writeln!(f, "c       CLAUSE LOOP:       {:.2?}", unsafe {CLAUSE_LOOP_TIME})?;
         writeln!(f, "c         GET STORED:      {:.2?}", unsafe {GET_STORED_TIME})?;
         writeln!(f, "c         WATCH CHOICE:    {:.2?}", unsafe {WATCH_CHOICES_TIME})?;

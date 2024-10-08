@@ -88,7 +88,7 @@ impl StoredClause {
     }
 
     pub fn literal_at(&self, position: usize) -> Literal {
-        self.clause[position]
+        unsafe { *self.clause.get_unchecked(position) }
     }
 
     pub fn literals(&self) -> impl Iterator<Item = Literal> + '_ {
