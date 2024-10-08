@@ -9,7 +9,7 @@ use crate::structures::{
     level::{Level, LevelIndex},
     literal::{Literal, LiteralSource},
     solve::the_solve::literal_update,
-    solve::{retreive, ClauseKey, ClauseStore, Solve},
+    solve::{retreive, ClauseKey, Solve},
     valuation::{Valuation, ValuationVec},
     variable::{Variable, VariableId},
 };
