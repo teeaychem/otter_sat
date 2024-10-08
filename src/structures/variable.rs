@@ -1,6 +1,4 @@
-use crate::structures::{
-    clause::stored_clause::StoredClause, level::LevelIndex, solve::clause_store::ClauseKey,
-};
+use crate::structures::{clause::stored_clause::StoredClause, level::LevelIndex, solve::ClauseKey};
 
 pub type VariableId = usize;
 use std::cell::Cell;
@@ -85,36 +83,44 @@ impl Variable {
     }
 
     pub fn note_clause_drop(&self, clause_key: ClauseKey, polarity: bool) {
-        let mut temporary = match polarity {
-            true => self.positive_occurrences.take(),
-            false => self.negative_occurrences.take(),
-        };
-
-        let position = temporary.iter().position(|sc| *sc == clause_key);
-        if let Some(p) = position {
-            temporary.swap_remove(p);
-        }
-
         match polarity {
-            true => self.positive_occurrences.set(temporary),
-            false => self.negative_occurrences.set(temporary),
-        };
+            true => {
+                let mut temporary = self.positive_occurrences.take();
+                let position = temporary.iter().position(|sc| *sc == clause_key);
+                if let Some(p) = position {
+                    temporary.swap_remove(p);
+                }
+                self.positive_occurrences.set(temporary);
+            }
+            false => {
+                let mut temporary = self.negative_occurrences.take();
+                let position = temporary.iter().position(|sc| *sc == clause_key);
+                if let Some(p) = position {
+                    temporary.swap_remove(p);
+                }
+                self.negative_occurrences.set(temporary);
+            }
+        }
     }
 
     pub fn watch_removed(&self, stored_clause: &StoredClause, polarity: bool) {
-        let mut temporary = match polarity {
-            true => self.positive_watch_occurrences.take(),
-            false => self.negative_watch_occurrences.take(),
-        };
-
-        let position = temporary.iter().position(|sc| *sc == stored_clause.key);
-        if let Some(p) = position {
-            temporary.swap_remove(p);
-        }
-
         match polarity {
-            true => self.positive_watch_occurrences.set(temporary),
-            false => self.negative_watch_occurrences.set(temporary),
+            true => {
+                let mut temporary = self.positive_watch_occurrences.take();
+                let position = temporary.iter().position(|sc| *sc == stored_clause.key);
+                if let Some(p) = position {
+                    temporary.swap_remove(p);
+                }
+                self.positive_watch_occurrences.set(temporary);
+            }
+            false => {
+                let mut temporary = self.negative_watch_occurrences.take();
+                let position = temporary.iter().position(|sc| *sc == stored_clause.key);
+                if let Some(p) = position {
+                    temporary.swap_remove(p);
+                }
+                self.negative_watch_occurrences.set(temporary);
+            }
         };
     }
 

@@ -9,10 +9,7 @@ use crate::structures::{
     level::{Level, LevelIndex},
     literal::{Literal, LiteralSource},
     solve::the_solve::literal_update,
-    solve::{
-        clause_store::{retreive, ClauseKey, ClauseStore},
-        Solve,
-    },
+    solve::{retreive, ClauseKey, ClauseStore, Solve},
     valuation::{Valuation, ValuationVec},
     variable::{Variable, VariableId},
 };
@@ -33,10 +30,8 @@ impl Solve {
             valuation: Vec::<Option<bool>>::new_for_variables(variables.len()),
             variables,
             levels: vec![Level::new(0)],
-            clauses_stored: ClauseStore {
-                formula_clauses: SlotMap::new(),
-                learnt_clauses: SlotMap::new(),
-            },
+            formula_clauses: SlotMap::new(),
+            learnt_clauses: SlotMap::new(),
         };
 
         let initial_valuation = the_solve.valuation.clone();
@@ -50,7 +45,11 @@ impl Solve {
                     let clause_key =
                         the_solve.store_clause(formula_clause.to_vec(), ClauseSource::Formula);
 
-                    let stored_clause = retreive(&the_solve.clauses_stored, clause_key);
+                    let stored_clause = retreive(
+                        &the_solve.formula_clauses,
+                        &the_solve.learnt_clauses,
+                        clause_key,
+                    );
 
                     initialise_watches_for(stored_clause, &initial_valuation, &the_solve.variables);
                 }
@@ -71,10 +70,9 @@ impl Solve {
     }
 
     pub fn stored_clauses(&self) -> impl Iterator<Item = &StoredClause> {
-        self.clauses_stored
-            .formula_clauses
+        self.formula_clauses
             .iter()
-            .chain(&self.clauses_stored.learnt_clauses)
+            .chain(&self.learnt_clauses)
             .map(|(_, sc)| sc)
     }
 
@@ -96,7 +94,8 @@ impl Solve {
                 &mut self.levels,
                 &self.variables,
                 &mut self.valuation,
-                &self.clauses_stored,
+                &self.formula_clauses,
+                &self.learnt_clauses,
             );
             self.watch_q.push_back(the_literal);
         });
@@ -118,11 +117,11 @@ impl Solve {
             0 => panic!("Attempt to add an empty clause"),
             _ => match &src {
                 ClauseSource::Formula => {
-                    let key = self.clauses_stored.formula_clauses.insert_with_key(|k| {
+                    let key = self.formula_clauses.insert_with_key(|k| {
                         StoredClause::new_from(ClauseKey::Formula(k), clause, src)
                     });
 
-                    let bc = &self.clauses_stored.formula_clauses[key];
+                    let bc = &self.formula_clauses[key];
 
                     for literal in bc.literals() {
                         self.variables[literal.v_id]
@@ -133,11 +132,11 @@ impl Solve {
                 }
                 ClauseSource::Resolution(_) => {
                     log::trace!("Learning clause {}", clause.as_string());
-                    let key = self.clauses_stored.learnt_clauses.insert_with_key(|k| {
+                    let key = self.learnt_clauses.insert_with_key(|k| {
                         StoredClause::new_from(ClauseKey::Learnt(k), clause, src)
                     });
 
-                    let bc = &self.clauses_stored.learnt_clauses[key];
+                    let bc = &self.learnt_clauses[key];
 
                     for literal in bc.literals() {
                         self.variables[literal.v_id]
@@ -152,7 +151,7 @@ impl Solve {
 
     pub fn drop_learnt_clause_by_swap(&mut self, clause_key: ClauseKey) {
         if let ClauseKey::Learnt(key) = clause_key {
-            let stored_clause = &self.clauses_stored.learnt_clauses[key];
+            let stored_clause = &self.learnt_clauses[key];
 
             let watched_a_lit = stored_clause.literal_of(Watch::A);
             self.variables[watched_a_lit.v_id].watch_removed(stored_clause, watched_a_lit.polarity);
@@ -164,7 +163,7 @@ impl Solve {
                 self.variables[literal.v_id].note_clause_drop(clause_key, literal.polarity)
             }
 
-            let _ = self.clauses_stored.learnt_clauses.remove(key);
+            let _ = self.learnt_clauses.remove(key);
         } else {
             panic!("hek")
         }

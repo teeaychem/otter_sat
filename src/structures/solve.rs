@@ -6,9 +6,13 @@ mod stats;
 mod the_solve;
 
 use crate::structures::{level::Level, literal::Literal, variable::Variable};
-use clause_store::ClauseStore;
+
+use crate::structures::clause::stored_clause::StoredClause;
+use slotmap::{DefaultKey, SlotMap};
 
 use std::collections::VecDeque;
+
+type ClauseStore = SlotMap<DefaultKey, StoredClause>;
 
 pub struct Solve {
     conflicts: usize,
@@ -18,7 +22,8 @@ pub struct Solve {
     pub variables: Vec<Variable>,
     pub valuation: Vec<Option<bool>>,
     pub levels: Vec<Level>,
-    pub clauses_stored: ClauseStore,
+    pub formula_clauses: ClauseStore,
+    pub learnt_clauses: ClauseStore,
     pub watch_q: VecDeque<Literal>,
 }
 
@@ -32,4 +37,21 @@ pub enum SolveResult {
     Satisfiable,
     Unsatisfiable,
     Unknown,
+}
+
+pub fn retreive<'a>(
+    formula: &'a ClauseStore,
+    learnt: &'a ClauseStore,
+    key: ClauseKey,
+) -> &'a StoredClause {
+    match key {
+        ClauseKey::Formula(key) => &formula[key],
+        ClauseKey::Learnt(key) => &learnt[key],
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ClauseKey {
+    Formula(slotmap::DefaultKey),
+    Learnt(slotmap::DefaultKey),
 }
