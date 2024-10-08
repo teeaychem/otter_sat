@@ -171,10 +171,6 @@ impl Solve {
                         self.backjump(0);
                         self.restarts += 1;
                         self.conflicts_since_last_forget = 0;
-
-                        // for (_, clause) in &self.learnt_clauses {
-                        //     clause.set_lbd(&self.variables)
-                        // }
                     }
 
                     if let Some(available_v_id) = self.most_active_none(&self.valuation) {
@@ -421,18 +417,22 @@ pub fn process_watches(
         _ => {
             macro_rules! update_the_watch_to {
                 ($idx:expr) => {
-                    match chosen_watch {
-                        Watch::A => {
-                            stored_clause.set_watch(Watch::A, $idx);
-                            let watched_a = stored_clause.literal_of(Watch::A);
-                            variables[watched_a.v_id]
-                                .watch_added(stored_clause.key, watched_a.polarity)
-                        }
-                        Watch::B => {
-                            stored_clause.set_watch(Watch::B, $idx);
-                            let watched_b = stored_clause.literal_of(Watch::B);
-                            variables[watched_b.v_id]
-                                .watch_added(stored_clause.key, watched_b.polarity)
+                    unsafe {
+                        match chosen_watch {
+                            Watch::A => {
+                                stored_clause.set_watch(Watch::A, $idx);
+                                let watched_a = stored_clause.literal_of(Watch::A);
+                                variables
+                                    .get_unchecked(watched_a.v_id)
+                                    .watch_added(stored_clause.key, watched_a.polarity)
+                            }
+                            Watch::B => {
+                                stored_clause.set_watch(Watch::B, $idx);
+                                let watched_b = stored_clause.literal_of(Watch::B);
+                                variables
+                                    .get_unchecked(watched_b.v_id)
+                                    .watch_added(stored_clause.key, watched_b.polarity)
+                            }
                         }
                     }
                 };
