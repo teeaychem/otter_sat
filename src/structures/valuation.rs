@@ -61,28 +61,30 @@ impl Valuation for ValuationVec {
     }
 
     fn of_v_id(&self, v_id: VariableId) -> Option<bool> {
-        match self.get(v_id) {
-            Some(&info) => info,
-            None => panic!("Read of variable outside of valuation"),
-        }
+        unsafe { *self.get_unchecked(v_id) }
     }
 
     fn check_literal(&self, literal: Literal) -> ValuationStatus {
-        match self[literal.v_id] {
-            Some(already_set) if already_set == literal.polarity => ValuationStatus::Match,
-            Some(_already_set) => ValuationStatus::Conflict,
-            None => ValuationStatus::NotSet,
+        unsafe {
+            match self.get_unchecked(literal.v_id) {
+                Some(already_set) if *already_set == literal.polarity => ValuationStatus::Match,
+                Some(_already_set) => ValuationStatus::Conflict,
+                None => ValuationStatus::NotSet,
+            }
         }
     }
 
     fn update_value(&mut self, literal: Literal) -> Result<(), ValuationStatus> {
         log::trace!("Set literal: {}", literal);
-        match self[literal.v_id] {
-            Some(value) if value != literal.polarity => Err(ValuationStatus::Conflict),
-            Some(_value) => Err(ValuationStatus::Match),
-            None => {
-                self[literal.v_id] = Some(literal.polarity);
-                Ok(())
+        unsafe {
+            match self.get_unchecked(literal.v_id) {
+                Some(value) if *value != literal.polarity => Err(ValuationStatus::Conflict),
+                Some(_value) => Err(ValuationStatus::Match),
+                None => {
+                    *self.get_unchecked_mut(literal.v_id) = Some(literal.polarity);
+
+                    Ok(())
+                }
             }
         }
     }
