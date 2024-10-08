@@ -2,7 +2,7 @@ use slotmap::SlotMap;
 
 use crate::structures::{
     clause::{
-        stored_clause::{initialise_watches_for, ClauseSource, StoredClause, Watch},
+        stored_clause::{ClauseSource, StoredClause, Watch},
         Clause,
     },
     formula::Formula,
@@ -42,16 +42,11 @@ impl Solve {
                     panic!("c The formula contains a zero-length clause");
                 }
                 _ => {
-                    let clause_key =
-                        the_solve.store_clause(formula_clause.to_vec(), ClauseSource::Formula);
-
-                    let stored_clause = retreive(
-                        &the_solve.formula_clauses,
-                        &the_solve.learnt_clauses,
-                        clause_key,
+                    let _unneeded_clause_key = the_solve.store_clause(
+                        formula_clause.to_vec(),
+                        ClauseSource::Formula,
+                        &initial_valuation,
                     );
-
-                    initialise_watches_for(stored_clause, &initial_valuation, &the_solve.variables);
                 }
             }
         }
@@ -108,13 +103,24 @@ impl Solve {
 
     /// Stores a clause with an automatically generated id.
     /// Note: In order to use the clause the watch literals of the struct must be initialised.
-    pub fn store_clause(&mut self, clause: impl Clause, src: ClauseSource) -> ClauseKey {
+    pub fn store_clause(
+        &mut self,
+        clause: impl Clause,
+        src: ClauseSource,
+        valuation: &impl Valuation,
+    ) -> ClauseKey {
         match clause.length() {
             0 => panic!("Attempt to add an empty clause"),
             _ => match &src {
                 ClauseSource::Formula => {
                     let key = self.formula_clauses.insert_with_key(|k| {
-                        StoredClause::new_from(ClauseKey::Formula(k), clause.to_vec(), src)
+                        StoredClause::new_from(
+                            ClauseKey::Formula(k),
+                            clause.to_vec(),
+                            src,
+                            valuation,
+                            &mut self.variables,
+                        )
                     });
 
                     let bc = &self.formula_clauses[key];
@@ -129,7 +135,13 @@ impl Solve {
                 ClauseSource::Resolution(_) => {
                     log::trace!("Learning clause {}", clause.as_string());
                     let key = self.learnt_clauses.insert_with_key(|k| {
-                        StoredClause::new_from(ClauseKey::Learnt(k), clause.to_vec(), src)
+                        StoredClause::new_from(
+                            ClauseKey::Learnt(k),
+                            clause.to_vec(),
+                            src,
+                            valuation,
+                            &mut self.variables,
+                        )
                     });
 
                     let bc = &self.learnt_clauses[key];

@@ -66,18 +66,53 @@ pub enum WatchUpdateEnum {
 }
 
 impl StoredClause {
-    pub fn new_from(key: ClauseKey, clause: ClauseVec, source: ClauseSource) -> StoredClause {
+    pub fn new_from(
+        key: ClauseKey,
+        clause: ClauseVec,
+        source: ClauseSource,
+        valuation: &impl Valuation,
+        variables: &mut [Variable],
+    ) -> StoredClause {
         clause.is_empty().then(|| panic!("An empty clause"));
 
-        StoredClause {
+        let stored_clause = StoredClause {
             key,
             lbd: Cell::new(0),
             source,
             clause: clause.clone(),
             watch_clause: Cell::from(clause),
             watch_a: Cell::from(0),
-            watch_b: Cell::from(0),
+            watch_b: Cell::from(1),
+        };
+
+        match stored_clause.some_none_or_else_witness_idx(Watch::A, valuation, None, true) {
+            WatchUpdateEnum::Witness(index) | WatchUpdateEnum::None(index) => {
+                stored_clause.watch_a.set(index)
+            }
+            WatchUpdateEnum::No => {}
         }
+        let current_a = stored_clause.clause[stored_clause.watch_a.get()];
+        variables[current_a.v_id].watch_added(stored_clause.key, current_a.polarity);
+
+        if stored_clause.clause.len() > 1 {
+            let literal_a = stored_clause.clause[stored_clause.watch_a.get()];
+            match stored_clause.some_none_or_else_witness_idx(
+                Watch::B,
+                valuation,
+                Some(literal_a.v_id),
+                false,
+            ) {
+                WatchUpdateEnum::Witness(index) | WatchUpdateEnum::None(index) => {
+                    stored_clause.watch_b.set(index)
+                }
+                WatchUpdateEnum::No => {}
+            }
+
+            let current_b = stored_clause.clause[stored_clause.watch_b.get()];
+            variables[current_b.v_id].watch_added(stored_clause.key, current_b.polarity);
+        }
+
+        stored_clause
     }
 
     pub fn source(&self) -> &ClauseSource {
@@ -107,6 +142,7 @@ impl StoredClause {
     /// Find the index of a literal which has not been valued, if possible, else if there was some witness for the clause, return that
     pub fn some_none_or_else_witness_idx(
         &self,
+        watch: Watch,
         val: &impl Valuation,
         but_not: Option<VariableId>,
         update_on_witness: bool,
@@ -177,47 +213,6 @@ impl StoredClause {
 
     pub fn clause_clone(&self) -> ClauseVec {
         self.clause.clone()
-    }
-}
-
-/// Initialises the watches for a stored clause, is not a method as requires pointer information
-pub fn initialise_watches_for(
-    stored_clause: &StoredClause,
-    val: &impl Valuation,
-    vars: &[Variable],
-) {
-    if stored_clause.clause.len() > 1 {
-        match stored_clause.some_none_or_else_witness_idx(val, None, true) {
-            WatchUpdateEnum::Witness(index) | WatchUpdateEnum::None(index) => {
-                stored_clause.watch_a.set(index)
-            }
-            WatchUpdateEnum::No => {
-                panic!("n");
-            }
-        }
-
-        let literal_a = stored_clause.clause[stored_clause.watch_a.get()];
-        match stored_clause.some_none_or_else_witness_idx(val, Some(literal_a.v_id), true) {
-            WatchUpdateEnum::Witness(index) | WatchUpdateEnum::None(index) => {
-                stored_clause.watch_b.set(index)
-            }
-            WatchUpdateEnum::No => {
-                if stored_clause.watch_a.get() == 0 {
-                    stored_clause.watch_b.set(1)
-                } else {
-                    stored_clause.watch_b.set(0)
-                }
-            }
-        }
-
-        let current_a = stored_clause.clause[stored_clause.watch_a.get()];
-        vars[current_a.v_id].watch_added(stored_clause.key, current_a.polarity);
-
-        let current_b = stored_clause.clause[stored_clause.watch_b.get()];
-        vars[current_b.v_id].watch_added(stored_clause.key, current_b.polarity);
-    } else {
-        let watched_variable = stored_clause.clause.first().unwrap();
-        vars[watched_variable.v_id].watch_added(stored_clause.key, watched_variable.polarity);
     }
 }
 
