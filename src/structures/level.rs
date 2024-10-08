@@ -30,9 +30,10 @@ impl Level {
     pub fn record_literal(&mut self, literal: Literal, source: &LiteralSource) {
         match source {
             LiteralSource::Choice => {
-                if self.choice.is_some() {
-                    panic!("Attempting to make multiple choices on a single level")
-                }
+                self.choice
+                    .is_some()
+                    .then(|| panic!("Attempting to make multiple choices on a single level"));
+
                 self.choice = Some(literal);
             }
             LiteralSource::HobsonChoice

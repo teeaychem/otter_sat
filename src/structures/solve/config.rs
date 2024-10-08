@@ -1,4 +1,21 @@
-#[derive(Debug, Clone)]
+pub static ACTIVITY_CONFLICT: f32 = 1.0;
+pub static DECAY_FACTOR: f32 = 0.95;
+pub static DECAY_FREQUENCY: usize = 1;
+
+// Configuration variables
+pub static mut GLUE_STRENGTH: usize = 2;
+pub static mut SHOW_STATS: bool = false;
+pub static mut SHOW_CORE: bool = false;
+pub static mut SHOW_ASSIGNMENT: bool = false;
+pub static mut EXPLORATION_PRIORITY: ExplorationPriority = ExplorationPriority::Default;
+pub static mut STOPPING_CRITERIA: StoppingCriteria = StoppingCriteria::FirstAssertingUIP;
+pub static mut RESTARTS_ALLOWED: bool = true;
+pub static mut HOBSON_CHOICES: bool = false;
+pub static mut TIME_LIMIT: Option<std::time::Duration> = None;
+
+use crate::structures::solve::Solve;
+
+#[derive(Debug, Clone, Copy)]
 pub enum StoppingCriteria {
     FirstAssertingUIP,
     None,
@@ -11,38 +28,23 @@ pub enum ExplorationPriority {
     Default,
 }
 
-pub fn config_glue_strength() -> usize {
-    unsafe { crate::CONFIG_GLUE_STRENGTH }
+impl Solve {
+    pub fn it_is_time_to_reduce(&self) -> bool {
+        let l_i = luby(self.restarts + 1);
+        let x = 256_usize.wrapping_mul(l_i);
+        self.conflicts_since_last_forget > x
+    }
 }
 
-pub fn config_show_stats() -> bool {
-    unsafe { crate::CONFIG_SHOW_STATS }
-}
-
-pub fn config_exploration_priority() -> ExplorationPriority {
-    unsafe { crate::CONFIG_EXPLORATION_PRIORITY.clone() }
-}
-
-pub fn config_stopping_criteria() -> StoppingCriteria {
-    unsafe { crate::CONFIG_STOPPING_CRITERIA.clone() }
-}
-
-pub fn config_show_core() -> bool {
-    unsafe { crate::CONFIG_SHOW_CORE }
-}
-
-pub fn config_show_assignment() -> bool {
-    unsafe { crate::CONFIG_SHOW_ASSIGNMENT }
-}
-
-pub fn config_restarts_allowed() -> bool {
-    unsafe { crate::RESTARTS_ALLOWED }
-}
-
-pub fn config_hobson() -> bool {
-    unsafe { crate::HOBSON_CHOICES }
-}
-
-pub fn config_time_limit() -> Option<std::time::Duration> {
-    unsafe { crate::TIME_LIMIT }
+// with help from https://github.com/aimacode/aima-python/blob/master/improving_sat_algorithms.ipynb
+fn luby(i: usize) -> usize {
+    let mut k = 1;
+    loop {
+        if i == (1_usize.wrapping_shl(k)) - 1 {
+            return 1_usize.wrapping_shl(k - 1);
+        } else if (1_usize.wrapping_shl(k - 1)) <= i && i < (1_usize.wrapping_shl(k)) - 1 {
+            return luby(i - (1 << (k - 1)) + 1);
+        }
+        k += 1
+    }
 }

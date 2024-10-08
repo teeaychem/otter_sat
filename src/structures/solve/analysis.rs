@@ -9,7 +9,7 @@ use crate::structures::{
     literal::{Literal, LiteralSource},
     solve::{
         clause_store::{retreive, ClauseKey},
-        config::{config_stopping_criteria, StoppingCriteria},
+        config,
         the_solve::literal_update,
         Solve, SolveStatus,
     },
@@ -83,16 +83,16 @@ impl Solve {
         let previous_level_val = self.valuation_at(self.current_level().index() - 1);
         let mut asserted_literal = None;
 
-        let stopping_criteria = config_stopping_criteria();
+        let stopping_criteria = unsafe { config::STOPPING_CRITERIA };
         for (src, _lit) in self.current_level().observations().iter().rev() {
             match stopping_criteria {
-                StoppingCriteria::FirstAssertingUIP => {
+                config::StoppingCriteria::FirstAssertingUIP => {
                     if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
                         asserted_literal = Some(asserted);
                         break;
                     }
                 }
-                StoppingCriteria::None => (),
+                config::StoppingCriteria::None => (),
             }
 
             if let LiteralSource::StoredClause(clause_key) = src {

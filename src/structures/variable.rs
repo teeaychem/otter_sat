@@ -11,10 +11,12 @@ pub struct Variable {
     decision_level: Cell<Option<LevelIndex>>,
     positive_occurrences: Cell<Vec<ClauseKey>>,
     negative_occurrences: Cell<Vec<ClauseKey>>,
-    positive_watch_occurrences: Cell<Vec<ClauseKey>>,
-    negative_watch_occurrences: Cell<Vec<ClauseKey>>,
-    activity: Cell<f32>,
+    pub positive_watch_occurrences: Cell<Vec<ClauseKey>>,
+    pub negative_watch_occurrences: Cell<Vec<ClauseKey>>,
+    activity: Cell<ActivityRep>,
 }
+
+type ActivityRep = f32;
 
 impl Variable {
     pub fn new(name: &str, id: VariableId) -> Self {
@@ -50,19 +52,20 @@ impl Variable {
         self.id
     }
 
-    pub fn add_activity(&self, by: f32) {
+    pub fn add_activity(&self, by: ActivityRep) {
         let mut activity = self.activity.get();
         activity += by;
+        if activity.is_infinite() {
+            panic!("inf…")
+        }
         self.activity.set(activity);
     }
 
-    pub fn divide_activity(&self, by: f32) {
-        let mut activity = self.activity.get();
-        activity /= by;
-        self.activity.set(activity);
+    pub fn multiply_activity(&self, by: ActivityRep) {
+        self.activity.set(self.activity.get() * by);
     }
 
-    pub fn activity(&self) -> f32 {
+    pub fn activity(&self) -> ActivityRep {
         self.activity.get()
     }
 
