@@ -13,6 +13,8 @@ pub static mut RESTARTS_ALLOWED: bool = true;
 pub static mut HOBSON_CHOICES: bool = false;
 pub static mut TIME_LIMIT: Option<std::time::Duration> = None;
 
+pub static mut REDUCTION_ALLOWED: bool = false;
+
 use crate::structures::solve::Solve;
 
 #[derive(Debug, Clone, Copy)]
