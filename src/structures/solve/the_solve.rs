@@ -52,7 +52,10 @@ impl Solve {
         let mut last_valuation = None;
 
         if unsafe { config::HOBSON_CHOICES } {
-            let (f, t) = hobson_choices(self.clauses());
+            let lits = self
+                .stored_clauses()
+                .map(|stored_clause| stored_clause.literals());
+            let (f, t) = hobson_choices(lits);
             self.literal_set_from_vec(f);
             self.literal_set_from_vec(t);
         }
@@ -76,8 +79,20 @@ impl Solve {
             let mut found_conflict = None;
 
             time_block!(stats::PROPAGATION_TIME, {
-                'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
+                'propagation_loop: while let Some((literal, source)) = self.watch_q.pop_front() {
                     let the_variable = &self.variables[literal.v_id];
+
+                    time_block!(stats::LITERAL_UPDATE_TIME, {
+                        literal_update(
+                            literal,
+                            source,
+                            &mut self.levels,
+                            &self.variables,
+                            &mut self.valuation,
+                            &self.formula_clauses,
+                            &self.learnt_clauses,
+                        );
+                    });
 
                     time_statement!(
                         stats::PROP_BORROW_TIME,
@@ -94,30 +109,19 @@ impl Solve {
                             );
 
                             time_statement!(stats::WATCH_CHOICES_TIME,
-                                let watch_choices = stored_clause.watch_choices(&self.valuation)
+                                let watch_choices = stored_clause.watch_status(&self.valuation)
                             );
 
                             match watch_choices {
                                 ClauseStatus::Entails(consequent) => {
-                                    time_block!(stats::LITERAL_UPDATE_TIME, {
-                                        literal_update(
-                                            consequent,
-                                            LiteralSource::StoredClause(clause_key),
-                                            &mut self.levels,
-                                            &self.variables,
-                                            &mut self.valuation,
-                                            &self.formula_clauses,
-                                            &self.learnt_clauses,
-                                        );
-                                    });
-
-                                    self.watch_q.push_back(consequent);
+                                    self.watch_q.push_back((
+                                        consequent,
+                                        LiteralSource::StoredClause(stored_clause.key),
+                                    ));
                                 }
                                 ClauseStatus::Conflict => {
                                     found_conflict = Some(clause_key);
-
                                     self.watch_q.clear();
-
                                     break 'clause_loop;
                                 }
                                 ClauseStatus::Unsatisfied | ClauseStatus::Satisfied => (),
@@ -190,17 +194,8 @@ impl Solve {
                         } else {
                             Literal::new(available_v_id, false)
                         };
-
-                        literal_update(
-                            choice_literal,
-                            LiteralSource::Choice,
-                            &mut self.levels,
-                            &self.variables,
-                            &mut self.valuation,
-                            &self.formula_clauses,
-                            &self.learnt_clauses,
-                        );
-                        self.watch_q.push_back(choice_literal);
+                        self.watch_q
+                            .push_back((choice_literal, LiteralSource::Choice));
                         #[cfg(feature = "time")]
                         unsafe {
                             stats::CHOICE_TIME += this_choice_time.elapsed();
@@ -210,8 +205,8 @@ impl Solve {
                         result = SolveResult::Satisfiable;
                         #[cfg(feature = "time")]
                         unsafe {
-                            stats::CHOICE_TIME += this_choice_time.elapsed()
-                        };
+                            stats::CHOICE_TIME += this_choice_time.elapsed();
+                        }
                         break 'main_loop;
                     }
                 }
@@ -222,28 +217,25 @@ impl Solve {
                     let conflict_clause =
                         retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
-                    // notice_conflict
-                    {
-                        self.conflicts += 1;
-                        self.conflicts_since_last_forget += 1;
-                        self.conflicts_since_last_reset += 1;
-                        if self.conflicts % config::DECAY_FREQUENCY == 0 {
-                            for variable in &self.variables {
-                                variable.multiply_activity(config::DECAY_FACTOR)
-                            }
+                    self.conflicts += 1;
+                    self.conflicts_since_last_forget += 1;
+                    self.conflicts_since_last_reset += 1;
+                    if self.conflicts % config::DECAY_FREQUENCY == 0 {
+                        for variable in &self.variables {
+                            variable.multiply_activity(config::DECAY_FACTOR)
                         }
+                    }
 
-                        for variable in conflict_clause.variables() {
-                            self.variables[variable].add_activity(config::ACTIVITY_CONFLICT);
-                        }
+                    for variable in conflict_clause.variables() {
+                        self.variables[variable].add_activity(config::ACTIVITY_CONFLICT);
                     }
 
                     let analysis_result = self.attempt_fix(clause_key);
                     stats.conflicts += 1;
                     #[cfg(feature = "time")]
                     unsafe {
-                        stats::CONFLICT_TIME += this_conflict_time.elapsed()
-                    };
+                        stats::CONFLICT_TIME += this_conflict_time.elapsed();
+                    }
                     match analysis_result {
                         SolveStatus::NoSolution => {
                             result = SolveResult::Unsatisfiable;
@@ -309,37 +301,33 @@ pub fn literal_update(
                     let mut length = working_clause_vec.len();
                     unsafe {
                         while index < length {
-                            let clause_key = working_clause_vec.get_unchecked(index);
+                            let clause_key = *working_clause_vec.get_unchecked(index);
 
                             let stored_clause =
-                                retreive(formula_clauses, learnt_clauses, *clause_key);
+                                retreive(formula_clauses, learnt_clauses, clause_key);
 
                             let the_watch =
-                                match stored_clause.literal_of(Watch::A).v_id == literal.v_id {
-                                    true => Watch::A,
-                                    false => Watch::B,
+                                if stored_clause.literal_of(Watch::A).v_id == literal.v_id {
+                                    Watch::A
+                                } else if stored_clause.literal_of(Watch::B).v_id == literal.v_id {
+                                    Watch::B
+                                } else {
+                                    panic!("oh")
                                 };
 
-                            time_block!(stats::PROCESS_WATCH_TIME, {
-                                match process_watches(
-                                    valuation,
-                                    variables,
-                                    stored_clause,
-                                    the_watch,
-                                ) {
-                                    WatchStatus::SameSatisfied
-                                    | WatchStatus::SameImplication
-                                    | WatchStatus::SameConflict => {
-                                        index += 1;
-                                    }
-                                    WatchStatus::NewImplication
-                                    | WatchStatus::NewSatisfied
-                                    | WatchStatus::NewTwoNone => {
-                                        working_clause_vec.swap_remove(index);
-                                        length -= 1;
-                                    }
-                                };
-                            });
+                            match process_watches(valuation, variables, stored_clause, the_watch) {
+                                WatchStatus::SameSatisfied
+                                | WatchStatus::SameImplication
+                                | WatchStatus::SameConflict => {
+                                    index += 1;
+                                }
+                                WatchStatus::NewImplication
+                                | WatchStatus::NewSatisfied
+                                | WatchStatus::NewTwoNone => {
+                                    working_clause_vec.swap_remove(index);
+                                    length -= 1;
+                                }
+                            };
                         }
                     }
                     variable.negative_watch_occurrences.set(working_clause_vec)
@@ -363,26 +351,19 @@ pub fn literal_update(
                                     false => Watch::B,
                                 };
 
-                            time_block!(stats::PROCESS_WATCH_TIME, {
-                                match process_watches(
-                                    valuation,
-                                    variables,
-                                    stored_clause,
-                                    the_watch,
-                                ) {
-                                    WatchStatus::SameSatisfied
-                                    | WatchStatus::SameImplication
-                                    | WatchStatus::SameConflict => {
-                                        index += 1;
-                                    }
-                                    WatchStatus::NewImplication
-                                    | WatchStatus::NewSatisfied
-                                    | WatchStatus::NewTwoNone => {
-                                        working_clause_vec.swap_remove(index);
-                                        length -= 1;
-                                    }
-                                };
-                            });
+                            match process_watches(valuation, variables, stored_clause, the_watch) {
+                                WatchStatus::SameSatisfied
+                                | WatchStatus::SameImplication
+                                | WatchStatus::SameConflict => {
+                                    index += 1;
+                                }
+                                WatchStatus::NewImplication
+                                | WatchStatus::NewSatisfied
+                                | WatchStatus::NewTwoNone => {
+                                    working_clause_vec.swap_remove(index);
+                                    length -= 1;
+                                }
+                            };
                         }
                     }
                     variable.positive_watch_occurrences.set(working_clause_vec)
@@ -407,11 +388,7 @@ pub fn process_watches(
     chosen_watch: Watch,
 ) -> WatchStatus {
     match stored_clause.length() {
-        1 => match val.of_v_id(
-            stored_clause
-                .literal_at(stored_clause.get_watch(Watch::A))
-                .v_id,
-        ) {
+        1 => match val.of_v_id(stored_clause.get_watched(Watch::A).v_id) {
             None => WatchStatus::SameImplication,
             Some(_) => WatchStatus::SameSatisfied,
         },
@@ -441,24 +418,18 @@ pub fn process_watches(
                 };
             }
 
-            let watched_x_value = val.of_v_id(
-                stored_clause
-                    .literal_at(stored_clause.get_watch(chosen_watch))
-                    .v_id,
-            );
+            let watched_x_value = val.of_v_id(stored_clause.get_watched(chosen_watch).v_id);
 
-            let watched_y_index = match chosen_watch {
-                Watch::A => stored_clause.get_watch(Watch::B),
-                Watch::B => stored_clause.get_watch(Watch::A),
+            let watched_y_literal = match chosen_watch {
+                Watch::A => stored_clause.get_watched(Watch::B),
+                Watch::B => stored_clause.get_watched(Watch::A),
             };
-
-            let watched_y_literal = stored_clause.literal_at(watched_y_index);
 
             let watched_y_value = val.of_v_id(watched_y_literal.v_id);
 
             if let Some(_current_x_value) = watched_x_value {
                 time_statement!(stats::NEW_WATCH_TIME,
-                    let update = stored_clause.some_none_or_else_witness_idx(val, watched_y_index)
+                    let update = stored_clause.some_none_or_else_witness_idx(val, Some(watched_y_literal.v_id))
                 );
 
                 match update {
