@@ -7,20 +7,16 @@ use crate::structures::{
     level::Level,
     literal::{Literal, LiteralSource},
     solve::{
-        clause_store::{retreive, ClauseKey},
-        config,
+        config, retreive,
         stats::SolveStats,
-        ClauseStore, Solve, {SolveResult, SolveStatus},
+        ClauseKey, ClauseStore, Solve, {SolveResult, SolveStatus},
     },
     valuation::{Valuation, ValuationStatus},
     variable::Variable,
 };
 
 #[allow(unused_imports)] // used in timing macros
-use crate::structures::solve::stats::{
-    CHOICE_TIME, CLAUSE_LOOP_TIME, CONFLICT_TIME, GET_STORED_TIME, LITERAL_UPDATE_TIME,
-    PROCESS_WATCH_TIME, PROPAGATION_TIME, PROP_BORROW_TIME, REDUCTION_TIME, WATCH_CHOICES_TIME,
-};
+use crate::structures::solve::stats;
 
 macro_rules! time_statement {
     ($id:expr, $s:stmt) => {
@@ -78,38 +74,39 @@ impl Solve {
 
             let mut found_conflict = None;
 
-            time_block!(PROPAGATION_TIME, {
+            time_block!(stats::PROPAGATION_TIME, {
                 'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
                     let the_variable = &self.variables[literal.v_id];
 
                     time_statement!(
-                        PROP_BORROW_TIME,
+                        stats::PROP_BORROW_TIME,
                             let borrowed_occurrences = match literal.polarity {
                                 true => the_variable.take_occurrence_vec(false),
                                 false => the_variable.take_occurrence_vec(true),
                             }
                     );
 
-                    time_block!(CLAUSE_LOOP_TIME, {
+                    time_block!(stats::CLAUSE_LOOP_TIME, {
                         'clause_loop: for clause_key in borrowed_occurrences.iter().cloned() {
-                            time_statement!(GET_STORED_TIME,
-                                let stored_clause = retreive(&self.clauses_stored, clause_key)
+                            time_statement!(stats::GET_STORED_TIME,
+                                let stored_clause = retreive(&self.formula_clauses, &self.learnt_clauses, clause_key)
                             );
 
-                            time_statement!(WATCH_CHOICES_TIME,
+                            time_statement!(stats::WATCH_CHOICES_TIME,
                                 let watch_choices = stored_clause.watch_choices(&self.valuation)
                             );
 
                             match watch_choices {
                                 ClauseStatus::Entails(consequent) => {
-                                    time_block!(LITERAL_UPDATE_TIME, {
+                                    time_block!(stats::LITERAL_UPDATE_TIME, {
                                         literal_update(
                                             consequent,
                                             LiteralSource::StoredClause(clause_key),
                                             &mut self.levels,
                                             &self.variables,
                                             &mut self.valuation,
-                                            &self.clauses_stored,
+                                            &self.formula_clauses,
+                                            &self.learnt_clauses,
                                         );
                                     });
 
@@ -127,7 +124,7 @@ impl Solve {
                         }
                     });
 
-                    time_block!(PROP_BORROW_TIME, {
+                    time_block!(stats::PROP_BORROW_TIME, {
                         match literal.polarity {
                             true => {
                                 the_variable.restore_occurrence_vec(false, borrowed_occurrences)
@@ -149,13 +146,13 @@ impl Solve {
                         if self.it_is_time_to_reduce() {
                             log::debug!(target: "forget", "{stats} @r {}", self.restarts);
 
-                            time_block!(REDUCTION_TIME, {
+                            time_block!(stats::REDUCTION_TIME, {
                                 // // TODO: figure some improvement…
 
                                 if unsafe { config::RESTARTS_ALLOWED } {
-                                    let limit = self.clauses_stored.learnt_clauses.len();
+                                    let limit = self.learnt_clauses.len();
                                     let mut keys_to_drop = vec![];
-                                    for (k, v) in &self.clauses_stored.learnt_clauses {
+                                    for (k, v) in &self.learnt_clauses {
                                         if keys_to_drop.len() > limit {
                                             break;
                                         } else if v.lbd() > unsafe { config::GLUE_STRENGTH } {
@@ -173,12 +170,12 @@ impl Solve {
                                     self.restarts += 1;
                                     self.conflicts_since_last_forget = 0;
 
-                                    for (_, clause) in &self.clauses_stored.learnt_clauses {
+                                    for (_, clause) in &self.learnt_clauses {
                                         clause.set_lbd(&self.variables)
                                     }
                                 }
 
-                                log::debug!(target: "forget", "Reduced to: {}", self.clauses_stored.learnt_clauses.len());
+                                log::debug!(target: "forget", "Reduced to: {}", self.learnt_clauses.len());
                             });
                         }
 
@@ -204,19 +201,20 @@ impl Solve {
                             &mut self.levels,
                             &self.variables,
                             &mut self.valuation,
-                            &self.clauses_stored,
+                            &self.formula_clauses,
+                            &self.learnt_clauses,
                         );
                         self.watch_q.push_back(choice_literal);
                         #[cfg(feature = "time")]
                         unsafe {
-                            CHOICE_TIME += this_choice_time.elapsed();
+                            stats::CHOICE_TIME += this_choice_time.elapsed();
                         }
                         continue 'main_loop;
                     } else {
                         result = SolveResult::Satisfiable;
                         #[cfg(feature = "time")]
                         unsafe {
-                            CHOICE_TIME += this_choice_time.elapsed()
+                            stats::CHOICE_TIME += this_choice_time.elapsed()
                         };
                         break 'main_loop;
                     }
@@ -225,7 +223,8 @@ impl Solve {
                     #[cfg(feature = "time")]
                     let this_conflict_time = std::time::Instant::now();
 
-                    let conflict_clause = retreive(&self.clauses_stored, clause_key);
+                    let conflict_clause =
+                        retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
                     // notice_conflict
                     {
@@ -247,7 +246,7 @@ impl Solve {
                     stats.conflicts += 1;
                     #[cfg(feature = "time")]
                     unsafe {
-                        CONFLICT_TIME += this_conflict_time.elapsed()
+                        stats::CONFLICT_TIME += this_conflict_time.elapsed()
                     };
                     match analysis_result {
                         SolveStatus::NoSolution => {
@@ -289,7 +288,8 @@ pub fn literal_update(
     levels: &mut [Level],
     variables: &[Variable],
     valuation: &mut impl Valuation,
-    clauses_stored: &ClauseStore,
+    formula_clauses: &ClauseStore,
+    learnt_clauses: &ClauseStore,
 ) {
     let variable = &variables[literal.v_id];
 
@@ -306,45 +306,76 @@ pub fn literal_update(
             levels[level_index].record_literal(literal, &source);
 
             // and, process whether any change to the watch literals is required
-
-            let mut working_clause_vec = match literal.polarity {
-                true => variable.take_occurrence_vec(false),
-                false => variable.take_occurrence_vec(true),
-            };
-
-            let mut index = 0;
-            let mut length = working_clause_vec.len();
-            while index < length {
-                let clause_key = working_clause_vec[index];
-
-                let stored_clause = retreive(clauses_stored, clause_key);
-
-                let the_watch = match stored_clause.literal_of(Watch::A).v_id == literal.v_id {
-                    true => Watch::A,
-                    false => Watch::B,
-                };
-
-                time_block!(PROCESS_WATCH_TIME, {
-                    match process_watches(valuation, variables, stored_clause, the_watch) {
-                        WatchStatus::SameSatisfied
-                        | WatchStatus::SameImplication
-                        | WatchStatus::SameConflict => {
-                            index += 1;
-                        }
-                        WatchStatus::NewImplication
-                        | WatchStatus::NewSatisfied
-                        | WatchStatus::NewTwoNone => {
-                            working_clause_vec.swap_remove(index);
-                            length -= 1;
-                        }
-                    };
-                });
-            }
-
             match literal.polarity {
-                true => variable.restore_occurrence_vec(false, working_clause_vec),
-                false => variable.restore_occurrence_vec(true, working_clause_vec),
-            };
+                true => {
+                    let mut working_clause_vec = variable.take_occurrence_vec(false);
+                    let mut index = 0;
+                    let mut length = working_clause_vec.len();
+                    while index < length {
+                        let clause_key = working_clause_vec[index];
+
+                        let stored_clause = retreive(formula_clauses, learnt_clauses, clause_key);
+
+                        let the_watch =
+                            match stored_clause.literal_of(Watch::A).v_id == literal.v_id {
+                                true => Watch::A,
+                                false => Watch::B,
+                            };
+
+                        time_block!(stats::PROCESS_WATCH_TIME, {
+                            match process_watches(valuation, variables, stored_clause, the_watch) {
+                                WatchStatus::SameSatisfied
+                                | WatchStatus::SameImplication
+                                | WatchStatus::SameConflict => {
+                                    index += 1;
+                                }
+                                WatchStatus::NewImplication
+                                | WatchStatus::NewSatisfied
+                                | WatchStatus::NewTwoNone => {
+                                    working_clause_vec.swap_remove(index);
+                                    length -= 1;
+                                }
+                            };
+                        });
+                    }
+                    variable.restore_occurrence_vec(false, working_clause_vec)
+                }
+
+                false => {
+                    let mut working_clause_vec = variable.take_occurrence_vec(true);
+
+                    let mut index = 0;
+                    let mut length = working_clause_vec.len();
+                    while index < length {
+                        let clause_key = working_clause_vec[index];
+
+                        let stored_clause = retreive(formula_clauses, learnt_clauses, clause_key);
+
+                        let the_watch =
+                            match stored_clause.literal_of(Watch::A).v_id == literal.v_id {
+                                true => Watch::A,
+                                false => Watch::B,
+                            };
+
+                        time_block!(stats::PROCESS_WATCH_TIME, {
+                            match process_watches(valuation, variables, stored_clause, the_watch) {
+                                WatchStatus::SameSatisfied
+                                | WatchStatus::SameImplication
+                                | WatchStatus::SameConflict => {
+                                    index += 1;
+                                }
+                                WatchStatus::NewImplication
+                                | WatchStatus::NewSatisfied
+                                | WatchStatus::NewTwoNone => {
+                                    working_clause_vec.swap_remove(index);
+                                    length -= 1;
+                                }
+                            };
+                        });
+                    }
+                    variable.restore_occurrence_vec(true, working_clause_vec);
+                }
+            }
         }
         Err(ValuationStatus::Match) => match source {
             LiteralSource::StoredClause(_) => {

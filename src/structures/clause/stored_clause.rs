@@ -1,7 +1,7 @@
 use crate::structures::{
     clause::{Clause, ClauseVec},
     literal::Literal,
-    solve::clause_store::ClauseKey,
+    solve::ClauseKey,
     valuation::{Valuation, ValuationVec},
     variable::{Variable, VariableId},
 };
