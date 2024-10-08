@@ -3,7 +3,7 @@ use crate::structures::valuation::Valuation;
 use crate::structures::{
     clause::{
         clause_vec::ClauseVec,
-        stored_clause::{initialise_watches_for, ClauseSource, StoredClause},
+        stored_clause::{ClauseSource, StoredClause},
         Clause,
     },
     literal::{Literal, LiteralSource},
@@ -28,18 +28,18 @@ impl Solve {
                 let (asserting_clause, clause_source, assertion) =
                     self.conflict_analysis(conflict_clause);
 
-                let clause_key = self.store_clause(asserting_clause, clause_source);
+                let backjump_level = decision_level(&self.variables, asserting_clause.literals());
+
+                let backjump_valuation = self.valuation_at(backjump_level);
+
+                let clause_key =
+                    self.store_clause(asserting_clause, clause_source, &backjump_valuation);
                 let stored_clause =
                     retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
                 let anticipated_literal_source = LiteralSource::StoredClause(stored_clause.key);
 
                 stored_clause.set_lbd(&self.variables);
-
-                let backjump_level = decision_level(&self.variables, stored_clause);
-
-                let backjump_valuation = self.valuation_at(backjump_level);
-                initialise_watches_for(stored_clause, &backjump_valuation, &self.variables);
 
                 self.watch_q
                     .push_back((assertion, anticipated_literal_source));
@@ -184,24 +184,24 @@ impl Solve {
 }
 
 /// Either the most recent decision level in the resolution clause prior to the current level or 0.
-fn decision_level(variables: &[Variable], stored_clause: &StoredClause) -> usize {
-    let mut top_two = [None; 2];
-    for lit in stored_clause.literals() {
-        if let Some(dl) = variables[lit.v_id].decision_level() {
-            if top_two[1].is_none() {
-                top_two[1] = Some(dl)
-            } else if top_two[1].is_some_and(|t1| dl > t1) {
-                top_two[0] = top_two[1];
-                top_two[1] = Some(dl)
-            } else if top_two[0].is_none() || top_two[0].is_some_and(|t2| dl > t2) {
-                top_two[0] = Some(dl)
+fn decision_level(variables: &[Variable], literals: impl Iterator<Item = Literal>) -> usize {
+    let mut top_two = (None, None);
+    for lit in literals {
+        if let Some(dl) = unsafe { (*variables.get_unchecked(lit.v_id)).decision_level() } {
+            if top_two.1.is_none() {
+                top_two.1 = Some(dl)
+            } else if top_two.1.is_some_and(|t1| dl > t1) {
+                top_two.0 = top_two.1;
+                top_two.1 = Some(dl)
+            } else if top_two.0.is_none() || top_two.0.is_some_and(|t2| dl > t2) {
+                top_two.0 = Some(dl)
             };
         }
     }
 
     match top_two {
-        [None, Some(_)] => 0,
-        [Some(x), Some(_)] => x,
+        (None, Some(_)) => 0,
+        (Some(x), Some(_)) => x,
         _ => panic!("Decision level issue: {:?}", top_two),
     }
 }

@@ -404,10 +404,11 @@ pub fn process_watches(
 
             if let Some(_current_x_value) = watched_x_value {
                 time_statement!(stats::NEW_WATCH_TIME,
-                let update = stored_clause.some_none_or_else_witness_idx(val, Some(watched_y_literal.v_id),
-                   !watched_y_value.is_some_and(|p| p == watched_y_literal.polarity)
-                                )
-                            );
+                let update = stored_clause.some_none_or_else_witness_idx(
+                    chosen_watch,
+                    val,
+                    Some(watched_y_literal.v_id),
+                    !watched_y_value.is_some_and(|p| p == watched_y_literal.polarity)));
 
                 match update {
                     WatchUpdateEnum::Witness(idx) | WatchUpdateEnum::None(idx) => unsafe {
