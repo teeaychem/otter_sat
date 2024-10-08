@@ -13,7 +13,8 @@ use std::collections::VecDeque;
 pub struct Solve {
     conflicts: usize,
     conflicts_since_last_forget: usize,
-    forgets: usize,
+    conflicts_since_last_reset: usize,
+    restarts: usize,
     pub variables: Vec<Variable>,
     pub valuation: Vec<Option<bool>>,
     pub levels: Vec<Level>,

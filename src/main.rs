@@ -2,24 +2,13 @@
 
 use clap::Parser;
 use std::fs;
-use structures::solve::config::{config_time_limit, ExplorationPriority, StoppingCriteria};
+use structures::solve::config::{ExplorationPriority, StoppingCriteria};
 mod io;
 mod procedures;
 mod structures;
 
 use crate::structures::formula::Formula;
-use crate::structures::solve::{config::config_show_stats, Solve, SolveResult};
-
-// Configuration variables
-static mut CONFIG_GLUE_STRENGTH: usize = 2;
-static mut CONFIG_SHOW_STATS: bool = false;
-static mut CONFIG_SHOW_CORE: bool = false;
-static mut CONFIG_SHOW_ASSIGNMENT: bool = false;
-static mut CONFIG_EXPLORATION_PRIORITY: ExplorationPriority = ExplorationPriority::Default;
-static mut CONFIG_STOPPING_CRITERIA: StoppingCriteria = StoppingCriteria::FirstAssertingUIP;
-static mut RESTARTS_ALLOWED: bool = true;
-static mut HOBSON_CHOICES: bool = false;
-static mut TIME_LIMIT: Option<std::time::Duration> = None;
+use crate::structures::solve::{config, Solve, SolveResult};
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -54,7 +43,7 @@ struct Args {
     exploration_priority: String,
 
     /// Allow for the decisions to be forgotten, on occassion
-    #[arg(short, long, default_value_t = true)]
+    #[arg(short, long, default_value_t = false)]
     restarts: bool,
 
     /// Initially settle all atoms which occur with a unique polarity
@@ -65,6 +54,7 @@ struct Args {
     #[arg(short, long, value_parser = |seconds: &str| seconds.parse().map(std::time::Duration::from_secs))]
     time: Option<std::time::Duration>,
 }
+
 
 #[rustfmt::skip]
 fn main() {
@@ -78,33 +68,33 @@ fn main() {
     // set up the configuration, unsafely as global variables are used
     // see the config file for access procedures
     unsafe {
-        CONFIG_GLUE_STRENGTH = args.glue_strength;
-        CONFIG_SHOW_STATS = args.stats;
-        CONFIG_EXPLORATION_PRIORITY = match args.exploration_priority.as_str() {
+        config::GLUE_STRENGTH = args.glue_strength;
+        config::SHOW_STATS = args.stats;
+        config::EXPLORATION_PRIORITY = match args.exploration_priority.as_str() {
             "Implication" | "implication" | "imp" => ExplorationPriority::Implication,
             "Conflict" | "conflict" | "conf" => ExplorationPriority::Conflict,
             "Default" | "default" => ExplorationPriority::Default,
             _ => panic!("Unknown conflict priority"),
         };
-        CONFIG_STOPPING_CRITERIA = match args.stopping_criteria.as_str() {
+        config::STOPPING_CRITERIA = match args.stopping_criteria.as_str() {
             "FirstUIP" | "firstUIP" | "1UIP" | "1uip" => StoppingCriteria::FirstAssertingUIP,
             "None" | "none" => StoppingCriteria::None,
             _ => panic!("Unknown stopping critera"),
         };
-        CONFIG_SHOW_CORE = args.core;
-        CONFIG_SHOW_ASSIGNMENT = args.assignment;
-        RESTARTS_ALLOWED = args.restarts;
-        TIME_LIMIT = args.time;
+        config::SHOW_CORE = args.core;
+        config::SHOW_ASSIGNMENT = args.assignment;
+        config::RESTARTS_ALLOWED = args.restarts;
+        config::TIME_LIMIT = args.time;
     }
 
     if let Ok(contents) = fs::read_to_string(&args.formula_file) {
         let formula = Formula::from_dimacs(&contents);
 
-        if config_show_stats() {
+        if unsafe { config::SHOW_STATS } {
             println!("c 🦦");
             println!("c Parsing formula from file: {:?}", args.formula_file);
             println!("c Parsed formula with {} variables and {} clauses", formula.variable_count(), formula.clause_count());
-            if let Some(limit) = config_time_limit() {
+            if let Some(limit) = unsafe { config::TIME_LIMIT } {
                 println!("c TIME LIMIT: {:.2?}", limit);
             }
         }
@@ -113,7 +103,7 @@ fn main() {
         log::trace!("Solve initialised");
 
         let (result, stats) = the_solve.do_solve();
-        if config_show_stats() {
+        if unsafe { config::SHOW_STATS } {
             println!("{stats}");
         }
         match result {
