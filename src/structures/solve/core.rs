@@ -27,8 +27,9 @@ impl Solve {
         let mut the_solve = Solve {
             conflicts: 0,
             conflicts_since_last_forget: 0,
-            forgets: 0,
-            watch_q: VecDeque::with_capacity(variables.len() / 4), // I expect this to be mostly empty
+            conflicts_since_last_reset: 0,
+            restarts: 0,
+            watch_q: VecDeque::with_capacity(variables.len() / 2),
             valuation: Vec::<Option<bool>>::new_for_variables(variables.len()),
             variables,
             levels: vec![Level::new(0)],
@@ -110,10 +111,6 @@ impl Solve {
             .map(|(a, _)| a)
     }
 
-    pub fn it_is_time_to_reduce(&self) -> bool {
-        self.conflicts_since_last_forget > (2_usize.pow(6) * self.forgets)
-    }
-
     /// Stores a clause with an automatically generated id.
     /// Note: In order to use the clause the watch literals of the struct must be initialised.
     pub fn store_clause(&mut self, clause: impl Clause, src: ClauseSource) -> ClauseKey {
@@ -142,11 +139,7 @@ impl Solve {
 
                     let bc = &self.clauses_stored.learnt_clauses[key];
 
-                    for variable in &mut self.variables {
-                        variable.divide_activity(1.2)
-                    }
                     for literal in bc.literals() {
-                        self.variables[literal.v_id].add_activity(1.0);
                         self.variables[literal.v_id]
                             .note_occurence(ClauseKey::Learnt(key), literal.polarity);
                     }

@@ -8,10 +8,7 @@ use crate::structures::{
     literal::{Literal, LiteralSource},
     solve::{
         clause_store::{retreive, ClauseKey},
-        config::{
-            config_glue_strength, config_hobson, config_restarts_allowed, config_show_assignment,
-            config_show_core, config_show_stats, config_time_limit,
-        },
+        config,
         stats::SolveStats,
         ClauseStore, Solve, {SolveResult, SolveStatus},
     },
@@ -19,14 +16,45 @@ use crate::structures::{
     variable::Variable,
 };
 
+#[allow(unused_imports)] // used in timing macros
+use crate::structures::solve::stats::{
+    CHOICE_TIME, CLAUSE_LOOP_TIME, CONFLICT_TIME, GET_STORED_TIME, LITERAL_UPDATE_TIME,
+    PROCESS_WATCH_TIME, PROPAGATION_TIME, PROP_BORROW_TIME, REDUCTION_TIME, WATCH_CHOICES_TIME,
+};
+
+macro_rules! time_statement {
+    ($id:expr, $s:stmt) => {
+        #[cfg(feature = "time")]
+        let this_time = std::time::Instant::now();
+        $s
+        #[cfg(feature = "time")]
+        unsafe {
+            $id += this_time.elapsed();
+        }
+    }
+}
+
+macro_rules! time_block {
+    ($id:expr, $b:block) => {
+        #[cfg(feature = "time")]
+        let this_time = std::time::Instant::now();
+        $b
+        #[cfg(feature = "time")]
+        unsafe {
+            $id += this_time.elapsed();
+        }
+    }
+}
+
 impl Solve {
     #[allow(unused_labels)]
     pub fn do_solve(&mut self) -> (SolveResult, SolveStats) {
         let this_total_time = std::time::Instant::now();
 
         let mut stats = SolveStats::new();
+        let mut last_valuation = None;
 
-        if config_hobson() {
+        if unsafe { config::HOBSON_CHOICES } {
             let (f, t) = hobson_choices(self.clauses());
             self.literal_set_from_vec(f);
             self.literal_set_from_vec(t);
@@ -36,86 +64,122 @@ impl Solve {
 
         'main_loop: loop {
             stats.total_time = this_total_time.elapsed();
-            if config_time_limit().is_some_and(|t| stats.total_time > t) {
-                if config_show_stats() {
-                    println!("c TIME LIMIT EXCEEDED");
+            if let Some(time) = unsafe { config::TIME_LIMIT } {
+                if stats.total_time > time {
+                    if unsafe { config::SHOW_STATS } {
+                        println!("c TIME LIMIT EXCEEDED")
+                    };
+                    result = SolveResult::Unknown;
+                    break 'main_loop;
                 }
-                result = SolveResult::Unknown;
-                break 'main_loop;
             }
 
             stats.iterations += 1;
 
             let mut found_conflict = None;
 
-            let this_implication_time = std::time::Instant::now();
-            'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
-                let the_variable = &self.variables[literal.v_id];
+            time_block!(PROPAGATION_TIME, {
+                'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
+                    let the_variable = &self.variables[literal.v_id];
 
-                let borrowed_occurrences = match literal.polarity {
-                    true => the_variable.take_occurrence_vec(false),
-                    false => the_variable.take_occurrence_vec(true),
-                };
+                    time_statement!(
+                        PROP_BORROW_TIME,
+                            let borrowed_occurrences = match literal.polarity {
+                                true => the_variable.take_occurrence_vec(false),
+                                false => the_variable.take_occurrence_vec(true),
+                            }
+                    );
 
-                'clause_loop: for clause_key in borrowed_occurrences.iter().cloned() {
-                    let stored_clause = retreive(&self.clauses_stored, clause_key);
-
-                    match stored_clause.watch_choices(&self.valuation) {
-                        ClauseStatus::Entails(consequent) => {
-                            literal_update(
-                                consequent,
-                                LiteralSource::StoredClause(clause_key),
-                                &mut self.levels,
-                                &self.variables,
-                                &mut self.valuation,
-                                &self.clauses_stored,
+                    time_block!(CLAUSE_LOOP_TIME, {
+                        'clause_loop: for clause_key in borrowed_occurrences.iter().cloned() {
+                            time_statement!(GET_STORED_TIME,
+                                let stored_clause = retreive(&self.clauses_stored, clause_key)
                             );
-                            self.watch_q.push_back(consequent);
+
+                            time_statement!(WATCH_CHOICES_TIME,
+                                let watch_choices = stored_clause.watch_choices(&self.valuation)
+                            );
+
+                            match watch_choices {
+                                ClauseStatus::Entails(consequent) => {
+                                    time_block!(LITERAL_UPDATE_TIME, {
+                                        literal_update(
+                                            consequent,
+                                            LiteralSource::StoredClause(clause_key),
+                                            &mut self.levels,
+                                            &self.variables,
+                                            &mut self.valuation,
+                                            &self.clauses_stored,
+                                        );
+                                    });
+
+                                    self.watch_q.push_back(consequent);
+                                }
+                                ClauseStatus::Conflict => {
+                                    found_conflict = Some(clause_key);
+
+                                    self.watch_q.clear();
+
+                                    break 'clause_loop;
+                                }
+                                ClauseStatus::Unsatisfied | ClauseStatus::Satisfied => (),
+                            }
                         }
-                        ClauseStatus::Conflict => {
-                            found_conflict = Some(clause_key);
-                            self.watch_q.clear();
-                            break 'clause_loop;
-                        }
-                        ClauseStatus::Unsatisfied => (),
-                        ClauseStatus::Satisfied => (),
-                    }
+                    });
+
+                    time_block!(PROP_BORROW_TIME, {
+                        match literal.polarity {
+                            true => {
+                                the_variable.restore_occurrence_vec(false, borrowed_occurrences)
+                            }
+                            false => {
+                                the_variable.restore_occurrence_vec(true, borrowed_occurrences)
+                            }
+                        };
+                    });
                 }
-                match literal.polarity {
-                    true => the_variable.restore_occurrence_vec(false, borrowed_occurrences),
-                    false => the_variable.restore_occurrence_vec(true, borrowed_occurrences),
-                };
-            }
-            stats.implication_time += this_implication_time.elapsed();
+            });
 
             match found_conflict {
                 None => {
+                    #[cfg(feature = "time")]
                     let this_choice_time = std::time::Instant::now();
+
                     if let Some(available_v_id) = self.most_active_none(&self.valuation) {
                         if self.it_is_time_to_reduce() {
-                            log::debug!(target: "forget", "{stats} @ {}", self.forgets);
-                            let this_reduction_time = std::time::Instant::now();
-                            if config_restarts_allowed() {
-                                {
-                                    // TODO: figure some improvement…
+                            log::debug!(target: "forget", "{stats} @r {}", self.restarts);
+
+                            time_block!(REDUCTION_TIME, {
+                                // // TODO: figure some improvement…
+
+                                if unsafe { config::RESTARTS_ALLOWED } {
+                                    let limit = self.clauses_stored.learnt_clauses.len();
                                     let mut keys_to_drop = vec![];
                                     for (k, v) in &self.clauses_stored.learnt_clauses {
-                                        if v.lbd() > config_glue_strength() {
+                                        if keys_to_drop.len() > limit {
+                                            break;
+                                        } else if v.lbd() > unsafe { config::GLUE_STRENGTH } {
                                             keys_to_drop.push(k);
                                         }
                                     }
+
                                     for key in keys_to_drop {
                                         self.drop_learnt_clause_by_swap(ClauseKey::Learnt(key))
                                     }
-                                }
-                                self.watch_q.clear();
-                                self.backjump(0);
-                            }
-                            self.forgets += 1;
-                            self.conflicts_since_last_forget = 0;
-                            log::debug!(target: "forget", "Reduced to: {}", self.clauses_stored.learnt_clauses.len());
 
-                            stats.reduction_time += this_reduction_time.elapsed();
+                                    last_valuation = Some(self.valuation.clone());
+                                    self.watch_q.clear();
+                                    self.backjump(0);
+                                    self.restarts += 1;
+                                    self.conflicts_since_last_forget = 0;
+
+                                    for (_, clause) in &self.clauses_stored.learnt_clauses {
+                                        clause.set_lbd(&self.variables)
+                                    }
+                                }
+
+                                log::debug!(target: "forget", "Reduced to: {}", self.clauses_stored.learnt_clauses.len());
+                            });
                         }
 
                         log::trace!(
@@ -124,7 +188,15 @@ impl Solve {
                             self.variables[available_v_id].activity()
                         );
                         let _new_level = self.add_fresh_level();
-                        let choice_literal = Literal::new(available_v_id, false);
+                        let choice_literal = if let Some(previous) = &last_valuation {
+                            if let Some(polarity) = previous[available_v_id] {
+                                Literal::new(available_v_id, polarity)
+                            } else {
+                                Literal::new(available_v_id, false)
+                            }
+                        } else {
+                            Literal::new(available_v_id, false)
+                        };
 
                         literal_update(
                             choice_literal,
@@ -135,18 +207,23 @@ impl Solve {
                             &self.clauses_stored,
                         );
                         self.watch_q.push_back(choice_literal);
-
-                        stats.choice_time += this_choice_time.elapsed();
+                        #[cfg(feature = "time")]
+                        unsafe {
+                            CHOICE_TIME += this_choice_time.elapsed();
+                        }
                         continue 'main_loop;
                     } else {
                         result = SolveResult::Satisfiable;
-                        stats.choice_time += this_choice_time.elapsed();
+                        #[cfg(feature = "time")]
+                        unsafe {
+                            CHOICE_TIME += this_choice_time.elapsed()
+                        };
                         break 'main_loop;
                     }
                 }
                 Some(clause_key) => {
-                    self.watch_q.clear();
-                    let this_unsat_time = std::time::Instant::now();
+                    #[cfg(feature = "time")]
+                    let this_conflict_time = std::time::Instant::now();
 
                     let conflict_clause = retreive(&self.clauses_stored, clause_key);
 
@@ -154,20 +231,24 @@ impl Solve {
                     {
                         self.conflicts += 1;
                         self.conflicts_since_last_forget += 1;
-                        if self.conflicts % 2_usize.pow(9) == 0 {
+                        self.conflicts_since_last_reset += 1;
+                        if self.conflicts % config::DECAY_FREQUENCY == 0 {
                             for variable in &self.variables {
-                                variable.divide_activity(1.2)
+                                variable.multiply_activity(config::DECAY_FACTOR)
                             }
                         }
 
                         for variable in conflict_clause.variables() {
-                            self.variables[variable].add_activity(2.0);
+                            self.variables[variable].add_activity(config::ACTIVITY_CONFLICT);
                         }
                     }
 
                     let analysis_result = self.attempt_fix(clause_key);
                     stats.conflicts += 1;
-                    stats.unsat_time += this_unsat_time.elapsed();
+                    #[cfg(feature = "time")]
+                    unsafe {
+                        CONFLICT_TIME += this_conflict_time.elapsed()
+                    };
                     match analysis_result {
                         SolveStatus::NoSolution => {
                             result = SolveResult::Unsatisfiable;
@@ -184,15 +265,17 @@ impl Solve {
         stats.total_time = this_total_time.elapsed();
         match result {
             SolveResult::Satisfiable => {
-                config_show_assignment().then(|| {
+                if unsafe { config::SHOW_ASSIGNMENT } {
                     println!(
                         "c ASSIGNMENT: {}",
                         self.valuation.to_vec().as_display_string(self)
                     )
-                });
+                }
             }
             SolveResult::Unsatisfiable => {
-                config_show_core().then(|| self.core());
+                if unsafe { config::SHOW_CORE } {
+                    self.core()
+                }
             }
             SolveResult::Unknown => {}
         }
@@ -206,10 +289,9 @@ pub fn literal_update(
     levels: &mut [Level],
     variables: &[Variable],
     valuation: &mut impl Valuation,
-    stored_clauses: &ClauseStore,
+    clauses_stored: &ClauseStore,
 ) {
     let variable = &variables[literal.v_id];
-    variable.add_activity(1.0);
 
     // update the valuation and match the result
     match valuation.update_value(literal) {
@@ -235,26 +317,28 @@ pub fn literal_update(
             while index < length {
                 let clause_key = working_clause_vec[index];
 
-                let stored_clause = retreive(stored_clauses, clause_key);
+                let stored_clause = retreive(clauses_stored, clause_key);
 
                 let the_watch = match stored_clause.literal_of(Watch::A).v_id == literal.v_id {
                     true => Watch::A,
                     false => Watch::B,
                 };
 
-                match process_watches(valuation, variables, stored_clause, the_watch) {
-                    WatchStatus::SameSatisfied
-                    | WatchStatus::SameImplication
-                    | WatchStatus::SameConflict => {
-                        index += 1;
-                    }
-                    WatchStatus::NewImplication
-                    | WatchStatus::NewSatisfied
-                    | WatchStatus::NewTwoNone => {
-                        working_clause_vec.swap_remove(index);
-                        length -= 1;
-                    }
-                };
+                time_block!(PROCESS_WATCH_TIME, {
+                    match process_watches(valuation, variables, stored_clause, the_watch) {
+                        WatchStatus::SameSatisfied
+                        | WatchStatus::SameImplication
+                        | WatchStatus::SameConflict => {
+                            index += 1;
+                        }
+                        WatchStatus::NewImplication
+                        | WatchStatus::NewSatisfied
+                        | WatchStatus::NewTwoNone => {
+                            working_clause_vec.swap_remove(index);
+                            length -= 1;
+                        }
+                    };
+                });
             }
 
             match literal.polarity {
