@@ -76,11 +76,6 @@ impl Solve {
             .map(|(_, sc)| sc)
     }
 
-    pub fn clauses(&self) -> impl Iterator<Item = &impl Clause> {
-        self.stored_clauses()
-            .map(|stored_clause| stored_clause.clause_impl())
-    }
-
     pub fn var_by_id(&self, id: VariableId) -> Option<&Variable> {
         self.variables.get(id)
     }
@@ -97,7 +92,8 @@ impl Solve {
                 &self.formula_clauses,
                 &self.learnt_clauses,
             );
-            self.watch_q.push_back(the_literal);
+            self.watch_q
+                .push_back((the_literal, LiteralSource::HobsonChoice));
         });
     }
 
@@ -118,7 +114,7 @@ impl Solve {
             _ => match &src {
                 ClauseSource::Formula => {
                     let key = self.formula_clauses.insert_with_key(|k| {
-                        StoredClause::new_from(ClauseKey::Formula(k), clause, src)
+                        StoredClause::new_from(ClauseKey::Formula(k), clause.to_vec(), src)
                     });
 
                     let bc = &self.formula_clauses[key];
@@ -133,7 +129,7 @@ impl Solve {
                 ClauseSource::Resolution(_) => {
                     log::trace!("Learning clause {}", clause.as_string());
                     let key = self.learnt_clauses.insert_with_key(|k| {
-                        StoredClause::new_from(ClauseKey::Learnt(k), clause, src)
+                        StoredClause::new_from(ClauseKey::Learnt(k), clause.to_vec(), src)
                     });
 
                     let bc = &self.learnt_clauses[key];

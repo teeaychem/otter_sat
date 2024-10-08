@@ -12,6 +12,8 @@ use slotmap::{DefaultKey, SlotMap};
 
 use std::collections::VecDeque;
 
+use super::literal::LiteralSource;
+
 type ClauseStore = SlotMap<DefaultKey, StoredClause>;
 
 pub struct Solve {
@@ -24,7 +26,7 @@ pub struct Solve {
     pub levels: Vec<Level>,
     pub formula_clauses: ClauseStore,
     pub learnt_clauses: ClauseStore,
-    pub watch_q: VecDeque<Literal>,
+    pub watch_q: VecDeque<(Literal, LiteralSource)>,
 }
 
 #[derive(Debug, PartialEq)]
