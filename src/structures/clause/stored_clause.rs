@@ -28,12 +28,12 @@ and, is intended to be the unique representation of a clause within a solve
 - `watch_a` and `watch_b` are pointers to the watched literals, and rely on a vector representation of the clause
   - note, both default to 0 and should be initialised with `initialise_watches_for` when the clause is stored
 */
-#[derive(Debug)]
 pub struct StoredClause {
     pub key: ClauseKey,
     lbd: Cell<usize>,
     source: ClauseSource,
     clause: ClauseVec,
+    watch_clause: Cell<ClauseVec>,
     watch_a: Cell<usize>,
     watch_b: Cell<usize>,
 }
@@ -66,14 +66,15 @@ pub enum WatchUpdateEnum {
 }
 
 impl StoredClause {
-    pub fn new_from(key: ClauseKey, clause: impl Clause, source: ClauseSource) -> StoredClause {
+    pub fn new_from(key: ClauseKey, clause: ClauseVec, source: ClauseSource) -> StoredClause {
         clause.is_empty().then(|| panic!("An empty clause"));
 
         StoredClause {
             key,
             lbd: Cell::new(0),
-            clause: clause.to_vec(),
             source,
+            clause: clause.clone(),
+            watch_clause: Cell::from(clause),
             watch_a: Cell::from(0),
             watch_b: Cell::from(0),
         }
@@ -83,22 +84,16 @@ impl StoredClause {
         &self.source
     }
 
-    pub fn clause_impl(&self) -> &impl Clause {
-        &self.clause
-    }
-
     pub fn literal_at(&self, position: usize) -> Literal {
         unsafe { *self.clause.get_unchecked(position) }
     }
 
-    pub fn literals(&self) -> impl Iterator<Item = Literal> + '_ {
-        self.clause.literals()
-    }
-
-    pub fn get_watch(&self, a_or_b: Watch) -> usize {
-        match a_or_b {
-            Watch::A => self.watch_a.get(),
-            Watch::B => self.watch_b.get(),
+    pub fn get_watched(&self, a_or_b: Watch) -> Literal {
+        unsafe {
+            match a_or_b {
+                Watch::A => *self.clause.get_unchecked(self.watch_a.get()),
+                Watch::B => *self.clause.get_unchecked(self.watch_b.get()),
+            }
         }
     }
 
@@ -108,19 +103,17 @@ impl StoredClause {
             Watch::B => self.watch_b.set(index),
         }
     }
-}
 
-impl StoredClause {
     /// Find the index of a literal which has not been valued, if possible, else if there was some witness for the clause, return that
     pub fn some_none_or_else_witness_idx(
         &self,
         val: &impl Valuation,
-        but_not_position: VariableId,
+        but_not: Option<VariableId>,
     ) -> WatchUpdateEnum {
         let mut witness = None;
 
         for (idx, literal) in self.clause.iter().enumerate() {
-            if idx != but_not_position {
+            if but_not.is_none() || but_not.is_some_and(|exclude| literal.v_id != exclude) {
                 match val.of_v_id(literal.v_id) {
                     None => return WatchUpdateEnum::None(idx),
                     Some(value) => {
@@ -137,97 +130,7 @@ impl StoredClause {
         }
     }
 
-    /// Finds an index of the clause vec whose value is None on val and differs from but_not.
-    fn some_none_idx(&self, val: &impl Valuation, but_not: Option<VariableId>) -> Option<usize> {
-        self.clause
-            .iter()
-            .enumerate()
-            .find(|(_, l)| {
-                let excluded = if let Some(to_exclude) = but_not {
-                    l.v_id != to_exclude
-                } else {
-                    true
-                };
-                excluded && val.of_v_id(l.v_id).is_none()
-            })
-            .map(|(idx, _)| idx)
-    }
-
-    /// Finds an index of the clause vec which witness the clause is true on val and differs from but_not.
-    fn some_witness_index(
-        &self,
-        val: &impl Valuation,
-        but_not: Option<VariableId>,
-    ) -> Option<usize> {
-        self.clause
-            .iter()
-            .enumerate()
-            .find(|(_, l)| {
-                let excluded = if let Some(to_exclude) = but_not {
-                    l.v_id != to_exclude
-                } else {
-                    true
-                };
-                let polarity_match = val.of_v_id(l.v_id).is_some_and(|v| v == l.polarity);
-                excluded && polarity_match
-            })
-            .map(|(idx, _)| idx)
-    }
-
-    /// Finds an index of the clause vec which witness the clause is false on val and differs from but_not.
-    /// And, in particular, ensures the decision level of the variable corresponding to the index is as high as possible.
-    /*
-    By ensuring the decision level of the variable is as high as possible we guarantee that the watch pair is only revised from some to none if the solve backtracks from the decision level of the watch.
-     */
-    fn some_differing_index(
-        &self,
-        val: &impl Valuation,
-        but_not: Option<VariableId>,
-        vars: &[Variable],
-    ) -> Option<usize> {
-        let (mut index, mut level) = (None, 0);
-
-        for (i, l) in self.clause.iter().enumerate() {
-            if val.of_v_id(l.v_id).is_some_and(|val_polarity| {
-                (val_polarity != l.polarity
-                    && (index.is_none() || level < vars[l.v_id].decision_level().unwrap()))
-                    && (but_not.is_none() || but_not.is_some_and(|vid| l.v_id != vid))
-            }) {
-                (index, level) = (Some(i), vars[l.v_id].decision_level().unwrap());
-            }
-        }
-
-        index
-    }
-
-    /// Finds some index of the clause vec which isn't but_not with the preference:
-    ///   A. The index points to a literal which is true on val.
-    ///   B. The index points to a literal which is unassigned on val.
-    ///   C. The index points to a literal which is false on val.
-    /// This preference contributes to maintaining useful watch literals.
-    /// As, it is essentail to know when a clause is true, as it then can provide no useful information.
-    /// And, if a watch is only on a differing literal when there are no other unassigned literals
-    /// it follows the other watched literal must be true on the valuation, or else there's a contradiction.
-    fn some_preferred_index(
-        &self,
-        val: &impl Valuation,
-        but_not: Option<usize>,
-        vars: &[Variable],
-    ) -> usize {
-        if let Some(index) = self.some_witness_index(val, but_not) {
-            index
-        } else if let Some(index) = self.some_none_idx(val, but_not) {
-            index
-        } else if let Some(index) = self.some_differing_index(val, but_not, vars) {
-            index
-        } else {
-            panic!("Could not find a suitable index");
-        }
-    }
-}
-
-impl StoredClause {
-    pub fn watch_choices(&self, val: &impl Valuation) -> ClauseStatus {
+    pub fn watch_status(&self, val: &impl Valuation) -> ClauseStatus {
         let a_literal = self.clause[self.watch_a.get()];
         let a_val = val.of_v_id(a_literal.v_id);
 
@@ -240,25 +143,19 @@ impl StoredClause {
             },
             _ => {
                 let b_literal = self.clause[self.watch_b.get()];
-
                 let b_val = val.of_v_id(b_literal.v_id);
 
-                if a_val.is_none() && b_val.is_none() {
-                    ClauseStatus::Unsatisfied
-                } else if a_val.is_some_and(|p| p == a_literal.polarity)
-                    || b_val.is_some_and(|p| p == b_literal.polarity)
-                {
-                    ClauseStatus::Satisfied
-                } else if b_val.is_none() {
-                    ClauseStatus::Entails(b_literal)
-                } else if a_val.is_none() {
-                    ClauseStatus::Entails(a_literal)
-                } else {
-                    // if a_val.is_some_and(|p_a| { p_a != a_literal.polarity && b_val.is_some_and(|p_b| p_b != b_literal.polarity)}) {
-                    ClauseStatus::Conflict
+                match (a_val, b_val) {
+                    (None, None) => ClauseStatus::Unsatisfied,
+                    (Some(a), Some(b)) if a == a_literal.polarity || b == b_literal.polarity => {
+                        ClauseStatus::Satisfied
+                    }
+                    (Some(a), None) if a == a_literal.polarity => ClauseStatus::Satisfied,
+                    (Some(_), None) => ClauseStatus::Entails(b_literal),
+                    (None, Some(b)) if b == b_literal.polarity => ClauseStatus::Satisfied,
+                    (None, Some(_)) => ClauseStatus::Entails(a_literal),
+                    (Some(_), Some(_)) => ClauseStatus::Conflict,
                 }
-
-                // panic!("Unexpected combination of watch literals")
             }
         }
     }
@@ -290,14 +187,28 @@ pub fn initialise_watches_for(
     vars: &[Variable],
 ) {
     if stored_clause.clause.len() > 1 {
-        stored_clause
-            .watch_a
-            .set(stored_clause.some_preferred_index(val, None, vars));
+        match stored_clause.some_none_or_else_witness_idx(val, None) {
+            WatchUpdateEnum::Witness(index) | WatchUpdateEnum::None(index) => {
+                stored_clause.watch_a.set(index)
+            }
+            WatchUpdateEnum::No => {
+                panic!("n");
+            }
+        }
 
-        stored_clause.watch_b.set({
-            let literal_a = stored_clause.clause[stored_clause.watch_a.get()];
-            stored_clause.some_preferred_index(val, Some(literal_a.v_id), vars)
-        });
+        let literal_a = stored_clause.clause[stored_clause.watch_a.get()];
+        match stored_clause.some_none_or_else_witness_idx(val, Some(literal_a.v_id)) {
+            WatchUpdateEnum::Witness(index) | WatchUpdateEnum::None(index) => {
+                stored_clause.watch_b.set(index)
+            }
+            WatchUpdateEnum::No => {
+                if stored_clause.watch_a.get() == 0 {
+                    stored_clause.watch_b.set(1)
+                } else {
+                    stored_clause.watch_b.set(0)
+                }
+            }
+        }
 
         let current_a = stored_clause.clause[stored_clause.watch_a.get()];
         vars[current_a.v_id].watch_added(stored_clause.key, current_a.polarity);

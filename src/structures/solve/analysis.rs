@@ -1,13 +1,13 @@
-use crate::procedures::{find_counterpart_literals, resolve_sorted_clauses};
+use crate::procedures::resolve_sorted_clauses;
 use crate::structures::valuation::Valuation;
 use crate::structures::{
     clause::{
         clause_vec::ClauseVec,
-        stored_clause::{initialise_watches_for, ClauseSource, StoredClause, Watch},
+        stored_clause::{initialise_watches_for, ClauseSource, StoredClause},
         Clause,
     },
     literal::{Literal, LiteralSource},
-    solve::{config, retreive, the_solve::literal_update, ClauseKey, Solve, SolveStatus},
+    solve::{config, retreive, ClauseKey, Solve, SolveStatus},
     variable::Variable,
 };
 
@@ -17,10 +17,11 @@ impl Solve {
     pub fn attempt_fix(&mut self, clause_key: ClauseKey) -> SolveStatus {
         let conflict_clause = retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
-        log::trace!(
-            "Attempt to fix on clause {conflict_clause} at level {}",
-            self.current_level().index()
-        );
+        {
+            let level = self.current_level().index();
+            log::trace!("Fix on clause {conflict_clause} @ {level}");
+        }
+
         match self.current_level().index() {
             0 => SolveStatus::NoSolution,
             _ => {
@@ -40,29 +41,10 @@ impl Solve {
                 let backjump_valuation = self.valuation_at(backjump_level);
                 initialise_watches_for(stored_clause, &backjump_valuation, &self.variables);
 
-                if assertion == stored_clause.literal_of(Watch::A) {
-                    self.watch_q
-                        .push_back(stored_clause.literal_of(Watch::B).negate());
-                } else if assertion == stored_clause.literal_of(Watch::B) {
-                    self.watch_q
-                        .push_back(stored_clause.literal_of(Watch::A).negate());
-                } else {
-                    panic!("Failed to predict asserting clause")
-                }
+                self.watch_q
+                    .push_back((assertion, anticipated_literal_source));
 
                 self.backjump(backjump_level);
-
-                // updating the valuation needs to happen here to ensure the watches for any queued literal during propagaion are fixed
-                literal_update(
-                    assertion,
-                    anticipated_literal_source,
-                    &mut self.levels,
-                    &self.variables,
-                    &mut self.valuation,
-                    &self.formula_clauses,
-                    &self.learnt_clauses,
-                );
-                self.watch_q.push_back(assertion);
 
                 SolveStatus::AssertingClause
             }
@@ -81,7 +63,12 @@ impl Solve {
         let mut asserted_literal = None;
 
         let stopping_criteria = unsafe { config::STOPPING_CRITERIA };
-        for (src, _lit) in self.current_level().observations().iter().rev() {
+
+        let mut x = self.current_level().observations.clone();
+
+        x.reverse();
+
+        for (src, _lit) in &x {
             match stopping_criteria {
                 config::StoppingCriteria::FirstAssertingUIP => {
                     if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
@@ -95,20 +82,15 @@ impl Solve {
             if let LiteralSource::StoredClause(clause_key) = src {
                 let stored_clause =
                     retreive(&self.formula_clauses, &self.learnt_clauses, *clause_key);
-                let src_cls_vec = stored_clause.clause_impl();
-                let counterparts =
-                    find_counterpart_literals(resolved_clause.literals(), src_cls_vec.literals());
 
-                if let Some(counterpart) = counterparts.first() {
+                let l = resolved_clause.clone();
+                let r = resolve_sorted_clauses(l.literals(), stored_clause.literals(), _lit.v_id);
+                if let Some(resolution) = r {
                     resolution_trail.push(*clause_key);
-                    resolved_clause = resolve_sorted_clauses(
-                        resolved_clause.literals(),
-                        src_cls_vec.literals(),
-                        *counterpart,
-                    )
-                    .unwrap()
-                    .to_vec();
-                }
+                    resolved_clause = resolution.to_vec();
+                };
+            } else {
+                panic!("Lost clause…")
             }
         }
 
@@ -116,6 +98,16 @@ impl Solve {
             if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
                 asserted_literal = Some(asserted);
             } else {
+                for x in resolution_trail {
+                    let cls = retreive(&self.formula_clauses, &self.learnt_clauses, x);
+                    println!("{}", cls.as_string());
+                }
+                for ob in self.current_level().observations() {
+                    println!("OBS {:?}", ob);
+                }
+
+                println!("CC {}", conflict_clause.as_string());
+                println!("RC {}", resolved_clause.as_string());
                 println!("PV {}", previous_level_val.as_internal_string());
                 println!("CV {}", self.valuation.as_internal_string());
                 panic!("No assertion…")
@@ -155,7 +147,7 @@ impl Solve {
         let node_indicies_vec = node_indicies.collect::<Vec<_>>();
         let simple_core = self.extant_origins(node_indicies_vec);
         for clause in simple_core {
-            println!("{}", clause.clause_impl().as_dimacs(&self.variables))
+            println!("{}", clause.as_dimacs(&self.variables))
         }
         println!();
     }
