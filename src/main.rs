@@ -88,7 +88,7 @@ fn main() {
         config::SHOW_ASSIGNMENT = args.assignment;
         config::RESTARTS_ALLOWED = args.restarts;
         config::REDUCTION_ALLOWED =
-            if !args.restarts {
+            if  args.reduction && !args.restarts {
                 println!("c REDUCTION REQUIRES RESTARTS TO BE ENABLED");
                 false
             } else {

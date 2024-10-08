@@ -36,6 +36,7 @@ macro_rules! time_block {
         let this_time = std::time::Instant::now();
         $b
         #[cfg(feature = "time")]
+        #[allow(unused_unsafe)]
         unsafe {
             $id += this_time.elapsed();
         }
@@ -417,24 +418,26 @@ pub fn process_watches(
         _ => {
             macro_rules! update_the_watch_to {
                 ($idx:expr) => {
-                    unsafe {
-                        match chosen_watch {
-                            Watch::A => {
-                                stored_clause.set_watch(Watch::A, $idx);
-                                let watched_a = stored_clause.literal_of(Watch::A);
-                                variables
-                                    .get_unchecked(watched_a.v_id)
-                                    .watch_added(stored_clause.key, watched_a.polarity)
-                            }
-                            Watch::B => {
-                                stored_clause.set_watch(Watch::B, $idx);
-                                let watched_b = stored_clause.literal_of(Watch::B);
-                                variables
-                                    .get_unchecked(watched_b.v_id)
-                                    .watch_added(stored_clause.key, watched_b.polarity)
+                    time_block!(stats::UPDATE_WATCH_TIME, {
+                        unsafe {
+                            match chosen_watch {
+                                Watch::A => {
+                                    stored_clause.set_watch(Watch::A, $idx);
+                                    let watched_a = stored_clause.literal_of(Watch::A);
+                                    variables
+                                        .get_unchecked(watched_a.v_id)
+                                        .watch_added(stored_clause.key, watched_a.polarity)
+                                }
+                                Watch::B => {
+                                    stored_clause.set_watch(Watch::B, $idx);
+                                    let watched_b = stored_clause.literal_of(Watch::B);
+                                    variables
+                                        .get_unchecked(watched_b.v_id)
+                                        .watch_added(stored_clause.key, watched_b.polarity)
+                                }
                             }
                         }
-                    }
+                    })
                 };
             }
 
@@ -444,15 +447,21 @@ pub fn process_watches(
                     .v_id,
             );
 
-            let watched_y_literal = match chosen_watch {
-                Watch::A => stored_clause.literal_at(stored_clause.get_watch(Watch::B)),
-                Watch::B => stored_clause.literal_at(stored_clause.get_watch(Watch::A)),
+            let watched_y_index = match chosen_watch {
+                Watch::A => stored_clause.get_watch(Watch::B),
+                Watch::B => stored_clause.get_watch(Watch::A),
             };
+
+            let watched_y_literal = stored_clause.literal_at(watched_y_index);
 
             let watched_y_value = val.of_v_id(watched_y_literal.v_id);
 
             if let Some(_current_x_value) = watched_x_value {
-                match stored_clause.some_none_or_else_witness_idx(val, watched_y_literal.v_id) {
+                time_statement!(stats::NEW_WATCH_TIME,
+                    let update = stored_clause.some_none_or_else_witness_idx(val, watched_y_index)
+                );
+
+                match update {
                     WatchUpdateEnum::Witness(idx) => {
                         if watched_y_value.is_some_and(|p| p == watched_y_literal.polarity) {
                             WatchStatus::SameSatisfied
