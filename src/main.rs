@@ -42,8 +42,12 @@ struct Args {
     #[arg(long, default_value_t = String::from("Default"))]
     exploration_priority: String,
 
+    /// Allow for the clauses to be forgotten, on occassion
+    #[arg(long, default_value_t = false)]
+    reduction: bool,
+
     /// Allow for the decisions to be forgotten, on occassion
-    #[arg(short, long, default_value_t = false)]
+    #[arg(long, default_value_t = false)]
     restarts: bool,
 
     /// Initially settle all atoms which occur with a unique polarity
@@ -54,7 +58,6 @@ struct Args {
     #[arg(short, long, value_parser = |seconds: &str| seconds.parse().map(std::time::Duration::from_secs))]
     time: Option<std::time::Duration>,
 }
-
 
 #[rustfmt::skip]
 fn main() {
@@ -84,6 +87,13 @@ fn main() {
         config::SHOW_CORE = args.core;
         config::SHOW_ASSIGNMENT = args.assignment;
         config::RESTARTS_ALLOWED = args.restarts;
+        config::REDUCTION_ALLOWED =
+            if !args.restarts {
+                println!("c REDUCTION REQUIRES RESTARTS TO BE ENABLED");
+                false
+            } else {
+                args.reduction
+            };
         config::TIME_LIMIT = args.time;
     }
 
