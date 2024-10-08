@@ -115,17 +115,19 @@ impl StoredClause {
     pub fn some_none_or_else_witness_idx(
         &self,
         val: &impl Valuation,
-        but_not: VariableId,
+        but_not_position: VariableId,
     ) -> WatchUpdateEnum {
         let mut witness = None;
+
         for (idx, literal) in self.clause.iter().enumerate() {
-            if but_not != literal.v_id {
-                if let Some(val) = val.of_v_id(literal.v_id) {
-                    if val == literal.polarity {
-                        witness = Some(idx);
+            if idx != but_not_position {
+                match val.of_v_id(literal.v_id) {
+                    None => return WatchUpdateEnum::None(idx),
+                    Some(value) => {
+                        if value == literal.polarity {
+                            witness = Some(idx)
+                        }
                     }
-                } else {
-                    return WatchUpdateEnum::None(idx);
                 }
             }
         }
