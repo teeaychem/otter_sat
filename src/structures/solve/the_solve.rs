@@ -309,9 +309,9 @@ pub fn literal_update(
                                 retreive_mut(formula_clauses, learnt_clauses, clause_key);
 
                             let the_watch =
-                                if stored_clause.literal_of(Watch::A).v_id == literal.v_id {
+                                if stored_clause.get_watched(Watch::A).v_id == literal.v_id {
                                     Watch::A
-                                } else if stored_clause.literal_of(Watch::B).v_id == literal.v_id {
+                                } else if stored_clause.get_watched(Watch::B).v_id == literal.v_id {
                                     Watch::B
                                 } else {
                                     panic!("oh")
@@ -344,7 +344,7 @@ pub fn literal_update(
                                 retreive_mut(formula_clauses, learnt_clauses, *clause_key);
 
                             let the_watch =
-                                match stored_clause.literal_of(Watch::A).v_id == literal.v_id {
+                                match stored_clause.get_watched(Watch::A).v_id == literal.v_id {
                                     true => Watch::A,
                                     false => Watch::B,
                                 };
@@ -381,31 +381,23 @@ pub fn process_watches(
     stored_clause: &mut StoredClause,
     chosen_watch: Watch,
 ) -> WatchStatus {
-    match stored_clause.length() {
-        1 => match val.of_v_id(stored_clause.get_watched(Watch::A).v_id) {
-            None => WatchStatus::Same,
-            Some(_) => WatchStatus::Same,
-        },
-        _ => {
-            let watched_x_literal = stored_clause.get_watched(chosen_watch);
-            let watched_x_value = val.of_v_id(watched_x_literal.v_id);
+    let watched_x_literal = stored_clause.get_watched(chosen_watch);
+    let watched_x_value = val.of_v_id(watched_x_literal.v_id);
 
-            if let Some(_current_x_value) = watched_x_value {
-                match stored_clause.watch_clause.update(chosen_watch, val) {
-                    WatchUpdate::NoUpdate => WatchStatus::Same,
-                    WatchUpdate::FromTo(from, to) => unsafe {
-                        variables
-                            .get_unchecked(from.v_id)
-                            .watch_removed(stored_clause.key, watched_x_literal.polarity);
-                        variables
-                            .get_unchecked(to.v_id)
-                            .watch_added(stored_clause.key, to.polarity);
-                        WatchStatus::New
-                    },
-                }
-            } else {
-                panic!("Process watches without value");
-            }
+    if let Some(_current_x_value) = watched_x_value {
+        match stored_clause.update_watch(chosen_watch, val) {
+            WatchUpdate::NoUpdate => WatchStatus::Same,
+            WatchUpdate::FromTo(from, to) => unsafe {
+                variables
+                    .get_unchecked(from.v_id)
+                    .watch_removed(stored_clause.key, watched_x_literal.polarity);
+                variables
+                    .get_unchecked(to.v_id)
+                    .watch_added(stored_clause.key, to.polarity);
+                WatchStatus::New
+            },
         }
+    } else {
+        panic!("Process watches without value");
     }
 }

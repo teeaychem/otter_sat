@@ -137,12 +137,12 @@ impl Solve {
             let stored_clause = &self.learnt_clauses[key];
 
             unsafe {
-                let watched_a_lit = stored_clause.literal_of(Watch::A);
+                let watched_a_lit = stored_clause.get_watched(Watch::A);
                 self.variables
                     .get_unchecked(watched_a_lit.v_id)
                     .watch_removed(stored_clause.key, watched_a_lit.polarity);
 
-                let watched_b_lit = stored_clause.literal_of(Watch::B);
+                let watched_b_lit = stored_clause.get_watched(Watch::B);
                 self.variables
                     .get_unchecked(watched_b_lit.v_id)
                     .watch_removed(stored_clause.key, watched_b_lit.polarity);
