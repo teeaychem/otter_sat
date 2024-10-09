@@ -73,7 +73,9 @@ impl StoredClause {
         valuation: &impl Valuation,
         variables: &mut [Variable],
     ) -> StoredClause {
-        clause.is_empty().then(|| panic!("An empty clause"));
+        if clause.len() < 2 {
+            panic!("Storing a short clause")
+        }
 
         let stored_clause = StoredClause {
             key,
