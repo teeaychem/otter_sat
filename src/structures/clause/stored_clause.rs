@@ -10,7 +10,7 @@ use orx_linked_list::{DoublyIterable, DoublyList};
 use std::cell::Cell;
 
 #[derive(Debug)]
-struct WatchClause {
+pub struct WatchClause {
     watch_a: Literal,
     watch_b: Literal,
     the_rest: DoublyList<Literal>,
@@ -24,7 +24,7 @@ enum Status {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum WatchUpdate {
+pub enum WatchUpdate {
     NoUpdate,
     FromTo(Literal, Literal),
 }
@@ -97,43 +97,24 @@ impl WatchClause {
                 }
             }
 
-            let wc = WatchClause {
+            WatchClause {
                 watch_a,
                 watch_b,
                 the_rest,
-            };
-            println!("{:?}", wc);
-            wc
+            }
         }
     }
 
     pub fn update(&mut self, watch: Watch, valuation: &impl Valuation) -> WatchUpdate {
-        let mut update_made = false;
-        // match watch {
-        //     Watch::A => {
-        //         if get_status(self.watch_a, valuation) == Status::None {
-        //             panic!("Already none");
-        //         }
-        //     }
-        //     Watch::B => {
-        //         if get_status(self.watch_b, valuation) == Status::None {
-        //             panic!("Already none");
-        //         }
-        //     }
-        // }
-
-        println!("BEFORE: {} {}", self.watch_a, self.watch_b);
-
         let mut replacement = None;
         let mut witness = false;
 
-        for idx in self.the_rest.indices() {
+        'search_loop: for idx in self.the_rest.indices() {
             let literal_at_index = self.the_rest[&idx];
             match get_status(literal_at_index, valuation) {
                 Status::None => {
                     replacement = Some(idx);
-                    witness = false;
-                    break;
+                    break 'search_loop;
                 }
                 Status::Witness if !witness => {
                     replacement = Some(idx);
@@ -190,9 +171,7 @@ pub struct StoredClause {
     lbd: Cell<usize>,
     source: ClauseSource,
     clause: ClauseVec,
-    watch_clause: WatchClause,
-    watch_a: Cell<usize>,
-    watch_b: Cell<usize>,
+    pub watch_clause: WatchClause,
 }
 
 #[derive(Debug)]
@@ -206,12 +185,8 @@ pub enum ClauseStatus {
 /// The same/new variants allow for contrast with a known previous state
 #[derive(PartialEq, Debug)]
 pub enum WatchStatus {
-    SameConflict,
-    SameImplication,
-    SameSatisfied,
-    NewImplication,
-    NewSatisfied,
-    NewTwoNone,
+    Same,
+    New,
 }
 
 /// The value is used to suggest an updated index
@@ -234,40 +209,27 @@ impl StoredClause {
             panic!("Storing a short clause")
         }
 
-        let mut stored_clause = StoredClause {
+        let stored_clause = StoredClause {
             key,
             lbd: Cell::new(0),
             source,
             clause: clause.clone(),
             watch_clause: WatchClause::new(clause, valuation),
-            watch_a: Cell::from(0),
-            watch_b: Cell::from(1),
         };
 
-        match stored_clause.some_none_or_else_witness_idx(Watch::A, valuation, None, true) {
-            WatchUpdateEnum::Witness(index) | WatchUpdateEnum::None(index) => {
-                stored_clause.watch_a.set(index)
-            }
-            WatchUpdateEnum::No => {}
-        }
-        let current_a = stored_clause.clause[stored_clause.watch_a.get()];
-        variables[current_a.v_id].watch_added(stored_clause.key, current_a.polarity);
+        unsafe {
+            let current_a = stored_clause.watch_clause.watch_a;
 
-        let literal_a = stored_clause.clause[stored_clause.watch_a.get()];
-        match stored_clause.some_none_or_else_witness_idx(
-            Watch::B,
-            valuation,
-            Some(literal_a.v_id),
-            false,
-        ) {
-            WatchUpdateEnum::Witness(index) | WatchUpdateEnum::None(index) => {
-                stored_clause.watch_b.set(index)
-            }
-            WatchUpdateEnum::No => {}
-        }
+            variables
+                .get_unchecked(current_a.v_id)
+                .watch_added(stored_clause.key, current_a.polarity);
 
-        let current_b = stored_clause.clause[stored_clause.watch_b.get()];
-        variables[current_b.v_id].watch_added(stored_clause.key, current_b.polarity);
+            let current_b = stored_clause.watch_clause.watch_b;
+
+            variables
+                .get_unchecked(current_b.v_id)
+                .watch_added(stored_clause.key, current_b.polarity);
+        }
 
         stored_clause
     }
@@ -281,50 +243,14 @@ impl StoredClause {
     }
 
     pub fn get_watched(&self, a_or_b: Watch) -> Literal {
-        unsafe {
-            match a_or_b {
-                Watch::A => *self.clause.get_unchecked(self.watch_a.get()),
-                Watch::B => *self.clause.get_unchecked(self.watch_b.get()),
-            }
-        }
-    }
-
-    pub fn set_watch(&self, watch: Watch, index: usize) {
-        match watch {
-            Watch::A => self.watch_a.set(index),
-            Watch::B => self.watch_b.set(index),
-        }
-    }
-
-    /// Find the index of a literal which has not been valued, if possible, else if there was some witness for the clause, return that
-    pub fn some_none_or_else_witness_idx(
-        &mut self,
-        watch: Watch,
-        val: &impl Valuation,
-        but_not: Option<VariableId>,
-        update_on_witness: bool,
-    ) -> WatchUpdateEnum {
-        self.watch_clause.update(watch, val);
-
-        let mut witness = None;
-
-        for (idx, literal) in self.clause.iter().enumerate() {
-            if but_not.is_none() || but_not.is_some_and(|exclude| literal.v_id != exclude) {
-                match val.of_v_id(literal.v_id) {
-                    None => return WatchUpdateEnum::None(idx),
-                    Some(value) if value == literal.polarity => witness = Some(idx),
-                    Some(_) => {}
-                }
-            }
-        }
-        match witness {
-            Some(idx) if update_on_witness => WatchUpdateEnum::Witness(idx),
-            Some(_) | None => WatchUpdateEnum::No,
+        match a_or_b {
+            Watch::A => self.watch_clause.watch_a,
+            Watch::B => self.watch_clause.watch_b,
         }
     }
 
     pub fn watch_status(&self, val: &impl Valuation) -> ClauseStatus {
-        let a_literal = unsafe { *self.clause.get_unchecked(self.watch_a.get()) };
+        let a_literal = self.watch_clause.watch_a;
         let a_val = val.of_v_id(a_literal.v_id);
 
         match self.clause.len() {
@@ -335,7 +261,7 @@ impl StoredClause {
                 None => ClauseStatus::Entails(a_literal),
             },
             _ => {
-                let b_literal = unsafe { *self.clause.get_unchecked(self.watch_b.get()) };
+                let b_literal = self.watch_clause.watch_b;
                 let b_val = val.of_v_id(b_literal.v_id);
 
                 match (a_val, b_val) {
@@ -362,11 +288,9 @@ impl StoredClause {
     }
 
     pub fn literal_of(&self, watch: Watch) -> Literal {
-        unsafe {
-            match watch {
-                Watch::A => *self.clause.get_unchecked(self.watch_a.get()),
-                Watch::B => *self.clause.get_unchecked(self.watch_b.get()),
-            }
+        match watch {
+            Watch::A => self.watch_clause.watch_a,
+            Watch::B => self.watch_clause.watch_b,
         }
     }
 
