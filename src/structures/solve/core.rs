@@ -9,7 +9,7 @@ use crate::structures::{
     level::{Level, LevelIndex},
     literal::{Literal, LiteralSource},
     solve::the_solve::literal_update,
-    solve::{retreive, ClauseKey, Solve},
+    solve::{ClauseKey, Solve},
     valuation::{Valuation, ValuationVec},
     variable::{Variable, VariableId},
 };
@@ -123,13 +123,6 @@ impl Solve {
                         )
                     });
 
-                    let bc = &self.formula_clauses[key];
-
-                    for literal in bc.literals() {
-                        self.variables[literal.v_id]
-                            .note_occurence(ClauseKey::Formula(key), literal.polarity);
-                    }
-
                     ClauseKey::Formula(key)
                 }
                 ClauseSource::Resolution(_) => {
@@ -144,31 +137,26 @@ impl Solve {
                         )
                     });
 
-                    let bc = &self.learnt_clauses[key];
-
-                    for literal in bc.literals() {
-                        self.variables[literal.v_id]
-                            .note_occurence(ClauseKey::Learnt(key), literal.polarity);
-                    }
-
                     ClauseKey::Learnt(key)
                 }
             },
         }
     }
 
-    pub fn drop_learnt_clause_by_swap(&mut self, clause_key: ClauseKey) {
+    pub fn drop_learnt_clause(&mut self, clause_key: ClauseKey) {
         if let ClauseKey::Learnt(key) = clause_key {
             let stored_clause = &self.learnt_clauses[key];
 
-            let watched_a_lit = stored_clause.literal_of(Watch::A);
-            self.variables[watched_a_lit.v_id].watch_removed(stored_clause, watched_a_lit.polarity);
+            unsafe {
+                let watched_a_lit = stored_clause.literal_of(Watch::A);
+                self.variables
+                    .get_unchecked(watched_a_lit.v_id)
+                    .watch_removed(stored_clause.key, watched_a_lit.polarity);
 
-            let watched_b_lit = stored_clause.literal_of(Watch::B);
-            self.variables[watched_b_lit.v_id].watch_removed(stored_clause, watched_b_lit.polarity);
-
-            for literal in stored_clause.literals() {
-                self.variables[literal.v_id].note_clause_drop(clause_key, literal.polarity)
+                let watched_b_lit = stored_clause.literal_of(Watch::B);
+                self.variables
+                    .get_unchecked(watched_b_lit.v_id)
+                    .watch_removed(stored_clause.key, watched_a_lit.polarity);
             }
 
             let _ = self.learnt_clauses.remove(key);
@@ -185,10 +173,11 @@ impl Solve {
             for literal in the_level.literals() {
                 log::trace!("Unset: {}", literal);
 
-                let v_id = literal.v_id;
-
-                self.valuation[v_id] = None;
-                self.variables[v_id].clear_decision_level();
+                unsafe {
+                    let v_id = literal.v_id;
+                    *self.valuation.get_unchecked_mut(v_id) = None;
+                    self.variables.get_unchecked(v_id).clear_decision_level();
+                }
             }
         }
     }
