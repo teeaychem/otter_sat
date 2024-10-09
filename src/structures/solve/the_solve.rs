@@ -7,7 +7,7 @@ use crate::structures::{
     level::Level,
     literal::{Literal, LiteralSource},
     solve::{
-        config, retreive,
+        config, retreive, retreive_mut,
         stats::SolveStats,
         ClauseKey, ClauseStore, Solve, {SolveResult, SolveStatus},
     },
@@ -89,8 +89,8 @@ impl Solve {
                             &mut self.levels,
                             &self.variables,
                             &mut self.valuation,
-                            &self.formula_clauses,
-                            &self.learnt_clauses,
+                            &mut self.formula_clauses,
+                            &mut self.learnt_clauses,
                         );
                     });
 
@@ -276,8 +276,8 @@ pub fn literal_update(
     levels: &mut [Level],
     variables: &[Variable],
     valuation: &mut impl Valuation,
-    formula_clauses: &ClauseStore,
-    learnt_clauses: &ClauseStore,
+    formula_clauses: &mut ClauseStore,
+    learnt_clauses: &mut ClauseStore,
 ) {
     let variable = &variables[literal.v_id];
 
@@ -306,7 +306,7 @@ pub fn literal_update(
                             let clause_key = *working_clause_vec.get_unchecked(index);
 
                             let stored_clause =
-                                retreive(formula_clauses, learnt_clauses, clause_key);
+                                retreive_mut(formula_clauses, learnt_clauses, clause_key);
 
                             let the_watch =
                                 if stored_clause.literal_of(Watch::A).v_id == literal.v_id {
@@ -317,7 +317,12 @@ pub fn literal_update(
                                     panic!("oh")
                                 };
 
-                            match process_watches(valuation, variables, stored_clause, the_watch) {
+                            match process_watches(
+                                valuation,
+                                variables,
+                                stored_clause,
+                                the_watch,
+                            ) {
                                 WatchStatus::SameSatisfied
                                 | WatchStatus::SameImplication
                                 | WatchStatus::SameConflict => {
@@ -345,7 +350,7 @@ pub fn literal_update(
                             let clause_key = working_clause_vec.get_unchecked(index);
 
                             let stored_clause =
-                                retreive(formula_clauses, learnt_clauses, *clause_key);
+                                retreive_mut(formula_clauses, learnt_clauses, *clause_key);
 
                             let the_watch =
                                 match stored_clause.literal_of(Watch::A).v_id == literal.v_id {
@@ -386,7 +391,7 @@ pub fn literal_update(
 pub fn process_watches(
     val: &impl Valuation,
     variables: &[Variable],
-    stored_clause: &StoredClause,
+    stored_clause: &mut StoredClause,
     chosen_watch: Watch,
 ) -> WatchStatus {
     match stored_clause.length() {
