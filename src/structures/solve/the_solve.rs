@@ -1,7 +1,7 @@
 use crate::procedures::hobson_choices;
 use crate::structures::{
     clause::{
-        stored_clause::{ClauseStatus, StoredClause, Watch, WatchStatus, WatchUpdate},
+        stored_clause::{ClauseStatus, StoredClause, Watch, WatchUpdate},
         Clause,
     },
     level::Level,
@@ -318,10 +318,10 @@ pub fn literal_update(
                                 };
 
                             match process_watches(valuation, variables, stored_clause, the_watch) {
-                                WatchStatus::Same => {
+                                WatchUpdate::NoUpdate => {
                                     index += 1;
                                 }
-                                WatchStatus::New => {
+                                WatchUpdate::FromTo(_, _) => {
                                     working_clause_vec.swap_remove(index);
                                     length -= 1;
                                 }
@@ -350,10 +350,10 @@ pub fn literal_update(
                                 };
 
                             match process_watches(valuation, variables, stored_clause, the_watch) {
-                                WatchStatus::Same => {
+                                WatchUpdate::NoUpdate => {
                                     index += 1;
                                 }
-                                WatchStatus::New => {
+                                WatchUpdate::FromTo(_, _) => {
                                     working_clause_vec.swap_remove(index);
                                     length -= 1;
                                 }
@@ -380,23 +380,23 @@ pub fn process_watches(
     variables: &[Variable],
     stored_clause: &mut StoredClause,
     chosen_watch: Watch,
-) -> WatchStatus {
+) -> WatchUpdate {
     let watched_x_literal = stored_clause.get_watched(chosen_watch);
     let watched_x_value = val.of_v_id(watched_x_literal.v_id);
 
     if let Some(_current_x_value) = watched_x_value {
-        match stored_clause.update_watch(chosen_watch, val) {
-            WatchUpdate::NoUpdate => WatchStatus::Same,
-            WatchUpdate::FromTo(from, to) => unsafe {
+        let update = stored_clause.update_watch(chosen_watch, val);
+        if let WatchUpdate::FromTo(from, to) = update {
+            unsafe {
                 variables
                     .get_unchecked(from.v_id)
                     .watch_removed(stored_clause.key, watched_x_literal.polarity);
                 variables
                     .get_unchecked(to.v_id)
                     .watch_added(stored_clause.key, to.polarity);
-                WatchStatus::New
-            },
-        }
+            }
+        };
+        update
     } else {
         panic!("Process watches without value");
     }
