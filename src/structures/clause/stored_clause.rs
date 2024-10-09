@@ -96,23 +96,21 @@ impl StoredClause {
         let current_a = stored_clause.clause[stored_clause.watch_a.get()];
         variables[current_a.v_id].watch_added(stored_clause.key, current_a.polarity);
 
-        if stored_clause.clause.len() > 1 {
-            let literal_a = stored_clause.clause[stored_clause.watch_a.get()];
-            match stored_clause.some_none_or_else_witness_idx(
-                Watch::B,
-                valuation,
-                Some(literal_a.v_id),
-                false,
-            ) {
-                WatchUpdateEnum::Witness(index) | WatchUpdateEnum::None(index) => {
-                    stored_clause.watch_b.set(index)
-                }
-                WatchUpdateEnum::No => {}
+        let literal_a = stored_clause.clause[stored_clause.watch_a.get()];
+        match stored_clause.some_none_or_else_witness_idx(
+            Watch::B,
+            valuation,
+            Some(literal_a.v_id),
+            false,
+        ) {
+            WatchUpdateEnum::Witness(index) | WatchUpdateEnum::None(index) => {
+                stored_clause.watch_b.set(index)
             }
-
-            let current_b = stored_clause.clause[stored_clause.watch_b.get()];
-            variables[current_b.v_id].watch_added(stored_clause.key, current_b.polarity);
+            WatchUpdateEnum::No => {}
         }
+
+        let current_b = stored_clause.clause[stored_clause.watch_b.get()];
+        variables[current_b.v_id].watch_added(stored_clause.key, current_b.polarity);
 
         stored_clause
     }

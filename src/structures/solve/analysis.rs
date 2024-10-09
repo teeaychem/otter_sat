@@ -28,10 +28,6 @@ impl Solve {
                 let (asserting_clause, clause_source, assertion) =
                     self.conflict_analysis(conflict_clause);
 
-                let backjump_level = decision_level(&self.variables, asserting_clause.literals());
-
-                let backjump_valuation = self.valuation_at(backjump_level);
-
                 if asserting_clause.len() == 1 {
                     let literal_source = match clause_source {
                         ClauseSource::Resolution(resolution_vector) => {
@@ -43,19 +39,18 @@ impl Solve {
 
                     self.backjump(0);
                 } else {
-                    let clause_key =
-                        self.store_clause(asserting_clause, clause_source, &backjump_valuation);
+                    self.backjump(decision_level(&self.variables, asserting_clause.literals()));
+
+                    let clause_key = self.store_clause(asserting_clause, clause_source);
                     let stored_clause =
                         retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
-                    let anticipated_literal_source = LiteralSource::StoredClause(stored_clause.key);
+                    let anticipated_literal_source = LiteralSource::StoredClause(clause_key);
 
                     stored_clause.set_lbd(&self.variables);
 
                     self.watch_q
                         .push_back((assertion, anticipated_literal_source));
-
-                    self.backjump(backjump_level);
                 }
 
                 SolveStatus::AssertingClause
@@ -77,7 +72,6 @@ impl Solve {
         let stopping_criteria = unsafe { config::STOPPING_CRITERIA };
 
         let mut x = self.current_level().observations.clone();
-
         x.reverse();
 
         for (src, _lit) in &x {
