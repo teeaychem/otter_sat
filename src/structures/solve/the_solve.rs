@@ -94,15 +94,12 @@ impl Solve {
                         );
                     });
 
-                    time_statement!(
-                        stats::PROP_BORROW_TIME,
-                            let borrowed_occurrences = match literal.polarity {
-                                true => the_variable.take_occurrence_vec(false),
-                                false => the_variable.take_occurrence_vec(true),
-                            }
-                    );
+                    unsafe {
+                        let borrowed_occurrences = match literal.polarity {
+                            true => &*the_variable.negative_watch_occurrences.get(),
+                            false => &*the_variable.positive_watch_occurrences.get(),
+                        };
 
-                    time_block!(stats::CLAUSE_LOOP_TIME, {
                         'clause_loop: for clause_key in borrowed_occurrences.iter().cloned() {
                             time_statement!(stats::GET_STORED_TIME,
                                 let stored_clause = retreive(&self.formula_clauses, &self.learnt_clauses, clause_key)
@@ -127,18 +124,7 @@ impl Solve {
                                 ClauseStatus::Unsatisfied | ClauseStatus::Satisfied => (),
                             }
                         }
-                    });
-
-                    time_block!(stats::PROP_BORROW_TIME, {
-                        match literal.polarity {
-                            true => {
-                                the_variable.restore_occurrence_vec(false, borrowed_occurrences)
-                            }
-                            false => {
-                                the_variable.restore_occurrence_vec(true, borrowed_occurrences)
-                            }
-                        };
-                    });
+                    }
                 }
             });
 
@@ -297,71 +283,66 @@ pub fn literal_update(
 
             // and, process whether any change to the watch literals is required
             match literal.polarity {
-                true => {
-                    let mut working_clause_vec = variable.take_occurrence_vec(false);
-                    let mut index = 0;
-                    let mut length = working_clause_vec.len();
-                    unsafe {
-                        while index < length {
-                            let clause_key = *working_clause_vec.get_unchecked(index);
-
-                            let stored_clause =
-                                retreive_mut(formula_clauses, learnt_clauses, clause_key);
-
-                            let the_watch =
-                                if stored_clause.get_watched(Watch::A).v_id == literal.v_id {
-                                    Watch::A
-                                } else if stored_clause.get_watched(Watch::B).v_id == literal.v_id {
-                                    Watch::B
-                                } else {
-                                    panic!("oh")
-                                };
-
-                            match process_watches(valuation, variables, stored_clause, the_watch) {
-                                WatchUpdate::NoUpdate => {
-                                    index += 1;
-                                }
-                                WatchUpdate::FromTo(_, _) => {
-                                    working_clause_vec.swap_remove(index);
-                                    length -= 1;
-                                }
-                            };
-                        }
-                    }
-                    variable.restore_occurrence_vec(false, working_clause_vec);
-                }
-
-                false => {
-                    let mut working_clause_vec = variable.take_occurrence_vec(true);
+                true => unsafe {
+                    let working_clause_vec = &*variable.negative_watch_occurrences.get();
 
                     let mut index = 0;
                     let mut length = working_clause_vec.len();
-                    unsafe {
-                        while index < length {
-                            let clause_key = working_clause_vec.get_unchecked(index);
 
-                            let stored_clause =
-                                retreive_mut(formula_clauses, learnt_clauses, *clause_key);
+                    while index < length {
+                        let clause_key = *working_clause_vec.get_unchecked(index);
 
-                            let the_watch =
-                                match stored_clause.get_watched(Watch::A).v_id == literal.v_id {
-                                    true => Watch::A,
-                                    false => Watch::B,
-                                };
+                        let stored_clause =
+                            retreive_mut(formula_clauses, learnt_clauses, clause_key);
 
-                            match process_watches(valuation, variables, stored_clause, the_watch) {
-                                WatchUpdate::NoUpdate => {
-                                    index += 1;
-                                }
-                                WatchUpdate::FromTo(_, _) => {
-                                    working_clause_vec.swap_remove(index);
-                                    length -= 1;
-                                }
-                            };
-                        }
+                        let the_watch = if stored_clause.get_watched(Watch::A).v_id == literal.v_id
+                        {
+                            Watch::A
+                        } else if stored_clause.get_watched(Watch::B).v_id == literal.v_id {
+                            Watch::B
+                        } else {
+                            panic!("oh")
+                        };
+
+                        match process_watches(valuation, variables, stored_clause, the_watch) {
+                            WatchUpdate::NoUpdate => {
+                                index += 1;
+                            }
+                            WatchUpdate::FromTo(_, _) => {
+                                length -= 1;
+                            }
+                        };
                     }
-                    variable.restore_occurrence_vec(true, working_clause_vec);
-                }
+                },
+
+                false => unsafe {
+                    let working_clause_vec = &*variable.positive_watch_occurrences.get();
+
+                    let mut index = 0;
+                    let mut length = working_clause_vec.len();
+
+                    while index < length {
+                        let clause_key = working_clause_vec.get_unchecked(index);
+
+                        let stored_clause =
+                            retreive_mut(formula_clauses, learnt_clauses, *clause_key);
+
+                        let the_watch =
+                            match stored_clause.get_watched(Watch::A).v_id == literal.v_id {
+                                true => Watch::A,
+                                false => Watch::B,
+                            };
+
+                        match process_watches(valuation, variables, stored_clause, the_watch) {
+                            WatchUpdate::NoUpdate => {
+                                index += 1;
+                            }
+                            WatchUpdate::FromTo(_, _) => {
+                                length -= 1;
+                            }
+                        };
+                    }
+                },
             }
         }
         Err(ValuationStatus::Match) => match source {
