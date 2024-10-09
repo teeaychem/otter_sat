@@ -183,7 +183,7 @@ impl StoredClause {
 
         let length = self.the_wc.len();
         'search_loop: for index in 2..length {
-            let literal_at_index = self.the_wc[index];
+            let literal_at_index = unsafe { *self.the_wc.get_unchecked(index) };
             match get_status(literal_at_index, valuation) {
                 Status::None => {
                     replacement = Some(index);
@@ -193,24 +193,26 @@ impl StoredClause {
                     replacement = Some(index);
                     witness = true;
                 }
-                Status::Witness => {}
-                Status::Conflict => {}
+                Status::Witness | Status::Conflict => {}
             }
         }
 
         if let Some(idx) = replacement {
-            match watch {
-                Watch::A => {
-                    let from = self.the_wc[0];
-                    self.the_wc.swap(0, idx);
-                    WatchUpdate::FromTo(from, self.get_watched(Watch::A))
-                }
-                Watch::B => {
-                    let from = self.the_wc[1];
-                    self.the_wc.swap(1, idx);
-                    WatchUpdate::FromTo(from, self.get_watched(Watch::B))
-                }
+            let clause_index = match watch {
+                Watch::A => 0,
+                Watch::B => 1,
+            };
+
+            let from = self.get_watched(watch);
+            let mix_up = 3 * (idx / 4);
+            if mix_up > 2 {
+                self.the_wc.swap(mix_up, idx);
+                self.the_wc.swap(clause_index, mix_up);
+            } else {
+                self.the_wc.swap(clause_index, idx);
             }
+
+            WatchUpdate::FromTo(from, self.get_watched(watch))
         } else {
             WatchUpdate::NoUpdate
         }
