@@ -1,4 +1,4 @@
-use crate::structures::{clause::stored_clause::StoredClause, level::LevelIndex, solve::ClauseKey};
+use crate::structures::{level::LevelIndex, solve::ClauseKey};
 
 pub type VariableId = usize;
 use std::cell::Cell;
@@ -7,10 +7,8 @@ pub struct Variable {
     name: String,
     id: VariableId,
     decision_level: Cell<Option<LevelIndex>>,
-    positive_occurrences: Cell<Vec<ClauseKey>>,
-    negative_occurrences: Cell<Vec<ClauseKey>>,
-    pub positive_watch_occurrences: Cell<Vec<ClauseKey>>,
-    pub negative_watch_occurrences: Cell<Vec<ClauseKey>>,
+    positive_watch_occurrences: Cell<Vec<ClauseKey>>,
+    negative_watch_occurrences: Cell<Vec<ClauseKey>>,
     activity: Cell<ActivityRep>,
 }
 
@@ -22,8 +20,6 @@ impl Variable {
             name: name.to_string(),
             decision_level: Cell::new(None),
             id,
-            positive_occurrences: Cell::new(Vec::new()),
-            negative_occurrences: Cell::new(Vec::new()),
             positive_watch_occurrences: Cell::new(Vec::new()),
             negative_watch_occurrences: Cell::new(Vec::new()),
             activity: Cell::new(0.0),
@@ -53,9 +49,6 @@ impl Variable {
     pub fn add_activity(&self, by: ActivityRep) {
         let mut activity = self.activity.get();
         activity += by;
-        if activity.is_infinite() {
-            panic!("inf…")
-        }
         self.activity.set(activity);
     }
 
@@ -67,47 +60,11 @@ impl Variable {
         self.activity.get()
     }
 
-    pub fn note_occurence(&self, clause_key: ClauseKey, polarity: bool) {
-        match polarity {
-            true => {
-                let mut temporary = self.positive_occurrences.take();
-                temporary.push(clause_key);
-                self.positive_occurrences.set(temporary);
-            }
-            false => {
-                let mut temporary = self.negative_occurrences.take();
-                temporary.push(clause_key);
-                self.negative_occurrences.set(temporary);
-            }
-        }
-    }
-
-    pub fn note_clause_drop(&self, clause_key: ClauseKey, polarity: bool) {
-        match polarity {
-            true => {
-                let mut temporary = self.positive_occurrences.take();
-                let position = temporary.iter().position(|sc| *sc == clause_key);
-                if let Some(p) = position {
-                    temporary.swap_remove(p);
-                }
-                self.positive_occurrences.set(temporary);
-            }
-            false => {
-                let mut temporary = self.negative_occurrences.take();
-                let position = temporary.iter().position(|sc| *sc == clause_key);
-                if let Some(p) = position {
-                    temporary.swap_remove(p);
-                }
-                self.negative_occurrences.set(temporary);
-            }
-        }
-    }
-
-    pub fn watch_removed(&self, stored_clause: &StoredClause, polarity: bool) {
+    pub fn watch_removed(&self, clause_key: ClauseKey, polarity: bool) {
         match polarity {
             true => {
                 let mut temporary = self.positive_watch_occurrences.take();
-                let position = temporary.iter().position(|sc| *sc == stored_clause.key);
+                let position = temporary.iter().position(|sc| *sc == clause_key);
                 if let Some(p) = position {
                     temporary.swap_remove(p);
                 }
@@ -115,7 +72,7 @@ impl Variable {
             }
             false => {
                 let mut temporary = self.negative_watch_occurrences.take();
-                let position = temporary.iter().position(|sc| *sc == stored_clause.key);
+                let position = temporary.iter().position(|sc| *sc == clause_key);
                 if let Some(p) = position {
                     temporary.swap_remove(p);
                 }
