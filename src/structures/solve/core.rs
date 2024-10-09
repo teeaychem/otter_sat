@@ -36,12 +36,11 @@ impl Solve {
 
         for formula_clause in clauses {
             match formula_clause.length() {
-                0 => {
-                    panic!("c The formula contains a zero-length clause");
+                n if n < 2 => {
+                    panic!("c The formula contains a zero-or-one-length clause");
                 }
                 _ => {
-                    let _unneeded_clause_key =
-                        the_solve.store_clause(formula_clause.to_vec(), ClauseSource::Formula);
+                    the_solve.store_clause(formula_clause.to_vec(), ClauseSource::Formula);
                 }
             }
         }
@@ -79,8 +78,8 @@ impl Solve {
                 &mut self.levels,
                 &self.variables,
                 &mut self.valuation,
-                &self.formula_clauses,
-                &self.learnt_clauses,
+                &mut self.formula_clauses,
+                &mut self.learnt_clauses,
             );
             self.watch_q
                 .push_back((the_literal, LiteralSource::HobsonChoice));

@@ -50,6 +50,17 @@ pub fn retreive<'a>(
     }
 }
 
+pub fn retreive_mut<'a>(
+    formula: &'a mut ClauseStore,
+    learnt: &'a mut ClauseStore,
+    key: ClauseKey,
+) -> &'a mut StoredClause {
+    match key {
+        ClauseKey::Formula(key) => &mut formula[key],
+        ClauseKey::Learnt(key) => &mut learnt[key],
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ClauseKey {
     Formula(slotmap::DefaultKey),
