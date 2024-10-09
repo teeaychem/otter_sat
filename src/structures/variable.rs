@@ -1,15 +1,15 @@
 use crate::structures::{level::LevelIndex, solve::ClauseKey};
 
 pub type VariableId = usize;
-use std::cell::Cell;
+use std::cell::UnsafeCell;
 
 pub struct Variable {
     name: String,
     id: VariableId,
-    decision_level: Cell<Option<LevelIndex>>,
-    positive_watch_occurrences: Cell<Vec<ClauseKey>>,
-    negative_watch_occurrences: Cell<Vec<ClauseKey>>,
-    activity: Cell<ActivityRep>,
+    decision_level: UnsafeCell<Option<LevelIndex>>,
+    pub positive_watch_occurrences: UnsafeCell<Vec<ClauseKey>>,
+    pub negative_watch_occurrences: UnsafeCell<Vec<ClauseKey>>,
+    activity: UnsafeCell<ActivityRep>,
 }
 
 type ActivityRep = f32;
@@ -18,11 +18,11 @@ impl Variable {
     pub fn new(name: &str, id: VariableId) -> Self {
         Variable {
             name: name.to_string(),
-            decision_level: Cell::new(None),
+            decision_level: UnsafeCell::new(None),
             id,
-            positive_watch_occurrences: Cell::new(Vec::new()),
-            negative_watch_occurrences: Cell::new(Vec::new()),
-            activity: Cell::new(0.0),
+            positive_watch_occurrences: UnsafeCell::new(Vec::new()),
+            negative_watch_occurrences: UnsafeCell::new(Vec::new()),
+            activity: UnsafeCell::new(0.0),
         }
     }
 
@@ -31,15 +31,15 @@ impl Variable {
     }
 
     pub fn decision_level(&self) -> Option<LevelIndex> {
-        self.decision_level.get()
+        unsafe { *self.decision_level.get() }
     }
 
     pub fn clear_decision_level(&self) {
-        self.decision_level.set(None);
+        unsafe { *self.decision_level.get() = None }
     }
 
     pub fn set_decision_level(&self, level: LevelIndex) {
-        self.decision_level.set(Some(level))
+        unsafe { *self.decision_level.get() = Some(level) }
     }
 
     pub fn id(&self) -> VariableId {
@@ -47,67 +47,53 @@ impl Variable {
     }
 
     pub fn add_activity(&self, by: ActivityRep) {
-        let mut activity = self.activity.get();
-        activity += by;
-        self.activity.set(activity);
+        unsafe {
+            let activity = self.activity.get();
+            *activity += by;
+        }
     }
 
     pub fn multiply_activity(&self, by: ActivityRep) {
-        self.activity.set(self.activity.get() * by);
+        unsafe {
+            let was = *self.activity.get();
+            *self.activity.get() = was * by;
+        }
     }
 
     pub fn activity(&self) -> ActivityRep {
-        self.activity.get()
+        unsafe { *self.activity.get() }
     }
 
     pub fn watch_removed(&self, clause_key: ClauseKey, polarity: bool) {
         match polarity {
-            true => {
-                let mut temporary = self.positive_watch_occurrences.take();
-                let position = temporary.iter().position(|sc| *sc == clause_key);
+            true => unsafe {
+                let occurrences = &mut *self.positive_watch_occurrences.get();
+                let position = occurrences.iter().position(|sc| *sc == clause_key);
                 if let Some(p) = position {
-                    temporary.swap_remove(p);
+                    occurrences.swap_remove(p);
                 }
-                self.positive_watch_occurrences.set(temporary);
-            }
-            false => {
-                let mut temporary = self.negative_watch_occurrences.take();
-                let position = temporary.iter().position(|sc| *sc == clause_key);
+            },
+            false => unsafe {
+                let occurrences = &mut *self.negative_watch_occurrences.get();
+                let position = occurrences.iter().position(|sc| *sc == clause_key);
                 if let Some(p) = position {
-                    temporary.swap_remove(p);
+                    occurrences.swap_remove(p);
                 }
-                self.negative_watch_occurrences.set(temporary);
-            }
+            },
         };
     }
 
     pub fn watch_added(&self, clause_key: ClauseKey, polarity: bool) {
         match polarity {
-            true => {
-                let mut temporary = self.positive_watch_occurrences.take();
-                temporary.push(clause_key);
-                self.positive_watch_occurrences.set(temporary);
-            }
-            false => {
-                let mut temporary = self.negative_watch_occurrences.take();
-                temporary.push(clause_key);
-                self.negative_watch_occurrences.set(temporary);
-            }
+            true => unsafe {
+                let occurrences = &mut *self.positive_watch_occurrences.get();
+                occurrences.push(clause_key)
+            },
+            false => unsafe {
+                let occurrences = &mut *self.negative_watch_occurrences.get();
+                occurrences.push(clause_key);
+            },
         }
-    }
-
-    pub fn take_occurrence_vec(&self, polarity: bool) -> Vec<ClauseKey> {
-        match polarity {
-            true => self.positive_watch_occurrences.take(),
-            false => self.negative_watch_occurrences.take(),
-        }
-    }
-
-    pub fn restore_occurrence_vec(&self, polarity: bool, vec: Vec<ClauseKey>) {
-        match polarity {
-            true => self.positive_watch_occurrences.set(vec),
-            false => self.negative_watch_occurrences.set(vec),
-        };
     }
 }
 

@@ -6,7 +6,7 @@ use crate::structures::{
     variable::{Variable, VariableId},
 };
 
-use std::cell::Cell;
+use std::cell::UnsafeCell;
 
 /**
 The stored clause struct associates a clause with metadata relevant for a solve
@@ -16,7 +16,7 @@ and, is intended to be the unique representation of a clause within a solve
 */
 pub struct StoredClause {
     pub key: ClauseKey,
-    lbd: Cell<usize>,
+    lbd: UnsafeCell<usize>,
     source: ClauseSource,
     clause: ClauseVec,
     the_wc: ClauseVec,
@@ -73,7 +73,7 @@ impl StoredClause {
     ) -> StoredClause {
         let stored_clause = StoredClause {
             key,
-            lbd: Cell::new(0),
+            lbd: UnsafeCell::new(0),
             source,
             clause: clause.clone(),
             the_wc: figure_out_intial_watches(clause, valuation),
@@ -142,11 +142,13 @@ impl StoredClause {
     }
 
     pub fn set_lbd(&self, vars: &[Variable]) {
-        self.lbd.set(self.lbd(vars));
+        unsafe {
+            *self.lbd.get() = self.lbd(vars);
+        }
     }
 
     pub fn get_set_lbd(&self) -> usize {
-        self.lbd.get()
+        unsafe { *self.lbd.get() }
     }
 
     pub fn clause_clone(&self) -> ClauseVec {
