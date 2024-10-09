@@ -164,7 +164,7 @@ impl Solve {
                             }
 
                             for key in keys_to_drop {
-                                self.drop_learnt_clause_by_swap(ClauseKey::Learnt(key))
+                                self.drop_learnt_clause(ClauseKey::Learnt(key))
                             }
 
                             log::debug!(target: "forget", "Reduced to: {}", self.learnt_clauses.len());
@@ -296,7 +296,7 @@ pub fn literal_update(
             // and, process whether any change to the watch literals is required
             match literal.polarity {
                 true => {
-                    let mut working_clause_vec = variable.negative_watch_occurrences.take();
+                    let mut working_clause_vec = variable.take_occurrence_vec(false);
                     let mut index = 0;
                     let mut length = working_clause_vec.len();
                     unsafe {
@@ -330,11 +330,11 @@ pub fn literal_update(
                             };
                         }
                     }
-                    variable.negative_watch_occurrences.set(working_clause_vec)
+                    variable.restore_occurrence_vec(false, working_clause_vec);
                 }
 
                 false => {
-                    let mut working_clause_vec = variable.positive_watch_occurrences.take();
+                    let mut working_clause_vec = variable.take_occurrence_vec(true);
 
                     let mut index = 0;
                     let mut length = working_clause_vec.len();
@@ -366,7 +366,7 @@ pub fn literal_update(
                             };
                         }
                     }
-                    variable.positive_watch_occurrences.set(working_clause_vec)
+                    variable.restore_occurrence_vec(true, working_clause_vec);
                 }
             }
         }
@@ -393,7 +393,8 @@ pub fn process_watches(
             Some(_) => WatchStatus::SameSatisfied,
         },
         _ => {
-            let watched_x_value = val.of_v_id(stored_clause.get_watched(chosen_watch).v_id);
+            let watched_x_literal = stored_clause.get_watched(chosen_watch);
+            let watched_x_value = val.of_v_id(watched_x_literal.v_id);
 
             let watched_y_literal = match chosen_watch {
                 Watch::A => stored_clause.get_watched(Watch::B),
@@ -412,6 +413,9 @@ pub fn process_watches(
 
                 match update {
                     WatchUpdateEnum::Witness(idx) | WatchUpdateEnum::None(idx) => unsafe {
+                        variables
+                            .get_unchecked(watched_x_literal.v_id)
+                            .watch_removed(stored_clause.key, watched_x_literal.polarity);
                         match chosen_watch {
                             Watch::A => {
                                 stored_clause.set_watch(Watch::A, idx);
