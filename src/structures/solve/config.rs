@@ -9,7 +9,7 @@ pub static mut SHOW_CORE: bool = false;
 pub static mut SHOW_ASSIGNMENT: bool = false;
 pub static mut EXPLORATION_PRIORITY: ExplorationPriority = ExplorationPriority::Default;
 pub static mut STOPPING_CRITERIA: StoppingCriteria = StoppingCriteria::FirstAssertingUIP;
-pub static mut STOPPING_CRITERIARESTARTS_ALLOWED: bool = true;
+pub static mut RESTARTS_ALLOWED: bool = true;
 pub static mut HOBSON_CHOICES: bool = false;
 pub static mut TIME_LIMIT: Option<std::time::Duration> = None;
 
