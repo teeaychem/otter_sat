@@ -200,20 +200,14 @@ impl Solve {
                     #[cfg(feature = "time")]
                     let this_conflict_time = std::time::Instant::now();
 
-                    let conflict_clause =
-                        retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
-
                     self.conflicts += 1;
                     self.conflicts_since_last_forget += 1;
                     self.conflicts_since_last_reset += 1;
+
                     if self.conflicts % config::DECAY_FREQUENCY == 0 {
                         for variable in &self.variables {
-                            variable.multiply_activity(config::DECAY_FACTOR)
+                            variable.multiply_activity(config::DECAY_FACTOR);
                         }
-                    }
-
-                    for variable in conflict_clause.variables() {
-                        self.variables[variable].add_activity(config::ACTIVITY_CONFLICT);
                     }
 
                     let analysis_result = self.attempt_fix(clause_key);
@@ -265,7 +259,7 @@ pub fn literal_update(
     formula_clauses: &mut ClauseStore,
     learnt_clauses: &mut ClauseStore,
 ) {
-    let variable = &variables[literal.v_id];
+    let variable = unsafe { variables.get_unchecked(literal.v_id) };
 
     // update the valuation and match the result
     match valuation.update_value(literal) {
@@ -279,7 +273,11 @@ pub fn literal_update(
                 | LiteralSource::Resolution(_) => 0,
             };
             variable.set_decision_level(level_index);
-            levels[level_index].record_literal(literal, &source);
+            unsafe {
+                levels
+                    .get_unchecked_mut(level_index)
+                    .record_literal(literal, &source);
+            }
 
             // and, process whether any change to the watch literals is required
             match literal.polarity {
@@ -290,27 +288,21 @@ pub fn literal_update(
                     let mut length = working_clause_vec.len();
 
                     while index < length {
-                        let clause_key = *working_clause_vec.get_unchecked(index);
+                        let stored_clause = retreive_mut(
+                            formula_clauses,
+                            learnt_clauses,
+                            *working_clause_vec.get_unchecked(index),
+                        );
 
-                        let stored_clause =
-                            retreive_mut(formula_clauses, learnt_clauses, clause_key);
-
-                        let the_watch = if stored_clause.get_watched(Watch::A).v_id == literal.v_id
-                        {
-                            Watch::A
-                        } else if stored_clause.get_watched(Watch::B).v_id == literal.v_id {
-                            Watch::B
-                        } else {
-                            panic!("oh")
-                        };
+                        let the_watch =
+                            match stored_clause.get_watched(Watch::A).v_id == literal.v_id {
+                                true => Watch::A,
+                                false => Watch::B,
+                            };
 
                         match process_watches(valuation, variables, stored_clause, the_watch) {
-                            WatchUpdate::NoUpdate => {
-                                index += 1;
-                            }
-                            WatchUpdate::FromTo(_, _) => {
-                                length -= 1;
-                            }
+                            WatchUpdate::NoUpdate => index += 1,
+                            WatchUpdate::FromTo(_, _) => length -= 1,
                         };
                     }
                 },
@@ -322,10 +314,11 @@ pub fn literal_update(
                     let mut length = working_clause_vec.len();
 
                     while index < length {
-                        let clause_key = working_clause_vec.get_unchecked(index);
-
-                        let stored_clause =
-                            retreive_mut(formula_clauses, learnt_clauses, *clause_key);
+                        let stored_clause = retreive_mut(
+                            formula_clauses,
+                            learnt_clauses,
+                            *working_clause_vec.get_unchecked(index),
+                        );
 
                         let the_watch =
                             match stored_clause.get_watched(Watch::A).v_id == literal.v_id {
@@ -334,12 +327,8 @@ pub fn literal_update(
                             };
 
                         match process_watches(valuation, variables, stored_clause, the_watch) {
-                            WatchUpdate::NoUpdate => {
-                                index += 1;
-                            }
-                            WatchUpdate::FromTo(_, _) => {
-                                length -= 1;
-                            }
+                            WatchUpdate::NoUpdate => index += 1,
+                            WatchUpdate::FromTo(_, _) => length -= 1,
                         };
                     }
                 },
@@ -357,27 +346,30 @@ pub fn literal_update(
 }
 
 pub fn process_watches(
-    val: &impl Valuation,
+    valuation: &impl Valuation,
     variables: &[Variable],
     stored_clause: &mut StoredClause,
     chosen_watch: Watch,
 ) -> WatchUpdate {
-    let watched_x_literal = stored_clause.get_watched(chosen_watch);
-    let watched_x_value = val.of_v_id(watched_x_literal.v_id);
-
-    if let Some(_current_x_value) = watched_x_value {
-        let update = stored_clause.update_watch(chosen_watch, val);
-        if let WatchUpdate::FromTo(from, to) = update {
-            unsafe {
-                variables
-                    .get_unchecked(from.v_id)
-                    .watch_removed(stored_clause.key, watched_x_literal.polarity);
-                variables
-                    .get_unchecked(to.v_id)
-                    .watch_added(stored_clause.key, to.polarity);
+    if valuation
+        .of_v_id(stored_clause.get_watched(chosen_watch).v_id)
+        .is_some()
+    {
+        let update = stored_clause.update_watch(chosen_watch, valuation);
+        match update {
+            WatchUpdate::FromTo(from, to) => {
+                unsafe {
+                    variables
+                        .get_unchecked(from.v_id)
+                        .watch_removed(stored_clause.key, from.polarity);
+                    variables
+                        .get_unchecked(to.v_id)
+                        .watch_added(stored_clause.key, to.polarity);
+                };
+                update
             }
-        };
-        update
+            WatchUpdate::NoUpdate => update,
+        }
     } else {
         panic!("Process watches without value");
     }

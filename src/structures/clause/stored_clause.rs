@@ -102,6 +102,7 @@ impl StoredClause {
         unsafe { *self.clause.get_unchecked(position) }
     }
 
+    #[inline(never)]
     pub fn get_watched(&self, a_or_b: Watch) -> Literal {
         unsafe {
             match a_or_b {
@@ -161,8 +162,7 @@ impl StoredClause {
 
         let length = self.the_wc.len();
         'search_loop: for index in 2..length {
-            let literal_at_index = unsafe { *self.the_wc.get_unchecked(index) };
-            match get_status(literal_at_index, valuation) {
+            match get_status(unsafe { *self.the_wc.get_unchecked(index) }, valuation) {
                 WatchStatus::None => {
                     replacement = Some(index);
                     break 'search_loop;
@@ -182,7 +182,8 @@ impl StoredClause {
             };
 
             let from = self.get_watched(watch);
-            let mix_up = 3 * (idx / 4);
+            let mix_up = idx - (idx / 5);
+
             if mix_up > 2 {
                 self.the_wc.swap(mix_up, idx);
                 self.the_wc.swap(clause_index, mix_up);
@@ -319,10 +320,10 @@ fn figure_out_intial_watches(clause: ClauseVec, val: &impl Valuation) -> Vec<Lit
     the_wc
 }
 
-fn get_status(l: Literal, v: &impl Valuation) -> WatchStatus {
-    match v.of_v_id(l.v_id) {
+fn get_status(literal: Literal, valuation: &impl Valuation) -> WatchStatus {
+    match valuation.of_v_id(literal.v_id) {
         None => WatchStatus::None,
-        Some(polarity) if polarity == l.polarity => WatchStatus::Witness,
+        Some(polarity) if polarity == literal.polarity => WatchStatus::Witness,
         Some(_) => WatchStatus::Conflict,
     }
 }

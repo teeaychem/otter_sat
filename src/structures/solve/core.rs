@@ -1,5 +1,6 @@
 use slotmap::SlotMap;
 
+use crate::config;
 use crate::structures::{
     clause::{
         stored_clause::{ClauseSource, StoredClause, Watch},
@@ -8,8 +9,7 @@ use crate::structures::{
     formula::Formula,
     level::{Level, LevelIndex},
     literal::{Literal, LiteralSource},
-    solve::the_solve::literal_update,
-    solve::{ClauseKey, Solve},
+    solve::{the_solve::literal_update, ClauseKey, Solve},
     valuation::{Valuation, ValuationVec},
     variable::{Variable, VariableId},
 };
@@ -116,6 +116,7 @@ impl Solve {
                 }
                 ClauseSource::Resolution(_) => {
                     log::trace!("Learning clause {}", clause.as_string());
+
                     let key = self.learnt_clauses.insert_with_key(|k| {
                         StoredClause::new_from(
                             ClauseKey::Learnt(k),
