@@ -32,19 +32,31 @@ impl Solve {
 
                 let backjump_valuation = self.valuation_at(backjump_level);
 
-                let clause_key =
-                    self.store_clause(asserting_clause, clause_source, &backjump_valuation);
-                let stored_clause =
-                    retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
+                if asserting_clause.len() == 1 {
+                    let literal_source = match clause_source {
+                        ClauseSource::Resolution(resolution_vector) => {
+                            LiteralSource::Resolution(resolution_vector)
+                        }
+                        _ => panic!("Analysis without resolution"),
+                    };
+                    self.watch_q.push_back((assertion, literal_source));
 
-                let anticipated_literal_source = LiteralSource::StoredClause(stored_clause.key);
+                    self.backjump(0);
+                } else {
+                    let clause_key =
+                        self.store_clause(asserting_clause, clause_source, &backjump_valuation);
+                    let stored_clause =
+                        retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
-                stored_clause.set_lbd(&self.variables);
+                    let anticipated_literal_source = LiteralSource::StoredClause(stored_clause.key);
 
-                self.watch_q
-                    .push_back((assertion, anticipated_literal_source));
+                    stored_clause.set_lbd(&self.variables);
 
-                self.backjump(backjump_level);
+                    self.watch_q
+                        .push_back((assertion, anticipated_literal_source));
+
+                    self.backjump(backjump_level);
+                }
 
                 SolveStatus::AssertingClause
             }
