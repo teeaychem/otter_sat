@@ -116,29 +116,19 @@ impl StoredClause {
         let a_literal = self.get_watched(Watch::A);
         let a_val = val.of_v_id(a_literal.v_id);
 
-        match self.clause.len() {
-            1 => match a_val {
-                // both watches point to the only literal
-                Some(polarity) if polarity == a_literal.polarity => ClauseStatus::Satisfied,
-                Some(_) => ClauseStatus::Conflict,
-                None => ClauseStatus::Entails(a_literal),
-            },
-            _ => {
-                let b_literal = self.get_watched(Watch::B);
-                let b_val = val.of_v_id(b_literal.v_id);
+        let b_literal = self.get_watched(Watch::B);
+        let b_val = val.of_v_id(b_literal.v_id);
 
-                match (a_val, b_val) {
-                    (None, None) => ClauseStatus::Unsatisfied,
-                    (Some(a), None) if a == a_literal.polarity => ClauseStatus::Satisfied,
-                    (Some(_), None) => ClauseStatus::Entails(b_literal),
-                    (None, Some(b)) if b == b_literal.polarity => ClauseStatus::Satisfied,
-                    (None, Some(_)) => ClauseStatus::Entails(a_literal),
-                    (Some(a), Some(b)) if a == a_literal.polarity || b == b_literal.polarity => {
-                        ClauseStatus::Satisfied
-                    }
-                    (Some(_), Some(_)) => ClauseStatus::Conflict,
-                }
+        match (a_val, b_val) {
+            (None, None) => ClauseStatus::Unsatisfied,
+            (Some(a), None) if a == a_literal.polarity => ClauseStatus::Satisfied,
+            (None, Some(b)) if b == b_literal.polarity => ClauseStatus::Satisfied,
+            (Some(_), None) => ClauseStatus::Entails(b_literal),
+            (None, Some(_)) => ClauseStatus::Entails(a_literal),
+            (Some(a), Some(b)) if a == a_literal.polarity || b == b_literal.polarity => {
+                ClauseStatus::Satisfied
             }
+            (Some(_), Some(_)) => ClauseStatus::Conflict,
         }
     }
 
@@ -169,6 +159,7 @@ impl StoredClause {
                 }
                 WatchStatus::Witness if !witness => {
                     replacement = Some(index);
+                    break 'search_loop;
                     witness = true;
                 }
                 WatchStatus::Witness | WatchStatus::Conflict => {}
