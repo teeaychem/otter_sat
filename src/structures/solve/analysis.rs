@@ -71,10 +71,13 @@ impl Solve {
 
         let stopping_criteria = unsafe { config::STOPPING_CRITERIA };
 
+        let variable_count = self.variables.len();
+        let mut used_variables = vec![false; variable_count];
+
         let mut x = self.current_level().observations.clone();
         x.reverse();
 
-        for (src, _lit) in &x {
+        for (src, literal) in &x {
             match stopping_criteria {
                 config::StoppingCriteria::FirstAssertingUIP => {
                     if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
@@ -86,17 +89,23 @@ impl Solve {
             }
 
             if let LiteralSource::StoredClause(clause_key) = src {
-                let stored_clause =
+                let stored_source_clause =
                     retreive(&self.formula_clauses, &self.learnt_clauses, *clause_key);
 
-                let l = resolved_clause.clone();
-                let r = resolve_sorted_clauses(l.literals(), stored_clause.literals(), _lit.v_id);
-                if let Some(resolution) = r {
+                for involved_literal in stored_source_clause.literals() {
+                    used_variables[involved_literal.v_id] = true;
+                }
+
+                let for_the_borrow_checker = resolved_clause.clone();
+                let resolution_result = resolve_sorted_clauses(
+                    for_the_borrow_checker.literals(),
+                    stored_source_clause.literals(),
+                    literal.v_id,
+                );
+                if let Some(resolution) = resolution_result {
                     resolution_trail.push(*clause_key);
                     resolved_clause = resolution.to_vec();
                 };
-            } else {
-                panic!("Lost clause…")
             }
         }
 
@@ -131,6 +140,16 @@ impl Solve {
                     .iter()
                     .any(|(_, x)| l.negate() == *x)
             })
+        }
+
+        // for variable in resolved_clause.variables() {
+        //     self.variables[variable].add_activity(config::ACTIVITY_CONFLICT);
+        // }
+        #[allow(clippy::needless_range_loop)]
+        for index in 0..variable_count {
+            if used_variables[index] {
+                self.variables[index].add_activity(config::ACTIVITY_CONFLICT);
+            }
         }
 
         (
