@@ -78,55 +78,48 @@ impl Solve {
 
             let mut found_conflict = None;
 
-            time_block!(stats::PROPAGATION_TIME, {
-                'propagation_loop: while let Some((literal, source)) = self.watch_q.pop_front() {
-                    let the_variable = &self.variables[literal.v_id];
+            'propagation_loop: while let Some((literal, source)) = self.watch_q.pop_front() {
+                let the_variable = &self.variables[literal.v_id];
 
-                    time_block!(stats::LITERAL_UPDATE_TIME, {
-                        literal_update(
-                            literal,
-                            source,
-                            &mut self.levels,
-                            &self.variables,
-                            &mut self.valuation,
-                            &mut self.formula_clauses,
-                            &mut self.learnt_clauses,
-                        );
-                    });
+                literal_update(
+                    literal,
+                    source,
+                    &mut self.levels,
+                    &self.variables,
+                    &mut self.valuation,
+                    &mut self.formula_clauses,
+                    &mut self.learnt_clauses,
+                );
 
-                    unsafe {
-                        let borrowed_occurrences = match literal.polarity {
-                            true => &*the_variable.negative_watch_occurrences.get(),
-                            false => &*the_variable.positive_watch_occurrences.get(),
-                        };
+                unsafe {
+                    let borrowed_occurrences = match literal.polarity {
+                        true => &*the_variable.negative_watch_occurrences.get(),
+                        false => &*the_variable.positive_watch_occurrences.get(),
+                    };
 
-                        'clause_loop: for clause_key in borrowed_occurrences.iter().cloned() {
-                            time_statement!(stats::GET_STORED_TIME,
-                                let stored_clause = retreive(&self.formula_clauses, &self.learnt_clauses, clause_key)
-                            );
+                    'clause_loop: for clause_key in borrowed_occurrences.iter().cloned() {
+                        let stored_clause =
+                            retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
-                            time_statement!(stats::WATCH_CHOICES_TIME,
-                                let watch_choices = stored_clause.watch_status(&self.valuation)
-                            );
+                        let watch_choices = stored_clause.watch_status(&self.valuation);
 
-                            match watch_choices {
-                                ClauseStatus::Entails(consequent) => {
-                                    self.watch_q.push_back((
-                                        consequent,
-                                        LiteralSource::StoredClause(stored_clause.key),
-                                    ));
-                                }
-                                ClauseStatus::Conflict => {
-                                    found_conflict = Some(clause_key);
-                                    self.watch_q.clear();
-                                    break 'clause_loop;
-                                }
-                                ClauseStatus::Unsatisfied | ClauseStatus::Satisfied => (),
+                        match watch_choices {
+                            ClauseStatus::Entails(consequent) => {
+                                self.watch_q.push_back((
+                                    consequent,
+                                    LiteralSource::StoredClause(stored_clause.key),
+                                ));
                             }
+                            ClauseStatus::Conflict => {
+                                found_conflict = Some(clause_key);
+                                self.watch_q.clear();
+                                break 'clause_loop;
+                            }
+                            ClauseStatus::Unsatisfied | ClauseStatus::Satisfied => (),
                         }
                     }
                 }
-            });
+            }
 
             match found_conflict {
                 None => {
@@ -351,10 +344,21 @@ pub fn process_watches(
     stored_clause: &mut StoredClause,
     chosen_watch: Watch,
 ) -> WatchUpdate {
+    let other_watch = match chosen_watch {
+        Watch::A => Watch::B,
+        Watch::B => Watch::A,
+    };
     if valuation
-        .of_v_id(stored_clause.get_watched(chosen_watch).v_id)
-        .is_some()
+        .of_v_id(stored_clause.get_watched(other_watch).v_id)
+        .is_some_and(|p| p == stored_clause.get_watched(other_watch).polarity)
     {
+        return WatchUpdate::NoUpdate;
+    }
+
+    // if valuation
+    //     .of_v_id(stored_clause.get_watched(chosen_watch).v_id)
+    //     .is_some()
+    // {
         let update = stored_clause.update_watch(chosen_watch, valuation);
         match update {
             WatchUpdate::FromTo(from, to) => {
@@ -370,7 +374,7 @@ pub fn process_watches(
             }
             WatchUpdate::NoUpdate => update,
         }
-    } else {
-        panic!("Process watches without value");
-    }
+    // } else {
+    //     panic!("Process watches without value");
+    // }
 }
