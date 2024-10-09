@@ -32,9 +32,7 @@ pub enum ExplorationPriority {
 
 impl Solve {
     pub fn it_is_time_to_reduce(&self) -> bool {
-        let l_i = luby(self.restarts + 1);
-        let x = 256_usize.wrapping_mul(l_i);
-        self.conflicts_since_last_forget > x
+        self.conflicts_since_last_forget > 256_usize.wrapping_mul(luby(self.restarts + 1))
     }
 }
 

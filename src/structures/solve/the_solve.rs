@@ -1,7 +1,7 @@
 use crate::procedures::hobson_choices;
 use crate::structures::{
     clause::{
-        stored_clause::{ClauseStatus, StoredClause, Watch, WatchStatus, WatchUpdateEnum},
+        stored_clause::{ClauseStatus, StoredClause, Watch, WatchStatus, WatchUpdate},
         Clause,
     },
     level::Level,
@@ -317,20 +317,11 @@ pub fn literal_update(
                                     panic!("oh")
                                 };
 
-                            match process_watches(
-                                valuation,
-                                variables,
-                                stored_clause,
-                                the_watch,
-                            ) {
-                                WatchStatus::SameSatisfied
-                                | WatchStatus::SameImplication
-                                | WatchStatus::SameConflict => {
+                            match process_watches(valuation, variables, stored_clause, the_watch) {
+                                WatchStatus::Same => {
                                     index += 1;
                                 }
-                                WatchStatus::NewImplication
-                                | WatchStatus::NewSatisfied
-                                | WatchStatus::NewTwoNone => {
+                                WatchStatus::New => {
                                     working_clause_vec.swap_remove(index);
                                     length -= 1;
                                 }
@@ -359,14 +350,10 @@ pub fn literal_update(
                                 };
 
                             match process_watches(valuation, variables, stored_clause, the_watch) {
-                                WatchStatus::SameSatisfied
-                                | WatchStatus::SameImplication
-                                | WatchStatus::SameConflict => {
+                                WatchStatus::Same => {
                                     index += 1;
                                 }
-                                WatchStatus::NewImplication
-                                | WatchStatus::NewSatisfied
-                                | WatchStatus::NewTwoNone => {
+                                WatchStatus::New => {
                                     working_clause_vec.swap_remove(index);
                                     length -= 1;
                                 }
@@ -396,64 +383,24 @@ pub fn process_watches(
 ) -> WatchStatus {
     match stored_clause.length() {
         1 => match val.of_v_id(stored_clause.get_watched(Watch::A).v_id) {
-            None => WatchStatus::SameImplication,
-            Some(_) => WatchStatus::SameSatisfied,
+            None => WatchStatus::Same,
+            Some(_) => WatchStatus::Same,
         },
         _ => {
             let watched_x_literal = stored_clause.get_watched(chosen_watch);
             let watched_x_value = val.of_v_id(watched_x_literal.v_id);
 
-            let watched_y_literal = match chosen_watch {
-                Watch::A => stored_clause.get_watched(Watch::B),
-                Watch::B => stored_clause.get_watched(Watch::A),
-            };
-
-            let watched_y_value = val.of_v_id(watched_y_literal.v_id);
-
             if let Some(_current_x_value) = watched_x_value {
-                time_statement!(stats::NEW_WATCH_TIME,
-                let update = stored_clause.some_none_or_else_witness_idx(
-                    chosen_watch,
-                    val,
-                    Some(watched_y_literal.v_id),
-                    !watched_y_value.is_some_and(|p| p == watched_y_literal.polarity)));
-
-                match update {
-                    WatchUpdateEnum::Witness(idx) | WatchUpdateEnum::None(idx) => unsafe {
+                match stored_clause.watch_clause.update(chosen_watch, val) {
+                    WatchUpdate::NoUpdate => WatchStatus::Same,
+                    WatchUpdate::FromTo(from, to) => unsafe {
                         variables
-                            .get_unchecked(watched_x_literal.v_id)
+                            .get_unchecked(from.v_id)
                             .watch_removed(stored_clause.key, watched_x_literal.polarity);
-                        match chosen_watch {
-                            Watch::A => {
-                                stored_clause.set_watch(Watch::A, idx);
-                                let watched_a = stored_clause.literal_of(Watch::A);
-                                variables
-                                    .get_unchecked(watched_a.v_id)
-                                    .watch_added(stored_clause.key, watched_a.polarity)
-                            }
-                            Watch::B => {
-                                stored_clause.set_watch(Watch::B, idx);
-                                let watched_b = stored_clause.literal_of(Watch::B);
-                                variables
-                                    .get_unchecked(watched_b.v_id)
-                                    .watch_added(stored_clause.key, watched_b.polarity)
-                            }
-                        }
-                    },
-                    _ => {}
-                };
-
-                match update {
-                    WatchUpdateEnum::Witness(_) => WatchStatus::NewSatisfied,
-                    WatchUpdateEnum::None(_) => match watched_y_value {
-                        None => WatchStatus::NewTwoNone,
-                        Some(p) if p == watched_y_literal.polarity => WatchStatus::NewSatisfied,
-                        _ => WatchStatus::NewImplication,
-                    },
-                    WatchUpdateEnum::No => match watched_y_value {
-                        None => WatchStatus::SameImplication,
-                        Some(p) if p == watched_y_literal.polarity => WatchStatus::SameSatisfied,
-                        _ => WatchStatus::SameConflict,
+                        variables
+                            .get_unchecked(to.v_id)
+                            .watch_added(stored_clause.key, to.polarity);
+                        WatchStatus::New
                     },
                 }
             } else {
