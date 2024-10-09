@@ -156,7 +156,7 @@ impl Solve {
                 let watched_b_lit = stored_clause.literal_of(Watch::B);
                 self.variables
                     .get_unchecked(watched_b_lit.v_id)
-                    .watch_removed(stored_clause.key, watched_a_lit.polarity);
+                    .watch_removed(stored_clause.key, watched_b_lit.polarity);
             }
 
             let _ = self.learnt_clauses.remove(key);
