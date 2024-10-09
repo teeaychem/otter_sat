@@ -9,7 +9,7 @@ extra_stats = []
 
 [dependencies]
 clap = { version = "4.5.15", features = ["derive"] }
-log = { version = "0.4.22", features = ["max_level_debug", "release_max_level_off"] }
+log = { version = "0.4.22", features = ["max_level_debug", "release_max_level_debug"] }
 log4rs = { version = "1.3.0" }
 orx-linked-list = "3.1.0"
 slotmap = { version = "1.0" }
