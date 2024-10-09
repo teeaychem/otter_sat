@@ -38,6 +38,7 @@ impl Level {
             }
             LiteralSource::HobsonChoice
             | LiteralSource::Assumption
+            | LiteralSource::Resolution(_)
             | LiteralSource::StoredClause(_) => self.observations.push((source.clone(), literal)),
         }
     }

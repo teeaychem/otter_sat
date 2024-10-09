@@ -15,6 +15,7 @@ pub enum LiteralSource {
     Choice,                  // a choice made where the alternative may make a SAT difference
     HobsonChoice, // a choice made with a guarantee that the alternative would make no SAT difference
     StoredClause(ClauseKey), // the literal must be the case for SAT given some valuation
+    Resolution(Vec<ClauseKey>), // there was no reason to store the resolved clause
     Assumption,
 }
 

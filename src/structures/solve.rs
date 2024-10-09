@@ -5,14 +5,12 @@ pub mod core;
 mod stats;
 mod the_solve;
 
-use crate::structures::{level::Level, literal::Literal, variable::Variable};
+use crate::structures::{level::Level, literal::{Literal, LiteralSource}, variable::Variable};
 
 use crate::structures::clause::stored_clause::StoredClause;
 use slotmap::{DefaultKey, SlotMap};
 
 use std::collections::VecDeque;
-
-use super::literal::LiteralSource;
 
 type ClauseStore = SlotMap<DefaultKey, StoredClause>;
 

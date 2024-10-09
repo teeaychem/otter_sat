@@ -288,7 +288,9 @@ pub fn literal_update(
             // if update occurrs, make records at the relevant level
             let level_index = match &source {
                 LiteralSource::Choice | LiteralSource::StoredClause(_) => levels.len() - 1,
-                LiteralSource::Assumption | LiteralSource::HobsonChoice => 0,
+                LiteralSource::Assumption
+                | LiteralSource::HobsonChoice
+                | LiteralSource::Resolution(_) => 0,
             };
             variable.set_decision_level(level_index);
             levels[level_index].record_literal(literal, &source);
