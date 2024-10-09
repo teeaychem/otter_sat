@@ -34,19 +34,14 @@ impl Solve {
             learnt_clauses: SlotMap::new(),
         };
 
-        let initial_valuation = the_solve.valuation.clone();
-
         for formula_clause in clauses {
             match formula_clause.length() {
                 0 => {
                     panic!("c The formula contains a zero-length clause");
                 }
                 _ => {
-                    let _unneeded_clause_key = the_solve.store_clause(
-                        formula_clause.to_vec(),
-                        ClauseSource::Formula,
-                        &initial_valuation,
-                    );
+                    let _unneeded_clause_key =
+                        the_solve.store_clause(formula_clause.to_vec(), ClauseSource::Formula);
                 }
             }
         }
@@ -103,12 +98,7 @@ impl Solve {
 
     /// Stores a clause with an automatically generated id.
     /// Note: In order to use the clause the watch literals of the struct must be initialised.
-    pub fn store_clause(
-        &mut self,
-        clause: impl Clause,
-        src: ClauseSource,
-        valuation: &impl Valuation,
-    ) -> ClauseKey {
+    pub fn store_clause(&mut self, clause: impl Clause, src: ClauseSource) -> ClauseKey {
         match clause.length() {
             0 => panic!("Attempt to add an empty clause"),
             _ => match &src {
@@ -118,7 +108,7 @@ impl Solve {
                             ClauseKey::Formula(k),
                             clause.to_vec(),
                             src,
-                            valuation,
+                            &self.valuation,
                             &mut self.variables,
                         )
                     });
@@ -132,7 +122,7 @@ impl Solve {
                             ClauseKey::Learnt(k),
                             clause.to_vec(),
                             src,
-                            valuation,
+                            &self.valuation,
                             &mut self.variables,
                         )
                     });
