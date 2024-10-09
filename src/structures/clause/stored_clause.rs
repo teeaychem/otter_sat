@@ -6,15 +6,10 @@ use crate::structures::{
     variable::{Variable, VariableId},
 };
 
-use orx_linked_list::{DoublyIterable, DoublyList};
 use std::cell::Cell;
 
 #[derive(Debug)]
-pub struct WatchClause {
-    watch_a: Literal,
-    watch_b: Literal,
-    the_rest: DoublyList<Literal>,
-}
+pub struct WatchClause {}
 
 #[derive(Clone, Copy, PartialEq)]
 enum Status {
@@ -34,115 +29,6 @@ fn get_status(l: Literal, v: &impl Valuation) -> Status {
         None => Status::None,
         Some(polarity) if polarity == l.polarity => Status::Witness,
         Some(_) => Status::Conflict,
-    }
-}
-
-impl WatchClause {
-    pub fn new(clause: ClauseVec, val: &impl Valuation) -> Self {
-        unsafe {
-            let mut the_rest = DoublyList::new();
-            let mut watch_a = *clause.get_unchecked(0);
-            let mut watch_b = *clause.get_unchecked(1);
-            let mut a_status = get_status(watch_a, val);
-            let mut b_status = get_status(watch_b, val);
-
-            /*
-            The initial setup gurantees a has status none or witness, while b may have any status
-            priority is given to watch a, so that watch b remains a conflict until watch a becomes none
-            at which point, b inherits the witness status of a (which may be updated again) or becomes none and no more checks need to happen
-             */
-
-            for index in 2..clause.len() {
-                let literal = *clause.get_unchecked(index);
-                if a_status == Status::None && b_status == Status::None {
-                    the_rest.push_back(literal);
-                } else {
-                    let literal_status = get_status(literal, val);
-                    match literal_status {
-                        Status::Conflict => {
-                            // do nothing on a conflict
-                            the_rest.push_back(literal);
-                        }
-                        Status::None => {
-                            // by the first check, either a or b fails to be none, so update a or otherwise b
-                            if a_status != Status::None {
-                                // though, if a is acting as a witness, pass this to b
-                                if a_status == Status::Witness {
-                                    the_rest.push_back(watch_b);
-                                    watch_b = watch_a;
-                                    watch_a = literal;
-                                    a_status = Status::None;
-                                    b_status = Status::Witness;
-                                } else {
-                                    the_rest.push_back(watch_a);
-                                    watch_a = literal;
-                                    a_status = Status::None;
-                                }
-                            } else {
-                                the_rest.push_back(watch_b);
-                                watch_b = literal;
-                                b_status = Status::None;
-                            }
-                        }
-                        Status::Witness => {
-                            if a_status == Status::Conflict {
-                                the_rest.push_back(watch_a);
-                                watch_a = literal;
-                                a_status = Status::Witness;
-                            } else {
-                                the_rest.push_back(literal);
-                            }
-                        }
-                    }
-                }
-            }
-
-            WatchClause {
-                watch_a,
-                watch_b,
-                the_rest,
-            }
-        }
-    }
-
-    pub fn update(&mut self, watch: Watch, valuation: &impl Valuation) -> WatchUpdate {
-        let mut replacement = None;
-        let mut witness = false;
-
-        'search_loop: for idx in self.the_rest.indices() {
-            let literal_at_index = self.the_rest[&idx];
-            match get_status(literal_at_index, valuation) {
-                Status::None => {
-                    replacement = Some(idx);
-                    break 'search_loop;
-                }
-                Status::Witness if !witness => {
-                    replacement = Some(idx);
-                    witness = true;
-                }
-                Status::Witness => {}
-                Status::Conflict => {}
-            }
-        }
-        if let Some(idx) = replacement {
-            let new_watch = self.the_rest.remove(&idx);
-            match watch {
-                Watch::A => {
-                    self.the_rest.push_front(self.watch_a);
-                    let from = self.watch_a;
-                    self.watch_a = new_watch;
-                    WatchUpdate::FromTo(from, new_watch)
-                }
-                Watch::B => {
-                    self.the_rest.push_front(self.watch_b);
-                    let from = self.watch_b;
-                    self.watch_b = new_watch;
-                    WatchUpdate::FromTo(from, new_watch)
-                }
-            }
-        } else {
-            WatchUpdate::NoUpdate
-        }
     }
 }
 
@@ -171,7 +57,7 @@ pub struct StoredClause {
     lbd: Cell<usize>,
     source: ClauseSource,
     clause: ClauseVec,
-    pub watch_clause: WatchClause,
+    pub the_wc: ClauseVec,
 }
 
 #[derive(Debug)]
@@ -209,23 +95,23 @@ impl StoredClause {
             panic!("Storing a short clause")
         }
 
+        let the_wc = figure_out_intial_watches(clause.clone(), valuation);
+
         let stored_clause = StoredClause {
             key,
             lbd: Cell::new(0),
             source,
-            clause: clause.clone(),
-            watch_clause: WatchClause::new(clause, valuation),
+            clause,
+            the_wc,
         };
 
         unsafe {
-            let current_a = stored_clause.watch_clause.watch_a;
-
+            let current_a = stored_clause.the_wc[0];
             variables
                 .get_unchecked(current_a.v_id)
                 .watch_added(stored_clause.key, current_a.polarity);
 
-            let current_b = stored_clause.watch_clause.watch_b;
-
+            let current_b = stored_clause.the_wc[1];
             variables
                 .get_unchecked(current_b.v_id)
                 .watch_added(stored_clause.key, current_b.polarity);
@@ -244,13 +130,13 @@ impl StoredClause {
 
     pub fn get_watched(&self, a_or_b: Watch) -> Literal {
         match a_or_b {
-            Watch::A => self.watch_clause.watch_a,
-            Watch::B => self.watch_clause.watch_b,
+            Watch::A => self.the_wc[0],
+            Watch::B => self.the_wc[1],
         }
     }
 
     pub fn watch_status(&self, val: &impl Valuation) -> ClauseStatus {
-        let a_literal = self.watch_clause.watch_a;
+        let a_literal = self.get_watched(Watch::A);
         let a_val = val.of_v_id(a_literal.v_id);
 
         match self.clause.len() {
@@ -261,7 +147,7 @@ impl StoredClause {
                 None => ClauseStatus::Entails(a_literal),
             },
             _ => {
-                let b_literal = self.watch_clause.watch_b;
+                let b_literal = self.get_watched(Watch::B);
                 let b_val = val.of_v_id(b_literal.v_id);
 
                 match (a_val, b_val) {
@@ -287,15 +173,47 @@ impl StoredClause {
         self.lbd.get()
     }
 
-    pub fn literal_of(&self, watch: Watch) -> Literal {
-        match watch {
-            Watch::A => self.watch_clause.watch_a,
-            Watch::B => self.watch_clause.watch_b,
-        }
-    }
-
     pub fn clause_clone(&self) -> ClauseVec {
         self.clause.clone()
+    }
+
+    pub fn update_watch(&mut self, watch: Watch, valuation: &impl Valuation) -> WatchUpdate {
+        let mut replacement = None;
+        let mut witness = false;
+
+        let length = self.the_wc.len();
+        'search_loop: for index in 2..length {
+            let literal_at_index = self.the_wc[index];
+            match get_status(literal_at_index, valuation) {
+                Status::None => {
+                    replacement = Some(index);
+                    break 'search_loop;
+                }
+                Status::Witness if !witness => {
+                    replacement = Some(index);
+                    witness = true;
+                }
+                Status::Witness => {}
+                Status::Conflict => {}
+            }
+        }
+
+        if let Some(idx) = replacement {
+            match watch {
+                Watch::A => {
+                    let from = self.the_wc[0];
+                    self.the_wc.swap(0, idx);
+                    WatchUpdate::FromTo(from, self.get_watched(Watch::A))
+                }
+                Watch::B => {
+                    let from = self.the_wc[1];
+                    self.the_wc.swap(1, idx);
+                    WatchUpdate::FromTo(from, self.get_watched(Watch::B))
+                }
+            }
+        } else {
+            WatchUpdate::NoUpdate
+        }
     }
 }
 
@@ -362,4 +280,61 @@ impl Clause for StoredClause {
     fn find_literal_by_id(&self, id: VariableId) -> Option<Literal> {
         self.clause.find_literal_by_id(id)
     }
+}
+
+fn figure_out_intial_watches(clause: ClauseVec, val: &impl Valuation) -> Vec<Literal> {
+    let mut the_wc = clause.clone();
+    let mut watch_a = 0;
+    let mut watch_b = 1;
+    let mut a_status = get_status(the_wc[watch_a], val);
+    let mut b_status = get_status(the_wc[watch_b], val);
+
+    /*
+    The initial setup gurantees a has status none or witness, while b may have any status
+    priority is given to watch a, so that watch b remains a conflict until watch a becomes none
+    at which point, b inherits the witness status of a (which may be updated again) or becomes none and no more checks need to happen
+     */
+
+    let length = clause.len();
+    for index in 2..length {
+        if a_status == Status::None && b_status == Status::None {
+            break;
+        } else {
+            let literal = the_wc[index];
+            let literal_status = get_status(literal, val);
+            match literal_status {
+                Status::Conflict => {
+                    // do nothing on a conflict
+                }
+                Status::None => {
+                    // by the first check, either a or b fails to be none, so update a or otherwise b
+                    if a_status != Status::None {
+                        // though, if a is acting as a witness, pass this to b
+                        if a_status == Status::Witness {
+                            watch_b = watch_a;
+                            watch_a = index;
+                            a_status = Status::None;
+                            b_status = Status::Witness;
+                        } else {
+                            watch_a = index;
+                            a_status = Status::None;
+                        }
+                    } else {
+                        watch_b = index;
+                        b_status = Status::None;
+                    }
+                }
+                Status::Witness => {
+                    if a_status == Status::Conflict {
+                        watch_a = index;
+                        a_status = Status::Witness;
+                    }
+                }
+            }
+        }
+        the_wc.swap(0, watch_a);
+        the_wc.swap(1, watch_b);
+    }
+
+    the_wc
 }
