@@ -5,7 +5,7 @@ pub mod core;
 mod stats;
 mod the_solve;
 
-use crate::structures::{level::Level, literal::{Literal, LiteralSource}, variable::Variable};
+use crate::structures::{level::Level, literal::Literal, variable::Variable};
 
 use crate::structures::clause::stored_clause::StoredClause;
 use slotmap::{DefaultKey, SlotMap};
@@ -24,7 +24,7 @@ pub struct Solve {
     pub levels: Vec<Level>,
     pub formula_clauses: ClauseStore,
     pub learnt_clauses: ClauseStore,
-    pub watch_q: VecDeque<(Literal, LiteralSource)>,
+    pub watch_q: VecDeque<Literal>,
 }
 
 #[derive(Debug, PartialEq)]

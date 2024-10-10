@@ -38,6 +38,10 @@ struct Args {
     #[arg(long, default_value_t = String::from("FirstUIP"))]
     stopping_criteria: String,
 
+    /// VSIDS variant
+    #[arg(long, default_value_t = String::from("M"))]
+    vsids_variant: String,
+
     /// Suggest priority exploring conflcits, implications, or take no interest
     #[arg(long, default_value_t = String::from("Default"))]
     exploration_priority: String,
@@ -83,6 +87,11 @@ fn main() {
             "FirstUIP" | "firstUIP" | "1UIP" | "1uip" => StoppingCriteria::FirstAssertingUIP,
             "None" | "none" => StoppingCriteria::None,
             _ => panic!("Unknown stopping critera"),
+        };
+        config::VSIDS_VARIANT = match args.vsids_variant.as_str() {
+            "M" | "m" => config::VSIDS::M,
+            "C" | "c" => config::VSIDS::C,
+            _ => panic!("Unknown VSIDS variant"),
         };
         config::SHOW_CORE = args.core;
         config::SHOW_ASSIGNMENT = args.assignment;

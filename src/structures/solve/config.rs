@@ -1,6 +1,7 @@
 pub static ACTIVITY_CONFLICT: f32 = 1.0;
 pub static DECAY_FACTOR: f32 = 0.95;
 pub static DECAY_FREQUENCY: usize = 1;
+pub static mut VSIDS_VARIANT: VSIDS = VSIDS::M;
 
 // Configuration variables
 pub static mut GLUE_STRENGTH: usize = 2;
@@ -21,6 +22,13 @@ use crate::structures::solve::Solve;
 pub enum StoppingCriteria {
     FirstAssertingUIP,
     None,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[allow(clippy::upper_case_acronyms)]
+pub enum VSIDS {
+    M,
+    C,
 }
 
 #[derive(Debug, Clone)]

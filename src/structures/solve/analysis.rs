@@ -46,7 +46,7 @@ impl Solve {
                         &mut self.formula_clauses,
                         &mut self.learnt_clauses,
                     );
-                    self.watch_q.push_back((assertion, literal_source));
+
                 } else {
                     self.backjump(decision_level(&self.variables, asserting_clause.literals()));
 
@@ -67,10 +67,9 @@ impl Solve {
                         &mut self.formula_clauses,
                         &mut self.learnt_clauses,
                     );
-                    self.watch_q
-                        .push_back((assertion, anticipated_literal_source));
-                }
 
+                }
+                self.watch_q.push_back(assertion);
                 SolveStatus::AssertingClause
             }
         }
@@ -160,13 +159,20 @@ impl Solve {
             })
         }
 
-        // for variable in resolved_clause.variables() {
-        //     self.variables[variable].add_activity(config::ACTIVITY_CONFLICT);
-        // }
-        #[allow(clippy::needless_range_loop)]
-        for index in 0..variable_count {
-            if used_variables[index] {
-                self.variables[index].add_activity(config::ACTIVITY_CONFLICT);
+        match unsafe { config::VSIDS_VARIANT } {
+            config::VSIDS::C => {
+                for variable in resolved_clause.variables() {
+                    self.variables[variable as usize].add_activity(config::ACTIVITY_CONFLICT);
+                }
+            }
+            config::VSIDS::M =>
+            {
+                #[allow(clippy::needless_range_loop)]
+                for index in 0..variable_count {
+                    if used_variables[index] {
+                        self.variables[index].add_activity(config::ACTIVITY_CONFLICT);
+                    }
+                }
             }
         }
 
