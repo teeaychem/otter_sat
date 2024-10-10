@@ -281,20 +281,21 @@ pub fn literal_update(
         Ok(()) => {
             log::trace!("Set {source:?}: {literal}");
             // if update occurrs, make records at the relevant level
-            let level_index = match &source {
-                LiteralSource::Choice | LiteralSource::StoredClause(_) => levels.len() - 1,
-                LiteralSource::Assumption
-                | LiteralSource::HobsonChoice
-                | LiteralSource::Resolution(_) => 0,
-            };
-            variable.set_decision_level(level_index);
-            unsafe {
-                levels
-                    .get_unchecked_mut(level_index)
-                    .record_literal(literal, &source);
-            }
 
             unsafe {
+                {
+                    let level_index = match &source {
+                        LiteralSource::Choice | LiteralSource::StoredClause(_) => levels.len() - 1,
+                        LiteralSource::Assumption
+                        | LiteralSource::HobsonChoice
+                        | LiteralSource::Resolution(_) => 0,
+                    };
+                    variable.set_decision_level(level_index);
+                    levels
+                        .get_unchecked_mut(level_index)
+                        .record_literal(literal, &source);
+                }
+
                 // and, process whether any change to the watch literals is required
                 let working_clause_vec = match literal.polarity {
                     true => &mut *variable.negative_watch_occurrences.get(),
@@ -310,22 +311,15 @@ pub fn literal_update(
                         learnt_clauses,
                         *working_clause_vec.get_unchecked(index),
                     ) {
-                        let mut the_watch = None;
                         if stored_clause.get_watched(Watch::A).v_id == literal.v_id {
-                            the_watch = Some(Watch::A)
+                            process_watches(valuation, variables, stored_clause, Watch::A);
+                            index += 1;
                         } else if stored_clause.get_watched(Watch::B).v_id == literal.v_id {
-                            the_watch = Some(Watch::B)
+                            process_watches(valuation, variables, stored_clause, Watch::B);
+                            index += 1;
                         } else {
                             working_clause_vec.swap_remove(index);
                             length -= 1;
-                        }
-
-                        if let Some(watched) = the_watch {
-                            match process_watches(valuation, variables, stored_clause, watched) {
-                                WatchUpdate::NoUpdate => index += 1,
-                                WatchUpdate::FromToNone(_, _)
-                                | WatchUpdate::FromToWitness(_, _) => {}
-                            };
                         }
                     } else {
                         working_clause_vec.swap_remove(index);
@@ -362,10 +356,6 @@ pub fn process_watches(
         return WatchUpdate::NoUpdate;
     }
 
-    // if valuation
-    //     .of_v_id(stored_clause.get_watched(chosen_watch).v_id)
-    //     .is_some()
-    // {
     let update = stored_clause.update_watch(chosen_watch, valuation);
     match update {
         WatchUpdate::FromToNone(_, to) | WatchUpdate::FromToWitness(_, to) => {
@@ -378,9 +368,6 @@ pub fn process_watches(
         }
         WatchUpdate::NoUpdate => update,
     }
-    // } else {
-    //     panic!("Process watches without value");
-    // }
 }
 
 impl Solve {
