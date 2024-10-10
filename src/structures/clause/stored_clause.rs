@@ -179,7 +179,7 @@ impl StoredClause {
                     Watch::A => 0,
                     Watch::B => 1,
                 };
-                let mix_up = idx - (idx / 5);
+                let mix_up = idx / 4;
 
                 if mix_up > 2 {
                     self.the_wc.swap(mix_up, idx);
