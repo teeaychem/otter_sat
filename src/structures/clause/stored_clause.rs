@@ -8,14 +8,8 @@ use crate::structures::{
 
 use std::cell::UnsafeCell;
 
-/**
-The stored clause struct associates a clause with metadata relevant for a solve
-and, is intended to be the unique representation of a clause within a solve
-- `lbd` is the literal block distance of the clause
-  - note, this defaults to 0 and should be updated if a clause is stored after some decisions have been made
-*/
 pub struct StoredClause {
-    pub key: ClauseKey,
+    key: ClauseKey,
     lbd: UnsafeCell<usize>,
     source: ClauseSource,
     clause: ClauseVec,
@@ -58,7 +52,8 @@ enum WatchStatus {
 #[derive(Clone, Copy, PartialEq)]
 pub enum WatchUpdate {
     NoUpdate,
-    FromTo(Literal, Literal),
+    FromToNone(Literal, Literal),
+    FromToWitness(Literal, Literal),
 }
 
 // }
@@ -82,16 +77,20 @@ impl StoredClause {
         unsafe {
             let current_a = stored_clause.get_watched(Watch::A);
             variables
-                .get_unchecked(current_a.v_id)
+                .get_unchecked(current_a.v_id())
                 .watch_added(stored_clause.key, current_a.polarity);
 
             let current_b = stored_clause.get_watched(Watch::B);
             variables
-                .get_unchecked(current_b.v_id)
+                .get_unchecked(current_b.v_id())
                 .watch_added(stored_clause.key, current_b.polarity);
         }
 
         stored_clause
+    }
+
+    pub fn key(&self) -> ClauseKey {
+        self.key
     }
 
     pub fn source(&self) -> &ClauseSource {
@@ -147,45 +146,47 @@ impl StoredClause {
     }
 
     pub fn update_watch(&mut self, watch: Watch, valuation: &impl Valuation) -> WatchUpdate {
-        let mut replacement = None;
-        let mut witness = false;
+        let from = self.get_watched(watch);
+        let mut replacement = WatchUpdate::NoUpdate;
 
+        let mut idx = 2;
         let length = self.the_wc.len();
-        'search_loop: for index in 2..length {
-            match get_status(unsafe { *self.the_wc.get_unchecked(index) }, valuation) {
+        'search_loop: for _ in 2..length {
+            let the_literal = unsafe { *self.the_wc.get_unchecked(idx) };
+            match get_status(the_literal, valuation) {
                 WatchStatus::None => {
-                    replacement = Some(index);
+                    replacement = WatchUpdate::FromToNone(from, the_literal);
                     break 'search_loop;
                 }
-                WatchStatus::Witness if !witness => {
-                    replacement = Some(index);
+                WatchStatus::Witness => {
+                    replacement = WatchUpdate::FromToWitness(from, the_literal);
                     break 'search_loop;
-                    witness = true;
                 }
-                WatchStatus::Witness | WatchStatus::Conflict => {}
+                WatchStatus::Conflict => {
+                    idx += 1;
+                }
             }
         }
 
-        if let Some(idx) = replacement {
-            let clause_index = match watch {
-                Watch::A => 0,
-                Watch::B => 1,
-            };
+        match replacement {
+            WatchUpdate::FromToNone(_, _) | WatchUpdate::FromToWitness(_, _) => {
+                let clause_index = match watch {
+                    Watch::A => 0,
+                    Watch::B => 1,
+                };
+                let mix_up = idx - (idx / 5);
 
-            let from = self.get_watched(watch);
-            let mix_up = idx - (idx / 5);
-
-            if mix_up > 2 {
-                self.the_wc.swap(mix_up, idx);
-                self.the_wc.swap(clause_index, mix_up);
-            } else {
-                self.the_wc.swap(clause_index, idx);
+                if mix_up > 2 {
+                    self.the_wc.swap(mix_up, idx);
+                    self.the_wc.swap(clause_index, mix_up);
+                } else {
+                    self.the_wc.swap(clause_index, idx);
+                }
             }
-
-            WatchUpdate::FromTo(from, self.get_watched(watch))
-        } else {
-            WatchUpdate::NoUpdate
+            WatchUpdate::NoUpdate => {}
         }
+
+        replacement
     }
 }
 

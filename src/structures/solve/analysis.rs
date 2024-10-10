@@ -7,7 +7,7 @@ use crate::structures::{
         Clause,
     },
     literal::{Literal, LiteralSource},
-    solve::{config, retreive, ClauseKey, Solve, SolveStatus},
+    solve::{config, retreive, the_solve::literal_update, ClauseKey, Solve, SolveStatus},
     variable::Variable,
 };
 
@@ -29,15 +29,24 @@ impl Solve {
                     self.conflict_analysis(conflict_clause);
 
                 if asserting_clause.len() == 1 {
+                    self.backjump(0);
+
                     let literal_source = match clause_source {
                         ClauseSource::Resolution(resolution_vector) => {
                             LiteralSource::Resolution(resolution_vector)
                         }
                         _ => panic!("Analysis without resolution"),
                     };
+                    literal_update(
+                        assertion,
+                        literal_source.clone(),
+                        &mut self.levels,
+                        &self.variables,
+                        &mut self.valuation,
+                        &mut self.formula_clauses,
+                        &mut self.learnt_clauses,
+                    );
                     self.watch_q.push_back((assertion, literal_source));
-
-                    self.backjump(0);
                 } else {
                     self.backjump(decision_level(&self.variables, asserting_clause.literals()));
 
@@ -49,6 +58,15 @@ impl Solve {
 
                     stored_clause.set_lbd(&self.variables);
 
+                    literal_update(
+                        assertion,
+                        anticipated_literal_source.clone(),
+                        &mut self.levels,
+                        &self.variables,
+                        &mut self.valuation,
+                        &mut self.formula_clauses,
+                        &mut self.learnt_clauses,
+                    );
                     self.watch_q
                         .push_back((assertion, anticipated_literal_source));
                 }
@@ -93,7 +111,7 @@ impl Solve {
                     retreive(&self.formula_clauses, &self.learnt_clauses, *clause_key);
 
                 for involved_literal in stored_source_clause.literals() {
-                    used_variables[involved_literal.v_id] = true;
+                    used_variables[involved_literal.v_id()] = true;
                 }
 
                 let for_the_borrow_checker = resolved_clause.clone();
@@ -212,7 +230,7 @@ impl Solve {
 fn decision_level(variables: &[Variable], literals: impl Iterator<Item = Literal>) -> usize {
     let mut top_two = (None, None);
     for lit in literals {
-        if let Some(dl) = unsafe { (*variables.get_unchecked(lit.v_id)).decision_level() } {
+        if let Some(dl) = unsafe { (*variables.get_unchecked(lit.v_id())).decision_level() } {
             if top_two.1.is_none() {
                 top_two.1 = Some(dl)
             } else if top_two.1.is_some_and(|t1| dl > t1) {
