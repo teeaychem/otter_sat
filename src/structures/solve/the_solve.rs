@@ -312,10 +312,14 @@ pub fn literal_update(
                         *working_clause_vec.get_unchecked(index),
                     ) {
                         if stored_clause.get_watched(Watch::A).v_id == literal.v_id {
-                            process_watches(valuation, variables, stored_clause, Watch::A);
+                            if !watch_witnesses(valuation, stored_clause, Watch::B) {
+                                process_watches(valuation, variables, stored_clause, Watch::A);
+                            }
                             index += 1;
                         } else if stored_clause.get_watched(Watch::B).v_id == literal.v_id {
-                            process_watches(valuation, variables, stored_clause, Watch::B);
+                            if !watch_witnesses(valuation, stored_clause, Watch::A) {
+                                process_watches(valuation, variables, stored_clause, Watch::B);
+                            }
                             index += 1;
                         } else {
                             working_clause_vec.swap_remove(index);
@@ -339,26 +343,28 @@ pub fn literal_update(
     }
 }
 
-pub fn process_watches(
+fn watch_witnesses(
+    valuation: &impl Valuation,
+    stored_clause: &mut StoredClause,
+    other_watch: Watch,
+) -> bool {
+    let (v_id, polarity) = stored_clause.get_watched_split(other_watch);
+    if let Some(p) = valuation.of_v_id(v_id) {
+        p == polarity
+    } else {
+        false
+    }
+}
+
+fn process_watches(
     valuation: &impl Valuation,
     variables: &[Variable],
     stored_clause: &mut StoredClause,
     chosen_watch: Watch,
 ) -> WatchUpdate {
-    let other_watch = match chosen_watch {
-        Watch::A => Watch::B,
-        Watch::B => Watch::A,
-    };
-    if valuation
-        .of_v_id(stored_clause.get_watched(other_watch).v_id)
-        .is_some_and(|p| p == stored_clause.get_watched(other_watch).polarity)
-    {
-        return WatchUpdate::NoUpdate;
-    }
-
     let update = stored_clause.update_watch(chosen_watch, valuation);
     match update {
-        WatchUpdate::FromToNone(_, to) | WatchUpdate::FromToWitness(_, to) => {
+        WatchUpdate::FromTo(_, to) => {
             unsafe {
                 variables
                     .get_unchecked(to.v_id())
