@@ -15,8 +15,6 @@ pub trait Valuation {
 
     fn update_value(&mut self, literal: Literal) -> Result<(), ValuationStatus>;
 
-    fn to_vec(&self) -> ValuationVec;
-
     fn values(&self) -> impl Iterator<Item = Option<bool>>;
 }
 
@@ -36,7 +34,7 @@ impl Valuation for ValuationVec {
             .enumerate()
             .filter(|(_, p)| p.is_some())
             .map(|(i, p)| {
-                let variable = solve.var_by_id(i as VariableId).unwrap();
+                let variable = solve.variables.get(i).unwrap();
                 match p {
                     Some(true) => variable.name().to_string(),
                     Some(false) => format!("-{}", variable.name()),
@@ -61,12 +59,12 @@ impl Valuation for ValuationVec {
     }
 
     fn of_v_id(&self, v_id: VariableId) -> Option<bool> {
-        unsafe { *self.get_unchecked(v_id) }
+        unsafe { *self.get_unchecked(v_id as usize) }
     }
 
     fn check_literal(&self, literal: Literal) -> ValuationStatus {
         unsafe {
-            match self.get_unchecked(literal.v_id) {
+            match self.get_unchecked(literal.v_id()) {
                 Some(already_set) if *already_set == literal.polarity => ValuationStatus::Match,
                 Some(_already_set) => ValuationStatus::Conflict,
                 None => ValuationStatus::NotSet,
@@ -77,20 +75,16 @@ impl Valuation for ValuationVec {
     fn update_value(&mut self, literal: Literal) -> Result<(), ValuationStatus> {
         log::trace!("Set literal: {}", literal);
         unsafe {
-            match self.get_unchecked(literal.v_id) {
+            match self.get_unchecked(literal.v_id()) {
                 Some(value) if *value != literal.polarity => Err(ValuationStatus::Conflict),
                 Some(_value) => Err(ValuationStatus::Match),
                 None => {
-                    *self.get_unchecked_mut(literal.v_id) = Some(literal.polarity);
+                    *self.get_unchecked_mut(literal.v_id()) = Some(literal.polarity);
 
                     Ok(())
                 }
             }
         }
-    }
-
-    fn to_vec(&self) -> ValuationVec {
-        self.clone()
     }
 
     fn values(&self) -> impl Iterator<Item = Option<bool>> {

@@ -1,6 +1,5 @@
 use slotmap::SlotMap;
 
-use crate::config;
 use crate::structures::{
     clause::{
         stored_clause::{ClauseSource, StoredClause, Watch},
@@ -8,10 +7,8 @@ use crate::structures::{
     },
     formula::Formula,
     level::{Level, LevelIndex},
-    literal::{Literal, LiteralSource},
-    solve::{the_solve::literal_update, ClauseKey, Solve},
+    solve::{ClauseKey, Solve},
     valuation::{Valuation, ValuationVec},
-    variable::{Variable, VariableId},
 };
 
 use std::collections::VecDeque;
@@ -65,28 +62,7 @@ impl Solve {
             .map(|(_, sc)| sc)
     }
 
-    pub fn var_by_id(&self, id: VariableId) -> Option<&Variable> {
-        self.variables.get(id)
-    }
-
-    pub fn literal_set_from_vec(&mut self, choices: Vec<VariableId>) {
-        choices.iter().for_each(|&v_id| {
-            let the_literal = Literal::new(v_id, false);
-            literal_update(
-                the_literal,
-                LiteralSource::HobsonChoice,
-                &mut self.levels,
-                &self.variables,
-                &mut self.valuation,
-                &mut self.formula_clauses,
-                &mut self.learnt_clauses,
-            );
-            self.watch_q
-                .push_back((the_literal, LiteralSource::HobsonChoice));
-        });
-    }
-
-    pub fn most_active_none(&self, val: &impl Valuation) -> Option<VariableId> {
+    pub fn most_active_none(&self, val: &impl Valuation) -> Option<usize> {
         val.values()
             .enumerate()
             .filter(|(_, v)| v.is_none())
@@ -140,16 +116,16 @@ impl Solve {
             unsafe {
                 let watched_a_lit = stored_clause.get_watched(Watch::A);
                 self.variables
-                    .get_unchecked(watched_a_lit.v_id)
-                    .watch_removed(stored_clause.key, watched_a_lit.polarity);
+                    .get_unchecked(watched_a_lit.v_id())
+                    .watch_removed(stored_clause.key(), watched_a_lit.polarity);
 
                 let watched_b_lit = stored_clause.get_watched(Watch::B);
                 self.variables
-                    .get_unchecked(watched_b_lit.v_id)
-                    .watch_removed(stored_clause.key, watched_b_lit.polarity);
+                    .get_unchecked(watched_b_lit.v_id())
+                    .watch_removed(stored_clause.key(), watched_b_lit.polarity);
             }
 
-            let _ = self.learnt_clauses.remove(key);
+            self.learnt_clauses.remove(key);
         } else {
             panic!("hek")
         }
@@ -164,7 +140,7 @@ impl Solve {
                 log::trace!("Unset: {}", literal);
 
                 unsafe {
-                    let v_id = literal.v_id;
+                    let v_id = literal.v_id();
                     *self.valuation.get_unchecked_mut(v_id) = None;
                     self.variables.get_unchecked(v_id).clear_decision_level();
                 }

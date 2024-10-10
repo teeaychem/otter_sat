@@ -1,6 +1,6 @@
 use crate::structures::{level::LevelIndex, solve::ClauseKey};
 
-pub type VariableId = usize;
+pub type VariableId = u32;
 use std::cell::UnsafeCell;
 
 pub struct Variable {

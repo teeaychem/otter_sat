@@ -86,8 +86,8 @@ impl Clause for ClauseVec {
         let mut the_string = String::from("");
         for literal in self {
             let the_represenetation = match literal.polarity {
-                true => format!("{} ", variables[literal.v_id].name()),
-                false => format!("-{} ", variables[literal.v_id].name()),
+                true => format!("{} ", variables[literal.v_id()].name()),
+                false => format!("-{} ", variables[literal.v_id()].name()),
             };
             the_string.push_str(the_represenetation.as_str())
         }
@@ -126,7 +126,7 @@ impl Clause for ClauseVec {
     fn lbd(&self, vars: &[Variable]) -> usize {
         let mut decision_levels = self
             .iter()
-            .map(|l| vars[l.v_id].decision_level())
+            .map(|l| vars[l.v_id()].decision_level())
             .collect::<Vec<_>>();
         decision_levels.sort_unstable();
         decision_levels.dedup();

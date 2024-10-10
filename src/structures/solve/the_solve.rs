@@ -12,12 +12,13 @@ use crate::structures::{
         ClauseKey, ClauseStore, Solve, {SolveResult, SolveStatus},
     },
     valuation::{Valuation, ValuationStatus},
-    variable::Variable,
+    variable::{Variable, VariableId},
 };
 
 #[allow(unused_imports)] // used in timing macros
 use crate::structures::solve::stats;
 
+#[allow(unused_macros)]
 macro_rules! time_statement {
     ($id:expr, $s:stmt) => {
         #[cfg(feature = "time")]
@@ -79,17 +80,7 @@ impl Solve {
             let mut found_conflict = None;
 
             'propagation_loop: while let Some((literal, source)) = self.watch_q.pop_front() {
-                let the_variable = &self.variables[literal.v_id];
-
-                literal_update(
-                    literal,
-                    source,
-                    &mut self.levels,
-                    &self.variables,
-                    &mut self.valuation,
-                    &mut self.formula_clauses,
-                    &mut self.learnt_clauses,
-                );
+                let the_variable = &self.variables[literal.v_id()];
 
                 unsafe {
                     let borrowed_occurrences = match literal.polarity {
@@ -102,12 +93,22 @@ impl Solve {
                             retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
                         let watch_choices = stored_clause.watch_status(&self.valuation);
+                        let clause_key = stored_clause.key();
 
                         match watch_choices {
                             ClauseStatus::Entails(consequent) => {
+                                literal_update(
+                                    consequent,
+                                    LiteralSource::StoredClause(clause_key),
+                                    &mut self.levels,
+                                    &self.variables,
+                                    &mut self.valuation,
+                                    &mut self.formula_clauses,
+                                    &mut self.learnt_clauses,
+                                );
                                 self.watch_q.push_back((
                                     consequent,
-                                    LiteralSource::StoredClause(stored_clause.key),
+                                    LiteralSource::StoredClause(clause_key),
                                 ));
                             }
                             ClauseStatus::Conflict => {
@@ -166,13 +167,22 @@ impl Solve {
                         let _new_level = self.add_fresh_level();
                         let choice_literal = if let Some(previous) = &last_valuation {
                             if let Some(polarity) = previous[available_v_id] {
-                                Literal::new(available_v_id, polarity)
+                                Literal::new(available_v_id as VariableId, polarity)
                             } else {
-                                Literal::new(available_v_id, false)
+                                Literal::new(available_v_id as VariableId, false)
                             }
                         } else {
-                            Literal::new(available_v_id, false)
+                            Literal::new(available_v_id as VariableId, false)
                         };
+                        literal_update(
+                            choice_literal,
+                            LiteralSource::Choice,
+                            &mut self.levels,
+                            &self.variables,
+                            &mut self.valuation,
+                            &mut self.formula_clauses,
+                            &mut self.learnt_clauses,
+                        );
                         self.watch_q
                             .push_back((choice_literal, LiteralSource::Choice));
                         #[cfg(feature = "time")]
@@ -228,7 +238,7 @@ impl Solve {
                 if unsafe { config::SHOW_ASSIGNMENT } {
                     println!(
                         "c ASSIGNMENT: {}",
-                        self.valuation.to_vec().as_display_string(self)
+                        self.valuation.as_display_string(self)
                     )
                 }
             }
@@ -243,6 +253,7 @@ impl Solve {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn literal_update(
     literal: Literal,
     source: LiteralSource,
@@ -252,7 +263,7 @@ pub fn literal_update(
     formula_clauses: &mut ClauseStore,
     learnt_clauses: &mut ClauseStore,
 ) {
-    let variable = unsafe { variables.get_unchecked(literal.v_id) };
+    let variable = unsafe { variables.get_unchecked(literal.v_id()) };
 
     // update the valuation and match the result
     match valuation.update_value(literal) {
@@ -295,7 +306,9 @@ pub fn literal_update(
 
                         match process_watches(valuation, variables, stored_clause, the_watch) {
                             WatchUpdate::NoUpdate => index += 1,
-                            WatchUpdate::FromTo(_, _) => length -= 1,
+                            WatchUpdate::FromToNone(_, _) | WatchUpdate::FromToWitness(_, _) => {
+                                length -= 1
+                            }
                         };
                     }
                 },
@@ -321,7 +334,9 @@ pub fn literal_update(
 
                         match process_watches(valuation, variables, stored_clause, the_watch) {
                             WatchUpdate::NoUpdate => index += 1,
-                            WatchUpdate::FromTo(_, _) => length -= 1,
+                            WatchUpdate::FromToNone(_, _) | WatchUpdate::FromToWitness(_, _) => {
+                                length -= 1
+                            }
                         };
                     }
                 },
@@ -359,22 +374,41 @@ pub fn process_watches(
     //     .of_v_id(stored_clause.get_watched(chosen_watch).v_id)
     //     .is_some()
     // {
-        let update = stored_clause.update_watch(chosen_watch, valuation);
-        match update {
-            WatchUpdate::FromTo(from, to) => {
-                unsafe {
-                    variables
-                        .get_unchecked(from.v_id)
-                        .watch_removed(stored_clause.key, from.polarity);
-                    variables
-                        .get_unchecked(to.v_id)
-                        .watch_added(stored_clause.key, to.polarity);
-                };
-                update
-            }
-            WatchUpdate::NoUpdate => update,
+    let update = stored_clause.update_watch(chosen_watch, valuation);
+    match update {
+        WatchUpdate::FromToNone(from, to) | WatchUpdate::FromToWitness(from, to) => {
+            unsafe {
+                variables
+                    .get_unchecked(from.v_id())
+                    .watch_removed(stored_clause.key(), from.polarity);
+                variables
+                    .get_unchecked(to.v_id())
+                    .watch_added(stored_clause.key(), to.polarity);
+            };
+            update
         }
+        WatchUpdate::NoUpdate => update,
+    }
     // } else {
     //     panic!("Process watches without value");
     // }
+}
+
+impl Solve {
+    pub fn literal_set_from_vec(&mut self, choices: Vec<VariableId>) {
+        choices.iter().for_each(|&v_id| {
+            let the_literal = Literal::new(v_id, false);
+            literal_update(
+                the_literal,
+                LiteralSource::HobsonChoice,
+                &mut self.levels,
+                &self.variables,
+                &mut self.valuation,
+                &mut self.formula_clauses,
+                &mut self.learnt_clauses,
+            );
+            self.watch_q
+                .push_back((the_literal, LiteralSource::HobsonChoice));
+        });
+    }
 }
