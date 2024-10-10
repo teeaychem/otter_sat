@@ -84,18 +84,29 @@ impl Solve {
 
                 unsafe {
                     let borrowed_occurrences = match literal.polarity {
-                        true => &*the_variable.negative_watch_occurrences.get(),
-                        false => &*the_variable.positive_watch_occurrences.get(),
+                        true => &mut *the_variable.negative_watch_occurrences.get(),
+                        false => &mut *the_variable.positive_watch_occurrences.get(),
                     };
 
-                    'clause_loop: for clause_key in borrowed_occurrences.iter().cloned() {
+                    let mut index = 0;
+                    let mut length = borrowed_occurrences.len();
+
+                    'clause_loop: while index < length {
+                        let clause_key = *borrowed_occurrences.get_unchecked(index);
+
                         let stored_clause =
                             retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
-                        let watch_choices = stored_clause.watch_status(&self.valuation);
+                        let watch_choices =
+                            stored_clause.watch_status(&self.valuation, the_variable.id());
+
                         let clause_key = stored_clause.key();
 
                         match watch_choices {
+                            ClauseStatus::Missing => {
+                                borrowed_occurrences.swap_remove(index);
+                                length -= 1;
+                            }
                             ClauseStatus::Entails(consequent) => {
                                 literal_update(
                                     consequent,
@@ -110,13 +121,16 @@ impl Solve {
                                     consequent,
                                     LiteralSource::StoredClause(clause_key),
                                 ));
+                                index += 1;
                             }
                             ClauseStatus::Conflict => {
                                 found_conflict = Some(clause_key);
                                 self.watch_q.clear();
                                 break 'clause_loop;
                             }
-                            ClauseStatus::Unsatisfied | ClauseStatus::Satisfied => (),
+                            ClauseStatus::Unsatisfied | ClauseStatus::Satisfied => {
+                                index += 1;
+                            }
                         }
                     }
                 }
@@ -236,10 +250,7 @@ impl Solve {
         match result {
             SolveResult::Satisfiable => {
                 if unsafe { config::SHOW_ASSIGNMENT } {
-                    println!(
-                        "c ASSIGNMENT: {}",
-                        self.valuation.as_display_string(self)
-                    )
+                    println!("c ASSIGNMENT: {}", self.valuation.as_display_string(self))
                 }
             }
             SolveResult::Unsatisfiable => {
@@ -283,63 +294,44 @@ pub fn literal_update(
                     .record_literal(literal, &source);
             }
 
-            // and, process whether any change to the watch literals is required
-            match literal.polarity {
-                true => unsafe {
-                    let working_clause_vec = &*variable.negative_watch_occurrences.get();
+            unsafe {
+                // and, process whether any change to the watch literals is required
+                let working_clause_vec = match literal.polarity {
+                    true => &mut *variable.negative_watch_occurrences.get(),
+                    false => &mut *variable.positive_watch_occurrences.get(),
+                };
 
-                    let mut index = 0;
-                    let mut length = working_clause_vec.len();
+                let mut index = 0;
+                let mut length = working_clause_vec.len();
 
-                    while index < length {
-                        let stored_clause = retreive_mut(
-                            formula_clauses,
-                            learnt_clauses,
-                            *working_clause_vec.get_unchecked(index),
-                        );
+                while index < length {
+                    if let Some(stored_clause) = retreive_mut(
+                        formula_clauses,
+                        learnt_clauses,
+                        *working_clause_vec.get_unchecked(index),
+                    ) {
+                        let mut the_watch = None;
+                        if stored_clause.get_watched(Watch::A).v_id == literal.v_id {
+                            the_watch = Some(Watch::A)
+                        } else if stored_clause.get_watched(Watch::B).v_id == literal.v_id {
+                            the_watch = Some(Watch::B)
+                        } else {
+                            working_clause_vec.swap_remove(index);
+                            length -= 1;
+                        }
 
-                        let the_watch =
-                            match stored_clause.get_watched(Watch::A).v_id == literal.v_id {
-                                true => Watch::A,
-                                false => Watch::B,
+                        if let Some(watched) = the_watch {
+                            match process_watches(valuation, variables, stored_clause, watched) {
+                                WatchUpdate::NoUpdate => index += 1,
+                                WatchUpdate::FromToNone(_, _)
+                                | WatchUpdate::FromToWitness(_, _) => {}
                             };
-
-                        match process_watches(valuation, variables, stored_clause, the_watch) {
-                            WatchUpdate::NoUpdate => index += 1,
-                            WatchUpdate::FromToNone(_, _) | WatchUpdate::FromToWitness(_, _) => {
-                                length -= 1
-                            }
-                        };
+                        }
+                    } else {
+                        working_clause_vec.swap_remove(index);
+                        length -= 1;
                     }
-                },
-
-                false => unsafe {
-                    let working_clause_vec = &*variable.positive_watch_occurrences.get();
-
-                    let mut index = 0;
-                    let mut length = working_clause_vec.len();
-
-                    while index < length {
-                        let stored_clause = retreive_mut(
-                            formula_clauses,
-                            learnt_clauses,
-                            *working_clause_vec.get_unchecked(index),
-                        );
-
-                        let the_watch =
-                            match stored_clause.get_watched(Watch::A).v_id == literal.v_id {
-                                true => Watch::A,
-                                false => Watch::B,
-                            };
-
-                        match process_watches(valuation, variables, stored_clause, the_watch) {
-                            WatchUpdate::NoUpdate => index += 1,
-                            WatchUpdate::FromToNone(_, _) | WatchUpdate::FromToWitness(_, _) => {
-                                length -= 1
-                            }
-                        };
-                    }
-                },
+                }
             }
         }
         Err(ValuationStatus::Match) => match source {
@@ -376,11 +368,8 @@ pub fn process_watches(
     // {
     let update = stored_clause.update_watch(chosen_watch, valuation);
     match update {
-        WatchUpdate::FromToNone(from, to) | WatchUpdate::FromToWitness(from, to) => {
+        WatchUpdate::FromToNone(_, to) | WatchUpdate::FromToWitness(_, to) => {
             unsafe {
-                variables
-                    .get_unchecked(from.v_id())
-                    .watch_removed(stored_clause.key(), from.polarity);
                 variables
                     .get_unchecked(to.v_id())
                     .watch_added(stored_clause.key(), to.polarity);

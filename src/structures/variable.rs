@@ -64,25 +64,6 @@ impl Variable {
         unsafe { *self.activity.get() }
     }
 
-    pub fn watch_removed(&self, clause_key: ClauseKey, polarity: bool) {
-        match polarity {
-            true => unsafe {
-                let occurrences = &mut *self.positive_watch_occurrences.get();
-                let position = occurrences.iter().position(|sc| *sc == clause_key);
-                if let Some(p) = position {
-                    occurrences.swap_remove(p);
-                }
-            },
-            false => unsafe {
-                let occurrences = &mut *self.negative_watch_occurrences.get();
-                let position = occurrences.iter().position(|sc| *sc == clause_key);
-                if let Some(p) = position {
-                    occurrences.swap_remove(p);
-                }
-            },
-        };
-    }
-
     pub fn watch_added(&self, clause_key: ClauseKey, polarity: bool) {
         match polarity {
             true => unsafe {

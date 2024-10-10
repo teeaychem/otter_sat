@@ -2,7 +2,7 @@ use slotmap::SlotMap;
 
 use crate::structures::{
     clause::{
-        stored_clause::{ClauseSource, StoredClause, Watch},
+        stored_clause::{ClauseSource, StoredClause},
         Clause,
     },
     formula::Formula,
@@ -111,20 +111,6 @@ impl Solve {
 
     pub fn drop_learnt_clause(&mut self, clause_key: ClauseKey) {
         if let ClauseKey::Learnt(key) = clause_key {
-            let stored_clause = &self.learnt_clauses[key];
-
-            unsafe {
-                let watched_a_lit = stored_clause.get_watched(Watch::A);
-                self.variables
-                    .get_unchecked(watched_a_lit.v_id())
-                    .watch_removed(stored_clause.key(), watched_a_lit.polarity);
-
-                let watched_b_lit = stored_clause.get_watched(Watch::B);
-                self.variables
-                    .get_unchecked(watched_b_lit.v_id())
-                    .watch_removed(stored_clause.key(), watched_b_lit.polarity);
-            }
-
             self.learnt_clauses.remove(key);
         } else {
             panic!("hek")
