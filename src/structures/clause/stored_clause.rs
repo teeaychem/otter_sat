@@ -24,6 +24,7 @@ pub enum ClauseStatus {
     Conflict,         // no watch literals matches
     Entails(Literal), // Literal is unassigned and the no other watch matches
     Unsatisfied,      // more than one literal is unassigned
+    Missing,
 }
 
 #[derive(Clone, Debug)]
@@ -111,12 +112,16 @@ impl StoredClause {
         }
     }
 
-    pub fn watch_status(&self, val: &impl Valuation) -> ClauseStatus {
+    pub fn watch_status(&self, val: &impl Valuation, id: VariableId) -> ClauseStatus {
         let a_literal = self.get_watched(Watch::A);
         let a_val = val.of_v_id(a_literal.v_id);
 
         let b_literal = self.get_watched(Watch::B);
         let b_val = val.of_v_id(b_literal.v_id);
+
+        if a_literal.v_id != id && b_literal.v_id != id {
+            return ClauseStatus::Missing;
+        }
 
         match (a_val, b_val) {
             (None, None) => ClauseStatus::Unsatisfied,
