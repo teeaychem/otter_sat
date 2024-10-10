@@ -54,10 +54,10 @@ pub fn retreive_mut<'a>(
     formula: &'a mut ClauseStore,
     learnt: &'a mut ClauseStore,
     key: ClauseKey,
-) -> &'a mut StoredClause {
+) -> Option<&'a mut StoredClause> {
     match key {
-        ClauseKey::Formula(key) => &mut formula[key],
-        ClauseKey::Learnt(key) => &mut learnt[key],
+        ClauseKey::Formula(key) => formula.get_mut(key),
+        ClauseKey::Learnt(key) => learnt.get_mut(key),
     }
 }
 
