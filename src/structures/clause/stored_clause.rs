@@ -14,7 +14,7 @@ pub struct StoredClause {
     source: ClauseSource,
     clause: ClauseVec,
     the_wc: ClauseVec,
-    cached_watches: (Literal, Literal),
+    cached_split_watches: ((VariableId, bool), (VariableId, bool)),
 }
 
 // { Clause enums
@@ -23,9 +23,9 @@ pub struct StoredClause {
 pub enum ClauseStatus {
     Satisfied,        // some watch literal matches
     Conflict,         // no watch literals matches
-    Entails(Literal), // Literal is unassigned and the no other watch matches
+    Implies(Literal), // Literal is unassigned and the no other watch matches
     Unsatisfied,      // more than one literal is unassigned
-    Missing,
+    Missing,          // it's been removed, useful for lazy lists
 }
 
 #[derive(Clone, Debug)]
@@ -45,16 +45,16 @@ pub enum Watch {
 }
 
 #[derive(Clone, Copy, PartialEq)]
+pub enum WatchUpdate {
+    NoUpdate,
+    Update(Literal),
+}
+
+#[derive(Clone, Copy, PartialEq)]
 enum WatchStatus {
     Witness,
     None,
     Conflict,
-}
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum WatchUpdate {
-    NoUpdate,
-    FromTo(Literal, Literal),
 }
 
 // }
@@ -74,19 +74,22 @@ impl StoredClause {
             source,
             clause,
             the_wc: figured_out.clone(),
-            cached_watches: (figured_out[0], figured_out[1]),
+            cached_split_watches: (
+                (figured_out[0].v_id, figured_out[0].polarity),
+                (figured_out[1].v_id, figured_out[1].polarity),
+            ),
         };
 
         unsafe {
-            let current_a = stored_clause.get_watched(Watch::A);
+            let (current_a_v_id, current_a_polarity) = stored_clause.get_watched_split(Watch::A);
             variables
-                .get_unchecked(current_a.v_id())
-                .watch_added(stored_clause.key, current_a.polarity);
+                .get_unchecked(current_a_v_id as usize)
+                .watch_added(stored_clause.key, current_a_polarity);
 
-            let current_b = stored_clause.get_watched(Watch::B);
+            let (current_b_v_id, current_b_polarity) = stored_clause.get_watched_split(Watch::B);
             variables
-                .get_unchecked(current_b.v_id())
-                .watch_added(stored_clause.key, current_b.polarity);
+                .get_unchecked(current_b_v_id as usize)
+                .watch_added(stored_clause.key, current_b_polarity);
         }
 
         stored_clause
@@ -104,44 +107,41 @@ impl StoredClause {
         unsafe { *self.clause.get_unchecked(position) }
     }
 
-    pub fn get_watched(&self, watch: Watch) -> Literal {
+    pub fn get_watched_split(&self, watch: Watch) -> (VariableId, bool) {
         match watch {
-            Watch::A => self.cached_watches.0,
-            Watch::B => self.cached_watches.1,
+            Watch::A => self.cached_split_watches.0,
+            Watch::B => self.cached_split_watches.1,
         }
     }
 
-    pub fn get_watched_split(&self, watch: Watch) -> (VariableId, bool) {
+    pub fn get_watched_v_id(&self, watch: Watch) -> VariableId {
         match watch {
-            Watch::A => {
-                let literal = self.cached_watches.0;
-                (literal.v_id, literal.polarity)
-            }
-            Watch::B => {
-                let literal = self.cached_watches.1;
-                (literal.v_id, literal.polarity)
-            }
+            Watch::A => self.cached_split_watches.0 .0,
+            Watch::B => self.cached_split_watches.1 .0,
         }
     }
 
     pub fn watch_status(&self, val: &impl Valuation, id: VariableId) -> ClauseStatus {
-        let a_literal = self.get_watched(Watch::A);
+        let (a_v_id, a_polarity) = self.get_watched_split(Watch::A);
+        let (b_v_id, b_polarity) = self.get_watched_split(Watch::B);
 
-        let b_literal = self.get_watched(Watch::B);
-
-        if a_literal.v_id != id && b_literal.v_id != id {
+        if a_v_id != id && b_v_id != id {
             return ClauseStatus::Missing;
         }
 
-        match (val.of_v_id(a_literal.v_id), val.of_v_id(b_literal.v_id)) {
+        match (val.of_v_id(a_v_id), val.of_v_id(b_v_id)) {
             (None, None) => ClauseStatus::Unsatisfied,
-            (Some(a), None) if a == a_literal.polarity => ClauseStatus::Satisfied,
-            (None, Some(b)) if b == b_literal.polarity => ClauseStatus::Satisfied,
-            (Some(_), None) => ClauseStatus::Entails(b_literal),
-            (None, Some(_)) => ClauseStatus::Entails(a_literal),
-            (Some(a), Some(b)) if a == a_literal.polarity || b == b_literal.polarity => {
-                ClauseStatus::Satisfied
-            }
+            (Some(a), None) if a == a_polarity => ClauseStatus::Satisfied,
+            (None, Some(b)) if b == b_polarity => ClauseStatus::Satisfied,
+            (Some(_), None) => ClauseStatus::Implies(Literal {
+                v_id: b_v_id,
+                polarity: b_polarity,
+            }),
+            (None, Some(_)) => ClauseStatus::Implies(Literal {
+                v_id: a_v_id,
+                polarity: a_polarity,
+            }),
+            (Some(a), Some(b)) if a == a_polarity || b == b_polarity => ClauseStatus::Satisfied,
             (Some(_), Some(_)) => ClauseStatus::Conflict,
         }
     }
@@ -163,43 +163,41 @@ impl StoredClause {
     pub fn update_watch(&mut self, watch: Watch, valuation: &impl Valuation) -> WatchUpdate {
         let mut replacement = WatchUpdate::NoUpdate;
 
-        let mut idx = 2;
         let length = self.the_wc.len();
+        let mut index = 2;
         'search_loop: for _ in 2..length {
-            let the_literal = unsafe { *self.the_wc.get_unchecked(idx) };
+            let the_literal = unsafe { *self.the_wc.get_unchecked(index) };
             match get_status(the_literal, valuation) {
-                WatchStatus::None => {
-                    replacement = WatchUpdate::FromTo(self.get_watched(watch), the_literal);
-                    break 'search_loop;
-                }
-                WatchStatus::Witness => {
-                    replacement = WatchUpdate::FromTo(self.get_watched(watch), the_literal);
+                WatchStatus::None | WatchStatus::Witness => {
+                    replacement = WatchUpdate::Update(the_literal);
                     break 'search_loop;
                 }
                 WatchStatus::Conflict => {
-                    idx += 1;
+                    index += 1;
                 }
             }
         }
 
         match replacement {
-            WatchUpdate::FromTo(_, the_literal) => {
+            WatchUpdate::Update(the_literal) => {
                 let clause_index = match watch {
                     Watch::A => {
-                        self.cached_watches.0 = the_literal;
+                        self.cached_split_watches.0 .0 = the_literal.v_id;
+                        self.cached_split_watches.0 .1 = the_literal.polarity;
                         0
                     }
                     Watch::B => {
-                        self.cached_watches.1 = the_literal;
+                        self.cached_split_watches.1 .0 = the_literal.v_id;
+                        self.cached_split_watches.1 .1 = the_literal.polarity;
                         1
                     }
                 };
-                let mix_up = idx / 4;
+                let mix_up = index / 4;
                 if mix_up > 2 {
-                    self.the_wc.swap(mix_up, idx);
+                    self.the_wc.swap(mix_up, index);
                     self.the_wc.swap(clause_index, mix_up);
                 } else {
-                    self.the_wc.swap(clause_index, idx);
+                    self.the_wc.swap(clause_index, index);
                 }
             }
             WatchUpdate::NoUpdate => {}

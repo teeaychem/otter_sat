@@ -15,6 +15,8 @@ pub trait Valuation {
 
     fn update_value(&mut self, literal: Literal) -> Result<(), ValuationStatus>;
 
+    fn set_value(&mut self, literal: Literal);
+
     fn values(&self) -> impl Iterator<Item = Option<bool>>;
 }
 
@@ -80,10 +82,16 @@ impl Valuation for ValuationVec {
                 Some(_value) => Err(ValuationStatus::Match),
                 None => {
                     *self.get_unchecked_mut(literal.v_id()) = Some(literal.polarity);
-
                     Ok(())
                 }
             }
+        }
+    }
+
+    fn set_value(&mut self, literal: Literal) {
+        log::trace!("Set literal: {}", literal);
+        unsafe {
+            *self.get_unchecked_mut(literal.v_id()) = Some(literal.polarity);
         }
     }
 
