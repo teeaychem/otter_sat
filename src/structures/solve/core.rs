@@ -24,7 +24,7 @@ impl Solve {
             conflicts_since_last_reset: 0,
             restarts: 0,
             watch_q: VecDeque::with_capacity(variables.len()),
-            valuation: Vec::<Option<bool>>::new_for_variables(variables.len()),
+            valuation: vec![None; variables.len()],
             variables,
             levels: Vec::<Level>::with_capacity(1024),
             formula_clauses: SlotMap::new(),
@@ -47,7 +47,7 @@ impl Solve {
     }
 
     pub fn valuation_at(&self, level_index: LevelIndex) -> ValuationVec {
-        let mut valuation = ValuationVec::new_for_variables(self.valuation.len());
+        let mut valuation = vec![None; self.valuation.len()];
         (0..=level_index).for_each(|i| {
             self.levels[i].literals().for_each(|l| {
                 let _ = valuation.update_value(l);
