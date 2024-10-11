@@ -3,7 +3,7 @@ pub mod stored_clause;
 
 use crate::structures::{
     literal::Literal,
-    valuation::{Valuation, ValuationVec},
+    valuation::{Valuation, ValuationWindow},
     variable::{Variable, VariableId},
 };
 
@@ -14,9 +14,9 @@ pub trait Clause {
 
     fn variables(&self) -> impl Iterator<Item = VariableId>;
 
-    fn is_sat_on(&self, valuation: &ValuationVec) -> bool;
+    fn is_sat_on(&self, valuation: &ValuationWindow) -> bool;
 
-    fn is_unsat_on(&self, valuation: &ValuationVec) -> bool;
+    fn is_unsat_on(&self, valuation: &ValuationWindow) -> bool;
 
     fn find_unit_literal<T: Valuation>(&self, valuation: &T) -> Option<Literal>;
 

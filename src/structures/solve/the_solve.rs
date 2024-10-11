@@ -11,7 +11,7 @@ use crate::structures::{
         stats::SolveStats,
         ClauseKey, ClauseStore, Solve, {SolveResult, SolveStatus},
     },
-    valuation::{Valuation, ValuationVec},
+    valuation::{Valuation, ValuationWindow},
     variable::{Variable, VariableId},
 };
 
@@ -220,7 +220,7 @@ pub fn literal_update(
     source: LiteralSource,
     levels: &mut [Level],
     variables: &[Variable],
-    valuation: &mut ValuationVec,
+    valuation: &mut ValuationWindow,
     formula_clauses: &mut ClauseStore,
     learnt_clauses: &mut ClauseStore,
 ) {
@@ -288,7 +288,7 @@ pub fn literal_update(
     }
 }
 
-fn watch_witnesses(valuation: &impl Valuation, v_id: VariableId, polarity: bool) -> bool {
+fn watch_witnesses(valuation: &ValuationWindow, v_id: VariableId, polarity: bool) -> bool {
     if let Some(p) = valuation.of_v_id(v_id) {
         p == polarity
     } else {
@@ -297,7 +297,7 @@ fn watch_witnesses(valuation: &impl Valuation, v_id: VariableId, polarity: bool)
 }
 
 fn process_watches(
-    valuation: &ValuationVec,
+    valuation: &ValuationWindow,
     variables: &[Variable],
     stored_clause: &mut StoredClause,
     chosen_watch: Watch,

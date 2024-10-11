@@ -1,7 +1,7 @@
 use crate::structures::{
     clause::Clause,
     literal::Literal,
-    valuation::{Valuation, ValuationVec},
+    valuation::{Valuation, ValuationWindow},
     variable::{Variable, VariableId},
 };
 
@@ -16,12 +16,12 @@ impl Clause for ClauseVec {
         self.iter().map(|literal| literal.v_id)
     }
 
-    fn is_sat_on(&self, valuation: &ValuationVec) -> bool {
+    fn is_sat_on(&self, valuation: &ValuationWindow) -> bool {
         self.iter()
             .any(|l| valuation.of_v_id(l.v_id) == Some(l.polarity))
     }
 
-    fn is_unsat_on(&self, valuation: &ValuationVec) -> bool {
+    fn is_unsat_on(&self, valuation: &ValuationWindow) -> bool {
         self.iter().all(|l| {
             if let Some(var_valuie) = valuation.of_v_id(l.v_id) {
                 var_valuie != l.polarity

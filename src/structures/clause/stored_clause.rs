@@ -2,7 +2,7 @@ use crate::structures::{
     clause::{Clause, ClauseVec},
     literal::Literal,
     solve::ClauseKey,
-    valuation::{Valuation, ValuationVec},
+    valuation::{Valuation, ValuationWindow},
     variable::{Variable, VariableId},
 };
 
@@ -64,7 +64,7 @@ impl StoredClause {
         key: ClauseKey,
         clause: ClauseVec,
         source: ClauseSource,
-        valuation: &ValuationVec,
+        valuation: &ValuationWindow,
         variables: &mut [Variable],
     ) -> StoredClause {
         let figured_out = figure_out_intial_watches(clause.clone(), valuation);
@@ -160,7 +160,7 @@ impl StoredClause {
         self.clause.clone()
     }
 
-    pub fn update_watch(&mut self, watch: Watch, valuation: &ValuationVec) -> WatchUpdate {
+    pub fn update_watch(&mut self, watch: Watch, valuation: &ValuationWindow) -> WatchUpdate {
         let mut replacement = WatchUpdate::NoUpdate;
 
         let max = self.the_wc.len();
@@ -235,11 +235,11 @@ impl Clause for StoredClause {
         self.clause.variables()
     }
 
-    fn is_sat_on(&self, valuation: &ValuationVec) -> bool {
+    fn is_sat_on(&self, valuation: &ValuationWindow) -> bool {
         self.clause.is_sat_on(valuation)
     }
 
-    fn is_unsat_on(&self, valuation: &ValuationVec) -> bool {
+    fn is_unsat_on(&self, valuation: &ValuationWindow) -> bool {
         self.clause.is_unsat_on(valuation)
     }
 
@@ -284,7 +284,7 @@ impl Clause for StoredClause {
     }
 }
 
-fn figure_out_intial_watches(clause: ClauseVec, val: &impl Valuation) -> Vec<Literal> {
+fn figure_out_intial_watches(clause: ClauseVec, val: &ValuationWindow) -> Vec<Literal> {
     let length = clause.len();
     let mut the_wc = clause;
     let mut watch_a = 0;
@@ -341,7 +341,7 @@ fn figure_out_intial_watches(clause: ClauseVec, val: &impl Valuation) -> Vec<Lit
     the_wc
 }
 
-fn get_status(literal: Literal, valuation: &impl Valuation) -> WatchStatus {
+fn get_status(literal: Literal, valuation: &ValuationWindow) -> WatchStatus {
     match valuation.of_v_id(literal.v_id) {
         None => WatchStatus::None,
         Some(polarity) if polarity == literal.polarity => WatchStatus::Witness,
