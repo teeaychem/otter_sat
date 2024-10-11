@@ -61,8 +61,8 @@ impl Valuation for ValuationVec {
 
     fn check_literal(&self, literal: Literal) -> ValuationStatus {
         unsafe {
-            match self.get_unchecked(literal.v_id()) {
-                Some(already_set) if *already_set == literal.polarity => ValuationStatus::Match,
+            match self.get_unchecked(literal.index()) {
+                Some(already_set) if *already_set == literal.polarity() => ValuationStatus::Match,
                 Some(_already_set) => ValuationStatus::Conflict,
                 None => ValuationStatus::NotSet,
             }
@@ -72,11 +72,11 @@ impl Valuation for ValuationVec {
     fn update_value(&mut self, literal: Literal) -> Result<(), ValuationStatus> {
         log::trace!("Set literal: {}", literal);
         unsafe {
-            match self.get_unchecked(literal.v_id()) {
-                Some(value) if *value != literal.polarity => Err(ValuationStatus::Conflict),
+            match self.get_unchecked(literal.index()) {
+                Some(value) if *value != literal.polarity() => Err(ValuationStatus::Conflict),
                 Some(_value) => Err(ValuationStatus::Match),
                 None => {
-                    *self.get_unchecked_mut(literal.v_id()) = Some(literal.polarity);
+                    *self.get_unchecked_mut(literal.index()) = Some(literal.polarity());
                     Ok(())
                 }
             }
@@ -86,7 +86,7 @@ impl Valuation for ValuationVec {
     fn set_value(&mut self, literal: Literal) {
         log::trace!("Set literal: {}", literal);
         unsafe {
-            *self.get_unchecked_mut(literal.v_id()) = Some(literal.polarity);
+            *self.get_unchecked_mut(literal.index()) = Some(literal.polarity());
         }
     }
 
@@ -131,8 +131,8 @@ impl Valuation for ValuationWindow {
 
     fn check_literal(&self, literal: Literal) -> ValuationStatus {
         unsafe {
-            match self.get_unchecked(literal.v_id()) {
-                Some(already_set) if *already_set == literal.polarity => ValuationStatus::Match,
+            match self.get_unchecked(literal.index()) {
+                Some(already_set) if *already_set == literal.polarity() => ValuationStatus::Match,
                 Some(_already_set) => ValuationStatus::Conflict,
                 None => ValuationStatus::NotSet,
             }
@@ -142,11 +142,11 @@ impl Valuation for ValuationWindow {
     fn update_value(&mut self, literal: Literal) -> Result<(), ValuationStatus> {
         log::trace!("Set literal: {}", literal);
         unsafe {
-            match self.get_unchecked(literal.v_id()) {
-                Some(value) if *value != literal.polarity => Err(ValuationStatus::Conflict),
+            match self.get_unchecked(literal.index()) {
+                Some(value) if *value != literal.polarity() => Err(ValuationStatus::Conflict),
                 Some(_value) => Err(ValuationStatus::Match),
                 None => {
-                    *self.get_unchecked_mut(literal.v_id()) = Some(literal.polarity);
+                    *self.get_unchecked_mut(literal.index()) = Some(literal.polarity());
                     Ok(())
                 }
             }
@@ -156,7 +156,7 @@ impl Valuation for ValuationWindow {
     fn set_value(&mut self, literal: Literal) {
         log::trace!("Set literal: {}", literal);
         unsafe {
-            *self.get_unchecked_mut(literal.v_id()) = Some(literal.polarity);
+            *self.get_unchecked_mut(literal.index()) = Some(literal.polarity());
         }
     }
 

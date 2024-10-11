@@ -127,7 +127,7 @@ impl Solve {
                 log::trace!("Unset: {}", literal);
 
                 unsafe {
-                    let v_id = literal.v_id();
+                    let v_id = literal.index();
                     *self.valuation.get_unchecked_mut(v_id) = None;
                     self.variables.get_unchecked(v_id).clear_decision_level();
                 }
