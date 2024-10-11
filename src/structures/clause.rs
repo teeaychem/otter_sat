@@ -1,34 +1,26 @@
 pub mod clause_vec;
+pub mod clause_box;
 pub mod stored_clause;
 
 use crate::structures::{
     literal::Literal,
-    valuation::{Valuation, ValuationWindow},
+    valuation::Valuation,
     variable::{Variable, VariableId},
 };
 
 use clause_vec::ClauseVec;
+use clause_box::ClauseBox;
 
 pub trait Clause {
     fn literals(&self) -> impl Iterator<Item = Literal>;
 
     fn variables(&self) -> impl Iterator<Item = VariableId>;
 
-    fn is_sat_on(&self, valuation: &ValuationWindow) -> bool;
-
-    fn is_unsat_on(&self, valuation: &ValuationWindow) -> bool;
-
-    fn find_unit_literal<T: Valuation>(&self, valuation: &T) -> Option<Literal>;
-
-    fn collect_choices<T: Valuation>(&self, valuation: &T) -> Option<Vec<Literal>>;
-
     fn as_string(&self) -> String;
 
     fn as_dimacs(&self, variables: &[Variable]) -> String;
 
-    fn is_empty(&self) -> bool;
-
-    fn to_vec(self) -> ClauseVec;
+    fn to_clause_vec(self) -> ClauseVec;
 
     fn length(&self) -> usize;
 

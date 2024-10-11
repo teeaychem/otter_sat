@@ -1,8 +1,8 @@
 use crate::structures::{
-    clause::{Clause, ClauseVec},
+    clause::{Clause, ClauseVec, ClauseBox},
     literal::Literal,
     solve::ClauseKey,
-    valuation::{Valuation, ValuationWindow},
+    valuation::Valuation,
     variable::{Variable, VariableId},
 };
 
@@ -12,21 +12,12 @@ pub struct StoredClause {
     key: ClauseKey,
     lbd: UnsafeCell<usize>,
     source: ClauseSource,
-    clause: ClauseVec,
-    the_wc: ClauseVec,
+    clause: ClauseBox,
+    the_wc: ClauseBox,
     cached_split_watches: ((VariableId, bool), (VariableId, bool)),
 }
 
 // { Clause enums
-
-#[derive(Debug)]
-pub enum ClauseStatus {
-    Satisfied,        // some watch literal matches
-    Conflict,         // no watch literals matches
-    Implies(Literal), // Literal is unassigned and the no other watch matches
-    Unsatisfied,      // more than one literal is unassigned
-    Missing,          // it's been removed, useful for lazy lists
-}
 
 #[derive(Clone, Debug)]
 pub enum ClauseSource {
@@ -64,7 +55,7 @@ impl StoredClause {
         key: ClauseKey,
         clause: ClauseVec,
         source: ClauseSource,
-        valuation: &ValuationWindow,
+        valuation: &impl Valuation,
         variables: &mut [Variable],
     ) -> StoredClause {
         let figured_out = figure_out_intial_watches(clause.clone(), valuation);
@@ -72,8 +63,8 @@ impl StoredClause {
             key,
             lbd: UnsafeCell::new(0),
             source,
-            clause,
-            the_wc: figured_out.clone(),
+            clause: clause.into(),
+            the_wc: figured_out.clone().into(),
             cached_split_watches: (
                 (figured_out[0].v_id(), figured_out[0].polarity()),
                 (figured_out[1].v_id(), figured_out[1].polarity()),
@@ -103,21 +94,10 @@ impl StoredClause {
         &self.source
     }
 
-    pub fn literal_at(&self, position: usize) -> Literal {
-        unsafe { *self.clause.get_unchecked(position) }
-    }
-
     pub fn get_watched_split(&self, watch: Watch) -> (VariableId, bool) {
         match watch {
             Watch::A => self.cached_split_watches.0,
             Watch::B => self.cached_split_watches.1,
-        }
-    }
-
-    pub fn get_watched_v_id(&self, watch: Watch) -> VariableId {
-        match watch {
-            Watch::A => self.cached_split_watches.0 .0,
-            Watch::B => self.cached_split_watches.1 .0,
         }
     }
 
@@ -132,10 +112,10 @@ impl StoredClause {
     }
 
     pub fn clause_clone(&self) -> ClauseVec {
-        self.clause.clone()
+        self.clause.clone().to_clause_vec()
     }
 
-    pub fn update_watch(&mut self, watch: Watch, valuation: &ValuationWindow) -> WatchUpdate {
+    pub fn update_watch(&mut self, watch: Watch, valuation: &impl Valuation) -> WatchUpdate {
         let mut replacement = WatchUpdate::NoUpdate;
 
         let max = self.the_wc.len();
@@ -210,22 +190,6 @@ impl Clause for StoredClause {
         self.clause.variables()
     }
 
-    fn is_sat_on(&self, valuation: &ValuationWindow) -> bool {
-        self.clause.is_sat_on(valuation)
-    }
-
-    fn is_unsat_on(&self, valuation: &ValuationWindow) -> bool {
-        self.clause.is_unsat_on(valuation)
-    }
-
-    fn find_unit_literal<T: Valuation>(&self, valuation: &T) -> Option<Literal> {
-        self.clause.find_unit_literal(valuation)
-    }
-
-    fn collect_choices<T: Valuation>(&self, valuation: &T) -> Option<Vec<Literal>> {
-        self.clause.collect_choices(valuation)
-    }
-
     fn as_string(&self) -> String {
         self.clause.as_string()
     }
@@ -234,12 +198,8 @@ impl Clause for StoredClause {
         self.clause.as_dimacs(variables)
     }
 
-    fn is_empty(&self) -> bool {
-        self.clause.is_empty()
-    }
-
-    fn to_vec(self) -> ClauseVec {
-        self.clause
+    fn to_clause_vec(self) -> ClauseVec {
+        self.clause.clone().to_clause_vec()
     }
 
     fn length(&self) -> usize {
@@ -259,7 +219,7 @@ impl Clause for StoredClause {
     }
 }
 
-fn figure_out_intial_watches(clause: ClauseVec, val: &ValuationWindow) -> Vec<Literal> {
+fn figure_out_intial_watches(clause: ClauseVec, val: &impl Valuation) -> Vec<Literal> {
     let length = clause.len();
     let mut the_wc = clause;
     let mut watch_a = 0;
@@ -316,7 +276,7 @@ fn figure_out_intial_watches(clause: ClauseVec, val: &ValuationWindow) -> Vec<Li
     the_wc
 }
 
-fn get_status(literal: Literal, valuation: &ValuationWindow) -> WatchStatus {
+fn get_status(literal: Literal, valuation: &impl Valuation) -> WatchStatus {
     match valuation.of_v_id(literal.v_id()) {
         None => WatchStatus::None,
         Some(polarity) if polarity == literal.polarity() => WatchStatus::Witness,

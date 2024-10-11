@@ -3,8 +3,8 @@ use crate::structures::{clause::Clause, literal::Literal, variable::VariableId};
 use std::collections::BTreeSet;
 
 /// General order for pairs related to booleans is 0 is false, 1 is true
-pub fn hobson_choices<'borrow>(
-    clauses: impl Iterator<Item = impl Iterator <Item = Literal>>,
+pub fn hobson_choices(
+    clauses: impl Iterator<Item = impl Iterator<Item = Literal>>,
 ) -> (Vec<VariableId>, Vec<VariableId>) {
     let mut the_true: BTreeSet<VariableId> = BTreeSet::new();
     let mut the_false: BTreeSet<VariableId> = BTreeSet::new();
@@ -39,58 +39,48 @@ pub fn resolve_sorted_clauses(
         match (current_a, current_b) {
             (None, None) => break,
             (Some(a_lit), None) => {
-                if a_lit.v_id() == v_id {
-                    if let Some(existing_b) = b_found {
-                        if existing_b != a_lit.polarity() {
-                            a_found = Some(a_lit.polarity());
-                        } else {
-                            return None;
+                match a_lit.v_id() == v_id {
+                    true => match b_found {
+                        Some(existing_b) if existing_b != a_lit.polarity() => {
+                            a_found = Some(a_lit.polarity())
                         }
-                    } else {
-                        a_found = Some(a_lit.polarity());
-                    }
-                } else {
-                    the_clause.push(a_lit);
+                        Some(_) => return None,
+                        None => a_found = Some(a_lit.polarity()),
+                    },
+                    false => the_clause.push(a_lit),
                 }
                 current_a = clause_a_literals.next();
             }
             (None, Some(b_lit)) => {
-                if b_lit.v_id() == v_id {
-                    if let Some(existing) = a_found {
-                        if existing != b_lit.polarity() {
-                            b_found = Some(b_lit.polarity());
-                        } else {
-                            return None;
+                match b_lit.v_id() == v_id {
+                    true => match a_found {
+                        Some(existing) if existing != b_lit.polarity() => {
+                            b_found = Some(b_lit.polarity())
                         }
-                    } else {
-                        b_found = Some(b_lit.polarity());
-                    }
-                } else {
-                    the_clause.push(b_lit);
+                        Some(_) => return None,
+                        None => b_found = Some(b_lit.polarity()),
+                    },
+                    false => the_clause.push(b_lit),
                 }
                 current_b = clause_b_literals.next();
             }
             (Some(a_lit), Some(b_lit)) => {
                 if a_lit.v_id() == v_id {
-                    if let Some(existing) = b_found {
-                        if existing != a_lit.polarity() {
-                            a_found = Some(a_lit.polarity());
-                        } else {
-                            return None;
+                    match b_found {
+                        Some(existing) if existing != a_lit.polarity() => {
+                            a_found = Some(a_lit.polarity())
                         }
-                    } else {
-                        a_found = Some(a_lit.polarity());
+                        Some(_) => return None,
+                        None => a_found = Some(a_lit.polarity()),
                     }
                     current_a = clause_a_literals.next();
                 } else if b_lit.v_id() == v_id {
-                    if let Some(existing) = a_found {
-                        if existing != b_lit.polarity() {
-                            b_found = Some(b_lit.polarity());
-                        } else {
-                            return None;
+                    match a_found {
+                        Some(existing) if existing != b_lit.polarity() => {
+                            b_found = Some(b_lit.polarity())
                         }
-                    } else {
-                        b_found = Some(b_lit.polarity());
+                        Some(_) => return None,
+                        None => b_found = Some(b_lit.polarity()),
                     }
                     current_b = clause_b_literals.next();
                 } else {
@@ -114,11 +104,10 @@ pub fn resolve_sorted_clauses(
         }
     }
 
-    the_clause.dedup();
-
     if a_found.is_none() || b_found.is_none() {
         None
     } else {
+        the_clause.dedup();
         Some(the_clause)
     }
 }
@@ -148,7 +137,6 @@ pub fn find_counterpart_literals(
             panic!("Incomparable literals found");
         }
     }
-
     candidates
 }
 
@@ -178,7 +166,7 @@ mod tests {
                 Literal::new(4, false),
                 Literal::new(4, true)
             ],
-            result.unwrap().to_vec()
+            result.unwrap().to_clause_vec()
         )
     }
 
