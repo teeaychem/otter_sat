@@ -20,7 +20,7 @@ pub struct Solve {
     conflicts_since_last_reset: usize,
     restarts: usize,
     pub variables: Vec<Variable>,
-    pub valuation: Vec<Option<bool>>,
+    pub valuation: Box<[Option<bool>]>,
     pub levels: Vec<Level>,
     pub formula_clauses: ClauseStore,
     pub learnt_clauses: ClauseStore,
@@ -61,7 +61,7 @@ pub fn retreive_mut<'a>(
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ClauseKey {
     Formula(slotmap::DefaultKey),
     Learnt(slotmap::DefaultKey),

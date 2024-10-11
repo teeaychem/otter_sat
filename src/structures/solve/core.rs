@@ -24,7 +24,7 @@ impl Solve {
             conflicts_since_last_reset: 0,
             restarts: 0,
             watch_q: VecDeque::with_capacity(variables.len()),
-            valuation: vec![None; variables.len()],
+            valuation: vec![None; variables.len()].into_boxed_slice(),
             variables,
             levels: Vec::<Level>::with_capacity(1024),
             formula_clauses: SlotMap::new(),
@@ -38,7 +38,7 @@ impl Solve {
                     panic!("c The formula contains a zero-or-one-length clause");
                 }
                 _ => {
-                    the_solve.store_clause(formula_clause.to_vec(), ClauseSource::Formula);
+                    the_solve.store_clause(formula_clause.to_clause_vec(), ClauseSource::Formula);
                 }
             }
         }
@@ -50,17 +50,10 @@ impl Solve {
         let mut valuation = vec![None; self.valuation.len()];
         (0..=level_index).for_each(|i| {
             self.levels[i].literals().for_each(|l| {
-                let _ = valuation.update_value(l);
+                valuation.set_value(l);
             })
         });
         valuation
-    }
-
-    pub fn stored_clauses(&self) -> impl Iterator<Item = &StoredClause> {
-        self.formula_clauses
-            .iter()
-            .chain(&self.learnt_clauses)
-            .map(|(_, sc)| sc)
     }
 
     pub fn most_active_none(&self, val: &impl Valuation) -> Option<usize> {
@@ -82,7 +75,7 @@ impl Solve {
                     let key = self.formula_clauses.insert_with_key(|k| {
                         StoredClause::new_from(
                             ClauseKey::Formula(k),
-                            clause.to_vec(),
+                            clause.to_clause_vec(),
                             src,
                             &self.valuation,
                             &mut self.variables,
@@ -95,13 +88,16 @@ impl Solve {
                     log::trace!("Learning clause {}", clause.as_string());
 
                     let key = self.learnt_clauses.insert_with_key(|k| {
+                        let clause =
                         StoredClause::new_from(
                             ClauseKey::Learnt(k),
-                            clause.to_vec(),
+                            clause.to_clause_vec(),
                             src,
                             &self.valuation,
                             &mut self.variables,
-                        )
+                        );
+                        clause.set_lbd(&self.variables);
+                        clause
                     });
 
                     ClauseKey::Learnt(key)
@@ -110,18 +106,10 @@ impl Solve {
         }
     }
 
-    pub fn drop_learnt_clause(&mut self, clause_key: ClauseKey) {
-        if let ClauseKey::Learnt(key) = clause_key {
-            self.learnt_clauses.remove(key);
-        } else {
-            panic!("hek")
-        }
-    }
-
     pub fn backjump(&mut self, to: LevelIndex) {
-        log::trace!("Backjump from {} to {}", self.current_level().index(), to);
+        log::trace!("Backjump from {} to {}", self.level().index(), to);
 
-        for _ in 0..(self.current_level().index() - to) {
+        for _ in 0..(self.level().index() - to) {
             let the_level = self.levels.pop().unwrap();
             for literal in the_level.literals() {
                 log::trace!("Unset: {}", literal);

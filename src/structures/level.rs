@@ -29,13 +29,7 @@ impl Level {
 
     pub fn record_literal(&mut self, literal: Literal, source: &LiteralSource) {
         match source {
-            LiteralSource::Choice => {
-                // self.choice
-                //     .is_some()
-                //     .then(|| panic!("Attempting to make multiple choices on a single level"));
-
-                self.choice = Some(literal);
-            }
+            LiteralSource::Choice => self.choice = Some(literal),
             LiteralSource::HobsonChoice
             | LiteralSource::Assumption
             | LiteralSource::Resolution(_)
@@ -65,7 +59,7 @@ impl Solve {
         index
     }
 
-    pub fn current_level(&self) -> &Level {
+    pub fn level(&self) -> &Level {
         let index = self.levels.len() - 1;
         &self.levels[index]
     }

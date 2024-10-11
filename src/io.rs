@@ -34,12 +34,15 @@ impl Formula {
             } else if !reading_comment && ch == 'p' {
                 loop {
                     to += 1;
-                    if let Some(other_ch) = string.chars().nth(to) {
-                        if other_ch == 0xA as char {
-                            break;
+                    match string.chars().nth(to) {
+                        Some(other_ch) => {
+                            if other_ch == 0xA as char {
+                                break;
+                            }
                         }
-                    } else {
-                        panic!("IO: Parse failure");
+                        None => {
+                            panic!("IO: Parse failure")
+                        }
                     }
                 }
                 let the_preface = &string[from..to];
