@@ -13,18 +13,18 @@ impl Clause for ClauseVec {
     }
 
     fn variables(&self) -> impl Iterator<Item = VariableId> {
-        self.iter().map(|literal| literal.v_id)
+        self.iter().map(|literal| literal.v_id())
     }
 
     fn is_sat_on(&self, valuation: &ValuationWindow) -> bool {
         self.iter()
-            .any(|l| valuation.of_v_id(l.v_id) == Some(l.polarity))
+            .any(|l| valuation.of_v_id(l.v_id()) == Some(l.polarity()))
     }
 
     fn is_unsat_on(&self, valuation: &ValuationWindow) -> bool {
         self.iter().all(|l| {
-            if let Some(var_valuie) = valuation.of_v_id(l.v_id) {
-                var_valuie != l.polarity
+            if let Some(var_valuie) = valuation.of_v_id(l.v_id()) {
+                var_valuie != l.polarity()
             } else {
                 false
             }
@@ -35,8 +35,8 @@ impl Clause for ClauseVec {
         let mut unit = None;
 
         for literal in self {
-            let assigned_value = valuation.of_v_id(literal.v_id);
-            if assigned_value.is_some_and(|v| v == literal.polarity) {
+            let assigned_value = valuation.of_v_id(literal.v_id());
+            if assigned_value.is_some_and(|v| v == literal.polarity()) {
                 // the clause is satisfied and so does not provide any new information
                 break;
             } else if assigned_value.is_some() {
@@ -61,8 +61,8 @@ impl Clause for ClauseVec {
         let mut the_literals = vec![];
 
         for literal in self {
-            match valuation.of_v_id(literal.v_id) {
-                Some(value) if value == literal.polarity => {
+            match valuation.of_v_id(literal.v_id()) {
+                Some(value) if value == literal.polarity() => {
                     return None;
                 }
                 Some(_value) => continue,
@@ -85,9 +85,9 @@ impl Clause for ClauseVec {
     fn as_dimacs(&self, variables: &[Variable]) -> String {
         let mut the_string = String::from("");
         for literal in self {
-            let the_represenetation = match literal.polarity {
-                true => format!("{} ", variables[literal.v_id()].name()),
-                false => format!("-{} ", variables[literal.v_id()].name()),
+            let the_represenetation = match literal.polarity() {
+                true => format!("{} ", variables[literal.index()].name()),
+                false => format!("-{} ", variables[literal.index()].name()),
             };
             the_string.push_str(the_represenetation.as_str())
         }
@@ -107,8 +107,8 @@ impl Clause for ClauseVec {
     fn asserts(&self, val: &impl Valuation) -> Option<Literal> {
         let mut the_literal = None;
         for lit in self.literals() {
-            if let Some(existing_val) = val.of_v_id(lit.v_id) {
-                match existing_val == lit.polarity {
+            if let Some(existing_val) = val.of_v_id(lit.v_id()) {
+                match existing_val == lit.polarity() {
                     true => return None,
                     false => continue,
                 }
@@ -126,7 +126,7 @@ impl Clause for ClauseVec {
     fn lbd(&self, vars: &[Variable]) -> usize {
         let mut decision_levels = self
             .iter()
-            .map(|l| vars[l.v_id()].decision_level())
+            .map(|l| vars[l.index()].decision_level())
             .collect::<Vec<_>>();
         decision_levels.sort_unstable();
         decision_levels.dedup();
@@ -141,7 +141,7 @@ impl Clause for ClauseVec {
     /// Uses binary search on longer clauses, as literals are ordered by variable ids
     fn find_literal_by_id(&self, id: VariableId) -> Option<Literal> {
         if self.len() < 64 {
-            self.iter().find(|l| l.v_id == id).copied()
+            self.iter().find(|l| l.v_id() == id).copied()
         } else {
             find_literal_by_id_binary(self, id)
         }
@@ -157,12 +157,12 @@ fn find_literal_by_id_binary(clause: &[Literal], id: VariableId) -> Option<Liter
         midpoint = min + ((max - min) / 2);
         attempt = clause[midpoint];
         if max - min == 0 {
-            match attempt.v_id == id {
+            match attempt.v_id() == id {
                 true => return Some(attempt),
                 false => return None,
             }
         }
-        match attempt.v_id.cmp(&id) {
+        match attempt.v_id().cmp(&id) {
             std::cmp::Ordering::Less => min = midpoint + 1,
             std::cmp::Ordering::Equal => {
                 return Some(attempt);

@@ -54,10 +54,10 @@ impl Solve {
             let mut found_conflict = None;
 
             'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
-                let the_variable = &self.variables[literal.v_id()];
+                let the_variable = &self.variables[literal.index()];
 
                 unsafe {
-                    let borrowed_occurrences = match literal.polarity {
+                    let borrowed_occurrences = match literal.polarity() {
                         true => &mut *the_variable.negative_watch_occurrences.get(),
                         false => &mut *the_variable.positive_watch_occurrences.get(),
                     };
@@ -224,7 +224,7 @@ pub fn literal_update(
     formula_clauses: &mut ClauseStore,
     learnt_clauses: &mut ClauseStore,
 ) {
-    let literal_v_id = literal.v_id;
+    let literal_v_id = literal.v_id();
 
     let variable = unsafe { variables.get_unchecked(literal_v_id as usize) };
 
@@ -249,7 +249,7 @@ pub fn literal_update(
         }
 
         // and, process whether any change to the watch literals is required
-        let working_clause_vec = match literal.polarity {
+        let working_clause_vec = match literal.polarity() {
             true => &mut *variable.negative_watch_occurrences.get(),
             false => &mut *variable.positive_watch_occurrences.get(),
         };

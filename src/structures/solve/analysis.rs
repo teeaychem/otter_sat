@@ -110,14 +110,14 @@ impl Solve {
                     retreive(&self.formula_clauses, &self.learnt_clauses, *clause_key);
 
                 for involved_literal in stored_source_clause.literals() {
-                    used_variables[involved_literal.v_id()] = true;
+                    used_variables[involved_literal.index()] = true;
                 }
 
                 let for_the_borrow_checker = resolved_clause.clone();
                 let resolution_result = resolve_sorted_clauses(
                     for_the_borrow_checker.literals(),
                     stored_source_clause.literals(),
-                    literal.v_id,
+                    literal.v_id(),
                 );
                 if let Some(resolution) = resolution_result {
                     resolution_trail.push(*clause_key);
@@ -236,7 +236,7 @@ impl Solve {
 fn decision_level(variables: &[Variable], literals: impl Iterator<Item = Literal>) -> usize {
     let mut top_two = (None, None);
     for lit in literals {
-        if let Some(dl) = unsafe { (*variables.get_unchecked(lit.v_id())).decision_level() } {
+        if let Some(dl) = unsafe { (*variables.get_unchecked(lit.index())).decision_level() } {
             if top_two.1.is_none() {
                 top_two.1 = Some(dl)
             } else if top_two.1.is_some_and(|t1| dl > t1) {

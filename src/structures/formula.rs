@@ -1,7 +1,7 @@
 use crate::structures::{
     clause::{clause_vec::ClauseVec, Clause},
     literal::Literal,
-    variable::Variable,
+    variable::{Variable, VariableId},
 };
 
 pub struct Formula {
@@ -34,7 +34,7 @@ impl Formula {
         let string_lterals = string.split_whitespace();
         let mut the_clause = vec![];
         for string_literal in string_lterals {
-            let the_literal = Literal::from_string(string_literal, &mut self.variables);
+            let the_literal = literal_from_string(string_literal, &mut self.variables);
             the_clause.push(the_literal)
         }
         the_clause.sort_unstable();
@@ -62,3 +62,30 @@ impl std::fmt::Display for Formula {
         Ok(())
     }
 }
+
+fn literal_from_string(string: &str, vars: &mut Vec<Variable>) -> Literal {
+        let trimmed_string = string.trim();
+
+        if trimmed_string.is_empty() || trimmed_string == "-" {
+            panic!("No variable when creating literal from string");
+        }
+
+        let polarity = !trimmed_string.starts_with('-');
+
+        let mut the_name = trimmed_string;
+        if !polarity {
+            the_name = &the_name[1..]
+        }
+
+        let the_variable = {
+            if let Some(variable) = vars.iter().find(|v| v.name() == the_name) {
+                variable.id()
+            } else {
+                let the_id = vars.len() as VariableId;
+                let new_variable = Variable::new(the_name, the_id);
+                vars.push(new_variable);
+                the_id
+            }
+        };
+        Literal::new(the_variable, polarity)
+    }
