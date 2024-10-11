@@ -20,8 +20,8 @@ impl Variable {
             name: name.to_string(),
             decision_level: UnsafeCell::new(None),
             id,
-            positive_watch_occurrences: UnsafeCell::new(Vec::new()),
-            negative_watch_occurrences: UnsafeCell::new(Vec::new()),
+            positive_watch_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
+            negative_watch_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
             activity: UnsafeCell::new(0.0),
         }
     }
