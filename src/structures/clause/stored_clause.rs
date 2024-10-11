@@ -47,7 +47,7 @@ pub enum Watch {
 #[derive(Clone, Copy, PartialEq)]
 pub enum WatchUpdate {
     NoUpdate,
-    Update(Literal),
+    Update(VariableId, bool),
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -64,7 +64,7 @@ impl StoredClause {
         key: ClauseKey,
         clause: ClauseVec,
         source: ClauseSource,
-        valuation: &impl Valuation,
+        valuation: &ValuationVec,
         variables: &mut [Variable],
     ) -> StoredClause {
         let figured_out = figure_out_intial_watches(clause.clone(), valuation);
@@ -160,44 +160,56 @@ impl StoredClause {
         self.clause.clone()
     }
 
-    pub fn update_watch(&mut self, watch: Watch, valuation: &impl Valuation) -> WatchUpdate {
+    pub fn update_watch(&mut self, watch: Watch, valuation: &ValuationVec) -> WatchUpdate {
         let mut replacement = WatchUpdate::NoUpdate;
 
-        let length = self.the_wc.len();
+        let max = self.the_wc.len();
         let mut index = 2;
-        'search_loop: for _ in 2..length {
-            let the_literal = unsafe { *self.the_wc.get_unchecked(index) };
-            match get_status(the_literal, valuation) {
-                WatchStatus::None | WatchStatus::Witness => {
-                    replacement = WatchUpdate::Update(the_literal);
+        'search_loop: loop {
+            if index == max {
+                break 'search_loop;
+            }
+
+            let (l_v_id, l_polarity) = {
+                let the_literal = unsafe { *self.the_wc.get_unchecked(index) };
+                (the_literal.v_id, the_literal.polarity)
+            };
+
+            match valuation.of_v_id(l_v_id) {
+                None => {
+                    replacement = WatchUpdate::Update(l_v_id, l_polarity);
                     break 'search_loop;
                 }
-                WatchStatus::Conflict => {
+                Some(polarity) if polarity == l_polarity => {
+                    replacement = WatchUpdate::Update(l_v_id, l_polarity);
+                    break 'search_loop;
+                }
+                Some(_) => {
                     index += 1;
                 }
             }
         }
 
         match replacement {
-            WatchUpdate::Update(the_literal) => {
+            WatchUpdate::Update(v_id, polarity) => {
                 let clause_index = match watch {
                     Watch::A => {
-                        self.cached_split_watches.0 .0 = the_literal.v_id;
-                        self.cached_split_watches.0 .1 = the_literal.polarity;
+                        self.cached_split_watches.0 .0 = v_id;
+                        self.cached_split_watches.0 .1 = polarity;
                         0
                     }
                     Watch::B => {
-                        self.cached_split_watches.1 .0 = the_literal.v_id;
-                        self.cached_split_watches.1 .1 = the_literal.polarity;
+                        self.cached_split_watches.1 .0 = v_id;
+                        self.cached_split_watches.1 .1 = polarity;
                         1
                     }
                 };
-                let mix_up = index / 4;
+                let mix_up = index / 3;
                 if mix_up > 2 {
-                    self.the_wc.swap(mix_up, index);
-                    self.the_wc.swap(clause_index, mix_up);
+                    self.the_wc.swap(index, mix_up);
+                    self.the_wc.swap(mix_up, clause_index);
                 } else {
-                    self.the_wc.swap(clause_index, index);
+                    self.the_wc.swap(index, clause_index);
                 }
             }
             WatchUpdate::NoUpdate => {}
