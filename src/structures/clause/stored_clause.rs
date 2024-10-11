@@ -121,25 +121,6 @@ impl StoredClause {
         }
     }
 
-    pub fn watch_status(&self, val: &impl Valuation, id: VariableId) -> ClauseStatus {
-        let (a_v_id, a_polarity) = self.get_watched_split(Watch::A);
-        let (b_v_id, b_polarity) = self.get_watched_split(Watch::B);
-
-        if a_v_id != id && b_v_id != id {
-            return ClauseStatus::Missing;
-        }
-
-        match (val.of_v_id(a_v_id), val.of_v_id(b_v_id)) {
-            (None, None) => ClauseStatus::Unsatisfied,
-            (Some(a), None) if a == a_polarity => ClauseStatus::Satisfied,
-            (None, Some(b)) if b == b_polarity => ClauseStatus::Satisfied,
-            (Some(_), None) => ClauseStatus::Implies(Literal::new(b_v_id, b_polarity)),
-            (None, Some(_)) => ClauseStatus::Implies(Literal::new(a_v_id, a_polarity)),
-            (Some(a), Some(b)) if a == a_polarity || b == b_polarity => ClauseStatus::Satisfied,
-            (Some(_), Some(_)) => ClauseStatus::Conflict,
-        }
-    }
-
     pub fn set_lbd(&self, vars: &[Variable]) {
         unsafe {
             *self.lbd.get() = self.lbd(vars);
