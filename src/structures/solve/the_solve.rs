@@ -1,7 +1,7 @@
 use crate::procedures::hobson_choices;
 use crate::structures::{
     clause::{
-        stored_clause::{ClauseStatus, StoredClause, Watch, WatchUpdate},
+        stored_clause::{StoredClause, Watch, WatchUpdate},
         Clause,
     },
     level::Level,
@@ -71,36 +71,56 @@ impl Solve {
                         let stored_clause =
                             retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
-                        let watch_choices =
-                            stored_clause.watch_status(&self.valuation, the_variable.id());
+                        let the_id = the_variable.id();
 
-                        let clause_key = stored_clause.key();
+                        let (a_v_id, a_polarity) = stored_clause.get_watched_split(Watch::A);
+                        let (b_v_id, b_polarity) = stored_clause.get_watched_split(Watch::B);
 
-                        match watch_choices {
-                            ClauseStatus::Missing => {
-                                borrowed_occurrences.swap_remove(index);
-                                length -= 1;
-                            }
-                            ClauseStatus::Implies(consequent) => {
-                                literal_update(
-                                    consequent,
-                                    LiteralSource::StoredClause(clause_key),
-                                    &mut self.levels,
-                                    &self.variables,
-                                    &mut self.valuation,
-                                    &mut self.formula_clauses,
-                                    &mut self.learnt_clauses,
-                                );
-                                self.watch_q.push_back(consequent);
-                                index += 1;
-                            }
-                            ClauseStatus::Conflict => {
-                                found_conflict = Some(clause_key);
-                                self.watch_q.clear();
-                                break 'clause_loop;
-                            }
-                            ClauseStatus::Unsatisfied | ClauseStatus::Satisfied => {
-                                index += 1;
+                        if a_v_id != the_id && b_v_id != the_id {
+                            borrowed_occurrences.swap_remove(index);
+                            length -= 1;
+                        } else {
+                            // the compiler prefers the conditional matches
+                            index += 1;
+                            match (
+                                self.valuation.of_v_id(a_v_id),
+                                self.valuation.of_v_id(b_v_id),
+                            ) {
+                                (None, None) => {}
+                                (Some(a), None) if a == a_polarity => {}
+                                (Some(_), None) => {
+                                    let consequent = Literal::new(b_v_id, b_polarity);
+                                    literal_update(
+                                        consequent,
+                                        LiteralSource::StoredClause(clause_key),
+                                        &mut self.levels,
+                                        &self.variables,
+                                        &mut self.valuation,
+                                        &mut self.formula_clauses,
+                                        &mut self.learnt_clauses,
+                                    );
+                                    self.watch_q.push_back(consequent);
+                                }
+                                (None, Some(b)) if b == b_polarity => {}
+                                (None, Some(_)) => {
+                                    let consequent = Literal::new(a_v_id, a_polarity);
+                                    literal_update(
+                                        consequent,
+                                        LiteralSource::StoredClause(clause_key),
+                                        &mut self.levels,
+                                        &self.variables,
+                                        &mut self.valuation,
+                                        &mut self.formula_clauses,
+                                        &mut self.learnt_clauses,
+                                    );
+                                    self.watch_q.push_back(consequent);
+                                }
+                                (Some(a), Some(b)) if a == a_polarity || b == b_polarity => {}
+                                (Some(_), Some(_)) => {
+                                    found_conflict = Some(clause_key);
+                                    self.watch_q.clear();
+                                    break 'clause_loop;
+                                }
                             }
                         }
                     }
