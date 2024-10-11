@@ -17,58 +17,41 @@ impl Solve {
     pub fn attempt_fix(&mut self, clause_key: ClauseKey) -> SolveStatus {
         let conflict_clause = retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
-        {
-            let level = self.current_level().index();
-            log::trace!("Fix on clause {conflict_clause} @ {level}");
-        }
+        log::trace!("Fix on clause {conflict_clause} @ {}", self.level().index());
 
-        match self.current_level().index() {
+        match self.level().index() {
             0 => SolveStatus::NoSolution,
             _ => {
                 let (asserting_clause, clause_source, assertion) =
                     self.conflict_analysis(conflict_clause);
 
-                if asserting_clause.len() == 1 {
-                    self.backjump(0);
-
-                    let literal_source = match clause_source {
-                        ClauseSource::Resolution(resolution_vector) => {
-                            LiteralSource::Resolution(resolution_vector)
+                let source = match asserting_clause.len() {
+                    1 => {
+                        self.backjump(0);
+                        match clause_source {
+                            ClauseSource::Resolution(resolution_vector) => {
+                                LiteralSource::Resolution(resolution_vector)
+                            }
+                            _ => panic!("Analysis without resolution"),
                         }
-                        _ => panic!("Analysis without resolution"),
-                    };
-                    literal_update(
-                        assertion,
-                        literal_source.clone(),
-                        &mut self.levels,
-                        &self.variables,
-                        &mut self.valuation,
-                        &mut self.formula_clauses,
-                        &mut self.learnt_clauses,
-                    );
+                    }
+                    _ => {
+                        self.backjump(decision_level(&self.variables, asserting_clause.literals()));
 
-                } else {
-                    self.backjump(decision_level(&self.variables, asserting_clause.literals()));
-
-                    let clause_key = self.store_clause(asserting_clause, clause_source);
-                    let stored_clause =
-                        retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
-
-                    let anticipated_literal_source = LiteralSource::StoredClause(clause_key);
-
-                    stored_clause.set_lbd(&self.variables);
-
-                    literal_update(
-                        assertion,
-                        anticipated_literal_source.clone(),
-                        &mut self.levels,
-                        &self.variables,
-                        &mut self.valuation,
-                        &mut self.formula_clauses,
-                        &mut self.learnt_clauses,
-                    );
-
-                }
+                        LiteralSource::StoredClause(
+                            self.store_clause(asserting_clause, clause_source),
+                        )
+                    }
+                };
+                literal_update(
+                    assertion,
+                    source,
+                    &mut self.levels,
+                    &self.variables,
+                    &mut self.valuation,
+                    &mut self.formula_clauses,
+                    &mut self.learnt_clauses,
+                );
                 self.watch_q.push_back(assertion);
                 SolveStatus::AssertingClause
             }
@@ -83,19 +66,13 @@ impl Solve {
         let mut resolved_clause = conflict_clause.clause_clone();
         let mut resolution_trail = vec![];
 
-        let previous_level_val = self.valuation_at(self.current_level().index() - 1);
+        let previous_level_val = self.valuation_at(self.level().index() - 1);
         let mut asserted_literal = None;
 
-        let stopping_criteria = unsafe { config::STOPPING_CRITERIA };
+        let mut used_variables = vec![false; self.variables.len()];
 
-        let variable_count = self.variables.len();
-        let mut used_variables = vec![false; variable_count];
-
-        let mut x = self.current_level().observations.clone();
-        x.reverse();
-
-        for (src, literal) in &x {
-            match stopping_criteria {
+        for (src, literal) in self.level().observations.iter().rev() {
+            match unsafe { config::STOPPING_CRITERIA } {
                 config::StoppingCriteria::FirstAssertingUIP => {
                     if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
                         asserted_literal = Some(asserted);
@@ -121,28 +98,29 @@ impl Solve {
                 );
                 if let Some(resolution) = resolution_result {
                     resolution_trail.push(*clause_key);
-                    resolved_clause = resolution.to_vec();
+                    resolved_clause = resolution.to_clause_vec();
                 };
             }
         }
 
         if asserted_literal.is_none() {
-            if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
-                asserted_literal = Some(asserted);
-            } else {
-                for x in resolution_trail {
-                    let cls = retreive(&self.formula_clauses, &self.learnt_clauses, x);
-                    println!("{}", cls.as_string());
-                }
-                for ob in self.current_level().observations() {
-                    println!("OBS {:?}", ob);
-                }
+            match resolved_clause.asserts(&previous_level_val) {
+                Some(asserted) => asserted_literal = Some(asserted),
+                None => {
+                    for x in resolution_trail {
+                        let cls = retreive(&self.formula_clauses, &self.learnt_clauses, x);
+                        println!("{}", cls.as_string());
+                    }
+                    for ob in self.level().observations() {
+                        println!("OBS {:?}", ob);
+                    }
 
-                println!("CC {}", conflict_clause.as_string());
-                println!("RC {}", resolved_clause.as_string());
-                println!("PV {}", previous_level_val.as_internal_string());
-                println!("CV {}", self.valuation.as_internal_string());
-                panic!("No assertion…")
+                    println!("CC {}", conflict_clause.as_string());
+                    println!("RC {}", resolved_clause.as_string());
+                    println!("PV {}", previous_level_val.as_internal_string());
+                    println!("CV {}", self.valuation.as_internal_string());
+                    panic!("No assertion…")
+                }
             }
         }
 
@@ -161,15 +139,13 @@ impl Solve {
 
         match unsafe { config::VSIDS_VARIANT } {
             config::VSIDS::C => {
-                for variable in resolved_clause.variables() {
-                    self.variables[variable as usize].add_activity(config::ACTIVITY_CONFLICT);
+                for variable_index in resolved_clause.literals().map(|l| l.index()) {
+                    self.variables[variable_index].add_activity(config::ACTIVITY_CONFLICT);
                 }
             }
-            config::VSIDS::M =>
-            {
-                #[allow(clippy::needless_range_loop)]
-                for index in 0..variable_count {
-                    if used_variables[index] {
+            config::VSIDS::M => {
+                for (index, used) in used_variables.into_iter().enumerate() {
+                    if used {
                         self.variables[index].add_activity(config::ACTIVITY_CONFLICT);
                     }
                 }
@@ -186,34 +162,29 @@ impl Solve {
     pub fn core(&self) {
         println!();
         println!("c An unsatisfiable core of the original formula:\n");
-        let node_indicies = self.levels[0]
-            .observations()
-            .iter()
-            .filter_map(|(source, _)| match source {
-                LiteralSource::StoredClause(weak) => Some(*weak),
-                _ => None,
-            });
-        let node_indicies_vec = node_indicies.collect::<Vec<_>>();
-        let simple_core = self.extant_origins(node_indicies_vec);
-        for clause in simple_core {
+        let mut node_indicies = vec![];
+        for (source, _) in &self.levels[0].observations {
+            match source {
+                LiteralSource::StoredClause(key) => node_indicies.push(*key),
+                LiteralSource::Resolution(keys) => node_indicies.extend(keys),
+                _ => {}
+            }
+        }
+        let mut origins = self.extant_origins(node_indicies.iter().cloned());
+        origins.sort_unstable_by_key(|s| s.key());
+        origins.dedup_by_key(|s| s.key());
+
+        for clause in origins {
             println!("{}", clause.as_dimacs(&self.variables))
         }
         println!();
     }
 
-    pub fn extant_origins(&self, clauses: Vec<ClauseKey>) -> Vec<&StoredClause> {
-        #[allow(clippy::mutable_key_type)]
+    pub fn extant_origins(&self, clauses: impl Iterator<Item = ClauseKey>) -> Vec<&StoredClause> {
         let mut origin_nodes = vec![];
+        let mut q = VecDeque::from_iter(clauses);
 
-        let mut q = VecDeque::new();
-        for clause in clauses {
-            q.push_back(clause);
-        }
-        loop {
-            if q.is_empty() {
-                break;
-            }
-
+        while !q.is_empty() {
             let clause_key = q.pop_front().expect("Ah, the queue was empty…");
             let stored_clause = retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
@@ -223,9 +194,7 @@ impl Solve {
                         q.push_back(*antecedent);
                     }
                 }
-                ClauseSource::Formula => {
-                    origin_nodes.push(stored_clause);
-                }
+                ClauseSource::Formula => origin_nodes.push(stored_clause),
             }
         }
         origin_nodes

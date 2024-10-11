@@ -9,9 +9,9 @@ use crate::structures::{
     solve::{
         config, retreive, retreive_mut,
         stats::SolveStats,
-        ClauseKey, ClauseStore, Solve, {SolveResult, SolveStatus},
+        ClauseStore, Solve, {SolveResult, SolveStatus},
     },
-    valuation::{Valuation, ValuationWindow},
+    valuation::Valuation,
     variable::{Variable, VariableId},
 };
 
@@ -28,7 +28,10 @@ impl Solve {
 
         if unsafe { config::HOBSON_CHOICES } {
             let lits = self
-                .stored_clauses()
+                .formula_clauses
+                .iter()
+                .chain(&self.learnt_clauses)
+                .map(|(_, sc)| sc)
                 .map(|stored_clause| stored_clause.literals());
             let (f, t) = hobson_choices(lits);
             self.literal_set_from_vec(f);
@@ -145,7 +148,7 @@ impl Solve {
                         }
 
                         for key in keys_to_drop {
-                            self.drop_learnt_clause(ClauseKey::Learnt(key))
+                            self.learnt_clauses.remove(key);
                         }
 
                         log::debug!(target: "forget", "Reduced to: {}", self.learnt_clauses.len());
@@ -161,7 +164,7 @@ impl Solve {
                     if let Some(available_v_id) = self.most_active_none(&self.valuation) {
                         log::trace!(
                             "Choice: {available_v_id} @ {} with activity {}",
-                            self.current_level().index(),
+                            self.level().index(),
                             self.variables[available_v_id].activity()
                         );
                         let _new_level = self.add_fresh_level();
@@ -240,7 +243,7 @@ pub fn literal_update(
     source: LiteralSource,
     levels: &mut [Level],
     variables: &[Variable],
-    valuation: &mut ValuationWindow,
+    valuation: &mut impl Valuation,
     formula_clauses: &mut ClauseStore,
     learnt_clauses: &mut ClauseStore,
 ) {
@@ -278,46 +281,48 @@ pub fn literal_update(
         let mut length = working_clause_vec.len();
 
         while index < length {
-            if let Some(stored_clause) = retreive_mut(
+            match retreive_mut(
                 formula_clauses,
                 learnt_clauses,
                 *working_clause_vec.get_unchecked(index),
             ) {
-                let (a_v_id, a_polarity) = stored_clause.get_watched_split(Watch::A);
-                let (b_v_id, b_polarity) = stored_clause.get_watched_split(Watch::B);
+                Some(stored_clause) => {
+                    let (a_v_id, a_polarity) = stored_clause.get_watched_split(Watch::A);
+                    let (b_v_id, b_polarity) = stored_clause.get_watched_split(Watch::B);
 
-                if a_v_id == literal_v_id {
-                    if !watch_witnesses(valuation, b_v_id, b_polarity) {
-                        process_watches(valuation, variables, stored_clause, Watch::A);
+                    if literal_v_id == a_v_id {
+                        if !watch_witnesses(valuation, b_v_id, b_polarity) {
+                            process_watches(valuation, variables, stored_clause, Watch::A);
+                        }
+                        index += 1;
+                    } else if literal_v_id == b_v_id {
+                        if !watch_witnesses(valuation, a_v_id, a_polarity) {
+                            process_watches(valuation, variables, stored_clause, Watch::B);
+                        }
+                        index += 1;
+                    } else {
+                        working_clause_vec.swap_remove(index);
+                        length -= 1;
                     }
-                    index += 1;
-                } else if b_v_id == literal_v_id {
-                    if !watch_witnesses(valuation, a_v_id, a_polarity) {
-                        process_watches(valuation, variables, stored_clause, Watch::B);
-                    }
-                    index += 1;
-                } else {
+                }
+                None => {
                     working_clause_vec.swap_remove(index);
                     length -= 1;
                 }
-            } else {
-                working_clause_vec.swap_remove(index);
-                length -= 1;
             }
         }
     }
 }
 
-fn watch_witnesses(valuation: &ValuationWindow, v_id: VariableId, polarity: bool) -> bool {
-    if let Some(p) = valuation.of_v_id(v_id) {
-        p == polarity
-    } else {
-        false
+fn watch_witnesses(valuation: &impl Valuation, v_id: VariableId, polarity: bool) -> bool {
+    match valuation.of_v_id(v_id) {
+        Some(p) => p == polarity,
+        None => false,
     }
 }
 
 fn process_watches(
-    valuation: &ValuationWindow,
+    valuation: &impl Valuation,
     variables: &[Variable],
     stored_clause: &mut StoredClause,
     chosen_watch: Watch,

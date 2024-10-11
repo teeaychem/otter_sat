@@ -63,7 +63,7 @@ struct Args {
     time: Option<std::time::Duration>,
 }
 
-#[rustfmt::skip]
+// #[rustfmt::skip]
 fn main() {
     match log4rs::init_file("config/log4rs.yaml", Default::default()) {
         Ok(_) => log::trace!("Log find loaded"),
@@ -96,50 +96,54 @@ fn main() {
         config::SHOW_CORE = args.core;
         config::SHOW_ASSIGNMENT = args.assignment;
         config::RESTARTS_ALLOWED = args.restarts;
-        config::REDUCTION_ALLOWED =
-            if  args.reduction && !args.restarts {
-                println!("c REDUCTION REQUIRES RESTARTS TO BE ENABLED");
-                false
-            } else {
-                args.reduction
-            };
+        config::REDUCTION_ALLOWED = if args.reduction && !args.restarts {
+            println!("c REDUCTION REQUIRES RESTARTS TO BE ENABLED");
+            false
+        } else {
+            args.reduction
+        };
         config::TIME_LIMIT = args.time;
     }
 
-    if let Ok(contents) = fs::read_to_string(&args.formula_file) {
-        let formula = Formula::from_dimacs(&contents);
+    match fs::read_to_string(&args.formula_file) {
+        Ok(contents) => {
+            let formula = Formula::from_dimacs(&contents);
 
-        if unsafe { config::SHOW_STATS } {
-            println!("c 🦦");
-            println!("c Parsing formula from file: {:?}", args.formula_file);
-            println!("c Parsed formula with {} variables and {} clauses", formula.variable_count(), formula.clause_count());
-            if let Some(limit) = unsafe { config::TIME_LIMIT } {
-                println!("c TIME LIMIT: {:.2?}", limit);
+            if unsafe { config::SHOW_STATS } {
+                println!("c 🦦");
+                println!("c Parsing formula from file: {:?}", args.formula_file);
+                println!(
+                    "c Parsed formula with {} variables and {} clauses",
+                    formula.variable_count(),
+                    formula.clause_count()
+                );
+                if let Some(limit) = unsafe { config::TIME_LIMIT } {
+                    println!("c TIME LIMIT: {:.2?}", limit);
+                }
             }
-        }
-        log::trace!("Formula processed");
-        let mut the_solve = Solve::from_formula(formula);
-        log::trace!("Solve initialised");
+            log::trace!("Formula processed");
+            let mut the_solve = Solve::from_formula(formula);
+            log::trace!("Solve initialised");
 
-        let (result, stats) = the_solve.do_solve();
-        if unsafe { config::SHOW_STATS } {
-            println!("{stats}");
+            let (result, stats) = the_solve.do_solve();
+            if unsafe { config::SHOW_STATS } {
+                println!("{stats}");
+            }
+            match result {
+                SolveResult::Unsatisfiable => {
+                    println!("s UNSATISFIABLE");
+                    std::process::exit(00);
+                }
+                SolveResult::Satisfiable => {
+                    println!("s SATISFIABLE");
+                    std::process::exit(10);
+                }
+                SolveResult::Unknown => {
+                    println!("s UNKNOWN");
+                    std::process::exit(20);
+                }
+            }
         }
-        match result {
-            SolveResult::Unsatisfiable => {
-                println!("s UNSATISFIABLE");
-                std::process::exit(00);
-            }
-            SolveResult::Satisfiable => {
-                println!("s SATISFIABLE");
-                std::process::exit(10);
-            }
-            SolveResult::Unknown => {
-                println!("s UNKNOWN");
-                std::process::exit(20);
-            }
-        }
-    } else {
-        println!("Error reading file")
+        Err(_) => println!("Error reading file"),
     }
 }

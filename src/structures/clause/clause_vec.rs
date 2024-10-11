@@ -1,7 +1,7 @@
 use crate::structures::{
     clause::Clause,
     literal::Literal,
-    valuation::{Valuation, ValuationWindow},
+    valuation::Valuation,
     variable::{Variable, VariableId},
 };
 
@@ -14,63 +14,6 @@ impl Clause for ClauseVec {
 
     fn variables(&self) -> impl Iterator<Item = VariableId> {
         self.iter().map(|literal| literal.v_id())
-    }
-
-    fn is_sat_on(&self, valuation: &ValuationWindow) -> bool {
-        self.iter()
-            .any(|l| valuation.of_v_id(l.v_id()) == Some(l.polarity()))
-    }
-
-    fn is_unsat_on(&self, valuation: &ValuationWindow) -> bool {
-        self.iter().all(|l| {
-            if let Some(var_valuie) = valuation.of_v_id(l.v_id()) {
-                var_valuie != l.polarity()
-            } else {
-                false
-            }
-        })
-    }
-
-    fn find_unit_literal<T: Valuation>(&self, valuation: &T) -> Option<Literal> {
-        let mut unit = None;
-
-        for literal in self {
-            let assigned_value = valuation.of_v_id(literal.v_id());
-            if assigned_value.is_some_and(|v| v == literal.polarity()) {
-                // the clause is satisfied and so does not provide any new information
-                break;
-            } else if assigned_value.is_some() {
-                // either every literal so far has been valued the opposite, or there has been exactly on unvalued literal, so continue
-                continue;
-            } else {
-                // if no other literal has been found then this literal may be unit, so mark it and continue
-                // though, if some other literal has already been marked, the clause does not force any literal
-                match unit {
-                    Some(_) => {
-                        unit = None;
-                        break;
-                    }
-                    None => unit = Some(*literal),
-                }
-            }
-        }
-        unit
-    }
-
-    fn collect_choices<T: Valuation>(&self, valuation: &T) -> Option<Vec<Literal>> {
-        let mut the_literals = vec![];
-
-        for literal in self {
-            match valuation.of_v_id(literal.v_id()) {
-                Some(value) if value == literal.polarity() => {
-                    return None;
-                }
-                Some(_value) => continue,
-
-                None => the_literals.push(*literal),
-            }
-        }
-        Some(the_literals)
     }
 
     fn as_string(&self) -> String {
@@ -95,7 +38,7 @@ impl Clause for ClauseVec {
         the_string
     }
 
-    fn to_vec(self) -> ClauseVec {
+    fn to_clause_vec(self) -> ClauseVec {
         self
     }
 
@@ -131,10 +74,6 @@ impl Clause for ClauseVec {
         decision_levels.sort_unstable();
         decision_levels.dedup();
         decision_levels.len()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.is_empty()
     }
 
     /// Returns Some(literal) whose variable id matches the given id
@@ -190,17 +129,18 @@ mod tests {
             Literal::new(4, false),
         ];
         let resolution = resolve_sorted_clauses(a.literals(), b.literals(), 1);
-        if let Some(resolved) = resolution {
-            assert_eq!(
-                vec![
-                    Literal::new(2, false),
-                    Literal::new(3, true),
-                    Literal::new(4, false)
-                ],
-                resolved.to_vec()
-            )
-        } else {
-            panic!("No resolution")
+        match resolution {
+            Some(resolved) => {
+                assert_eq!(
+                    vec![
+                        Literal::new(2, false),
+                        Literal::new(3, true),
+                        Literal::new(4, false)
+                    ],
+                    resolved.to_clause_vec()
+                )
+            }
+            None => panic!("No resolution"),
         }
     }
 
