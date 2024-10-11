@@ -11,9 +11,9 @@ pub fn hobson_choices<'borrow>(
 
     clauses.for_each(|literals| {
         literals.for_each(|literal| {
-            match literal.polarity {
-                true => the_true.insert(literal.v_id),
-                false => the_false.insert(literal.v_id),
+            match literal.polarity() {
+                true => the_true.insert(literal.v_id()),
+                false => the_false.insert(literal.v_id()),
             };
         })
     });
@@ -39,15 +39,15 @@ pub fn resolve_sorted_clauses(
         match (current_a, current_b) {
             (None, None) => break,
             (Some(a_lit), None) => {
-                if a_lit.v_id == v_id {
+                if a_lit.v_id() == v_id {
                     if let Some(existing_b) = b_found {
-                        if existing_b != a_lit.polarity {
-                            a_found = Some(a_lit.polarity);
+                        if existing_b != a_lit.polarity() {
+                            a_found = Some(a_lit.polarity());
                         } else {
                             return None;
                         }
                     } else {
-                        a_found = Some(a_lit.polarity);
+                        a_found = Some(a_lit.polarity());
                     }
                 } else {
                     the_clause.push(a_lit);
@@ -55,15 +55,15 @@ pub fn resolve_sorted_clauses(
                 current_a = clause_a_literals.next();
             }
             (None, Some(b_lit)) => {
-                if b_lit.v_id == v_id {
+                if b_lit.v_id() == v_id {
                     if let Some(existing) = a_found {
-                        if existing != b_lit.polarity {
-                            b_found = Some(b_lit.polarity);
+                        if existing != b_lit.polarity() {
+                            b_found = Some(b_lit.polarity());
                         } else {
                             return None;
                         }
                     } else {
-                        b_found = Some(b_lit.polarity);
+                        b_found = Some(b_lit.polarity());
                     }
                 } else {
                     the_clause.push(b_lit);
@@ -71,26 +71,26 @@ pub fn resolve_sorted_clauses(
                 current_b = clause_b_literals.next();
             }
             (Some(a_lit), Some(b_lit)) => {
-                if a_lit.v_id == v_id {
+                if a_lit.v_id() == v_id {
                     if let Some(existing) = b_found {
-                        if existing != a_lit.polarity {
-                            a_found = Some(a_lit.polarity);
+                        if existing != a_lit.polarity() {
+                            a_found = Some(a_lit.polarity());
                         } else {
                             return None;
                         }
                     } else {
-                        a_found = Some(a_lit.polarity);
+                        a_found = Some(a_lit.polarity());
                     }
                     current_a = clause_a_literals.next();
-                } else if b_lit.v_id == v_id {
+                } else if b_lit.v_id() == v_id {
                     if let Some(existing) = a_found {
-                        if existing != b_lit.polarity {
-                            b_found = Some(b_lit.polarity);
+                        if existing != b_lit.polarity() {
+                            b_found = Some(b_lit.polarity());
                         } else {
                             return None;
                         }
                     } else {
-                        b_found = Some(b_lit.polarity);
+                        b_found = Some(b_lit.polarity());
                     }
                     current_b = clause_b_literals.next();
                 } else {
@@ -134,9 +134,9 @@ pub fn find_counterpart_literals(
     let mut current_b = cls_b.next();
 
     while let (Some(a_lit), Some(b_lit)) = (current_a, current_b) {
-        if a_lit.v_id == b_lit.v_id {
-            if a_lit.polarity != b_lit.polarity {
-                candidates.push(a_lit.v_id);
+        if a_lit.v_id() == b_lit.v_id() {
+            if a_lit.polarity() != b_lit.polarity() {
+                candidates.push(a_lit.v_id());
             }
             current_a = cls_a.next();
             current_b = cls_b.next();

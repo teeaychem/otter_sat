@@ -1,12 +1,9 @@
-use crate::structures::{
-    solve::ClauseKey,
-    variable::{Variable, VariableId},
-};
+use crate::structures::{solve::ClauseKey, variable::VariableId};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Literal {
-    pub v_id: VariableId,
-    pub polarity: bool,
+    v_id: VariableId,
+    polarity: bool,
 }
 
 /// how a literal was settled
@@ -34,34 +31,15 @@ impl Literal {
         }
     }
 
-    pub fn from_string(string: &str, vars: &mut Vec<Variable>) -> Literal {
-        let trimmed_string = string.trim();
-
-        if trimmed_string.is_empty() || trimmed_string == "-" {
-            panic!("No variable when creating literal from string");
-        }
-
-        let polarity = !trimmed_string.starts_with('-');
-
-        let mut the_name = trimmed_string;
-        if !polarity {
-            the_name = &the_name[1..]
-        }
-
-        let the_variable = {
-            if let Some(variable) = vars.iter().find(|v| v.name() == the_name) {
-                variable.id()
-            } else {
-                let the_id = vars.len() as VariableId;
-                let new_variable = Variable::new(the_name, the_id);
-                vars.push(new_variable);
-                the_id
-            }
-        };
-        Literal::new(the_variable, polarity)
+    pub fn v_id(&self) -> VariableId {
+        self.v_id
     }
 
-    pub fn v_id(&self) -> usize {
+    pub fn polarity(&self) -> bool {
+        self.polarity
+    }
+
+    pub fn index(&self) -> usize {
         self.v_id as usize
     }
 }

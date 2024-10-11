@@ -75,8 +75,8 @@ impl StoredClause {
             clause,
             the_wc: figured_out.clone(),
             cached_split_watches: (
-                (figured_out[0].v_id, figured_out[0].polarity),
-                (figured_out[1].v_id, figured_out[1].polarity),
+                (figured_out[0].v_id(), figured_out[0].polarity()),
+                (figured_out[1].v_id(), figured_out[1].polarity()),
             ),
         };
 
@@ -133,14 +133,8 @@ impl StoredClause {
             (None, None) => ClauseStatus::Unsatisfied,
             (Some(a), None) if a == a_polarity => ClauseStatus::Satisfied,
             (None, Some(b)) if b == b_polarity => ClauseStatus::Satisfied,
-            (Some(_), None) => ClauseStatus::Implies(Literal {
-                v_id: b_v_id,
-                polarity: b_polarity,
-            }),
-            (None, Some(_)) => ClauseStatus::Implies(Literal {
-                v_id: a_v_id,
-                polarity: a_polarity,
-            }),
+            (Some(_), None) => ClauseStatus::Implies(Literal::new(b_v_id, b_polarity)),
+            (None, Some(_)) => ClauseStatus::Implies(Literal::new(a_v_id, a_polarity)),
             (Some(a), Some(b)) if a == a_polarity || b == b_polarity => ClauseStatus::Satisfied,
             (Some(_), Some(_)) => ClauseStatus::Conflict,
         }
@@ -172,7 +166,7 @@ impl StoredClause {
 
             let (l_v_id, l_polarity) = {
                 let the_literal = unsafe { *self.the_wc.get_unchecked(index) };
-                (the_literal.v_id, the_literal.polarity)
+                (the_literal.v_id(), the_literal.polarity())
             };
 
             match valuation.of_v_id(l_v_id) {
@@ -342,9 +336,9 @@ fn figure_out_intial_watches(clause: ClauseVec, val: &ValuationWindow) -> Vec<Li
 }
 
 fn get_status(literal: Literal, valuation: &ValuationWindow) -> WatchStatus {
-    match valuation.of_v_id(literal.v_id) {
+    match valuation.of_v_id(literal.v_id()) {
         None => WatchStatus::None,
-        Some(polarity) if polarity == literal.polarity => WatchStatus::Witness,
+        Some(polarity) if polarity == literal.polarity() => WatchStatus::Witness,
         Some(_) => WatchStatus::Conflict,
     }
 }
