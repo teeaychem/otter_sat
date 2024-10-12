@@ -389,6 +389,8 @@ dependencies = [
  "clap",
  "log",
  "log4rs",
+ "rand",
+ "serde",
  "slotmap",
 ]
 
