@@ -1,8 +1,5 @@
 use crate::structures::{
-    clause::Clause,
-    literal::Literal,
-    valuation::Valuation,
-    variable::{Variable, VariableId},
+    clause::Clause, literal::Literal, valuation::Valuation, variable::Variable,
 };
 
 pub type ClauseVec = Vec<Literal>;
@@ -10,10 +7,6 @@ pub type ClauseVec = Vec<Literal>;
 impl Clause for ClauseVec {
     fn literals(&self) -> impl Iterator<Item = Literal> {
         self.iter().cloned()
-    }
-
-    fn variables(&self) -> impl Iterator<Item = VariableId> {
-        self.iter().map(|literal| literal.v_id())
     }
 
     fn as_string(&self) -> String {
@@ -40,10 +33,6 @@ impl Clause for ClauseVec {
 
     fn to_clause_vec(self) -> ClauseVec {
         self
-    }
-
-    fn length(&self) -> usize {
-        self.len()
     }
 
     /// Returns the literal asserted by the clause on the given valuation
@@ -74,40 +63,6 @@ impl Clause for ClauseVec {
         decision_levels.sort_unstable();
         decision_levels.dedup();
         decision_levels.len()
-    }
-
-    /// Returns Some(literal) whose variable id matches the given id
-    /// Uses binary search on longer clauses, as literals are ordered by variable ids
-    fn find_literal_by_id(&self, id: VariableId) -> Option<Literal> {
-        if self.len() < 64 {
-            self.iter().find(|l| l.v_id() == id).copied()
-        } else {
-            find_literal_by_id_binary(self, id)
-        }
-    }
-}
-
-fn find_literal_by_id_binary(clause: &[Literal], id: VariableId) -> Option<Literal> {
-    let mut min = 0;
-    let mut max = clause.len() - 1;
-    let mut midpoint;
-    let mut attempt;
-    loop {
-        midpoint = min + ((max - min) / 2);
-        attempt = clause[midpoint];
-        if max - min == 0 {
-            match attempt.v_id() == id {
-                true => return Some(attempt),
-                false => return None,
-            }
-        }
-        match attempt.v_id().cmp(&id) {
-            std::cmp::Ordering::Less => min = midpoint + 1,
-            std::cmp::Ordering::Equal => {
-                return Some(attempt);
-            }
-            std::cmp::Ordering::Greater => max = midpoint - 1,
-        }
     }
 }
 
@@ -149,44 +104,5 @@ mod tests {
         let a = vec![Literal::new(1, true), Literal::new(2, false)];
         let b = vec![Literal::new(3, true), Literal::new(4, false)];
         assert!(resolve_sorted_clauses(a.literals(), b.literals(), 1).is_none())
-    }
-
-    #[test]
-    fn find_check_one() {
-        let test_clause = vec![Literal::new(1, true)];
-        assert_eq!(
-            Some(Literal::new(1, true)),
-            test_clause.find_literal_by_id(1)
-        );
-        assert_eq!(None, test_clause.find_literal_by_id(2));
-    }
-
-    #[test]
-    fn find_check_multiple_found() {
-        let test_clause = vec![
-            Literal::new(1, true),
-            Literal::new(2, false),
-            Literal::new(3, false),
-            Literal::new(4, false),
-            Literal::new(7, false),
-        ];
-        assert_eq!(
-            Some(Literal::new(1, true)),
-            find_literal_by_id_binary(&test_clause, 1)
-        );
-        assert_eq!(
-            Some(Literal::new(2, false)),
-            find_literal_by_id_binary(&test_clause, 2)
-        );
-        assert_eq!(
-            Some(Literal::new(4, false)),
-            test_clause.find_literal_by_id(4)
-        );
-        assert_eq!(None, find_literal_by_id_binary(&test_clause, 5));
-        assert_eq!(None, find_literal_by_id_binary(&test_clause, 6));
-        assert_eq!(
-            Some(Literal::new(7, false)),
-            find_literal_by_id_binary(&test_clause, 7)
-        );
     }
 }
