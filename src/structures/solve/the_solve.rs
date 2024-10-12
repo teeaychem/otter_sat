@@ -5,13 +5,13 @@ use crate::structures::{
     solve::{
         config, retreive, retreive_mut,
         stats::SolveStats,
-        ClauseKey, ClauseStore, Solve, {SolveResult, SolveStatus},
+        ClauseKey, Solve, {SolveResult, SolveStatus},
     },
     valuation::Valuation,
-    variable::{Variable, VariableId},
+    variable::VariableId,
 };
 
-use std::collections::VecDeque;
+use rand::Rng;
 
 impl Solve {
     #[allow(unused_labels)]
@@ -51,9 +51,12 @@ impl Solve {
 
             let mut found_conflict = None;
 
-            'propagation_loop: while let Some(literal) = self.consequence_q.pop_front() {
+            while let Some(literal) = self.consequence_q.pop_front() {
                 self.update_watches(literal);
-                self.examine_consequences_of(literal, &mut found_conflict)
+                if let Some(conflict) = self.examine_consequences_of(literal) {
+                    found_conflict = Some(conflict);
+                    break;
+                }
             }
 
             match found_conflict {
@@ -87,21 +90,27 @@ impl Solve {
                         self.conflicts_since_last_forget = 0;
                     }
 
-                    if let Some(available_v_id) = self.most_active_none(&self.valuation) {
+                    if let Some(choice_index) = self.most_active_none(&self.valuation) {
                         log::trace!(
-                            "Choice: {available_v_id} @ {} with activity {}",
+                            "Choice: {choice_index} @ {} with activity {}",
                             self.level().index(),
-                            self.variables[available_v_id].activity()
+                            self.variables[choice_index].activity()
                         );
-                        let _new_level = self.add_fresh_level();
-                        let choice_literal = if let Some(previous) = &last_valuation {
-                            if let Some(polarity) = previous[available_v_id] {
-                                Literal::new(available_v_id as VariableId, polarity)
+                        self.add_fresh_level();
+                        let choice_literal = if let Some(past) = &last_valuation {
+                            if let Some(polarity) = unsafe { *past.get_unchecked(choice_index) } {
+                                Literal::new(choice_index as VariableId, polarity)
                             } else {
-                                Literal::new(available_v_id as VariableId, false)
+                                Literal::new(
+                                    choice_index as VariableId,
+                                    rand::thread_rng().gen_bool(unsafe { config::POLARITY_LEAN }),
+                                )
                             }
                         } else {
-                            Literal::new(available_v_id as VariableId, false)
+                            Literal::new(
+                                choice_index as VariableId,
+                                rand::thread_rng().gen_bool(unsafe { config::POLARITY_LEAN }),
+                            )
                         };
                         self.literal_update(choice_literal, LiteralSource::Choice);
                         self.consequence_q.push_back(choice_literal);
@@ -214,16 +223,7 @@ impl Solve {
             }
         }
     }
-}
 
-fn not_watch_witness(valuation: &impl Valuation, literal: Literal) -> bool {
-    match valuation.of_index(literal.index()) {
-        Some(p) => p != literal.polarity(),
-        None => true,
-    }
-}
-
-impl Solve {
     pub fn literal_set_from_vec(&mut self, choices: Vec<VariableId>) {
         choices.iter().for_each(|&v_id| {
             let the_literal = Literal::new(v_id, false);
@@ -232,11 +232,7 @@ impl Solve {
         });
     }
 
-    fn examine_consequences_of(
-        &mut self,
-        literal: Literal,
-        found_conflict: &mut Option<ClauseKey>,
-    ) {
+    fn examine_consequences_of(&mut self, literal: Literal) -> Option<ClauseKey> {
         let the_variable = unsafe { &self.variables.get_unchecked(literal.index()) };
 
         let borrowed_occurrences = match literal.polarity() {
@@ -247,7 +243,7 @@ impl Solve {
         let mut index = 0;
         let mut length = borrowed_occurrences.len();
 
-        'clause_loop: while index < length {
+        while index < length {
             let clause_key = unsafe { *borrowed_occurrences.get_unchecked(index) };
 
             match retreive(&self.formula_clauses, &self.learnt_clauses, clause_key) {
@@ -285,74 +281,70 @@ impl Solve {
                             (Some(a), Some(b))
                                 if a == watch_a.polarity() || b == watch_b.polarity() => {}
                             (Some(_), Some(_)) => {
-                                *found_conflict = Some(clause_key);
-
                                 // clean the watch lists while clearing the q
-                                clear_queued_consequences(
-                                    &mut self.consequence_q,
-                                    &self.variables,
-                                    &self.formula_clauses,
-                                    &self.learnt_clauses,
-                                );
-
-                                break 'clause_loop;
+                                self.clear_queued_consequences();
+                                return Some(clause_key);
                             }
                         }
                     }
                 }
-
                 None => panic!("Unexpected"),
+            }
+        }
+        None
+    }
+
+    // lazy removals as implemented allow the lists to get quite messy if not kept clean
+    fn clear_queued_consequences(&mut self) {
+        while let Some(literal) = self.consequence_q.pop_front() {
+            let occurrences = match literal.polarity() {
+                true => unsafe {
+                    &mut *self
+                        .variables
+                        .get_unchecked(literal.index())
+                        .negative_occurrences
+                        .get()
+                },
+                false => unsafe {
+                    &mut *self
+                        .variables
+                        .get_unchecked(literal.index())
+                        .positive_occurrences
+                        .get()
+                },
+            };
+
+            let mut index = 0;
+            let mut length = occurrences.len();
+
+            while index < length {
+                let clause_key = unsafe { *occurrences.get_unchecked(index) };
+
+                match retreive(&self.formula_clauses, &self.learnt_clauses, clause_key) {
+                    Some(stored_clause) => {
+                        let watch_a = stored_clause.get_watched(Watch::A);
+                        let watch_b = stored_clause.get_watched(Watch::B);
+
+                        if watch_a.v_id() != literal.v_id() && watch_b.v_id() != literal.v_id() {
+                            occurrences.swap_remove(index);
+                            length -= 1;
+                        } else {
+                            index += 1;
+                        }
+                    }
+                    None => {
+                        occurrences.swap_remove(index);
+                        length -= 1;
+                    }
+                }
             }
         }
     }
 }
 
-// lazy removals as implemented allow the lists to get quite messy if not kept clean
-fn clear_queued_consequences(
-    watch_q: &mut VecDeque<Literal>,
-    variables: &[Variable],
-    formula_clauses: &ClauseStore,
-    learnt_clauses: &ClauseStore,
-) {
-    while let Some(literal) = watch_q.pop_front() {
-        let occurrences = match literal.polarity() {
-            true => unsafe {
-                &mut *variables
-                    .get_unchecked(literal.index())
-                    .negative_occurrences
-                    .get()
-            },
-            false => unsafe {
-                &mut *variables
-                    .get_unchecked(literal.index())
-                    .positive_occurrences
-                    .get()
-            },
-        };
-
-        let mut index = 0;
-        let mut length = occurrences.len();
-
-        while index < length {
-            let clause_key = unsafe { *occurrences.get_unchecked(index) };
-
-            match retreive(formula_clauses, learnt_clauses, clause_key) {
-                Some(stored_clause) => {
-                    let watch_a = stored_clause.get_watched(Watch::A);
-                    let watch_b = stored_clause.get_watched(Watch::B);
-
-                    if watch_a.v_id() != literal.v_id() && watch_b.v_id() != literal.v_id() {
-                        occurrences.swap_remove(index);
-                        length -= 1;
-                    } else {
-                        index += 1;
-                    }
-                }
-                None => {
-                    occurrences.swap_remove(index);
-                    length -= 1;
-                }
-            }
-        }
+fn not_watch_witness(valuation: &impl Valuation, literal: Literal) -> bool {
+    match valuation.of_index(literal.index()) {
+        Some(p) => p != literal.polarity(),
+        None => true,
     }
 }
