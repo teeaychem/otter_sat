@@ -7,7 +7,7 @@ use crate::structures::{
         Clause,
     },
     literal::{Literal, LiteralSource},
-    solve::{config, retreive, the_solve::literal_update, ClauseKey, Solve, SolveStatus},
+    solve::{config, retreive, ClauseKey, Solve, SolveStatus},
     variable::Variable,
 };
 
@@ -15,46 +15,44 @@ use std::collections::VecDeque;
 
 impl Solve {
     pub fn attempt_fix(&mut self, clause_key: ClauseKey) -> SolveStatus {
-        let conflict_clause = retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
+        match retreive(&self.formula_clauses, &self.learnt_clauses, clause_key) {
+            Some(conflict_clause) => {
+                log::trace!("Fix on clause {conflict_clause} @ {}", self.level().index());
 
-        log::trace!("Fix on clause {conflict_clause} @ {}", self.level().index());
-
-        match self.level().index() {
-            0 => SolveStatus::NoSolution,
-            _ => {
-                let (asserting_clause, clause_source, assertion) =
-                    self.conflict_analysis(conflict_clause);
-
-                let source = match asserting_clause.len() {
-                    1 => {
-                        self.backjump(0);
-                        match clause_source {
-                            ClauseSource::Resolution(resolution_vector) => {
-                                LiteralSource::Resolution(resolution_vector)
-                            }
-                            _ => panic!("Analysis without resolution"),
-                        }
-                    }
+                match self.level().index() {
+                    0 => SolveStatus::NoSolution,
                     _ => {
-                        self.backjump(decision_level(&self.variables, asserting_clause.literals()));
+                        let (asserting_clause, clause_source, assertion) =
+                            self.conflict_analysis(conflict_clause);
 
-                        LiteralSource::StoredClause(
-                            self.store_clause(asserting_clause, clause_source),
-                        )
+                        let source = match asserting_clause.len() {
+                            1 => {
+                                self.backjump(0);
+                                match clause_source {
+                                    ClauseSource::Resolution(resolution_vector) => {
+                                        LiteralSource::Resolution(resolution_vector)
+                                    }
+                                    _ => panic!("Analysis without resolution"),
+                                }
+                            }
+                            _ => {
+                                self.backjump(decision_level(
+                                    &self.variables,
+                                    asserting_clause.literals(),
+                                ));
+
+                                LiteralSource::StoredClause(
+                                    self.store_clause(asserting_clause, clause_source),
+                                )
+                            }
+                        };
+                        self.literal_update(assertion, source);
+                        self.consequence_q.push_back(assertion);
+                        SolveStatus::AssertingClause
                     }
-                };
-                literal_update(
-                    assertion,
-                    source,
-                    &mut self.levels,
-                    &self.variables,
-                    &mut self.valuation,
-                    &mut self.formula_clauses,
-                    &mut self.learnt_clauses,
-                );
-                self.watch_q.push_back(assertion);
-                SolveStatus::AssertingClause
+                }
             }
+            None => panic!("Unexpected"),
         }
     }
 
@@ -83,23 +81,26 @@ impl Solve {
             }
 
             if let LiteralSource::StoredClause(clause_key) = src {
-                let stored_source_clause =
-                    retreive(&self.formula_clauses, &self.learnt_clauses, *clause_key);
+                match retreive(&self.formula_clauses, &self.learnt_clauses, *clause_key) {
+                    Some(stored_source_clause) => {
+                        for involved_literal in stored_source_clause.literals() {
+                            used_variables[involved_literal.index()] = true;
+                        }
 
-                for involved_literal in stored_source_clause.literals() {
-                    used_variables[involved_literal.index()] = true;
+                        let for_the_borrow_checker = resolved_clause.clone();
+                        let resolution_result = resolve_sorted_clauses(
+                            for_the_borrow_checker.literals(),
+                            stored_source_clause.literals(),
+                            literal.v_id(),
+                        );
+                        if let Some(resolution) = resolution_result {
+                            resolution_trail.push(*clause_key);
+                            resolved_clause = resolution.to_clause_vec();
+                        };
+                    }
+
+                    None => panic!("Unexpected"),
                 }
-
-                let for_the_borrow_checker = resolved_clause.clone();
-                let resolution_result = resolve_sorted_clauses(
-                    for_the_borrow_checker.literals(),
-                    stored_source_clause.literals(),
-                    literal.v_id(),
-                );
-                if let Some(resolution) = resolution_result {
-                    resolution_trail.push(*clause_key);
-                    resolved_clause = resolution.to_clause_vec();
-                };
             }
         }
 
@@ -108,7 +109,7 @@ impl Solve {
                 Some(asserted) => asserted_literal = Some(asserted),
                 None => {
                     for x in resolution_trail {
-                        let cls = retreive(&self.formula_clauses, &self.learnt_clauses, x);
+                        let cls = retreive(&self.formula_clauses, &self.learnt_clauses, x).unwrap();
                         println!("{}", cls.as_string());
                     }
                     for ob in self.level().observations() {
@@ -186,15 +187,17 @@ impl Solve {
 
         while !q.is_empty() {
             let clause_key = q.pop_front().expect("Ah, the queue was empty…");
-            let stored_clause = retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
-            match stored_clause.source() {
-                ClauseSource::Resolution(origins) => {
-                    for antecedent in origins {
-                        q.push_back(*antecedent);
+            match retreive(&self.formula_clauses, &self.learnt_clauses, clause_key) {
+                Some(stored_clause) => match stored_clause.source() {
+                    ClauseSource::Resolution(origins) => {
+                        for antecedent in origins {
+                            q.push_back(*antecedent);
+                        }
                     }
-                }
-                ClauseSource::Formula => origin_nodes.push(stored_clause),
+                    ClauseSource::Formula => origin_nodes.push(stored_clause),
+                },
+                None => panic!("Unexpected"),
             }
         }
         origin_nodes
