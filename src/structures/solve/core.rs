@@ -24,7 +24,7 @@ impl Solve {
             conflicts_since_last_forget: 0,
             conflicts_since_last_reset: 0,
             restarts: 0,
-            watch_q: VecDeque::with_capacity(variables.len()),
+            consequence_q: VecDeque::with_capacity(variables.len()),
             valuation: vec![None; variables.len()].into_boxed_slice(),
             variables,
             levels: Vec::<Level>::with_capacity(4096),
