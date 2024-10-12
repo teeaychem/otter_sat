@@ -2,7 +2,10 @@
 
 use clap::Parser;
 use std::fs;
-use structures::solve::config::{ExplorationPriority, StoppingCriteria};
+use structures::{
+    solve::config::{ExplorationPriority, StoppingCriteria},
+    valuation::Valuation,
+};
 mod io;
 mod procedures;
 mod structures;
@@ -94,7 +97,7 @@ fn main() {
             _ => panic!("Unknown VSIDS variant"),
         };
         config::SHOW_CORE = args.core;
-        config::SHOW_ASSIGNMENT = args.assignment;
+        config::SHOW_VALUATION = args.assignment;
         config::RESTARTS_ALLOWED = args.restarts;
         config::REDUCTION_ALLOWED = if args.reduction && !args.restarts {
             println!("c REDUCTION REQUIRES RESTARTS TO BE ENABLED");
@@ -132,10 +135,16 @@ fn main() {
             match result {
                 SolveResult::Unsatisfiable => {
                     println!("s UNSATISFIABLE");
+                    if unsafe { config::SHOW_CORE } {
+                        the_solve.core()
+                    }
                     std::process::exit(00);
                 }
                 SolveResult::Satisfiable => {
                     println!("s SATISFIABLE");
+                    if unsafe { config::SHOW_VALUATION } {
+                        println!("v {}", the_solve.valuation.as_display_string(&the_solve))
+                    }
                     std::process::exit(10);
                 }
                 SolveResult::Unknown => {

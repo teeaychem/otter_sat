@@ -12,8 +12,6 @@ use crate::structures::{
     variable::{Variable, VariableId},
 };
 
-#[allow(unused_imports)] // used in timing macros
-use crate::structures::solve::stats;
 use std::collections::VecDeque;
 
 impl Solve {
@@ -57,11 +55,9 @@ impl Solve {
             'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
                 let the_variable = unsafe { &self.variables.get_unchecked(literal.index()) };
 
-                let borrowed_occurrences = unsafe {
-                    match literal.polarity() {
-                        true => &mut *the_variable.negative_watch_occurrences.get(),
-                        false => &mut *the_variable.positive_watch_occurrences.get(),
-                    }
+                let borrowed_occurrences = match literal.polarity() {
+                    true => unsafe { &mut *the_variable.negative_occurrences.get() },
+                    false => unsafe { &mut *the_variable.positive_occurrences.get() },
                 };
 
                 let mut index = 0;
@@ -73,12 +69,10 @@ impl Solve {
                     let stored_clause =
                         retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
-                    let the_id = literal.v_id();
-
                     let watch_a = stored_clause.get_watched(Watch::A);
                     let watch_b = stored_clause.get_watched(Watch::B);
 
-                    if watch_a.v_id() != the_id && watch_b.v_id() != the_id {
+                    if watch_a.v_id() != literal.v_id() && watch_b.v_id() != literal.v_id() {
                         borrowed_occurrences.swap_remove(index);
                         length -= 1;
                     } else {
@@ -86,6 +80,7 @@ impl Solve {
                         index += 1;
                         let a_value = self.valuation.of_index(watch_a.index());
                         let b_value = self.valuation.of_index(watch_b.index());
+
                         match (a_value, b_value) {
                             (None, None) => {}
                             (Some(a), None) if a == watch_a.polarity() => {}
@@ -224,19 +219,6 @@ impl Solve {
         }
         // loop exit
         stats.total_time = this_total_time.elapsed();
-        match result {
-            SolveResult::Satisfiable => {
-                if unsafe { config::SHOW_ASSIGNMENT } {
-                    println!("c ASSIGNMENT: {}", self.valuation.as_display_string(self))
-                }
-            }
-            SolveResult::Unsatisfiable => {
-                if unsafe { config::SHOW_CORE } {
-                    self.core()
-                }
-            }
-            SolveResult::Unknown => {}
-        }
         (result, stats)
     }
 }
@@ -251,9 +233,7 @@ pub fn literal_update(
     formula_clauses: &mut ClauseStore,
     learnt_clauses: &mut ClauseStore,
 ) {
-    let literal_v_id = literal.v_id();
-
-    let variable = unsafe { variables.get_unchecked(literal_v_id as usize) };
+    let variable = unsafe { variables.get_unchecked(literal.index()) };
 
     // update the valuation and match the result
     valuation.set_value(literal);
@@ -277,11 +257,9 @@ pub fn literal_update(
     }
 
     // and, process whether any change to the watch literals is required
-    let working_clause_vec = unsafe {
-        match literal.polarity() {
-            true => &mut *variable.negative_watch_occurrences.get(),
-            false => &mut *variable.positive_watch_occurrences.get(),
-        }
+    let working_clause_vec = match literal.polarity() {
+        true => unsafe { &mut *variable.negative_occurrences.get() },
+        false => unsafe { &mut *variable.positive_occurrences.get() },
     };
 
     let mut index = 0;
@@ -304,12 +282,12 @@ pub fn literal_update(
                 let watched_a = stored_clause.get_watched(Watch::A);
                 let watched_b = stored_clause.get_watched(Watch::B);
 
-                if literal_v_id == watched_a.v_id() {
+                if literal.v_id() == watched_a.v_id() {
                     if not_watch_witness(valuation, watched_b) {
                         stored_clause.update_watch(Watch::A, valuation, variables);
                     }
                     index += 1;
-                } else if literal_v_id == watched_b.v_id() {
+                } else if literal.v_id() == watched_b.v_id() {
                     if not_watch_witness(valuation, watched_a) {
                         stored_clause.update_watch(Watch::B, valuation, variables);
                     }
@@ -356,30 +334,34 @@ fn clear_q(
     learnt_clauses: &ClauseStore,
 ) {
     while let Some(literal) = watch_q.pop_front() {
-        let the_variable = unsafe { variables.get_unchecked(literal.index()) };
-
-        let borrowed_occurrences = unsafe {
-            match literal.polarity() {
-                true => &mut *the_variable.negative_watch_occurrences.get(),
-                false => &mut *the_variable.positive_watch_occurrences.get(),
-            }
+        let occurrences = match literal.polarity() {
+            true => unsafe {
+                &mut *variables
+                    .get_unchecked(literal.index())
+                    .negative_occurrences
+                    .get()
+            },
+            false => unsafe {
+                &mut *variables
+                    .get_unchecked(literal.index())
+                    .positive_occurrences
+                    .get()
+            },
         };
 
         let mut index = 0;
-        let mut length = borrowed_occurrences.len();
+        let mut length = occurrences.len();
 
         while index < length {
-            let clause_key = unsafe { *borrowed_occurrences.get_unchecked(index) };
+            let clause_key = unsafe { *occurrences.get_unchecked(index) };
 
             let stored_clause = retreive(formula_clauses, learnt_clauses, clause_key);
-
-            let the_id = literal.v_id();
 
             let watch_a = stored_clause.get_watched(Watch::A);
             let watch_b = stored_clause.get_watched(Watch::B);
 
-            if watch_a.v_id() != the_id && watch_b.v_id() != the_id {
-                borrowed_occurrences.swap_remove(index);
+            if watch_a.v_id() != literal.v_id() && watch_b.v_id() != literal.v_id() {
+                occurrences.swap_remove(index);
                 length -= 1;
             } else {
                 index += 1;
