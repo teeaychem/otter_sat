@@ -2,10 +2,7 @@
 
 use clap::Parser;
 use std::fs;
-use structures::{
-    solve::config::{ExplorationPriority, StoppingCriteria},
-    valuation::Valuation,
-};
+use structures::valuation::Valuation;
 mod io;
 mod procedures;
 mod structures;
@@ -16,6 +13,7 @@ use crate::structures::solve::{config, Solve, SolveResult};
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
+#[allow(non_snake_case)]
 struct Args {
     /// The DIMACS form CNF file to parse
     #[arg(short, long)]
@@ -25,9 +23,9 @@ struct Args {
     #[arg(short, long, default_value_t = false)]
     stats: bool,
 
-    /// Display an assignment on SAT
+    /// Display a satisfying valuation, if possible
     #[arg(short, long, default_value_t = false)]
-    assignment: bool,
+    valuation: bool,
 
     /// Display an unsatisfiable core on UNSAT
     #[arg(short, long, default_value_t = false)]
@@ -38,28 +36,40 @@ struct Args {
     glue_strength: usize,
 
     /// Resolution stopping criteria
-    #[arg(long, default_value_t = String::from("FirstUIP"))]
-    stopping_criteria: String,
+    #[arg(long, default_value_t, value_enum)]
+    stopping_criteria: config::StoppingCriteria,
 
-    /// VSIDS variant
-    #[arg(long, default_value_t = String::from("M"))]
-    vsids_variant: String,
+    /// The VSIDS variant to use
+    #[arg(long = "VSIDS", default_value_t, value_enum)]
+    vsids: config::VSIDS,
 
-    /// Suggest priority exploring conflcits, implications, or take no interest
-    #[arg(long, default_value_t = String::from("Default"))]
-    exploration_priority: String,
+    /// Suggest priority exploring conflcits, implications, or take no interest (does nothing at the moment)
+    #[arg(long, default_value_t, value_enum)]
+    exploration_priority: config::ExplorationPriority,
+
+    /// Reduce and restart, where:
+    #[arg(short, long = "reduce-and-restart", default_value_t = false)]
+    rr: bool,
 
     /// Allow for the clauses to be forgotten, on occassion
     #[arg(long, default_value_t = false)]
-    reduction: bool,
+    reduce: bool,
 
     /// Allow for the decisions to be forgotten, on occassion
     #[arg(long, default_value_t = false)]
-    restarts: bool,
+    restart: bool,
 
     /// Initially settle all atoms which occur with a unique polarity
     #[arg(long, default_value_t = false)]
     hobson: bool,
+
+    #[arg(short, long, default_value_t = 0.0)]
+    /// The chance of choosing assigning positive polarity to a variant when making a choice
+    polarity_lean: f64,
+
+    #[arg(short = 'u', long = "luby", default_value_t = 512)]
+    /// The u value to use for the luby calculation when restarts are permitted
+    luby_u: usize,
 
     /// Time limit for the solve
     #[arg(short, long, value_parser = |seconds: &str| seconds.parse().map(std::time::Duration::from_secs))]
@@ -80,32 +90,25 @@ fn main() {
     unsafe {
         config::GLUE_STRENGTH = args.glue_strength;
         config::SHOW_STATS = args.stats;
-        config::EXPLORATION_PRIORITY = match args.exploration_priority.as_str() {
-            "Implication" | "implication" | "imp" => ExplorationPriority::Implication,
-            "Conflict" | "conflict" | "conf" => ExplorationPriority::Conflict,
-            "Default" | "default" => ExplorationPriority::Default,
-            _ => panic!("Unknown conflict priority"),
-        };
-        config::STOPPING_CRITERIA = match args.stopping_criteria.as_str() {
-            "FirstUIP" | "firstUIP" | "1UIP" | "1uip" => StoppingCriteria::FirstAssertingUIP,
-            "None" | "none" => StoppingCriteria::None,
-            _ => panic!("Unknown stopping critera"),
-        };
-        config::VSIDS_VARIANT = match args.vsids_variant.as_str() {
-            "M" | "m" => config::VSIDS::M,
-            "C" | "c" => config::VSIDS::C,
-            _ => panic!("Unknown VSIDS variant"),
-        };
+        config::EXPLORATION_PRIORITY = args.exploration_priority;
+        config::STOPPING_CRITERIA = args.stopping_criteria;
+        config::VSIDS_VARIANT = args.vsids;
         config::SHOW_CORE = args.core;
-        config::SHOW_VALUATION = args.assignment;
-        config::RESTARTS_ALLOWED = args.restarts;
-        config::REDUCTION_ALLOWED = if args.reduction && !args.restarts {
+        config::SHOW_VALUATION = args.valuation;
+        config::RESTARTS_ALLOWED = args.restart;
+        config::REDUCTION_ALLOWED = if args.reduce && !args.restart {
             println!("c REDUCTION REQUIRES RESTARTS TO BE ENABLED");
             false
         } else {
-            args.reduction
+            args.reduce
         };
         config::TIME_LIMIT = args.time;
+        config::POLARITY_LEAN = args.polarity_lean;
+        config::LUBY_CONSTANT = args.luby_u;
+        if args.rr {
+            config::RESTARTS_ALLOWED = true;
+            config::REDUCTION_ALLOWED = true;
+        }
     }
 
     match fs::read_to_string(&args.formula_file) {
@@ -123,15 +126,20 @@ fn main() {
                 if let Some(limit) = unsafe { config::TIME_LIMIT } {
                     println!("c TIME LIMIT: {:.2?}", limit);
                 }
+                println!("c CHOICE POLARITY LEAN: {}", unsafe {
+                    config::POLARITY_LEAN
+                })
             }
             log::trace!("Formula processed");
             let mut the_solve = Solve::from_formula(formula);
             log::trace!("Solve initialised");
 
             let (result, stats) = the_solve.do_solve();
+
             if unsafe { config::SHOW_STATS } {
                 println!("{stats}");
             }
+
             match result {
                 SolveResult::Unsatisfiable => {
                     println!("s UNSATISFIABLE");

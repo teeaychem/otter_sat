@@ -71,7 +71,7 @@ impl Solve {
 
         for (src, literal) in self.level().observations.iter().rev() {
             match unsafe { config::STOPPING_CRITERIA } {
-                config::StoppingCriteria::FirstAssertingUIP => {
+                config::StoppingCriteria::FirstUIP => {
                     if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
                         asserted_literal = Some(asserted);
                         break;
@@ -139,12 +139,12 @@ impl Solve {
         }
 
         match unsafe { config::VSIDS_VARIANT } {
-            config::VSIDS::C => {
+            config::VSIDS::Chaff => {
                 for variable_index in resolved_clause.literals().map(|l| l.index()) {
                     self.variables[variable_index].add_activity(config::ACTIVITY_CONFLICT);
                 }
             }
-            config::VSIDS::M => {
+            config::VSIDS::MiniSAT => {
                 for (index, used) in used_variables.into_iter().enumerate() {
                     if used {
                         self.variables[index].add_activity(config::ACTIVITY_CONFLICT);
