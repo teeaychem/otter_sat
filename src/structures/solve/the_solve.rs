@@ -14,6 +14,7 @@ use crate::structures::{
 
 #[allow(unused_imports)] // used in timing macros
 use crate::structures::solve::stats;
+use std::collections::VecDeque;
 
 impl Solve {
     #[allow(unused_labels)]
@@ -117,7 +118,15 @@ impl Solve {
                                 if a == watch_a.polarity() || b == watch_b.polarity() => {}
                             (Some(_), Some(_)) => {
                                 found_conflict = Some(clause_key);
-                                self.watch_q.clear();
+
+                                // clean the watch lists while clearing the q
+                                clear_q(
+                                    &mut self.watch_q,
+                                    &self.variables,
+                                    &self.formula_clauses,
+                                    &self.learnt_clauses,
+                                );
+
                                 break 'clause_loop;
                             }
                         }
@@ -336,5 +345,45 @@ impl Solve {
             );
             self.watch_q.push_back(the_literal);
         });
+    }
+}
+
+// lazy removals as implemented allow the lists to get quite messy if not kept clean
+fn clear_q(
+    watch_q: &mut VecDeque<Literal>,
+    variables: &[Variable],
+    formula_clauses: &ClauseStore,
+    learnt_clauses: &ClauseStore,
+) {
+    while let Some(literal) = watch_q.pop_front() {
+        let the_variable = unsafe { variables.get_unchecked(literal.index()) };
+
+        let borrowed_occurrences = unsafe {
+            match literal.polarity() {
+                true => &mut *the_variable.negative_watch_occurrences.get(),
+                false => &mut *the_variable.positive_watch_occurrences.get(),
+            }
+        };
+
+        let mut index = 0;
+        let mut length = borrowed_occurrences.len();
+
+        while index < length {
+            let clause_key = unsafe { *borrowed_occurrences.get_unchecked(index) };
+
+            let stored_clause = retreive(formula_clauses, learnt_clauses, clause_key);
+
+            let the_id = literal.v_id();
+
+            let watch_a = stored_clause.get_watched(Watch::A);
+            let watch_b = stored_clause.get_watched(Watch::B);
+
+            if watch_a.v_id() != the_id && watch_b.v_id() != the_id {
+                borrowed_occurrences.swap_remove(index);
+                length -= 1;
+            } else {
+                index += 1;
+            }
+        }
     }
 }
