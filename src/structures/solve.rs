@@ -23,7 +23,7 @@ pub struct Solve {
     pub levels: Vec<Level>,
     pub formula_clauses: ClauseStore,
     pub learnt_clauses: ClauseStore,
-    pub watch_q: VecDeque<Literal>,
+    pub consequence_q: VecDeque<Literal>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -42,10 +42,10 @@ pub fn retreive<'a>(
     formula: &'a ClauseStore,
     learnt: &'a ClauseStore,
     key: ClauseKey,
-) -> &'a StoredClause {
+) -> Option<&'a StoredClause> {
     match key {
-        ClauseKey::Formula(key) => &formula[key],
-        ClauseKey::Learnt(key) => &learnt[key],
+        ClauseKey::Formula(key) => formula.get(key),
+        ClauseKey::Learnt(key) => learnt.get(key),
     }
 }
 

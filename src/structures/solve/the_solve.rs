@@ -1,12 +1,11 @@
 use crate::procedures::hobson_choices;
 use crate::structures::{
     clause::{stored_clause::Watch, Clause},
-    level::Level,
     literal::{Literal, LiteralSource},
     solve::{
         config, retreive, retreive_mut,
         stats::SolveStats,
-        ClauseStore, Solve, {SolveResult, SolveStatus},
+        ClauseKey, ClauseStore, Solve, {SolveResult, SolveStatus},
     },
     valuation::Valuation,
     variable::{Variable, VariableId},
@@ -52,81 +51,9 @@ impl Solve {
 
             let mut found_conflict = None;
 
-            'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
-                let the_variable = unsafe { &self.variables.get_unchecked(literal.index()) };
-
-                let borrowed_occurrences = match literal.polarity() {
-                    true => unsafe { &mut *the_variable.negative_occurrences.get() },
-                    false => unsafe { &mut *the_variable.positive_occurrences.get() },
-                };
-
-                let mut index = 0;
-                let mut length = borrowed_occurrences.len();
-
-                'clause_loop: while index < length {
-                    let clause_key = unsafe { *borrowed_occurrences.get_unchecked(index) };
-
-                    let stored_clause =
-                        retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
-
-                    let watch_a = stored_clause.get_watched(Watch::A);
-                    let watch_b = stored_clause.get_watched(Watch::B);
-
-                    if watch_a.v_id() != literal.v_id() && watch_b.v_id() != literal.v_id() {
-                        borrowed_occurrences.swap_remove(index);
-                        length -= 1;
-                    } else {
-                        // the compiler prefers the conditional matches
-                        index += 1;
-                        let a_value = self.valuation.of_index(watch_a.index());
-                        let b_value = self.valuation.of_index(watch_b.index());
-
-                        match (a_value, b_value) {
-                            (None, None) => {}
-                            (Some(a), None) if a == watch_a.polarity() => {}
-                            (Some(_), None) => {
-                                literal_update(
-                                    watch_b,
-                                    LiteralSource::StoredClause(clause_key),
-                                    &mut self.levels,
-                                    &self.variables,
-                                    &mut self.valuation,
-                                    &mut self.formula_clauses,
-                                    &mut self.learnt_clauses,
-                                );
-                                self.watch_q.push_back(watch_b);
-                            }
-                            (None, Some(b)) if b == watch_b.polarity() => {}
-                            (None, Some(_)) => {
-                                literal_update(
-                                    watch_a,
-                                    LiteralSource::StoredClause(clause_key),
-                                    &mut self.levels,
-                                    &self.variables,
-                                    &mut self.valuation,
-                                    &mut self.formula_clauses,
-                                    &mut self.learnt_clauses,
-                                );
-                                self.watch_q.push_back(watch_a);
-                            }
-                            (Some(a), Some(b))
-                                if a == watch_a.polarity() || b == watch_b.polarity() => {}
-                            (Some(_), Some(_)) => {
-                                found_conflict = Some(clause_key);
-
-                                // clean the watch lists while clearing the q
-                                clear_q(
-                                    &mut self.watch_q,
-                                    &self.variables,
-                                    &self.formula_clauses,
-                                    &self.learnt_clauses,
-                                );
-
-                                break 'clause_loop;
-                            }
-                        }
-                    }
-                }
+            'propagation_loop: while let Some(literal) = self.consequence_q.pop_front() {
+                self.update_watches(literal);
+                self.examine_consequences_of(literal, &mut found_conflict)
             }
 
             match found_conflict {
@@ -176,16 +103,8 @@ impl Solve {
                         } else {
                             Literal::new(available_v_id as VariableId, false)
                         };
-                        literal_update(
-                            choice_literal,
-                            LiteralSource::Choice,
-                            &mut self.levels,
-                            &self.variables,
-                            &mut self.valuation,
-                            &mut self.formula_clauses,
-                            &mut self.learnt_clauses,
-                        );
-                        self.watch_q.push_back(choice_literal);
+                        self.literal_update(choice_literal, LiteralSource::Choice);
+                        self.consequence_q.push_back(choice_literal);
                         continue 'main_loop;
                     } else {
                         result = SolveResult::Satisfiable;
@@ -221,80 +140,76 @@ impl Solve {
         stats.total_time = this_total_time.elapsed();
         (result, stats)
     }
-}
 
-#[allow(clippy::too_many_arguments)]
-pub fn literal_update(
-    literal: Literal,
-    source: LiteralSource,
-    levels: &mut [Level],
-    variables: &[Variable],
-    valuation: &mut impl Valuation,
-    formula_clauses: &mut ClauseStore,
-    learnt_clauses: &mut ClauseStore,
-) {
-    let variable = unsafe { variables.get_unchecked(literal.index()) };
+    #[allow(clippy::too_many_arguments)]
+    pub fn literal_update(&mut self, literal: Literal, source: LiteralSource) {
+        let variable = unsafe { self.variables.get_unchecked(literal.index()) };
 
-    // update the valuation and match the result
-    valuation.set_value(literal);
+        // update the valuation and match the result
+        self.valuation.set_value(literal);
 
-    log::trace!("{literal} from {source:?}");
-    // if update occurrs, make records at the relevant level
+        log::trace!("{literal} from {source:?}");
+        // if update occurrs, make records at the relevant level
 
-    {
-        let level_index = match &source {
-            LiteralSource::Choice | LiteralSource::StoredClause(_) => levels.len() - 1,
-            LiteralSource::Assumption
-            | LiteralSource::HobsonChoice
-            | LiteralSource::Resolution(_) => 0,
-        };
-        variable.set_decision_level(level_index);
-        unsafe {
-            levels
-                .get_unchecked_mut(level_index)
-                .record_literal(literal, &source)
-        };
+        {
+            let level_index = match &source {
+                LiteralSource::Choice | LiteralSource::StoredClause(_) => &self.levels.len() - 1,
+                LiteralSource::Assumption
+                | LiteralSource::HobsonChoice
+                | LiteralSource::Resolution(_) => 0,
+            };
+            variable.set_decision_level(level_index);
+            unsafe {
+                let _huh = &self
+                    .levels
+                    .get_unchecked_mut(level_index)
+                    .record_literal(literal, &source);
+            };
+        }
     }
 
-    // and, process whether any change to the watch literals is required
-    let working_clause_vec = match literal.polarity() {
-        true => unsafe { &mut *variable.negative_occurrences.get() },
-        false => unsafe { &mut *variable.positive_occurrences.get() },
-    };
-
-    let mut index = 0;
-    let mut length = working_clause_vec.len();
-
-    while index < length {
-        let working_clause = unsafe {
-            retreive_mut(
-                formula_clauses,
-                learnt_clauses,
-                *working_clause_vec.get_unchecked(index),
-            )
+    pub fn update_watches(&mut self, literal: Literal) {
+        let variable = unsafe { self.variables.get_unchecked(literal.index()) };
+        // and, process whether any change to the watch literals is required
+        let working_clause_vec = match literal.polarity() {
+            true => unsafe { &mut *variable.negative_occurrences.get() },
+            false => unsafe { &mut *variable.positive_occurrences.get() },
         };
-        match working_clause {
-            None => {
-                working_clause_vec.swap_remove(index);
-                length -= 1;
-            }
-            Some(stored_clause) => {
-                let watched_a = stored_clause.get_watched(Watch::A);
-                let watched_b = stored_clause.get_watched(Watch::B);
 
-                if literal.v_id() == watched_a.v_id() {
-                    if not_watch_witness(valuation, watched_b) {
-                        stored_clause.update_watch(Watch::A, valuation, variables);
-                    }
-                    index += 1;
-                } else if literal.v_id() == watched_b.v_id() {
-                    if not_watch_witness(valuation, watched_a) {
-                        stored_clause.update_watch(Watch::B, valuation, variables);
-                    }
-                    index += 1;
-                } else {
+        let mut index = 0;
+        let mut length = working_clause_vec.len();
+
+        while index < length {
+            let working_clause = unsafe {
+                retreive_mut(
+                    &mut self.formula_clauses,
+                    &mut self.learnt_clauses,
+                    *working_clause_vec.get_unchecked(index),
+                )
+            };
+            match working_clause {
+                None => {
                     working_clause_vec.swap_remove(index);
                     length -= 1;
+                }
+                Some(stored_clause) => {
+                    let watched_a = stored_clause.get_watched(Watch::A);
+                    let watched_b = stored_clause.get_watched(Watch::B);
+
+                    if variable.id() == watched_a.v_id() {
+                        if not_watch_witness(&self.valuation, watched_b) {
+                            stored_clause.update_watch(Watch::A, &self.valuation, &self.variables);
+                        }
+                        index += 1;
+                    } else if variable.id() == watched_b.v_id() {
+                        if not_watch_witness(&self.valuation, watched_a) {
+                            stored_clause.update_watch(Watch::B, &self.valuation, &self.variables);
+                        }
+                        index += 1;
+                    } else {
+                        working_clause_vec.swap_remove(index);
+                        length -= 1;
+                    }
                 }
             }
         }
@@ -312,22 +227,88 @@ impl Solve {
     pub fn literal_set_from_vec(&mut self, choices: Vec<VariableId>) {
         choices.iter().for_each(|&v_id| {
             let the_literal = Literal::new(v_id, false);
-            literal_update(
-                the_literal,
-                LiteralSource::HobsonChoice,
-                &mut self.levels,
-                &self.variables,
-                &mut self.valuation,
-                &mut self.formula_clauses,
-                &mut self.learnt_clauses,
-            );
-            self.watch_q.push_back(the_literal);
+            self.literal_update(the_literal, LiteralSource::HobsonChoice);
+            self.consequence_q.push_back(the_literal);
         });
+    }
+
+    fn examine_consequences_of(
+        &mut self,
+        literal: Literal,
+        found_conflict: &mut Option<ClauseKey>,
+    ) {
+        let the_variable = unsafe { &self.variables.get_unchecked(literal.index()) };
+
+        let borrowed_occurrences = match literal.polarity() {
+            true => unsafe { &mut *the_variable.negative_occurrences.get() },
+            false => unsafe { &mut *the_variable.positive_occurrences.get() },
+        };
+
+        let mut index = 0;
+        let mut length = borrowed_occurrences.len();
+
+        'clause_loop: while index < length {
+            let clause_key = unsafe { *borrowed_occurrences.get_unchecked(index) };
+
+            match retreive(&self.formula_clauses, &self.learnt_clauses, clause_key) {
+                Some(stored_clause) => {
+                    let watch_a = stored_clause.get_watched(Watch::A);
+                    let watch_b = stored_clause.get_watched(Watch::B);
+
+                    if watch_a.v_id() != literal.v_id() && watch_b.v_id() != literal.v_id() {
+                        borrowed_occurrences.swap_remove(index);
+                        length -= 1;
+                    } else {
+                        // the compiler prefers the conditional matches
+                        index += 1;
+                        let a_value = self.valuation.of_index(watch_a.index());
+                        let b_value = self.valuation.of_index(watch_b.index());
+
+                        match (a_value, b_value) {
+                            (None, None) => {}
+                            (Some(a), None) if a == watch_a.polarity() => {}
+                            (Some(_), None) => {
+                                self.literal_update(
+                                    watch_b,
+                                    LiteralSource::StoredClause(clause_key),
+                                );
+                                self.consequence_q.push_back(watch_b);
+                            }
+                            (None, Some(b)) if b == watch_b.polarity() => {}
+                            (None, Some(_)) => {
+                                self.literal_update(
+                                    watch_a,
+                                    LiteralSource::StoredClause(clause_key),
+                                );
+                                self.consequence_q.push_back(watch_a);
+                            }
+                            (Some(a), Some(b))
+                                if a == watch_a.polarity() || b == watch_b.polarity() => {}
+                            (Some(_), Some(_)) => {
+                                *found_conflict = Some(clause_key);
+
+                                // clean the watch lists while clearing the q
+                                clear_queued_consequences(
+                                    &mut self.consequence_q,
+                                    &self.variables,
+                                    &self.formula_clauses,
+                                    &self.learnt_clauses,
+                                );
+
+                                break 'clause_loop;
+                            }
+                        }
+                    }
+                }
+
+                None => panic!("Unexpected"),
+            }
+        }
     }
 }
 
 // lazy removals as implemented allow the lists to get quite messy if not kept clean
-fn clear_q(
+fn clear_queued_consequences(
     watch_q: &mut VecDeque<Literal>,
     variables: &[Variable],
     formula_clauses: &ClauseStore,
@@ -355,16 +336,22 @@ fn clear_q(
         while index < length {
             let clause_key = unsafe { *occurrences.get_unchecked(index) };
 
-            let stored_clause = retreive(formula_clauses, learnt_clauses, clause_key);
+            match retreive(formula_clauses, learnt_clauses, clause_key) {
+                Some(stored_clause) => {
+                    let watch_a = stored_clause.get_watched(Watch::A);
+                    let watch_b = stored_clause.get_watched(Watch::B);
 
-            let watch_a = stored_clause.get_watched(Watch::A);
-            let watch_b = stored_clause.get_watched(Watch::B);
-
-            if watch_a.v_id() != literal.v_id() && watch_b.v_id() != literal.v_id() {
-                occurrences.swap_remove(index);
-                length -= 1;
-            } else {
-                index += 1;
+                    if watch_a.v_id() != literal.v_id() && watch_b.v_id() != literal.v_id() {
+                        occurrences.swap_remove(index);
+                        length -= 1;
+                    } else {
+                        index += 1;
+                    }
+                }
+                None => {
+                    occurrences.swap_remove(index);
+                    length -= 1;
+                }
             }
         }
     }
