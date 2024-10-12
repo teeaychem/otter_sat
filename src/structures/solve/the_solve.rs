@@ -1,9 +1,6 @@
 use crate::procedures::hobson_choices;
 use crate::structures::{
-    clause::{
-        stored_clause::{StoredClause, Watch, WatchUpdate},
-        Clause,
-    },
+    clause::{stored_clause::Watch, Clause},
     level::Level,
     literal::{Literal, LiteralSource},
     solve::{
@@ -57,73 +54,71 @@ impl Solve {
             let mut found_conflict = None;
 
             'propagation_loop: while let Some(literal) = self.watch_q.pop_front() {
-                let the_variable = &self.variables[literal.index()];
+                let the_variable = unsafe { &self.variables.get_unchecked(literal.index()) };
 
-                unsafe {
-                    let borrowed_occurrences = match literal.polarity() {
+                let borrowed_occurrences = unsafe {
+                    match literal.polarity() {
                         true => &mut *the_variable.negative_watch_occurrences.get(),
                         false => &mut *the_variable.positive_watch_occurrences.get(),
-                    };
+                    }
+                };
 
-                    let mut index = 0;
-                    let mut length = borrowed_occurrences.len();
+                let mut index = 0;
+                let mut length = borrowed_occurrences.len();
 
-                    'clause_loop: while index < length {
-                        let clause_key = *borrowed_occurrences.get_unchecked(index);
+                'clause_loop: while index < length {
+                    let clause_key = unsafe { *borrowed_occurrences.get_unchecked(index) };
 
-                        let stored_clause =
-                            retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
+                    let stored_clause =
+                        retreive(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
-                        let the_id = the_variable.id();
+                    let the_id = literal.v_id();
 
-                        let (a_v_id, a_polarity) = stored_clause.get_watched_split(Watch::A);
-                        let (b_v_id, b_polarity) = stored_clause.get_watched_split(Watch::B);
+                    let watch_a = stored_clause.get_watched(Watch::A);
+                    let watch_b = stored_clause.get_watched(Watch::B);
 
-                        if a_v_id != the_id && b_v_id != the_id {
-                            borrowed_occurrences.swap_remove(index);
-                            length -= 1;
-                        } else {
-                            // the compiler prefers the conditional matches
-                            index += 1;
-                            match (
-                                self.valuation.of_v_id(a_v_id),
-                                self.valuation.of_v_id(b_v_id),
-                            ) {
-                                (None, None) => {}
-                                (Some(a), None) if a == a_polarity => {}
-                                (Some(_), None) => {
-                                    let consequent = Literal::new(b_v_id, b_polarity);
-                                    literal_update(
-                                        consequent,
-                                        LiteralSource::StoredClause(clause_key),
-                                        &mut self.levels,
-                                        &self.variables,
-                                        &mut self.valuation,
-                                        &mut self.formula_clauses,
-                                        &mut self.learnt_clauses,
-                                    );
-                                    self.watch_q.push_back(consequent);
-                                }
-                                (None, Some(b)) if b == b_polarity => {}
-                                (None, Some(_)) => {
-                                    let consequent = Literal::new(a_v_id, a_polarity);
-                                    literal_update(
-                                        consequent,
-                                        LiteralSource::StoredClause(clause_key),
-                                        &mut self.levels,
-                                        &self.variables,
-                                        &mut self.valuation,
-                                        &mut self.formula_clauses,
-                                        &mut self.learnt_clauses,
-                                    );
-                                    self.watch_q.push_back(consequent);
-                                }
-                                (Some(a), Some(b)) if a == a_polarity || b == b_polarity => {}
-                                (Some(_), Some(_)) => {
-                                    found_conflict = Some(clause_key);
-                                    self.watch_q.clear();
-                                    break 'clause_loop;
-                                }
+                    if watch_a.v_id() != the_id && watch_b.v_id() != the_id {
+                        borrowed_occurrences.swap_remove(index);
+                        length -= 1;
+                    } else {
+                        // the compiler prefers the conditional matches
+                        index += 1;
+                        let a_value = self.valuation.of_index(watch_a.index());
+                        let b_value = self.valuation.of_index(watch_b.index());
+                        match (a_value, b_value) {
+                            (None, None) => {}
+                            (Some(a), None) if a == watch_a.polarity() => {}
+                            (Some(_), None) => {
+                                literal_update(
+                                    watch_b,
+                                    LiteralSource::StoredClause(clause_key),
+                                    &mut self.levels,
+                                    &self.variables,
+                                    &mut self.valuation,
+                                    &mut self.formula_clauses,
+                                    &mut self.learnt_clauses,
+                                );
+                                self.watch_q.push_back(watch_b);
+                            }
+                            (None, Some(b)) if b == watch_b.polarity() => {}
+                            (None, Some(_)) => {
+                                literal_update(
+                                    watch_a,
+                                    LiteralSource::StoredClause(clause_key),
+                                    &mut self.levels,
+                                    &self.variables,
+                                    &mut self.valuation,
+                                    &mut self.formula_clauses,
+                                    &mut self.learnt_clauses,
+                                );
+                                self.watch_q.push_back(watch_a);
+                            }
+                            (Some(a), Some(b))
+                                if a == watch_a.polarity() || b == watch_b.polarity() => {}
+                            (Some(_), Some(_)) => {
+                                found_conflict = Some(clause_key);
+                                self.watch_q.clear();
+                                break 'clause_loop;
                             }
                         }
                     }
@@ -254,58 +249,63 @@ pub fn literal_update(
     // update the valuation and match the result
     valuation.set_value(literal);
 
-    log::trace!("Set {source:?}: {literal}");
+    log::trace!("{literal} from {source:?}");
     // if update occurrs, make records at the relevant level
 
-    unsafe {
-        {
-            let level_index = match &source {
-                LiteralSource::Choice | LiteralSource::StoredClause(_) => levels.len() - 1,
-                LiteralSource::Assumption
-                | LiteralSource::HobsonChoice
-                | LiteralSource::Resolution(_) => 0,
-            };
-            variable.set_decision_level(level_index);
+    {
+        let level_index = match &source {
+            LiteralSource::Choice | LiteralSource::StoredClause(_) => levels.len() - 1,
+            LiteralSource::Assumption
+            | LiteralSource::HobsonChoice
+            | LiteralSource::Resolution(_) => 0,
+        };
+        variable.set_decision_level(level_index);
+        unsafe {
             levels
                 .get_unchecked_mut(level_index)
-                .record_literal(literal, &source);
-        }
+                .record_literal(literal, &source)
+        };
+    }
 
-        // and, process whether any change to the watch literals is required
-        let working_clause_vec = match literal.polarity() {
+    // and, process whether any change to the watch literals is required
+    let working_clause_vec = unsafe {
+        match literal.polarity() {
             true => &mut *variable.negative_watch_occurrences.get(),
             false => &mut *variable.positive_watch_occurrences.get(),
-        };
+        }
+    };
 
-        let mut index = 0;
-        let mut length = working_clause_vec.len();
+    let mut index = 0;
+    let mut length = working_clause_vec.len();
 
-        while index < length {
-            match retreive_mut(
+    while index < length {
+        let working_clause = unsafe {
+            retreive_mut(
                 formula_clauses,
                 learnt_clauses,
                 *working_clause_vec.get_unchecked(index),
-            ) {
-                Some(stored_clause) => {
-                    let (a_v_id, a_polarity) = stored_clause.get_watched_split(Watch::A);
-                    let (b_v_id, b_polarity) = stored_clause.get_watched_split(Watch::B);
+            )
+        };
+        match working_clause {
+            None => {
+                working_clause_vec.swap_remove(index);
+                length -= 1;
+            }
+            Some(stored_clause) => {
+                let watched_a = stored_clause.get_watched(Watch::A);
+                let watched_b = stored_clause.get_watched(Watch::B);
 
-                    if literal_v_id == a_v_id {
-                        if !watch_witnesses(valuation, b_v_id, b_polarity) {
-                            process_watches(valuation, variables, stored_clause, Watch::A);
-                        }
-                        index += 1;
-                    } else if literal_v_id == b_v_id {
-                        if !watch_witnesses(valuation, a_v_id, a_polarity) {
-                            process_watches(valuation, variables, stored_clause, Watch::B);
-                        }
-                        index += 1;
-                    } else {
-                        working_clause_vec.swap_remove(index);
-                        length -= 1;
+                if literal_v_id == watched_a.v_id() {
+                    if not_watch_witness(valuation, watched_b) {
+                        stored_clause.update_watch(Watch::A, valuation, variables);
                     }
-                }
-                None => {
+                    index += 1;
+                } else if literal_v_id == watched_b.v_id() {
+                    if not_watch_witness(valuation, watched_a) {
+                        stored_clause.update_watch(Watch::B, valuation, variables);
+                    }
+                    index += 1;
+                } else {
                     working_clause_vec.swap_remove(index);
                     length -= 1;
                 }
@@ -314,28 +314,10 @@ pub fn literal_update(
     }
 }
 
-fn watch_witnesses(valuation: &impl Valuation, v_id: VariableId, polarity: bool) -> bool {
-    match valuation.of_v_id(v_id) {
-        Some(p) => p == polarity,
-        None => false,
-    }
-}
-
-fn process_watches(
-    valuation: &impl Valuation,
-    variables: &[Variable],
-    stored_clause: &mut StoredClause,
-    chosen_watch: Watch,
-) {
-    match stored_clause.update_watch(chosen_watch, valuation) {
-        WatchUpdate::Update(v_id, polarity) => {
-            unsafe {
-                variables
-                    .get_unchecked(v_id as usize)
-                    .watch_added(stored_clause.key(), polarity);
-            };
-        }
-        WatchUpdate::NoUpdate => {}
+fn not_watch_witness(valuation: &impl Valuation, literal: Literal) -> bool {
+    match valuation.of_index(literal.index()) {
+        Some(p) => p != literal.polarity(),
+        None => true,
     }
 }
 
