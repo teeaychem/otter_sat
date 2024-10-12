@@ -88,8 +88,7 @@ impl Solve {
                     log::trace!("Learning clause {}", clause.as_string());
 
                     let key = self.learnt_clauses.insert_with_key(|k| {
-                        let clause =
-                        StoredClause::new_from(
+                        let clause = StoredClause::new_from(
                             ClauseKey::Learnt(k),
                             clause.to_clause_vec(),
                             src,
@@ -114,8 +113,8 @@ impl Solve {
             for literal in the_level.literals() {
                 log::trace!("Unset: {}", literal);
 
+                let v_id = literal.index();
                 unsafe {
-                    let v_id = literal.index();
                     *self.valuation.get_unchecked_mut(v_id) = None;
                     self.variables.get_unchecked(v_id).clear_decision_level();
                 }

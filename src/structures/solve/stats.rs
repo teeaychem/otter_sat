@@ -25,11 +25,10 @@ impl SolveStats {
 impl std::fmt::Display for SolveStats {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         writeln!(f, "c STATS")?;
-        writeln!(f, "c   ITERATIONS:    {}", self.iterations)?;
-        writeln!(f, "c   CONFLICTS:     {}", self.conflicts)?;
-        #[cfg(feature = "extra_stats")]
-        writeln!(f, "c   CONFLICT RATIO {:.8?}", self.conflicts as f32 / self.iterations as f32)?;
-        writeln!(f, "c   TIME:          {:.2?}", self.total_time)?;
+        writeln!(f, "c   ITERATIONS      {}", self.iterations)?;
+        writeln!(f, "c   CONFLICTS       {}", self.conflicts)?;
+        writeln!(f, "c   CONFLICT RATIO  {:.4?}", self.conflicts as f32 / self.iterations as f32)?;
+        writeln!(f, "c   TIME            {:.2?}", self.total_time)?;
         #[cfg(feature = "time")]
         {
         writeln!(f, "c     PROPAGATION: {:.2?}", unsafe {PROPAGATION_TIME})?;

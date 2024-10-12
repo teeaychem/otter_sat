@@ -2,6 +2,7 @@ pub static ACTIVITY_CONFLICT: f32 = 1.0;
 pub static DECAY_FACTOR: f32 = 0.95;
 pub static DECAY_FREQUENCY: usize = 1;
 pub static mut VSIDS_VARIANT: VSIDS = VSIDS::M;
+pub static mut LUBY_CONSTANT: usize = 1024;
 
 // Configuration variables
 pub static mut GLUE_STRENGTH: usize = 2;
@@ -40,7 +41,8 @@ pub enum ExplorationPriority {
 
 impl Solve {
     pub fn it_is_time_to_reduce(&self) -> bool {
-        self.conflicts_since_last_forget >= 256_usize.wrapping_mul(luby(self.restarts + 1))
+        self.conflicts_since_last_forget
+            >= unsafe { LUBY_CONSTANT }.wrapping_mul(luby(self.restarts + 1))
     }
 }
 

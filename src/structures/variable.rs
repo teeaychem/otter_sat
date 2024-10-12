@@ -47,17 +47,11 @@ impl Variable {
     }
 
     pub fn add_activity(&self, by: ActivityRep) {
-        unsafe {
-            let activity = self.activity.get();
-            *activity += by;
-        }
+        unsafe { *self.activity.get() += by }
     }
 
     pub fn multiply_activity(&self, by: ActivityRep) {
-        unsafe {
-            let was = *self.activity.get();
-            *self.activity.get() = was * by;
-        }
+        unsafe { *self.activity.get() = *self.activity.get() * by }
     }
 
     pub fn activity(&self) -> ActivityRep {
