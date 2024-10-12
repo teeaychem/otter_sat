@@ -2,6 +2,7 @@ use slotmap::SlotMap;
 
 use crate::structures::{
     clause::{
+        clause_vec::ClauseVec,
         stored_clause::{ClauseSource, StoredClause},
         Clause,
     },
@@ -26,14 +27,14 @@ impl Solve {
             watch_q: VecDeque::with_capacity(variables.len()),
             valuation: vec![None; variables.len()].into_boxed_slice(),
             variables,
-            levels: Vec::<Level>::with_capacity(1024),
+            levels: Vec::<Level>::with_capacity(4096),
             formula_clauses: SlotMap::new(),
             learnt_clauses: SlotMap::new(),
         };
         the_solve.levels.push(Level::new(0));
 
         for formula_clause in clauses {
-            match formula_clause.length() {
+            match formula_clause.len() {
                 n if n < 2 => {
                     panic!("c The formula contains a zero-or-one-length clause");
                 }
@@ -66,9 +67,9 @@ impl Solve {
     }
 
     /// Stores a clause with an automatically generated id.
-    /// Note: In order to use the clause the watch literals of the struct must be initialised.
-    pub fn store_clause(&mut self, clause: impl Clause, src: ClauseSource) -> ClauseKey {
-        match clause.length() {
+    /// In order to use the clause the watch literals of the struct must be initialised.
+    pub fn store_clause(&mut self, clause: ClauseVec, src: ClauseSource) -> ClauseKey {
+        match clause.len() {
             0 => panic!("Attempt to add an empty clause"),
             _ => match &src {
                 ClauseSource::Formula => {
@@ -109,24 +110,22 @@ impl Solve {
         log::trace!("Backjump from {} to {}", self.level().index(), to);
 
         for _ in 0..(self.level().index() - to) {
-            let the_level = self.levels.pop().unwrap();
-            for literal in the_level.literals() {
-                log::trace!("Unset: {}", literal);
+            for literal_index in self
+                .levels
+                .pop()
+                .expect("Lost level")
+                .literals()
+                .map(|literal| literal.index())
+            {
+                log::trace!("Noneset: {}", literal_index);
 
-                let v_id = literal.index();
                 unsafe {
-                    *self.valuation.get_unchecked_mut(v_id) = None;
-                    self.variables.get_unchecked(v_id).clear_decision_level();
+                    *self.valuation.get_unchecked_mut(literal_index) = None;
+                    self.variables
+                        .get_unchecked(literal_index)
+                        .clear_decision_level();
                 }
             }
         }
-    }
-}
-
-impl std::fmt::Display for Solve {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let _ = writeln!(f, "Valuation: {}", self.valuation.as_display_string(self));
-        let _ = write!(f, "More to be added…");
-        Ok(())
     }
 }

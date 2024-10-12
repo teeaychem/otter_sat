@@ -3,7 +3,7 @@ use crate::structures::{
     literal::Literal,
     solve::ClauseKey,
     valuation::Valuation,
-    variable::{Variable, VariableId},
+    variable::Variable,
 };
 
 use std::cell::UnsafeCell;
@@ -14,7 +14,8 @@ pub struct StoredClause {
     source: ClauseSource,
     clause: ClauseBox,
     the_wc: ClauseBox,
-    cached_watches: (Literal, Literal),
+    cached_a: Literal,
+    cached_b: Literal,
 }
 
 // { Clause enums
@@ -59,7 +60,8 @@ impl StoredClause {
             source,
             clause: clause.into(),
             the_wc: figured_out.clone().into(),
-            cached_watches: (figured_out[0], figured_out[1]),
+            cached_a: figured_out[0],
+            cached_b: figured_out[1],
         };
 
         let watched_a = stored_clause.get_watched(Watch::A);
@@ -87,8 +89,8 @@ impl StoredClause {
 
     pub fn get_watched(&self, watch: Watch) -> Literal {
         match watch {
-            Watch::A => self.cached_watches.0,
-            Watch::B => self.cached_watches.1,
+            Watch::A => self.cached_a,
+            Watch::B => self.cached_b,
         }
     }
 
@@ -113,11 +115,11 @@ impl StoredClause {
     ) {
         let clause_index = match watch {
             Watch::A => {
-                self.cached_watches.0 = literal;
+                self.cached_a = literal;
                 0
             }
             Watch::B => {
-                self.cached_watches.1 = literal;
+                self.cached_b = literal;
                 1
             }
         };
@@ -172,10 +174,6 @@ impl Clause for StoredClause {
         self.clause.literals()
     }
 
-    fn variables(&self) -> impl Iterator<Item = VariableId> {
-        self.clause.variables()
-    }
-
     fn as_string(&self) -> String {
         self.clause.as_string()
     }
@@ -188,20 +186,12 @@ impl Clause for StoredClause {
         self.clause.clone().to_clause_vec()
     }
 
-    fn length(&self) -> usize {
-        self.clause.len()
-    }
-
     fn asserts(&self, val: &impl Valuation) -> Option<Literal> {
         self.clause.asserts(val)
     }
 
     fn lbd(&self, variables: &[Variable]) -> usize {
         self.clause.lbd(variables)
-    }
-
-    fn find_literal_by_id(&self, id: VariableId) -> Option<Literal> {
-        self.clause.find_literal_by_id(id)
     }
 }
 

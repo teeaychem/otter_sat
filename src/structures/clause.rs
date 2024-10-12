@@ -5,7 +5,7 @@ pub mod stored_clause;
 use crate::structures::{
     literal::Literal,
     valuation::Valuation,
-    variable::{Variable, VariableId},
+    variable::Variable,
 };
 
 use clause_vec::ClauseVec;
@@ -14,19 +14,13 @@ use clause_box::ClauseBox;
 pub trait Clause {
     fn literals(&self) -> impl Iterator<Item = Literal>;
 
-    fn variables(&self) -> impl Iterator<Item = VariableId>;
-
     fn as_string(&self) -> String;
 
     fn as_dimacs(&self, variables: &[Variable]) -> String;
 
     fn to_clause_vec(self) -> ClauseVec;
 
-    fn length(&self) -> usize;
-
     fn asserts(&self, val: &impl Valuation) -> Option<Literal>;
 
     fn lbd(&self, variables: &[Variable]) -> usize;
-
-    fn find_literal_by_id(&self, id: VariableId) -> Option<Literal>;
 }

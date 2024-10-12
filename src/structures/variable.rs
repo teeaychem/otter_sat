@@ -7,8 +7,8 @@ pub struct Variable {
     name: String,
     id: VariableId,
     decision_level: UnsafeCell<Option<LevelIndex>>,
-    pub positive_watch_occurrences: UnsafeCell<Vec<ClauseKey>>,
-    pub negative_watch_occurrences: UnsafeCell<Vec<ClauseKey>>,
+    pub positive_occurrences: UnsafeCell<Vec<ClauseKey>>,
+    pub negative_occurrences: UnsafeCell<Vec<ClauseKey>>,
     activity: UnsafeCell<ActivityRep>,
 }
 
@@ -20,8 +20,8 @@ impl Variable {
             name: name.to_string(),
             decision_level: UnsafeCell::new(None),
             id,
-            positive_watch_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
-            negative_watch_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
+            positive_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
+            negative_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
             activity: UnsafeCell::new(0.0),
         }
     }
@@ -61,11 +61,11 @@ impl Variable {
     pub fn watch_added(&self, clause_key: ClauseKey, polarity: bool) {
         match polarity {
             true => unsafe {
-                let occurrences = &mut *self.positive_watch_occurrences.get();
+                let occurrences = &mut *self.positive_occurrences.get();
                 occurrences.push(clause_key)
             },
             false => unsafe {
-                let occurrences = &mut *self.negative_watch_occurrences.get();
+                let occurrences = &mut *self.negative_occurrences.get();
                 occurrences.push(clause_key);
             },
         }

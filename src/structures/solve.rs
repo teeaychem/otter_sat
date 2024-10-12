@@ -1,5 +1,4 @@
 mod analysis;
-pub mod clause_store;
 pub mod config;
 pub mod core;
 mod stats;
