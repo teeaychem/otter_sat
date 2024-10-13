@@ -30,7 +30,7 @@ pub enum Source {
 
 // { Watch enums
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Watch {
     A,
     B,

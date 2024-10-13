@@ -131,12 +131,13 @@ pub fn find_counterpart_literals(
             }
             current_a = cls_a.next();
             current_b = cls_b.next();
-        } else if a_lit < b_lit {
-            current_a = cls_a.next();
-        } else if b_lit < a_lit {
-            current_b = cls_b.next();
         } else {
-            panic!("Incomparable literals found");
+            assert!(a_lit.cmp(&b_lit) != std::cmp::Ordering::Equal);
+            match a_lit.cmp(&b_lit) {
+                std::cmp::Ordering::Less => current_a = cls_a.next(),
+                std::cmp::Ordering::Greater => current_b = cls_b.next(),
+                std::cmp::Ordering::Equal => {}
+            }
         }
     }
     candidates
