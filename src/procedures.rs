@@ -15,11 +15,11 @@ pub fn hobson_choices(
                 true => the_true.insert(literal.v_id()),
                 false => the_false.insert(literal.v_id()),
             };
-        })
+        });
     });
 
-    let hobson_false: Vec<_> = the_false.difference(&the_true).cloned().collect();
-    let hobson_true: Vec<_> = the_true.difference(&the_false).cloned().collect();
+    let hobson_false: Vec<_> = the_false.difference(&the_true).copied().collect();
+    let hobson_true: Vec<_> = the_true.difference(&the_false).copied().collect();
     (hobson_false, hobson_true)
 }
 
@@ -42,7 +42,7 @@ pub fn resolve_sorted_clauses(
                 match a_lit.v_id() == v_id {
                     true => match b_found {
                         Some(existing_b) if existing_b != a_lit.polarity() => {
-                            a_found = Some(a_lit.polarity())
+                            a_found = Some(a_lit.polarity());
                         }
                         Some(_) => return None,
                         None => a_found = Some(a_lit.polarity()),
@@ -55,7 +55,7 @@ pub fn resolve_sorted_clauses(
                 match b_lit.v_id() == v_id {
                     true => match a_found {
                         Some(existing) if existing != b_lit.polarity() => {
-                            b_found = Some(b_lit.polarity())
+                            b_found = Some(b_lit.polarity());
                         }
                         Some(_) => return None,
                         None => b_found = Some(b_lit.polarity()),
@@ -68,7 +68,7 @@ pub fn resolve_sorted_clauses(
                 if a_lit.v_id() == v_id {
                     match b_found {
                         Some(existing) if existing != a_lit.polarity() => {
-                            a_found = Some(a_lit.polarity())
+                            a_found = Some(a_lit.polarity());
                         }
                         Some(_) => return None,
                         None => a_found = Some(a_lit.polarity()),
@@ -77,7 +77,7 @@ pub fn resolve_sorted_clauses(
                 } else if b_lit.v_id() == v_id {
                     match a_found {
                         Some(existing) if existing != b_lit.polarity() => {
-                            b_found = Some(b_lit.polarity())
+                            b_found = Some(b_lit.polarity());
                         }
                         Some(_) => return None,
                         None => b_found = Some(b_lit.polarity()),

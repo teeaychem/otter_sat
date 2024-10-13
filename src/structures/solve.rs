@@ -26,7 +26,6 @@ pub struct Solve {
     pub consequence_q: VecDeque<Literal>,
 }
 
-#[derive(Debug, PartialEq)]
 pub enum SolveStatus {
     AssertingClause,
     NoSolution,

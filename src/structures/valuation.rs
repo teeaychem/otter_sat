@@ -49,9 +49,9 @@ impl Valuation for ValuationVec {
         self.iter()
             .enumerate()
             .filter(|(_, p)| p.is_some())
-            .map(|(i, p)| match p {
-                Some(true) => format!("{}", i),
-                Some(false) => format!("-{}", i),
+            .map(|(index, p)| match p {
+                Some(true) => format!("{index}"),
+                Some(false) => format!("-{index}"),
                 _ => String::new(),
             })
             .collect::<Vec<_>>()
@@ -94,7 +94,7 @@ impl Valuation for ValuationVec {
     }
 
     fn values(&self) -> impl Iterator<Item = Option<bool>> {
-        self.iter().cloned()
+        self.iter().copied()
     }
 }
 
@@ -119,9 +119,9 @@ impl Valuation for ValuationWindow {
         self.iter()
             .enumerate()
             .filter(|(_, p)| p.is_some())
-            .map(|(i, p)| match p {
-                Some(true) => format!("{}", i),
-                Some(false) => format!("-{}", i),
+            .map(|(index, p)| match p {
+                Some(true) => format!("{index}"),
+                Some(false) => format!("-{index}"),
                 _ => String::new(),
             })
             .collect::<Vec<_>>()
@@ -164,7 +164,7 @@ impl Valuation for ValuationWindow {
     }
 
     fn values(&self) -> impl Iterator<Item = Option<bool>> {
-        self.iter().cloned()
+        self.iter().copied()
     }
 }
 
@@ -189,9 +189,9 @@ impl Valuation for Box<[Option<bool>]> {
         self.iter()
             .enumerate()
             .filter(|(_, p)| p.is_some())
-            .map(|(i, p)| match p {
-                Some(true) => format!("{}", i),
-                Some(false) => format!("-{}", i),
+            .map(|(index, p)| match p {
+                Some(true) => format!("{index}"),
+                Some(false) => format!("-{index}"),
                 _ => String::new(),
             })
             .collect::<Vec<_>>()
@@ -234,6 +234,6 @@ impl Valuation for Box<[Option<bool>]> {
     }
 
     fn values(&self) -> impl Iterator<Item = Option<bool>> {
-        self.iter().cloned()
+        self.iter().copied()
     }
 }

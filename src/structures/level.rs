@@ -46,7 +46,7 @@ impl Level {
             self.observations
                 .iter()
                 .map(|(_, literal)| literal)
-                .cloned(),
+                .copied(),
         )
     }
 }
