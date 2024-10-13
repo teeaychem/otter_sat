@@ -9,26 +9,26 @@ pub type ClauseBox = Box<[Literal]>;
 
 impl Clause for ClauseBox {
     fn literals(&self) -> impl Iterator<Item = Literal> {
-        self.iter().cloned()
+        self.iter().copied()
     }
 
     fn as_string(&self) -> String {
         let mut the_string = String::from("(");
         for literal in self {
-            the_string.push_str(format!(" {} ", literal).as_str())
+            the_string.push_str(format!(" {literal} ").as_str());
         }
         the_string += ")";
         the_string
     }
 
     fn as_dimacs(&self, variables: &[Variable]) -> String {
-        let mut the_string = String::from("");
+        let mut the_string = String::new();
         for literal in self {
             let the_represenetation = match literal.polarity() {
                 true => format!("{} ", variables[literal.index()].name()),
                 false => format!("-{} ", variables[literal.index()].name()),
             };
-            the_string.push_str(the_represenetation.as_str())
+            the_string.push_str(the_represenetation.as_str());
         }
         the_string += "0";
         the_string

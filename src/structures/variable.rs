@@ -16,7 +16,7 @@ type ActivityRep = f32;
 
 impl Variable {
     pub fn new(name: &str, id: VariableId) -> Self {
-        Variable {
+        Self {
             name: name.to_string(),
             decision_level: UnsafeCell::new(None),
             id,
@@ -42,7 +42,7 @@ impl Variable {
         unsafe { *self.decision_level.get() = Some(level) }
     }
 
-    pub fn id(&self) -> VariableId {
+    pub const fn id(&self) -> VariableId {
         self.id
     }
 
@@ -62,7 +62,7 @@ impl Variable {
         match polarity {
             true => unsafe {
                 let occurrences = &mut *self.positive_occurrences.get();
-                occurrences.push(clause_key)
+                occurrences.push(clause_key);
             },
             false => unsafe {
                 let occurrences = &mut *self.negative_occurrences.get();

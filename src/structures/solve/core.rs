@@ -15,11 +15,11 @@ use crate::structures::{
 use std::collections::VecDeque;
 
 impl Solve {
-    pub fn from_formula(formula: Formula) -> Solve {
+    pub fn from_formula(formula: Formula) -> Self {
         let variables = formula.variables;
         let clauses = formula.clauses;
 
-        let mut the_solve = Solve {
+        let mut the_solve = Self {
             conflicts: 0,
             conflicts_since_last_forget: 0,
             conflicts_since_last_reset: 0,
@@ -52,7 +52,7 @@ impl Solve {
         (0..=level_index).for_each(|i| {
             self.levels[i].literals().for_each(|l| {
                 valuation.set_value(l);
-            })
+            });
         });
         valuation
     }
@@ -110,19 +110,13 @@ impl Solve {
         log::trace!("Backjump from {} to {}", self.level().index(), to);
 
         for _ in 0..(self.level().index() - to) {
-            for literal_index in self
-                .levels
-                .pop()
-                .expect("Lost level")
-                .literals()
-                .map(|literal| literal.index())
-            {
-                log::trace!("Noneset: {}", literal_index);
+            for literal in self.levels.pop().expect("Lost level").literals() {
+                log::trace!("Noneset: {}", literal.index());
 
                 unsafe {
-                    *self.valuation.get_unchecked_mut(literal_index) = None;
+                    *self.valuation.get_unchecked_mut(literal.index()) = None;
                     self.variables
-                        .get_unchecked(literal_index)
+                        .get_unchecked(literal.index())
                         .clear_decision_level();
                 }
             }

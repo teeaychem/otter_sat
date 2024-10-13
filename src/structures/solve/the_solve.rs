@@ -26,8 +26,7 @@ impl Solve {
                 .formula_clauses
                 .iter()
                 .chain(&self.learnt_clauses)
-                .map(|(_, sc)| sc)
-                .map(|stored_clause| stored_clause.literals());
+                .map(|(_, sc)| sc.literals());
             let (f, t) = hobson_choices(lits);
             self.literal_set_from_vec(f);
             self.literal_set_from_vec(t);
@@ -40,7 +39,7 @@ impl Solve {
             if let Some(time) = unsafe { config::TIME_LIMIT } {
                 if stats.total_time > time {
                     if unsafe { config::SHOW_STATS } {
-                        println!("c TIME LIMIT EXCEEDED")
+                        println!("c TIME LIMIT EXCEEDED");
                     };
                     result = SolveResult::Unknown;
                     break 'main_loop;
@@ -112,7 +111,7 @@ impl Solve {
                                 rand::thread_rng().gen_bool(unsafe { config::POLARITY_LEAN }),
                             )
                         };
-                        self.literal_update(choice_literal, LiteralSource::Choice);
+                        self.literal_update(choice_literal, &LiteralSource::Choice);
                         self.consequence_q.push_back(choice_literal);
                         continue 'main_loop;
                     } else {
@@ -151,7 +150,7 @@ impl Solve {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn literal_update(&mut self, literal: Literal, source: LiteralSource) {
+    pub fn literal_update(&mut self, literal: Literal, source: &LiteralSource) {
         let variable = unsafe { self.variables.get_unchecked(literal.index()) };
 
         // update the valuation and match the result
@@ -172,7 +171,7 @@ impl Solve {
                 let _huh = &self
                     .levels
                     .get_unchecked_mut(level_index)
-                    .record_literal(literal, &source);
+                    .record_literal(literal, source);
             };
         }
     }
@@ -225,11 +224,11 @@ impl Solve {
     }
 
     pub fn literal_set_from_vec(&mut self, choices: Vec<VariableId>) {
-        choices.iter().for_each(|&v_id| {
+        for v_id in choices {
             let the_literal = Literal::new(v_id, false);
-            self.literal_update(the_literal, LiteralSource::HobsonChoice);
+            self.literal_update(the_literal, &LiteralSource::HobsonChoice);
             self.consequence_q.push_back(the_literal);
-        });
+        }
     }
 
     fn examine_consequences_of(&mut self, literal: Literal) -> Option<ClauseKey> {
@@ -266,7 +265,7 @@ impl Solve {
                             (Some(_), None) => {
                                 self.literal_update(
                                     watch_b,
-                                    LiteralSource::StoredClause(clause_key),
+                                    &LiteralSource::StoredClause(clause_key),
                                 );
                                 self.consequence_q.push_back(watch_b);
                             }
@@ -274,7 +273,7 @@ impl Solve {
                             (None, Some(_)) => {
                                 self.literal_update(
                                     watch_a,
-                                    LiteralSource::StoredClause(clause_key),
+                                    &LiteralSource::StoredClause(clause_key),
                                 );
                                 self.consequence_q.push_back(watch_a);
                             }

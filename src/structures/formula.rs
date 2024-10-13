@@ -11,7 +11,7 @@ pub struct Formula {
 
 impl Formula {
     pub fn new() -> Self {
-        Formula {
+        Self {
             variables: vec![],
             clauses: vec![],
         }
@@ -35,7 +35,7 @@ impl Formula {
         let mut the_clause = vec![];
         for string_literal in string_lterals {
             let the_literal = literal_from_string(string_literal, &mut self.variables);
-            the_clause.push(the_literal)
+            the_clause.push(the_literal);
         }
         the_clause.sort_unstable();
         the_clause.dedup();
@@ -65,16 +65,15 @@ impl std::fmt::Display for Formula {
 
 fn literal_from_string(string: &str, vars: &mut Vec<Variable>) -> Literal {
     let trimmed_string = string.trim();
-
-    if trimmed_string.is_empty() || trimmed_string == "-" {
-        panic!("No variable when creating literal from string");
-    }
-
+    assert!(
+        !trimmed_string.is_empty() && trimmed_string != "-",
+        "No variable when creating literal from string"
+    );
     let polarity = !trimmed_string.starts_with('-');
 
     let mut the_name = trimmed_string;
     if !polarity {
-        the_name = &the_name[1..]
+        the_name = &the_name[1..];
     }
 
     let the_variable = {
@@ -82,8 +81,7 @@ fn literal_from_string(string: &str, vars: &mut Vec<Variable>) -> Literal {
             Some(variable) => variable.id(),
             None => {
                 let the_id = vars.len() as VariableId;
-                let new_variable = Variable::new(the_name, the_id);
-                vars.push(new_variable);
+                vars.push(Variable::new(the_name, the_id));
                 the_id
             }
         }

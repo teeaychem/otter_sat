@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![deny(clippy::perf)]
 
 use clap::Parser;
 use std::fs;
@@ -79,7 +80,7 @@ struct Args {
 // #[rustfmt::skip]
 fn main() {
     match log4rs::init_file("config/log4rs.yaml", Default::default()) {
-        Ok(_) => log::trace!("Log find loaded"),
+        Ok(()) => log::trace!("Log find loaded"),
         Err(e) => log::error!("{e:?}"),
     }
 
@@ -124,11 +125,11 @@ fn main() {
                     formula.clause_count()
                 );
                 if let Some(limit) = unsafe { config::TIME_LIMIT } {
-                    println!("c TIME LIMIT: {:.2?}", limit);
+                    println!("c TIME LIMIT: {limit:.2?}");
                 }
                 println!("c CHOICE POLARITY LEAN: {}", unsafe {
                     config::POLARITY_LEAN
-                })
+                });
             }
             log::trace!("Formula processed");
             let mut the_solve = Solve::from_formula(formula);
@@ -144,14 +145,14 @@ fn main() {
                 SolveResult::Unsatisfiable => {
                     println!("s UNSATISFIABLE");
                     if unsafe { config::SHOW_CORE } {
-                        the_solve.core()
+                        the_solve.core();
                     }
                     std::process::exit(00);
                 }
                 SolveResult::Satisfiable => {
                     println!("s SATISFIABLE");
                     if unsafe { config::SHOW_VALUATION } {
-                        println!("v {}", the_solve.valuation.as_display_string(&the_solve))
+                        println!("v {}", the_solve.valuation.as_display_string(&the_solve));
                     }
                     std::process::exit(10);
                 }
@@ -161,6 +162,6 @@ fn main() {
                 }
             }
         }
-        Err(_) => println!("Error reading file"),
+        Err(e) => println!("Error reading file {e:?}"),
     }
 }

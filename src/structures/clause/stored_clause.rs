@@ -52,9 +52,9 @@ impl StoredClause {
         source: ClauseSource,
         valuation: &impl Valuation,
         variables: &mut [Variable],
-    ) -> StoredClause {
+    ) -> Self {
         let figured_out = figure_out_intial_watches(clause.clone(), valuation);
-        let stored_clause = StoredClause {
+        let stored_clause = Self {
             key,
             lbd: UnsafeCell::new(0),
             source,
@@ -79,11 +79,11 @@ impl StoredClause {
         stored_clause
     }
 
-    pub fn key(&self) -> ClauseKey {
+    pub const fn key(&self) -> ClauseKey {
         self.key
     }
 
-    pub fn source(&self) -> &ClauseSource {
+    pub const fn source(&self) -> &ClauseSource {
         &self.source
     }
 
@@ -212,39 +212,39 @@ fn figure_out_intial_watches(clause: ClauseVec, val: &impl Valuation) -> Vec<Lit
     for index in 2..length {
         if a_status == WatchStatus::None && b_status == WatchStatus::None {
             break;
-        } else {
-            let literal = unsafe { *the_wc.get_unchecked(index) };
-            let literal_status = get_status(literal, val);
-            match literal_status {
-                WatchStatus::Conflict => {
-                    // do nothing on a conflict
-                }
-                WatchStatus::None => {
-                    // by the first check, either a or b fails to be none, so update a or otherwise b
-                    if a_status != WatchStatus::None {
-                        // though, if a is acting as a witness, pass this to b
-                        if a_status == WatchStatus::Witness {
-                            watch_b = watch_a;
-                            watch_a = index;
-                            a_status = WatchStatus::None;
-                            b_status = WatchStatus::Witness;
-                        } else {
-                            watch_a = index;
-                            a_status = WatchStatus::None;
-                        }
-                    } else {
-                        watch_b = index;
-                        b_status = WatchStatus::None;
-                    }
-                }
-                WatchStatus::Witness => {
-                    if a_status == WatchStatus::Conflict {
+        }
+        let literal = unsafe { *the_wc.get_unchecked(index) };
+        let literal_status = get_status(literal, val);
+        match literal_status {
+            WatchStatus::Conflict => {
+                // do nothing on a conflict
+            }
+            WatchStatus::None => {
+                // by the first check, either a or b fails to be none, so update a or otherwise b
+                if a_status != WatchStatus::None {
+                    // though, if a is acting as a witness, pass this to b
+                    if a_status == WatchStatus::Witness {
+                        watch_b = watch_a;
                         watch_a = index;
-                        a_status = WatchStatus::Witness;
+                        a_status = WatchStatus::None;
+                        b_status = WatchStatus::Witness;
+                    } else {
+                        watch_a = index;
+                        a_status = WatchStatus::None;
                     }
+                } else {
+                    watch_b = index;
+                    b_status = WatchStatus::None;
+                }
+            }
+            WatchStatus::Witness => {
+                if a_status == WatchStatus::Conflict {
+                    watch_a = index;
+                    a_status = WatchStatus::Witness;
                 }
             }
         }
+
         the_wc.swap(0, watch_a);
         the_wc.swap(1, watch_b);
     }
