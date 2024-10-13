@@ -1,4 +1,4 @@
-use std::char;
+use core::char;
 
 use crate::structures::formula::Formula;
 

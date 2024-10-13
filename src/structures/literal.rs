@@ -8,7 +8,7 @@ pub struct Literal {
 
 /// how a literal was settled
 #[derive(Clone, Debug)]
-pub enum LiteralSource {
+pub enum Source {
     Choice,                     // a choice made where the alternative may make a SAT difference
     HobsonChoice, // a choice made with a guarantee that the alternative would make no SAT difference
     StoredClause(ClauseKey), // the literal must be the case for SAT given some valuation
@@ -25,7 +25,7 @@ impl Literal {
     }
 
     pub fn new(variable: VariableId, polarity: bool) -> Self {
-        Literal {
+        Self {
             v_id: variable,
             polarity,
         }

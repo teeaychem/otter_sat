@@ -65,8 +65,9 @@ fn luby(i: usize) -> usize {
             return 1_usize.wrapping_shl(k - 1);
         } else if (1_usize.wrapping_shl(k - 1)) <= i && i < (1_usize.wrapping_shl(k)) - 1 {
             return luby(i - (1 << (k - 1)) + 1);
+        } else {
+            k += 1;
         }
-        k += 1;
     }
 }
 

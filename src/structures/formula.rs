@@ -1,5 +1,5 @@
 use crate::structures::{
-    clause::{clause_vec::ClauseVec, Clause},
+    clause::{vec::ClauseVec, Clause},
     literal::Literal,
     variable::{Variable, VariableId},
 };
@@ -51,7 +51,7 @@ impl std::fmt::Display for Formula {
             "|   {}",
             self.variables
                 .iter()
-                .map(|v| v.name())
+                .map(Variable::name)
                 .collect::<Vec<_>>()
                 .join(" ")
         )?;

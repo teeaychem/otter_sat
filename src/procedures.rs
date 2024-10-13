@@ -39,28 +39,30 @@ pub fn resolve_sorted_clauses(
         match (current_a, current_b) {
             (None, None) => break,
             (Some(a_lit), None) => {
-                match a_lit.v_id() == v_id {
-                    true => match b_found {
+                if a_lit.v_id() == v_id {
+                    match b_found {
                         Some(existing_b) if existing_b != a_lit.polarity() => {
                             a_found = Some(a_lit.polarity());
                         }
                         Some(_) => return None,
                         None => a_found = Some(a_lit.polarity()),
-                    },
-                    false => the_clause.push(a_lit),
+                    }
+                } else {
+                    the_clause.push(a_lit);
                 }
                 current_a = clause_a_literals.next();
             }
             (None, Some(b_lit)) => {
-                match b_lit.v_id() == v_id {
-                    true => match a_found {
+                if b_lit.v_id() == v_id {
+                    match a_found {
                         Some(existing) if existing != b_lit.polarity() => {
                             b_found = Some(b_lit.polarity());
                         }
                         Some(_) => return None,
                         None => b_found = Some(b_lit.polarity()),
-                    },
-                    false => the_clause.push(b_lit),
+                    }
+                } else {
+                    the_clause.push(b_lit);
                 }
                 current_b = clause_b_literals.next();
             }
