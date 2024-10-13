@@ -11,7 +11,7 @@ use std::cell::UnsafeCell;
 pub struct StoredClause {
     key: ClauseKey,
     lbd: UnsafeCell<usize>,
-    source: ClauseSource,
+    source: Source,
     clause: ClauseBox,
     the_wc: ClauseBox,
     cached_a: Literal,
@@ -21,7 +21,7 @@ pub struct StoredClause {
 // { Clause enums
 
 #[derive(Clone, Debug)]
-pub enum ClauseSource {
+pub enum Source {
     Formula,
     Resolution(Vec<ClauseKey>),
 }
@@ -49,7 +49,7 @@ impl StoredClause {
     pub fn new_from(
         key: ClauseKey,
         clause: ClauseVec,
-        source: ClauseSource,
+        source: Source,
         valuation: &impl Valuation,
         variables: &mut [Variable],
     ) -> Self {
@@ -83,7 +83,7 @@ impl StoredClause {
         self.key
     }
 
-    pub const fn source(&self) -> &ClauseSource {
+    pub const fn source(&self) -> &Source {
         &self.source
     }
 

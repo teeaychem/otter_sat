@@ -1,7 +1,6 @@
 use crate::structures::{literal::Literal, solve::Solve, variable::VariableId};
 
 pub type ValuationVec = Vec<Option<bool>>;
-pub type ValuationWindow = [Option<bool>];
 pub type ValuationBox = Box<[Option<bool>]>;
 
 pub trait Valuation {
@@ -13,16 +12,16 @@ pub trait Valuation {
 
     fn of_index(&self, index: usize) -> Option<bool>;
 
-    fn check_literal(&self, literal: Literal) -> ValuationStatus;
+    fn check_literal(&self, literal: Literal) -> Status;
 
-    fn update_value(&mut self, literal: Literal) -> Result<(), ValuationStatus>;
+    fn update_value(&mut self, literal: Literal) -> Result<(), Status>;
 
     fn set_value(&mut self, literal: Literal);
 
     fn values(&self) -> impl Iterator<Item = Option<bool>>;
 }
 
-pub enum ValuationStatus {
+pub enum Status {
     NotSet,
     Match,
     Conflict,
@@ -34,7 +33,7 @@ impl Valuation for ValuationVec {
             .enumerate()
             .filter(|(_, p)| p.is_some())
             .map(|(i, p)| {
-                let variable = solve.variables.get(i).unwrap();
+                let variable = solve.variables().get(i).unwrap();
                 match p {
                     Some(true) => variable.name().to_string(),
                     Some(false) => format!("-{}", variable.name()),
@@ -66,21 +65,21 @@ impl Valuation for ValuationVec {
         unsafe { *self.get_unchecked(index) }
     }
 
-    fn check_literal(&self, literal: Literal) -> ValuationStatus {
+    fn check_literal(&self, literal: Literal) -> Status {
         let maybe_value = unsafe { self.get_unchecked(literal.index()) };
         match maybe_value {
-            Some(already_set) if *already_set == literal.polarity() => ValuationStatus::Match,
-            Some(_already_set) => ValuationStatus::Conflict,
-            None => ValuationStatus::NotSet,
+            Some(already_set) if *already_set == literal.polarity() => Status::Match,
+            Some(_already_set) => Status::Conflict,
+            None => Status::NotSet,
         }
     }
 
-    fn update_value(&mut self, literal: Literal) -> Result<(), ValuationStatus> {
+    fn update_value(&mut self, literal: Literal) -> Result<(), Status> {
         log::trace!("Set literal: {}", literal);
         let maybe_value = unsafe { self.get_unchecked(literal.index()) };
         match maybe_value {
-            Some(value) if *value != literal.polarity() => Err(ValuationStatus::Conflict),
-            Some(_value) => Err(ValuationStatus::Match),
+            Some(value) if *value != literal.polarity() => Err(Status::Conflict),
+            Some(_value) => Err(Status::Match),
             None => unsafe {
                 *self.get_unchecked_mut(literal.index()) = Some(literal.polarity());
                 Ok(())
@@ -98,13 +97,13 @@ impl Valuation for ValuationVec {
     }
 }
 
-impl Valuation for ValuationWindow {
+impl Valuation for [Option<bool>] {
     fn as_display_string(&self, solve: &Solve) -> String {
         self.iter()
             .enumerate()
             .filter(|(_, p)| p.is_some())
             .map(|(i, p)| {
-                let variable = solve.variables.get(i).unwrap();
+                let variable = solve.variables().get(i).unwrap();
                 match p {
                     Some(true) => variable.name().to_string(),
                     Some(false) => format!("-{}", variable.name()),
@@ -136,21 +135,21 @@ impl Valuation for ValuationWindow {
         unsafe { *self.get_unchecked(index) }
     }
 
-    fn check_literal(&self, literal: Literal) -> ValuationStatus {
+    fn check_literal(&self, literal: Literal) -> Status {
         let maybe_value = unsafe { self.get_unchecked(literal.index()) };
         match maybe_value {
-            Some(already_set) if *already_set == literal.polarity() => ValuationStatus::Match,
-            Some(_already_set) => ValuationStatus::Conflict,
-            None => ValuationStatus::NotSet,
+            Some(already_set) if *already_set == literal.polarity() => Status::Match,
+            Some(_already_set) => Status::Conflict,
+            None => Status::NotSet,
         }
     }
 
-    fn update_value(&mut self, literal: Literal) -> Result<(), ValuationStatus> {
+    fn update_value(&mut self, literal: Literal) -> Result<(), Status> {
         log::trace!("Set literal: {}", literal);
         let maybe_value = unsafe { self.get_unchecked(literal.index()) };
         match maybe_value {
-            Some(value) if *value != literal.polarity() => Err(ValuationStatus::Conflict),
-            Some(_value) => Err(ValuationStatus::Match),
+            Some(value) if *value != literal.polarity() => Err(Status::Conflict),
+            Some(_value) => Err(Status::Match),
             None => unsafe {
                 *self.get_unchecked_mut(literal.index()) = Some(literal.polarity());
                 Ok(())
@@ -174,7 +173,7 @@ impl Valuation for Box<[Option<bool>]> {
             .enumerate()
             .filter(|(_, p)| p.is_some())
             .map(|(i, p)| {
-                let variable = solve.variables.get(i).unwrap();
+                let variable = solve.variables().get(i).unwrap();
                 match p {
                     Some(true) => variable.name().to_string(),
                     Some(false) => format!("-{}", variable.name()),
@@ -206,21 +205,21 @@ impl Valuation for Box<[Option<bool>]> {
         unsafe { *self.get_unchecked(index) }
     }
 
-    fn check_literal(&self, literal: Literal) -> ValuationStatus {
+    fn check_literal(&self, literal: Literal) -> Status {
         let maybe_value = unsafe { self.get_unchecked(literal.index()) };
         match maybe_value {
-            Some(already_set) if *already_set == literal.polarity() => ValuationStatus::Match,
-            Some(_already_set) => ValuationStatus::Conflict,
-            None => ValuationStatus::NotSet,
+            Some(already_set) if *already_set == literal.polarity() => Status::Match,
+            Some(_already_set) => Status::Conflict,
+            None => Status::NotSet,
         }
     }
 
-    fn update_value(&mut self, literal: Literal) -> Result<(), ValuationStatus> {
+    fn update_value(&mut self, literal: Literal) -> Result<(), Status> {
         log::trace!("Set literal: {}", literal);
         let maybe_value = unsafe { self.get_unchecked(literal.index()) };
         match maybe_value {
-            Some(value) if *value != literal.polarity() => Err(ValuationStatus::Conflict),
-            Some(_value) => Err(ValuationStatus::Match),
+            Some(value) if *value != literal.polarity() => Err(Status::Conflict),
+            Some(_value) => Err(Status::Match),
             None => unsafe {
                 *self.get_unchecked_mut(literal.index()) = Some(literal.polarity());
                 Ok(())

@@ -2,8 +2,8 @@ use slotmap::SlotMap;
 
 use crate::structures::{
     clause::{
-        clause_vec::ClauseVec,
-        stored_clause::{ClauseSource, StoredClause},
+        stored::{Source, StoredClause},
+        vec::ClauseVec,
         Clause,
     },
     formula::Formula,
@@ -12,7 +12,7 @@ use crate::structures::{
     valuation::{Valuation, ValuationVec},
 };
 
-use std::collections::VecDeque;
+use std::{collections::VecDeque, time::Duration};
 
 impl Solve {
     pub fn from_formula(formula: Formula) -> Self {
@@ -20,6 +20,8 @@ impl Solve {
         let clauses = formula.clauses;
 
         let mut the_solve = Self {
+            time: Duration::new(0,0),
+            iterations: 0,
             conflicts: 0,
             conflicts_since_last_forget: 0,
             conflicts_since_last_reset: 0,
@@ -39,7 +41,7 @@ impl Solve {
                     panic!("c The formula contains a zero-or-one-length clause");
                 }
                 _ => {
-                    the_solve.store_clause(formula_clause.to_clause_vec(), ClauseSource::Formula);
+                    the_solve.store_clause(formula_clause.to_clause_vec(), Source::Formula);
                 }
             }
         }
@@ -68,11 +70,11 @@ impl Solve {
 
     /// Stores a clause with an automatically generated id.
     /// In order to use the clause the watch literals of the struct must be initialised.
-    pub fn store_clause(&mut self, clause: ClauseVec, src: ClauseSource) -> ClauseKey {
+    pub fn store_clause(&mut self, clause: ClauseVec, src: Source) -> ClauseKey {
         match clause.len() {
             0 => panic!("Attempt to add an empty clause"),
             _ => match &src {
-                ClauseSource::Formula => {
+                Source::Formula => {
                     let key = self.formula_clauses.insert_with_key(|k| {
                         StoredClause::new_from(
                             ClauseKey::Formula(k),
@@ -85,7 +87,7 @@ impl Solve {
 
                     ClauseKey::Formula(key)
                 }
-                ClauseSource::Resolution(_) => {
+                Source::Resolution(_) => {
                     log::trace!("Learning clause {}", clause.as_string());
 
                     let key = self.learnt_clauses.insert_with_key(|k| {
