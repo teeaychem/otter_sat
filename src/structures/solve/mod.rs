@@ -54,6 +54,17 @@ pub fn retreive<'a>(
     }
 }
 
+pub fn retreive_unsafe<'a>(
+    formula: &'a ClauseStore,
+    learnt: &'a ClauseStore,
+    key: ClauseKey,
+) -> &'a StoredClause {
+    match key {
+        ClauseKey::Formula(key) => unsafe { formula.get_unchecked(key) },
+        ClauseKey::Learnt(key) => unsafe { learnt.get_unchecked(key) },
+    }
+}
+
 pub fn retreive_mut<'a>(
     formula: &'a mut ClauseStore,
     learnt: &'a mut ClauseStore,

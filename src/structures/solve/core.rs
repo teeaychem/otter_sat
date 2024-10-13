@@ -20,7 +20,7 @@ impl Solve {
         let clauses = formula.clauses;
 
         let mut the_solve = Self {
-            time: Duration::new(0,0),
+            time: Duration::new(0, 0),
             iterations: 0,
             conflicts: 0,
             conflicts_since_last_forget: 0,
@@ -36,14 +36,12 @@ impl Solve {
         the_solve.levels.push(Level::new(0));
 
         for formula_clause in clauses {
-            match formula_clause.len() {
-                n if n < 2 => {
-                    panic!("c The formula contains a zero-or-one-length clause");
-                }
-                _ => {
-                    the_solve.store_clause(formula_clause.to_clause_vec(), Source::Formula);
-                }
-            }
+            assert!(
+                formula_clause.len() > 1,
+                "c The formula contains a zero-or-one-length clause"
+            );
+
+            the_solve.store_clause(formula_clause.to_clause_vec(), Source::Formula);
         }
 
         the_solve
@@ -71,40 +69,39 @@ impl Solve {
     /// Stores a clause with an automatically generated id.
     /// In order to use the clause the watch literals of the struct must be initialised.
     pub fn store_clause(&mut self, clause: ClauseVec, src: Source) -> ClauseKey {
-        match clause.len() {
-            0 => panic!("Attempt to add an empty clause"),
-            _ => match &src {
-                Source::Formula => {
-                    let key = self.formula_clauses.insert_with_key(|k| {
-                        StoredClause::new_from(
-                            ClauseKey::Formula(k),
-                            clause.to_clause_vec(),
-                            src,
-                            &self.valuation,
-                            &mut self.variables,
-                        )
-                    });
+        assert!(!clause.is_empty(), "Attempt to add an empty clause");
 
-                    ClauseKey::Formula(key)
-                }
-                Source::Resolution(_) => {
-                    log::trace!("Learning clause {}", clause.as_string());
+        match &src {
+            Source::Formula => {
+                let key = self.formula_clauses.insert_with_key(|k| {
+                    StoredClause::new_from(
+                        ClauseKey::Formula(k),
+                        clause.to_clause_vec(),
+                        src,
+                        &self.valuation,
+                        &mut self.variables,
+                    )
+                });
 
-                    let key = self.learnt_clauses.insert_with_key(|k| {
-                        let clause = StoredClause::new_from(
-                            ClauseKey::Learnt(k),
-                            clause.to_clause_vec(),
-                            src,
-                            &self.valuation,
-                            &mut self.variables,
-                        );
-                        clause.set_lbd(&self.variables);
-                        clause
-                    });
+                ClauseKey::Formula(key)
+            }
+            Source::Resolution(_) => {
+                log::trace!("Learning clause {}", clause.as_string());
 
-                    ClauseKey::Learnt(key)
-                }
-            },
+                let key = self.learnt_clauses.insert_with_key(|k| {
+                    let clause = StoredClause::new_from(
+                        ClauseKey::Learnt(k),
+                        clause.to_clause_vec(),
+                        src,
+                        &self.valuation,
+                        &mut self.variables,
+                    );
+                    clause.set_lbd(&self.variables);
+                    clause
+                });
+
+                ClauseKey::Learnt(key)
+            }
         }
     }
 

@@ -84,19 +84,15 @@ mod tests {
             Literal::new(4, false),
         ];
         let resolution = resolve_sorted_clauses(a.literals(), b.literals(), 1);
-        match resolution {
-            Some(resolved) => {
-                assert_eq!(
-                    vec![
-                        Literal::new(2, false),
-                        Literal::new(3, true),
-                        Literal::new(4, false)
-                    ],
-                    resolved.to_clause_vec()
-                )
-            }
-            None => panic!("No resolution"),
-        }
+
+        assert_eq!(
+            vec![
+                Literal::new(2, false),
+                Literal::new(3, true),
+                Literal::new(4, false)
+            ],
+            resolution.expect("No resolution").to_clause_vec()
+        )
     }
 
     #[test]
