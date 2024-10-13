@@ -32,7 +32,7 @@ impl Solve {
                                     ClauseSource::Resolution(resolution_vector) => {
                                         LiteralSource::Resolution(resolution_vector)
                                     }
-                                    _ => panic!("Analysis without resolution"),
+                                    ClauseSource::Formula => panic!("Analysis without resolution"),
                                 }
                             }
                             _ => {
@@ -46,7 +46,7 @@ impl Solve {
                                 )
                             }
                         };
-                        self.literal_update(assertion, source);
+                        self.literal_update(assertion, &source);
                         self.consequence_q.push_back(assertion);
                         SolveStatus::AssertingClause
                     }
@@ -113,7 +113,7 @@ impl Solve {
                         println!("{}", cls.as_string());
                     }
                     for ob in self.level().observations() {
-                        println!("OBS {:?}", ob);
+                        println!("OBS {ob:?}");
                     }
 
                     println!("CC {}", conflict_clause.as_string());
@@ -135,13 +135,13 @@ impl Solve {
                     .observations()
                     .iter()
                     .any(|(_, x)| l.negate() == *x)
-            })
+            });
         }
 
         match unsafe { config::VSIDS_VARIANT } {
             config::VSIDS::Chaff => {
-                for variable_index in resolved_clause.literals().map(|l| l.index()) {
-                    self.variables[variable_index].add_activity(config::ACTIVITY_CONFLICT);
+                for literal in resolved_clause.literals() {
+                    self.variables[literal.index()].add_activity(config::ACTIVITY_CONFLICT);
                 }
             }
             config::VSIDS::MiniSAT => {
@@ -171,19 +171,19 @@ impl Solve {
                 _ => {}
             }
         }
-        let mut origins = self.extant_origins(node_indicies.iter().cloned());
+        let mut origins = self.extant_origins(node_indicies.iter().copied());
         origins.sort_unstable_by_key(|s| s.key());
         origins.dedup_by_key(|s| s.key());
 
         for clause in origins {
-            println!("{}", clause.as_dimacs(&self.variables))
+            println!("{}", clause.as_dimacs(&self.variables));
         }
         println!();
     }
 
     pub fn extant_origins(&self, clauses: impl Iterator<Item = ClauseKey>) -> Vec<&StoredClause> {
         let mut origin_nodes = vec![];
-        let mut q = VecDeque::from_iter(clauses);
+        let mut q =  clauses.collect::<VecDeque<_>>();
 
         while !q.is_empty() {
             let clause_key = q.pop_front().expect("Ah, the queue was empty…");
@@ -210,12 +210,12 @@ fn decision_level(variables: &[Variable], literals: impl Iterator<Item = Literal
     for lit in literals {
         if let Some(dl) = unsafe { (*variables.get_unchecked(lit.index())).decision_level() } {
             if top_two.1.is_none() {
-                top_two.1 = Some(dl)
+                top_two.1 = Some(dl);
             } else if top_two.1.is_some_and(|t1| dl > t1) {
                 top_two.0 = top_two.1;
-                top_two.1 = Some(dl)
+                top_two.1 = Some(dl);
             } else if top_two.0.is_none() || top_two.0.is_some_and(|t2| dl > t2) {
-                top_two.0 = Some(dl)
+                top_two.0 = Some(dl);
             };
         }
     }
@@ -223,6 +223,6 @@ fn decision_level(variables: &[Variable], literals: impl Iterator<Item = Literal
     match top_two {
         (None, Some(_)) => 0,
         (Some(x), Some(_)) => x,
-        _ => panic!("Decision level issue: {:?}", top_two),
+        _ => panic!("Decision level issue: {top_two:?}"),
     }
 }

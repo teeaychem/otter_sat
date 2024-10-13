@@ -17,7 +17,7 @@ pub enum LiteralSource {
 }
 
 impl Literal {
-    pub fn negate(&self) -> Self {
+    pub fn negate(self) -> Self {
         Literal {
             v_id: self.v_id,
             polarity: !self.polarity,
@@ -31,15 +31,15 @@ impl Literal {
         }
     }
 
-    pub fn v_id(&self) -> VariableId {
+    pub const fn v_id(self) -> VariableId {
         self.v_id
     }
 
-    pub fn polarity(&self) -> bool {
+    pub const fn polarity(self) -> bool {
         self.polarity
     }
 
-    pub fn index(&self) -> usize {
+    pub const fn index(self) -> usize {
         self.v_id as usize
     }
 }
