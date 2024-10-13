@@ -1,22 +1,19 @@
 use std::fmt::Debug;
 
-use crate::structures::{
-    literal::{Literal, LiteralSource},
-    solve::Solve,
-};
+use crate::structures::literal::{Literal, Source};
 
 pub type LevelIndex = usize;
 
 #[derive(Debug)]
 pub struct Level {
     index: LevelIndex,
-    pub choice: Option<Literal>,
-    pub observations: Vec<(LiteralSource, Literal)>,
+    choice: Option<Literal>,
+    pub observations: Vec<(Source, Literal)>,
 }
 
 impl Level {
     pub fn new(index: LevelIndex) -> Self {
-        Level {
+        Self {
             index,
             choice: None,
             observations: vec![],
@@ -27,17 +24,17 @@ impl Level {
         self.index
     }
 
-    pub fn record_literal(&mut self, literal: Literal, source: &LiteralSource) {
+    pub fn record_literal(&mut self, literal: Literal, source: &Source) {
         match source {
-            LiteralSource::Choice => self.choice = Some(literal),
-            LiteralSource::HobsonChoice
-            | LiteralSource::Assumption
-            | LiteralSource::Resolution(_)
-            | LiteralSource::StoredClause(_) => self.observations.push((source.clone(), literal)),
+            Source::Choice => self.choice = Some(literal),
+            Source::HobsonChoice
+            | Source::Assumption
+            | Source::Resolution(_)
+            | Source::StoredClause(_) => self.observations.push((source.clone(), literal)),
         }
     }
 
-    pub fn observations(&self) -> &[(LiteralSource, Literal)] {
+    pub fn observations(&self) -> &[(Source, Literal)] {
         &self.observations
     }
 
@@ -48,19 +45,5 @@ impl Level {
                 .map(|(_, literal)| literal)
                 .copied(),
         )
-    }
-}
-
-impl Solve {
-    pub fn add_fresh_level(&mut self) -> LevelIndex {
-        let index = self.levels.len();
-        let the_level = Level::new(index);
-        self.levels.push(the_level);
-        index
-    }
-
-    pub fn level(&self) -> &Level {
-        let index = self.levels.len() - 1;
-        &self.levels[index]
     }
 }

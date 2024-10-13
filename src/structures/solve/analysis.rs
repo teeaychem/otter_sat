@@ -2,25 +2,25 @@ use crate::procedures::resolve_sorted_clauses;
 use crate::structures::valuation::Valuation;
 use crate::structures::{
     clause::{
-        clause_vec::ClauseVec,
-        stored_clause::{ClauseSource, StoredClause},
+        stored::{StoredClause, Source as ClauseSource},
+        vec::ClauseVec,
         Clause,
     },
-    literal::{Literal, LiteralSource},
-    solve::{config, retreive, ClauseKey, Solve, SolveStatus},
+    literal::{Literal, Source as LiteralSource},
+    solve::{config, retreive, ClauseKey, Solve, Status},
     variable::Variable,
 };
 
 use std::collections::VecDeque;
 
 impl Solve {
-    pub fn attempt_fix(&mut self, clause_key: ClauseKey) -> SolveStatus {
+    pub fn attempt_fix(&mut self, clause_key: ClauseKey) -> Status {
         match retreive(&self.formula_clauses, &self.learnt_clauses, clause_key) {
             Some(conflict_clause) => {
                 log::trace!("Fix on clause {conflict_clause} @ {}", self.level().index());
 
                 match self.level().index() {
-                    0 => SolveStatus::NoSolution,
+                    0 => Status::NoSolution,
                     _ => {
                         let (asserting_clause, clause_source, assertion) =
                             self.conflict_analysis(conflict_clause);
@@ -48,7 +48,7 @@ impl Solve {
                         };
                         self.literal_update(assertion, &source);
                         self.consequence_q.push_back(assertion);
-                        SolveStatus::AssertingClause
+                        Status::AssertingClause
                     }
                 }
             }
@@ -183,7 +183,7 @@ impl Solve {
 
     pub fn extant_origins(&self, clauses: impl Iterator<Item = ClauseKey>) -> Vec<&StoredClause> {
         let mut origin_nodes = vec![];
-        let mut q =  clauses.collect::<VecDeque<_>>();
+        let mut q = clauses.collect::<VecDeque<_>>();
 
         while !q.is_empty() {
             let clause_key = q.pop_front().expect("Ah, the queue was empty…");

@@ -9,7 +9,7 @@ mod procedures;
 mod structures;
 
 use crate::structures::formula::Formula;
-use crate::structures::solve::{config, Solve, SolveResult};
+use crate::structures::solve::{config, Solve, Result};
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -135,28 +135,31 @@ fn main() {
             let mut the_solve = Solve::from_formula(formula);
             log::trace!("Solve initialised");
 
-            let (result, stats) = the_solve.do_solve();
+            let this_total_time = std::time::Instant::now();
+            let result = the_solve.do_solve();
+            let solve_time = this_total_time.elapsed();
 
             if unsafe { config::SHOW_STATS } {
-                println!("{stats}");
+                the_solve.display_stats();
+                println!("c   TIME            {solve_time:.2?}");
             }
 
             match result {
-                SolveResult::Unsatisfiable => {
+                Result::Unsatisfiable => {
                     println!("s UNSATISFIABLE");
                     if unsafe { config::SHOW_CORE } {
                         the_solve.core();
                     }
                     std::process::exit(00);
                 }
-                SolveResult::Satisfiable => {
+                Result::Satisfiable => {
                     println!("s SATISFIABLE");
                     if unsafe { config::SHOW_VALUATION } {
-                        println!("v {}", the_solve.valuation.as_display_string(&the_solve));
+                        println!("v {}", the_solve.valuation().as_display_string(&the_solve));
                     }
                     std::process::exit(10);
                 }
-                SolveResult::Unknown => {
+                Result::Unknown => {
                     println!("s UNKNOWN");
                     std::process::exit(20);
                 }

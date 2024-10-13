@@ -1,15 +1,11 @@
-pub mod clause_vec;
-pub mod clause_box;
-pub mod stored_clause;
+pub mod boxed_slice;
+pub mod stored;
+pub mod vec;
 
-use crate::structures::{
-    literal::Literal,
-    valuation::Valuation,
-    variable::Variable,
-};
+use crate::structures::{literal::Literal, valuation::Valuation, variable::Variable};
 
-use clause_vec::ClauseVec;
-use clause_box::ClauseBox;
+use boxed_slice::ClauseBox;
+use vec::ClauseVec;
 
 pub trait Clause {
     fn literals(&self) -> impl Iterator<Item = Literal>;
