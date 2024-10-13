@@ -34,39 +34,25 @@ impl Formula {
             } else if !reading_comment && ch == 'p' {
                 loop {
                     to += 1;
-                    match string.chars().nth(to) {
-                        Some(other_ch) => {
-                            if other_ch == 0xA as char {
-                                break;
-                            }
-                        }
-                        None => {
-                            panic!("IO: Parse failure")
-                        }
+                    if string.chars().nth(to).expect("IO: Parse failure") == 0xA as char {
+                        break;
                     }
                 }
                 let the_preface = &string[from..to];
                 let preface_parts = the_preface.split_whitespace().collect::<Vec<_>>();
-                if preface_parts.len() != 4 {
-                    panic!("IO: Puzzled by preface length");
-                } else if Some(&"p") != preface_parts.first()
-                    || Some(&"cnf") != preface_parts.get(1)
-                {
-                    panic!("IO: Puzzled by preface format");
-                }
-                let _variables = match preface_parts.get(2) {
-                    Some(count) => match count.parse::<usize>() {
-                        Ok(count_number) => count_number,
-                        Err(e) => panic!("IO: Parse failure {e:?}"),
-                    },
-                    None => panic!("IO: Parse failure"),
+
+                assert!(preface_parts.len() == 4, "IO: Puzzled by preface length");
+                assert!(preface_parts[0] == "p", "IO: Puzzled by preface format");
+                assert!(preface_parts[1] == "cnf", "IO: Puzzled by preface format");
+
+                let _variables = match preface_parts[2].parse::<usize>() {
+                    Ok(count_number) => count_number,
+                    Err(e) => panic!("IO: Parse failure {e:?}"),
                 };
-                let _clauses = match preface_parts.get(3) {
-                    Some(count) => match count.parse::<usize>() {
-                        Ok(count_number) => count_number,
-                        Err(e) => panic!("IO: Parse failure {e:?}"),
-                    },
-                    None => panic!("IO: Parse failure"),
+
+                let _clauses = match preface_parts[3].parse::<usize>() {
+                    Ok(count_number) => count_number,
+                    Err(e) => panic!("IO: Parse failure {e:?}"),
                 };
                 from = to;
             }

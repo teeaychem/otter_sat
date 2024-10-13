@@ -12,6 +12,8 @@ use crate::structures::{
 
 use rand::Rng;
 
+use super::retreive_unsafe;
+
 impl Solve {
     #[allow(unused_labels)]
     pub fn do_solve(&mut self) -> Result {
@@ -161,43 +163,40 @@ impl Solve {
         while index < length {
             let clause_key = unsafe { *borrowed_occurrences.get_unchecked(index) };
 
-            match retreive(&self.formula_clauses, &self.learnt_clauses, clause_key) {
-                Some(stored_clause) => {
-                    let watch_a = stored_clause.get_watched(Watch::A);
-                    let watch_b = stored_clause.get_watched(Watch::B);
+            let stored_clause =
+                retreive_unsafe(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
-                    if watch_a.v_id() != literal.v_id() && watch_b.v_id() != literal.v_id() {
-                        borrowed_occurrences.swap_remove(index);
-                        length -= 1;
-                    } else {
-                        // the compiler prefers the conditional matches
-                        index += 1;
-                        let a_value = self.valuation.of_index(watch_a.index());
-                        let b_value = self.valuation.of_index(watch_b.index());
+            let watch_a = stored_clause.get_watched(Watch::A);
+            let watch_b = stored_clause.get_watched(Watch::B);
 
-                        match (a_value, b_value) {
-                            (None, None) => {}
-                            (Some(a), None) if a == watch_a.polarity() => {}
-                            (Some(_), None) => {
-                                self.literal_update(watch_b, &Source::StoredClause(clause_key));
-                                self.consequence_q.push_back(watch_b);
-                            }
-                            (None, Some(b)) if b == watch_b.polarity() => {}
-                            (None, Some(_)) => {
-                                self.literal_update(watch_a, &Source::StoredClause(clause_key));
-                                self.consequence_q.push_back(watch_a);
-                            }
-                            (Some(a), Some(b))
-                                if a == watch_a.polarity() || b == watch_b.polarity() => {}
-                            (Some(_), Some(_)) => {
-                                // clean the watch lists while clearing the q
-                                self.clear_queued_consequences();
-                                return Some(clause_key);
-                            }
-                        }
+            if watch_a.v_id() != literal.v_id() && watch_b.v_id() != literal.v_id() {
+                borrowed_occurrences.swap_remove(index);
+                length -= 1;
+            } else {
+                // the compiler prefers the conditional matches
+                index += 1;
+                let a_value = self.valuation.of_index(watch_a.index());
+                let b_value = self.valuation.of_index(watch_b.index());
+
+                match (a_value, b_value) {
+                    (None, None) => {}
+                    (Some(a), None) if a == watch_a.polarity() => {}
+                    (Some(_), None) => {
+                        self.literal_update(watch_b, &Source::StoredClause(clause_key));
+                        self.consequence_q.push_back(watch_b);
+                    }
+                    (None, Some(b)) if b == watch_b.polarity() => {}
+                    (None, Some(_)) => {
+                        self.literal_update(watch_a, &Source::StoredClause(clause_key));
+                        self.consequence_q.push_back(watch_a);
+                    }
+                    (Some(a), Some(b)) if a == watch_a.polarity() || b == watch_b.polarity() => {}
+                    (Some(_), Some(_)) => {
+                        // clean the watch lists while clearing the q
+                        self.clear_queued_consequences();
+                        return Some(clause_key);
                     }
                 }
-                None => panic!("Unexpected"),
             }
         }
         None
