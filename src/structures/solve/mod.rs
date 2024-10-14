@@ -7,6 +7,7 @@ use crate::structures::{
     level::{Level, LevelIndex},
     literal::Literal,
     variable::Variable,
+    valuation::Valuation,
 };
 
 use crate::structures::clause::stored::StoredClause;
@@ -100,7 +101,7 @@ impl Solve {
         &self.variables
     }
 
-    pub fn valuation(&self) -> &[Option<bool>] {
+    pub fn valuation(&self) -> &impl Valuation {
         &self.valuation
     }
 }

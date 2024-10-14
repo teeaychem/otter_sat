@@ -1,17 +1,105 @@
-use crate::procedures::resolve_sorted_clauses;
 use crate::structures::{
     clause::{
         stored::{Source as ClauseSource, StoredClause},
         Clause, ClauseVec,
     },
     literal::{Literal, Source as LiteralSource},
-    solve::{config, ClauseKey, Solve, Status},
+    solve::{config, retreive_unsafe, ClauseKey, Solve, Status},
+    valuation::Valuation,
     variable::Variable,
 };
 
 use std::collections::VecDeque;
 
-use super::retreive_unsafe;
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum RSItem {
+    Value(Option<bool>),
+    NoneLiteral(Literal),
+    ConflictLiteral(Literal),
+}
+
+#[derive(Debug)]
+struct ResolutionBuffer {
+    missing: usize,
+    asserts: Option<Literal>,
+    buffer: Vec<RSItem>,
+}
+
+impl ResolutionBuffer {
+    fn from_valuation(valuation: &impl Valuation) -> Self {
+        ResolutionBuffer {
+            missing: 0,
+            asserts: None,
+            buffer: valuation
+                .slice()
+                .iter()
+                .map(|value| RSItem::Value(*value))
+                .collect(),
+        }
+    }
+
+    fn eat_clause(&mut self, clause: &impl Clause) {
+        for literal in clause.literal_slice() {
+            match self.buffer.get(literal.index()).expect("wuh") {
+                RSItem::ConflictLiteral(_) | RSItem::NoneLiteral(_) => {}
+                RSItem::Value(maybe) => match maybe {
+                    None => {
+                        self.buffer[literal.index()] = {
+                            self.missing += 1;
+                            RSItem::NoneLiteral(*literal)
+                        }
+                    }
+                    Some(value) if *value == literal.polarity() => {
+                        panic!("huh")
+                    }
+                    Some(_) => self.buffer[literal.index()] = RSItem::ConflictLiteral(*literal),
+                },
+            }
+        }
+    }
+
+    fn resolve_clause(&mut self, clause: &impl Clause, using: Literal) -> bool {
+        if self.buffer[using.index()] == RSItem::NoneLiteral(using.negate()) {
+            for literal in clause.literal_slice() {
+                match self.buffer.get(literal.index()).expect("wuh") {
+                    RSItem::ConflictLiteral(_) | RSItem::NoneLiteral(_) => {}
+                    RSItem::Value(maybe) => match maybe {
+                        None => {
+                            self.missing += 1;
+                            self.asserts = Some(*literal);
+                            self.buffer[literal.index()] = RSItem::NoneLiteral(*literal)
+                        }
+                        Some(value) if *value == literal.polarity() => {
+                            panic!("huh")
+                        }
+                        Some(_) => self.buffer[literal.index()] = RSItem::ConflictLiteral(*literal),
+                    },
+                }
+            }
+            self.missing -= 1;
+            self.buffer[using.index()] = RSItem::Value(Some(false));
+            true
+        } else {
+            false
+        }
+    }
+
+    fn to_clause(&self) -> (Option<Literal>, Vec<Literal>) {
+        let mut the_clause = Vec::with_capacity(self.buffer.len());
+        let mut conflict_literal = None;
+        for item in &self.buffer {
+            match item {
+                RSItem::Value(_) => {}
+                RSItem::ConflictLiteral(literal) => the_clause.push(*literal),
+                RSItem::NoneLiteral(literal) => {
+                    conflict_literal = Some(*literal);
+                    the_clause.push(*literal)
+                }
+            }
+        }
+        (conflict_literal, the_clause)
+    }
+}
 
 impl Solve {
     pub fn attempt_fix(&mut self, clause_key: ClauseKey) -> Status {
@@ -75,6 +163,9 @@ impl Solve {
             previous_level_val[literal.index()] = None;
         }
 
+        let mut resolution_buffer = ResolutionBuffer::from_valuation(&previous_level_val);
+        resolution_buffer.eat_clause(&resolved_clause);
+
         let mut asserted_literal = None;
 
         let mut used_variables = vec![false; self.variables.len()];
@@ -84,28 +175,22 @@ impl Solve {
                 let stored_source_clause =
                     retreive_unsafe(&self.formula_clauses, &self.learnt_clauses, *clause_key);
 
+                if resolution_buffer.resolve_clause(stored_source_clause, *literal) {
+                    resolution_trail.push(*clause_key);
+                }
+
                 for involved_literal in stored_source_clause.literal_slice() {
                     used_variables[involved_literal.index()] = true;
                 }
 
-                let for_the_borrow_checker = resolved_clause.clone();
-                let resolution_result = resolve_sorted_clauses(
-                    for_the_borrow_checker.literal_slice(),
-                    stored_source_clause.literal_slice(),
-                    literal.v_id(),
-                );
-                if let Some(resolution) = resolution_result {
-                    resolution_trail.push(*clause_key);
-                    resolved_clause = resolution.to_clause_vec();
-                };
+                if resolution_buffer.missing == 1 {
+                    (asserted_literal, resolved_clause) = resolution_buffer.to_clause();
 
-                if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
-                    asserted_literal = Some(asserted);
                     match unsafe { config::STOPPING_CRITERIA } {
                         config::StoppingCriteria::FirstUIP => break 'resolution_loop,
                         config::StoppingCriteria::None => {}
                     }
-                }
+                };
             }
         }
 
