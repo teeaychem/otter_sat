@@ -1,12 +1,11 @@
 use crate::procedures::resolve_sorted_clauses;
-use crate::structures::valuation::Valuation;
 use crate::structures::{
     clause::{
         stored::{Source as ClauseSource, StoredClause},
         Clause, ClauseVec,
     },
     literal::{Literal, Source as LiteralSource},
-    solve::{config, retreive, ClauseKey, Solve, Status},
+    solve::{config, ClauseKey, Solve, Status},
     variable::Variable,
 };
 
@@ -20,38 +19,46 @@ impl Solve {
             retreive_unsafe(&self.formula_clauses, &self.learnt_clauses, clause_key);
 
         log::trace!("Fix on clause {conflict_clause} @ {}", self.level().index());
+        if self.level().index() == 0 {
+            return Status::NoSolution;
+        }
 
-        match self.level().index() {
-            0 => Status::NoSolution,
-            _ => {
-                let (asserting_clause, clause_source, assertion) =
-                    self.conflict_analysis(conflict_clause);
+        let mut previous_level_val = self.valuation.clone();
+        for literal in self.level().literals() {
+            previous_level_val[literal.index()] = None;
+        }
+        if let Some(asserted) = conflict_clause.asserts(&previous_level_val) {
+            let missed_level = backjump_level(&self.variables, conflict_clause.literal_slice());
+            self.backjump(missed_level);
+            self.literal_update(asserted, &LiteralSource::StoredClause(clause_key));
+            self.consequence_q.push_back(asserted);
+            Status::MissedImplication
+        } else {
+            let (asserting_clause, clause_source, assertion) =
+                self.conflict_analysis(conflict_clause);
 
-                let source = match asserting_clause.len() {
-                    1 => {
-                        self.backjump(0);
-                        match clause_source {
-                            ClauseSource::Resolution(resolution_vector) => {
-                                LiteralSource::Resolution(resolution_vector)
-                            }
-                            ClauseSource::Formula => panic!("Analysis without resolution"),
+            let source = match asserting_clause.len() {
+                1 => {
+                    self.backjump(0);
+                    match clause_source {
+                        ClauseSource::Resolution(resolution_vector) => {
+                            LiteralSource::Resolution(resolution_vector)
                         }
+                        ClauseSource::Formula => panic!("Analysis without resolution"),
                     }
-                    _ => {
-                        self.backjump(backjump_level(
-                            &self.variables,
-                            asserting_clause.literal_slice(),
-                        ));
+                }
+                _ => {
+                    self.backjump(backjump_level(
+                        &self.variables,
+                        asserting_clause.literal_slice(),
+                    ));
 
-                        LiteralSource::StoredClause(
-                            self.store_clause(asserting_clause, clause_source),
-                        )
-                    }
-                };
-                self.literal_update(assertion, &source);
-                self.consequence_q.push_back(assertion);
-                Status::AssertingClause
-            }
+                    LiteralSource::StoredClause(self.store_clause(asserting_clause, clause_source))
+                }
+            };
+            self.literal_update(assertion, &source);
+            self.consequence_q.push_back(assertion);
+            Status::AssertingClause
         }
     }
 
@@ -72,17 +79,7 @@ impl Solve {
 
         let mut used_variables = vec![false; self.variables.len()];
 
-        for (src, literal) in self.level().observations.iter().rev() {
-            match unsafe { config::STOPPING_CRITERIA } {
-                config::StoppingCriteria::FirstUIP => {
-                    if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
-                        asserted_literal = Some(asserted);
-                        break;
-                    }
-                }
-                config::StoppingCriteria::None => (),
-            }
-
+        'resolution_loop: for (src, literal) in self.level().observations.iter().rev() {
             if let LiteralSource::StoredClause(clause_key) = src {
                 let stored_source_clause =
                     retreive_unsafe(&self.formula_clauses, &self.learnt_clauses, *clause_key);
@@ -101,40 +98,26 @@ impl Solve {
                     resolution_trail.push(*clause_key);
                     resolved_clause = resolution.to_clause_vec();
                 };
-            }
-        }
 
-        if asserted_literal.is_none() {
-            match resolved_clause.asserts(&previous_level_val) {
-                Some(asserted) => asserted_literal = Some(asserted),
-                None => {
-                    for x in resolution_trail {
-                        let cls = retreive(&self.formula_clauses, &self.learnt_clauses, x).unwrap();
-                        println!("{}", cls.as_string());
+                if let Some(asserted) = resolved_clause.asserts(&previous_level_val) {
+                    asserted_literal = Some(asserted);
+                    match unsafe { config::STOPPING_CRITERIA } {
+                        config::StoppingCriteria::FirstUIP => break 'resolution_loop,
+                        config::StoppingCriteria::None => {}
                     }
-                    for ob in self.level().observations() {
-                        println!("OBS {ob:?}");
-                    }
-
-                    println!("CC {}", conflict_clause.as_string());
-                    println!("RC {}", resolved_clause.as_string());
-                    println!("PV {}", previous_level_val.as_internal_string());
-                    println!("CV {}", self.valuation.as_internal_string());
-                    panic!("No assertion…")
                 }
             }
         }
 
         /*
         If some literals are known then their negation can be safely removed from the learnt clause.
-        Though, this isn't a particular effective method…
+        Though, this isn't a particular effective method… really, iteration should be over the clause
          */
-        resolved_clause.retain(|l| {
-            !self.levels[0]
-                .observations()
-                .iter()
-                .any(|(_, other_literal)| l.negate() == *other_literal)
-        });
+        for (_, other_literal) in &self.levels[0].observations {
+            if let Some(x) = resolved_clause.literal_position(other_literal.negate()) {
+                resolved_clause.remove(x);
+            }
+        }
 
         unsafe {
             match config::VSIDS_VARIANT {

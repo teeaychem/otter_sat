@@ -4,7 +4,10 @@ pub type ClauseVec = Vec<Literal>;
 pub type ClauseBox = Box<[Literal]>;
 
 use crate::structures::{literal::Literal, valuation::Valuation, variable::Variable};
+use std::cmp::Ordering;
 use std::ops::Deref;
+
+use super::variable::VariableId;
 
 pub trait Clause {
     fn as_string(&self) -> String;
@@ -18,6 +21,10 @@ pub trait Clause {
     fn lbd(&self, variables: &[Variable]) -> usize;
 
     fn literal_slice(&self) -> &[Literal];
+
+    fn variable_position(&self, id: VariableId) -> Option<usize>;
+
+    fn literal_position(&self, literal: Literal) -> Option<usize>;
 }
 
 impl<T: Deref<Target = [Literal]>> Clause for T {
@@ -79,5 +86,85 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
         decision_levels.sort_unstable();
         decision_levels.dedup();
         decision_levels.len()
+    }
+
+    // TODO: at some point it may be worth implementing fixed operations for short clauses, same for literal position
+    fn variable_position(&self, id: VariableId) -> Option<usize> {
+        let mut min: usize = 0;
+        let mut max = self.len();
+        let mut mid;
+        loop {
+            mid = min + (max - min) / 2;
+
+            match unsafe { self.get_unchecked(mid).v_id() }.cmp(&id) {
+                Ordering::Equal => return Some(mid),
+                Ordering::Greater => max = mid,
+                Ordering::Less => min = mid + 1,
+            }
+
+            if min == max {
+                return None;
+            }
+        }
+    }
+
+    fn literal_position(&self, literal: Literal) -> Option<usize> {
+        let mut min: usize = 0;
+        let mut max = self.len();
+        let mut mid;
+        loop {
+            mid = min + (max - min) / 2;
+
+            match unsafe { self.get_unchecked(mid).v_id() }.cmp(&literal.v_id()) {
+                Ordering::Equal => {
+                    if unsafe { self.get_unchecked(mid).polarity() } == literal.polarity() {
+                        return Some(mid);
+                    } else {
+                        return None;
+                    }
+                }
+                Ordering::Greater => max = mid,
+                Ordering::Less => min = mid + 1,
+            }
+
+            if min == max {
+                return None;
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn position_test_three() {
+        let a = vec![
+            Literal::new(1, true),
+            Literal::new(2, false),
+            Literal::new(4, true),
+        ];
+        assert_eq!(a.variable_position(1), Some(0));
+        assert_eq!(a.variable_position(2), Some(1));
+        assert_eq!(a.variable_position(3), None);
+        assert_eq!(a.variable_position(4), Some(2));
+        assert_eq!(a.variable_position(5), None);
+    }
+
+    #[test]
+    fn position_test_six() {
+        let a = vec![
+            Literal::new(1, true),
+            Literal::new(2, false),
+            Literal::new(4, true),
+            Literal::new(5, false),
+            Literal::new(7, true),
+        ];
+        assert_eq!(a.variable_position(1), Some(0));
+        assert_eq!(a.variable_position(2), Some(1));
+        assert_eq!(a.variable_position(3), None);
+        assert_eq!(a.variable_position(4), Some(2));
+        assert_eq!(a.variable_position(5), Some(3));
     }
 }
