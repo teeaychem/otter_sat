@@ -55,6 +55,7 @@ impl Solve {
 
                     match self.attempt_fix(conflict_key) {
                         Status::NoSolution => return Result::Unsatisfiable,
+                        Status::MissedImplication => continue 'main_loop,
                         Status::AssertingClause => {
                             self.reductions_and_restarts();
                             continue 'main_loop;
