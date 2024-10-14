@@ -266,4 +266,8 @@ impl Clause for StoredClause {
     fn literal_position(&self, literal: Literal) -> Option<usize> {
         self.clause.literal_position(literal)
     }
+
+    fn length(&self) -> usize {
+        self.clause.length()
+    }
 }
