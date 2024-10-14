@@ -34,6 +34,7 @@ pub struct Solve {
 
 pub enum Status {
     AssertingClause,
+    MissedImplication,
     NoSolution,
 }
 

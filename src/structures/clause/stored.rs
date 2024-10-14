@@ -3,7 +3,7 @@ use crate::structures::{
     literal::Literal,
     solve::ClauseKey,
     valuation::Valuation,
-    variable::Variable,
+    variable::{Variable, VariableId},
 };
 
 use std::cell::UnsafeCell;
@@ -168,33 +168,6 @@ impl std::fmt::Display for StoredClause {
     }
 }
 
-/// Lift the method from the clause stored to the stored clause
-impl Clause for StoredClause {
-    fn as_string(&self) -> String {
-        self.clause.as_string()
-    }
-
-    fn as_dimacs(&self, variables: &[Variable]) -> String {
-        self.clause.as_dimacs(variables)
-    }
-
-    fn to_clause_vec(self) -> ClauseVec {
-        self.clause.clone().to_clause_vec()
-    }
-
-    fn asserts(&self, val: &impl Valuation) -> Option<Literal> {
-        self.clause.asserts(val)
-    }
-
-    fn lbd(&self, variables: &[Variable]) -> usize {
-        self.clause.lbd(variables)
-    }
-
-    fn literal_slice(&self) -> &[Literal] {
-        self.clause.literal_slice()
-    }
-}
-
 fn figure_out_intial_watches(clause: ClauseVec, val: &impl Valuation) -> Vec<Literal> {
     let length = clause.len();
     let mut the_wc = clause;
@@ -257,5 +230,40 @@ fn get_status(literal: Literal, valuation: &impl Valuation) -> WatchStatus {
         None => WatchStatus::None,
         Some(polarity) if polarity == literal.polarity() => WatchStatus::Witness,
         Some(_) => WatchStatus::Conflict,
+    }
+}
+
+/// Lift the method from the clause stored to the stored clause
+impl Clause for StoredClause {
+    fn as_string(&self) -> String {
+        self.clause.as_string()
+    }
+
+    fn as_dimacs(&self, variables: &[Variable]) -> String {
+        self.clause.as_dimacs(variables)
+    }
+
+    fn to_clause_vec(self) -> ClauseVec {
+        self.clause.clone().to_clause_vec()
+    }
+
+    fn asserts(&self, val: &impl Valuation) -> Option<Literal> {
+        self.clause.asserts(val)
+    }
+
+    fn lbd(&self, variables: &[Variable]) -> usize {
+        self.clause.lbd(variables)
+    }
+
+    fn literal_slice(&self) -> &[Literal] {
+        self.clause.literal_slice()
+    }
+
+    fn variable_position(&self, id: VariableId) -> Option<usize> {
+        self.clause.variable_position(id)
+    }
+
+    fn literal_position(&self, literal: Literal) -> Option<usize> {
+        self.clause.literal_position(literal)
     }
 }
