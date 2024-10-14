@@ -9,7 +9,7 @@ mod procedures;
 mod structures;
 
 use crate::structures::formula::Formula;
-use crate::structures::solve::{config, Solve, Result};
+use crate::structures::solve::{config, Result, Solve};
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -135,20 +135,17 @@ fn main() {
             let mut the_solve = Solve::from_formula(formula);
             log::trace!("Solve initialised");
 
-            let this_total_time = std::time::Instant::now();
             let result = the_solve.do_solve();
-            let solve_time = this_total_time.elapsed();
 
             if unsafe { config::SHOW_STATS } {
                 the_solve.display_stats();
-                println!("c   TIME            {solve_time:.2?}");
             }
 
             match result {
                 Result::Unsatisfiable => {
                     println!("s UNSATISFIABLE");
                     if unsafe { config::SHOW_CORE } {
-                        the_solve.core();
+                        the_solve.display_core();
                     }
                     std::process::exit(00);
                 }

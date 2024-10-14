@@ -24,12 +24,15 @@ pub fn hobson_choices(
 }
 
 pub fn resolve_sorted_clauses(
-    mut clause_a_literals: impl Iterator<Item = Literal>,
-    mut clause_b_literals: impl Iterator<Item = Literal>,
+    clause_a_literals: &[Literal],
+    clause_b_literals: &[Literal],
     v_id: VariableId,
 ) -> Option<impl Clause> {
-    let mut current_a = clause_a_literals.next();
-    let mut current_b = clause_b_literals.next();
+    let mut clause_a_iter = clause_a_literals.iter();
+    let mut clause_b_iter = clause_b_literals.iter();
+
+    let mut current_a = clause_a_iter.next().copied();
+    let mut current_b = clause_b_iter.next().copied();
 
     let mut the_clause = vec![];
     let mut a_found: Option<bool> = None;
@@ -50,7 +53,7 @@ pub fn resolve_sorted_clauses(
                 } else {
                     the_clause.push(a_lit);
                 }
-                current_a = clause_a_literals.next();
+                current_a = clause_a_iter.next().copied();
             }
             (None, Some(b_lit)) => {
                 if b_lit.v_id() == v_id {
@@ -64,7 +67,7 @@ pub fn resolve_sorted_clauses(
                 } else {
                     the_clause.push(b_lit);
                 }
-                current_b = clause_b_literals.next();
+                current_b = clause_b_iter.next().copied();
             }
             (Some(a_lit), Some(b_lit)) => {
                 if a_lit.v_id() == v_id {
@@ -75,7 +78,7 @@ pub fn resolve_sorted_clauses(
                         Some(_) => return None,
                         None => a_found = Some(a_lit.polarity()),
                     }
-                    current_a = clause_a_literals.next();
+                    current_a = clause_a_iter.next().copied();
                 } else if b_lit.v_id() == v_id {
                     match a_found {
                         Some(existing) if existing != b_lit.polarity() => {
@@ -84,21 +87,21 @@ pub fn resolve_sorted_clauses(
                         Some(_) => return None,
                         None => b_found = Some(b_lit.polarity()),
                     }
-                    current_b = clause_b_literals.next();
+                    current_b = clause_b_iter.next().copied();
                 } else {
                     match a_lit.cmp(&b_lit) {
                         std::cmp::Ordering::Equal => {
                             the_clause.push(a_lit);
-                            current_a = clause_a_literals.next();
-                            current_b = clause_b_literals.next();
+                            current_a = clause_a_iter.next().copied();
+                            current_b = clause_b_iter.next().copied();
                         }
                         std::cmp::Ordering::Less => {
                             the_clause.push(a_lit);
-                            current_a = clause_a_literals.next();
+                            current_a = clause_a_iter.next().copied();
                         }
                         std::cmp::Ordering::Greater => {
                             the_clause.push(b_lit);
-                            current_b = clause_b_literals.next();
+                            current_b = clause_b_iter.next().copied();
                         }
                     }
                 }
@@ -159,7 +162,7 @@ mod tests {
             Literal::new(3, true),
             Literal::new(4, false),
         ];
-        let result = resolve_sorted_clauses(a.literals(), b.literals(), 1);
+        let result = resolve_sorted_clauses(a.literal_slice(), b.literal_slice(), 1);
         assert!(result.is_some());
 
         assert_eq!(
@@ -177,6 +180,6 @@ mod tests {
     fn sorted_resolve_nok_check() {
         let a = vec![Literal::new(1, true), Literal::new(2, false)];
         let b = vec![Literal::new(3, true), Literal::new(4, false)];
-        assert!(resolve_sorted_clauses(a.literals(), b.literals(), 1).is_none())
+        assert!(resolve_sorted_clauses(a.literal_slice(), b.literal_slice(), 1).is_none())
     }
 }

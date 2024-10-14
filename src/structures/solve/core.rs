@@ -3,13 +3,13 @@ use slotmap::SlotMap;
 use crate::structures::{
     clause::{
         stored::{Source, StoredClause},
-        vec::ClauseVec,
+        ClauseVec,
         Clause,
     },
     formula::Formula,
     level::{Level, LevelIndex},
     solve::{ClauseKey, Solve},
-    valuation::{Valuation, ValuationVec},
+    valuation::Valuation,
 };
 
 use std::{collections::VecDeque, time::Duration};
@@ -18,6 +18,7 @@ impl Solve {
     pub fn from_formula(formula: Formula) -> Self {
         let variables = formula.variables;
         let clauses = formula.clauses;
+        let variable_count = variables.len();
 
         let mut the_solve = Self {
             time: Duration::new(0, 0),
@@ -26,10 +27,10 @@ impl Solve {
             conflicts_since_last_forget: 0,
             conflicts_since_last_reset: 0,
             restarts: 0,
-            consequence_q: VecDeque::with_capacity(variables.len()),
+            consequence_q: VecDeque::with_capacity(variable_count),
             valuation: vec![None; variables.len()].into_boxed_slice(),
             variables,
-            levels: Vec::<Level>::with_capacity(4096),
+            levels: Vec::<Level>::with_capacity(variable_count),
             formula_clauses: SlotMap::new(),
             learnt_clauses: SlotMap::new(),
         };
@@ -45,16 +46,6 @@ impl Solve {
         }
 
         the_solve
-    }
-
-    pub fn valuation_at(&self, level_index: LevelIndex) -> ValuationVec {
-        let mut valuation = vec![None; self.valuation.len()];
-        (0..=level_index).for_each(|i| {
-            self.levels[i].literals().for_each(|l| {
-                valuation.set_value(l);
-            });
-        });
-        valuation
     }
 
     pub fn most_active_none(&self, val: &impl Valuation) -> Option<usize> {
