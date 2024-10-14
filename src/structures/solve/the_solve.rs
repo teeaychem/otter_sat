@@ -305,7 +305,7 @@ impl Solve {
             .formula_clauses
             .iter()
             .chain(&self.learnt_clauses)
-            .map(|(_, sc)| sc.literals());
+            .map(|(_, sc)| sc.literal_slice().iter().copied());
         let (f, t) = hobson_choices(lits);
         self.literal_set_from_vec(f);
         self.literal_set_from_vec(t);

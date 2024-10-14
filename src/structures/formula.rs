@@ -1,5 +1,5 @@
 use crate::structures::{
-    clause::{vec::ClauseVec, Clause},
+    clause::{ClauseVec, Clause},
     literal::Literal,
     variable::{Variable, VariableId},
 };

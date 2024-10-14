@@ -3,8 +3,7 @@ use crate::structures::valuation::Valuation;
 use crate::structures::{
     clause::{
         stored::{Source as ClauseSource, StoredClause},
-        vec::ClauseVec,
-        Clause,
+        Clause, ClauseVec,
     },
     literal::{Literal, Source as LiteralSource},
     solve::{config, retreive, ClauseKey, Solve, Status},
@@ -39,7 +38,10 @@ impl Solve {
                         }
                     }
                     _ => {
-                        self.backjump(backjump_level(&self.variables, asserting_clause.literals()));
+                        self.backjump(backjump_level(
+                            &self.variables,
+                            asserting_clause.literal_slice(),
+                        ));
 
                         LiteralSource::StoredClause(
                             self.store_clause(asserting_clause, clause_source),
@@ -61,7 +63,11 @@ impl Solve {
         let mut resolved_clause = conflict_clause.clause_clone();
         let mut resolution_trail = vec![];
 
-        let previous_level_val = self.valuation_at(self.level().index() - 1);
+        let mut previous_level_val = self.valuation.clone();
+        for literal in self.level().literals() {
+            previous_level_val[literal.index()] = None;
+        }
+
         let mut asserted_literal = None;
 
         let mut used_variables = vec![false; self.variables.len()];
@@ -81,14 +87,14 @@ impl Solve {
                 let stored_source_clause =
                     retreive_unsafe(&self.formula_clauses, &self.learnt_clauses, *clause_key);
 
-                for involved_literal in stored_source_clause.literals() {
+                for involved_literal in stored_source_clause.literal_slice() {
                     used_variables[involved_literal.index()] = true;
                 }
 
                 let for_the_borrow_checker = resolved_clause.clone();
                 let resolution_result = resolve_sorted_clauses(
-                    for_the_borrow_checker.literals(),
-                    stored_source_clause.literals(),
+                    for_the_borrow_checker.literal_slice(),
+                    stored_source_clause.literal_slice(),
                     literal.v_id(),
                 );
                 if let Some(resolution) = resolution_result {
@@ -123,25 +129,29 @@ impl Solve {
         If some literals are known then their negation can be safely removed from the learnt clause.
         Though, this isn't a particular effective method…
          */
-        if !self.levels[0].observations().is_empty() {
-            resolved_clause.retain(|l| {
-                !self.levels[0]
-                    .observations()
-                    .iter()
-                    .any(|(_, x)| l.negate() == *x)
-            });
-        }
+        resolved_clause.retain(|l| {
+            !self.levels[0]
+                .observations()
+                .iter()
+                .any(|(_, other_literal)| l.negate() == *other_literal)
+        });
 
-        match unsafe { config::VSIDS_VARIANT } {
-            config::VSIDS::Chaff => {
-                for literal in resolved_clause.literals() {
-                    self.variables[literal.index()].add_activity(config::ACTIVITY_CONFLICT);
+        unsafe {
+            match config::VSIDS_VARIANT {
+                config::VSIDS::Chaff => {
+                    for literal in resolved_clause.literal_slice() {
+                        self.variables
+                            .get_unchecked(literal.index())
+                            .add_activity(config::ACTIVITY_CONFLICT);
+                    }
                 }
-            }
-            config::VSIDS::MiniSAT => {
-                for (index, used) in used_variables.into_iter().enumerate() {
-                    if used {
-                        self.variables[index].add_activity(config::ACTIVITY_CONFLICT);
+                config::VSIDS::MiniSAT => {
+                    for (index, used) in used_variables.into_iter().enumerate() {
+                        if used {
+                            self.variables
+                                .get_unchecked(index)
+                                .add_activity(config::ACTIVITY_CONFLICT);
+                        }
                     }
                 }
             }
@@ -154,7 +164,7 @@ impl Solve {
         )
     }
 
-    pub fn core(&self) {
+    pub fn display_core(&self) {
         println!();
         println!("c An unsatisfiable core of the original formula:\n");
         let mut node_indicies = vec![];
@@ -202,18 +212,20 @@ impl Solve {
 The implementation works through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
 the top decision level will be for the literal to be asserted when clause is learnt
  */
-fn backjump_level(variables: &[Variable], literals: impl Iterator<Item = Literal>) -> usize {
+fn backjump_level(variables: &[Variable], literals: &[Literal]) -> usize {
     let mut top_two = (None, None);
     for lit in literals {
         if let Some(dl) = unsafe { (*variables.get_unchecked(lit.index())).decision_level() } {
-            if top_two.1.is_none() {
-                top_two.1 = Some(dl);
-            } else if top_two.1.is_some_and(|t1| dl > t1) {
-                top_two.0 = top_two.1;
-                top_two.1 = Some(dl);
-            } else if top_two.0.is_none() || top_two.0.is_some_and(|t2| dl > t2) {
-                top_two.0 = Some(dl);
-            };
+            match top_two {
+                (_, None) => top_two.1 = Some(dl),
+                (_, Some(t1)) if dl > t1 => {
+                    top_two.0 = top_two.1;
+                    top_two.1 = Some(dl);
+                }
+                (None, _) => top_two.0 = Some(dl),
+                (Some(t2), _) if dl > t2 => top_two.0 = Some(dl),
+                _ => {}
+            }
         }
     }
 
