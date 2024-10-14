@@ -170,10 +170,6 @@ impl std::fmt::Display for StoredClause {
 
 /// Lift the method from the clause stored to the stored clause
 impl Clause for StoredClause {
-    fn literals(&self) -> impl Iterator<Item = Literal> {
-        self.clause.literals()
-    }
-
     fn as_string(&self) -> String {
         self.clause.as_string()
     }
@@ -192,6 +188,10 @@ impl Clause for StoredClause {
 
     fn lbd(&self, variables: &[Variable]) -> usize {
         self.clause.lbd(variables)
+    }
+
+    fn literal_slice(&self) -> &[Literal] {
+        self.clause.literal_slice()
     }
 }
 
