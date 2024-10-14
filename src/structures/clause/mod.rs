@@ -25,6 +25,8 @@ pub trait Clause {
     fn variable_position(&self, id: VariableId) -> Option<usize>;
 
     fn literal_position(&self, literal: Literal) -> Option<usize>;
+
+    fn length(&self) -> usize;
 }
 
 impl<T: Deref<Target = [Literal]>> Clause for T {
@@ -132,6 +134,10 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
             }
         }
     }
+
+    fn length(&self) -> usize {
+        self.len()
+}
 }
 
 #[cfg(test)]
