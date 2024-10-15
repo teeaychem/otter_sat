@@ -30,21 +30,21 @@ impl ClauseStore {
         }
     }
 
-    pub fn retreive<'a>(&'a self, key: ClauseKey) -> Option<&'a StoredClause> {
+    pub fn retreive(&self, key: ClauseKey) -> Option<&StoredClause> {
         match key {
             ClauseKey::Formula(key) => self.formula.get(key),
             ClauseKey::Learnt(key) => self.learned.get(key),
         }
     }
 
-    pub fn retreive_unsafe<'a>(&'a self, key: ClauseKey) -> &'a StoredClause {
+    pub fn retreive_unchecked(&self, key: ClauseKey) -> &StoredClause {
         match key {
             ClauseKey::Formula(key) => unsafe { self.formula.get_unchecked(key) },
             ClauseKey::Learnt(key) => unsafe { self.learned.get_unchecked(key) },
         }
     }
 
-    pub fn retreive_mut<'a>(&'a mut self, key: ClauseKey) -> Option<&'a mut StoredClause> {
+    pub fn retreive_mut(&mut self, key: ClauseKey) -> Option<&mut StoredClause> {
         match key {
             ClauseKey::Formula(key) => self.formula.get_mut(key),
             ClauseKey::Learnt(key) => self.learned.get_mut(key),

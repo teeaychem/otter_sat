@@ -160,7 +160,7 @@ impl Solve {
         while index < length {
             let clause_key = unsafe { *borrowed_occurrences.get_unchecked(index) };
 
-            let stored_clause = self.stored_clauses.retreive_unsafe(clause_key);
+            let stored_clause = self.stored_clauses.retreive_unchecked(clause_key);
 
             let watch_a = stored_clause.get_watched(Watch::A);
             let watch_b = stored_clause.get_watched(Watch::B);
