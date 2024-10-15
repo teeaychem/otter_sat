@@ -1,5 +1,5 @@
 use crate::structures::{
-    clause::Clause, literal::Literal, solve::ClauseKey, valuation::Valuation, variable::Variable,
+    clause::Clause, literal::Literal, solve::store::ClauseKey, valuation::Valuation, variable::Variable,
 };
 
 use std::cell::UnsafeCell;
@@ -95,10 +95,6 @@ impl StoredClause {
 
     pub fn get_set_lbd(&self) -> usize {
         unsafe { *self.lbd.get() }
-    }
-
-    pub fn clause_clone(&self) -> Vec<Literal> {
-        self.clause.clone().to_clause_vec()
     }
 
     fn watch_update_replace(

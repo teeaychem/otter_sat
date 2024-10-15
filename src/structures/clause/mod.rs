@@ -1,27 +1,18 @@
 pub mod stored;
 
 use crate::structures::{literal::Literal, valuation::Valuation, variable::Variable};
-use std::cmp::Ordering;
 use std::ops::Deref;
-
-use super::variable::VariableId;
 
 pub trait Clause {
     fn as_string(&self) -> String;
 
     fn as_dimacs(&self, variables: &[Variable]) -> String;
 
-    fn to_clause_vec(self) -> Vec<Literal>;
-
     fn asserts(&self, val: &impl Valuation) -> Option<Literal>;
 
     fn lbd(&self, variables: &[Variable]) -> usize;
 
     fn literal_slice(&self) -> &[Literal];
-
-    fn variable_position(&self, id: VariableId) -> Option<usize>;
-
-    fn literal_position(&self, literal: Literal) -> Option<usize>;
 
     fn length(&self) -> usize;
 }
@@ -51,10 +42,6 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
         }
         the_string += "0";
         the_string
-    }
-
-    fn to_clause_vec(self) -> Vec<Literal> {
-        self.to_vec()
     }
 
     /// Returns the literal asserted by the clause on the given valuation
@@ -87,54 +74,9 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
         decision_levels.len()
     }
 
-    // TODO: at some point it may be worth implementing fixed operations for short clauses, same for literal position
-    fn variable_position(&self, id: VariableId) -> Option<usize> {
-        let mut min: usize = 0;
-        let mut max = self.len();
-        let mut mid;
-        loop {
-            mid = min + (max - min) / 2;
-
-            match unsafe { self.get_unchecked(mid).v_id() }.cmp(&id) {
-                Ordering::Equal => return Some(mid),
-                Ordering::Greater => max = mid,
-                Ordering::Less => min = mid + 1,
-            }
-
-            if min == max {
-                return None;
-            }
-        }
-    }
-
-    fn literal_position(&self, literal: Literal) -> Option<usize> {
-        let mut min: usize = 0;
-        let mut max = self.len();
-        let mut mid;
-        loop {
-            mid = min + (max - min) / 2;
-
-            match unsafe { self.get_unchecked(mid).v_id() }.cmp(&literal.v_id()) {
-                Ordering::Equal => {
-                    if unsafe { self.get_unchecked(mid).polarity() } == literal.polarity() {
-                        return Some(mid);
-                    } else {
-                        return None;
-                    }
-                }
-                Ordering::Greater => max = mid,
-                Ordering::Less => min = mid + 1,
-            }
-
-            if min == max {
-                return None;
-            }
-        }
-    }
-
     fn length(&self) -> usize {
         self.len()
-}
+    }
 }
 
 #[cfg(test)]
