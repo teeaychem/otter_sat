@@ -1,5 +1,4 @@
 use crate::procedures::hobson_choices;
-use crate::structures::valuation::ValuationBox;
 use crate::structures::{
     clause::{stored::Watch, Clause},
     literal::{Literal, Source},
@@ -53,7 +52,7 @@ impl Solve {
                         }
                     }
 
-                    match self.attempt_fix(conflict_key) {
+                    match self.conflict_analysis(conflict_key) {
                         Status::NoSolution => return Result::Unsatisfiable,
                         Status::MissedImplication => continue 'main_loop,
                         Status::AssertingClause => {
@@ -281,7 +280,7 @@ impl Solve {
         }
     }
 
-    fn process_choice(&mut self, choice_index: usize, last_valuation: &ValuationBox) {
+    fn process_choice(&mut self, choice_index: usize, last_valuation: &impl Valuation) {
         log::trace!(
             "Choice: {choice_index} @ {} with activity {}",
             self.level().index(),
@@ -289,7 +288,7 @@ impl Solve {
         );
         self.add_fresh_level();
         let choice_literal =
-            if let Some(polarity) = unsafe { *last_valuation.get_unchecked(choice_index) } {
+            if let Some(polarity) = unsafe { *last_valuation.slice().get_unchecked(choice_index) } {
                 Literal::new(choice_index as VariableId, polarity)
             } else {
                 Literal::new(

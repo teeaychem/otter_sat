@@ -1,8 +1,5 @@
 pub mod stored;
 
-pub type ClauseVec = Vec<Literal>;
-pub type ClauseBox = Box<[Literal]>;
-
 use crate::structures::{literal::Literal, valuation::Valuation, variable::Variable};
 use std::cmp::Ordering;
 use std::ops::Deref;
@@ -14,7 +11,7 @@ pub trait Clause {
 
     fn as_dimacs(&self, variables: &[Variable]) -> String;
 
-    fn to_clause_vec(self) -> ClauseVec;
+    fn to_clause_vec(self) -> Vec<Literal>;
 
     fn asserts(&self, val: &impl Valuation) -> Option<Literal>;
 
@@ -56,7 +53,7 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
         the_string
     }
 
-    fn to_clause_vec(self) -> ClauseVec {
+    fn to_clause_vec(self) -> Vec<Literal> {
         self.to_vec()
     }
 
