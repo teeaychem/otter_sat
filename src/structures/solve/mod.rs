@@ -1,37 +1,33 @@
 mod analysis;
 pub mod config;
-pub mod core;
-mod the_solve;
 mod resolution_buffer;
+pub mod solve_core;
+pub mod store;
+mod the_solve;
 
 use crate::structures::{
-    level::{Level, LevelIndex},
-    literal::Literal,
+    clause::stored::Source,
+    formula::Formula,
+    level::Level,
+    literal::{Literal, Source as LiteralSource},
+    solve::store::ClauseStore,
     variable::Variable,
-    valuation::Valuation,
 };
 
-use crate::structures::clause::stored::StoredClause;
-use slotmap::{DefaultKey, SlotMap};
-
-use std::collections::VecDeque;
-use std::time::Duration;
-
-type ClauseStore = SlotMap<DefaultKey, StoredClause>;
+use std::{collections::VecDeque, time::Duration};
 
 pub struct Solve {
-    time: Duration,
-    iterations: usize,
     conflicts: usize,
     conflicts_since_last_forget: usize,
     conflicts_since_last_reset: usize,
-    restarts: usize,
-    variables: Vec<Variable>,
-    valuation: Box<[Option<bool>]>,
-    levels: Vec<Level>,
-    formula_clauses: ClauseStore,
-    learnt_clauses: ClauseStore,
     consequence_q: VecDeque<Literal>,
+    iterations: usize,
+    levels: Vec<Level>,
+    restarts: usize,
+    stored_clauses: ClauseStore,
+    valuation: Box<[Option<bool>]>,
+    variables: Vec<Variable>,
+    time: Duration,
 }
 
 pub enum Status {
@@ -46,76 +42,46 @@ pub enum Result {
     Unknown,
 }
 
-pub fn retreive<'a>(
-    formula: &'a ClauseStore,
-    learnt: &'a ClauseStore,
-    key: ClauseKey,
-) -> Option<&'a StoredClause> {
-    match key {
-        ClauseKey::Formula(key) => formula.get(key),
-        ClauseKey::Learnt(key) => learnt.get(key),
-    }
-}
-
-pub fn retreive_unsafe<'a>(
-    formula: &'a ClauseStore,
-    learnt: &'a ClauseStore,
-    key: ClauseKey,
-) -> &'a StoredClause {
-    match key {
-        ClauseKey::Formula(key) => unsafe { formula.get_unchecked(key) },
-        ClauseKey::Learnt(key) => unsafe { learnt.get_unchecked(key) },
-    }
-}
-
-pub fn retreive_mut<'a>(
-    formula: &'a mut ClauseStore,
-    learnt: &'a mut ClauseStore,
-    key: ClauseKey,
-) -> Option<&'a mut StoredClause> {
-    match key {
-        ClauseKey::Formula(key) => formula.get_mut(key),
-        ClauseKey::Learnt(key) => learnt.get_mut(key),
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum ClauseKey {
-    Formula(slotmap::DefaultKey),
-    Learnt(slotmap::DefaultKey),
-}
-
 impl Solve {
-    pub fn add_fresh_level(&mut self) -> LevelIndex {
-        let index = self.levels.len();
-        let the_level = Level::new(index);
-        self.levels.push(the_level);
-        index
-    }
+    pub fn from_formula(formula: Formula) -> Self {
+        let variables = formula.variables;
+        let clauses = formula.clauses;
+        let variable_count = variables.len();
 
-    pub fn level(&self) -> &Level {
-        let index = self.levels.len() - 1;
-        &self.levels[index]
-    }
+        let mut the_solve = Self {
+            conflicts: 0,
+            conflicts_since_last_forget: 0,
+            conflicts_since_last_reset: 0,
+            consequence_q: VecDeque::with_capacity(variable_count),
+            iterations: 0,
+            levels: Vec::<Level>::with_capacity(variable_count),
+            restarts: 0,
+            stored_clauses: ClauseStore::new(),
+            valuation: vec![None; variables.len()].into_boxed_slice(),
+            variables,
+            time: Duration::new(0, 0),
+        };
+        the_solve.levels.push(Level::new(0));
 
-    pub fn variables(&self) -> &[Variable] {
-        &self.variables
-    }
+        for formula_clause in clauses {
+            assert!(
+                !formula_clause.is_empty(),
+                "c The formula contains an empty clause"
+            );
 
-    pub fn valuation(&self) -> &impl Valuation {
-        &self.valuation
-    }
-}
+            match formula_clause.len() {
+                1 => {
+                    the_solve.literal_update(
+                        *formula_clause.first().expect("Literal vanish"),
+                        &LiteralSource::Assumption,
+                    );
+                }
+                _ => {
+                    the_solve.store_clause(formula_clause, Source::Formula);
+                }
+            }
+        }
 
-impl Solve {
-    pub fn display_stats(&self) {
-        println!("c STATS");
-        println!("c   ITERATIONS      {}", self.iterations);
-        println!("c   CONFLICTS       {}", self.conflicts);
-        println!(
-            "c   CONFLICT RATIO  {:.4?}",
-            self.conflicts as f32 / self.iterations as f32
-        );
-        println!("c   TIME            {:.2?}", self.time);
+        the_solve
     }
 }

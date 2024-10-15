@@ -1,4 +1,4 @@
-use crate::structures::{level::LevelIndex, solve::ClauseKey};
+use crate::structures::{level::LevelIndex, solve::store::ClauseKey};
 
 pub type VariableId = u32;
 use std::cell::UnsafeCell;
