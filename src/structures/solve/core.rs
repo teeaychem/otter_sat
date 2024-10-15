@@ -3,11 +3,11 @@ use slotmap::SlotMap;
 use crate::structures::{
     clause::{
         stored::{Source, StoredClause},
-        ClauseVec,
         Clause,
     },
     formula::Formula,
     level::{Level, LevelIndex},
+    literal::Literal,
     solve::{ClauseKey, Solve},
     valuation::Valuation,
 };
@@ -59,7 +59,7 @@ impl Solve {
 
     /// Stores a clause with an automatically generated id.
     /// In order to use the clause the watch literals of the struct must be initialised.
-    pub fn store_clause(&mut self, clause: ClauseVec, src: Source) -> ClauseKey {
+    pub fn store_clause(&mut self, clause: Vec<Literal>, src: Source) -> ClauseKey {
         assert!(!clause.is_empty(), "Attempt to add an empty clause");
 
         match &src {

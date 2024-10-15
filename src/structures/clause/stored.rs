@@ -1,19 +1,15 @@
 use crate::structures::{
-    clause::{Clause, ClauseBox, ClauseVec},
-    literal::Literal,
-    solve::ClauseKey,
-    valuation::Valuation,
-    variable::{Variable, VariableId},
+    clause::Clause, literal::Literal, solve::ClauseKey, valuation::Valuation, variable::Variable,
 };
 
 use std::cell::UnsafeCell;
+use std::ops::Deref;
 
 pub struct StoredClause {
     key: ClauseKey,
     lbd: UnsafeCell<usize>,
     source: Source,
-    clause: ClauseBox,
-    the_wc: ClauseBox,
+    clause: Vec<Literal>,
     cached_a: Literal,
     cached_b: Literal,
 }
@@ -48,7 +44,7 @@ enum WatchStatus {
 impl StoredClause {
     pub fn new_from(
         key: ClauseKey,
-        clause: ClauseVec,
+        clause: Vec<Literal>,
         source: Source,
         valuation: &impl Valuation,
         variables: &mut [Variable],
@@ -58,8 +54,7 @@ impl StoredClause {
             key,
             lbd: UnsafeCell::new(0),
             source,
-            clause: clause.into(),
-            the_wc: figured_out.clone().into(),
+            clause: figured_out.clone(),
             cached_a: figured_out[0],
             cached_b: figured_out[1],
         };
@@ -102,7 +97,7 @@ impl StoredClause {
         unsafe { *self.lbd.get() }
     }
 
-    pub fn clause_clone(&self) -> ClauseVec {
+    pub fn clause_clone(&self) -> Vec<Literal> {
         self.clause.clone().to_clause_vec()
     }
 
@@ -125,10 +120,10 @@ impl StoredClause {
         };
         let mix_up = index / 3;
         if mix_up > 2 {
-            self.the_wc.swap(index, mix_up);
-            self.the_wc.swap(mix_up, clause_index);
+            self.clause.swap(index, mix_up);
+            self.clause.swap(mix_up, clause_index);
         } else {
-            self.the_wc.swap(index, clause_index);
+            self.clause.swap(index, clause_index);
         }
 
         unsafe {
@@ -144,8 +139,8 @@ impl StoredClause {
         valuation: &impl Valuation,
         variables: &[Variable],
     ) {
-        'search_loop: for index in 2..self.the_wc.len() {
-            let the_literal = unsafe { *self.the_wc.get_unchecked(index) };
+        'search_loop: for index in 2..self.clause.len() {
+            let the_literal = unsafe { *self.clause.get_unchecked(index) };
 
             match valuation.of_index(the_literal.index()) {
                 None => {
@@ -168,7 +163,7 @@ impl std::fmt::Display for StoredClause {
     }
 }
 
-fn figure_out_intial_watches(clause: ClauseVec, val: &impl Valuation) -> Vec<Literal> {
+fn figure_out_intial_watches(clause: Vec<Literal>, val: &impl Valuation) -> Vec<Literal> {
     let length = clause.len();
     let mut the_wc = clause;
     let mut watch_a = 0;
@@ -233,41 +228,10 @@ fn get_status(literal: Literal, valuation: &impl Valuation) -> WatchStatus {
     }
 }
 
-/// Lift the method from the clause stored to the stored clause
-impl Clause for StoredClause {
-    fn as_string(&self) -> String {
-        self.clause.as_string()
-    }
+impl Deref for StoredClause {
+    type Target = [Literal];
 
-    fn as_dimacs(&self, variables: &[Variable]) -> String {
-        self.clause.as_dimacs(variables)
-    }
-
-    fn to_clause_vec(self) -> ClauseVec {
-        self.clause.clone().to_clause_vec()
-    }
-
-    fn asserts(&self, val: &impl Valuation) -> Option<Literal> {
-        self.clause.asserts(val)
-    }
-
-    fn lbd(&self, variables: &[Variable]) -> usize {
-        self.clause.lbd(variables)
-    }
-
-    fn literal_slice(&self) -> &[Literal] {
-        self.clause.literal_slice()
-    }
-
-    fn variable_position(&self, id: VariableId) -> Option<usize> {
-        self.clause.variable_position(id)
-    }
-
-    fn literal_position(&self, literal: Literal) -> Option<usize> {
-        self.clause.literal_position(literal)
-    }
-
-    fn length(&self) -> usize {
-        self.clause.length()
+    fn deref(&self) -> &Self::Target {
+        &self.clause
     }
 }

@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-#![deny(clippy::perf)]
 
 use clap::Parser;
 use std::fs;

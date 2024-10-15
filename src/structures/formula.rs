@@ -1,12 +1,12 @@
 use crate::structures::{
-    clause::{ClauseVec, Clause},
+    clause::Clause,
     literal::Literal,
     variable::{Variable, VariableId},
 };
 
 pub struct Formula {
     pub variables: Vec<Variable>,
-    pub clauses: Vec<ClauseVec>,
+    pub clauses: Vec<Vec<Literal>>,
 }
 
 impl Formula {
@@ -30,7 +30,7 @@ impl Formula {
         self.clauses.push(clause);
     }
 
-    fn clause_vec_from_string(&mut self, string: &str) -> ClauseVec {
+    fn clause_vec_from_string(&mut self, string: &str) -> Vec<Literal> {
         let string_lterals = string.split_whitespace();
         let mut the_clause = vec![];
         for string_literal in string_lterals {

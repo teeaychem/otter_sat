@@ -2,6 +2,7 @@ mod analysis;
 pub mod config;
 pub mod core;
 mod the_solve;
+mod resolution_buffer;
 
 use crate::structures::{
     level::{Level, LevelIndex},
