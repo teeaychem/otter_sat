@@ -21,7 +21,7 @@ impl Solve {
         if self.level().index() == 0 {
             return Status::NoSolution;
         }
-        let conflict_clause = self.stored_clauses.retreive_unsafe(clause_key);
+        let conflict_clause = self.stored_clauses.retreive_unchecked(clause_key);
         log::trace!("Clause {conflict_clause}");
 
         // this could be made persistent, but tying it to the solve requires a cell and lots of unsafe
@@ -132,7 +132,7 @@ impl Solve {
         while !q.is_empty() {
             let clause_key = q.pop_front().expect("Ah, the queue was empty…");
 
-            let stored_clause = self.stored_clauses.retreive_unsafe(clause_key);
+            let stored_clause = self.stored_clauses.retreive_unchecked(clause_key);
             match stored_clause.source() {
                 ClauseSource::Resolution(origins) => {
                     for antecedent in origins {

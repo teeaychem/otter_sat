@@ -14,21 +14,30 @@ enum ResolutionCell {
     NoneLiteral(Literal),
     ConflictLiteral(Literal),
     Strengthened,
+    Pivot,
 }
 
 #[derive(Debug)]
 pub struct ResolutionBuffer {
     valuless_count: usize,
+    clause_legnth: usize,
     asserts: Option<Literal>,
     buffer: Vec<ResolutionCell>,
     trail: Vec<ClauseKey>,
     used_variables: Vec<bool>,
 }
 
+pub enum Status {
+    FirstUIP,
+    Subsumption(ClauseKey, Literal),
+    Exhausted,
+}
+
 impl ResolutionBuffer {
     pub fn new(size: usize) -> Self {
         ResolutionBuffer {
             valuless_count: 0,
+            clause_legnth: 0,
             asserts: None,
             buffer: vec![ResolutionCell::Value(None); size],
             trail: vec![],
@@ -51,6 +60,7 @@ impl ResolutionBuffer {
     pub fn from_valuation(valuation: &impl Valuation) -> Self {
         ResolutionBuffer {
             valuless_count: 0,
+            clause_legnth: 0,
             asserts: None,
             buffer: valuation
                 .slice()
@@ -66,16 +76,21 @@ impl ResolutionBuffer {
         for literal in clause.literal_slice() {
             match self.buffer.get(literal.index()).expect("wuh") {
                 ResolutionCell::ConflictLiteral(_) | ResolutionCell::NoneLiteral(_) => {}
+                ResolutionCell::Pivot => {}
                 ResolutionCell::Value(maybe) => match maybe {
                     None => {
+                        self.clause_legnth += 1;
                         self.valuless_count += 1;
-                        self.asserts = Some(*literal);
+                        if self.asserts.is_none() {
+                            self.asserts = Some(*literal);
+                        }
                         self.set(literal.index(), ResolutionCell::NoneLiteral(*literal));
                     }
                     Some(value) if *value != literal.polarity() => {
+                        self.clause_legnth += 1;
                         self.set(literal.index(), ResolutionCell::ConflictLiteral(*literal))
                     }
-                    Some(_) => {}
+                    Some(_) => panic!("Resolution to a satisfied clause"),
                 },
                 ResolutionCell::Strengthened => {}
             }
@@ -83,15 +98,28 @@ impl ResolutionBuffer {
     }
 
     pub fn to_assertion_clause(&self) -> (Option<Literal>, Vec<Literal>) {
-        let mut the_clause = Vec::with_capacity(self.buffer.len());
+        let mut the_clause = vec![];
         let mut conflict_literal = None;
         for item in &self.buffer {
             match item {
-                ResolutionCell::Strengthened | ResolutionCell::Value(_) => {}
+                ResolutionCell::Strengthened | ResolutionCell::Value(_) | ResolutionCell::Pivot => {
+                }
                 ResolutionCell::ConflictLiteral(literal) => the_clause.push(*literal),
-                ResolutionCell::NoneLiteral(literal) => conflict_literal = Some(*literal),
+                ResolutionCell::NoneLiteral(literal) => {
+                    if self.valuless_count == 1 {
+                        conflict_literal = Some(*literal)
+                    } else {
+                        the_clause.push(*literal)
+                    }
+                }
             }
         }
+
+        // assert!(
+        //     conflict_literal.is_some() && the_clause.len() == self.clause_legnth - 1
+        //         || the_clause.len() == self.clause_legnth
+        // );
+
         (conflict_literal, the_clause)
     }
 
@@ -105,12 +133,12 @@ impl ResolutionBuffer {
         &mut self,
         observations: impl Iterator<Item = &'a (LiteralSource, Literal)>,
         stored_clauses: &ClauseStore,
-    ) {
-        'resolution_loop: for (src, literal) in observations {
+    ) -> Status {
+        for (src, literal) in observations {
             if let LiteralSource::StoredClause(clause_key) = src {
-                let stored_source_clause = stored_clauses.retreive_unsafe(*clause_key);
+                let stored_source_clause = stored_clauses.retreive_unchecked(*clause_key);
 
-                if self.resolve_clause(stored_source_clause, *literal) {
+                if self.resolve_clause(stored_source_clause, *literal).is_ok() {
                     self.trail.push(*clause_key);
                 }
 
@@ -120,12 +148,13 @@ impl ResolutionBuffer {
 
                 if self.valuless_count == 1 {
                     match unsafe { config::STOPPING_CRITERIA } {
-                        config::StoppingCriteria::FirstUIP => break 'resolution_loop,
+                        config::StoppingCriteria::FirstUIP => return Status::FirstUIP,
                         config::StoppingCriteria::None => {}
                     }
                 };
             }
         }
+        Status::Exhausted
     }
 
     /*
@@ -133,7 +162,15 @@ impl ResolutionBuffer {
      */
     pub fn strengthen_given(&mut self, literals: impl Iterator<Item = Literal>) {
         for literal in literals {
-            self.set(literal.index(), ResolutionCell::Strengthened)
+            match self.buffer[literal.index()] {
+                ResolutionCell::NoneLiteral(_) | ResolutionCell::ConflictLiteral(_) => {
+                    if let Some(length_minus_one) = self.clause_legnth.checked_sub(1) {
+                        self.clause_legnth = length_minus_one;
+                    }
+                    self.set(literal.index(), ResolutionCell::Strengthened)
+                }
+                _ => {}
+            }
         }
     }
 
@@ -161,14 +198,28 @@ impl ResolutionBuffer {
 }
 
 impl ResolutionBuffer {
-    fn resolve_clause(&mut self, clause: &impl Clause, using: Literal) -> bool {
+    fn resolve_clause(&mut self, clause: &impl Clause, using: Literal) -> Result<(), ()> {
         if self.buffer[using.index()] == ResolutionCell::NoneLiteral(using.negate()) {
             self.merge_clause(clause);
+
+            if let Some(length_minus_one) = self.clause_legnth.checked_sub(1) {
+                self.clause_legnth = length_minus_one;
+            }
+
+            self.set(using.index(), ResolutionCell::Pivot);
             self.valuless_count -= 1;
-            self.set(using.index(), ResolutionCell::Value(Some(false)));
-            true
+            Ok(())
+        } else if self.buffer[using.index()] == ResolutionCell::ConflictLiteral(using.negate()) {
+            self.merge_clause(clause);
+
+            if let Some(length_minus_one) = self.clause_legnth.checked_sub(1) {
+                self.clause_legnth = length_minus_one;
+            }
+
+            self.set(using.index(), ResolutionCell::Pivot);
+            Ok(())
         } else {
-            false
+            Err(())
         }
     }
 

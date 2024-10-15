@@ -29,7 +29,8 @@ impl Solve {
     }
 
     pub fn most_active_none(&self, val: &impl Valuation) -> Option<usize> {
-        val.values()
+        val.slice()
+            .iter()
             .enumerate()
             .filter(|(_, v)| v.is_none())
             .map(|(i, _)| (i, self.variables[i].activity()))

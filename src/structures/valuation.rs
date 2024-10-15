@@ -1,4 +1,4 @@
-use crate::structures::{literal::Literal, solve::Solve, variable::VariableId};
+use crate::structures::{literal::Literal, solve::Solve};
 
 use std::ops::DerefMut;
 
@@ -7,17 +7,13 @@ pub trait Valuation {
 
     fn as_internal_string(&self) -> String;
 
-    fn of_v_id(&self, v_id: VariableId) -> Option<bool>;
-
     fn of_index(&self, index: usize) -> Option<bool>;
 
     fn check_literal(&self, literal: Literal) -> Status;
 
-    fn update_value(&mut self, literal: Literal) -> Result<(), Status>;
+    fn check_set_value(&mut self, literal: Literal) -> Result<(), Status>;
 
     fn set_value(&mut self, literal: Literal);
-
-    fn values(&self) -> impl Iterator<Item = Option<bool>>;
 
     fn slice(&self) -> &[Option<bool>];
 }
@@ -32,10 +28,9 @@ impl<T: ?Sized + DerefMut<Target = [Option<bool>]>> Valuation for T {
     fn as_display_string(&self, solve: &Solve) -> String {
         self.iter()
             .enumerate()
-            .filter(|(_, p)| p.is_some())
-            .map(|(i, p)| {
-                let variable = solve.variables().get(i).unwrap();
-                match p {
+            .map(|(index, polarity)| {
+                let variable = solve.variables().get(index).unwrap();
+                match polarity {
                     Some(true) => variable.name().to_string(),
                     Some(false) => format!("-{}", variable.name()),
                     _ => String::new(),
@@ -48,18 +43,14 @@ impl<T: ?Sized + DerefMut<Target = [Option<bool>]>> Valuation for T {
     fn as_internal_string(&self) -> String {
         self.iter()
             .enumerate()
-            .filter(|(_, p)| p.is_some())
-            .map(|(index, p)| match p {
+            .map
+            (|(index, p)| match p {
                 Some(true) => format!("{index}"),
                 Some(false) => format!("-{index}"),
                 _ => String::new(),
             })
             .collect::<Vec<_>>()
             .join(" ")
-    }
-
-    fn of_v_id(&self, v_id: VariableId) -> Option<bool> {
-        unsafe { *self.get_unchecked(v_id as usize) }
     }
 
     fn of_index(&self, index: usize) -> Option<bool> {
@@ -75,7 +66,7 @@ impl<T: ?Sized + DerefMut<Target = [Option<bool>]>> Valuation for T {
         }
     }
 
-    fn update_value(&mut self, literal: Literal) -> Result<(), Status> {
+    fn check_set_value(&mut self, literal: Literal) -> Result<(), Status> {
         log::trace!("Set literal: {}", literal);
         let maybe_value = unsafe { self.get_unchecked(literal.index()) };
         match maybe_value {
@@ -91,10 +82,6 @@ impl<T: ?Sized + DerefMut<Target = [Option<bool>]>> Valuation for T {
     fn set_value(&mut self, literal: Literal) {
         log::trace!("Set literal: {}", literal);
         unsafe { *self.get_unchecked_mut(literal.index()) = Some(literal.polarity()) }
-    }
-
-    fn values(&self) -> impl Iterator<Item = Option<bool>> {
-        self.iter().copied()
     }
 
     fn slice(&self) -> &[Option<bool>] {
