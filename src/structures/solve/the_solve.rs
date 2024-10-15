@@ -1,17 +1,17 @@
 use crate::procedures::hobson_choices;
 use crate::structures::{
-    clause::{stored::Watch, Clause},
+    clause::stored::Watch,
     literal::{Literal, Source},
     solve::{
-        config, retreive, retreive_mut, ClauseKey, Solve, {Result, Status},
+        config,
+        store::ClauseKey,
+        Solve, {Result, Status},
     },
     valuation::Valuation,
     variable::VariableId,
 };
 
 use rand::Rng;
-
-use super::retreive_unsafe;
 
 impl Solve {
     #[allow(unused_labels)]
@@ -107,11 +107,8 @@ impl Solve {
 
         while index < length {
             let working_clause = unsafe {
-                retreive_mut(
-                    &mut self.formula_clauses,
-                    &mut self.learnt_clauses,
-                    *working_clause_vec.get_unchecked(index),
-                )
+                self.stored_clauses
+                    .retreive_mut(*working_clause_vec.get_unchecked(index))
             };
             match working_clause {
                 None => {
@@ -163,8 +160,7 @@ impl Solve {
         while index < length {
             let clause_key = unsafe { *borrowed_occurrences.get_unchecked(index) };
 
-            let stored_clause =
-                retreive_unsafe(&self.formula_clauses, &self.learnt_clauses, clause_key);
+            let stored_clause = self.stored_clauses.retreive_unsafe(clause_key);
 
             let watch_a = stored_clause.get_watched(Watch::A);
             let watch_b = stored_clause.get_watched(Watch::B);
@@ -228,7 +224,7 @@ impl Solve {
             while index < length {
                 let clause_key = unsafe { *occurrences.get_unchecked(index) };
 
-                match retreive(&self.formula_clauses, &self.learnt_clauses, clause_key) {
+                match self.stored_clauses.retreive(clause_key) {
                     Some(stored_clause) => {
                         let watch_a = stored_clause.get_watched(Watch::A);
                         let watch_b = stored_clause.get_watched(Watch::B);
@@ -254,23 +250,7 @@ impl Solve {
             log::debug!(target: "forget", "Forget @r {}", self.restarts);
             self.display_stats();
 
-            // // TODO: figure some improvement…
-
-            let limit = self.learnt_clauses.len();
-            let mut keys_to_drop = vec![];
-            for (k, v) in &self.learnt_clauses {
-                if keys_to_drop.len() > limit {
-                    break;
-                } else if v.get_set_lbd() > unsafe { config::GLUE_STRENGTH } {
-                    keys_to_drop.push(k);
-                }
-            }
-
-            for key in keys_to_drop {
-                self.learnt_clauses.remove(key);
-            }
-
-            log::debug!(target: "forget", "Reduced to: {}", self.learnt_clauses.len());
+            self.stored_clauses.reduce();
         }
 
         if unsafe { config::RESTARTS_ALLOWED } && self.it_is_time_to_reduce() {
@@ -287,26 +267,22 @@ impl Solve {
             self.variables[choice_index].activity()
         );
         self.add_fresh_level();
-        let choice_literal =
-            if let Some(polarity) = unsafe { *last_valuation.slice().get_unchecked(choice_index) } {
-                Literal::new(choice_index as VariableId, polarity)
-            } else {
-                Literal::new(
-                    choice_index as VariableId,
-                    rand::thread_rng().gen_bool(unsafe { config::POLARITY_LEAN }),
-                )
-            };
+        let choice_literal = if let Some(polarity) =
+            unsafe { *last_valuation.slice().get_unchecked(choice_index) }
+        {
+            Literal::new(choice_index as VariableId, polarity)
+        } else {
+            Literal::new(
+                choice_index as VariableId,
+                rand::thread_rng().gen_bool(unsafe { config::POLARITY_LEAN }),
+            )
+        };
         self.literal_update(choice_literal, &Source::Choice);
         self.consequence_q.push_back(choice_literal);
     }
 
     fn set_hobson(&mut self) {
-        let lits = self
-            .formula_clauses
-            .iter()
-            .chain(&self.learnt_clauses)
-            .map(|(_, sc)| sc.literal_slice().iter().copied());
-        let (f, t) = hobson_choices(lits);
+        let (f, t) = hobson_choices(self.stored_clauses.clauses());
         self.literal_set_from_vec(f);
         self.literal_set_from_vec(t);
     }

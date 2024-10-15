@@ -5,7 +5,10 @@ use crate::structures::{
     },
     literal::{Literal, Source as LiteralSource},
     solve::{
-        config, resolution_buffer::ResolutionBuffer, retreive_unsafe, ClauseKey, Solve, Status,
+        config,
+        resolution_buffer::ResolutionBuffer,
+        store::ClauseKey,
+        Solve, Status,
     },
     variable::Variable,
 };
@@ -18,15 +21,17 @@ impl Solve {
         if self.level().index() == 0 {
             return Status::NoSolution;
         }
-        let conflict_clause =
-            retreive_unsafe(&self.formula_clauses, &self.learnt_clauses, clause_key);
+        let conflict_clause = self.stored_clauses.retreive_unsafe(clause_key);
         log::trace!("Clause {conflict_clause}");
 
-        let mut resolution_buffer = ResolutionBuffer::from_valuation(&self.valuation);
-        resolution_buffer.clear_literals(self.level().literals());
-        resolution_buffer.eat_clause(&conflict_clause.deref());
+        // this could be made persistent, but tying it to the solve requires a cell and lots of unsafe
+        let mut the_buffer = ResolutionBuffer::from_valuation(&self.valuation);
 
-        if let Some(asserted) = resolution_buffer.asserts() {
+        the_buffer.reset_with(&self.valuation);
+        the_buffer.clear_literals(self.level().literals());
+        the_buffer.merge_clause(&conflict_clause.deref());
+
+        if let Some(asserted) = the_buffer.asserts() {
             // check to see if missed
             let missed_level = backjump_level(&self.variables, conflict_clause.literal_slice());
             self.backjump(missed_level);
@@ -36,30 +41,27 @@ impl Solve {
             Status::MissedImplication
         } else {
             // resolve
-            resolution_buffer.resolve_with(
-                self.level().observations.iter().rev(),
-                &self.formula_clauses,
-                &self.learnt_clauses,
-            );
+
+            the_buffer.resolve_with(self.level().observations.iter().rev(), &self.stored_clauses);
             // see if resolution can be strengthened
-            resolution_buffer.strengthen_given(
+            the_buffer.strengthen_given(
                 self.levels[0]
                     .observations
                     .iter()
                     .map(|(_, literal)| *literal),
             );
 
-            let (asserted_literal, mut resolved_clause) = resolution_buffer.to_assertion_clause();
+            let (asserted_literal, mut resolved_clause) = the_buffer.to_assertion_clause();
             if let Some(assertion) = asserted_literal {
                 resolved_clause.push(assertion);
             }
 
-            self.apply_VSIDS(&resolved_clause, &resolution_buffer);
+            self.apply_VSIDS(&resolved_clause, &the_buffer);
 
             let source = match resolved_clause.len() {
                 1 => {
                     self.backjump(0);
-                    LiteralSource::Resolution(resolution_buffer.trail().to_vec())
+                    LiteralSource::Resolution(the_buffer.trail().to_vec())
                 }
                 _ => {
                     let backjump_level =
@@ -67,7 +69,7 @@ impl Solve {
                     self.backjump(backjump_level);
                     let clause_key = self.store_clause(
                         resolved_clause,
-                        ClauseSource::Resolution(resolution_buffer.trail().to_vec()),
+                        ClauseSource::Resolution(the_buffer.trail().to_vec()),
                     );
 
                     LiteralSource::StoredClause(clause_key)
@@ -130,8 +132,7 @@ impl Solve {
         while !q.is_empty() {
             let clause_key = q.pop_front().expect("Ah, the queue was empty…");
 
-            let stored_clause =
-                retreive_unsafe(&self.formula_clauses, &self.learnt_clauses, clause_key);
+            let stored_clause = self.stored_clauses.retreive_unsafe(clause_key);
             match stored_clause.source() {
                 ClauseSource::Resolution(origins) => {
                     for antecedent in origins {
