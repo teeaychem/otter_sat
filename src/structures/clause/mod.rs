@@ -48,7 +48,7 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
     fn asserts(&self, val: &impl Valuation) -> Option<Literal> {
         let mut the_literal = None;
         for lit in self.literal_slice() {
-            if let Some(existing_val) = val.of_v_id(lit.v_id()) {
+            if let Some(existing_val) = val.of_index(lit.index()) {
                 match existing_val == lit.polarity() {
                     true => return None,
                     false => continue,
