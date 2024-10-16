@@ -27,7 +27,8 @@ pub struct Solve {
     stored_clauses: ClauseStore,
     valuation: Box<[Option<bool>]>,
     variables: Vec<Variable>,
-    time: Duration,
+    pub time: Duration,
+    config: config::Config
 }
 
 pub enum Status {
@@ -43,7 +44,7 @@ pub enum Result {
 }
 
 impl Solve {
-    pub fn from_formula(formula: Formula) -> Self {
+    pub fn from_formula(formula: Formula, config: config::Config) -> Self {
         let variables = formula.variables;
         let clauses = formula.clauses;
         let variable_count = variables.len();
@@ -60,6 +61,7 @@ impl Solve {
             valuation: vec![None; variables.len()].into_boxed_slice(),
             variables,
             time: Duration::new(0, 0),
+            config
         };
         the_solve.levels.push(Level::new(0));
 

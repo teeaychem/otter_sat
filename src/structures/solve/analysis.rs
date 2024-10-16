@@ -16,7 +16,13 @@ use crate::structures::{
 use std::{collections::VecDeque, ops::Deref};
 
 impl Solve {
-    pub fn conflict_analysis(&mut self, clause_key: ClauseKey) -> SolveStatus {
+    pub fn conflict_analysis(
+        &mut self,
+        clause_key: ClauseKey,
+        vsids_variant: config::VSIDS,
+        stopping_critera: config::StoppingCriteria,
+        activity: f32,
+    ) -> SolveStatus {
         log::trace!("Fix @ {}", self.level().index());
         if self.level().index() == 0 {
             return SolveStatus::NoSolution;
@@ -42,10 +48,20 @@ impl Solve {
         } else {
             // resolve
 
-            let ob_clone = self.level().observations.iter().rev().cloned().collect::<Vec<_>>();
-            match the_buffer
-                .resolve_with(ob_clone.iter(), &mut self.stored_clauses, &self.valuation, &self.variables)
-            {
+            let ob_clone = self
+                .level()
+                .observations
+                .iter()
+                .rev()
+                .cloned()
+                .collect::<Vec<_>>();
+            match the_buffer.resolve_with(
+                ob_clone.iter(),
+                &mut self.stored_clauses,
+                &self.valuation,
+                &self.variables,
+                stopping_critera,
+            ) {
                 BufferStatus::FirstUIP | BufferStatus::Exhausted => {
                     the_buffer.strengthen_given(
                         self.levels[0]
@@ -59,7 +75,7 @@ impl Solve {
                         resolved_clause.push(assertion);
                     }
 
-                    self.apply_VSIDS(&resolved_clause, &the_buffer);
+                    self.apply_VSIDS(&resolved_clause, &the_buffer, vsids_variant, activity);
 
                     let source = match resolved_clause.len() {
                         1 => {
@@ -89,21 +105,27 @@ impl Solve {
     }
 
     #[allow(non_snake_case)]
-    fn apply_VSIDS(&self, clause: &impl Clause, buffer: &ResolutionBuffer) {
-        unsafe {
-            match config::VSIDS_VARIANT {
-                config::VSIDS::Chaff => {
-                    for literal in clause.literal_slice() {
+    fn apply_VSIDS(
+        &self,
+        clause: &impl Clause,
+        buffer: &ResolutionBuffer,
+        variant: config::VSIDS,
+        activity: f32,
+    ) {
+        match variant {
+            config::VSIDS::Chaff => {
+                for literal in clause.literal_slice() {
+                    unsafe {
                         self.variables
                             .get_unchecked(literal.index())
-                            .add_activity(config::ACTIVITY_CONFLICT);
+                            .add_activity(activity);
                     }
                 }
-                config::VSIDS::MiniSAT => {
-                    for index in buffer.variables_used() {
-                        self.variables
-                            .get_unchecked(index)
-                            .add_activity(config::ACTIVITY_CONFLICT);
+            }
+            config::VSIDS::MiniSAT => {
+                for index in buffer.variables_used() {
+                    unsafe {
+                        self.variables.get_unchecked(index).add_activity(activity);
                     }
                 }
             }
