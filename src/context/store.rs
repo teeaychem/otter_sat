@@ -1,5 +1,3 @@
-use core::panic;
-
 use crate::structures::{
     clause::{
         stored::{Source as ClauseSource, StoredClause},
@@ -10,7 +8,10 @@ use crate::structures::{
     variable::Variable,
 };
 
+pub type ClauseId = u32;
+
 use slotmap::{DefaultKey, SlotMap};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ClauseKey {
@@ -63,6 +64,7 @@ impl ClauseStore {
             ClauseSource::Formula => {
                 let key = self.formula.insert_with_key(|k| {
                     StoredClause::new_from(
+                        Self::fresh_clause_id(),
                         ClauseKey::Formula(k),
                         clause,
                         source,
@@ -72,11 +74,12 @@ impl ClauseStore {
                 });
                 ClauseKey::Formula(key)
             }
-            ClauseSource::Resolution(_) => {
+            ClauseSource::Resolution => {
                 log::trace!("Learning clause {}", clause.as_string());
 
                 let key = self.learned.insert_with_key(|k| {
                     let clause = StoredClause::new_from(
+                        Self::fresh_clause_id(),
                         ClauseKey::Learned(k),
                         clause,
                         source,
@@ -87,9 +90,6 @@ impl ClauseStore {
                     clause
                 });
                 ClauseKey::Learned(key)
-            }
-            ClauseSource::Subsumption(_) => {
-                panic!("Attempting to store a clause strengthend by subsumption")
             }
         }
     }
@@ -121,5 +121,10 @@ impl ClauseStore {
             self.learned.remove(key);
         }
         log::debug!(target: "forget", "Reduced to: {}", self.learned.len());
+    }
+
+    fn fresh_clause_id() -> ClauseId {
+        static CLAUSE_COUNTER: AtomicU32 = AtomicU32::new(0);
+        CLAUSE_COUNTER.fetch_add(1, Ordering::Relaxed)
     }
 }
