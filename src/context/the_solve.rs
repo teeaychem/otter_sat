@@ -1,20 +1,22 @@
-use crate::procedures::hobson_choices;
-use crate::structures::{
-    clause::stored::Watch,
-    literal::{Literal, Source},
-    solve::{
+use crate::{
+    context::{
         store::ClauseKey,
-        Solve, {Result, Status},
+        Context, {Result, Status},
     },
-    valuation::Valuation,
-    variable::VariableId,
+    procedures::hobson_choices,
+    structures::{
+        clause::stored::Watch,
+        literal::{Literal, Source},
+        valuation::Valuation,
+        variable::VariableId,
+    },
 };
 
 use rand::Rng;
 
-impl Solve {
+impl Context {
     #[allow(unused_labels)]
-    pub fn do_solve(&mut self) -> Result {
+    pub fn solve(&mut self) -> Result {
         let this_total_time = std::time::Instant::now();
 
         #[allow(unused_assignments)]

@@ -4,7 +4,7 @@ use crate::structures::formula::Formula;
 
 impl Formula {
     pub fn from_dimacs(string: &str) -> Self {
-        let mut the_solve = Self::new();
+        let mut the_formula = Self::new();
         let mut from = 0;
         let mut to = 0;
         let mut reading_comment = false;
@@ -15,7 +15,7 @@ impl Formula {
                     reading_literal = true;
                 } else if ch == '0' {
                     if !reading_comment {
-                        the_solve.add_clause(&string[from..to]);
+                        the_formula.add_clause(&string[from..to]);
                     }
                     from = to + 1;
                 }
@@ -59,6 +59,6 @@ impl Formula {
 
             to += 1;
         }
-        the_solve
+        the_formula
     }
 }

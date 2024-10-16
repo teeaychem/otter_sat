@@ -1,21 +1,22 @@
-use crate::structures::{
+use crate::{
+    context::{
+        config,
+        resolution_buffer::{ResolutionBuffer, Status as BufferStatus},
+        store::ClauseKey,
+        Context, Status as SolveStatus,
+    },
+    structures::{
     clause::{
         stored::{Source as ClauseSource, StoredClause},
         Clause,
     },
     literal::{Literal, Source as LiteralSource},
-    solve::{
-        config,
-        resolution_buffer::{ResolutionBuffer, Status as BufferStatus},
-        store::ClauseKey,
-        Solve, Status as SolveStatus,
-    },
     variable::Variable,
-};
+}};
 
 use std::{collections::VecDeque, ops::Deref};
 
-impl Solve {
+impl Context {
     pub fn conflict_analysis(
         &mut self,
         clause_key: ClauseKey,

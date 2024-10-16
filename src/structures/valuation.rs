@@ -1,9 +1,9 @@
-use crate::structures::{literal::Literal, solve::Solve};
+use crate::{context::Context, structures::literal::Literal};
 
 use std::ops::DerefMut;
 
 pub trait Valuation {
-    fn as_display_string(&self, solve: &Solve) -> String;
+    fn as_display_string(&self, solve: &Context) -> String;
 
     fn as_internal_string(&self) -> String;
 
@@ -25,7 +25,7 @@ pub enum Status {
 }
 
 impl<T: ?Sized + DerefMut<Target = [Option<bool>]>> Valuation for T {
-    fn as_display_string(&self, solve: &Solve) -> String {
+    fn as_display_string(&self, solve: &Context) -> String {
         self.iter()
             .enumerate()
             .map(|(index, polarity)| {
@@ -43,8 +43,7 @@ impl<T: ?Sized + DerefMut<Target = [Option<bool>]>> Valuation for T {
     fn as_internal_string(&self) -> String {
         self.iter()
             .enumerate()
-            .map
-            (|(index, p)| match p {
+            .map(|(index, p)| match p {
                 Some(true) => format!("{index}"),
                 Some(false) => format!("-{index}"),
                 _ => String::new(),
