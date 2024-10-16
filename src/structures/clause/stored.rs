@@ -1,5 +1,5 @@
 use crate::{
-    context::store::ClauseKey,
+    context::store::{ClauseKey, ClauseStore},
     structures::{clause::Clause, literal::Literal, valuation::Valuation, variable::Variable},
 };
 
@@ -22,6 +22,7 @@ pub struct StoredClause {
 pub enum Source {
     Formula,
     Resolution(Vec<ClauseKey>),
+    Subsumption(Vec<ClauseKey>),
 }
 
 // }
@@ -155,12 +156,30 @@ impl StoredClause {
         }
     }
 
+    /// An additional step to `literal_subsumption` to record the proof of subsumption.
+    pub fn literal_subsumption_core(
+        &mut self,
+        literal: Literal,
+        valuation: &impl Valuation,
+        variables: &[Variable],
+        origins: Vec<ClauseKey>,
+    ) {
+        let result = self.literal_subsumption(literal, valuation, variables);
+        if result.is_ok() {
+            self.source = Source::Subsumption(origins);
+        }
+    }
+
+    /// 'Subsumes' a clause by removing the given literal.
+    /// Records the clause has been subsumed, but does not store a record.
+    /// In order to keep a record of the clauses used to prove the subsumption, use `literal_subsumption_core`.
+    /// Returns Ok(()) if subsumption was ok, Err(()) otherwise
     pub fn literal_subsumption(
         &mut self,
         literal: Literal,
         valuation: &impl Valuation,
         variables: &[Variable],
-    ) {
+    ) -> Result<(), ()> {
         if self.clause.len() > 2 {
             if let Some(position) = self
                 .clause
@@ -178,7 +197,28 @@ impl StoredClause {
                     self.update_watch(Watch::B, valuation, variables);
                 }
                 self.subsumed.push(removed);
+                self.source = Source::Subsumption(Vec::default());
+                Ok(())
+            } else {
+                Err(())
             }
+        } else {
+            Err(())
+        }
+    }
+
+    pub fn origins(&self, store: &ClauseStore) -> Vec<ClauseKey> {
+        match &self.source {
+            Source::Formula => vec![self.key],
+            Source::Resolution(sources) => {
+                let mut collection = vec![];
+                for prior_source in sources {
+                    let clause = &store.retreive(*prior_source);
+                    collection.extend_from_slice(&clause.origins(store));
+                }
+                collection
+            }
+            Source::Subsumption(origins) => origins.clone(),
         }
     }
 }
