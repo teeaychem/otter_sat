@@ -5,7 +5,7 @@ use crate::{
         literal::{Literal, Source as LiteralSource},
         solve::store::{ClauseKey, ClauseStore},
         valuation::Valuation,
-        variable::Variable
+        variable::Variable,
     },
 };
 
@@ -134,7 +134,8 @@ impl ResolutionBuffer {
         observations: impl Iterator<Item = &'a (LiteralSource, Literal)>,
         stored_clauses: &mut ClauseStore,
         valuation: &impl Valuation,
-        variables: &[Variable]
+        variables: &[Variable],
+        stopping_criteria: config::StoppingCriteria,
     ) -> Status {
         for (src, literal) in observations {
             if let LiteralSource::StoredClause(clause_key) = src {
@@ -152,7 +153,7 @@ impl ResolutionBuffer {
                     }
 
                     if self.valuless_count == 1 {
-                        match unsafe { config::STOPPING_CRITERIA } {
+                        match stopping_criteria {
                             config::StoppingCriteria::FirstUIP => return Status::FirstUIP,
                             config::StoppingCriteria::None => {}
                         }

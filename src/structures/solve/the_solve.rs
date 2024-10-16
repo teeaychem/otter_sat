@@ -3,7 +3,6 @@ use crate::structures::{
     clause::stored::Watch,
     literal::{Literal, Source},
     solve::{
-        config,
         store::ClauseKey,
         Solve, {Result, Status},
     },
@@ -21,21 +20,29 @@ impl Solve {
         #[allow(unused_assignments)]
         let mut last_valuation = self.valuation.clone();
 
-        if unsafe { config::HOBSON_CHOICES } {
+        if self.config.hobson_choices {
             self.set_hobson();
         }
+
+        // store parts of config for use inside the loop
+        let decay_factor = self.config.decay_factor;
+        let decay_frequency = self.config.decay_frequency;
+        let vsids_variant = self.config.vsids_variant;
+        let time_limit = self.config.time_limit;
+        let stopping_criteria = self.config.stopping_criteria;
+        let luby_constant = self.config.luby_constant;
+        let reduction_allowed = self.config.reduction_allowed;
+        let restart_allowed = self.config.restarts_allowed;
+        let polarity_lean = self.config.polarity_lean;
+        let glue_strength = self.config.glue_strength;
+        let activity = self.config.activity_conflict;
 
         'main_loop: loop {
             self.iterations += 1;
 
             self.time = this_total_time.elapsed();
-            if let Some(time) = unsafe { config::TIME_LIMIT } {
-                if self.time > time {
-                    if unsafe { config::SHOW_STATS } {
-                        println!("c TIME LIMIT EXCEEDED");
-                    };
-                    return Result::Unknown;
-                }
+            if time_limit.is_some_and(|limit| self.time > limit) {
+                return Result::Unknown;
             }
 
             'literal_consequences: while let Some(literal) = self.consequence_q.pop_front() {
@@ -46,17 +53,27 @@ impl Solve {
                     self.conflicts_since_last_reset += 1;
                     last_valuation = self.valuation.clone();
 
-                    if self.conflicts % config::DECAY_FREQUENCY == 0 {
+                    if self.conflicts % decay_frequency == 0 {
                         for variable in &self.variables {
-                            variable.multiply_activity(config::DECAY_FACTOR);
+                            variable.multiply_activity(decay_factor);
                         }
                     }
 
-                    match self.conflict_analysis(conflict_key) {
+                    match self.conflict_analysis(
+                        conflict_key,
+                        vsids_variant,
+                        stopping_criteria,
+                        activity,
+                    ) {
                         Status::NoSolution => return Result::Unsatisfiable,
                         Status::MissedImplication => continue 'main_loop,
                         Status::AssertingClause => {
-                            self.reductions_and_restarts();
+                            self.reductions_and_restarts(
+                                reduction_allowed,
+                                restart_allowed,
+                                luby_constant,
+                                glue_strength,
+                            );
                             continue 'main_loop;
                         }
                     }
@@ -65,7 +82,7 @@ impl Solve {
 
             match self.most_active_none(&self.valuation) {
                 Some(choice_index) => {
-                    self.process_choice(choice_index, &last_valuation);
+                    self.process_choice(choice_index, &last_valuation, polarity_lean);
                     continue 'main_loop;
                 }
                 None => return Result::Satisfiable,
@@ -245,22 +262,33 @@ impl Solve {
         }
     }
 
-    fn reductions_and_restarts(&mut self) {
-        if unsafe { config::REDUCTION_ALLOWED } && self.it_is_time_to_reduce() {
+    fn reductions_and_restarts(
+        &mut self,
+        reduction_allowed: bool,
+        restart_allowed: bool,
+        u: usize,
+        glue_strength: usize,
+    ) {
+        if reduction_allowed && self.it_is_time_to_reduce(u) {
             log::debug!(target: "forget", "Forget @r {}", self.restarts);
             self.display_stats();
 
-            self.stored_clauses.reduce();
+            self.stored_clauses.reduce(glue_strength);
         }
 
-        if unsafe { config::RESTARTS_ALLOWED } && self.it_is_time_to_reduce() {
+        if restart_allowed && self.it_is_time_to_reduce(u) {
             self.backjump(0);
             self.restarts += 1;
             self.conflicts_since_last_forget = 0;
         }
     }
 
-    fn process_choice(&mut self, choice_index: usize, last_valuation: &impl Valuation) {
+    fn process_choice(
+        &mut self,
+        choice_index: usize,
+        last_valuation: &impl Valuation,
+        polarity_lean: f64,
+    ) {
         log::trace!(
             "Choice: {choice_index} @ {} with activity {}",
             self.level().index(),
@@ -274,7 +302,7 @@ impl Solve {
         } else {
             Literal::new(
                 choice_index as VariableId,
-                rand::thread_rng().gen_bool(unsafe { config::POLARITY_LEAN }),
+                rand::thread_rng().gen_bool(polarity_lean),
             )
         };
         self.literal_update(choice_literal, &Source::Choice);
