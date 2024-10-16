@@ -4,7 +4,6 @@ use crate::structures::{
         Clause,
     },
     literal::Literal,
-    solve::config,
     valuation::Valuation,
     variable::Variable,
 };
@@ -104,13 +103,13 @@ impl ClauseStore {
     }
 
     // TODO: figure some improvement…
-    pub fn reduce(&mut self) {
+    pub fn reduce(&mut self, glue_strength: usize) {
         let limit = self.learned_count();
         let mut keys_to_drop = vec![];
         for (k, v) in &self.learned {
             if keys_to_drop.len() > limit {
                 break;
-            } else if v.get_set_lbd() > unsafe { config::GLUE_STRENGTH } {
+            } else if v.get_set_lbd() > glue_strength {
                 keys_to_drop.push(k);
             }
         }

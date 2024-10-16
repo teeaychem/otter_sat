@@ -1,24 +1,129 @@
 use crate::structures::solve::Solve;
+use clap::Parser;
 use serde::Serialize;
 
-pub static ACTIVITY_CONFLICT: f32 = 1.0;
-pub static DECAY_FACTOR: f32 = 0.95;
-pub static DECAY_FREQUENCY: usize = 1;
+/// Determines whether a formula is satisfiable or unsatisfialbe
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+#[allow(non_snake_case)]
+pub struct Args {
+    /// The DIMACS form CNF file to parse
+    #[arg(short, long)]
+    formula_file: std::path::PathBuf,
 
-// Configuration variables
-pub static mut EXPLORATION_PRIORITY: ExplorationPriority = ExplorationPriority::Default;
-pub static mut GLUE_STRENGTH: usize = 2;
-pub static mut HOBSON_CHOICES: bool = false;
-pub static mut LUBY_CONSTANT: usize = 512;
-pub static mut POLARITY_LEAN: f64 = 0.5;
-pub static mut REDUCTION_ALLOWED: bool = false;
-pub static mut RESTARTS_ALLOWED: bool = true;
-pub static mut SHOW_CORE: bool = false;
-pub static mut SHOW_STATS: bool = false;
-pub static mut SHOW_VALUATION: bool = false;
-pub static mut STOPPING_CRITERIA: StoppingCriteria = StoppingCriteria::FirstUIP;
-pub static mut TIME_LIMIT: Option<std::time::Duration> = None;
-pub static mut VSIDS_VARIANT: VSIDS = VSIDS::MiniSAT;
+    /// Display stats on completion
+    #[arg(short, long, default_value_t = false)]
+    stats: bool,
+
+    /// Display a satisfying valuation, if possible
+    #[arg(short, long, default_value_t = false)]
+    valuation: bool,
+
+    /// Display an unsatisfiable core on UNSAT
+    #[arg(short, long, default_value_t = false)]
+    core: bool,
+
+    /// Required glue strength
+    #[arg(short, long, default_value_t = 2)]
+    glue_strength: usize,
+
+    /// Resolution stopping criteria
+    #[arg(long, default_value_t, value_enum)]
+    stopping_criteria: StoppingCriteria,
+
+    /// The VSIDS variant to use
+    #[arg(long = "VSIDS", default_value_t, value_enum)]
+    vsids: VSIDS,
+
+    /// Suggest priority exploring conflcits, implications, or take no interest (does nothing at the moment)
+    #[arg(long, default_value_t, value_enum)]
+    exploration_priority: ExplorationPriority,
+
+    /// Reduce and restart, where:
+    #[arg(short, long = "reduce-and-restart", default_value_t = false)]
+    rr: bool,
+
+    /// Allow for the clauses to be forgotten, on occassion
+    #[arg(long, default_value_t = false)]
+    reduce: bool,
+
+    /// Allow for the decisions to be forgotten, on occassion
+    #[arg(long, default_value_t = false)]
+    restart: bool,
+
+    /// Initially settle all atoms which occur with a unique polarity
+    #[arg(long, default_value_t = false)]
+    hobson: bool,
+
+    #[arg(short, long, default_value_t = 0.0)]
+    /// The chance of choosing assigning positive polarity to a variant when making a choice
+    polarity_lean: f64,
+
+    #[arg(short = 'u', long = "luby", default_value_t = 512)]
+    /// The u value to use for the luby calculation when restarts are permitted
+    luby_u: usize,
+
+    /// Time limit for the solve
+    #[arg(short, long, value_parser = |seconds: &str| seconds.parse().map(std::time::Duration::from_secs))]
+    time: Option<std::time::Duration>,
+}
+
+#[derive(Clone)]
+pub struct Config {
+    pub formula_file: std::path::PathBuf,
+    pub exploration_priority: ExplorationPriority,
+    pub glue_strength: usize,
+    pub hobson_choices: bool,
+    pub luby_constant: usize,
+    pub polarity_lean: f64,
+    pub reduction_allowed: bool,
+    pub restarts_allowed: bool,
+    pub show_core: bool,
+    pub show_stats: bool,
+    pub show_valuation: bool,
+    pub stopping_criteria: StoppingCriteria,
+    pub time_limit: Option<std::time::Duration>,
+    pub vsids_variant: VSIDS,
+    pub activity_conflict: f32,
+    pub decay_factor: f32,
+    pub decay_frequency: usize,
+}
+
+impl Config {
+    pub fn from_args(args: Args) -> Self {
+        let mut the_config = Config {
+            formula_file: args.formula_file,
+            exploration_priority: args.exploration_priority,
+            glue_strength: args.glue_strength,
+            hobson_choices: args.hobson,
+            luby_constant: args.luby_u,
+            polarity_lean: args.polarity_lean,
+            reduction_allowed: if args.reduce && !args.restart {
+                println!("c REDUCTION REQUIRES RESTARTS TO BE ENABLED");
+                false
+            } else {
+                args.reduce
+            },
+            restarts_allowed: args.restart,
+            show_core: args.core,
+            show_stats: args.stats,
+            show_valuation: args.valuation,
+            stopping_criteria: args.stopping_criteria,
+            time_limit: args.time,
+            vsids_variant: args.vsids,
+            activity_conflict: 1.0,
+            decay_factor: 0.95,
+            decay_frequency: 1,
+        };
+
+        if args.rr {
+            the_config.restarts_allowed = true;
+            the_config.reduction_allowed = true;
+        }
+
+        the_config
+    }
+}
 
 #[derive(Debug, Clone, Copy, Default, Serialize, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
@@ -51,9 +156,8 @@ pub enum ExplorationPriority {
 }
 
 impl Solve {
-    pub fn it_is_time_to_reduce(&self) -> bool {
-        self.conflicts_since_last_forget
-            >= unsafe { LUBY_CONSTANT }.wrapping_mul(luby(self.restarts + 1))
+    pub fn it_is_time_to_reduce(&self, u: usize) -> bool {
+        self.conflicts_since_last_forget >= u.wrapping_mul(luby(self.restarts + 1))
     }
 }
 
