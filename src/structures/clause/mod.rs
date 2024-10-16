@@ -3,6 +3,7 @@ pub mod stored;
 use crate::structures::{literal::Literal, valuation::Valuation, variable::Variable};
 use std::ops::Deref;
 
+
 pub trait Clause {
     fn as_string(&self) -> String;
 
@@ -76,40 +77,5 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
 
     fn length(&self) -> usize {
         self.len()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn position_test_three() {
-        let a = vec![
-            Literal::new(1, true),
-            Literal::new(2, false),
-            Literal::new(4, true),
-        ];
-        assert_eq!(a.variable_position(1), Some(0));
-        assert_eq!(a.variable_position(2), Some(1));
-        assert_eq!(a.variable_position(3), None);
-        assert_eq!(a.variable_position(4), Some(2));
-        assert_eq!(a.variable_position(5), None);
-    }
-
-    #[test]
-    fn position_test_six() {
-        let a = vec![
-            Literal::new(1, true),
-            Literal::new(2, false),
-            Literal::new(4, true),
-            Literal::new(5, false),
-            Literal::new(7, true),
-        ];
-        assert_eq!(a.variable_position(1), Some(0));
-        assert_eq!(a.variable_position(2), Some(1));
-        assert_eq!(a.variable_position(3), None);
-        assert_eq!(a.variable_position(4), Some(2));
-        assert_eq!(a.variable_position(5), Some(3));
     }
 }

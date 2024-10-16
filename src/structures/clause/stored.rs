@@ -1,12 +1,14 @@
 use crate::{
-    context::store::{ClauseKey, ClauseStore},
+    context::store::{ClauseId, ClauseKey},
     structures::{clause::Clause, literal::Literal, valuation::Valuation, variable::Variable},
 };
 
+use petgraph::graph::NodeIndex;
 use std::cell::UnsafeCell;
 use std::ops::Deref;
 
 pub struct StoredClause {
+    id: ClauseId,
     key: ClauseKey,
     lbd: UnsafeCell<usize>,
     source: Source,
@@ -14,6 +16,7 @@ pub struct StoredClause {
     cached_a: Literal,
     cached_b: Literal,
     subsumed: Vec<Literal>,
+    node_index: Option<NodeIndex>,
 }
 
 // { Clause enums
@@ -21,8 +24,7 @@ pub struct StoredClause {
 #[derive(Clone, Debug)]
 pub enum Source {
     Formula,
-    Resolution(Vec<ClauseKey>),
-    Subsumption(Vec<ClauseKey>),
+    Resolution,
 }
 
 // }
@@ -46,6 +48,7 @@ enum WatchStatus {
 
 impl StoredClause {
     pub fn new_from(
+        id: ClauseId,
         key: ClauseKey,
         clause: Vec<Literal>,
         source: Source,
@@ -54,6 +57,7 @@ impl StoredClause {
     ) -> Self {
         let figured_out = figure_out_intial_watches(clause.clone(), valuation);
         let stored_clause = Self {
+            id,
             key,
             lbd: UnsafeCell::new(0),
             source,
@@ -61,6 +65,7 @@ impl StoredClause {
             cached_a: figured_out[0],
             cached_b: figured_out[1],
             subsumed: vec![],
+            node_index: None,
         };
 
         let watched_a = stored_clause.get_watched(Watch::A);
@@ -156,20 +161,6 @@ impl StoredClause {
         }
     }
 
-    /// An additional step to `literal_subsumption` to record the proof of subsumption.
-    pub fn literal_subsumption_core(
-        &mut self,
-        literal: Literal,
-        valuation: &impl Valuation,
-        variables: &[Variable],
-        origins: Vec<ClauseKey>,
-    ) {
-        let result = self.literal_subsumption(literal, valuation, variables);
-        if result.is_ok() {
-            self.source = Source::Subsumption(origins);
-        }
-    }
-
     /// 'Subsumes' a clause by removing the given literal.
     /// Records the clause has been subsumed, but does not store a record.
     /// In order to keep a record of the clauses used to prove the subsumption, use `literal_subsumption_core`.
@@ -197,7 +188,6 @@ impl StoredClause {
                     self.update_watch(Watch::B, valuation, variables);
                 }
                 self.subsumed.push(removed);
-                self.source = Source::Subsumption(Vec::default());
                 Ok(())
             } else {
                 Err(())
@@ -207,19 +197,24 @@ impl StoredClause {
         }
     }
 
-    pub fn origins(&self, store: &ClauseStore) -> Vec<ClauseKey> {
-        match &self.source {
-            Source::Formula => vec![self.key],
-            Source::Resolution(sources) => {
-                let mut collection = vec![];
-                for prior_source in sources {
-                    let clause = &store.retreive(*prior_source);
-                    collection.extend_from_slice(&clause.origins(store));
-                }
-                collection
-            }
-            Source::Subsumption(origins) => origins.clone(),
+    pub fn original_clause(&self) -> Vec<Literal> {
+        let mut original = self.clause.clone();
+        for hidden in &self.subsumed {
+            original.push(*hidden)
         }
+        original
+    }
+
+    pub fn id(&self) -> ClauseId {
+        self.id
+    }
+
+    pub fn add_node_index(&mut self, index: NodeIndex) {
+        self.node_index = Some(index);
+    }
+
+    pub fn get_node_index(&self) -> NodeIndex {
+        self.node_index.expect("index requested but not set")
     }
 }
 
