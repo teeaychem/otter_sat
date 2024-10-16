@@ -1,9 +1,7 @@
 use crate::{
     context::store::ClauseKey,
-    structures::{
-    clause::Clause, literal::Literal, valuation::Valuation,
-    variable::Variable,
-}};
+    structures::{clause::Clause, literal::Literal, valuation::Valuation, variable::Variable},
+};
 
 use std::cell::UnsafeCell;
 use std::ops::Deref;
@@ -191,13 +189,12 @@ impl std::fmt::Display for StoredClause {
     }
 }
 
-fn figure_out_intial_watches(clause: Vec<Literal>, val: &impl Valuation) -> Vec<Literal> {
+fn figure_out_intial_watches(mut clause: Vec<Literal>, val: &impl Valuation) -> Vec<Literal> {
     let length = clause.len();
-    let mut the_wc = clause;
     let mut watch_a = 0;
     let mut watch_b = 1;
-    let mut a_status = get_status(unsafe { *the_wc.get_unchecked(watch_a) }, val);
-    let mut b_status = get_status(unsafe { *the_wc.get_unchecked(watch_b) }, val);
+    let mut a_status = get_status(unsafe { *clause.get_unchecked(watch_a) }, val);
+    let mut b_status = get_status(unsafe { *clause.get_unchecked(watch_b) }, val);
 
     /*
     The initial setup gurantees a has status none or witness, while b may have any status
@@ -209,7 +206,7 @@ fn figure_out_intial_watches(clause: Vec<Literal>, val: &impl Valuation) -> Vec<
         if a_status == WatchStatus::None && b_status == WatchStatus::None {
             break;
         }
-        let literal = unsafe { *the_wc.get_unchecked(index) };
+        let literal = unsafe { *clause.get_unchecked(index) };
         let literal_status = get_status(literal, val);
         match literal_status {
             WatchStatus::Conflict => {
@@ -241,11 +238,11 @@ fn figure_out_intial_watches(clause: Vec<Literal>, val: &impl Valuation) -> Vec<
             }
         }
 
-        the_wc.swap(0, watch_a);
-        the_wc.swap(1, watch_b);
+        clause.swap(0, watch_a);
+        clause.swap(1, watch_b);
     }
 
-    the_wc
+    clause
 }
 
 fn get_status(literal: Literal, valuation: &impl Valuation) -> WatchStatus {
