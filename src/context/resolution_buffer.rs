@@ -138,20 +138,59 @@ impl ResolutionBuffer {
         valuation: &impl Valuation,
         variables: &[Variable],
         stopping_criteria: StoppingCriteria,
+        show_core: bool,
     ) -> Status {
+        let mut seen_clauses = vec![];
+
         for (src, literal) in observations {
             if let LiteralSource::StoredClause(clause_key) = src {
-                let stored_source_clause = stored_clauses.retreive_mut(*clause_key).expect("");
+                let the_key = *clause_key;
 
-                if self.resolve_clause(stored_source_clause, *literal).is_ok() {
-                    self.trail.push(*clause_key);
+                let source_clause = stored_clauses.retreive_mut(the_key).expect("");
 
-                    for involved_literal in stored_source_clause.literal_slice() {
+                if self.resolve_clause(source_clause, *literal).is_ok() {
+                    self.trail.push(the_key);
+
+                    for involved_literal in source_clause.literal_slice() {
                         self.used_variables[involved_literal.index()] = true;
                     }
 
-                    if self.clause_legnth < stored_source_clause.length() {
-                        stored_source_clause.literal_subsumption(*literal, valuation, variables);
+                    if self.clause_legnth < source_clause.length() {
+                        match show_core {
+                            true => {
+                                let mut origins = vec![];
+                                for seen_index in &seen_clauses {
+                                    let seen_clause = stored_clauses.retreive(*seen_index);
+                                    match seen_clause.source() {
+                                        crate::structures::clause::stored::Source::Formula => {
+                                            origins.push(seen_clause.key())
+                                        }
+                                        crate::structures::clause::stored::Source::Resolution(
+                                            other,
+                                        ) => origins.extend_from_slice(other),
+                                        crate::structures::clause::stored::Source::Subsumption(
+                                            other,
+                                        ) => origins.extend_from_slice(other),
+                                    }
+                                }
+                                seen_clauses.sort_unstable();
+                                seen_clauses.dedup();
+
+                                let source_clause_mut =
+                                    stored_clauses.retreive_mut(the_key).expect("");
+                                source_clause_mut.literal_subsumption_core(
+                                    *literal, valuation, variables, origins,
+                                );
+                            }
+                            false => {
+                                let _ = source_clause
+                                    .literal_subsumption(*literal, valuation, variables);
+                            }
+                        };
+                    }
+
+                    if show_core {
+                        seen_clauses.push(the_key);
                     }
 
                     if self.valuless_count == 1 {

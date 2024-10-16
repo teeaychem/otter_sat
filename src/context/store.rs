@@ -1,3 +1,5 @@
+use core::panic;
+
 use crate::structures::{
     clause::{
         stored::{Source as ClauseSource, StoredClause},
@@ -13,7 +15,7 @@ use slotmap::{DefaultKey, SlotMap};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ClauseKey {
     Formula(slotmap::DefaultKey),
-    Learnt(slotmap::DefaultKey),
+    Learned(slotmap::DefaultKey),
 }
 
 pub struct ClauseStore {
@@ -29,24 +31,24 @@ impl ClauseStore {
         }
     }
 
-    pub fn retreive(&self, key: ClauseKey) -> Option<&StoredClause> {
+    pub fn retreive_carefully(&self, key: ClauseKey) -> Option<&StoredClause> {
         match key {
             ClauseKey::Formula(key) => self.formula.get(key),
-            ClauseKey::Learnt(key) => self.learned.get(key),
+            ClauseKey::Learned(key) => self.learned.get(key),
         }
     }
 
-    pub fn retreive_unchecked(&self, key: ClauseKey) -> &StoredClause {
+    pub fn retreive(&self, key: ClauseKey) -> &StoredClause {
         match key {
             ClauseKey::Formula(key) => unsafe { self.formula.get_unchecked(key) },
-            ClauseKey::Learnt(key) => unsafe { self.learned.get_unchecked(key) },
+            ClauseKey::Learned(key) => unsafe { self.learned.get_unchecked(key) },
         }
     }
 
     pub fn retreive_mut(&mut self, key: ClauseKey) -> Option<&mut StoredClause> {
         match key {
             ClauseKey::Formula(key) => self.formula.get_mut(key),
-            ClauseKey::Learnt(key) => self.learned.get_mut(key),
+            ClauseKey::Learned(key) => self.learned.get_mut(key),
         }
     }
 
@@ -68,7 +70,6 @@ impl ClauseStore {
                         variables,
                     )
                 });
-
                 ClauseKey::Formula(key)
             }
             ClauseSource::Resolution(_) => {
@@ -76,7 +77,7 @@ impl ClauseStore {
 
                 let key = self.learned.insert_with_key(|k| {
                     let clause = StoredClause::new_from(
-                        ClauseKey::Learnt(k),
+                        ClauseKey::Learned(k),
                         clause,
                         source,
                         valuation,
@@ -85,8 +86,10 @@ impl ClauseStore {
                     clause.set_lbd(variables);
                     clause
                 });
-
-                ClauseKey::Learnt(key)
+                ClauseKey::Learned(key)
+            }
+            ClauseSource::Subsumption(_) => {
+                panic!("Attempting to store a clause strengthend by subsumption")
             }
         }
     }

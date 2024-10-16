@@ -23,12 +23,13 @@ impl Context {
         vsids_variant: config::VSIDS,
         stopping_critera: config::StoppingCriteria,
         activity: f32,
+        show_core: bool,
     ) -> SolveStatus {
         log::trace!("Fix @ {}", self.level().index());
         if self.level().index() == 0 {
             return SolveStatus::NoSolution;
         }
-        let conflict_clause = self.stored_clauses.retreive_unchecked(clause_key);
+        let conflict_clause = self.stored_clauses.retreive(clause_key);
         log::trace!("Clause {conflict_clause}");
 
         // this could be made persistent, but tying it to the solve requires a cell and lots of unsafe
@@ -62,6 +63,7 @@ impl Context {
                 &self.valuation,
                 &self.variables,
                 stopping_critera,
+                show_core,
             ) {
                 BufferStatus::FirstUIP | BufferStatus::Exhausted => {
                     the_buffer.strengthen_given(
@@ -87,9 +89,28 @@ impl Context {
                             let backjump_level =
                                 self.backjump_level(resolved_clause.literal_slice());
                             self.backjump(backjump_level);
+
+                            let mut formula_sources = vec![];
+                            if show_core {
+                                for key in the_buffer.trail() {
+                                    let clause = self.stored_clauses.retreive(*key);
+                                    match clause.source() {
+                                        ClauseSource::Formula => formula_sources.push(clause.key()),
+                                        ClauseSource::Resolution(source_keys) => {
+                                            formula_sources.extend_from_slice(source_keys)
+                                        }
+                                        ClauseSource::Subsumption(source_keys) => {
+                                            formula_sources.extend_from_slice(source_keys)
+                                        }
+                                    }
+                                }
+                            }
+                            formula_sources.sort_unstable();
+                            formula_sources.dedup();
+
                             let clause_key = self.store_clause(
                                 resolved_clause,
-                                ClauseSource::Resolution(the_buffer.trail().to_vec()),
+                                ClauseSource::Resolution(formula_sources),
                             );
 
                             LiteralSource::StoredClause(clause_key)
@@ -155,9 +176,9 @@ impl Context {
         while !q.is_empty() {
             let clause_key = q.pop_front().expect("Ah, the queue was empty…");
 
-            let stored_clause = self.stored_clauses.retreive_unchecked(clause_key);
+            let stored_clause = self.stored_clauses.retreive(clause_key);
             match stored_clause.source() {
-                ClauseSource::Resolution(origins) => {
+                ClauseSource::Resolution(origins) | ClauseSource::Subsumption(origins) => {
                     for antecedent in origins {
                         q.push_back(*antecedent);
                     }

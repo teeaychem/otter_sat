@@ -1,7 +1,7 @@
 mod analysis;
 pub mod config;
 mod resolution_buffer;
-pub mod solve_core;
+pub mod context_core;
 pub mod store;
 mod the_solve;
 
