@@ -5,6 +5,7 @@ use crate::{
         literal::{Literal, Source as LiteralSource},
         solve::store::{ClauseKey, ClauseStore},
         valuation::Valuation,
+        variable::Variable
     },
 };
 
@@ -29,7 +30,6 @@ pub struct ResolutionBuffer {
 
 pub enum Status {
     FirstUIP,
-    Subsumption(ClauseKey, Literal),
     Exhausted,
 }
 
@@ -132,26 +132,32 @@ impl ResolutionBuffer {
     pub fn resolve_with<'a>(
         &mut self,
         observations: impl Iterator<Item = &'a (LiteralSource, Literal)>,
-        stored_clauses: &ClauseStore,
+        stored_clauses: &mut ClauseStore,
+        valuation: &impl Valuation,
+        variables: &[Variable]
     ) -> Status {
         for (src, literal) in observations {
             if let LiteralSource::StoredClause(clause_key) = src {
-                let stored_source_clause = stored_clauses.retreive_unchecked(*clause_key);
+                let stored_source_clause = stored_clauses.retreive_mut(*clause_key).expect("");
 
                 if self.resolve_clause(stored_source_clause, *literal).is_ok() {
                     self.trail.push(*clause_key);
-                }
 
-                for involved_literal in stored_source_clause.literal_slice() {
-                    self.used_variables[involved_literal.index()] = true;
-                }
-
-                if self.valuless_count == 1 {
-                    match unsafe { config::STOPPING_CRITERIA } {
-                        config::StoppingCriteria::FirstUIP => return Status::FirstUIP,
-                        config::StoppingCriteria::None => {}
+                    for involved_literal in stored_source_clause.literal_slice() {
+                        self.used_variables[involved_literal.index()] = true;
                     }
-                };
+
+                    if self.clause_legnth < stored_source_clause.length() {
+                        stored_source_clause.literal_subsumption(*literal, valuation, variables);
+                    }
+
+                    if self.valuless_count == 1 {
+                        match unsafe { config::STOPPING_CRITERIA } {
+                            config::StoppingCriteria::FirstUIP => return Status::FirstUIP,
+                            config::StoppingCriteria::None => {}
+                        }
+                    };
+                }
             }
         }
         Status::Exhausted
