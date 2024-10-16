@@ -38,6 +38,7 @@ impl Context {
         let polarity_lean = self.config.polarity_lean;
         let glue_strength = self.config.glue_strength;
         let activity = self.config.activity_conflict;
+        let show_core = self.config.show_core;
 
         'main_loop: loop {
             self.iterations += 1;
@@ -66,6 +67,7 @@ impl Context {
                         vsids_variant,
                         stopping_criteria,
                         activity,
+                        show_core,
                     ) {
                         Status::NoSolution => return Result::Unsatisfiable,
                         Status::MissedImplication => continue 'main_loop,
@@ -180,7 +182,7 @@ impl Context {
         while index < length {
             let clause_key = unsafe { *borrowed_occurrences.get_unchecked(index) };
 
-            let stored_clause = self.stored_clauses.retreive_unchecked(clause_key);
+            let stored_clause = self.stored_clauses.retreive(clause_key);
 
             let watch_a = stored_clause.get_watched(Watch::A);
             let watch_b = stored_clause.get_watched(Watch::B);
@@ -242,7 +244,7 @@ impl Context {
             while index < length {
                 let clause_key = unsafe { *occurrences.get_unchecked(index) };
 
-                match self.stored_clauses.retreive(clause_key) {
+                match self.stored_clauses.retreive_carefully(clause_key) {
                     Some(stored_clause) => {
                         let watch_a = stored_clause.get_watched(Watch::A);
                         let watch_b = stored_clause.get_watched(Watch::B);
