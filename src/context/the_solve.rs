@@ -94,10 +94,10 @@ impl Context {
 
     #[allow(clippy::too_many_arguments)]
     pub fn literal_update(&mut self, literal: Literal, source: &Source) {
-        let variable = unsafe { self.variables.get_unchecked(literal.index()) };
-
         // update the valuation and match the result
         self.valuation.set_value(literal);
+
+        let variable = self.get_variable(literal.index());
 
         log::trace!("{literal} from {source:?}");
 
@@ -114,7 +114,8 @@ impl Context {
     }
 
     pub fn update_watches(&mut self, literal: Literal) {
-        let variable = unsafe { self.variables.get_unchecked(literal.index()) };
+        let variable = self.get_variable(literal.index());
+        let variable_id = variable.id();
         // and, process whether any change to the watch literals is required
         let working_clause_vec = match literal.polarity() {
             true => unsafe { &mut *variable.negative_occurrences.get() },
@@ -138,12 +139,12 @@ impl Context {
                     let watched_a = stored_clause.get_watched(Watch::A);
                     let watched_b = stored_clause.get_watched(Watch::B);
 
-                    if variable.id() == watched_a.v_id() {
+                    if variable_id == watched_a.v_id() {
                         if not_watch_witness(&self.valuation, watched_b) {
                             stored_clause.update_watch(Watch::A, &self.valuation, &self.variables);
                         }
                         index += 1;
-                    } else if variable.id() == watched_b.v_id() {
+                    } else if variable_id == watched_b.v_id() {
                         if not_watch_witness(&self.valuation, watched_a) {
                             stored_clause.update_watch(Watch::B, &self.valuation, &self.variables);
                         }
@@ -166,7 +167,7 @@ impl Context {
     }
 
     fn examine_consequences_of(&mut self, literal: Literal) -> Option<ClauseKey> {
-        let the_variable = unsafe { &self.variables.get_unchecked(literal.index()) };
+        let the_variable = self.get_variable(literal.index());
 
         let borrowed_occurrences = match literal.polarity() {
             true => unsafe { &mut *the_variable.negative_occurrences.get() },
@@ -223,15 +224,13 @@ impl Context {
             let occurrences = match literal.polarity() {
                 true => unsafe {
                     &mut *self
-                        .variables
-                        .get_unchecked(literal.index())
+                        .get_variable(literal.index())
                         .negative_occurrences
                         .get()
                 },
                 false => unsafe {
                     &mut *self
-                        .variables
-                        .get_unchecked(literal.index())
+                        .get_variable(literal.index())
                         .positive_occurrences
                         .get()
                 },
@@ -297,9 +296,7 @@ impl Context {
             self.variables[choice_index].activity()
         );
         self.add_fresh_level();
-        let choice_literal = if let Some(polarity) =
-            unsafe { *last_valuation.slice().get_unchecked(choice_index) }
-        {
+        let choice_literal = if let Some(polarity) = last_valuation.of_index(choice_index) {
             Literal::new(choice_index as VariableId, polarity)
         } else {
             Literal::new(

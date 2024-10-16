@@ -6,13 +6,13 @@ use crate::{
         Context, Status as SolveStatus,
     },
     structures::{
-    clause::{
-        stored::{Source as ClauseSource, StoredClause},
-        Clause,
+        clause::{
+            stored::{Source as ClauseSource, StoredClause},
+            Clause,
+        },
+        literal::{Literal, Source as LiteralSource},
     },
-    literal::{Literal, Source as LiteralSource},
-    variable::Variable,
-}};
+};
 
 use std::{collections::VecDeque, ops::Deref};
 
@@ -40,7 +40,7 @@ impl Context {
 
         if let Some(asserted) = the_buffer.asserts() {
             // check to see if missed
-            let missed_level = backjump_level(&self.variables, conflict_clause.literal_slice());
+            let missed_level = self.backjump_level(conflict_clause.literal_slice());
             self.backjump(missed_level);
             self.literal_update(asserted, &LiteralSource::StoredClause(clause_key));
             self.consequence_q.push_back(asserted);
@@ -85,7 +85,7 @@ impl Context {
                         }
                         _ => {
                             let backjump_level =
-                                backjump_level(&self.variables, resolved_clause.literal_slice());
+                                self.backjump_level(resolved_clause.literal_slice());
                             self.backjump(backjump_level);
                             let clause_key = self.store_clause(
                                 resolved_clause,
@@ -116,18 +116,12 @@ impl Context {
         match variant {
             config::VSIDS::Chaff => {
                 for literal in clause.literal_slice() {
-                    unsafe {
-                        self.variables
-                            .get_unchecked(literal.index())
-                            .add_activity(activity);
-                    }
+                    self.get_variable(literal.index()).add_activity(activity);
                 }
             }
             config::VSIDS::MiniSAT => {
                 for index in buffer.variables_used() {
-                    unsafe {
-                        self.variables.get_unchecked(index).add_activity(activity);
-                    }
+                    self.get_variable(index).add_activity(activity);
                 }
             }
         }
@@ -173,32 +167,32 @@ impl Context {
         }
         origin_nodes
     }
-}
 
-/// Either the most recent decision level in the resolution clause prior to the current level or 0.
-/*
-The implementation works through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
-the top decision level will be for the literal to be asserted when clause is learnt
- */
-fn backjump_level(variables: &[Variable], literals: &[Literal]) -> usize {
-    let mut top_two = (None, None);
-    for lit in literals {
-        if let Some(dl) = unsafe { (*variables.get_unchecked(lit.index())).decision_level() } {
-            match top_two {
-                (_, None) => top_two.1 = Some(dl),
-                (_, Some(t1)) if dl > t1 => {
-                    top_two.0 = top_two.1;
-                    top_two.1 = Some(dl);
+    /// Either the most recent decision level in the resolution clause prior to the current level or 0.
+    /*
+    The implementation works through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
+    the top decision level will be for the literal to be asserted when clause is learnt
+     */
+    fn backjump_level(&self, literals: &[Literal]) -> usize {
+        let mut top_two = (None, None);
+        for lit in literals {
+            if let Some(dl) = self.get_variable(lit.index()).decision_level() {
+                match top_two {
+                    (_, None) => top_two.1 = Some(dl),
+                    (_, Some(t1)) if dl > t1 => {
+                        top_two.0 = top_two.1;
+                        top_two.1 = Some(dl);
+                    }
+                    (None, _) => top_two.0 = Some(dl),
+                    (Some(t2), _) if dl > t2 => top_two.0 = Some(dl),
+                    _ => {}
                 }
-                (None, _) => top_two.0 = Some(dl),
-                (Some(t2), _) if dl > t2 => top_two.0 = Some(dl),
-                _ => {}
             }
         }
-    }
 
-    match top_two {
-        (None, _) => 0,
-        (Some(second_to_top), _) => second_to_top,
+        match top_two {
+            (None, _) => 0,
+            (Some(second_to_top), _) => second_to_top,
+        }
     }
 }
