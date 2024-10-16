@@ -1,7 +1,9 @@
-use crate::structures::{
-    clause::Clause, literal::Literal, solve::store::ClauseKey, valuation::Valuation,
+use crate::{
+    context::store::ClauseKey,
+    structures::{
+    clause::Clause, literal::Literal, valuation::Valuation,
     variable::Variable,
-};
+}};
 
 use std::cell::UnsafeCell;
 use std::ops::Deref;

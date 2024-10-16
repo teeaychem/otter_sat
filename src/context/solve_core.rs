@@ -1,13 +1,15 @@
-use crate::structures::{
+use crate::{
+    context::{store::ClauseKey, Context},
+    structures::{
     clause::stored::Source,
     level::{Level, LevelIndex},
     literal::Literal,
-    solve::{store::ClauseKey, Solve},
+
     valuation::Valuation,
     variable::Variable,
-};
+}};
 
-impl Solve {
+impl Context {
     pub fn add_fresh_level(&mut self) -> LevelIndex {
         let index = self.levels.len();
         let the_level = Level::new(index);
