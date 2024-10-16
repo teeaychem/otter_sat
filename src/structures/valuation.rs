@@ -15,6 +15,8 @@ pub trait Valuation {
 
     fn set_value(&mut self, literal: Literal);
 
+    fn clear_value(&mut self, index: usize);
+
     fn slice(&self) -> &[Option<bool>];
 }
 
@@ -81,6 +83,11 @@ impl<T: ?Sized + DerefMut<Target = [Option<bool>]>> Valuation for T {
     fn set_value(&mut self, literal: Literal) {
         log::trace!("Set literal: {}", literal);
         unsafe { *self.get_unchecked_mut(literal.index()) = Some(literal.polarity()) }
+    }
+
+    fn clear_value(&mut self, index: usize) {
+        log::trace!("Clear index: {index}");
+        unsafe { *self.get_unchecked_mut(index) = None }
     }
 
     fn slice(&self) -> &[Option<bool>] {

@@ -1,13 +1,13 @@
 use crate::{
     context::{store::ClauseKey, Context},
     structures::{
-    clause::stored::Source,
-    level::{Level, LevelIndex},
-    literal::Literal,
-
-    valuation::Valuation,
-    variable::Variable,
-}};
+        clause::stored::Source,
+        level::{Level, LevelIndex},
+        literal::Literal,
+        valuation::Valuation,
+        variable::Variable,
+    },
+};
 
 impl Context {
     pub fn add_fresh_level(&mut self) -> LevelIndex {
@@ -15,6 +15,10 @@ impl Context {
         let the_level = Level::new(index);
         self.levels.push(the_level);
         index
+    }
+
+    pub fn get_variable(&self, index: usize) -> &Variable {
+        unsafe { self.variables.get_unchecked(index) }
     }
 
     pub fn level(&self) -> &Level {
@@ -55,13 +59,8 @@ impl Context {
         for _ in 0..(self.level().index() - to) {
             for literal in self.levels.pop().expect("Lost level").literals() {
                 log::trace!("Noneset: {}", literal.index());
-
-                unsafe {
-                    *self.valuation.get_unchecked_mut(literal.index()) = None;
-                    self.variables
-                        .get_unchecked(literal.index())
-                        .clear_decision_level();
-                }
+                self.valuation.clear_value(literal.index());
+                self.get_variable(literal.index()).clear_decision_level();
             }
         }
     }
