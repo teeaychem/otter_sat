@@ -1,21 +1,24 @@
 mod analysis;
 pub mod config;
-mod resolution_buffer;
 pub mod context_core;
+mod resolution_buffer;
 pub mod store;
 mod the_solve;
 
 use crate::{
-    context::store::ClauseStore,
+    context::store::{ClauseStore, ClauseId},
     structures::{
-    clause::stored::Source,
-    formula::Formula,
-    level::Level,
-    literal::{Literal, Source as LiteralSource},
-    variable::Variable,
-}};
+        clause::stored::Source,
+        formula::Formula,
+        level::Level,
+        literal::{Literal, Source as LiteralSource},
+        variable::Variable,
+    },
+};
 
+use petgraph::Graph;
 use std::{collections::VecDeque, time::Duration};
+
 
 pub struct Context {
     conflicts: usize,
@@ -29,7 +32,8 @@ pub struct Context {
     valuation: Box<[Option<bool>]>,
     variables: Vec<Variable>,
     pub time: Duration,
-    config: config::Config
+    config: config::Config,
+    pub implication_graph: Graph<ClauseId, ()>,
 }
 
 pub enum Status {
@@ -62,7 +66,8 @@ impl Context {
             valuation: vec![None; variables.len()].into_boxed_slice(),
             variables,
             time: Duration::new(0, 0),
-            config
+            config,
+            implication_graph: Graph::new(),
         };
         the_context.levels.push(Level::new(0));
 

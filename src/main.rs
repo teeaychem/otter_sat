@@ -9,7 +9,10 @@ mod procedures;
 mod structures;
 
 use crate::structures::formula::Formula;
-use context::{config::{Args, Config}, Context, Result};
+use context::{
+    config::{Args, Config},
+    Context, Result,
+};
 use structures::valuation::Valuation;
 
 // #[rustfmt::skip]
@@ -59,7 +62,10 @@ fn main() {
                 Result::Satisfiable => {
                     println!("s SATISFIABLE");
                     if config.show_valuation {
-                        println!("v {}", the_context.valuation().as_display_string(&the_context));
+                        println!(
+                            "v {}",
+                            the_context.valuation().as_display_string(&the_context)
+                        );
                     }
                     std::process::exit(10);
                 }

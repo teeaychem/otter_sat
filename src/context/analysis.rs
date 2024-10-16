@@ -7,14 +7,14 @@ use crate::{
     },
     structures::{
         clause::{
-            stored::{Source as ClauseSource, StoredClause},
+            stored::Source as ClauseSource,
             Clause,
         },
         literal::{Literal, Source as LiteralSource},
     },
 };
 
-use std::{collections::VecDeque, ops::Deref};
+use std::ops::Deref;
 
 impl Context {
     pub fn conflict_analysis(
@@ -89,29 +89,16 @@ impl Context {
                             let backjump_level =
                                 self.backjump_level(resolved_clause.literal_slice());
                             self.backjump(backjump_level);
+                            let clause_key =
+                                self.store_clause(resolved_clause, ClauseSource::Resolution);
+                            let the_clause = self.stored_clauses.retreive(clause_key);
+                            let node_index = the_clause.get_node_index();
 
-                            let mut formula_sources = vec![];
-                            if show_core {
-                                for key in the_buffer.trail() {
-                                    let clause = self.stored_clauses.retreive(*key);
-                                    match clause.source() {
-                                        ClauseSource::Formula => formula_sources.push(clause.key()),
-                                        ClauseSource::Resolution(source_keys) => {
-                                            formula_sources.extend_from_slice(source_keys)
-                                        }
-                                        ClauseSource::Subsumption(source_keys) => {
-                                            formula_sources.extend_from_slice(source_keys)
-                                        }
-                                    }
-                                }
+                            for key in the_buffer.trail() {
+                                let trail_clause = self.stored_clauses.retreive(*key);
+                                let trail_index = trail_clause.get_node_index();
+                                self.implication_graph.add_edge(trail_index, node_index, ());
                             }
-                            formula_sources.sort_unstable();
-                            formula_sources.dedup();
-
-                            let clause_key = self.store_clause(
-                                resolved_clause,
-                                ClauseSource::Resolution(formula_sources),
-                            );
 
                             LiteralSource::StoredClause(clause_key)
                         }
@@ -151,42 +138,41 @@ impl Context {
     pub fn display_core(&self) {
         println!();
         println!("c An unsatisfiable core of the original formula:\n");
-        let mut node_indicies = vec![];
-        for (source, _) in &self.levels[0].observations {
-            match source {
-                LiteralSource::StoredClause(key) => node_indicies.push(*key),
-                LiteralSource::Resolution(keys) => node_indicies.extend(keys),
-                _ => {}
-            }
-        }
-        let mut origins = self.extant_origins(node_indicies.iter().copied());
-        origins.sort_unstable_by_key(|s| s.key());
-        origins.dedup_by_key(|s| s.key());
+        println!("c At some stage…");
+        // let mut the_keys = vec![];
+        // for (source, _) in &self.levels[0].observations {
+        //     match source {
+        //         LiteralSource::StoredClause(key) => {
+        //             the_keys.push(*key);
+        //         }
+        //         LiteralSource::Resolution(keys) => {
+        //             for key in keys {
+        //                 let used_clause = self.stored_clauses.retreive(*key);
+        //                 match used_clause.source() {
+        //                     ClauseSource::Formula => the_keys.push(used_clause.key()),
+        //                     ClauseSource::Resolution(other) => the_keys.extend_from_slice(other),
+        //                     ClauseSource::Subsumption(other) => the_keys.extend_from_slice(other),
+        //                 }
+        //             }
+        //         }
+        //         _ => {}
+        //     }
+        // }
 
-        for clause in origins {
-            println!("{}", clause.as_dimacs(&self.variables));
-        }
+        // the_keys.sort_unstable();
+        // the_keys.dedup();
+
+        // for key in the_keys {
+        //     let stored_clause = self.stored_clauses.retreive(key);
+        //     // println!("{:?}", stored_clause.source());
+        //     println!("O {}", stored_clause.as_dimacs(&self.variables),);
+        //     println!(
+        //         "E {}",
+        //         stored_clause.original_clause().as_dimacs(&self.variables),
+        //     )
+        // }
+
         println!();
-    }
-
-    pub fn extant_origins(&self, clauses: impl Iterator<Item = ClauseKey>) -> Vec<&StoredClause> {
-        let mut origin_nodes = vec![];
-        let mut q = clauses.collect::<VecDeque<_>>();
-
-        while !q.is_empty() {
-            let clause_key = q.pop_front().expect("Ah, the queue was empty…");
-
-            let stored_clause = self.stored_clauses.retreive(clause_key);
-            match stored_clause.source() {
-                ClauseSource::Resolution(origins) | ClauseSource::Subsumption(origins) => {
-                    for antecedent in origins {
-                        q.push_back(*antecedent);
-                    }
-                }
-                ClauseSource::Formula => origin_nodes.push(stored_clause),
-            }
-        }
-        origin_nodes
     }
 
     /// Either the most recent decision level in the resolution clause prior to the current level or 0.
