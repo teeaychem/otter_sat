@@ -1,5 +1,6 @@
 use crate::structures::{
-    clause::Clause, literal::Literal, solve::store::ClauseKey, valuation::Valuation, variable::Variable,
+    clause::Clause, literal::Literal, solve::store::ClauseKey, valuation::Valuation,
+    variable::Variable,
 };
 
 use std::cell::UnsafeCell;
@@ -12,6 +13,7 @@ pub struct StoredClause {
     clause: Vec<Literal>,
     cached_a: Literal,
     cached_b: Literal,
+    subsumed: Vec<Literal>,
 }
 
 // { Clause enums
@@ -57,6 +59,7 @@ impl StoredClause {
             clause: figured_out.clone(),
             cached_a: figured_out[0],
             cached_b: figured_out[1],
+            subsumed: vec![],
         };
 
         let watched_a = stored_clause.get_watched(Watch::A);
@@ -148,6 +151,33 @@ impl StoredClause {
                     break 'search_loop;
                 }
                 Some(_) => {}
+            }
+        }
+    }
+
+    pub fn literal_subsumption(
+        &mut self,
+        literal: Literal,
+        valuation: &impl Valuation,
+        variables: &[Variable],
+    ) {
+        if self.clause.len() > 2 {
+            if let Some(position) = self
+                .clause
+                .iter()
+                .position(|clause_literal| *clause_literal == literal)
+            {
+                let last = *self.clause.last().expect("Literally last");
+                let removed = self.clause.swap_remove(position);
+                if removed == self.cached_a {
+                    self.cached_a = last;
+                    self.update_watch(Watch::A, valuation, variables);
+                    // panic!("subsumed watch")
+                } else if removed == self.cached_b {
+                    self.cached_b = last;
+                    self.update_watch(Watch::B, valuation, variables);
+                }
+                self.subsumed.push(removed);
             }
         }
     }

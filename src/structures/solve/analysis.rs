@@ -6,9 +6,9 @@ use crate::structures::{
     literal::{Literal, Source as LiteralSource},
     solve::{
         config,
-        resolution_buffer::ResolutionBuffer,
+        resolution_buffer::{ResolutionBuffer, Status as BufferStatus},
         store::ClauseKey,
-        Solve, Status,
+        Solve, Status as SolveStatus,
     },
     variable::Variable,
 };
@@ -16,10 +16,10 @@ use crate::structures::{
 use std::{collections::VecDeque, ops::Deref};
 
 impl Solve {
-    pub fn conflict_analysis(&mut self, clause_key: ClauseKey) -> Status {
+    pub fn conflict_analysis(&mut self, clause_key: ClauseKey) -> SolveStatus {
         log::trace!("Fix @ {}", self.level().index());
         if self.level().index() == 0 {
-            return Status::NoSolution;
+            return SolveStatus::NoSolution;
         }
         let conflict_clause = self.stored_clauses.retreive_unchecked(clause_key);
         log::trace!("Clause {conflict_clause}");
@@ -38,47 +38,53 @@ impl Solve {
             self.literal_update(asserted, &LiteralSource::StoredClause(clause_key));
             self.consequence_q.push_back(asserted);
 
-            Status::MissedImplication
+            SolveStatus::MissedImplication
         } else {
             // resolve
 
-            the_buffer.resolve_with(self.level().observations.iter().rev(), &self.stored_clauses);
-            // see if resolution can be strengthened
-            the_buffer.strengthen_given(
-                self.levels[0]
-                    .observations
-                    .iter()
-                    .map(|(_, literal)| *literal),
-            );
-
-            let (asserted_literal, mut resolved_clause) = the_buffer.to_assertion_clause();
-            if let Some(assertion) = asserted_literal {
-                resolved_clause.push(assertion);
-            }
-
-            self.apply_VSIDS(&resolved_clause, &the_buffer);
-
-            let source = match resolved_clause.len() {
-                1 => {
-                    self.backjump(0);
-                    LiteralSource::Resolution(the_buffer.trail().to_vec())
-                }
-                _ => {
-                    let backjump_level =
-                        backjump_level(&self.variables, resolved_clause.literal_slice());
-                    self.backjump(backjump_level);
-                    let clause_key = self.store_clause(
-                        resolved_clause,
-                        ClauseSource::Resolution(the_buffer.trail().to_vec()),
+            let ob_clone = self.level().observations.iter().rev().cloned().collect::<Vec<_>>();
+            match the_buffer
+                .resolve_with(ob_clone.iter(), &mut self.stored_clauses, &self.valuation, &self.variables)
+            {
+                BufferStatus::FirstUIP | BufferStatus::Exhausted => {
+                    the_buffer.strengthen_given(
+                        self.levels[0]
+                            .observations
+                            .iter()
+                            .map(|(_, literal)| *literal),
                     );
 
-                    LiteralSource::StoredClause(clause_key)
+                    let (asserted_literal, mut resolved_clause) = the_buffer.to_assertion_clause();
+                    if let Some(assertion) = asserted_literal {
+                        resolved_clause.push(assertion);
+                    }
+
+                    self.apply_VSIDS(&resolved_clause, &the_buffer);
+
+                    let source = match resolved_clause.len() {
+                        1 => {
+                            self.backjump(0);
+                            LiteralSource::Resolution(the_buffer.trail().to_vec())
+                        }
+                        _ => {
+                            let backjump_level =
+                                backjump_level(&self.variables, resolved_clause.literal_slice());
+                            self.backjump(backjump_level);
+                            let clause_key = self.store_clause(
+                                resolved_clause,
+                                ClauseSource::Resolution(the_buffer.trail().to_vec()),
+                            );
+
+                            LiteralSource::StoredClause(clause_key)
+                        }
+                    };
+                    let assertion = asserted_literal.expect("wuh");
+                    self.literal_update(assertion, &source);
+                    self.consequence_q.push_back(assertion);
+                    SolveStatus::AssertingClause
                 }
-            };
-            let assertion = asserted_literal.expect("w");
-            self.literal_update(assertion, &source);
-            self.consequence_q.push_back(assertion);
-            Status::AssertingClause
+            }
+            // see if resolution can be strengthened
         }
     }
 
