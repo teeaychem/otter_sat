@@ -5,18 +5,19 @@ pub mod solve_core;
 pub mod store;
 mod the_solve;
 
-use crate::structures::{
+use crate::{
+    context::store::ClauseStore,
+    structures::{
     clause::stored::Source,
     formula::Formula,
     level::Level,
     literal::{Literal, Source as LiteralSource},
-    solve::store::ClauseStore,
     variable::Variable,
-};
+}};
 
 use std::{collections::VecDeque, time::Duration};
 
-pub struct Solve {
+pub struct Context {
     conflicts: usize,
     conflicts_since_last_forget: usize,
     conflicts_since_last_reset: usize,
@@ -43,13 +44,13 @@ pub enum Result {
     Unknown,
 }
 
-impl Solve {
+impl Context {
     pub fn from_formula(formula: Formula, config: config::Config) -> Self {
         let variables = formula.variables;
         let clauses = formula.clauses;
         let variable_count = variables.len();
 
-        let mut the_solve = Self {
+        let mut the_context = Self {
             conflicts: 0,
             conflicts_since_last_forget: 0,
             conflicts_since_last_reset: 0,
@@ -63,7 +64,7 @@ impl Solve {
             time: Duration::new(0, 0),
             config
         };
-        the_solve.levels.push(Level::new(0));
+        the_context.levels.push(Level::new(0));
 
         for formula_clause in clauses {
             assert!(
@@ -73,17 +74,17 @@ impl Solve {
 
             match formula_clause.len() {
                 1 => {
-                    the_solve.literal_update(
+                    the_context.literal_update(
                         *formula_clause.first().expect("Literal vanish"),
                         &LiteralSource::Assumption,
                     );
                 }
                 _ => {
-                    the_solve.store_clause(formula_clause, Source::Formula);
+                    the_context.store_clause(formula_clause, Source::Formula);
                 }
             }
         }
 
-        the_solve
+        the_context
     }
 }

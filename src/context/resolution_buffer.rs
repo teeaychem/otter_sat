@@ -1,9 +1,11 @@
 use crate::{
-    config,
+    context::{
+        config::StoppingCriteria,
+        store::{ClauseKey, ClauseStore},
+    },
     structures::{
         clause::Clause,
         literal::{Literal, Source as LiteralSource},
-        solve::store::{ClauseKey, ClauseStore},
         valuation::Valuation,
         variable::Variable,
     },
@@ -135,7 +137,7 @@ impl ResolutionBuffer {
         stored_clauses: &mut ClauseStore,
         valuation: &impl Valuation,
         variables: &[Variable],
-        stopping_criteria: config::StoppingCriteria,
+        stopping_criteria: StoppingCriteria,
     ) -> Status {
         for (src, literal) in observations {
             if let LiteralSource::StoredClause(clause_key) = src {
@@ -154,8 +156,8 @@ impl ResolutionBuffer {
 
                     if self.valuless_count == 1 {
                         match stopping_criteria {
-                            config::StoppingCriteria::FirstUIP => return Status::FirstUIP,
-                            config::StoppingCriteria::None => {}
+                            StoppingCriteria::FirstUIP => return Status::FirstUIP,
+                            StoppingCriteria::None => {}
                         }
                     };
                 }

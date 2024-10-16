@@ -1,4 +1,4 @@
-use crate::structures::solve::Solve;
+use crate::context::Context;
 use clap::Parser;
 use serde::Serialize;
 
@@ -155,7 +155,7 @@ pub enum ExplorationPriority {
     Default,
 }
 
-impl Solve {
+impl Context {
     pub fn it_is_time_to_reduce(&self, u: usize) -> bool {
         self.conflicts_since_last_forget >= u.wrapping_mul(luby(self.restarts + 1))
     }
