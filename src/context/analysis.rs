@@ -6,14 +6,13 @@ use crate::{
         Context, Status as SolveStatus,
     },
     structures::{
-        clause::{
-            stored::Source as ClauseSource,
-            Clause,
-        },
+        clause::{stored::Source as ClauseSource, Clause},
         literal::{Literal, Source as LiteralSource},
     },
 };
 
+use petgraph::{visit, Direction};
+use std::collections::BTreeSet;
 use std::ops::Deref;
 
 impl Context {
@@ -37,7 +36,7 @@ impl Context {
 
         the_buffer.reset_with(&self.valuation);
         the_buffer.clear_literals(self.level().literals());
-        the_buffer.merge_clause(&conflict_clause.deref());
+        the_buffer.set_inital_clause(&conflict_clause.deref(), clause_key);
 
         if let Some(asserted) = the_buffer.asserts() {
             // check to see if missed
@@ -89,18 +88,18 @@ impl Context {
                             let backjump_level =
                                 self.backjump_level(resolved_clause.literal_slice());
                             self.backjump(backjump_level);
-                            let clause_key =
+                            let resolved_key =
                                 self.store_clause(resolved_clause, ClauseSource::Resolution);
-                            let the_clause = self.stored_clauses.retreive(clause_key);
+                            let the_clause = self.stored_clauses.retreive(resolved_key);
                             let node_index = the_clause.get_node_index();
 
                             for key in the_buffer.trail() {
                                 let trail_clause = self.stored_clauses.retreive(*key);
                                 let trail_index = trail_clause.get_node_index();
-                                self.implication_graph.add_edge(trail_index, node_index, ());
+                                self.implication_graph.add_edge(node_index, trail_index, ());
                             }
 
-                            LiteralSource::StoredClause(clause_key)
+                            LiteralSource::StoredClause(resolved_key)
                         }
                     };
                     let assertion = asserted_literal.expect("wuh");
@@ -135,44 +134,57 @@ impl Context {
         }
     }
 
-    pub fn display_core(&self) {
+    #[allow(clippy::single_match)]
+    pub fn display_core(&self, conflict_key: ClauseKey) {
         println!();
-        println!("c An unsatisfiable core of the original formula:\n");
-        println!("c At some stage…");
-        // let mut the_keys = vec![];
-        // for (source, _) in &self.levels[0].observations {
-        //     match source {
-        //         LiteralSource::StoredClause(key) => {
-        //             the_keys.push(*key);
-        //         }
-        //         LiteralSource::Resolution(keys) => {
-        //             for key in keys {
-        //                 let used_clause = self.stored_clauses.retreive(*key);
-        //                 match used_clause.source() {
-        //                     ClauseSource::Formula => the_keys.push(used_clause.key()),
-        //                     ClauseSource::Resolution(other) => the_keys.extend_from_slice(other),
-        //                     ClauseSource::Subsumption(other) => the_keys.extend_from_slice(other),
-        //                 }
-        //             }
-        //         }
-        //         _ => {}
-        //     }
-        // }
+        println!("c An unsatisfiable core of {}:\n", self.config.formula_file.display());
 
-        // the_keys.sort_unstable();
-        // the_keys.dedup();
+        let mut basic_clause_set = BTreeSet::new();
+        basic_clause_set.insert(conflict_key);
+        for (source, _) in &self.level().observations {
+            match source {
+                LiteralSource::StoredClause(key) => {
+                    basic_clause_set.insert(*key);
+                }
+                LiteralSource::Resolution(keys) => {
+                    basic_clause_set.extend(keys);
+                }
+                _ => {}
+            }
+        }
 
-        // for key in the_keys {
-        //     let stored_clause = self.stored_clauses.retreive(key);
-        //     // println!("{:?}", stored_clause.source());
-        //     println!("O {}", stored_clause.as_dimacs(&self.variables),);
-        //     println!(
-        //         "E {}",
-        //         stored_clause.original_clause().as_dimacs(&self.variables),
-        //     )
-        // }
+        let mut core_set = BTreeSet::new();
+        for key in &basic_clause_set {
+            let clause = self.stored_clauses.retreive(*key);
+            let node_index = clause.get_node_index();
 
-        println!();
+            visit::depth_first_search(
+                &self.implication_graph,
+                Some(node_index),
+                |event| match event {
+                    visit::DfsEvent::Discover(index, _) => {
+                        let outgoing = self
+                            .implication_graph
+                            .edges_directed(index, Direction::Outgoing);
+                        if outgoing.count() == 0 {
+                            let root_key = self
+                                .implication_graph
+                                .node_weight(index)
+                                .expect("missing node")
+                                .key;
+                            core_set.insert(root_key);
+                        }
+                    }
+                    _ => {}
+                },
+            );
+        }
+
+        for source_key in &core_set {
+            let source_clause = self.stored_clauses.retreive(*source_key);
+            let full_clause = source_clause.original_clause();
+            println!("{}", full_clause.as_dimacs(&self.variables));
+        }
     }
 
     /// Either the most recent decision level in the resolution clause prior to the current level or 0.

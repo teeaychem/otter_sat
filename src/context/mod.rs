@@ -6,7 +6,7 @@ pub mod store;
 mod the_solve;
 
 use crate::{
-    context::store::{ClauseStore, ClauseId},
+    context::store::{ClauseId, ClauseKey, ClauseStore},
     structures::{
         clause::stored::Source,
         formula::Formula,
@@ -19,6 +19,11 @@ use crate::{
 use petgraph::Graph;
 use std::{collections::VecDeque, time::Duration};
 
+#[derive(Debug)]
+pub struct ImplicationGraphNode {
+    id: ClauseId,
+    key: ClauseKey,
+}
 
 pub struct Context {
     conflicts: usize,
@@ -33,7 +38,7 @@ pub struct Context {
     variables: Vec<Variable>,
     pub time: Duration,
     config: config::Config,
-    pub implication_graph: Graph<ClauseId, ()>,
+    pub implication_graph: Graph<ImplicationGraphNode, ()>,
 }
 
 pub enum Status {
@@ -44,7 +49,7 @@ pub enum Status {
 
 pub enum Result {
     Satisfiable,
-    Unsatisfiable,
+    Unsatisfiable(ClauseKey),
     Unknown,
 }
 

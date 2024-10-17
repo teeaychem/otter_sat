@@ -18,10 +18,10 @@ slotmap = { version = "1.0" }
 
 [profile.profiling]
 inherits = "release"
-panic = "unwind"
 debug = true
 
-[profile.release]
-lto = true
+[profile.redline]
+inherits = "release"
 codegen-units = 1
+lto = true
 panic = "abort"
