@@ -7,8 +7,7 @@ use crate::{
     structures::{
         clause::Clause,
         literal::{Literal, Source as LiteralSource},
-        valuation::Valuation,
-        variable::Variable,
+        variable::variable_store::VariableStore,
     },
 };
 
@@ -48,11 +47,11 @@ impl ResolutionBuffer {
         }
     }
 
-    pub fn reset_with(&mut self, valuation: &impl Valuation) {
+    pub fn reset_with(&mut self, variables: &impl VariableStore) {
         self.valuless_count = 0;
         self.asserts = None;
-        for (index, value) in valuation.slice().iter().enumerate() {
-            self.set(index, ResolutionCell::Value(*value))
+        for variable in variables.slice() {
+            self.set(variable.index(), ResolutionCell::Value(variable.polarity()))
         }
         self.trail.clear();
         self.used_variables
@@ -60,18 +59,18 @@ impl ResolutionBuffer {
             .for_each(|index| *index = false);
     }
 
-    pub fn from_valuation(valuation: &impl Valuation) -> Self {
+    pub fn from_variable_store(variables: &impl VariableStore) -> Self {
         ResolutionBuffer {
             valuless_count: 0,
             clause_legnth: 0,
             asserts: None,
-            buffer: valuation
+            buffer: variables
                 .slice()
                 .iter()
-                .map(|value| ResolutionCell::Value(*value))
+                .map(|variable| ResolutionCell::Value(variable.polarity()))
                 .collect(),
             trail: vec![],
-            used_variables: vec![false; valuation.slice().len()],
+            used_variables: vec![false; variables.slice().len()],
         }
     }
 
@@ -143,8 +142,7 @@ impl ResolutionBuffer {
         observations: impl Iterator<Item = &'a (LiteralSource, Literal)>,
         stored_clauses: &mut ClauseStore,
         graph: &ResolutionGraph,
-        valuation: &impl Valuation,
-        variables: &[Variable],
+        variables: &impl VariableStore,
         stopping_criteria: StoppingCriteria,
         subsumption: bool,
     ) -> Status {
@@ -166,8 +164,8 @@ impl ResolutionBuffer {
                     }
 
                     if subsumption && self.clause_legnth < source_clause.length() {
-                        let _ = source_clause.literal_subsumption(*literal, valuation, variables);
-                        variables[literal.index()].multiply_activity(1.1);
+                        let _ = source_clause.literal_subsumption(*literal, variables);
+                        variables.get_unsafe(literal.index()).multiply_activity(1.1);
                     }
 
                     if self.valuless_count == 1 {

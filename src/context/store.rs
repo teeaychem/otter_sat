@@ -4,8 +4,7 @@ use crate::structures::{
         Clause,
     },
     literal::Literal,
-    valuation::Valuation,
-    variable::Variable,
+    variable::variable_store::VariableStore,
 };
 
 pub type ClauseId = u32;
@@ -57,8 +56,7 @@ impl ClauseStore {
         &mut self,
         source: ClauseSource,
         clause: Vec<Literal>,
-        valuation: &impl Valuation,
-        variables: &mut [Variable],
+        variables: &impl VariableStore,
     ) -> ClauseKey {
         match source {
             ClauseSource::Formula => {
@@ -68,7 +66,6 @@ impl ClauseStore {
                         ClauseKey::Formula(k),
                         clause,
                         source,
-                        valuation,
                         variables,
                     )
                 });
@@ -83,7 +80,6 @@ impl ClauseStore {
                         ClauseKey::Learned(k),
                         clause,
                         source,
-                        valuation,
                         variables,
                     );
                     clause.set_lbd(variables);
