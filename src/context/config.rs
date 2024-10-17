@@ -31,7 +31,7 @@ pub struct Args {
     #[arg(long, default_value_t, value_enum)]
     stopping_criteria: StoppingCriteria,
 
-    /// The VSIDS variant to use
+    /// Which VSIDS variant to use
     #[arg(long = "VSIDS", default_value_t, value_enum)]
     vsids: VSIDS,
 
@@ -59,13 +59,20 @@ pub struct Args {
     /// The chance of choosing assigning positive polarity to a variant when making a choice
     polarity_lean: f64,
 
-    #[arg(short = 'u', long = "luby", default_value_t = 512)]
+    #[arg(short = 'l', long = "luby", default_value_t = 512)]
     /// The u value to use for the luby calculation when restarts are permitted
     luby_u: usize,
 
     /// Time limit for the solve
     #[arg(short, long, value_parser = |seconds: &str| seconds.parse().map(std::time::Duration::from_secs))]
     time: Option<std::time::Duration>,
+
+    #[arg(short = 'u', long, default_value_t = false, verbatim_doc_comment)]
+    /// Allow (some simple) self-subsumption
+    /// I.e. when performing resolutinon some stronger form of a clause may be found
+    /// For example, p ∨ q ∨ r may be strengthened to p ∨ r
+    /// With subsumption the weaker clause is replaced (subsumed by) the stronger clause, this flag disables the process
+    subsumption: bool
 }
 
 #[derive(Clone)]
@@ -87,6 +94,7 @@ pub struct Config {
     pub activity_conflict: f32,
     pub decay_factor: f32,
     pub decay_frequency: usize,
+    pub subsumption: bool,
 }
 
 impl Config {
@@ -114,6 +122,7 @@ impl Config {
             activity_conflict: 1.0,
             decay_factor: 0.95,
             decay_frequency: 1,
+            subsumption: args.subsumption
         };
 
         if args.rr {

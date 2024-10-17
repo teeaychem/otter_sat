@@ -20,10 +20,23 @@ use petgraph::Graph;
 use std::{collections::VecDeque, time::Duration};
 
 #[derive(Debug)]
-pub struct ImplicationGraphNode {
-    id: ClauseId,
+pub enum ImplicationGraphNode {
+    Clause(GraphClause),
+    Literal(GraphLiteral),
+}
+
+#[derive(Debug)]
+pub struct GraphClause {
+    clause_id: ClauseId,
     key: ClauseKey,
 }
+
+#[derive(Debug)]
+pub struct GraphLiteral {
+    literal: Literal,
+}
+
+pub type ResolutionGraph = Graph<ImplicationGraphNode, ()>;
 
 pub struct Context {
     conflicts: usize,
@@ -38,7 +51,7 @@ pub struct Context {
     variables: Vec<Variable>,
     pub time: Duration,
     config: config::Config,
-    pub implication_graph: Graph<ImplicationGraphNode, ()>,
+    pub implication_graph: ResolutionGraph,
 }
 
 pub enum Status {

@@ -1,7 +1,7 @@
 use crate::{
-    context::{store::ClauseKey, Context},
+    context::{Context, GraphClause, ImplicationGraphNode},
     structures::{
-        clause::stored::Source,
+        clause::stored::{Source, StoredClause},
         level::{Level, LevelIndex},
         literal::Literal,
         valuation::Valuation,
@@ -41,15 +41,13 @@ impl Context {
             .enumerate()
             .filter(|(_, value)| value.is_none())
             .map(|(index, _)| (index, self.variables[index].activity()))
-            .max_by(|index_activity_a, index_activity_b| {
-                index_activity_a.1.total_cmp(&index_activity_b.1)
-            })
+            .max_by(|(_, activity_a), (_, activity_b)| activity_a.total_cmp(activity_b))
             .map(|(index, _)| index)
     }
 
     /// Stores a clause with an automatically generated id.
     /// In order to use the clause the watch literals of the struct must be initialised.
-    pub fn store_clause(&mut self, clause: Vec<Literal>, src: Source) -> ClauseKey {
+    pub fn store_clause(&mut self, clause: Vec<Literal>, src: Source) -> &StoredClause {
         assert!(!clause.is_empty(), "Attempt to add an empty clause");
 
         let clause_key =
@@ -58,12 +56,12 @@ impl Context {
         let the_clause = self.stored_clauses.retreive_mut(clause_key).expect("o");
         let node_index = self
             .implication_graph
-            .add_node(crate::context::ImplicationGraphNode {
-                id: the_clause.id(),
+            .add_node(ImplicationGraphNode::Clause(GraphClause {
+                clause_id: the_clause.id(),
                 key: the_clause.key(),
-            });
+            }));
         the_clause.add_node_index(node_index);
-        clause_key
+        the_clause
     }
 
     pub fn backjump(&mut self, to: LevelIndex) {

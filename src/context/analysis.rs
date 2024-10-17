@@ -3,7 +3,7 @@ use crate::{
         config,
         resolution_buffer::{ResolutionBuffer, Status as BufferStatus},
         store::ClauseKey,
-        Context, Status as SolveStatus,
+        Context, GraphLiteral, ImplicationGraphNode, Status as SolveStatus,
     },
     structures::{
         clause::{stored::Source as ClauseSource, Clause},
@@ -20,15 +20,16 @@ impl Context {
         &mut self,
         clause_key: ClauseKey,
         vsids_variant: config::VSIDS,
-        stopping_critera: config::StoppingCriteria,
+        stopping_criteria: config::StoppingCriteria,
         activity: f32,
-        show_core: bool,
+        subsumption: bool,
     ) -> SolveStatus {
         log::trace!("Fix @ {}", self.level().index());
         if self.level().index() == 0 {
             return SolveStatus::NoSolution;
         }
         let conflict_clause = self.stored_clauses.retreive(clause_key);
+        let conflict_index = conflict_clause.get_node_index();
         log::trace!("Clause {conflict_clause}");
 
         // this could be made persistent, but tying it to the solve requires a cell and lots of unsafe
@@ -42,7 +43,7 @@ impl Context {
             // check to see if missed
             let missed_level = self.backjump_level(conflict_clause.literal_slice());
             self.backjump(missed_level);
-            self.literal_update(asserted, &LiteralSource::StoredClause(clause_key));
+            self.literal_update(asserted, &LiteralSource::StoredClause(conflict_index));
             self.consequence_q.push_back(asserted);
 
             SolveStatus::MissedImplication
@@ -59,10 +60,11 @@ impl Context {
             match the_buffer.resolve_with(
                 ob_clone.iter(),
                 &mut self.stored_clauses,
+                &self.implication_graph,
                 &self.valuation,
                 &self.variables,
-                stopping_critera,
-                show_core,
+                stopping_criteria,
+                subsumption,
             ) {
                 BufferStatus::FirstUIP | BufferStatus::Exhausted => {
                     the_buffer.strengthen_given(
@@ -79,29 +81,38 @@ impl Context {
 
                     self.apply_VSIDS(&resolved_clause, &the_buffer, vsids_variant, activity);
 
-                    let source = match resolved_clause.len() {
+                    let (source, index) = match resolved_clause.len() {
                         1 => {
                             self.backjump(0);
-                            LiteralSource::Resolution(the_buffer.trail().to_vec())
+
+                            let graph_literal = GraphLiteral {
+                                literal: asserted_literal.expect("literal not there"),
+                            };
+                            let literal_index = self
+                                .implication_graph
+                                .add_node(ImplicationGraphNode::Literal(graph_literal));
+
+                            (LiteralSource::Resolution(literal_index), literal_index)
                         }
                         _ => {
                             let backjump_level =
                                 self.backjump_level(resolved_clause.literal_slice());
                             self.backjump(backjump_level);
-                            let resolved_key =
+
+                            let stored_clause =
                                 self.store_clause(resolved_clause, ClauseSource::Resolution);
-                            let the_clause = self.stored_clauses.retreive(resolved_key);
-                            let node_index = the_clause.get_node_index();
+                            let stored_index = stored_clause.get_node_index();
 
-                            for key in the_buffer.trail() {
-                                let trail_clause = self.stored_clauses.retreive(*key);
-                                let trail_index = trail_clause.get_node_index();
-                                self.implication_graph.add_edge(node_index, trail_index, ());
-                            }
-
-                            LiteralSource::StoredClause(resolved_key)
+                            (LiteralSource::StoredClause(stored_index), stored_index)
                         }
                     };
+
+                    for key in the_buffer.trail() {
+                        let trail_clause = self.stored_clauses.retreive(*key);
+                        let trail_index = trail_clause.get_node_index();
+                        self.implication_graph.add_edge(index, trail_index, ());
+                    }
+
                     let assertion = asserted_literal.expect("wuh");
                     self.literal_update(assertion, &source);
                     self.consequence_q.push_back(assertion);
@@ -137,47 +148,49 @@ impl Context {
     #[allow(clippy::single_match)]
     pub fn display_core(&self, conflict_key: ClauseKey) {
         println!();
-        println!("c An unsatisfiable core of {}:\n", self.config.formula_file.display());
+        println!(
+            "c An unsatisfiable core of {}:\n",
+            self.config.formula_file.display()
+        );
+
+        let conflict_clause = self.stored_clauses.retreive(conflict_key);
+        let conflict_index = conflict_clause.get_node_index();
 
         let mut basic_clause_set = BTreeSet::new();
-        basic_clause_set.insert(conflict_key);
+        basic_clause_set.insert(conflict_index);
         for (source, _) in &self.level().observations {
             match source {
-                LiteralSource::StoredClause(key) => {
-                    basic_clause_set.insert(*key);
-                }
-                LiteralSource::Resolution(keys) => {
-                    basic_clause_set.extend(keys);
+                LiteralSource::StoredClause(node_index) | LiteralSource::Resolution(node_index) => {
+                    basic_clause_set.insert(*node_index);
                 }
                 _ => {}
             }
         }
 
         let mut core_set = BTreeSet::new();
-        for key in &basic_clause_set {
-            let clause = self.stored_clauses.retreive(*key);
-            let node_index = clause.get_node_index();
-
-            visit::depth_first_search(
-                &self.implication_graph,
-                Some(node_index),
-                |event| match event {
+        for node_index in &basic_clause_set {
+            visit::depth_first_search(&self.implication_graph, Some(*node_index), |event| {
+                match event {
                     visit::DfsEvent::Discover(index, _) => {
                         let outgoing = self
                             .implication_graph
                             .edges_directed(index, Direction::Outgoing);
                         if outgoing.count() == 0 {
-                            let root_key = self
+                            let graph_node = self
                                 .implication_graph
                                 .node_weight(index)
-                                .expect("missing node")
-                                .key;
-                            core_set.insert(root_key);
+                                .expect("missing node");
+                            match graph_node {
+                                ImplicationGraphNode::Clause(clause_weight) => {
+                                    core_set.insert(clause_weight.key);
+                                }
+                                ImplicationGraphNode::Literal(_) => {}
+                            }
                         }
                     }
                     _ => {}
-                },
-            );
+                }
+            });
         }
 
         for source_key in &core_set {

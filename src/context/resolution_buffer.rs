@@ -2,6 +2,7 @@ use crate::{
     context::{
         config::StoppingCriteria,
         store::{ClauseKey, ClauseStore},
+        ResolutionGraph,
     },
     structures::{
         clause::Clause,
@@ -79,7 +80,6 @@ impl ResolutionBuffer {
         self.merge_clause(clause);
     }
 
-
     pub fn merge_clause(&mut self, clause: &impl Clause) {
         for literal in clause.literal_slice() {
             match self.buffer.get(literal.index()).expect("wuh") {
@@ -137,18 +137,24 @@ impl ResolutionBuffer {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn resolve_with<'a>(
         &mut self,
         observations: impl Iterator<Item = &'a (LiteralSource, Literal)>,
         stored_clauses: &mut ClauseStore,
+        graph: &ResolutionGraph,
         valuation: &impl Valuation,
         variables: &[Variable],
         stopping_criteria: StoppingCriteria,
-        _show_core: bool,
+        subsumption: bool,
     ) -> Status {
         for (src, literal) in observations {
-            if let LiteralSource::StoredClause(clause_key) = src {
-                let the_key = *clause_key;
+            if let LiteralSource::StoredClause(node_index) = src {
+                let the_node = graph.node_weight(*node_index).expect("missing node");
+                let the_key = match the_node {
+                    super::ImplicationGraphNode::Clause(graph_clause) => graph_clause.key,
+                    super::ImplicationGraphNode::Literal(_) => panic!("literal panic"),
+                };
 
                 let source_clause = stored_clauses.retreive_mut(the_key).expect("");
 
@@ -159,8 +165,9 @@ impl ResolutionBuffer {
                         self.used_variables[involved_literal.index()] = true;
                     }
 
-                    if self.clause_legnth < source_clause.length() {
+                    if subsumption && self.clause_legnth < source_clause.length() {
                         let _ = source_clause.literal_subsumption(*literal, valuation, variables);
+                        variables[literal.index()].multiply_activity(1.1);
                     }
 
                     if self.valuless_count == 1 {
