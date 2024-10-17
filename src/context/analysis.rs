@@ -8,6 +8,7 @@ use crate::{
     structures::{
         clause::{stored::Source as ClauseSource, Clause},
         literal::{Literal, Source as LiteralSource},
+        variable::variable_store::VariableStore,
     },
 };
 
@@ -33,9 +34,9 @@ impl Context {
         log::trace!("Clause {conflict_clause}");
 
         // this could be made persistent, but tying it to the solve requires a cell and lots of unsafe
-        let mut the_buffer = ResolutionBuffer::from_valuation(&self.valuation);
+        let mut the_buffer = ResolutionBuffer::from_variable_store(&self.variables);
 
-        the_buffer.reset_with(&self.valuation);
+        the_buffer.reset_with(&self.variables);
         the_buffer.clear_literals(self.level().literals());
         the_buffer.set_inital_clause(&conflict_clause.deref(), clause_key);
 
@@ -61,7 +62,6 @@ impl Context {
                 ob_clone.iter(),
                 &mut self.stored_clauses,
                 &self.implication_graph,
-                &self.valuation,
                 &self.variables,
                 stopping_criteria,
                 subsumption,
@@ -134,12 +134,12 @@ impl Context {
         match variant {
             config::VSIDS::Chaff => {
                 for literal in clause.literal_slice() {
-                    self.get_variable(literal.index()).add_activity(activity);
+                    self.variables.get_unsafe(literal.index()).add_activity(activity);
                 }
             }
             config::VSIDS::MiniSAT => {
                 for index in buffer.variables_used() {
-                    self.get_variable(index).add_activity(activity);
+                    self.variables.get_unsafe(index).add_activity(activity);
                 }
             }
         }
@@ -208,7 +208,7 @@ impl Context {
     fn backjump_level(&self, literals: &[Literal]) -> usize {
         let mut top_two = (None, None);
         for lit in literals {
-            if let Some(dl) = self.get_variable(lit.index()).decision_level() {
+            if let Some(dl) = self.variables.get_unsafe(lit.index()).decision_level() {
                 match top_two {
                     (_, None) => top_two.1 = Some(dl),
                     (_, Some(t1)) if dl > t1 => {

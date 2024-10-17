@@ -7,7 +7,7 @@ use crate::{
     structures::{
         clause::stored::Watch,
         literal::{Literal, Source},
-        valuation::Valuation,
+        variable::variable_store::VariableStore,
         variable::VariableId,
     },
 };
@@ -20,7 +20,7 @@ impl Context {
         let this_total_time = std::time::Instant::now();
 
         #[allow(unused_assignments)]
-        let mut last_valuation = self.valuation.clone();
+        let mut last_valuation = vec![None; self.variables.len()];
 
         if self.config.hobson_choices {
             self.set_hobson();
@@ -61,7 +61,9 @@ impl Context {
                         Status::NoSolution => return Result::Unsatisfiable(conflict_key),
                         Status::MissedImplication => continue 'main_loop,
                         Status::AssertingClause => {
-                            last_valuation = self.valuation.clone();
+                            for variable in &self.variables {
+                                last_valuation[variable.index()] = variable.polarity();
+                            }
 
                             self.conflicts += 1;
                             self.conflicts_since_last_forget += 1;
@@ -85,7 +87,7 @@ impl Context {
                 }
             }
 
-            match self.most_active_none(&self.valuation) {
+            match self.most_active_none() {
                 Some(choice_index) => {
                     self.process_choice(choice_index, &last_valuation, polarity_lean);
                     continue 'main_loop;
@@ -98,9 +100,9 @@ impl Context {
     #[allow(clippy::too_many_arguments)]
     pub fn literal_update(&mut self, literal: Literal, source: &Source) {
         // update the valuation and match the result
-        self.valuation.set_value(literal);
+        self.variables.set_value(literal);
 
-        let variable = self.get_variable(literal.index());
+        let variable = self.variables.get_unsafe(literal.index());
 
         log::trace!("{literal} from {source:?}");
 
@@ -117,7 +119,7 @@ impl Context {
     }
 
     pub fn update_watches(&mut self, literal: Literal) {
-        let variable = self.get_variable(literal.index());
+        let variable = self.variables.get_unsafe(literal.index());
         let variable_id = variable.id();
         // and, process whether any change to the watch literals is required
         let working_clause_vec = match literal.polarity() {
@@ -143,13 +145,13 @@ impl Context {
                     let watched_b = stored_clause.get_watched(Watch::B);
 
                     if variable_id == watched_a.v_id() {
-                        if not_watch_witness(&self.valuation, watched_b) {
-                            stored_clause.update_watch(Watch::A, &self.valuation, &self.variables);
+                        if not_watch_witness(&self.variables, watched_b) {
+                            stored_clause.update_watch(Watch::A, &self.variables);
                         }
                         index += 1;
                     } else if variable_id == watched_b.v_id() {
-                        if not_watch_witness(&self.valuation, watched_a) {
-                            stored_clause.update_watch(Watch::B, &self.valuation, &self.variables);
+                        if not_watch_witness(&self.variables, watched_a) {
+                            stored_clause.update_watch(Watch::B, &self.variables);
                         }
                         index += 1;
                     } else {
@@ -170,7 +172,7 @@ impl Context {
     }
 
     fn examine_consequences_of(&mut self, literal: Literal) -> Option<ClauseKey> {
-        let the_variable = self.get_variable(literal.index());
+        let the_variable = self.variables.get_unsafe(literal.index());
 
         let borrowed_occurrences = match literal.polarity() {
             true => unsafe { &mut *the_variable.negative_occurrences.get() },
@@ -195,8 +197,8 @@ impl Context {
             } else {
                 // the compiler prefers the conditional matches
                 index += 1;
-                let a_value = self.valuation.of_index(watch_a.index());
-                let b_value = self.valuation.of_index(watch_b.index());
+                let a_value = self.variables.polarity_of(watch_a.index());
+                let b_value = self.variables.polarity_of(watch_b.index());
 
                 match (a_value, b_value) {
                     (None, None) => {}
@@ -228,13 +230,13 @@ impl Context {
             let occurrences = match literal.polarity() {
                 true => unsafe {
                     &mut *self
-                        .get_variable(literal.index())
+                        .variables.get_unsafe(literal.index())
                         .negative_occurrences
                         .get()
                 },
                 false => unsafe {
                     &mut *self
-                        .get_variable(literal.index())
+                        .variables.get_unsafe(literal.index())
                         .positive_occurrences
                         .get()
                 },
@@ -291,7 +293,7 @@ impl Context {
     fn process_choice(
         &mut self,
         choice_index: usize,
-        last_valuation: &impl Valuation,
+        last_valuation: &[Option<bool>],
         polarity_lean: f64,
     ) {
         log::trace!(
@@ -300,7 +302,7 @@ impl Context {
             self.variables[choice_index].activity()
         );
         self.add_fresh_level();
-        let choice_literal = if let Some(polarity) = last_valuation.of_index(choice_index) {
+        let choice_literal = if let Some(polarity) = last_valuation[choice_index] {
             Literal::new(choice_index as VariableId, polarity)
         } else {
             Literal::new(
@@ -319,8 +321,8 @@ impl Context {
     }
 }
 
-fn not_watch_witness(valuation: &impl Valuation, literal: Literal) -> bool {
-    match valuation.of_index(literal.index()) {
+fn not_watch_witness(variables: &impl VariableStore, literal: Literal) -> bool {
+    match variables.polarity_of(literal.index()) {
         Some(p) => p != literal.polarity(),
         None => true,
     }

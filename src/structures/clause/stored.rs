@@ -1,6 +1,10 @@
 use crate::{
     context::store::{ClauseId, ClauseKey},
-    structures::{clause::Clause, literal::Literal, valuation::Valuation, variable::Variable},
+    structures::{
+        clause::Clause,
+        literal::Literal,
+        variable::{variable_store::VariableStore, Variable},
+    },
 };
 
 use petgraph::graph::NodeIndex;
@@ -52,10 +56,9 @@ impl StoredClause {
         key: ClauseKey,
         clause: Vec<Literal>,
         source: Source,
-        valuation: &impl Valuation,
-        variables: &mut [Variable],
+        variables: &impl VariableStore,
     ) -> Self {
-        let figured_out = figure_out_intial_watches(clause, valuation);
+        let figured_out = figure_out_intial_watches(clause, variables);
         let stored_clause = Self {
             id,
             key,
@@ -70,15 +73,14 @@ impl StoredClause {
 
         let watched_a = stored_clause.get_watched(Watch::A);
         let watched_b = stored_clause.get_watched(Watch::B);
-        unsafe {
-            variables
-                .get_unchecked(watched_a.index())
-                .watch_added(stored_clause.key, watched_a.polarity());
 
-            variables
-                .get_unchecked(watched_b.index())
-                .watch_added(stored_clause.key, watched_b.polarity());
-        }
+        variables
+            .get_unsafe(watched_a.index())
+            .watch_added(stored_clause.key, watched_a.polarity());
+
+        variables
+            .get_unsafe(watched_b.index())
+            .watch_added(stored_clause.key, watched_b.polarity());
 
         stored_clause
     }
@@ -98,8 +100,8 @@ impl StoredClause {
         }
     }
 
-    pub fn set_lbd(&self, vars: &[Variable]) {
-        unsafe { *self.lbd.get() = self.lbd(vars) }
+    pub fn set_lbd(&self, variables: &impl VariableStore) {
+        unsafe { *self.lbd.get() = self.lbd(variables) }
     }
 
     pub fn get_set_lbd(&self) -> usize {
@@ -110,7 +112,7 @@ impl StoredClause {
         &mut self,
         watch: Watch,
         index: usize,
-        variables: &[Variable],
+        variable: &Variable,
         literal: Literal,
     ) {
         let clause_index = match watch {
@@ -131,29 +133,21 @@ impl StoredClause {
         self.clause.swap(index, clause_index);
         // }
 
-        unsafe {
-            variables
-                .get_unchecked(literal.index())
-                .watch_added(self.key, literal.polarity());
-        };
+        variable.watch_added(self.key, literal.polarity());
     }
 
-    pub fn update_watch(
-        &mut self,
-        watch: Watch,
-        valuation: &impl Valuation,
-        variables: &[Variable],
-    ) {
+    pub fn update_watch(&mut self, watch: Watch, variables: &impl VariableStore) {
         'search_loop: for index in 2..self.clause.len() {
             let the_literal = unsafe { *self.clause.get_unchecked(index) };
+            let the_variable = variables.get_unsafe(the_literal.index());
 
-            match valuation.of_index(the_literal.index()) {
+            match the_variable.polarity() {
                 None => {
-                    self.watch_update_replace(watch, index, variables, the_literal);
+                    self.watch_update_replace(watch, index, the_variable, the_literal);
                     break 'search_loop;
                 }
                 Some(polarity) if polarity == the_literal.polarity() => {
-                    self.watch_update_replace(watch, index, variables, the_literal);
+                    self.watch_update_replace(watch, index, the_variable, the_literal);
                     break 'search_loop;
                 }
                 Some(_) => {}
@@ -168,8 +162,7 @@ impl StoredClause {
     pub fn literal_subsumption(
         &mut self,
         literal: Literal,
-        valuation: &impl Valuation,
-        variables: &[Variable],
+        variables: &impl VariableStore,
     ) -> Result<(), ()> {
         if self.clause.len() > 2 {
             if let Some(position) = self
@@ -181,10 +174,10 @@ impl StoredClause {
                 let removed = self.clause.swap_remove(position);
                 if removed == self.cached_a {
                     self.cached_a = last;
-                    self.update_watch(Watch::A, valuation, variables);
+                    self.update_watch(Watch::A, variables);
                 } else if removed == self.cached_b {
                     self.cached_b = last;
-                    self.update_watch(Watch::B, valuation, variables);
+                    self.update_watch(Watch::B, variables);
                 }
                 self.subsumed.push(removed);
                 Ok(())
@@ -223,7 +216,7 @@ impl std::fmt::Display for StoredClause {
     }
 }
 
-fn figure_out_intial_watches(mut clause: Vec<Literal>, val: &impl Valuation) -> Vec<Literal> {
+fn figure_out_intial_watches(mut clause: Vec<Literal>, val: &impl VariableStore) -> Vec<Literal> {
     let length = clause.len();
     let mut watch_a = 0;
     let mut watch_b = 1;
@@ -279,8 +272,8 @@ fn figure_out_intial_watches(mut clause: Vec<Literal>, val: &impl Valuation) -> 
     clause
 }
 
-fn get_status(literal: Literal, valuation: &impl Valuation) -> WatchStatus {
-    match valuation.of_index(literal.index()) {
+fn get_status(literal: Literal, variables: &impl VariableStore) -> WatchStatus {
+    match variables.polarity_of(literal.index()) {
         None => WatchStatus::None,
         Some(polarity) if polarity == literal.polarity() => WatchStatus::Witness,
         Some(_) => WatchStatus::Conflict,
