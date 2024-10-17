@@ -1,18 +1,7 @@
+use crate::structures::variable::{Variable, VariableId, ActivityRep};
 use crate::{context::store::ClauseKey, structures::level::LevelIndex};
 
-pub type VariableId = u32;
 use std::cell::UnsafeCell;
-
-pub struct Variable {
-    name: String,
-    id: VariableId,
-    decision_level: UnsafeCell<Option<LevelIndex>>,
-    pub positive_occurrences: UnsafeCell<Vec<ClauseKey>>,
-    pub negative_occurrences: UnsafeCell<Vec<ClauseKey>>,
-    activity: UnsafeCell<ActivityRep>,
-}
-
-type ActivityRep = f32;
 
 impl Variable {
     pub fn new(name: &str, id: VariableId) -> Self {
@@ -20,6 +9,7 @@ impl Variable {
             name: name.to_string(),
             decision_level: UnsafeCell::new(None),
             id,
+            polarity: None,
             positive_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
             negative_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
             activity: UnsafeCell::new(0.0),
@@ -46,6 +36,10 @@ impl Variable {
         self.id
     }
 
+    pub const fn index(&self) -> usize {
+        self.id as usize
+    }
+
     pub fn add_activity(&self, by: ActivityRep) {
         unsafe { *self.activity.get() += by }
     }
@@ -64,6 +58,14 @@ impl Variable {
             false => unsafe { &mut *self.negative_occurrences.get() },
         };
         occurrences.push(clause_key);
+    }
+
+    pub fn polarity(&self) -> Option<bool> {
+        self.polarity
+    }
+
+    pub fn set_polarity(&mut self, polarity: Option<bool>) {
+        self.polarity = polarity
     }
 }
 

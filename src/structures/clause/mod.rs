@@ -1,17 +1,19 @@
 pub mod stored;
 
-use crate::structures::{literal::Literal, valuation::Valuation, variable::Variable};
+use crate::structures::{
+    literal::Literal,
+    variable::{variable_store::VariableStore, Variable},
+};
 use std::ops::Deref;
-
 
 pub trait Clause {
     fn as_string(&self) -> String;
 
     fn as_dimacs(&self, variables: &[Variable]) -> String;
 
-    fn asserts(&self, val: &impl Valuation) -> Option<Literal>;
+    fn asserts(&self, val: &impl VariableStore) -> Option<Literal>;
 
-    fn lbd(&self, variables: &[Variable]) -> usize;
+    fn lbd(&self, variables: &impl VariableStore) -> usize;
 
     fn literal_slice(&self) -> &[Literal];
 
@@ -46,10 +48,10 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
     }
 
     /// Returns the literal asserted by the clause on the given valuation
-    fn asserts(&self, val: &impl Valuation) -> Option<Literal> {
+    fn asserts(&self, val: &impl VariableStore) -> Option<Literal> {
         let mut the_literal = None;
         for lit in self.literal_slice() {
-            if let Some(existing_val) = val.of_index(lit.index()) {
+            if let Some(existing_val) = val.polarity_of(lit.index()) {
                 match existing_val == lit.polarity() {
                     true => return None,
                     false => continue,
@@ -65,10 +67,10 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
 
     // TODO: consider a different approach to lbd
     // e.g. an approximate measure of =2, =3, >4 can be settled much more easily
-    fn lbd(&self, vars: &[Variable]) -> usize {
+    fn lbd(&self, variables: &impl VariableStore) -> usize {
         let mut decision_levels = self
             .iter()
-            .map(|l| vars[l.index()].decision_level())
+            .map(|literal| variables.get_unsafe(literal.index()).decision_level())
             .collect::<Vec<_>>();
         decision_levels.sort_unstable();
         decision_levels.dedup();

@@ -1,6 +1,6 @@
 #![allow(dead_code)]
-// #![allow(unused_imports)]
-// #![allow(unused_variables)]
+#![allow(unused_imports)]
+#![allow(unused_variables)]
 
 use clap::Parser;
 use std::fs;
@@ -15,7 +15,7 @@ use context::{
     config::{Args, Config},
     Context, Result,
 };
-use structures::valuation::Valuation;
+use structures::variable::variable_store::VariableStore;
 
 // #[rustfmt::skip]
 fn main() {
@@ -70,7 +70,7 @@ fn main() {
                     if show_valuation {
                         println!(
                             "v {}",
-                            the_context.valuation().as_display_string(&the_context)
+                            the_context.variables().as_display_string()
                         );
                     }
                     std::process::exit(10);
