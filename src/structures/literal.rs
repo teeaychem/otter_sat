@@ -1,4 +1,5 @@
-use crate::{structures::{variable::VariableId}, context::store::ClauseKey};
+use crate::structures::variable::VariableId;
+use petgraph::graph::NodeIndex;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Literal {
@@ -7,12 +8,12 @@ pub struct Literal {
 }
 
 /// how a literal was settled
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Source {
-    Choice,                     // a choice made where the alternative may make a SAT difference
+    Choice,                  // a choice made where the alternative may make a SAT difference
     HobsonChoice, // a choice made with a guarantee that the alternative would make no SAT difference
-    StoredClause(ClauseKey), // the literal must be the case for SAT given some valuation
-    Resolution(Vec<ClauseKey>), // there was no reason to store the resolved clause
+    StoredClause(NodeIndex), // the literal must be the case for SAT given some valuation
+    Resolution(NodeIndex), // there was no reason to store the resolved clause
     Assumption,
 }
 

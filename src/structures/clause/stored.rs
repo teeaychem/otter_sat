@@ -55,15 +55,15 @@ impl StoredClause {
         valuation: &impl Valuation,
         variables: &mut [Variable],
     ) -> Self {
-        let figured_out = figure_out_intial_watches(clause.clone(), valuation);
+        let figured_out = figure_out_intial_watches(clause, valuation);
         let stored_clause = Self {
             id,
             key,
             lbd: UnsafeCell::new(0),
             source,
-            clause: figured_out.clone(),
             cached_a: figured_out[0],
             cached_b: figured_out[1],
+            clause: figured_out,
             subsumed: vec![],
             node_index: None,
         };
@@ -123,18 +123,18 @@ impl StoredClause {
                 1
             }
         };
-        let mix_up = index / 3;
-        if mix_up > 2 {
-            self.clause.swap(index, mix_up);
-            self.clause.swap(mix_up, clause_index);
-        } else {
-            self.clause.swap(index, clause_index);
-        }
+        // let mix_up = index / 3;
+        // if mix_up > 2 {
+        //     self.clause.swap(index, mix_up);
+        //     self.clause.swap(mix_up, clause_index);
+        // } else {
+        self.clause.swap(index, clause_index);
+        // }
 
         unsafe {
             variables
                 .get_unchecked(literal.index())
-                .watch_added(self.key(), literal.polarity());
+                .watch_added(self.key, literal.polarity());
         };
     }
 
@@ -177,12 +177,11 @@ impl StoredClause {
                 .iter()
                 .position(|clause_literal| *clause_literal == literal)
             {
-                let last = *self.clause.last().expect("Literally last");
+                let last = *self.clause.last().expect("literally last");
                 let removed = self.clause.swap_remove(position);
                 if removed == self.cached_a {
                     self.cached_a = last;
                     self.update_watch(Watch::A, valuation, variables);
-                    // panic!("subsumed watch")
                 } else if removed == self.cached_b {
                     self.cached_b = last;
                     self.update_watch(Watch::B, valuation, variables);

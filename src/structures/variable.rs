@@ -59,16 +59,11 @@ impl Variable {
     }
 
     pub fn watch_added(&self, clause_key: ClauseKey, polarity: bool) {
-        match polarity {
-            true => unsafe {
-                let occurrences = &mut *self.positive_occurrences.get();
-                occurrences.push(clause_key);
-            },
-            false => unsafe {
-                let occurrences = &mut *self.negative_occurrences.get();
-                occurrences.push(clause_key);
-            },
-        }
+        let occurrences = match polarity {
+            true => unsafe { &mut *self.positive_occurrences.get() },
+            false => unsafe { &mut *self.negative_occurrences.get() },
+        };
+        occurrences.push(clause_key);
     }
 }
 
