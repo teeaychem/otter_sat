@@ -74,6 +74,12 @@ impl ResolutionBuffer {
         }
     }
 
+    pub fn set_inital_clause(&mut self, clause: &impl Clause, key: ClauseKey) {
+        self.trail.push(key);
+        self.merge_clause(clause);
+    }
+
+
     pub fn merge_clause(&mut self, clause: &impl Clause) {
         for literal in clause.literal_slice() {
             match self.buffer.get(literal.index()).expect("wuh") {

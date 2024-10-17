@@ -51,17 +51,6 @@ impl Context {
             'literal_consequences: while let Some(literal) = self.consequence_q.pop_front() {
                 self.update_watches(literal);
                 if let Some(conflict_key) = self.examine_consequences_of(literal) {
-                    self.conflicts += 1;
-                    self.conflicts_since_last_forget += 1;
-                    self.conflicts_since_last_reset += 1;
-                    last_valuation = self.valuation.clone();
-
-                    if self.conflicts % decay_frequency == 0 {
-                        for variable in &self.variables {
-                            variable.multiply_activity(decay_factor);
-                        }
-                    }
-
                     match self.conflict_analysis(
                         conflict_key,
                         vsids_variant,
@@ -69,9 +58,21 @@ impl Context {
                         activity,
                         show_core,
                     ) {
-                        Status::NoSolution => return Result::Unsatisfiable,
+                        Status::NoSolution => return Result::Unsatisfiable(conflict_key),
                         Status::MissedImplication => continue 'main_loop,
                         Status::AssertingClause => {
+                            last_valuation = self.valuation.clone();
+
+                            self.conflicts += 1;
+                            self.conflicts_since_last_forget += 1;
+                            self.conflicts_since_last_reset += 1;
+
+                            if self.conflicts % decay_frequency == 0 {
+                                for variable in &self.variables {
+                                    variable.multiply_activity(decay_factor);
+                                }
+                            }
+
                             self.reductions_and_restarts(
                                 reduction_allowed,
                                 restart_allowed,

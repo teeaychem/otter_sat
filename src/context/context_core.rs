@@ -34,14 +34,17 @@ impl Context {
         &self.valuation
     }
 
-    pub fn most_active_none(&self, val: &impl Valuation) -> Option<usize> {
-        val.slice()
+    pub fn most_active_none(&self, valuation: &impl Valuation) -> Option<usize> {
+        valuation
+            .slice()
             .iter()
             .enumerate()
-            .filter(|(_, v)| v.is_none())
-            .map(|(i, _)| (i, self.variables[i].activity()))
-            .max_by(|a, b| a.1.total_cmp(&b.1))
-            .map(|(a, _)| a)
+            .filter(|(_, value)| value.is_none())
+            .map(|(index, _)| (index, self.variables[index].activity()))
+            .max_by(|index_activity_a, index_activity_b| {
+                index_activity_a.1.total_cmp(&index_activity_b.1)
+            })
+            .map(|(index, _)| index)
     }
 
     /// Stores a clause with an automatically generated id.
@@ -53,7 +56,12 @@ impl Context {
             self.stored_clauses
                 .insert(src, clause, &self.valuation, &mut self.variables);
         let the_clause = self.stored_clauses.retreive_mut(clause_key).expect("o");
-        let node_index = self.implication_graph.add_node(the_clause.id());
+        let node_index = self
+            .implication_graph
+            .add_node(crate::context::ImplicationGraphNode {
+                id: the_clause.id(),
+                key: the_clause.key(),
+            });
         the_clause.add_node_index(node_index);
         clause_key
     }

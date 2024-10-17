@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+// #![allow(unused_imports)]
+// #![allow(unused_variables)]
 
 use clap::Parser;
 use std::fs;
@@ -52,10 +54,10 @@ fn main() {
             }
 
             match result {
-                Result::Unsatisfiable => {
+                Result::Unsatisfiable(clause_key) => {
                     println!("s UNSATISFIABLE");
                     if config.show_core {
-                        the_context.display_core();
+                        the_context.display_core(clause_key);
                     }
                     std::process::exit(00);
                 }
