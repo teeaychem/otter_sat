@@ -30,7 +30,7 @@ impl Level {
             Source::HobsonChoice
             | Source::Assumption
             | Source::Resolution(_)
-            | Source::StoredClause(_) => self.observations.push((source.clone(), literal)),
+            | Source::StoredClause(_) => self.observations.push((*source, literal)),
         }
     }
 

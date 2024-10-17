@@ -38,7 +38,7 @@ impl Context {
         let polarity_lean = self.config.polarity_lean;
         let glue_strength = self.config.glue_strength;
         let activity = self.config.activity_conflict;
-        let show_core = self.config.show_core;
+        let subsumption = self.config.subsumption;
 
         'main_loop: loop {
             self.iterations += 1;
@@ -56,7 +56,7 @@ impl Context {
                         vsids_variant,
                         stopping_criteria,
                         activity,
-                        show_core,
+                        subsumption,
                     ) {
                         Status::NoSolution => return Result::Unsatisfiable(conflict_key),
                         Status::MissedImplication => continue 'main_loop,
@@ -184,6 +184,7 @@ impl Context {
             let clause_key = unsafe { *borrowed_occurrences.get_unchecked(index) };
 
             let stored_clause = self.stored_clauses.retreive(clause_key);
+            let stored_index = stored_clause.get_node_index();
 
             let watch_a = stored_clause.get_watched(Watch::A);
             let watch_b = stored_clause.get_watched(Watch::B);
@@ -201,12 +202,12 @@ impl Context {
                     (None, None) => {}
                     (Some(a), None) if a == watch_a.polarity() => {}
                     (Some(_), None) => {
-                        self.literal_update(watch_b, &Source::StoredClause(clause_key));
+                        self.literal_update(watch_b, &Source::StoredClause(stored_index));
                         self.consequence_q.push_back(watch_b);
                     }
                     (None, Some(b)) if b == watch_b.polarity() => {}
                     (None, Some(_)) => {
-                        self.literal_update(watch_a, &Source::StoredClause(clause_key));
+                        self.literal_update(watch_a, &Source::StoredClause(stored_index));
                         self.consequence_q.push_back(watch_a);
                     }
                     (Some(a), Some(b)) if a == watch_a.polarity() || b == watch_b.polarity() => {}

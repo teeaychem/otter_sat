@@ -25,6 +25,10 @@ fn main() {
     }
 
     let config = Config::from_args(Args::parse());
+    let show_valuation = config.show_valuation;
+    let show_stats = config.show_stats;
+    let time_limit = config.time_limit;
+    let show_core = config.show_core;
 
     match fs::read_to_string(&config.formula_file) {
         Ok(contents) => {
@@ -44,26 +48,26 @@ fn main() {
                 println!("c CHOICE POLARITY LEAN: {}", config.polarity_lean);
             }
             log::trace!("Formula processed");
-            let mut the_context = Context::from_formula(formula, config.clone());
+            let mut the_context = Context::from_formula(formula, config);
             log::trace!("Solve initialised");
 
             let result = the_context.solve();
 
-            if config.show_stats {
+            if show_stats {
                 the_context.display_stats();
             }
 
             match result {
                 Result::Unsatisfiable(clause_key) => {
                     println!("s UNSATISFIABLE");
-                    if config.show_core {
+                    if show_core {
                         the_context.display_core(clause_key);
                     }
                     std::process::exit(00);
                 }
                 Result::Satisfiable => {
                     println!("s SATISFIABLE");
-                    if config.show_valuation {
+                    if show_valuation {
                         println!(
                             "v {}",
                             the_context.valuation().as_display_string(&the_context)
@@ -72,8 +76,8 @@ fn main() {
                     std::process::exit(10);
                 }
                 Result::Unknown => {
-                    if let Some(limit) = config.time_limit {
-                        if config.show_stats && the_context.time > limit {
+                    if let Some(limit) = time_limit {
+                        if show_stats && the_context.time > limit {
                             println!("c TIME LIMIT EXCEEDED");
                         }
                     }
