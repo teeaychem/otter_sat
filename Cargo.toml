@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-time = []
 extra_stats = []
+time = []
 
 [dependencies]
 clap = { version = "4.5.15", features = ["derive"] }
@@ -17,11 +17,12 @@ serde = { version = "1.0", features = ["derive"] }
 slotmap = { version = "1.0" }
 
 [profile.profiling]
-inherits = "release"
 debug = true
+inherits = "release"
 
 [profile.redline]
-inherits = "release"
 codegen-units = 1
+debug=false
+inherits = "release"
 lto = true
 panic = "abort"

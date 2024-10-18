@@ -99,6 +99,7 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableStore for T {
         self
     }
 
+    #[inline(always)]
     fn get_unsafe(&self, index: usize) -> &Variable {
         unsafe { self.get_unchecked(index) }
     }

@@ -7,8 +7,7 @@ use crate::{
     structures::{
         clause::stored::Watch,
         literal::{Literal, Source},
-        variable::variable_store::VariableStore,
-        variable::VariableId,
+        variable::{variable_store::VariableStore, Variable, VariableId},
     },
 };
 
@@ -19,7 +18,6 @@ impl Context {
     pub fn solve(&mut self) -> Result {
         let this_total_time = std::time::Instant::now();
 
-        #[allow(unused_assignments)]
         let mut last_valuation = vec![None; self.variables.len()];
 
         if self.config.hobson_choices {
@@ -98,7 +96,7 @@ impl Context {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn literal_update(&mut self, literal: Literal, source: &Source) {
+    pub fn literal_update(&mut self, literal: Literal, source: Source) {
         // update the valuation and match the result
         self.variables.set_value(literal);
 
@@ -106,7 +104,7 @@ impl Context {
 
         log::trace!("{literal} from {source:?}");
 
-        let level_index = match &source {
+        let level_index = match source {
             Source::Choice | Source::StoredClause(_) => &self.levels.len() - 1,
             Source::Assumption | Source::HobsonChoice | Source::Resolution(_) => 0,
         };
@@ -120,8 +118,8 @@ impl Context {
 
     pub fn update_watches(&mut self, literal: Literal) {
         let variable = self.variables.get_unsafe(literal.index());
-        let variable_id = variable.id();
-        // and, process whether any change to the watch literals is required
+
+        // process whether any change to the watch literals is required
         let working_clause_vec = match literal.polarity() {
             true => unsafe { &mut *variable.negative_occurrences.get() },
             false => unsafe { &mut *variable.positive_occurrences.get() },
@@ -144,13 +142,19 @@ impl Context {
                     let watched_a = stored_clause.get_watched(Watch::A);
                     let watched_b = stored_clause.get_watched(Watch::B);
 
-                    if variable_id == watched_a.v_id() {
-                        if not_watch_witness(&self.variables, watched_b) {
+                    if variable.id() == watched_a.v_id() {
+                        if not_watch_witness(
+                            self.variables.get_unsafe(watched_b.index()),
+                            watched_b.polarity(),
+                        ) {
                             stored_clause.update_watch(Watch::A, &self.variables);
                         }
                         index += 1;
-                    } else if variable_id == watched_b.v_id() {
-                        if not_watch_witness(&self.variables, watched_a) {
+                    } else if variable.id() == watched_b.v_id() {
+                        if not_watch_witness(
+                            self.variables.get_unsafe(watched_a.index()),
+                            watched_a.polarity(),
+                        ) {
                             stored_clause.update_watch(Watch::B, &self.variables);
                         }
                         index += 1;
@@ -166,7 +170,7 @@ impl Context {
     pub fn literal_set_from_vec(&mut self, choices: Vec<VariableId>) {
         for v_id in choices {
             let the_literal = Literal::new(v_id, false);
-            self.literal_update(the_literal, &Source::HobsonChoice);
+            self.literal_update(the_literal, Source::HobsonChoice);
             self.consequence_q.push_back(the_literal);
         }
     }
@@ -186,7 +190,6 @@ impl Context {
             let clause_key = unsafe { *borrowed_occurrences.get_unchecked(index) };
 
             let stored_clause = self.stored_clauses.retreive(clause_key);
-            let stored_index = stored_clause.get_node_index();
 
             let watch_a = stored_clause.get_watched(Watch::A);
             let watch_b = stored_clause.get_watched(Watch::B);
@@ -204,12 +207,18 @@ impl Context {
                     (None, None) => {}
                     (Some(a), None) if a == watch_a.polarity() => {}
                     (Some(_), None) => {
-                        self.literal_update(watch_b, &Source::StoredClause(stored_index));
+                        self.literal_update(
+                            watch_b,
+                            Source::StoredClause(stored_clause.get_node_index()),
+                        );
                         self.consequence_q.push_back(watch_b);
                     }
                     (None, Some(b)) if b == watch_b.polarity() => {}
                     (None, Some(_)) => {
-                        self.literal_update(watch_a, &Source::StoredClause(stored_index));
+                        self.literal_update(
+                            watch_a,
+                            Source::StoredClause(stored_clause.get_node_index()),
+                        );
                         self.consequence_q.push_back(watch_a);
                     }
                     (Some(a), Some(b)) if a == watch_a.polarity() || b == watch_b.polarity() => {}
@@ -230,13 +239,15 @@ impl Context {
             let occurrences = match literal.polarity() {
                 true => unsafe {
                     &mut *self
-                        .variables.get_unsafe(literal.index())
+                        .variables
+                        .get_unsafe(literal.index())
                         .negative_occurrences
                         .get()
                 },
                 false => unsafe {
                     &mut *self
-                        .variables.get_unsafe(literal.index())
+                        .variables
+                        .get_unsafe(literal.index())
                         .positive_occurrences
                         .get()
                 },
@@ -278,6 +289,7 @@ impl Context {
     ) {
         if reduction_allowed && self.it_is_time_to_reduce(u) {
             log::debug!(target: "forget", "Forget @r {}", self.restarts);
+
             self.display_stats();
 
             self.stored_clauses.reduce(glue_strength);
@@ -299,7 +311,7 @@ impl Context {
         log::trace!(
             "Choice: {choice_index} @ {} with activity {}",
             self.level().index(),
-            self.variables[choice_index].activity()
+            self.variables.get_unsafe(choice_index).activity()
         );
         self.add_fresh_level();
         let choice_literal = if let Some(polarity) = last_valuation[choice_index] {
@@ -310,7 +322,7 @@ impl Context {
                 rand::thread_rng().gen_bool(polarity_lean),
             )
         };
-        self.literal_update(choice_literal, &Source::Choice);
+        self.literal_update(choice_literal, Source::Choice);
         self.consequence_q.push_back(choice_literal);
     }
 
@@ -321,9 +333,9 @@ impl Context {
     }
 }
 
-fn not_watch_witness(variables: &impl VariableStore, literal: Literal) -> bool {
-    match variables.polarity_of(literal.index()) {
-        Some(p) => p != literal.polarity(),
+fn not_watch_witness(variable: &Variable, polarity: bool) -> bool {
+    match variable.polarity() {
         None => true,
+        Some(found_polarity) => found_polarity != polarity,
     }
 }

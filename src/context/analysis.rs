@@ -44,7 +44,7 @@ impl Context {
             // check to see if missed
             let missed_level = self.backjump_level(conflict_clause.literal_slice());
             self.backjump(missed_level);
-            self.literal_update(asserted, &LiteralSource::StoredClause(conflict_index));
+            self.literal_update(asserted, LiteralSource::StoredClause(conflict_index));
             self.consequence_q.push_back(asserted);
 
             SolveStatus::MissedImplication
@@ -114,7 +114,7 @@ impl Context {
                     }
 
                     let assertion = asserted_literal.expect("wuh");
-                    self.literal_update(assertion, &source);
+                    self.literal_update(assertion, source);
                     self.consequence_q.push_back(assertion);
                     SolveStatus::AssertingClause
                 }

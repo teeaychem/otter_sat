@@ -5,7 +5,6 @@ use crate::{
         level::{Level, LevelIndex},
         literal::Literal,
         variable::variable_store::VariableStore,
-        variable::Variable,
     },
 };
 
@@ -60,7 +59,6 @@ impl Context {
             for literal in self.levels.pop().expect("Lost level").literals() {
                 log::trace!("Noneset: {}", literal.index());
                 self.variables.retract_valuation(literal.index());
-
             }
         }
     }
