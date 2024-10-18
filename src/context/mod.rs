@@ -97,7 +97,7 @@ impl Context {
                 1 => {
                     the_context.literal_update(
                         *formula_clause.first().expect("Literal vanish"),
-                        &LiteralSource::Assumption,
+                        LiteralSource::Assumption,
                     );
                 }
                 _ => {

@@ -25,7 +25,7 @@ pub struct StoredClause {
 
 // { Clause enums
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Source {
     Formula,
     Resolution,
@@ -89,8 +89,8 @@ impl StoredClause {
         self.key
     }
 
-    pub const fn source(&self) -> &Source {
-        &self.source
+    pub const fn source(&self) -> Source {
+        self.source
     }
 
     pub fn get_watched(&self, watch: Watch) -> Literal {
@@ -108,6 +108,7 @@ impl StoredClause {
         unsafe { *self.lbd.get() }
     }
 
+    #[inline(always)]
     fn watch_update_replace(
         &mut self,
         watch: Watch,
@@ -115,42 +116,77 @@ impl StoredClause {
         variable: &Variable,
         literal: Literal,
     ) {
-        let clause_index = match watch {
+        match watch {
             Watch::A => {
                 self.cached_a = literal;
-                0
+                self.clause.swap(index, 0);
+                variable.watch_added(self.key, literal.polarity());
             }
             Watch::B => {
                 self.cached_b = literal;
-                1
+                self.clause.swap(index, 1);
+                variable.watch_added(self.key, literal.polarity());
             }
         };
-        // let mix_up = index / 3;
-        // if mix_up > 2 {
-        //     self.clause.swap(index, mix_up);
-        //     self.clause.swap(mix_up, clause_index);
-        // } else {
-        self.clause.swap(index, clause_index);
-        // }
-
-        variable.watch_added(self.key, literal.polarity());
     }
 
+    #[inline(always)]
+    /// Searches for and then updates to a new literal for the given watch index
+    /// The match is to help prototype re-ordering the clause
+    /// Specifically, the general case allows storing information about the previous literal
     pub fn update_watch(&mut self, watch: Watch, variables: &impl VariableStore) {
-        'search_loop: for index in 2..self.clause.len() {
-            let the_literal = unsafe { *self.clause.get_unchecked(index) };
-            let the_variable = variables.get_unsafe(the_literal.index());
+        let length = self.clause.len();
 
-            match the_variable.polarity() {
-                None => {
-                    self.watch_update_replace(watch, index, the_variable, the_literal);
-                    break 'search_loop;
+        match length {
+            2 => {}
+            3 => {
+                let the_literal = unsafe { *self.clause.get_unchecked(2) };
+                let the_variable = variables.get_unsafe(the_literal.index());
+                match the_variable.polarity() {
+                    None => self.watch_update_replace(watch, 2, the_variable, the_literal),
+                    Some(polarity) if polarity == the_literal.polarity() => {
+                        self.watch_update_replace(watch, 2, the_variable, the_literal)
+                    }
+                    Some(_) => {}
                 }
-                Some(polarity) if polarity == the_literal.polarity() => {
-                    self.watch_update_replace(watch, index, the_variable, the_literal);
-                    break 'search_loop;
+            }
+            _ => {
+                let last_literal = unsafe { *self.clause.get_unchecked(2) };
+                let mut last_variable = variables.get_unsafe(last_literal.index());
+                match last_variable.polarity() {
+                    None => {
+                        self.watch_update_replace(watch, 2, last_variable, last_literal);
+                        return;
+                    }
+                    Some(polarity) if polarity == last_literal.polarity() => {
+                        self.watch_update_replace(watch, 2, last_variable, last_literal);
+                        return;
+                    }
+                    Some(_) => {}
                 }
-                Some(_) => {}
+
+                'search_loop: for index in 3..length {
+                    let the_literal = unsafe { *self.clause.get_unchecked(index) };
+                    let the_variable = variables.get_unsafe(the_literal.index());
+
+                    match the_variable.polarity() {
+                        None => {
+                            self.watch_update_replace(watch, index, the_variable, the_literal);
+                            break 'search_loop;
+                        }
+                        Some(polarity) if polarity == the_literal.polarity() => {
+                            self.watch_update_replace(watch, index, the_variable, the_literal);
+                            break 'search_loop;
+                        }
+                        Some(_) => {
+                            if last_variable.activity() <= the_variable.activity() {
+                                self.clause.swap(index, index - 1);
+                            } else {
+                                last_variable = the_variable;
+                            }
+                        }
+                    }
+                }
             }
         }
     }

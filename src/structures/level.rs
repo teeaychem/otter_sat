@@ -24,13 +24,13 @@ impl Level {
         self.index
     }
 
-    pub fn record_literal(&mut self, literal: Literal, source: &Source) {
+    pub fn record_literal(&mut self, literal: Literal, source: Source) {
         match source {
             Source::Choice => self.choice = Some(literal),
             Source::HobsonChoice
             | Source::Assumption
             | Source::Resolution(_)
-            | Source::StoredClause(_) => self.observations.push((*source, literal)),
+            | Source::StoredClause(_) => self.observations.push((source, literal)),
         }
     }
 
