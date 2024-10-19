@@ -1,6 +1,8 @@
 use core::char;
+use std::fmt::Display;
+use std::io::{stdout, Write};
 
-use crate::structures::formula::Formula;
+use crate::{structures::formula::Formula, Config};
 
 impl Formula {
     pub fn from_dimacs(string: &str) -> Self {
@@ -60,5 +62,80 @@ impl Formula {
             to += 1;
         }
         the_formula
+    }
+}
+
+use crossterm::{cursor, terminal, QueueableCommand};
+
+pub struct ContextWindow {
+    location: (u16, u16),
+    column: u16,
+    top: u16,
+    time_limit: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum WindowItem {
+    Iterations,
+    Conflicts,
+    Ratio,
+    Time,
+}
+
+impl ContextWindow {
+    pub fn new(location: (u16, u16), config: &Config, formula: &Formula) -> Self {
+        println!("c 🦦");
+        println!("c Parsing formula from file: {:?}", config.formula_file);
+        println!(
+            "c Parsed formula with {} variables and {} clauses",
+            formula.variable_count(),
+            formula.clause_count()
+        );
+        println!("c CHOICE POLARITY LEAN {}", config.polarity_lean);
+        if let Some(limit) = config.time_limit {
+            println!("c TIME LIMIT: {:.2?}", limit);
+        }
+        println!("c ITERATIONS");
+        println!("c CONFLCITS");
+        println!("c RATIO");
+        println!("c TIME");
+        ContextWindow {
+            location,
+            column: 14,
+            top: location.1,
+            time_limit: config.time_limit.is_some(),
+        }
+    }
+    fn get_offset(&self, item: WindowItem) -> (u16, u16) {
+        let mut the_row = self.top;
+        if self.time_limit {
+            the_row += 1
+        }
+        match item {
+            WindowItem::Iterations => the_row += 4,
+            WindowItem::Conflicts => the_row += 5,
+            WindowItem::Ratio => the_row += 6,
+            WindowItem::Time => the_row += 7,
+        }
+        (self.column, the_row)
+    }
+
+    pub fn update_item(&self, item: WindowItem, i: impl Display) {
+        let mut stdout = stdout();
+        stdout.queue(cursor::SavePosition).unwrap();
+        let (x, y) = self.get_offset(item);
+        let _ = stdout.queue(cursor::MoveTo(x, y));
+        stdout
+            .queue(terminal::Clear(terminal::ClearType::UntilNewLine))
+            .unwrap();
+        match item {
+            WindowItem::Ratio => stdout.write_all(format!("{i:.4}").as_bytes()).unwrap(),
+            _ => stdout.write_all(format!("{i}").as_bytes()).unwrap(),
+        }
+        stdout.queue(cursor::RestorePosition).unwrap();
+    }
+
+    pub fn flush(&self) {
+        stdout().flush().unwrap();
     }
 }

@@ -24,10 +24,6 @@ impl Variable {
         unsafe { *self.decision_level.get() }
     }
 
-    pub fn clear_decision_level(&self) {
-        unsafe { *self.decision_level.get() = None }
-    }
-
     pub fn set_decision_level(&self, level: LevelIndex) {
         unsafe { *self.decision_level.get() = Some(level) }
     }
