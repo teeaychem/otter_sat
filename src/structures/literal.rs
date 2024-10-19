@@ -12,7 +12,7 @@ pub struct Literal {
 pub enum Source {
     Choice,                  // a choice made where the alternative may make a SAT difference
     HobsonChoice, // a choice made with a guarantee that the alternative would make no SAT difference
-    StoredClause(NodeIndex), // the literal must be the case for SAT given some valuation
+    Clause(NodeIndex), // the literal must be the case for SAT given some valuation
     Resolution(NodeIndex), // there was no reason to store the resolved clause
     Assumption,
 }
@@ -25,9 +25,9 @@ impl Literal {
         }
     }
 
-    pub fn new(variable: VariableId, polarity: bool) -> Self {
+    pub fn new(variable_id: VariableId, polarity: bool) -> Self {
         Self {
-            v_id: variable,
+            v_id: variable_id,
             polarity,
         }
     }

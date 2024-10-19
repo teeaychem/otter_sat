@@ -30,12 +30,16 @@ impl Level {
             Source::HobsonChoice
             | Source::Assumption
             | Source::Resolution(_)
-            | Source::StoredClause(_) => self.observations.push((source, literal)),
+            | Source::Clause(_) => self.observations.push((source, literal)),
         }
     }
 
     pub fn observations(&self) -> &[(Source, Literal)] {
         &self.observations
+    }
+
+    pub fn extend_observations(&mut self, with: Vec<(Source, Literal)>) {
+        self.observations.extend(with);
     }
 
     pub fn literals(&self) -> impl Iterator<Item = Literal> + '_ {

@@ -2,7 +2,7 @@ use crate::{
     context::{
         config::StoppingCriteria,
         store::{ClauseKey, ClauseStore},
-        ResolutionGraph,
+        ImplicationGraphNode, ResolutionGraph,
     },
     structures::{
         clause::Clause,
@@ -146,12 +146,12 @@ impl ResolutionBuffer {
         stopping_criteria: StoppingCriteria,
         subsumption: bool,
     ) -> Status {
-        for (src, literal) in observations {
-            if let LiteralSource::StoredClause(node_index) = src {
+        for (source, literal) in observations {
+            if let LiteralSource::Clause(node_index) = source {
                 let the_node = graph.node_weight(*node_index).expect("missing node");
                 let the_key = match the_node {
-                    super::ImplicationGraphNode::Clause(graph_clause) => graph_clause.key,
-                    super::ImplicationGraphNode::Literal(_) => panic!("literal panic"),
+                    ImplicationGraphNode::Clause(graph_clause) => graph_clause.key,
+                    ImplicationGraphNode::Literal(_) => panic!("literal panic"),
                 };
 
                 let source_clause = stored_clauses.retreive_mut(the_key).expect("");

@@ -30,7 +30,7 @@ impl Context {
             return SolveStatus::NoSolution;
         }
         let conflict_clause = self.stored_clauses.retreive(clause_key);
-        let conflict_index = conflict_clause.get_node_index();
+        let conflict_index = conflict_clause.node_index();
         log::trace!("Clause {conflict_clause}");
 
         // this could be made persistent, but tying it to the solve requires a cell and lots of unsafe
@@ -44,7 +44,11 @@ impl Context {
             // check to see if missed
             let missed_level = self.backjump_level(conflict_clause.literal_slice());
             self.backjump(missed_level);
-            self.literal_update(asserted, LiteralSource::StoredClause(conflict_index));
+            self.literal_update(
+                asserted,
+                missed_level,
+                LiteralSource::Clause(conflict_index),
+            );
             self.consequence_q.push_back(asserted);
 
             SolveStatus::MissedImplication
@@ -81,41 +85,53 @@ impl Context {
 
                     self.apply_VSIDS(&resolved_clause, &the_buffer, vsids_variant, activity);
 
-                    let (source, index) = match resolved_clause.len() {
+                    let asserted_literal = asserted_literal.expect("literal not there");
+
+                    let index = match resolved_clause.len() {
                         1 => {
                             self.backjump(0);
 
                             let graph_literal = GraphLiteral {
-                                literal: asserted_literal.expect("literal not there"),
+                                literal: asserted_literal,
                             };
                             let literal_index = self
                                 .implication_graph
                                 .add_node(ImplicationGraphNode::Literal(graph_literal));
 
-                            (LiteralSource::Resolution(literal_index), literal_index)
+                            self.literal_update(
+                                asserted_literal,
+                                0,
+                                LiteralSource::Resolution(literal_index),
+                            );
+
+                            literal_index
                         }
                         _ => {
-                            let backjump_level =
+                            let backjump_level_index =
                                 self.backjump_level(resolved_clause.literal_slice());
-                            self.backjump(backjump_level);
+                            self.backjump(backjump_level_index);
 
                             let stored_clause =
                                 self.store_clause(resolved_clause, ClauseSource::Resolution);
-                            let stored_index = stored_clause.get_node_index();
+                            let stored_index = stored_clause.node_index();
 
-                            (LiteralSource::StoredClause(stored_index), stored_index)
+                            self.literal_update(
+                                asserted_literal,
+                                backjump_level_index,
+                                LiteralSource::Clause(stored_index),
+                            );
+
+                            stored_index
                         }
                     };
 
                     for key in the_buffer.trail() {
                         let trail_clause = self.stored_clauses.retreive(*key);
-                        let trail_index = trail_clause.get_node_index();
+                        let trail_index = trail_clause.node_index();
                         self.implication_graph.add_edge(index, trail_index, ());
                     }
 
-                    let assertion = asserted_literal.expect("wuh");
-                    self.literal_update(assertion, source);
-                    self.consequence_q.push_back(assertion);
+                    self.consequence_q.push_back(asserted_literal);
                     SolveStatus::AssertingClause
                 }
             }
@@ -134,7 +150,9 @@ impl Context {
         match variant {
             config::VSIDS::Chaff => {
                 for literal in clause.literal_slice() {
-                    self.variables.get_unsafe(literal.index()).add_activity(activity);
+                    self.variables
+                        .get_unsafe(literal.index())
+                        .add_activity(activity);
                 }
             }
             config::VSIDS::MiniSAT => {
@@ -154,13 +172,13 @@ impl Context {
         );
 
         let conflict_clause = self.stored_clauses.retreive(conflict_key);
-        let conflict_index = conflict_clause.get_node_index();
+        let conflict_index = conflict_clause.node_index();
 
         let mut basic_clause_set = BTreeSet::new();
         basic_clause_set.insert(conflict_index);
         for (source, _) in &self.level().observations {
             match source {
-                LiteralSource::StoredClause(node_index) | LiteralSource::Resolution(node_index) => {
+                LiteralSource::Clause(node_index) | LiteralSource::Resolution(node_index) => {
                     basic_clause_set.insert(*node_index);
                 }
                 _ => {}

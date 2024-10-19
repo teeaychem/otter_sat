@@ -55,7 +55,7 @@ pub struct Args {
     #[arg(long, default_value_t = false)]
     hobson: bool,
 
-    #[arg(long, default_value_t = 0.02)]
+    #[arg(long, default_value_t = 0.0)]
     /// The chance of making a random choice (as opposed to using most VSIDS activity)
     random_choice_frequency: f64,
 
