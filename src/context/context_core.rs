@@ -1,5 +1,6 @@
 use crate::{
     context::{Context, GraphClause, ImplicationGraphNode},
+    io::{ContextWindow, WindowItem},
     structures::{
         clause::stored::{Source, StoredClause},
         level::{Level, LevelIndex},
@@ -63,14 +64,13 @@ impl Context {
         }
     }
 
-    pub fn display_stats(&self) {
-        println!("c STATS");
-        println!("c   ITERATIONS      {}", self.iterations);
-        println!("c   CONFLICTS       {}", self.conflicts);
-        println!(
-            "c   CONFLICT RATIO  {:.4?}",
-            self.conflicts as f32 / self.iterations as f32
+    pub fn update_stats(&self, window: &ContextWindow) {
+        window.update_item(WindowItem::Iterations, self.iterations);
+        window.update_item(WindowItem::Conflicts, self.conflicts);
+        window.update_item(
+            WindowItem::Ratio,
+            self.conflicts as f32 / self.iterations as f32,
         );
-        println!("c   TIME            {:.2?}", self.time);
+        window.update_item(WindowItem::Time, format!("{:.2?}", self.time));
     }
 }

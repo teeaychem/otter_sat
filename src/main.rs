@@ -2,6 +2,13 @@
 // #![allow(unused_imports)]
 // #![allow(unused_variables)]
 
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 use clap::Parser;
 use std::fs;
 
@@ -10,12 +17,14 @@ mod io;
 mod procedures;
 mod structures;
 
-use crate::structures::formula::Formula;
+use crate::{io::ContextWindow, structures::formula::Formula};
 use context::{
     config::{Args, Config},
     Context, Result,
 };
 use structures::variable::variable_store::VariableStore;
+
+use crossterm::cursor;
 
 // #[rustfmt::skip]
 fn main() {
@@ -25,6 +34,7 @@ fn main() {
     }
 
     let config = Config::from_args(Args::parse());
+
     let show_valuation = config.show_valuation;
     let show_stats = config.show_stats;
     let time_limit = config.time_limit;
@@ -34,27 +44,23 @@ fn main() {
         Ok(contents) => {
             let formula = Formula::from_dimacs(&contents);
 
-            if config.show_stats {
-                println!("c 🦦");
-                println!("c Parsing formula from file: {:?}", config.formula_file);
-                println!(
-                    "c Parsed formula with {} variables and {} clauses",
-                    formula.variable_count(),
-                    formula.clause_count()
-                );
-                if let Some(limit) = config.time_limit {
-                    println!("c TIME LIMIT: {limit:.2?}");
-                }
-                println!("c CHOICE POLARITY LEAN: {}", config.polarity_lean);
-            }
-            log::trace!("Formula processed");
-            let mut the_context = Context::from_formula(formula, config);
-            log::trace!("Solve initialised");
+            let the_window = if config.show_stats {
+                Some(ContextWindow::new(
+                    cursor::position().expect("Unable to display stats"),
+                    &config,
+                    &formula,
+                ))
+            } else {
+                None
+            };
+            let mut the_context = Context::from_formula(formula, config, the_window);
+            log::trace!("Context made");
 
             let result = the_context.solve();
 
             if show_stats {
-                the_context.display_stats();
+                the_context.update_stats(the_context.window.as_ref().unwrap());
+                the_context.window.as_ref().unwrap().flush();
             }
 
             match result {
@@ -68,10 +74,7 @@ fn main() {
                 Result::Satisfiable => {
                     println!("s SATISFIABLE");
                     if show_valuation {
-                        println!(
-                            "v {}",
-                            the_context.variables().as_display_string()
-                        );
+                        println!("v {}", the_context.variables().as_display_string());
                     }
                     std::process::exit(10);
                 }

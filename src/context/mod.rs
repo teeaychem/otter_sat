@@ -13,7 +13,7 @@ use crate::{
         level::Level,
         literal::{Literal, Source as LiteralSource},
         variable::Variable,
-    },
+    }, ContextWindow,
 };
 
 use petgraph::Graph;
@@ -51,6 +51,7 @@ pub struct Context {
     pub time: Duration,
     config: config::Config,
     pub implication_graph: ResolutionGraph,
+    pub window: Option<ContextWindow>
 }
 
 pub enum Status {
@@ -66,7 +67,7 @@ pub enum Result {
 }
 
 impl Context {
-    pub fn from_formula(formula: Formula, config: config::Config) -> Self {
+    pub fn from_formula(formula: Formula, config: config::Config, window: Option<ContextWindow>) -> Self {
         let variables = formula.variables;
         let clauses = formula.clauses;
         let variable_count = variables.len();
@@ -84,6 +85,7 @@ impl Context {
             time: Duration::new(0, 0),
             config,
             implication_graph: Graph::new(),
+            window
         };
         the_context.levels.push(Level::new(0));
 
