@@ -1,4 +1,4 @@
-use crate::structures::{literal::Literal, variable::Variable};
+use crate::structures::{level::LevelIndex, literal::Literal, variable::Variable};
 
 use std::ops::DerefMut;
 
@@ -13,7 +13,7 @@ pub trait VariableStore {
 
     fn check_set_value(&mut self, literal: Literal) -> Result<(), Status>;
 
-    fn set_value(&mut self, literal: Literal);
+    fn set_value(&mut self, literal: Literal, level_index: LevelIndex);
 
     fn retract_valuation(&mut self, index: usize);
 
@@ -78,11 +78,13 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableStore for T {
         }
     }
 
-    fn set_value(&mut self, literal: Literal) {
+    fn set_value(&mut self, literal: Literal, level_index: LevelIndex) {
         log::trace!("Set literal: {}", literal);
         unsafe {
-            self.get_unchecked_mut(literal.index())
-                .set_polarity(Some(literal.polarity()))
+
+            let variable = self.get_unchecked_mut(literal.index());
+                variable.set_polarity(Some(literal.polarity()));
+            variable.set_decision_level(level_index);
         }
     }
 

@@ -24,8 +24,6 @@ use context::{
 };
 use structures::variable::variable_store::VariableStore;
 
-use crossterm::cursor;
-
 // #[rustfmt::skip]
 fn main() {
     match log4rs::init_file("config/log4rs.yaml", Default::default()) {
@@ -44,14 +42,9 @@ fn main() {
         Ok(contents) => {
             let formula = Formula::from_dimacs(&contents);
 
-            let the_window = if config.show_stats {
-                Some(ContextWindow::new(
-                    cursor::position().expect("Unable to display stats"),
-                    &config,
-                    &formula,
-                ))
-            } else {
-                None
+            let the_window = match config.show_stats {
+                true => Some(ContextWindow::new(&config, &formula)),
+                false => None,
             };
             let mut the_context = Context::from_formula(formula, config, the_window);
             log::trace!("Context made");
