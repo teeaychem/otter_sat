@@ -1,3 +1,5 @@
+use rand::{seq::IteratorRandom, Rng};
+
 use crate::{
     context::{Context, GraphClause, ImplicationGraphNode},
     io::{ContextWindow, WindowItem},
@@ -26,14 +28,23 @@ impl Context {
         &self.variables
     }
 
-    pub fn most_active_none(&self) -> Option<usize> {
-        self.variables
-            .iter()
-            .enumerate()
-            .filter(|(_, variable)| variable.polarity().is_none())
-            .map(|(index, _)| (index, self.variables[index].activity()))
-            .max_by(|(_, activity_a), (_, activity_b)| activity_a.total_cmp(activity_b))
-            .map(|(index, _)| index)
+    pub fn get_unassigned(&self, random_choice_frequency: f64) -> Option<usize> {
+        match rand::thread_rng().gen_bool(random_choice_frequency) {
+            true => self
+                .variables
+                .iter()
+                .filter(|variable| variable.polarity().is_none())
+                .choose(&mut rand::thread_rng())
+                .map(|variable| variable.index()),
+            false => self
+                .variables
+                .iter()
+                .enumerate()
+                .filter(|(_, variable)| variable.polarity().is_none())
+                .map(|(index, _)| (index, self.variables[index].activity()))
+                .max_by(|(_, activity_a), (_, activity_b)| activity_a.total_cmp(activity_b))
+                .map(|(index, _)| index),
+        }
     }
 
     /// Stores a clause with an automatically generated id.
