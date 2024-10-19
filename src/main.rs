@@ -64,19 +64,19 @@ fn main() {
             }
 
             match result {
-                Result::Unsatisfiable(clause_key) => {
-                    println!("s UNSATISFIABLE");
-                    if show_core {
-                        the_context.display_core(clause_key);
-                    }
-                    std::process::exit(00);
-                }
                 Result::Satisfiable => {
                     println!("s SATISFIABLE");
                     if show_valuation {
                         println!("v {}", the_context.variables().as_display_string());
                     }
                     std::process::exit(10);
+                }
+                Result::Unsatisfiable(clause_key) => {
+                    println!("s UNSATISFIABLE");
+                    if show_core {
+                        the_context.display_core(clause_key);
+                    }
+                    std::process::exit(20);
                 }
                 Result::Unknown => {
                     if let Some(limit) = time_limit {
@@ -85,7 +85,7 @@ fn main() {
                         }
                     }
                     println!("s UNKNOWN");
-                    std::process::exit(20);
+                    std::process::exit(30);
                 }
             }
         }

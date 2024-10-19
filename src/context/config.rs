@@ -55,6 +55,10 @@ pub struct Args {
     #[arg(long, default_value_t = false)]
     hobson: bool,
 
+    #[arg(long, default_value_t = 0.02)]
+    /// The chance of making a random choice (as opposed to using most VSIDS activity)
+    random_choice_frequency: f64,
+
     #[arg(short, long, default_value_t = 0.0)]
     /// The chance of choosing assigning positive polarity to a variant when making a choice
     polarity_lean: f64,
@@ -95,6 +99,7 @@ pub struct Config {
     pub decay_factor: f32,
     pub decay_frequency: usize,
     pub subsumption: bool,
+    pub random_choice_frequency: f64,
 }
 
 impl Config {
@@ -122,7 +127,8 @@ impl Config {
             activity_conflict: 1.0,
             decay_factor: 0.95,
             decay_frequency: 1,
-            subsumption: args.subsumption
+            subsumption: args.subsumption,
+            random_choice_frequency: args.random_choice_frequency
         };
 
         if args.rr {
