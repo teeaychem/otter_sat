@@ -205,6 +205,7 @@ impl Context {
     The implementation works through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
     the top decision level will be for the literal to be asserted when clause is learnt
      */
+    // TODO: could be duplicated/genralised as part of resolution, tho isn't very hot at the moment
     fn backjump_level(&self, literals: &[Literal]) -> usize {
         let mut top_two = (None, None);
         for lit in literals {

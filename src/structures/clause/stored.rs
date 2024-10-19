@@ -179,7 +179,7 @@ impl StoredClause {
                             break 'search_loop;
                         }
                         Some(_) => {
-                            if last_variable.activity() <= the_variable.activity() {
+                            if last_variable.activity() < the_variable.activity() {
                                 self.clause.swap(index, index - 1);
                             } else {
                                 last_variable = the_variable;

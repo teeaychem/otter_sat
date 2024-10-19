@@ -117,6 +117,13 @@ impl Context {
     }
 
     pub fn update_watches(&mut self, literal: Literal) {
+        fn not_watch_witness(variable: &Variable, polarity: bool) -> bool {
+            match variable.polarity() {
+                None => true,
+                Some(found_polarity) => found_polarity != polarity,
+            }
+        }
+
         let variable = self.variables.get_unsafe(literal.index());
 
         // process whether any change to the watch literals is required
@@ -290,7 +297,10 @@ impl Context {
         if reduction_allowed && self.it_is_time_to_reduce(u) {
             log::debug!(target: "forget", "Forget @r {}", self.restarts);
 
-            self.display_stats();
+            if let Some(window) = &self.window {
+                self.update_stats(window);
+                window.flush();
+            }
 
             self.stored_clauses.reduce(glue_strength);
         }
@@ -330,12 +340,5 @@ impl Context {
         let (f, t) = hobson_choices(self.stored_clauses.clauses());
         self.literal_set_from_vec(f);
         self.literal_set_from_vec(t);
-    }
-}
-
-fn not_watch_witness(variable: &Variable, polarity: bool) -> bool {
-    match variable.polarity() {
-        None => true,
-        Some(found_polarity) => found_polarity != polarity,
     }
 }
