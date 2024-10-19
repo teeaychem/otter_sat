@@ -1,4 +1,4 @@
-use crate::structures::variable::{Variable, VariableId, ActivityRep};
+use crate::structures::variable::{ActivityRep, Variable, VariableId};
 use crate::{context::store::ClauseKey, structures::level::LevelIndex};
 
 use std::cell::UnsafeCell;
@@ -62,6 +62,30 @@ impl Variable {
 
     pub fn set_polarity(&mut self, polarity: Option<bool>) {
         self.polarity = polarity
+    }
+
+    pub fn occurrence_length(&self, polarity: bool) -> usize {
+        let list = match polarity {
+            true => unsafe { &*self.positive_occurrences.get() },
+            false => unsafe { &*self.negative_occurrences.get() },
+        };
+        list.len()
+    }
+
+    pub fn occurrence_key_at_index(&self, polarity: bool, index: usize) -> ClauseKey {
+        let list = match polarity {
+            true => unsafe { &*self.positive_occurrences.get() },
+            false => unsafe { &*self.negative_occurrences.get() },
+        };
+        unsafe { *list.get_unchecked(index) }
+    }
+
+    pub fn remove_occurrence_at_index(&self, polarity: bool, index: usize) {
+        let list = match polarity {
+            true => unsafe { &mut *self.positive_occurrences.get() },
+            false => unsafe { &mut *self.negative_occurrences.get() },
+        };
+        list.swap_remove(index);
     }
 }
 

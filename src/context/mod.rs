@@ -98,7 +98,8 @@ impl Context {
             match formula_clause.len() {
                 1 => {
                     the_context.literal_update(
-                        *formula_clause.first().expect("Literal vanish"),
+                        *formula_clause.first().expect("literal vanish"),
+                        0,
                         LiteralSource::Assumption,
                     );
                 }

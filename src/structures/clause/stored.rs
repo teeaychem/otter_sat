@@ -71,8 +71,8 @@ impl StoredClause {
             node_index: None,
         };
 
-        let watched_a = stored_clause.get_watched(Watch::A);
-        let watched_b = stored_clause.get_watched(Watch::B);
+        let watched_a = stored_clause.get_watch(Watch::A);
+        let watched_b = stored_clause.get_watch(Watch::B);
 
         variables
             .get_unsafe(watched_a.index())
@@ -93,7 +93,7 @@ impl StoredClause {
         self.source
     }
 
-    pub fn get_watched(&self, watch: Watch) -> Literal {
+    pub fn get_watch(&self, watch: Watch) -> Literal {
         match watch {
             Watch::A => self.cached_a,
             Watch::B => self.cached_b,
@@ -241,8 +241,8 @@ impl StoredClause {
         self.node_index = Some(index);
     }
 
-    pub fn get_node_index(&self) -> NodeIndex {
-        self.node_index.expect("index requested but not set")
+    pub fn node_index(&self) -> NodeIndex {
+        self.node_index.unwrap()
     }
 }
 
