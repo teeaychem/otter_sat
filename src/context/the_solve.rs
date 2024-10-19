@@ -37,6 +37,7 @@ impl Context {
         let glue_strength = self.config.glue_strength;
         let activity = self.config.activity_conflict;
         let subsumption = self.config.subsumption;
+        let random_choice_frequency = self.config.random_choice_frequency;
 
         'main_loop: loop {
             self.iterations += 1;
@@ -85,7 +86,7 @@ impl Context {
                 }
             }
 
-            match self.most_active_none() {
+            match self.get_unassigned(random_choice_frequency) {
                 Some(choice_index) => {
                     self.process_choice(choice_index, &last_valuation, polarity_lean);
                     continue 'main_loop;
