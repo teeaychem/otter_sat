@@ -2,7 +2,6 @@ use crate::{
     context::{config::Config, Context, Result, Status},
     procedures::hobson_choices,
     structures::{
-        clause::stored::Watch,
         level::LevelIndex,
         literal::{Literal, Source},
         variable::{list::VariableList, VariableId},
@@ -34,17 +33,18 @@ impl Context {
                 return Result::Unknown;
             }
 
-            let current_index = self.level().index();
+            'literal_consequences: while let Some(literal) = self.variables.get_consequence() {
+                let this_level_index = self.level().index();
+                let this_level = self.levels.get_mut(this_level_index).expect("lost level");
 
-            'literal_consequences: while let Some(literal) = self.variables.pop_front_consequence()
-            {
-                self.update_watches(literal);
-                let consequence = self.variables.examine_consequences(
+                let consequences = self.variables.propagate(
                     literal,
-                    self.levels.get_mut(current_index).expect("missing level"),
-                    &self.stored_clauses,
+                    this_level,
+                    &mut self.stored_clauses,
+                    &local_config,
                 );
-                match consequence {
+
+                match consequences {
                     Ok(_) => {}
                     Err(conflict_key) => {
                         let analysis = self.conflict_analysis(conflict_key, &local_config);
@@ -62,9 +62,7 @@ impl Context {
                                 self.conflicts_since_last_reset += 1;
 
                                 if self.conflicts % local_config.decay_frequency == 0 {
-                                    for variable in self.variables.slice().iter() {
-                                        variable.multiply_activity(local_config.decay_factor);
-                                    }
+                                    self.variables.multiply_activity(local_config.decay_factor);
                                 }
 
                                 self.reductions_and_restarts(&local_config);
@@ -101,54 +99,6 @@ impl Context {
         };
     }
 
-    pub fn update_watches(&mut self, literal: Literal) {
-        let not_watch_witness = |literal: Literal| {
-            let the_variable = self.variables.get_unsafe(literal.index());
-            match the_variable.polarity() {
-                None => true,
-                Some(found_polarity) => found_polarity != literal.polarity(),
-            }
-        };
-
-        let variable = self.variables.get_unsafe(literal.index());
-
-        // process whether any change to the watch literals is required
-        let list_polarity = !literal.polarity();
-
-        let mut index = 0;
-        let mut length = variable.occurrence_length(list_polarity);
-
-        while index < length {
-            let working_key = variable.occurrence_key_at_index(list_polarity, index);
-            let working_clause = self.stored_clauses.retreive_mut(working_key);
-            match working_clause {
-                None => {
-                    variable.remove_occurrence_at_index(list_polarity, index);
-                    length -= 1;
-                }
-                Some(stored_clause) => {
-                    let watched_a = stored_clause.get_watch(Watch::A);
-                    let watched_b = stored_clause.get_watch(Watch::B);
-
-                    if variable.id() == watched_a.v_id() {
-                        if not_watch_witness(watched_b) {
-                            stored_clause.update_watch(Watch::A, &self.variables);
-                        }
-                        index += 1;
-                    } else if variable.id() == watched_b.v_id() {
-                        if not_watch_witness(watched_a) {
-                            stored_clause.update_watch(Watch::B, &self.variables);
-                        }
-                        index += 1;
-                    } else {
-                        variable.remove_occurrence_at_index(list_polarity, index);
-                        length -= 1;
-                    }
-                }
-            }
-        }
-    }
-
     pub fn literal_set_from_vec(&mut self, choices: Vec<VariableId>) {
         for v_id in choices {
             let the_literal = Literal::new(v_id, false);
@@ -156,13 +106,6 @@ impl Context {
             self.variables.push_back_consequence(the_literal);
         }
     }
-
-    /*
-    todo: transfer to valuation store
-    return the new_observations and import these to the context there
-    though, use a buffer of variable size to avoid mallocs
-    this then is a step toward a better handling of unsafe as the borrow from valuation store while updating other valuations in the store is clearer
-     */
 
     fn reductions_and_restarts(&mut self, config: &Config) {
         if self.it_is_time_to_reduce(config.luby_constant) {
