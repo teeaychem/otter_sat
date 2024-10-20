@@ -1,9 +1,9 @@
 use crate::{context::store::ClauseKey, structures::level::LevelIndex};
 use std::cell::UnsafeCell;
 
+pub mod core;
+pub mod delegate;
 pub mod list;
-pub mod store;
-pub mod variable;
 
 pub type VariableId = u32;
 
