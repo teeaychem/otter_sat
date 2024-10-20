@@ -12,7 +12,7 @@ use crate::{
         formula::Formula,
         level::Level,
         literal::{Literal, Source as LiteralSource},
-        variable::store::VariableStore,
+        variable::delegate::VariableStore,
     },
     ContextWindow,
 };

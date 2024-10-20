@@ -35,10 +35,6 @@ pub struct Args {
     #[arg(long = "VSIDS", default_value_t, value_enum)]
     vsids: VSIDS,
 
-    /// Suggest priority exploring conflcits, implications, or take no interest (does nothing at the moment)
-    #[arg(long, default_value_t, value_enum)]
-    exploration_priority: ExplorationPriority,
-
     /// Reduce and restart, where:
     #[arg(short, long = "reduce-and-restart", default_value_t = false)]
     rr: bool,
@@ -77,12 +73,15 @@ pub struct Args {
     /// For example, p ∨ q ∨ r may be strengthened to p ∨ r
     /// With subsumption the weaker clause is replaced (subsumed by) the stronger clause, this flag disables the process
     subsumption: bool,
+
+    #[arg(long, default_value_t = false)]
+    /// Continue updating watches for all queued literals after a conflict
+    tidy_watches: bool,
 }
 
 #[derive(Clone)]
 pub struct Config {
     pub formula_file: std::path::PathBuf,
-    pub exploration_priority: ExplorationPriority,
     pub glue_strength: usize,
     pub hobson_choices: bool,
     pub luby_constant: usize,
@@ -100,13 +99,13 @@ pub struct Config {
     pub decay_frequency: usize,
     pub subsumption: bool,
     pub random_choice_frequency: f64,
+    pub tidy_watches: bool,
 }
 
 impl Config {
     pub fn from_args(args: Args) -> Self {
         let mut the_config = Config {
             formula_file: args.formula_file,
-            exploration_priority: args.exploration_priority,
             glue_strength: args.glue_strength,
             hobson_choices: args.hobson,
             luby_constant: args.luby_u,
@@ -129,6 +128,7 @@ impl Config {
             decay_frequency: 1,
             subsumption: args.subsumption,
             random_choice_frequency: args.random_choice_frequency,
+            tidy_watches: args.tidy_watches,
         };
 
         if args.rr {
@@ -159,15 +159,6 @@ pub enum VSIDS {
     MiniSAT,
     /// Bump the activity involved when using resolution to learn a clause
     Chaff,
-}
-
-#[derive(Debug, Clone, Copy, Default, Serialize, clap::ValueEnum)]
-#[serde(rename_all = "kebab-case")]
-pub enum ExplorationPriority {
-    Conflict,
-    Implication,
-    #[default]
-    Default,
 }
 
 impl Context {
