@@ -44,27 +44,24 @@ impl VariableStore {
         level: &mut Level,
         stored_clauses: &ClauseStore,
     ) -> Result<(), ClauseKey> {
-        let the_variable = self.get_unsafe(literal.index());
-        let borrowed_occurrences = {
-            match literal.polarity() {
-                true => unsafe { &mut *the_variable.negative_occurrences.get() },
-                false => unsafe { &mut *the_variable.positive_occurrences.get() },
-            }
-        };
+        let the_variable = self.variables.get_unsafe(literal.index());
+        let occurrence_polarity = !literal.polarity();
 
         let mut index = 0;
-        let mut length = borrowed_occurrences.len();
+        let mut length = the_variable.occurrence_length(occurrence_polarity);
 
         while index < length {
-            let clause_key = unsafe { *borrowed_occurrences.get_unchecked(index) };
+            let clause_key = the_variable.occurrence_key_at_index(occurrence_polarity, index);
 
             let stored_clause = stored_clauses.retreive(clause_key);
 
             let watch_a = stored_clause.get_watch(Watch::A);
             let watch_b = stored_clause.get_watch(Watch::B);
 
+            the_variable.polarity();
+
             if watch_a.v_id() != literal.v_id() && watch_b.v_id() != literal.v_id() {
-                borrowed_occurrences.swap_remove(index);
+                the_variable.remove_occurrence_at_index(occurrence_polarity, index);
                 length -= 1;
             } else {
                 // the compiler prefers the conditional matches
