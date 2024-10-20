@@ -17,7 +17,7 @@ pub trait VariableList {
 
     fn check_set_value(&mut self, literal: Literal) -> Result<(), Status>;
 
-    fn set_value(&mut self, literal: Literal, level_index: LevelIndex);
+    fn set_value(&self, literal: Literal, level_index: LevelIndex);
 
     fn retract_valuation(&mut self, index: usize);
 
@@ -76,10 +76,10 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
         }
     }
 
-    fn set_value(&mut self, literal: Literal, level_index: LevelIndex) {
+    fn set_value(&self, literal: Literal, level_index: LevelIndex) {
         log::trace!("Set literal: {}", literal);
         unsafe {
-            let variable = self.get_unchecked_mut(literal.index());
+            let variable = self.get_unchecked(literal.index());
             variable.set_polarity(Some(literal.polarity()));
             variable.set_decision_level(level_index);
         }
