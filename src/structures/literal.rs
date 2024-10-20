@@ -10,7 +10,7 @@ pub struct Literal {
 /// how a literal was settled
 #[derive(Clone, Copy, Debug)]
 pub enum Source {
-    Choice,                  // a choice made where the alternative may make a SAT difference
+    Choice,                // a choice made where the alternative may make a SAT difference
     HobsonChoice, // a choice made with a guarantee that the alternative would make no SAT difference
     Clause(NodeIndex), // the literal must be the case for SAT given some valuation
     Resolution(NodeIndex), // there was no reason to store the resolved clause

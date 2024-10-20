@@ -3,7 +3,7 @@ use crate::{
     structures::{
         clause::Clause,
         literal::Literal,
-        variable::{variable_store::VariableStore, Variable},
+        variable::{list::VariableList, Variable},
     },
 };
 
@@ -56,7 +56,7 @@ impl StoredClause {
         key: ClauseKey,
         clause: Vec<Literal>,
         source: Source,
-        variables: &impl VariableStore,
+        variables: &impl VariableList,
     ) -> Self {
         let figured_out = figure_out_intial_watches(clause, variables);
         let stored_clause = Self {
@@ -100,7 +100,7 @@ impl StoredClause {
         }
     }
 
-    pub fn set_lbd(&self, variables: &impl VariableStore) {
+    pub fn set_lbd(&self, variables: &impl VariableList) {
         unsafe { *self.lbd.get() = self.lbd(variables) }
     }
 
@@ -134,7 +134,7 @@ impl StoredClause {
     /// Searches for and then updates to a new literal for the given watch index
     /// The match is to help prototype re-ordering the clause
     /// Specifically, the general case allows storing information about the previous literal
-    pub fn update_watch(&mut self, watch: Watch, variables: &impl VariableStore) {
+    pub fn update_watch(&mut self, watch: Watch, variables: &impl VariableList) {
         let length = self.clause.len();
 
         match length {
@@ -198,7 +198,7 @@ impl StoredClause {
     pub fn literal_subsumption(
         &mut self,
         literal: Literal,
-        variables: &impl VariableStore,
+        variables: &impl VariableList,
     ) -> Result<(), ()> {
         if self.clause.len() > 2 {
             if let Some(position) = self
@@ -252,7 +252,7 @@ impl std::fmt::Display for StoredClause {
     }
 }
 
-fn figure_out_intial_watches(mut clause: Vec<Literal>, val: &impl VariableStore) -> Vec<Literal> {
+fn figure_out_intial_watches(mut clause: Vec<Literal>, val: &impl VariableList) -> Vec<Literal> {
     let length = clause.len();
     let mut watch_a = 0;
     let mut watch_b = 1;
@@ -308,7 +308,7 @@ fn figure_out_intial_watches(mut clause: Vec<Literal>, val: &impl VariableStore)
     clause
 }
 
-fn get_status(literal: Literal, variables: &impl VariableStore) -> WatchStatus {
+fn get_status(literal: Literal, variables: &impl VariableList) -> WatchStatus {
     match variables.polarity_of(literal.index()) {
         None => WatchStatus::None,
         Some(polarity) if polarity == literal.polarity() => WatchStatus::Witness,

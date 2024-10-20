@@ -22,7 +22,7 @@ use context::{
     config::{Args, Config},
     Context, Result,
 };
-use structures::variable::variable_store::VariableStore;
+use structures::variable::list::VariableList;
 
 // #[rustfmt::skip]
 fn main() {

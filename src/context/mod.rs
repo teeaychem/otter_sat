@@ -12,12 +12,13 @@ use crate::{
         formula::Formula,
         level::Level,
         literal::{Literal, Source as LiteralSource},
-        variable::Variable,
-    }, ContextWindow,
+        variable::store::VariableStore,
+    },
+    ContextWindow,
 };
 
 use petgraph::Graph;
-use std::{collections::VecDeque, time::Duration};
+use std::time::Duration;
 
 #[derive(Debug)]
 pub enum ImplicationGraphNode {
@@ -42,16 +43,15 @@ pub struct Context {
     conflicts: usize,
     conflicts_since_last_forget: usize,
     conflicts_since_last_reset: usize,
-    consequence_q: VecDeque<Literal>,
     iterations: usize,
     levels: Vec<Level>,
     restarts: usize,
     stored_clauses: ClauseStore,
-    variables: Vec<Variable>,
+    variables: VariableStore,
     pub time: Duration,
     config: config::Config,
-    pub implication_graph: ResolutionGraph,
-    pub window: Option<ContextWindow>
+    implication_graph: ResolutionGraph,
+    pub window: Option<ContextWindow>,
 }
 
 pub enum Status {
@@ -67,7 +67,11 @@ pub enum Result {
 }
 
 impl Context {
-    pub fn from_formula(formula: Formula, config: config::Config, window: Option<ContextWindow>) -> Self {
+    pub fn from_formula(
+        formula: Formula,
+        config: config::Config,
+        window: Option<ContextWindow>,
+    ) -> Self {
         let variables = formula.variables;
         let clauses = formula.clauses;
         let variable_count = variables.len();
@@ -76,16 +80,15 @@ impl Context {
             conflicts: 0,
             conflicts_since_last_forget: 0,
             conflicts_since_last_reset: 0,
-            consequence_q: VecDeque::with_capacity(variable_count),
             iterations: 0,
             levels: Vec::<Level>::with_capacity(variable_count),
             restarts: 0,
             stored_clauses: ClauseStore::new(),
-            variables,
+            variables: VariableStore::new(variables),
             time: Duration::new(0, 0),
             config,
             implication_graph: Graph::new(),
-            window
+            window,
         };
         the_context.levels.push(Level::new(0));
 
