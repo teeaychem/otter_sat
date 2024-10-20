@@ -9,7 +9,7 @@ impl Variable {
             name: name.to_string(),
             decision_level: UnsafeCell::new(None),
             id,
-            polarity: None,
+            polarity: UnsafeCell::new(None),
             positive_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
             negative_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
             activity: UnsafeCell::new(0.0),
@@ -57,11 +57,11 @@ impl Variable {
     }
 
     pub fn polarity(&self) -> Option<bool> {
-        self.polarity
+        unsafe { *self.polarity.get() }
     }
 
-    pub fn set_polarity(&mut self, polarity: Option<bool>) {
-        self.polarity = polarity
+    pub fn set_polarity(&self, polarity: Option<bool>) {
+        unsafe { *self.polarity.get() = polarity }
     }
 
     pub fn occurrence_length(&self, polarity: bool) -> usize {
