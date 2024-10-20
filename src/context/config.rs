@@ -76,7 +76,7 @@ pub struct Args {
     /// I.e. when performing resolutinon some stronger form of a clause may be found
     /// For example, p ∨ q ∨ r may be strengthened to p ∨ r
     /// With subsumption the weaker clause is replaced (subsumed by) the stronger clause, this flag disables the process
-    subsumption: bool
+    subsumption: bool,
 }
 
 #[derive(Clone)]
@@ -128,7 +128,7 @@ impl Config {
             decay_factor: 0.95,
             decay_frequency: 1,
             subsumption: args.subsumption,
-            random_choice_frequency: args.random_choice_frequency
+            random_choice_frequency: args.random_choice_frequency,
         };
 
         if args.rr {

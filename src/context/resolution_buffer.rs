@@ -7,7 +7,7 @@ use crate::{
     structures::{
         clause::Clause,
         literal::{Literal, Source as LiteralSource},
-        variable::variable_store::VariableStore,
+        variable::list::VariableList,
     },
 };
 
@@ -47,7 +47,7 @@ impl ResolutionBuffer {
         }
     }
 
-    pub fn reset_with(&mut self, variables: &impl VariableStore) {
+    pub fn reset_with(&mut self, variables: &impl VariableList) {
         self.valuless_count = 0;
         self.asserts = None;
         for variable in variables.slice() {
@@ -59,7 +59,7 @@ impl ResolutionBuffer {
             .for_each(|index| *index = false);
     }
 
-    pub fn from_variable_store(variables: &impl VariableStore) -> Self {
+    pub fn from_variable_store(variables: &impl VariableList) -> Self {
         ResolutionBuffer {
             valuless_count: 0,
             clause_legnth: 0,
@@ -142,7 +142,7 @@ impl ResolutionBuffer {
         observations: impl Iterator<Item = &'a (LiteralSource, Literal)>,
         stored_clauses: &mut ClauseStore,
         graph: &ResolutionGraph,
-        variables: &impl VariableStore,
+        variables: &impl VariableList,
         stopping_criteria: StoppingCriteria,
         subsumption: bool,
     ) -> Status {

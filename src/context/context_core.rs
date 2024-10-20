@@ -7,7 +7,7 @@ use crate::{
         clause::stored::{Source, StoredClause},
         level::{Level, LevelIndex},
         literal::Literal,
-        variable::variable_store::VariableStore,
+        variable::list::VariableList,
     },
 };
 
@@ -24,7 +24,7 @@ impl Context {
         &self.levels[index]
     }
 
-    pub fn variables(&self) -> &impl VariableStore {
+    pub fn variables(&self) -> &impl VariableList {
         &self.variables
     }
 
