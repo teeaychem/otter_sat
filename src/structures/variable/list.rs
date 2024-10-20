@@ -1,8 +1,12 @@
-use crate::structures::{level::LevelIndex, literal::Literal, variable::Variable};
+use crate::structures::{
+    level::LevelIndex,
+    literal::Literal,
+    variable::{Status, Variable},
+};
 
 use std::ops::DerefMut;
 
-pub trait VariableStore {
+pub trait VariableList {
     fn as_display_string(&self) -> String;
 
     fn as_internal_string(&self) -> String;
@@ -22,13 +26,7 @@ pub trait VariableStore {
     fn get_unsafe(&self, index: usize) -> &Variable;
 }
 
-pub enum Status {
-    NotSet,
-    Match,
-    Conflict,
-}
-
-impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableStore for T {
+impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
     fn as_display_string(&self) -> String {
         self.iter()
             .map(|variable| match variable.polarity() {
@@ -81,9 +79,8 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableStore for T {
     fn set_value(&mut self, literal: Literal, level_index: LevelIndex) {
         log::trace!("Set literal: {}", literal);
         unsafe {
-
             let variable = self.get_unchecked_mut(literal.index());
-                variable.set_polarity(Some(literal.polarity()));
+            variable.set_polarity(Some(literal.polarity()));
             variable.set_decision_level(level_index);
         }
     }

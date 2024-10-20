@@ -1,11 +1,11 @@
-use std::cell::UnsafeCell;
 use crate::{context::store::ClauseKey, structures::level::LevelIndex};
+use std::cell::UnsafeCell;
 
+pub mod list;
+pub mod store;
 pub mod variable;
-pub mod variable_store;
 
 pub type VariableId = u32;
-
 
 pub struct Variable {
     name: String,
@@ -18,3 +18,9 @@ pub struct Variable {
 }
 
 type ActivityRep = f32;
+
+pub enum Status {
+    NotSet,
+    Match,
+    Conflict,
+}

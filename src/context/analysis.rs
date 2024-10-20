@@ -1,6 +1,6 @@
 use crate::{
     context::{
-        config,
+        config::{self, Config},
         resolution_buffer::{ResolutionBuffer, Status as BufferStatus},
         store::ClauseKey,
         Context, GraphLiteral, ImplicationGraphNode, Status as SolveStatus,
@@ -8,7 +8,7 @@ use crate::{
     structures::{
         clause::{stored::Source as ClauseSource, Clause},
         literal::{Literal, Source as LiteralSource},
-        variable::variable_store::VariableStore,
+        variable::list::VariableList,
     },
 };
 
@@ -17,14 +17,7 @@ use std::collections::BTreeSet;
 use std::ops::Deref;
 
 impl Context {
-    pub fn conflict_analysis(
-        &mut self,
-        clause_key: ClauseKey,
-        vsids_variant: config::VSIDS,
-        stopping_criteria: config::StoppingCriteria,
-        activity: f32,
-        subsumption: bool,
-    ) -> SolveStatus {
+    pub fn conflict_analysis(&mut self, clause_key: ClauseKey, config: &Config) -> SolveStatus {
         log::trace!("Fix @ {}", self.level().index());
         if self.level().index() == 0 {
             return SolveStatus::NoSolution;
@@ -49,7 +42,7 @@ impl Context {
                 missed_level,
                 LiteralSource::Clause(conflict_index),
             );
-            self.consequence_q.push_back(asserted);
+            self.variables.push_back_consequence(asserted);
 
             SolveStatus::MissedImplication
         } else {
@@ -67,8 +60,8 @@ impl Context {
                 &mut self.stored_clauses,
                 &self.implication_graph,
                 &self.variables,
-                stopping_criteria,
-                subsumption,
+                config.stopping_criteria,
+                config.subsumption,
             ) {
                 BufferStatus::FirstUIP | BufferStatus::Exhausted => {
                     the_buffer.strengthen_given(
@@ -83,7 +76,12 @@ impl Context {
                         resolved_clause.push(assertion);
                     }
 
-                    self.apply_VSIDS(&resolved_clause, &the_buffer, vsids_variant, activity);
+                    self.apply_VSIDS(
+                        &resolved_clause,
+                        &the_buffer,
+                        config.vsids_variant,
+                        config.activity_conflict,
+                    );
 
                     let asserted_literal = asserted_literal.expect("literal not there");
 
@@ -131,7 +129,7 @@ impl Context {
                         self.implication_graph.add_edge(index, trail_index, ());
                     }
 
-                    self.consequence_q.push_back(asserted_literal);
+                    self.variables.push_back_consequence(asserted_literal);
                     SolveStatus::AssertingClause
                 }
             }

@@ -4,7 +4,7 @@ use crate::structures::{
         Clause,
     },
     literal::Literal,
-    variable::variable_store::VariableStore,
+    variable::list::VariableList,
 };
 
 pub type ClauseId = u32;
@@ -56,7 +56,7 @@ impl ClauseStore {
         &mut self,
         source: ClauseSource,
         clause: Vec<Literal>,
-        variables: &impl VariableStore,
+        variables: &impl VariableList,
     ) -> ClauseKey {
         match source {
             ClauseSource::Formula => {
