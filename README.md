@@ -24,12 +24,16 @@ The command overview, below, may give some additional insight.
 Docmentation and tests are moslty added as the solver develops and parts solidify.
 For the moment, things are fairly green.
 
+### How this was made
+
 I'm a sometimes logician, so the solver has been written in part to help understand modern SAT (research) and in part to improve the way I code (skill).
 The methodology has been (and is) to read some theory, write some code, and do some thinking.
-Some resources I have found, or am finding, helpful can be found in `resources/resources.bib`
+Some resources I have found, or am finding, helpful can be found in `resources/resources.bib`.
 At some point I'll be happy with what's been implemented and look to contrast, when that happens I'll make a note of the solvers here.
 
-Rust dependencies are:
+## Rust dependencies
+
+Direct Rust dependencies are:
 - [log4rs](https://docs.rs/log4rs/latest/log4rs/)
   Logging (see `config/log4rs.yaml`)
 - [clap](https://docs.rs/clap/latest/clap/)
@@ -46,6 +50,8 @@ Rust dependencies are:
   An alternative allocator, optional
 - [rand](https://docs.rs/rand/latest/rand/)
   Perhaps
+
+# Configuration
 
 **Usage:** `otter_sat [OPTIONS] --formula-file <FORMULA_FILE>`
 
