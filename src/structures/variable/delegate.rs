@@ -72,7 +72,7 @@ impl VariableStore {
 
         'propagation_loop: while index < length {
             let clause_key = the_variable.occurrence_key_at_index(list_polarity, index);
-            let maybe_stored_clause = clause_store.retreive_mut(clause_key);
+            let maybe_stored_clause = clause_store.retreive_carefully_mut(clause_key);
 
             if maybe_stored_clause.is_none() {
                 the_variable.remove_occurrence_at_index(list_polarity, index);
@@ -167,7 +167,7 @@ impl VariableStore {
 
             while index < length {
                 let working_key = variable.occurrence_key_at_index(list_polarity, index);
-                let working_clause = stored_clauses.retreive_mut(working_key);
+                let working_clause = stored_clauses.retreive_carefully_mut(working_key);
                 match working_clause {
                     None => {
                         variable.remove_occurrence_at_index(list_polarity, index);
