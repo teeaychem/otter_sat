@@ -47,26 +47,22 @@ impl Context {
             SolveStatus::MissedImplication
         } else {
             // resolve
-
-            let ob_clone = self
-                .level()
-                .observations
-                .iter()
-                .rev()
-                .cloned()
-                .collect::<Vec<_>>();
             match the_buffer.resolve_with(
-                ob_clone.iter(),
+                unsafe {
+                    // to avoid borrowing via the context, unsafe as the level index is either 0 or the last item of levels
+                    self.levels
+                        .get_unchecked(self.level().index())
+                        .observations()
+                },
                 &mut self.stored_clauses,
                 &self.implication_graph,
                 &self.variables,
-                config.stopping_criteria,
-                config.subsumption,
+                config,
             ) {
                 BufferStatus::FirstUIP | BufferStatus::Exhausted => {
                     the_buffer.strengthen_given(
                         self.levels[0]
-                            .observations
+                            .observations()
                             .iter()
                             .map(|(_, literal)| *literal),
                     );
@@ -76,12 +72,7 @@ impl Context {
                         resolved_clause.push(assertion);
                     }
 
-                    self.apply_VSIDS(
-                        &resolved_clause,
-                        &the_buffer,
-                        config.vsids_variant,
-                        config.activity_conflict,
-                    );
+                    self.apply_VSIDS(&resolved_clause, &the_buffer, config);
 
                     let asserted_literal = asserted_literal.expect("literal not there");
 
@@ -138,14 +129,9 @@ impl Context {
     }
 
     #[allow(non_snake_case)]
-    fn apply_VSIDS(
-        &self,
-        clause: &impl Clause,
-        buffer: &ResolutionBuffer,
-        variant: config::VSIDS,
-        activity: f32,
-    ) {
-        match variant {
+    fn apply_VSIDS(&self, clause: &impl Clause, buffer: &ResolutionBuffer, config: &Config) {
+        let activity = config.activity_conflict;
+        match config.vsids_variant {
             config::VSIDS::Chaff => {
                 for literal in clause.literal_slice() {
                     self.variables
@@ -174,7 +160,7 @@ impl Context {
 
         let mut basic_clause_set = BTreeSet::new();
         basic_clause_set.insert(conflict_index);
-        for (source, _) in &self.level().observations {
+        for (source, _) in self.level().observations() {
             match source {
                 LiteralSource::Clause(node_index) | LiteralSource::Resolution(node_index) => {
                     basic_clause_set.insert(*node_index);
@@ -216,7 +202,8 @@ impl Context {
         }
     }
 
-    /// Either the most recent decision level in the resolution clause prior to the current level or 0.
+    /// The backjump level for a slice of an asserting slice of literals/clause
+    /// I.e. returns the second highest decision level from the given literals, or 0
     /*
     The implementation works through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
     the top decision level will be for the literal to be asserted when clause is learnt

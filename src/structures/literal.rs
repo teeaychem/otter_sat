@@ -19,10 +19,7 @@ pub enum Source {
 
 impl Literal {
     pub fn negate(self) -> Self {
-        Literal {
-            v_id: self.v_id,
-            polarity: !self.polarity,
-        }
+        !self
     }
 
     pub fn new(variable_id: VariableId, polarity: bool) -> Self {
@@ -81,6 +78,17 @@ impl std::fmt::Display for Literal {
         match self.polarity {
             true => write!(f, "{}", self.v_id),
             false => write!(f, "-{}", self.v_id),
+        }
+    }
+}
+
+impl std::ops::Not for Literal {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        Literal {
+            v_id: self.v_id,
+            polarity: !self.polarity,
         }
     }
 }

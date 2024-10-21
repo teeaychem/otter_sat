@@ -2,9 +2,11 @@
 // #![allow(unused_imports)]
 // #![allow(unused_variables)]
 
+#[cfg(feature = "jemalloc")]
 #[cfg(not(target_env = "msvc"))]
 use tikv_jemallocator::Jemalloc;
 
+#[cfg(feature = "jemalloc")]
 #[cfg(not(target_env = "msvc"))]
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;

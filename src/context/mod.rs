@@ -1,9 +1,8 @@
 mod analysis;
 pub mod config;
-pub mod context_core;
+pub mod core;
 mod resolution_buffer;
 pub mod store;
-mod the_solve;
 
 use crate::{
     context::store::{ClauseId, ClauseKey, ClauseStore},

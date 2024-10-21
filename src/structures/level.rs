@@ -8,7 +8,7 @@ pub type LevelIndex = usize;
 pub struct Level {
     index: LevelIndex,
     choice: Option<Literal>,
-    pub observations: Vec<(Source, Literal)>,
+    observations: Vec<(Source, Literal)>,
 }
 
 impl Level {

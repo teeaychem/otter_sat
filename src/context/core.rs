@@ -1,14 +1,16 @@
+use rand::{seq::IteratorRandom, Rng};
+
 use crate::{
-    context::{config::Config, Context, Result, Status},
+    context::{config::Config, Context, GraphClause, ImplicationGraphNode, Result, Status},
+    io::{ContextWindow, WindowItem},
     procedures::hobson_choices,
     structures::{
-        level::LevelIndex,
-        literal::{Literal, Source},
+        clause::stored::{Source, StoredClause},
+        level::{Level, LevelIndex},
+        literal::{Literal, Source as LiteralSource},
         variable::{list::VariableList, VariableId},
     },
 };
-
-use rand::Rng;
 
 impl Context {
     #[allow(unused_labels)]
@@ -89,7 +91,12 @@ impl Context {
             Source::Assumption | Source::HobsonChoice | Source::Resolution(_) => 0,
             };
      */
-    pub fn literal_update(&mut self, literal: Literal, level_index: LevelIndex, source: Source) {
+    pub fn literal_update(
+        &mut self,
+        literal: Literal,
+        level_index: LevelIndex,
+        source: LiteralSource,
+    ) {
         log::trace!("{literal} from {source:?}");
         self.variables.set_value(literal, level_index);
         unsafe {
@@ -102,7 +109,7 @@ impl Context {
     pub fn literal_set_from_vec(&mut self, choices: Vec<VariableId>) {
         for v_id in choices {
             let the_literal = Literal::new(v_id, false);
-            self.literal_update(the_literal, 0, Source::HobsonChoice);
+            self.literal_update(the_literal, 0, LiteralSource::HobsonChoice);
             self.variables.push_back_consequence(the_literal);
         }
     }
@@ -141,7 +148,7 @@ impl Context {
                 None => Literal::new(id, rand::thread_rng().gen_bool(polarity_lean)),
             }
         };
-        self.literal_update(choice_literal, level_index, Source::Choice);
+        self.literal_update(choice_literal, level_index, LiteralSource::Choice);
         self.variables.push_back_consequence(choice_literal);
     }
 
@@ -149,5 +156,84 @@ impl Context {
         let (f, t) = hobson_choices(self.stored_clauses.clauses());
         self.literal_set_from_vec(f);
         self.literal_set_from_vec(t);
+    }
+}
+
+impl Context {
+    pub fn add_fresh_level(&mut self) -> LevelIndex {
+        let index = self.levels.len();
+        let the_level = Level::new(index);
+        self.levels.push(the_level);
+        index
+    }
+
+    pub fn level(&self) -> &Level {
+        let index = self.levels.len() - 1;
+        &self.levels[index]
+    }
+
+    pub fn level_zero(&self) -> &Level {
+        &self.levels[0]
+    }
+
+    pub fn variables(&self) -> &impl VariableList {
+        &self.variables
+    }
+
+    pub fn get_unassigned(&self, random_choice_frequency: f64) -> Option<usize> {
+        match rand::thread_rng().gen_bool(random_choice_frequency) {
+            true => self
+                .variables
+                .iter()
+                .filter(|variable| variable.polarity().is_none())
+                .choose(&mut rand::thread_rng())
+                .map(|variable| variable.index()),
+            false => self
+                .variables
+                .iter()
+                .enumerate()
+                .filter(|(_, variable)| variable.polarity().is_none())
+                .map(|(index, _)| (index, self.variables[index].activity()))
+                .max_by(|(_, activity_a), (_, activity_b)| activity_a.total_cmp(activity_b))
+                .map(|(index, _)| index),
+        }
+    }
+
+    /// Stores a clause with an automatically generated id.
+    /// In order to use the clause the watch literals of the struct must be initialised.
+    pub fn store_clause(&mut self, clause: Vec<Literal>, src: Source) -> &StoredClause {
+        assert!(!clause.is_empty(), "Attempt to add an empty clause");
+
+        let clause_key = self.stored_clauses.insert(src, clause, &self.variables);
+        let the_clause = self.stored_clauses.retreive_mut(clause_key);
+        let node_index = self
+            .implication_graph
+            .add_node(ImplicationGraphNode::Clause(GraphClause {
+                clause_id: the_clause.id(),
+                key: the_clause.key(),
+            }));
+        the_clause.add_node_index(node_index);
+        the_clause
+    }
+
+    pub fn backjump(&mut self, to: LevelIndex) {
+        log::trace!("Backjump from {} to {}", self.level().index(), to);
+
+        for _ in 0..(self.level().index() - to) {
+            for literal in self.levels.pop().expect("Lost level").literals() {
+                log::trace!("Noneset: {}", literal.index());
+                self.variables.retract_valuation(literal.index());
+            }
+        }
+    }
+
+    pub fn update_stats(&self, window: &ContextWindow) {
+        window.update_item(WindowItem::Iterations, self.iterations);
+        window.update_item(WindowItem::Conflicts, self.conflicts);
+        window.update_item(
+            WindowItem::Ratio,
+            self.conflicts as f32 / self.iterations as f32,
+        );
+        window.update_item(WindowItem::Time, format!("{:.2?}", self.time));
     }
 }
