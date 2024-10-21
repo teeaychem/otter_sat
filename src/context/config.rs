@@ -77,6 +77,9 @@ pub struct Args {
     #[arg(long, default_value_t = false)]
     /// Continue updating watches for all queued literals after a conflict
     tidy_watches: bool,
+
+    #[arg(long, hide = true)]
+    markdown_help: bool,
 }
 
 #[derive(Clone)]
@@ -134,6 +137,10 @@ impl Config {
         if args.rr {
             the_config.restarts_allowed = true;
             the_config.reduction_allowed = true;
+        }
+
+        if args.markdown_help {
+            clap_markdown::print_help_markdown::<Args>();
         }
 
         the_config
