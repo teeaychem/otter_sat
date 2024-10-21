@@ -45,10 +45,17 @@ impl ClauseStore {
         }
     }
 
-    pub fn retreive_mut(&mut self, key: ClauseKey) -> Option<&mut StoredClause> {
+    pub fn retreive_carefully_mut(&mut self, key: ClauseKey) -> Option<&mut StoredClause> {
         match key {
             ClauseKey::Formula(key) => self.formula.get_mut(key),
             ClauseKey::Learned(key) => self.learned.get_mut(key),
+        }
+    }
+
+    pub fn retreive_mut(&mut self, key: ClauseKey) -> &mut StoredClause {
+        match key {
+            ClauseKey::Formula(key) => unsafe { self.formula.get_unchecked_mut(key) },
+            ClauseKey::Learned(key) => unsafe { self.learned.get_unchecked_mut(key) },
         }
     }
 

@@ -1,6 +1,6 @@
 use crate::{
     context::{
-        config::StoppingCriteria,
+        config::{Config, StoppingCriteria},
         store::{ClauseKey, ClauseStore},
         ImplicationGraphNode, ResolutionGraph,
     },
@@ -79,31 +79,7 @@ impl ResolutionBuffer {
         self.merge_clause(clause);
     }
 
-    pub fn merge_clause(&mut self, clause: &impl Clause) {
-        for literal in clause.literal_slice() {
-            match self.buffer.get(literal.index()).expect("wuh") {
-                ResolutionCell::ConflictLiteral(_) | ResolutionCell::NoneLiteral(_) => {}
-                ResolutionCell::Pivot => {}
-                ResolutionCell::Value(maybe) => match maybe {
-                    None => {
-                        self.clause_legnth += 1;
-                        self.valuless_count += 1;
-                        if self.asserts.is_none() {
-                            self.asserts = Some(*literal);
-                        }
-                        self.set(literal.index(), ResolutionCell::NoneLiteral(*literal));
-                    }
-                    Some(value) if *value != literal.polarity() => {
-                        self.clause_legnth += 1;
-                        self.set(literal.index(), ResolutionCell::ConflictLiteral(*literal))
-                    }
-                    Some(_) => panic!("Resolution to a satisfied clause"),
-                },
-                ResolutionCell::Strengthened => {}
-            }
-        }
-    }
-
+    /// Returns the possible assertion and clause of the buffer as a pair
     pub fn to_assertion_clause(&self) -> (Option<Literal>, Vec<Literal>) {
         let mut the_clause = vec![];
         let mut conflict_literal = None;
@@ -122,10 +98,7 @@ impl ResolutionBuffer {
             }
         }
 
-        // assert!(
-        //     conflict_literal.is_some() && the_clause.len() == self.clause_legnth - 1
-        //         || the_clause.len() == self.clause_legnth
-        // );
+        // assert!(conflict_literal.is_some() && the_clause.len() == self.clause_legnth - 1 || the_clause.len() == self.clause_legnth);
 
         (conflict_literal, the_clause)
     }
@@ -137,16 +110,15 @@ impl ResolutionBuffer {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn resolve_with<'a>(
+    pub fn resolve_with(
         &mut self,
-        observations: impl Iterator<Item = &'a (LiteralSource, Literal)>,
+        observations: &[(LiteralSource, Literal)],
         stored_clauses: &mut ClauseStore,
         graph: &ResolutionGraph,
         variables: &impl VariableList,
-        stopping_criteria: StoppingCriteria,
-        subsumption: bool,
+        config: &Config,
     ) -> Status {
-        for (source, literal) in observations {
+        for (source, literal) in observations.iter().rev() {
             if let LiteralSource::Clause(node_index) = source {
                 let the_node = graph.node_weight(*node_index).expect("missing node");
                 let the_key = match the_node {
@@ -154,7 +126,7 @@ impl ResolutionBuffer {
                     ImplicationGraphNode::Literal(_) => panic!("literal panic"),
                 };
 
-                let source_clause = stored_clauses.retreive_mut(the_key).expect("");
+                let source_clause = stored_clauses.retreive_mut(the_key);
 
                 if self.resolve_clause(source_clause, *literal).is_ok() {
                     self.trail.push(the_key);
@@ -163,13 +135,13 @@ impl ResolutionBuffer {
                         self.used_variables[involved_literal.index()] = true;
                     }
 
-                    if subsumption && self.clause_legnth < source_clause.length() {
+                    if config.subsumption && self.clause_legnth < source_clause.length() {
                         let _ = source_clause.literal_subsumption(*literal, variables);
                         variables.get_unsafe(literal.index()).multiply_activity(1.1);
                     }
 
                     if self.valuless_count == 1 {
-                        match stopping_criteria {
+                        match config.stopping_criteria {
                             StoppingCriteria::FirstUIP => return Status::FirstUIP,
                             StoppingCriteria::None => {}
                         }
@@ -180,9 +152,7 @@ impl ResolutionBuffer {
         Status::Exhausted
     }
 
-    /*
-    If some literals are known then their negation can be safely removed from the learnt clause.
-     */
+    /// Remove literals which conflict with those at level zero from the clause
     pub fn strengthen_given(&mut self, literals: impl Iterator<Item = Literal>) {
         for literal in literals {
             match self.buffer[literal.index()] {
@@ -221,28 +191,50 @@ impl ResolutionBuffer {
 }
 
 impl ResolutionBuffer {
+    /// Merge a clause into the buffer
+    fn merge_clause(&mut self, clause: &impl Clause) {
+        for literal in clause.literal_slice() {
+            match self.buffer.get(literal.index()).expect("lost literal") {
+                ResolutionCell::ConflictLiteral(_) | ResolutionCell::NoneLiteral(_) => {}
+                ResolutionCell::Pivot => {}
+                ResolutionCell::Value(maybe) => match maybe {
+                    None => {
+                        self.clause_legnth += 1;
+                        self.valuless_count += 1;
+                        self.set(literal.index(), ResolutionCell::NoneLiteral(*literal));
+                        if self.asserts.is_none() {
+                            self.asserts = Some(*literal);
+                        }
+                    }
+                    Some(value) if *value != literal.polarity() => {
+                        self.clause_legnth += 1;
+                        self.set(literal.index(), ResolutionCell::ConflictLiteral(*literal))
+                    }
+                    Some(_) => panic!("Resolution to a satisfied clause"),
+                },
+                ResolutionCell::Strengthened => {}
+            }
+        }
+    }
+
     fn resolve_clause(&mut self, clause: &impl Clause, using: Literal) -> Result<(), ()> {
-        if self.buffer[using.index()] == ResolutionCell::NoneLiteral(using.negate()) {
-            self.merge_clause(clause);
+        match unsafe { *self.buffer.get_unchecked(using.index()) } {
+            ResolutionCell::NoneLiteral(literal) if using == !literal => {
+                self.merge_clause(clause);
+                self.clause_legnth -= 1;
+                self.set(using.index(), ResolutionCell::Pivot);
+                self.valuless_count -= 1;
 
-            if let Some(length_minus_one) = self.clause_legnth.checked_sub(1) {
-                self.clause_legnth = length_minus_one;
+                Ok(())
             }
+            ResolutionCell::ConflictLiteral(literal) if using == !literal => {
+                self.merge_clause(clause);
+                self.clause_legnth -= 1;
+                self.set(using.index(), ResolutionCell::Pivot);
 
-            self.set(using.index(), ResolutionCell::Pivot);
-            self.valuless_count -= 1;
-            Ok(())
-        } else if self.buffer[using.index()] == ResolutionCell::ConflictLiteral(using.negate()) {
-            self.merge_clause(clause);
-
-            if let Some(length_minus_one) = self.clause_legnth.checked_sub(1) {
-                self.clause_legnth = length_minus_one;
+                Ok(())
             }
-
-            self.set(using.index(), ResolutionCell::Pivot);
-            Ok(())
-        } else {
-            Err(())
+            _ => Err(()),
         }
     }
 
