@@ -51,18 +51,16 @@ pub struct Context {
     config: config::Config,
     implication_graph: ResolutionGraph,
     pub window: Option<ContextWindow>,
+    pub status: Status,
+    last_valuation: Vec<Option<bool>>,
 }
 
 pub enum Status {
-    AssertingClause,
-    MissedImplication,
-    NoSolution,
-}
-
-pub enum Result {
-    Satisfiable,
-    Unsatisfiable(ClauseKey),
-    Unknown,
+    Initialised,
+    AssertingClause(ClauseKey),
+    MissedImplication(ClauseKey),
+    NoSolution(ClauseKey),
+    AllAssigned,
 }
 
 impl Context {
@@ -89,6 +87,8 @@ impl Context {
             config,
             implication_graph: Graph::new(),
             window: the_window,
+            status: Status::Initialised,
+            last_valuation: vec![None; variable_count],
         };
         the_context.levels.push(Level::new(0));
 
