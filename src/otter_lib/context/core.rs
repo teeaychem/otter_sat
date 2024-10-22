@@ -1,7 +1,7 @@
 use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
-    context::{config::Config, Context, GraphClause, ImplicationGraphNode, Result, Status},
+    context::{config::Config, Context, GraphClause, ImplicationGraphNode, Status},
     io::{ContextWindow, WindowItem},
     procedures::hobson_choices,
     structures::{
@@ -13,11 +13,9 @@ use crate::{
 };
 
 impl Context {
-    #[allow(unused_labels)]
-    pub fn solve(&mut self) -> Result {
+    #[allow(unused_labels, clippy::result_unit_err)]
+    pub fn solve(&mut self) -> Result<(), ()> {
         let this_total_time = std::time::Instant::now();
-
-        let mut last_valuation = vec![None; self.variables.len()];
 
         if self.config.hobson_choices {
             self.set_hobson();
@@ -28,60 +26,69 @@ impl Context {
         let time_limit = local_config.time_limit;
 
         'main_loop: loop {
-            self.iterations += 1;
-
             self.time = this_total_time.elapsed();
             if time_limit.is_some_and(|limit| self.time > limit) {
-                return Result::Unknown;
+                return Ok(());
             }
+            let step = self.step(&local_config);
+            match step {
+                Ok(_) => continue 'main_loop,
+                Err(_) => break 'main_loop Ok(()),
+            }
+        }
+    }
 
-            'literal_consequences: while let Some(literal) = self.variables.get_consequence() {
-                let this_level_index = self.level().index();
-                let this_level = self.levels.get_mut(this_level_index).expect("lost level");
+    #[allow(unused_labels, clippy::result_unit_err)]
+    pub fn step(&mut self, local_config: &Config) -> Result<(), ()> {
+        self.iterations += 1;
 
-                let consequences = self.variables.propagate(
-                    literal,
-                    this_level,
-                    &mut self.stored_clauses,
-                    &local_config,
-                );
+        'literal_consequences: while let Some(literal) = self.variables.get_consequence() {
+            let this_level_index = self.level().index();
+            let this_level = self.levels.get_mut(this_level_index).expect("lost level");
 
-                match consequences {
-                    Ok(_) => {}
-                    Err(conflict_key) => {
-                        let analysis = self.conflict_analysis(conflict_key, &local_config);
+            let consequences = self.variables.propagate(
+                literal,
+                this_level,
+                &mut self.stored_clauses,
+                local_config,
+            );
 
-                        match analysis {
-                            Status::NoSolution => return Result::Unsatisfiable(conflict_key),
-                            Status::MissedImplication => continue 'main_loop,
-                            Status::AssertingClause => {
-                                for variable in self.variables.slice().iter() {
-                                    last_valuation[variable.index()] = variable.polarity();
-                                }
+            match consequences {
+                Ok(_) => {}
+                Err(conflict_key) => {
+                    self.status = self.conflict_analysis(conflict_key, local_config);
 
-                                self.conflicts += 1;
-                                self.conflicts_since_last_forget += 1;
-                                self.conflicts_since_last_reset += 1;
-
-                                if self.conflicts % local_config.decay_frequency == 0 {
-                                    self.variables.multiply_activity(local_config.decay_factor);
-                                }
-
-                                self.reductions_and_restarts(&local_config);
-                                continue 'main_loop;
+                    match self.status {
+                        Status::NoSolution(_) => return Ok(()),
+                        Status::MissedImplication(_) => return Ok(()),
+                        Status::AssertingClause(_) => {
+                            for variable in self.variables.slice().iter() {
+                                self.last_valuation[variable.index()] = variable.polarity();
                             }
+
+                            self.conflicts += 1;
+                            self.conflicts_since_last_forget += 1;
+                            self.conflicts_since_last_reset += 1;
+
+                            if self.conflicts % local_config.decay_frequency == 0 {
+                                self.variables.multiply_activity(local_config.decay_factor);
+                            }
+
+                            self.reductions_and_restarts(local_config);
+                            return Ok(());
                         }
+                        _ => panic!("bad status after analysis"),
                     }
                 }
             }
+        }
 
-            match self.get_unassigned(local_config.random_choice_frequency) {
-                Some(choice_index) => {
-                    self.process_choice(choice_index, &last_valuation, local_config.polarity_lean);
-                    continue 'main_loop;
-                }
-                None => return Result::Satisfiable,
+        match self.get_unassigned(local_config.random_choice_frequency) {
+            Some(choice_index) => {
+                self.process_choice(choice_index, local_config.polarity_lean);
+                Ok(())
             }
+            None => Err(()),
         }
     }
 
@@ -134,7 +141,7 @@ impl Context {
         }
     }
 
-    fn process_choice(&mut self, index: usize, last_val: &[Option<bool>], polarity_lean: f64) {
+    fn process_choice(&mut self, index: usize, polarity_lean: f64) {
         log::trace!(
             "Choice: {index} @ {} with activity {}",
             self.level().index(),
@@ -143,8 +150,8 @@ impl Context {
         let level_index = self.add_fresh_level();
         let choice_literal = {
             let id = index as VariableId;
-            match last_val[index] {
-                Some(polarity) => Literal::new(id, polarity),
+            match &self.last_valuation[index] {
+                Some(polarity) => Literal::new(id, *polarity),
                 None => Literal::new(id, rand::thread_rng().gen_bool(polarity_lean)),
             }
         };
@@ -157,9 +164,7 @@ impl Context {
         self.literal_set_from_vec(f);
         self.literal_set_from_vec(t);
     }
-}
 
-impl Context {
     pub fn add_fresh_level(&mut self) -> LevelIndex {
         let index = self.levels.len();
         let the_level = Level::new(index);
@@ -235,5 +240,38 @@ impl Context {
             self.conflicts as f32 / self.iterations as f32,
         );
         window.update_item(WindowItem::Time, format!("{:.2?}", self.time));
+    }
+
+    pub fn print_status(&self) {
+        if self.config.show_stats {
+            self.update_stats(self.window.as_ref().unwrap());
+            self.window.as_ref().unwrap().flush();
+        }
+
+        match self.status {
+            Status::AllAssigned => {
+                println!("s SATISFIABLE");
+                if self.config.show_valuation {
+                    println!("v {}", self.variables().as_display_string());
+                }
+                std::process::exit(10);
+            }
+            Status::NoSolution(clause_key) => {
+                println!("s UNSATISFIABLE");
+                if self.config.show_core {
+                    self.display_core(clause_key);
+                }
+                std::process::exit(20);
+            }
+            _ => {
+                if let Some(limit) = self.config.time_limit {
+                    if self.config.show_stats && self.time > limit {
+                        println!("c TIME LIMIT EXCEEDED");
+                    }
+                }
+                println!("s UNKNOWN");
+                std::process::exit(30);
+            }
+        }
     }
 }
