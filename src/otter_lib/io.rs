@@ -2,7 +2,7 @@ use core::char;
 use std::fmt::Display;
 use std::io::{stdout, Write};
 
-use crate::{structures::formula::Formula, Config};
+use crate::{context::config::Config, structures::formula::Formula};
 
 impl Formula {
     pub fn from_dimacs(string: &str) -> Self {

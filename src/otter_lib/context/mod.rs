@@ -4,16 +4,16 @@ pub mod core;
 mod resolution_buffer;
 pub mod store;
 
-use crate::{
-    context::store::{ClauseId, ClauseKey, ClauseStore},
-    structures::{
+use {
+    crate::io::ContextWindow,
+    crate::structures::{
         clause::stored::Source,
         formula::Formula,
         level::Level,
         literal::{Literal, Source as LiteralSource},
         variable::delegate::VariableStore,
     },
-    ContextWindow,
+    store::{ClauseId, ClauseKey, ClauseStore},
 };
 
 use petgraph::Graph;
@@ -66,11 +66,12 @@ pub enum Result {
 }
 
 impl Context {
-    pub fn from_formula(
-        formula: Formula,
-        config: config::Config,
-        window: Option<ContextWindow>,
-    ) -> Self {
+    pub fn from_formula(formula: Formula, config: config::Config) -> Self {
+        let the_window = match config.show_stats {
+            true => Some(ContextWindow::new(&config, &formula)),
+            false => None,
+        };
+
         let variables = formula.variables;
         let clauses = formula.clauses;
         let variable_count = variables.len();
@@ -87,7 +88,7 @@ impl Context {
             time: Duration::new(0, 0),
             config,
             implication_graph: Graph::new(),
-            window,
+            window: the_window,
         };
         the_context.levels.push(Level::new(0));
 
