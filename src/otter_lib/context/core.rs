@@ -46,12 +46,9 @@ impl Context {
             let this_level_index = self.level().index();
             let this_level = self.levels.get_mut(this_level_index).expect("lost level");
 
-            let consequences = self.variables.propagate(
-                literal,
-                this_level,
-                &mut self.stored_clauses,
-                local_config,
-            );
+            let consequences =
+                self.variables
+                    .propagate(literal, this_level, &mut self.clause_store, local_config);
 
             match consequences {
                 Ok(_) => {}
@@ -59,13 +56,9 @@ impl Context {
                     self.status = self.conflict_analysis(conflict_key, local_config);
 
                     match self.status {
-                        Status::NoSolution(_) => return Ok(()),
-                        Status::MissedImplication(_) => return Ok(()),
+                        Status::NoSolution(_) => return Err(()),
+                        Status::MissedImplication(_) => continue 'literal_consequences,
                         Status::AssertingClause(_) => {
-                            for variable in self.variables.slice().iter() {
-                                self.last_valuation[variable.index()] = variable.polarity();
-                            }
-
                             self.conflicts += 1;
                             self.conflicts_since_last_forget += 1;
                             self.conflicts_since_last_reset += 1;
@@ -86,9 +79,13 @@ impl Context {
         match self.get_unassigned(local_config.random_choice_frequency) {
             Some(choice_index) => {
                 self.process_choice(choice_index, local_config.polarity_lean);
+                self.status = Status::ChoiceMade;
                 Ok(())
             }
-            None => Err(()),
+            None => {
+                self.status = Status::AllAssigned;
+                Err(())
+            }
         }
     }
 
@@ -130,7 +127,7 @@ impl Context {
 
             if config.reduction_allowed {
                 log::debug!(target: "forget", "Forget @r {}", self.restarts);
-                self.stored_clauses.reduce(config.glue_strength);
+                self.clause_store.reduce(config.glue_strength);
             }
 
             if config.restarts_allowed {
@@ -149,10 +146,14 @@ impl Context {
         );
         let level_index = self.add_fresh_level();
         let choice_literal = {
-            let id = index as VariableId;
-            match &self.last_valuation[index] {
-                Some(polarity) => Literal::new(id, *polarity),
-                None => Literal::new(id, rand::thread_rng().gen_bool(polarity_lean)),
+            let choice_variable = self.variables.get_unsafe(index);
+
+            match choice_variable.previous_polarity() {
+                Some(polarity) => Literal::new(index as VariableId, polarity),
+                None => Literal::new(
+                    index as VariableId,
+                    rand::thread_rng().gen_bool(polarity_lean),
+                ),
             }
         };
         self.literal_update(choice_literal, level_index, LiteralSource::Choice);
@@ -160,7 +161,7 @@ impl Context {
     }
 
     fn set_hobson(&mut self) {
-        let (f, t) = hobson_choices(self.stored_clauses.clauses());
+        let (f, t) = hobson_choices(self.clause_store.clauses());
         self.literal_set_from_vec(f);
         self.literal_set_from_vec(t);
     }
@@ -209,8 +210,8 @@ impl Context {
     pub fn store_clause(&mut self, clause: Vec<Literal>, src: Source) -> &StoredClause {
         assert!(!clause.is_empty(), "Attempt to add an empty clause");
 
-        let clause_key = self.stored_clauses.insert(src, clause, &self.variables);
-        let the_clause = self.stored_clauses.retreive_mut(clause_key);
+        let clause_key = self.clause_store.insert(src, clause, &self.variables);
+        let the_clause = self.clause_store.retreive_mut(clause_key);
         let node_index = self
             .implication_graph
             .add_node(ImplicationGraphNode::Clause(GraphClause {
