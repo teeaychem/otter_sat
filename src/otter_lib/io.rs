@@ -70,8 +70,6 @@ use crossterm::{cursor, terminal, QueueableCommand};
 pub struct ContextWindow {
     location: (u16, u16),
     column: u16,
-    bottom: u16,
-    time_limit: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -105,16 +103,15 @@ impl ContextWindow {
         ContextWindow {
             location,
             column: 14,
-            bottom: location.1,
-            time_limit: config.time_limit.is_some(),
         }
     }
     fn get_offset(&self, item: WindowItem) -> (u16, u16) {
+        let bottom = self.location.1;
         let the_row = match item {
-            WindowItem::Iterations => self.bottom - 4,
-            WindowItem::Conflicts => self.bottom - 3,
-            WindowItem::Ratio => self.bottom - 2,
-            WindowItem::Time => self.bottom - 1,
+            WindowItem::Iterations => bottom - 4,
+            WindowItem::Conflicts => bottom - 3,
+            WindowItem::Ratio => bottom - 2,
+            WindowItem::Time => bottom - 1,
         };
         (self.column, the_row)
     }

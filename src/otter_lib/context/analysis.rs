@@ -20,7 +20,7 @@ impl Context {
     pub fn conflict_analysis(&mut self, clause_key: ClauseKey, config: &Config) -> SolveStatus {
         log::trace!("Fix @ {}", self.level().index());
         if self.level().index() == 0 {
-            return SolveStatus::NoSolution;
+            return SolveStatus::NoSolution(clause_key);
         }
         let conflict_clause = self.stored_clauses.retreive(clause_key);
         let conflict_index = conflict_clause.node_index();
@@ -44,7 +44,7 @@ impl Context {
             );
             self.variables.push_back_consequence(asserted);
 
-            SolveStatus::MissedImplication
+            SolveStatus::MissedImplication(clause_key)
         } else {
             // resolve
             match the_buffer.resolve_with(
@@ -121,7 +121,7 @@ impl Context {
                     }
 
                     self.variables.push_back_consequence(asserted_literal);
-                    SolveStatus::AssertingClause
+                    SolveStatus::AssertingClause(clause_key)
                 }
             }
             // see if resolution can be strengthened
