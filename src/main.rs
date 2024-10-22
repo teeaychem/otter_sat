@@ -14,20 +14,18 @@ static GLOBAL: Jemalloc = Jemalloc;
 use clap::Parser;
 use std::fs;
 
-mod context;
-mod io;
-mod procedures;
-mod structures;
-
-use crate::{io::ContextWindow, structures::formula::Formula};
-use context::{
-    config::{Args, Config},
-    Context, Result,
+use otter_lib::{
+    context::{
+        config::{Args, Config},
+        Context, Result,
+    },
+    structures::formula::Formula,
+    structures::variable::list::VariableList,
 };
-use structures::variable::list::VariableList;
 
 // #[rustfmt::skip]
 fn main() {
+    #[cfg(feature = "log")]
     match log4rs::init_file("config/log4rs.yaml", Default::default()) {
         Ok(()) => log::trace!("Log find loaded"),
         Err(e) => log::error!("{e:?}"),
@@ -44,11 +42,7 @@ fn main() {
         Ok(contents) => {
             let formula = Formula::from_dimacs(&contents);
 
-            let the_window = match config.show_stats {
-                true => Some(ContextWindow::new(&config, &formula)),
-                false => None,
-            };
-            let mut the_context = Context::from_formula(formula, config, the_window);
+            let mut the_context = Context::from_formula(formula, config);
             log::trace!("Context made");
 
             let result = the_context.solve();
