@@ -22,7 +22,7 @@ impl Context {
         if self.level().index() == 0 {
             return SolveStatus::NoSolution(clause_key);
         }
-        let conflict_clause = self.stored_clauses.retreive(clause_key);
+        let conflict_clause = self.clause_store.retreive(clause_key);
         let conflict_index = conflict_clause.node_index();
         log::trace!("Clause {conflict_clause}");
 
@@ -54,7 +54,7 @@ impl Context {
                         .get_unchecked(self.level().index())
                         .observations()
                 },
-                &mut self.stored_clauses,
+                &mut self.clause_store,
                 &self.implication_graph,
                 &self.variables,
                 config,
@@ -115,7 +115,7 @@ impl Context {
                     };
 
                     for key in the_buffer.trail() {
-                        let trail_clause = self.stored_clauses.retreive(*key);
+                        let trail_clause = self.clause_store.retreive(*key);
                         let trail_index = trail_clause.node_index();
                         self.implication_graph.add_edge(index, trail_index, ());
                     }
@@ -155,7 +155,7 @@ impl Context {
             self.config.formula_file.display()
         );
 
-        let conflict_clause = self.stored_clauses.retreive(conflict_key);
+        let conflict_clause = self.clause_store.retreive(conflict_key);
         let conflict_index = conflict_clause.node_index();
 
         let mut basic_clause_set = BTreeSet::new();
@@ -196,7 +196,7 @@ impl Context {
         }
 
         for source_key in &core_set {
-            let source_clause = self.stored_clauses.retreive(*source_key);
+            let source_clause = self.clause_store.retreive(*source_key);
             let full_clause = source_clause.original_clause();
             println!("{}", full_clause.as_dimacs(&self.variables));
         }

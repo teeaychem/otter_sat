@@ -40,10 +40,13 @@ fn main() {
             let mut the_context = Context::from_formula(formula, config);
             log::trace!("Context made");
 
-            let _ = the_context.step(&config_clone);
+            // let _ = the_context.step(&config_clone);
 
             let _the_result = the_context.solve();
+
             the_context.print_status();
+            // println!("INNER {:?}",   the_context.status);
+            // println!("???");
         }
         Err(e) => println!("Error reading file {e:?}"),
     }

@@ -1,4 +1,5 @@
 mod analysis;
+pub mod builder;
 pub mod config;
 pub mod core;
 mod resolution_buffer;
@@ -45,21 +46,22 @@ pub struct Context {
     iterations: usize,
     levels: Vec<Level>,
     restarts: usize,
-    stored_clauses: ClauseStore,
+    clause_store: ClauseStore,
     variables: VariableStore,
     pub time: Duration,
     config: config::Config,
     implication_graph: ResolutionGraph,
     pub window: Option<ContextWindow>,
     pub status: Status,
-    last_valuation: Vec<Option<bool>>,
 }
 
+#[derive(Debug)]
 pub enum Status {
     Initialised,
     AssertingClause(ClauseKey),
     MissedImplication(ClauseKey),
     NoSolution(ClauseKey),
+    ChoiceMade,
     AllAssigned,
 }
 
@@ -81,14 +83,13 @@ impl Context {
             iterations: 0,
             levels: Vec::<Level>::with_capacity(variable_count),
             restarts: 0,
-            stored_clauses: ClauseStore::new(),
+            clause_store: ClauseStore::new(),
             variables: VariableStore::new(variables),
             time: Duration::new(0, 0),
             config,
             implication_graph: Graph::new(),
             window: the_window,
             status: Status::Initialised,
-            last_valuation: vec![None; variable_count],
         };
         the_context.levels.push(Level::new(0));
 
