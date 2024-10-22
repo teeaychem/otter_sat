@@ -31,6 +31,13 @@ impl ClauseStore {
         }
     }
 
+    pub fn with_capacity(capacity: usize) -> Self {
+        ClauseStore {
+            formula: SlotMap::with_capacity(capacity),
+            learned: SlotMap::with_capacity(capacity),
+        }
+    }
+
     pub fn retreive_carefully(&self, key: ClauseKey) -> Option<&StoredClause> {
         match key {
             ClauseKey::Formula(key) => self.formula.get(key),

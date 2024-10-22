@@ -13,12 +13,9 @@ static GLOBAL: Jemalloc = Jemalloc;
 use clap::Parser;
 use std::fs;
 
-use otter_lib::{
-    context::{
-        config::{Args, Config},
-        Context,
-    },
-    structures::formula::Formula,
+use otter_lib::context::{
+    config::{Args, Config},
+    Context,
 };
 
 // #[rustfmt::skip]
@@ -31,22 +28,16 @@ fn main() {
 
     let config = Config::from_args(Args::parse());
 
-    match fs::read_to_string(&config.formula_file) {
+    match fs::read_to_string(config.formula_file.clone().unwrap()) {
         Ok(contents) => {
-            let formula = Formula::from_dimacs(&contents);
-
-            let config_clone = config.clone();
-
-            let mut the_context = Context::from_formula(formula, config);
-            log::trace!("Context made");
+            let mut the_context = Context::from_dimacs(&contents, &config);
+            the_context.clause_from_string("p -q");
 
             // let _ = the_context.step(&config_clone);
 
             let _the_result = the_context.solve();
 
             the_context.print_status();
-            // println!("INNER {:?}",   the_context.status);
-            // println!("???");
         }
         Err(e) => println!("Error reading file {e:?}"),
     }
