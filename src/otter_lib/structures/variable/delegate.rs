@@ -11,6 +11,8 @@ use crate::{
     },
 };
 
+const DEFAULT_VARIABLE_COUNT: usize = 1024;
+
 pub enum Status {
     NotSet,
     Match,
@@ -27,7 +29,7 @@ use super::ActivityRep;
 pub struct VariableStore {
     variables: Vec<Variable>,
     consequence_q: VecDeque<Literal>,
-    pub consequence_buffer: Vec<(Source, Literal)>,
+    // pub consequence_buffer: Vec<(Source, Literal)>,
 }
 
 impl VariableStore {
@@ -37,12 +39,31 @@ impl VariableStore {
         VariableStore {
             variables,
             consequence_q: VecDeque::with_capacity(count),
-            consequence_buffer: Vec::with_capacity(count),
+            // consequence_buffer: Vec::with_capacity(count),
+        }
+    }
+
+    pub fn with_capactiy(variable_count: usize) -> Self {
+        VariableStore {
+            variables: Vec::with_capacity(variable_count),
+            consequence_q: VecDeque::with_capacity(variable_count),
+            // consequence_buffer: Vec::with_capacity(variable_count),
         }
     }
 
     pub fn add_variable(&mut self, variable: Variable) {
         self.variables.push(variable);
+        // self.consequence_buffer;
+    }
+}
+
+impl Default for VariableStore {
+    fn default() -> Self {
+        VariableStore {
+            variables: Vec::with_capacity(DEFAULT_VARIABLE_COUNT),
+            consequence_q: VecDeque::with_capacity(DEFAULT_VARIABLE_COUNT),
+            // consequence_buffer: Vec::with_capacity(DEFAULT_VARIABLE_COUNT),
+        }
     }
 }
 

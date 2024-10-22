@@ -84,7 +84,7 @@ pub struct Args {
 
 #[derive(Clone)]
 pub struct Config {
-    pub formula_file: std::path::PathBuf,
+    pub formula_file: Option<std::path::PathBuf>,
     pub glue_strength: usize,
     pub hobson_choices: bool,
     pub luby_constant: usize,
@@ -108,7 +108,7 @@ pub struct Config {
 impl Config {
     pub fn from_args(args: Args) -> Self {
         let mut the_config = Config {
-            formula_file: args.formula_file,
+            formula_file: Some(args.formula_file),
             glue_strength: args.glue_strength,
             hobson_choices: args.hobson,
             luby_constant: args.luby_u,
@@ -144,6 +144,32 @@ impl Config {
         }
 
         the_config
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            formula_file: None,
+            glue_strength: 2,
+            hobson_choices: false,
+            luby_constant: 512,
+            polarity_lean: 0.0,
+            reduction_allowed: false,
+            restarts_allowed: false,
+            show_core: false,
+            show_stats: true,
+            show_valuation: true,
+            stopping_criteria: StoppingCriteria::FirstUIP,
+            time_limit: None,
+            vsids_variant: VSIDS::MiniSAT,
+            activity_conflict: 1.0,
+            decay_factor: 0.95,
+            decay_frequency: 1,
+            subsumption: false,
+            random_choice_frequency: 0.0,
+            tidy_watches: false,
+        }
     }
 }
 

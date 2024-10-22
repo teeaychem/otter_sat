@@ -6,14 +6,9 @@ mod resolution_buffer;
 pub mod store;
 
 use {
+    crate::context::config::Config,
     crate::io::ContextWindow,
-    crate::structures::{
-        clause::stored::Source,
-        formula::Formula,
-        level::Level,
-        literal::{Literal, Source as LiteralSource},
-        variable::delegate::VariableStore,
-    },
+    crate::structures::{level::Level, literal::Literal, variable::delegate::VariableStore},
     store::{ClauseId, ClauseKey, ClauseStore},
 };
 
@@ -66,15 +61,50 @@ pub enum Status {
 }
 
 impl Context {
-    pub fn from_formula(formula: Formula, config: config::Config) -> Self {
+    // pub fn from_formula(formula: Formula, config: config::Config) -> Self {
+
+    //     println!("c Parsing formula from file: {:?}", config.formula_file);
+    //     println!(
+    //         "c Parsed formula with {} variables and {} clauses",
+    //         formula.variable_count(),
+    //         formula.clause_count()
+    //     );
+
+    //     let mut the_context = Self::with_size_hints(formula.variable_count(), formula.clause_count(), config);
+
+    //     for formula_clause in formula.clauses {
+    //         assert!(
+    //             !formula_clause.is_empty(),
+    //             "c The formula contains an empty clause"
+    //         );
+
+    //         match formula_clause.len() {
+    //             1 => {
+    //                 let formula_literal = formula_clause.first().expect("literal vanish");
+    //                 let the_literal = self.literal_ensure(formula_literal.name(), polarity);
+
+    //                 the_context.literal_from_string(formula_clause.first());
+
+    //                 the_context.literal_update(
+    //                     *formula_clause.first().expect("literal vanish"),
+    //                     0,
+    //                     LiteralSource::Assumption,
+    //                 );
+    //             }
+    //             _ => {
+    //                 the_context.store_clause(formula_clause, Source::Formula);
+    //             }
+    //         }
+    //     }
+
+    //     the_context
+    // }
+
+    pub fn with_size_hints(variable_count: usize, clause_count: usize, config: Config) -> Self {
         let the_window = match config.show_stats {
-            true => Some(ContextWindow::new(&config, &formula)),
+            true => Some(ContextWindow::new(&config)),
             false => None,
         };
-
-        let variables = formula.variables;
-        let clauses = formula.clauses;
-        let variable_count = variables.len();
 
         let mut the_context = Self {
             conflicts: 0,
@@ -83,8 +113,8 @@ impl Context {
             iterations: 0,
             levels: Vec::<Level>::with_capacity(variable_count),
             restarts: 0,
-            clause_store: ClauseStore::new(),
-            variables: VariableStore::new(variables),
+            clause_store: ClauseStore::with_capacity(clause_count),
+            variables: VariableStore::with_capactiy(variable_count),
             time: Duration::new(0, 0),
             config,
             implication_graph: Graph::new(),
@@ -92,27 +122,28 @@ impl Context {
             status: Status::Initialised,
         };
         the_context.levels.push(Level::new(0));
+        the_context
+    }
+}
 
-        for formula_clause in clauses {
-            assert!(
-                !formula_clause.is_empty(),
-                "c The formula contains an empty clause"
-            );
-
-            match formula_clause.len() {
-                1 => {
-                    the_context.literal_update(
-                        *formula_clause.first().expect("literal vanish"),
-                        0,
-                        LiteralSource::Assumption,
-                    );
-                }
-                _ => {
-                    the_context.store_clause(formula_clause, Source::Formula);
-                }
-            }
-        }
-
+impl Default for Context {
+    fn default() -> Self {
+        let mut the_context = Context {
+            conflicts: 0,
+            conflicts_since_last_forget: 0,
+            conflicts_since_last_reset: 0,
+            iterations: 0,
+            levels: Vec::<Level>::with_capacity(1024),
+            restarts: 0,
+            clause_store: ClauseStore::new(),
+            variables: VariableStore::default(),
+            time: Duration::new(0, 0),
+            config: Config::default(),
+            implication_graph: Graph::default(),
+            window: None,
+            status: Status::Initialised,
+        };
+        the_context.levels.push(Level::new(0));
         the_context
     }
 }

@@ -150,10 +150,7 @@ impl Context {
     #[allow(clippy::single_match)]
     pub fn display_core(&self, conflict_key: ClauseKey) {
         println!();
-        println!(
-            "c An unsatisfiable core of {}:\n",
-            self.config.formula_file.display()
-        );
+        println!("c An unsatisfiable core of the formula:\n",);
 
         let conflict_clause = self.clause_store.retreive(conflict_key);
         let conflict_index = conflict_clause.node_index();
