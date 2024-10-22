@@ -40,6 +40,10 @@ impl VariableStore {
             consequence_buffer: Vec::with_capacity(count),
         }
     }
+
+    pub fn add_variable(&mut self, variable: Variable) {
+        self.variables.push(variable);
+    }
 }
 
 impl VariableStore {
