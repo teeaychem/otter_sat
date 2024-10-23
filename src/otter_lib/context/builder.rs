@@ -7,6 +7,12 @@ use crate::{
     },
 };
 
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+    path::Path,
+};
+
 impl Context {
     pub fn literal_from_string(&mut self, string: &str) -> Literal {
         let trimmed_string = string.trim();
@@ -26,8 +32,8 @@ impl Context {
 
     pub fn literal_ensure(&mut self, name: &str, polarity: bool) -> Literal {
         let the_variable = {
-            match self.variables.iter().find(|v| v.name() == name) {
-                Some(variable) => variable.id(),
+            match self.variables.string_map.get(name) {
+                Some(variable) => *variable,
                 None => {
                     let the_id = self.variables.len() as VariableId;
                     self.variables.add_variable(Variable::new(name, the_id));
@@ -67,68 +73,112 @@ impl Context {
         }
     }
 
-    pub fn from_dimacs(string: &str, config: &Config) -> Self {
-        let mut the_context = Context::default();
+    #[allow(clippy::manual_flatten)]
+    pub fn from_dimacs(file: &Path, config: &Config) -> Self {
+        let file = File::open(file).unwrap();
 
-        let mut from = 0;
-        let mut to = 0;
-        let mut reading_comment = false;
-        let mut reading_literal = false;
-        while let Some(ch) = string.chars().nth(to) {
-            if !reading_literal {
-                if ['-', '1', '2', '3', '4', '5', '6', '7', '8', '9'].contains(&ch) {
-                    reading_literal = true;
-                } else if ch == '0' {
-                    if !reading_comment {
-                        the_context.clause_from_string(&string[from..to]);
+        let mut buffer = String::with_capacity(1024);
+        let mut file_reader = BufReader::new(file);
+        let mut clause_buffer: Vec<Literal> = Vec::new();
+
+        let mut the_context = None;
+
+        // first phase, read until the formula begins
+        loop {
+            match file_reader.read_line(&mut buffer) {
+                Ok(0) => break,
+                Ok(_) => {}
+                Err(e) => panic!("{e:?}"),
+            }
+
+            match buffer.chars().next() {
+                Some('c') => {
+                    buffer.clear();
+                    continue;
+                }
+                Some('p') => {
+                    let mut problem_details = buffer.split_whitespace();
+                    let variable_count: usize = problem_details
+                        .nth(2)
+                        .expect("bad problem spec variable")
+                        .parse()
+                        .expect("bad variable parse");
+
+                    let clause_count: usize = problem_details
+                        .next()
+                        .expect("bad problem spec clause")
+                        .parse()
+                        .expect("bad clause parse");
+
+                    buffer.clear();
+
+                    if config.show_stats {
+                        println!(
+                            "c Parsing {}",
+                            config.formula_file.clone().unwrap().display()
+                        );
+                        println!(
+                            "c Expectation is to get {} variables and {} clauses",
+                            variable_count, clause_count
+                        );
                     }
-                    from = to + 1;
+
+                    the_context = Some(Context::with_size_hints(
+                        variable_count,
+                        clause_count,
+                        config.clone(),
+                    ));
+                    break;
+                }
+                _ => {
+                    break;
                 }
             }
-            if reading_literal && ch.is_whitespace() {
-                reading_literal = false;
-            }
-
-            if ch == 'c' {
-                reading_comment = true;
-                from += 1;
-            } else if ch == 0xA as char {
-                // newline check
-                from = to;
-                reading_comment = false;
-            } else if !reading_comment && ch == 'p' {
-                loop {
-                    to += 1;
-                    if string.chars().nth(to).expect("IO: Parse failure") == 0xA as char {
-                        break;
-                    }
-                }
-                let the_preface = &string[from..to];
-                let preface_parts = the_preface.split_whitespace().collect::<Vec<_>>();
-
-                assert!(preface_parts.len() == 4, "IO: Puzzled by preface length");
-                assert!(preface_parts[0] == "p", "IO: Puzzled by preface format");
-                assert!(preface_parts[1] == "cnf", "IO: Puzzled by preface format");
-
-                let variables = match preface_parts[2].parse::<usize>() {
-                    Ok(count_number) => count_number,
-                    Err(e) => panic!("IO: Parse failure {e:?}"),
-                };
-
-                let clauses = match preface_parts[3].parse::<usize>() {
-                    Ok(count_number) => count_number,
-                    Err(e) => panic!("IO: Parse failure {e:?}"),
-                };
-                from = to;
-
-                assert!(the_context.variables().slice().is_empty());
-
-                the_context = Context::with_size_hints(variables, clauses, config.clone())
-            }
-
-            to += 1;
         }
-        log::trace!("Context made from DIMACS");
+
+        let mut the_context = the_context.unwrap_or_default();
+
+        loop {
+            match file_reader.read_line(&mut buffer) {
+                Ok(0) => break,
+                Ok(_) => {}
+                Err(e) => panic!("{e:?}"),
+            }
+
+            match buffer.chars().next() {
+                Some('c') => {}
+                Some('p') => panic!("problem specified within formula details"),
+                _ => {
+                    let split_buf = buffer.split_whitespace();
+                    for item in split_buf {
+                        match item {
+                            "0" => {
+                                let mut the_clause = clause_buffer.clone();
+                                the_clause.sort_unstable();
+                                the_clause.dedup();
+                                the_context.store_clause(the_clause, ClauseSource::Formula);
+                                clause_buffer.clear();
+                            }
+                            _ => {
+                                let literal = the_context.literal_from_string(item);
+                                clause_buffer.push(literal);
+                            }
+                        }
+                    }
+                }
+            }
+
+            buffer.clear();
+        }
+
+        if config.show_stats {
+            println!(
+                "c Parsing complete with {} variables and {} clauses",
+                the_context.variables().slice().len(),
+                the_context.clause_count()
+            );
+        }
+
         the_context
     }
 }

@@ -19,17 +19,7 @@ pub enum WindowItem {
 }
 
 impl ContextWindow {
-    pub fn new(config: &Config) -> Self {
-        println!("c 🦦");
-        println!("c CHOICE POLARITY LEAN {}", config.polarity_lean);
-        if let Some(limit) = config.time_limit {
-            println!("c TIME LIMIT: {:.2?}", limit);
-        }
-        println!("c ITERATIONS");
-        println!("c CONFLCITS");
-        println!("c RATIO");
-        println!("c TIME");
-
+    pub fn default() -> Self {
         let location = cursor::position().expect("Unable to display stats");
 
         ContextWindow {
@@ -66,5 +56,21 @@ impl ContextWindow {
 
     pub fn flush(&self) {
         stdout().flush().unwrap();
+    }
+
+    pub fn update_position(&mut self) {
+        self.location = cursor::position().expect("Unable to display stats");
+    }
+
+    pub fn draw_window(&self, config: &Config) {
+        println!("c 🦦");
+        println!("c CHOICE POLARITY LEAN {}", config.polarity_lean);
+        if let Some(limit) = config.time_limit {
+            println!("c TIME LIMIT: {:.2?}", limit);
+        }
+        println!("c ITERATIONS");
+        println!("c CONFLCITS");
+        println!("c RATIO");
+        println!("c TIME");
     }
 }
