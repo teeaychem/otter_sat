@@ -11,12 +11,19 @@ use tikv_jemallocator::Jemalloc;
 static GLOBAL: Jemalloc = Jemalloc;
 
 use clap::Parser;
-use std::fs;
+use std::{
+    fs,
+    io::{BufReader, Read},
+};
 
 use otter_lib::context::{
     config::{Args, Config},
     Context,
 };
+
+use std::fs::File;
+use std::io::{self, BufRead};
+use std::path::Path;
 
 // #[rustfmt::skip]
 fn main() {
@@ -28,17 +35,9 @@ fn main() {
 
     let config = Config::from_args(Args::parse());
 
-    match fs::read_to_string(config.formula_file.clone().unwrap()) {
-        Ok(contents) => {
-            let mut the_context = Context::from_dimacs(&contents, &config);
-            the_context.clause_from_string("p -q");
+    let mut the_context = Context::from_dimacs(&config.formula_file.clone().unwrap(), &config);
+    the_context.clause_from_string("p -q");
+    let _the_result = the_context.solve();
 
-            // let _ = the_context.step(&config_clone);
-
-            let _the_result = the_context.solve();
-
-            the_context.print_status();
-        }
-        Err(e) => println!("Error reading file {e:?}"),
-    }
+    the_context.print_status();
 }

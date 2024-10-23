@@ -24,7 +24,7 @@ pub struct ClauseStore {
 }
 
 impl ClauseStore {
-    pub fn new() -> Self {
+    pub fn default() -> Self {
         ClauseStore {
             formula: SlotMap::new(),
             learned: SlotMap::new(),
@@ -102,6 +102,10 @@ impl ClauseStore {
                 ClauseKey::Learned(key)
             }
         }
+    }
+
+    pub fn formula_count(&self) -> usize {
+        self.formula.len()
     }
 
     pub fn learned_count(&self) -> usize {
