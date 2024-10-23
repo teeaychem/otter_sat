@@ -1,14 +1,14 @@
 use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
-    context::{config::Config, Context, GraphClause, ImplicationGraphNode, Status},
+    context::{config::Config, Context, GraphClause, ImplicationGraphNode, Status as ClauseStatus},
     io::{ContextWindow, WindowItem},
     procedures::hobson_choices,
     structures::{
         clause::stored::{Source, StoredClause},
         level::{Level, LevelIndex},
         literal::{Literal, Source as LiteralSource},
-        variable::{list::VariableList, VariableId},
+        variable::{list::VariableList, Status as VariableStatus, VariableId},
     },
 };
 
@@ -68,13 +68,13 @@ impl Context {
             match consequence {
                 Ok(_) => {}
                 Err(clause_key) => match self.conflict_analysis(clause_key, config) {
-                    Status::MissedImplication(_) => continue 'propagation,
-                    Status::NoSolution(key) => {
-                        self.status = Status::NoSolution(key);
+                    ClauseStatus::MissedImplication(_) => continue 'propagation,
+                    ClauseStatus::NoSolution(key) => {
+                        self.status = ClauseStatus::NoSolution(key);
                         return Err(());
                     }
-                    Status::AssertingClause(key) => {
-                        self.status = Status::AssertingClause(key);
+                    ClauseStatus::AssertingClause(key) => {
+                        self.status = ClauseStatus::AssertingClause(key);
                         self.conflict_ceremony(config);
                         return Ok(());
                     }
@@ -103,11 +103,11 @@ impl Context {
         match self.get_unassigned(config.random_choice_frequency) {
             Some(choice_index) => {
                 self.process_choice(choice_index, config.polarity_lean);
-                self.status = Status::ChoiceMade;
+                self.status = ClauseStatus::ChoiceMade;
                 Ok(())
             }
             None => {
-                self.status = Status::AllAssigned;
+                self.status = ClauseStatus::AllAssigned;
                 Err(())
             }
         }
@@ -118,14 +118,17 @@ impl Context {
         literal: Literal,
         level_index: LevelIndex,
         source: LiteralSource,
-    ) {
+    ) -> Result<(), VariableStatus> {
         log::trace!("{literal} from {source:?}");
-        self.variables.set_value(literal, level_index);
-        unsafe {
-            self.levels
-                .get_unchecked_mut(level_index)
-                .record_literal(literal, source);
-        };
+        match self.variables.check_set_value(literal, level_index) {
+            Ok(_) => unsafe {
+                self.levels
+                    .get_unchecked_mut(level_index)
+                    .record_literal(literal, source);
+                Ok(())
+            },
+            Err(e) => panic!("{e:?}"),
+        }
     }
 
     pub fn literal_set_from_vec(&mut self, choices: Vec<VariableId>) {
@@ -267,14 +270,14 @@ impl Context {
         }
 
         match self.status {
-            Status::AllAssigned => {
+            ClauseStatus::AllAssigned => {
                 println!("s SATISFIABLE");
                 if self.config.show_valuation {
                     println!("v {}", self.variables().as_display_string());
                 }
                 std::process::exit(10);
             }
-            Status::NoSolution(clause_key) => {
+            ClauseStatus::NoSolution(clause_key) => {
                 println!("s UNSATISFIABLE");
                 if self.config.show_core {
                     self.display_core(clause_key);
