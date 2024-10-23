@@ -35,7 +35,6 @@ impl Context {
         self.preprocess();
         if self.config.show_stats {
             if let Some(window) = &mut self.window {
-                window.update_position();
                 window.draw_window(&self.config);
             }
         }
