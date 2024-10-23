@@ -62,7 +62,7 @@ impl ContextWindow {
         self.location = cursor::position().expect("Unable to display stats");
     }
 
-    pub fn draw_window(&self, config: &Config) {
+    pub fn draw_window(&mut self, config: &Config) {
         println!("c 🦦");
         println!("c CHOICE POLARITY LEAN {}", config.polarity_lean);
         if let Some(limit) = config.time_limit {
@@ -72,5 +72,8 @@ impl ContextWindow {
         println!("c CONFLCITS");
         println!("c RATIO");
         println!("c TIME");
+
+        self.update_position();
     }
+
 }
