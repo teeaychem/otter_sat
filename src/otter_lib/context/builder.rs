@@ -61,11 +61,14 @@ impl Context {
 
         match the_clause.len() {
             1 => {
-                self.literal_update(
+                match self.literal_update(
                     *the_clause.first().expect("literal vanish"),
                     0,
                     LiteralSource::Assumption,
-                );
+                ) {
+                    Ok(_) => {}
+                    Err(e) => panic!("{e:?}"),
+                };
             }
             _ => {
                 self.store_clause(the_clause, ClauseSource::Formula);
@@ -122,11 +125,10 @@ impl Context {
                             variable_count, clause_count
                         );
                     }
-
                     the_context = Some(Context::with_size_hints(
                         variable_count,
                         clause_count,
-                        config.clone(),
+                        config,
                     ));
                     break;
                 }
@@ -138,6 +140,7 @@ impl Context {
 
         let mut the_context = the_context.unwrap_or_default();
 
+        // second phase, read the formula to the context
         loop {
             match file_reader.read_line(&mut buffer) {
                 Ok(0) => break,

@@ -75,5 +75,4 @@ impl ContextWindow {
 
         self.update_position();
     }
-
 }
