@@ -66,7 +66,6 @@ impl Context {
     }
 
     pub fn with_size_hints(variable_count: usize, clause_count: usize, config: &Config) -> Self {
-
         let config = config.clone();
 
         let the_window = match config.show_stats {
