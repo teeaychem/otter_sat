@@ -20,6 +20,7 @@ pub struct Variable {
 
 type ActivityRep = f32;
 
+#[derive(Debug)]
 pub enum Status {
     NotSet,
     Match,
