@@ -7,7 +7,7 @@ use crate::{
         clause::stored::Watch,
         level::Level,
         literal::{Literal, Source},
-        variable::{list::VariableList, Variable},
+        variable::{list::VariableList, Variable, VariableId},
     },
 };
 
@@ -20,7 +20,7 @@ pub enum Status {
 }
 
 use std::{
-    collections::VecDeque,
+    collections::{HashMap, VecDeque},
     ops::{Deref, DerefMut},
 };
 
@@ -29,7 +29,7 @@ use super::ActivityRep;
 pub struct VariableStore {
     variables: Vec<Variable>,
     consequence_q: VecDeque<Literal>,
-    // pub consequence_buffer: Vec<(Source, Literal)>,
+    pub string_map: HashMap<String, VariableId>, // pub consequence_buffer: Vec<(Source, Literal)>,
 }
 
 impl VariableStore {
@@ -39,7 +39,7 @@ impl VariableStore {
         VariableStore {
             variables,
             consequence_q: VecDeque::with_capacity(count),
-            // consequence_buffer: Vec::with_capacity(count),
+            string_map: HashMap::with_capacity(count), // consequence_buffer: Vec::with_capacity(count),
         }
     }
 
@@ -47,11 +47,12 @@ impl VariableStore {
         VariableStore {
             variables: Vec::with_capacity(variable_count),
             consequence_q: VecDeque::with_capacity(variable_count),
-            // consequence_buffer: Vec::with_capacity(variable_count),
+            string_map: HashMap::with_capacity(variable_count), // consequence_buffer: Vec::with_capacity(variable_count),
         }
     }
 
     pub fn add_variable(&mut self, variable: Variable) {
+        self.string_map.insert(variable.name.clone(), variable.id);
         self.variables.push(variable);
         // self.consequence_buffer;
     }
@@ -62,7 +63,7 @@ impl Default for VariableStore {
         VariableStore {
             variables: Vec::with_capacity(DEFAULT_VARIABLE_COUNT),
             consequence_q: VecDeque::with_capacity(DEFAULT_VARIABLE_COUNT),
-            // consequence_buffer: Vec::with_capacity(DEFAULT_VARIABLE_COUNT),
+            string_map: HashMap::with_capacity(DEFAULT_VARIABLE_COUNT), // consequence_buffer: Vec::with_capacity(DEFAULT_VARIABLE_COUNT),
         }
     }
 }

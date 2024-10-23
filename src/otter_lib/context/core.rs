@@ -12,13 +12,32 @@ use crate::{
     },
 };
 
+macro_rules! level_mut {
+    ($self:ident) => {
+        unsafe {
+            let index = $self.levels.len() - 1;
+            $self.levels.get_unchecked_mut(index)
+        }
+    };
+}
+
 impl Context {
+    pub fn preprocess(&mut self) {
+        if self.config.hobson_choices {
+            self.set_hobson();
+        }
+    }
+
     #[allow(unused_labels, clippy::result_unit_err)]
     pub fn solve(&mut self) -> Result<(), ()> {
         let this_total_time = std::time::Instant::now();
 
-        if self.config.hobson_choices {
-            self.set_hobson();
+        self.preprocess();
+        if self.config.show_stats {
+            if let Some(window) = &mut self.window {
+                window.update_position();
+                window.draw_window(&self.config);
+            }
         }
 
         // store parts of config for use inside the loop
@@ -30,8 +49,8 @@ impl Context {
             if time_limit.is_some_and(|limit| self.time > limit) {
                 return Ok(());
             }
-            let step = self.step(&local_config);
-            match step {
+
+            match self.step(&local_config) {
                 Ok(_) => continue 'main_loop,
                 Err(_) => break 'main_loop Ok(()),
             }
@@ -39,46 +58,52 @@ impl Context {
     }
 
     #[allow(unused_labels, clippy::result_unit_err)]
-    pub fn step(&mut self, local_config: &Config) -> Result<(), ()> {
+    pub fn step(&mut self, config: &Config) -> Result<(), ()> {
         self.iterations += 1;
 
-        'literal_consequences: while let Some(literal) = self.variables.get_consequence() {
-            let this_level_index = self.level().index();
-            let this_level = self.levels.get_mut(this_level_index).expect("lost level");
-
-            let consequences =
+        'propagation: while let Some(literal) = self.variables.get_consequence() {
+            let consequence =
                 self.variables
-                    .propagate(literal, this_level, &mut self.clause_store, local_config);
+                    .propagate(literal, level_mut!(self), &mut self.clause_store, config);
 
-            match consequences {
+            match consequence {
                 Ok(_) => {}
-                Err(conflict_key) => {
-                    self.status = self.conflict_analysis(conflict_key, local_config);
-
-                    match self.status {
-                        Status::NoSolution(_) => return Err(()),
-                        Status::MissedImplication(_) => continue 'literal_consequences,
-                        Status::AssertingClause(_) => {
-                            self.conflicts += 1;
-                            self.conflicts_since_last_forget += 1;
-                            self.conflicts_since_last_reset += 1;
-
-                            if self.conflicts % local_config.decay_frequency == 0 {
-                                self.variables.multiply_activity(local_config.decay_factor);
-                            }
-
-                            self.reductions_and_restarts(local_config);
-                            return Ok(());
-                        }
-                        _ => panic!("bad status after analysis"),
+                Err(clause_key) => match self.conflict_analysis(clause_key, config) {
+                    Status::MissedImplication(_) => continue 'propagation,
+                    Status::NoSolution(key) => {
+                        self.status = Status::NoSolution(key);
+                        return Err(());
                     }
-                }
+                    Status::AssertingClause(key) => {
+                        self.status = Status::AssertingClause(key);
+                        self.conflict_ceremony(config);
+                        return Ok(());
+                    }
+                    _ => panic!("bad status after analysis"),
+                },
             }
         }
 
-        match self.get_unassigned(local_config.random_choice_frequency) {
+        self.make_choice(config)
+    }
+
+    fn conflict_ceremony(&mut self, config: &Config) {
+        self.conflicts += 1;
+        self.conflicts_since_last_forget += 1;
+        self.conflicts_since_last_reset += 1;
+
+        if self.conflicts % config.decay_frequency == 0 {
+            self.variables.multiply_activity(config.decay_factor);
+        }
+
+        self.reductions_and_restarts(config);
+    }
+
+    #[allow(clippy::result_unit_err)]
+    pub fn make_choice(&mut self, config: &Config) -> Result<(), ()> {
+        match self.get_unassigned(config.random_choice_frequency) {
             Some(choice_index) => {
-                self.process_choice(choice_index, local_config.polarity_lean);
+                self.process_choice(choice_index, config.polarity_lean);
                 self.status = Status::ChoiceMade;
                 Ok(())
             }
@@ -89,12 +114,6 @@ impl Context {
         }
     }
 
-    /*
-    let level_index = match source {
-            Source::Choice | Source::Clause(_) => &self.levels.len() - 1,
-            Source::Assumption | Source::HobsonChoice | Source::Resolution(_) => 0,
-            };
-     */
     pub fn literal_update(
         &mut self,
         literal: Literal,
@@ -168,18 +187,17 @@ impl Context {
 
     pub fn add_fresh_level(&mut self) -> LevelIndex {
         let index = self.levels.len();
-        let the_level = Level::new(index);
-        self.levels.push(the_level);
+        self.levels.push(Level::new(index));
         index
     }
 
     pub fn level(&self) -> &Level {
         let index = self.levels.len() - 1;
-        &self.levels[index]
+        unsafe { self.levels.get_unchecked(index) }
     }
 
     pub fn level_zero(&self) -> &Level {
-        &self.levels[0]
+        unsafe { self.levels.get_unchecked(0) }
     }
 
     pub fn variables(&self) -> &impl VariableList {
@@ -245,7 +263,7 @@ impl Context {
 
     pub fn print_status(&self) {
         if self.config.show_stats {
-            self.update_stats(self.window.as_ref().unwrap());
+            self.update_stats(self.window.as_ref().expect("no window"));
             self.window.as_ref().unwrap().flush();
         }
 
@@ -274,5 +292,9 @@ impl Context {
                 std::process::exit(30);
             }
         }
+    }
+
+    pub fn clause_count(&self) -> usize {
+        self.clause_store.formula_count() + self.clause_store.learned_count()
     }
 }

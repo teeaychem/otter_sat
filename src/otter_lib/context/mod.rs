@@ -61,48 +61,9 @@ pub enum Status {
 }
 
 impl Context {
-    // pub fn from_formula(formula: Formula, config: config::Config) -> Self {
-
-    //     println!("c Parsing formula from file: {:?}", config.formula_file);
-    //     println!(
-    //         "c Parsed formula with {} variables and {} clauses",
-    //         formula.variable_count(),
-    //         formula.clause_count()
-    //     );
-
-    //     let mut the_context = Self::with_size_hints(formula.variable_count(), formula.clause_count(), config);
-
-    //     for formula_clause in formula.clauses {
-    //         assert!(
-    //             !formula_clause.is_empty(),
-    //             "c The formula contains an empty clause"
-    //         );
-
-    //         match formula_clause.len() {
-    //             1 => {
-    //                 let formula_literal = formula_clause.first().expect("literal vanish");
-    //                 let the_literal = self.literal_ensure(formula_literal.name(), polarity);
-
-    //                 the_context.literal_from_string(formula_clause.first());
-
-    //                 the_context.literal_update(
-    //                     *formula_clause.first().expect("literal vanish"),
-    //                     0,
-    //                     LiteralSource::Assumption,
-    //                 );
-    //             }
-    //             _ => {
-    //                 the_context.store_clause(formula_clause, Source::Formula);
-    //             }
-    //         }
-    //     }
-
-    //     the_context
-    // }
-
     pub fn with_size_hints(variable_count: usize, clause_count: usize, config: Config) -> Self {
         let the_window = match config.show_stats {
-            true => Some(ContextWindow::new(&config)),
+            true => Some(ContextWindow::default()),
             false => None,
         };
 
@@ -135,7 +96,7 @@ impl Default for Context {
             iterations: 0,
             levels: Vec::<Level>::with_capacity(1024),
             restarts: 0,
-            clause_store: ClauseStore::new(),
+            clause_store: ClauseStore::default(),
             variables: VariableStore::default(),
             time: Duration::new(0, 0),
             config: Config::default(),
