@@ -1,10 +1,13 @@
-use crate::structures::{
-    clause::{
-        stored::{Source as ClauseSource, StoredClause},
-        Clause,
+use crate::{
+    context::config::defaults,
+    structures::{
+        clause::{
+            stored::{Source as ClauseSource, StoredClause},
+            Clause,
+        },
+        literal::Literal,
+        variable::list::VariableList,
     },
-    literal::Literal,
-    variable::list::VariableList,
 };
 
 pub type ClauseId = u32;
@@ -120,7 +123,7 @@ impl ClauseStore {
     }
 
     // TODO: figure some improvement…
-    pub fn reduce(&mut self, glue_strength: usize) {
+    pub fn reduce(&mut self, glue_strength: defaults::GlueStrength) {
         let limit = self.learned_count();
         let mut keys_to_drop = vec![];
         for (k, v) in &self.learned {

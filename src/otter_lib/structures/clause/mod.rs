@@ -1,8 +1,11 @@
 pub mod stored;
 
-use crate::structures::{
-    literal::Literal,
-    variable::{list::VariableList, Variable},
+use crate::{
+    context::config::defaults::GlueStrength,
+    structures::{
+        literal::Literal,
+        variable::{list::VariableList, Variable},
+    },
 };
 use std::ops::Deref;
 
@@ -13,7 +16,7 @@ pub trait Clause {
 
     fn asserts(&self, val: &impl VariableList) -> Option<Literal>;
 
-    fn lbd(&self, variables: &impl VariableList) -> usize;
+    fn lbd(&self, variables: &impl VariableList) -> GlueStrength;
 
     fn literal_slice(&self) -> &[Literal];
 
@@ -67,14 +70,14 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
 
     // TODO: consider a different approach to lbd
     // e.g. an approximate measure of =2, =3, >4 can be settled much more easily
-    fn lbd(&self, variables: &impl VariableList) -> usize {
+    fn lbd(&self, variables: &impl VariableList) -> GlueStrength {
         let mut decision_levels = self
             .iter()
             .map(|literal| variables.get_unsafe(literal.index()).decision_level())
             .collect::<Vec<_>>();
         decision_levels.sort_unstable();
         decision_levels.dedup();
-        decision_levels.len()
+        decision_levels.len() as GlueStrength
     }
 
     fn length(&self) -> usize {
