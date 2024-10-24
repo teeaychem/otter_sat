@@ -10,7 +10,7 @@ use crate::{
 use std::{
     fs::File,
     io::{BufRead, BufReader},
-    path::Path,
+    path::PathBuf,
 };
 
 #[derive(Debug)]
@@ -103,8 +103,8 @@ impl Context {
     }
 
     #[allow(clippy::manual_flatten)]
-    pub fn from_dimacs(file: &Path, config: &Config) -> Result<Self, BuildIssue> {
-        let file = File::open(file).unwrap();
+    pub fn from_dimacs(file_path: &PathBuf, config: &Config) -> Result<Self, BuildIssue> {
+        let file = File::open(file_path).unwrap();
 
         let mut buffer = String::with_capacity(1024);
         let mut file_reader = BufReader::new(file);
@@ -151,10 +151,7 @@ impl Context {
                     buffer.clear();
 
                     if config.show_stats {
-                        println!(
-                            "c Parsing {}",
-                            config.formula_file.clone().unwrap().display()
-                        );
+                        println!("c Parsing {:#?}", file_path);
                         println!(
                             "c Expectation is to get {} variables and {} clauses",
                             variable_count, clause_count
