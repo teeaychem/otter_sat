@@ -18,8 +18,8 @@ pub enum WindowItem {
     Time,
 }
 
-impl ContextWindow {
-    pub fn default() -> Self {
+impl Default for ContextWindow {
+    fn default() -> Self {
         let location = cursor::position().expect("Unable to display stats");
 
         ContextWindow {
@@ -27,6 +27,9 @@ impl ContextWindow {
             column: 14,
         }
     }
+}
+
+impl ContextWindow {
     fn get_offset(&self, item: WindowItem) -> (u16, u16) {
         let bottom = self.location.1;
         let the_row = match item {

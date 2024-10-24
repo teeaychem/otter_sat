@@ -7,7 +7,7 @@ pub mod store;
 
 use {
     crate::context::config::Config,
-    crate::io::ContextWindow,
+    crate::io::window::ContextWindow,
     crate::structures::{level::Level, literal::Literal, variable::delegate::VariableStore},
     store::{ClauseId, ClauseKey, ClauseStore},
 };
@@ -62,7 +62,7 @@ pub enum Status {
 
 impl Context {
     pub fn default_config(config: &Config) -> Self {
-        Self::with_size_hints(1024, 32768, &config)
+        Self::with_size_hints(1024, 32768, config)
     }
 
     pub fn with_size_hints(variable_count: usize, clause_count: usize, config: &Config) -> Self {
