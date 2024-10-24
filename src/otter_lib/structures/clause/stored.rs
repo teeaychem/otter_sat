@@ -1,5 +1,8 @@
 use crate::{
-    context::store::{ClauseId, ClauseKey},
+    context::{
+        config::defaults::{self, GlueStrength},
+        store::{ClauseId, ClauseKey},
+    },
     structures::{
         clause::Clause,
         literal::Literal,
@@ -14,7 +17,7 @@ use std::ops::Deref;
 pub struct StoredClause {
     id: ClauseId,
     key: ClauseKey,
-    lbd: UnsafeCell<usize>,
+    lbd: UnsafeCell<GlueStrength>,
     source: Source,
     clause: Vec<Literal>,
     cached_a: Literal,
@@ -104,7 +107,7 @@ impl StoredClause {
         unsafe { *self.lbd.get() = self.lbd(variables) }
     }
 
-    pub fn get_set_lbd(&self) -> usize {
+    pub fn get_set_lbd(&self) -> defaults::GlueStrength {
         unsafe { *self.lbd.get() }
     }
 
