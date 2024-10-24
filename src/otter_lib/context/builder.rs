@@ -3,7 +3,7 @@ use crate::{
     structures::{
         clause::stored::Source as ClauseSource,
         literal::{Literal, Source as LiteralSource},
-        variable::{list::VariableList, Status as VariableStatus, Variable, VariableId},
+        variable::{list::VariableList, Variable, VariableId},
     },
 };
 
@@ -17,15 +17,25 @@ use std::{
 pub enum BuildIssue {
     UnitClauseConflict,
     AssumptionConflict,
+    ClauseTautology,
+    Parse(ParseIssue),
+}
+
+#[derive(Debug)]
+pub enum ParseIssue {
+    ProblemSpecification,
+    Line(usize),
+    MisplacedProblem(usize),
+    NoVariable,
 }
 
 impl Context {
-    pub fn literal_from_string(&mut self, string: &str) -> Literal {
+    pub fn literal_from_string(&mut self, string: &str) -> Result<Literal, ParseIssue> {
         let trimmed_string = string.trim();
-        assert!(
-            !trimmed_string.is_empty() && trimmed_string != "-",
-            "No variable when creating literal from string"
-        );
+        if trimmed_string.is_empty() || trimmed_string == "-" {
+            return Err(ParseIssue::NoVariable);
+        };
+
         let polarity = !trimmed_string.starts_with('-');
 
         let mut the_name = trimmed_string;
@@ -33,21 +43,17 @@ impl Context {
             the_name = &the_name[1..];
         }
 
-        self.literal_ensure(the_name, polarity)
-    }
-
-    pub fn literal_ensure(&mut self, name: &str, polarity: bool) -> Literal {
         let the_variable = {
-            match self.variables.string_map.get(name) {
+            match self.variables.string_map.get(the_name) {
                 Some(variable) => *variable,
                 None => {
                     let the_id = self.variables.len() as VariableId;
-                    self.variables.add_variable(Variable::new(name, the_id));
+                    self.variables.add_variable(Variable::new(the_name, the_id));
                     the_id
                 }
             }
         };
-        Literal::new(the_variable, polarity)
+        Ok(Literal::new(the_variable, polarity))
     }
 
     pub fn assume_literal(&mut self, literal: Literal) -> Result<(), BuildIssue> {
@@ -65,16 +71,18 @@ impl Context {
         let string_lterals = string.split_whitespace();
         let mut the_clause = vec![];
         for string_literal in string_lterals {
-            let the_literal = self.literal_from_string(string_literal);
+            let the_literal = match self.literal_from_string(string_literal) {
+                Ok(literal) => literal,
+                Err(e) => return Err(BuildIssue::Parse(e)),
+            };
             the_clause.push(the_literal);
         }
         the_clause.sort_unstable();
         the_clause.dedup();
 
-        assert!(
-            !the_clause.is_empty(),
-            "c The formula contains an empty clause"
-        );
+        if the_clause.is_empty() {
+            return Err(BuildIssue::ClauseTautology);
+        }
 
         match the_clause.len() {
             1 => {
@@ -95,7 +103,7 @@ impl Context {
     }
 
     #[allow(clippy::manual_flatten)]
-    pub fn from_dimacs(file: &Path, config: &Config) -> Self {
+    pub fn from_dimacs(file: &Path, config: &Config) -> Result<Self, BuildIssue> {
         let file = File::open(file).unwrap();
 
         let mut buffer = String::with_capacity(1024);
@@ -103,13 +111,14 @@ impl Context {
         let mut clause_buffer: Vec<Literal> = Vec::new();
 
         let mut the_context = None;
+        let mut line_counter = 0;
 
         // first phase, read until the formula begins
         loop {
             match file_reader.read_line(&mut buffer) {
                 Ok(0) => break,
-                Ok(_) => {}
-                Err(e) => panic!("error reading line {e:?}"),
+                Ok(_) => line_counter += 1,
+                Err(_) => return Err(BuildIssue::Parse(ParseIssue::Line(line_counter))),
             }
 
             match buffer.chars().next() {
@@ -119,17 +128,25 @@ impl Context {
                 }
                 Some('p') => {
                     let mut problem_details = buffer.split_whitespace();
-                    let variable_count: usize = problem_details
-                        .nth(2)
-                        .expect("bad problem spec variable")
-                        .parse()
-                        .expect("bad variable parse");
+                    let variable_count: usize = match problem_details.nth(2) {
+                        None => return Err(BuildIssue::Parse(ParseIssue::ProblemSpecification)),
+                        Some(string) => match string.parse() {
+                            Err(_) => {
+                                return Err(BuildIssue::Parse(ParseIssue::ProblemSpecification))
+                            }
+                            Ok(count) => count,
+                        },
+                    };
 
-                    let clause_count: usize = problem_details
-                        .next()
-                        .expect("bad problem spec clause")
-                        .parse()
-                        .expect("bad clause parse");
+                    let clause_count: usize = match problem_details.next() {
+                        None => return Err(BuildIssue::Parse(ParseIssue::ProblemSpecification)),
+                        Some(string) => match string.parse() {
+                            Err(_) => {
+                                return Err(BuildIssue::Parse(ParseIssue::ProblemSpecification))
+                            }
+                            Ok(count) => count,
+                        },
+                    };
 
                     buffer.clear();
 
@@ -162,13 +179,17 @@ impl Context {
         loop {
             match file_reader.read_line(&mut buffer) {
                 Ok(0) => break,
-                Ok(_) => {}
-                Err(e) => panic!("error reading line {e:?}"),
+                Ok(_) => line_counter += 1,
+                Err(_) => return Err(BuildIssue::Parse(ParseIssue::Line(line_counter))),
             }
 
             match buffer.chars().next() {
                 Some('c') => {}
-                Some('p') => panic!("problem specified within formula details"),
+                Some('p') => {
+                    return Err(BuildIssue::Parse(ParseIssue::MisplacedProblem(
+                        line_counter,
+                    )))
+                }
                 _ => {
                     let split_buf = buffer.split_whitespace();
                     for item in split_buf {
@@ -181,8 +202,11 @@ impl Context {
                                 clause_buffer.clear();
                             }
                             _ => {
-                                let literal = the_context.literal_from_string(item);
-                                clause_buffer.push(literal);
+                                let the_literal = match the_context.literal_from_string(item) {
+                                    Ok(literal) => literal,
+                                    Err(e) => return Err(BuildIssue::Parse(e)),
+                                };
+                                clause_buffer.push(the_literal);
                             }
                         }
                     }
@@ -200,6 +224,6 @@ impl Context {
             );
         }
 
-        the_context
+        Ok(the_context)
     }
 }

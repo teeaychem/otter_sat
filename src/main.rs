@@ -38,29 +38,31 @@ fn main() {
 
     let config = Config::from_args(Args::parse());
 
-    let mut the_basic_context = Context::default_config(&config);
+    // let mut the_basic_context = Context::default_config(&config);
 
-    let mut require_basic_build =
-        |clause_string| match the_basic_context.clause_from_string(clause_string) {
-            Ok(()) => {}
-            Err(e) => panic!("failed to build: {e:?}"),
-        };
+    // let mut require_basic_build =
+    //     |clause_string| match the_basic_context.clause_from_string(clause_string) {
+    //         Ok(()) => {}
+    //         Err(e) => panic!("failed to build: {e:?}"),
+    //     };
 
-    require_basic_build("q");
-    // require_basic_build("-q");
-    require_basic_build("r s t");
-    match the_basic_context.assume_literal(Literal::new(0, false)) {
-        Ok(_) => {
-            println!("made assumption");
-        }
-        Err(e) => {
-            println!("failed to build: {e:?}")
-        }
-    };
-    let _the_result = the_basic_context.solve();
-    the_basic_context.print_status();
+    // require_basic_build("q");
+    // // require_basic_build("-q");
+    // require_basic_build("r s t");
+    // let assumption = the_basic_context.literal_from_string("-q");
+    // match the_basic_context.assume_literal(assumption) {
+    //     Ok(_) => {
+    //         println!("made assumption");
+    //     }
+    //     Err(e) => {
+    //         println!("failed to build: {e:?}")
+    //     }
+    // };
+    // let _the_result = the_basic_context.solve();
+    // the_basic_context.print_status();
 
-    let mut the_context = Context::from_dimacs(&config.formula_file.clone().unwrap(), &config);
+    let mut the_context = Context::from_dimacs(&config.formula_file.clone().unwrap(), &config)
+        .expect("failed to build context");
     // let _ = the_context.clause_from_string("p -q");
     let _the_result = the_context.solve();
     the_context.print_status();
