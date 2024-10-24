@@ -49,7 +49,7 @@ pub struct Context {
     pub status: Status,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Status {
     Initialised,
     AssertingClause(ClauseKey),
@@ -60,13 +60,11 @@ pub enum Status {
 }
 
 impl Context {
-    pub fn default_config(config: &Config) -> Self {
+    pub fn default_config(config: Config) -> Self {
         Self::with_size_hints(1024, 32768, config)
     }
 
-    pub fn with_size_hints(variable_count: usize, clause_count: usize, config: &Config) -> Self {
-        let config = config.clone();
-
+    pub fn with_size_hints(variable_count: usize, clause_count: usize, config: Config) -> Self {
         let the_window = match config.show_stats {
             true => Some(ContextWindow::default()),
             false => None,
