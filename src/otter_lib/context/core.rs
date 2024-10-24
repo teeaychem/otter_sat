@@ -23,7 +23,7 @@ macro_rules! level_mut {
 
 impl Context {
     pub fn preprocess(&mut self) {
-        if self.config.hobson_choices {
+        if self.config.preprocessing {
             self.set_hobson();
         }
     }
@@ -267,14 +267,14 @@ impl Context {
                 if self.config.show_valuation {
                     println!("v {}", self.variables().as_display_string());
                 }
-                std::process::exit(10);
+                // std::process::exit(10);
             }
             ClauseStatus::NoSolution(clause_key) => {
                 println!("s UNSATISFIABLE");
                 if self.config.show_core {
                     self.display_core(clause_key);
                 }
-                std::process::exit(20);
+                // std::process::exit(20);
             }
             _ => {
                 if let Some(limit) = self.config.time_limit {
@@ -283,7 +283,7 @@ impl Context {
                     }
                 }
                 println!("s UNKNOWN");
-                std::process::exit(30);
+                // std::process::exit(30);
             }
         }
     }

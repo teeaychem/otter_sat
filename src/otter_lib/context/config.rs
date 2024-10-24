@@ -1,92 +1,179 @@
+use std::time::Duration;
+
 use crate::context::Context;
-use clap::Parser;
+use clap::{value_parser, Arg, ArgMatches, Command};
 use serde::Serialize;
 
-/// Determines whether a formula is satisfiable or unsatisfialbe
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-#[allow(non_snake_case)]
-pub struct Args {
-    /// The DIMACS form CNF file to parse
-    #[arg(short, long)]
-    formula_file: std::path::PathBuf,
+const SHOW_STATS: bool = false;
+const SHOW_VALUATION: bool = false;
+const SHOW_CORE: bool = false;
+const GLUE_STRENGTH: usize = 2;
+const STOPPING_CRITERIA: StoppingCriteria = StoppingCriteria::FirstUIP;
+const LUBY_U: usize = 512;
+const POLARITY_LEAN: f64 = 0.0;
 
-    /// Display stats on completion
-    #[arg(short, long, default_value_t = false)]
-    stats: bool,
-
-    /// Display a satisfying valuation, if possible
-    #[arg(short, long, default_value_t = false)]
-    valuation: bool,
-
-    /// Display an unsatisfiable core on UNSAT
-    #[arg(short, long, default_value_t = false)]
-    core: bool,
-
-    /// Required glue strength
-    #[arg(short, long, default_value_t = 2)]
-    glue_strength: usize,
-
-    /// Resolution stopping criteria
-    #[arg(long, default_value_t, value_enum)]
-    stopping_criteria: StoppingCriteria,
-
-    /// Which VSIDS variant to use
-    #[arg(long = "VSIDS", default_value_t, value_enum)]
-    vsids: VSIDS,
-
-    /// Reduce and restart, where:
-    #[arg(short, long = "reduce-and-restart", default_value_t = false)]
-    rr: bool,
-
-    /// Allow for the clauses to be forgotten, on occassion
-    #[arg(long, default_value_t = false)]
-    reduce: bool,
-
-    /// Allow for the decisions to be forgotten, on occassion
-    #[arg(long, default_value_t = false)]
-    restart: bool,
-
-    /// Initially settle all atoms which occur with a unique polarity
-    #[arg(long, default_value_t = false)]
-    hobson: bool,
-
-    #[arg(long, default_value_t = 0.0)]
-    /// The chance of making a random choice (as opposed to using most VSIDS activity)
-    random_choice_frequency: f64,
-
-    #[arg(short, long, default_value_t = 0.0)]
-    /// The chance of choosing assigning positive polarity to a variant when making a choice
-    polarity_lean: f64,
-
-    #[arg(short = 'l', long = "luby", default_value_t = 512)]
-    /// The u value to use for the luby calculation when restarts are permitted
-    luby_u: usize,
-
-    /// Time limit for the solve
-    #[arg(short, long, value_parser = |seconds: &str| seconds.parse().map(std::time::Duration::from_secs))]
-    time: Option<std::time::Duration>,
-
-    #[arg(short = 'u', long, default_value_t = false, verbatim_doc_comment)]
-    /// Allow (some simple) self-subsumption
-    /// I.e. when performing resolutinon some stronger form of a clause may be found
-    /// For example, p ∨ q ∨ r may be strengthened to p ∨ r
-    /// With subsumption the weaker clause is replaced (subsumed by) the stronger clause, this flag disables the process
-    subsumption: bool,
-
-    #[arg(long, default_value_t = false)]
-    /// Continue updating watches for all queued literals after a conflict
-    tidy_watches: bool,
-
-    #[arg(long, hide = true)]
-    markdown_help: bool,
+pub fn cli() -> Command {
+    Command::new("otter_sat")
+        .about("Determines whether a formula is satisfiable or unsatisfialbe")
+        .version("pup (it's still growing)")
+        .arg(
+            Arg::new("stats")
+                .short('s')
+                .long("stats")
+                .value_parser(value_parser!(bool))
+                .required(false)
+                .num_args(0)
+                .help("Display stats on completion"),
+        )
+        .arg(
+            Arg::new("valuation")
+                .short('v')
+                .long("show-valuation")
+                .value_parser(value_parser!(bool))
+                .required(false)
+                .num_args(0)
+                .help("Display valuation on completion"),
+        )
+        .arg(
+            Arg::new("show_core")
+                .short('c')
+                .long("show-core")
+                .value_parser(value_parser!(bool))
+                .required(false)
+                .num_args(0)
+                .help("Display stats on completion"),
+        )
+        .arg(
+            Arg::new("no_reduction")
+                .long("no-reduction")
+                .value_parser(value_parser!(bool))
+                .required(false)
+                .num_args(0)
+                .help("Allow for the clauses to be forgotten, on occassion"),
+        )
+        .arg(
+            Arg::new("no_restart")
+                .long("no-restart")
+                .value_parser(value_parser!(bool))
+                .required(false)
+                .num_args(0)
+                .help("Allow for the decisions to be forgotten, on occassion"),
+        )
+        .arg(
+            Arg::new("persevere")
+                .long("persevere")
+                .value_parser(value_parser!(bool))
+                .required(false)
+                .num_args(0)
+                .help("Deny both to reduce and to restart"),
+        )
+        .arg(
+            Arg::new("glue_strength")
+                .long("glue-strength")
+                .short('g')
+                .value_parser(value_parser!(usize))
+                .required(false)
+                .num_args(1)
+                .help("Required glue strength"),
+        )
+        .arg(
+            Arg::new("stopping_criteria")
+                .long("stopping-criteria")
+                .value_parser(value_parser!(StoppingCriteria))
+                .required(false)
+                .num_args(1)
+                .help("Resolution stopping criteria"),
+        )
+        .arg(
+            Arg::new("VSIDS_variant")
+                .long("VSIDS-variant")
+                .value_parser(value_parser!(VSIDS))
+                .required(false)
+                .num_args(1)
+                .help("Which VSIDS variant to use"),
+        )
+        .arg(
+            Arg::new("luby")
+                .long("luby")
+                .short('l')
+                .value_parser(value_parser!(usize))
+                .required(false)
+                .num_args(1)
+                .help("The u value to use for the luby calculation when restarts are permitted"),
+        )
+        .arg(
+            Arg::new("tidy_watches")
+                .long("tidy-watches")
+                .value_parser(value_parser!(bool))
+                .required(false)
+                .num_args(0)
+                .help("Continue updating watches for all queued literals after a conflict"),
+        )
+        .arg(
+            Arg::new("subsumption")
+                .long("subsumption")
+                .short('u')
+                .value_parser(value_parser!(bool))
+                .required(false)
+                .num_args(0)
+                .help(
+                    "Allow (some simple) self-subsumption
+That is, when performing resolutinon some stronger form of a clause may be found
+Subsumption allows the weaker clause is replaced (subsumed by) the stronger clause
+For example, p ∨ q ∨ r may be subsumed to p ∨ r",
+                ),
+        )
+        .arg(
+            Arg::new("preprocessing")
+                .long("preprocess")
+                .short('p')
+                .value_parser(value_parser!(bool))
+                .required(false)
+                .num_args(0)
+                .help(
+                    "Perform some pre-processing before a solve.
+For the moment this is limited to settling all atoms which occur with a unique polarity",
+                ),
+        )
+        .arg(
+            Arg::new("random_choice_frequency")
+                .long("random-choice-frequency")
+                .short('r')
+                .value_parser(value_parser!(f64))
+                .required(false)
+                .num_args(1)
+                .help("The chance of making a random choice (as opposed to using most VSIDS activity)"),
+        )
+        .arg(
+            Arg::new("polarity_lean")
+                .long("polarity-lean")
+                .value_parser(value_parser!(f64))
+                .required(false)
+                .num_args(1)
+                .help("The chance of choosing assigning positive polarity to a variant when making a choice"),
+        )
+        .arg(
+            Arg::new("time_limit")
+                .long("time-limit")
+                .value_parser(value_parser!(u64))
+                .required(false)
+                .num_args(1)
+                .help("Time limit for the solve in seconds"),
+        )
+        .arg(
+            Arg::new("paths")
+                .required(false)
+                .trailing_var_arg(true)
+                .num_args(0..)
+                .help("The DIMACS form CNF files to parse")
+)
 }
+
 
 #[derive(Clone)]
 pub struct Config {
-    pub formula_file: Option<std::path::PathBuf>,
     pub glue_strength: usize,
-    pub hobson_choices: bool,
+    pub preprocessing: bool,
     pub luby_constant: usize,
     pub polarity_lean: f64,
     pub reduction_allowed: bool,
@@ -106,42 +193,65 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_args(args: Args) -> Self {
-        let mut the_config = Config {
-            formula_file: Some(args.formula_file),
-            glue_strength: args.glue_strength,
-            hobson_choices: args.hobson,
-            luby_constant: args.luby_u,
-            polarity_lean: args.polarity_lean,
-            reduction_allowed: if args.reduce && !args.restart {
-                println!("c REDUCTION REQUIRES RESTARTS TO BE ENABLED");
-                false
-            } else {
-                args.reduce
-            },
-            restarts_allowed: args.restart,
-            show_core: args.core,
-            show_stats: args.stats,
-            show_valuation: args.valuation,
-            stopping_criteria: args.stopping_criteria,
-            time_limit: args.time,
-            vsids_variant: args.vsids,
-            activity_conflict: 1.0,
-            decay_factor: 0.95,
-            decay_frequency: 1,
-            subsumption: args.subsumption,
-            random_choice_frequency: args.random_choice_frequency,
-            tidy_watches: args.tidy_watches,
+    pub fn from_args(args: &ArgMatches) -> Self {
+        let mut the_config = Config::default();
+
+        if let Ok(Some(strength)) = args.try_get_one::<usize>("glue_strength") {
+            the_config.glue_strength = *strength
+        };
+        if let Ok(Some(value)) = args.try_get_one::<bool>("preprocessing") {
+            the_config.preprocessing = *value
+        };
+        if let Ok(Some(u)) = args.try_get_one::<usize>("luby") {
+            the_config.luby_constant = *u
+        };
+        if let Ok(Some(lean)) = args.try_get_one::<f64>("polarity_lean") {
+            the_config.polarity_lean = *lean
+        };
+        if let Ok(Some(frequency)) = args.try_get_one::<f64>("random_choice_frequency") {
+            the_config.random_choice_frequency = *frequency
+        };
+        if let Ok(Some(value)) = args.try_get_one::<bool>("no_restart") {
+            the_config.restarts_allowed = *value
+        };
+        if let Ok(Some(value)) = args.try_get_one::<bool>("no_reduction") {
+            the_config.reduction_allowed = *value
+        };
+        if let Ok(Some(value)) = args.try_get_one::<bool>("show_core") {
+            the_config.show_core = *value
+        };
+        if let Ok(Some(value)) = args.try_get_one::<bool>("show_stats") {
+            the_config.show_stats = *value
+        };
+        if let Ok(Some(value)) = args.try_get_one::<bool>("valuation") {
+            the_config.show_valuation = *value
+        };
+        if let Ok(Some(value)) = args.try_get_one::<bool>("subsumption") {
+            the_config.subsumption = *value
+        };
+        if let Ok(Some(value)) = args.try_get_one::<bool>("tidy_watches") {
+            the_config.tidy_watches = *value
         };
 
-        if args.rr {
-            the_config.restarts_allowed = true;
-            the_config.reduction_allowed = true;
-        }
+        if let Ok(Some(secs)) = args.try_get_one::<u64>("time_limit") {
+            the_config.time_limit = Some(Duration::from_secs(*secs))
+        };
 
-        if args.markdown_help {
-            clap_markdown::print_help_markdown::<Args>();
-        }
+        if let Ok(Some(criteria)) = args.try_get_one::<StoppingCriteria>("stopping_critera") {
+            the_config.stopping_criteria = *criteria
+        };
+        if let Ok(Some(variant)) = args.try_get_one::<VSIDS>("VSIDS_variant") {
+            the_config.vsids_variant = *variant
+        };
+
+        if let Ok(Some(true)) = args.try_get_one::<bool>("persevere") {
+            the_config.restarts_allowed = false;
+            the_config.reduction_allowed = false;
+        };
+
+        // if args.markdown_help {
+        //     clap_markdown::print_help_markdown::<Args>();
+        // }
 
         the_config
     }
@@ -150,16 +260,15 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Config {
-            formula_file: None,
             glue_strength: 2,
-            hobson_choices: false,
+            preprocessing: false,
             luby_constant: 512,
             polarity_lean: 0.0,
             reduction_allowed: false,
             restarts_allowed: false,
             show_core: false,
             show_stats: true,
-            show_valuation: true,
+            show_valuation: false,
             stopping_criteria: StoppingCriteria::FirstUIP,
             time_limit: None,
             vsids_variant: VSIDS::MiniSAT,
@@ -173,21 +282,32 @@ impl Default for Config {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, Serialize, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
 pub enum StoppingCriteria {
-    #[default]
     /// Resolve until the first unique implication point
     FirstUIP,
     /// Resolve on each clause used to derive the conflict
     None,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, clap::ValueEnum)]
+impl std::fmt::Display for StoppingCriteria {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::FirstUIP => {
+                write!(f, "Resolve until the first unique implication point")
+            }
+            Self::None => {
+                write!(f, "Resolve on each clause used to derive the conflict")
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
 #[allow(clippy::upper_case_acronyms)]
 pub enum VSIDS {
-    #[default]
     /// Bump the activity of all variables in the a learnt clause
     MiniSAT,
     /// Bump the activity involved when using resolution to learn a clause

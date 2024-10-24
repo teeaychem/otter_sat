@@ -7,7 +7,7 @@ use crate::{
         clause::stored::Watch,
         level::Level,
         literal::{Literal, Source},
-        variable::{list::VariableList, Variable, VariableId},
+        variable::{list::VariableList, ActivityRep, Variable, VariableId},
     },
 };
 
@@ -23,8 +23,6 @@ use std::{
     collections::{HashMap, VecDeque},
     ops::{Deref, DerefMut},
 };
-
-use super::ActivityRep;
 
 pub struct VariableStore {
     variables: Vec<Variable>,
