@@ -1,6 +1,6 @@
 use crate::{
+    config::{Config, StoppingCriteria},
     context::{
-        config::{Config, StoppingCriteria},
         store::{ClauseKey, ClauseStore},
         ImplicationGraphNode, ResolutionGraph,
     },

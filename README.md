@@ -68,8 +68,8 @@ Options:
       --no-restart
           Prevent decisions being forgotten.
 
-      --persevere
-          Deny both to reduce and to restart.
+  -🐘, --elephant
+          Remember everything.
           Equivalent to passing both '--no-reduction' and 'no_restarts'.
 
   -p, --preprocess
@@ -86,7 +86,7 @@ Options:
           Subsumption allows the weaker clause is replaced (subsumed by) the stronger clause.
           For example, p ∨ r subsumes p ∨ q ∨ r.
 
-      --tidy-watches
+  -🧹, --tidy-watches
           Continue updating watches for all queued literals after a conflict.
 
   -v, --valuation
@@ -96,7 +96,7 @@ Options:
           Required minimum (inintial) lbd to retain a clause during a reduction.
           Default: 2
 
-      --stopping-criteria <CRITERIA>
+  -🚏, --stopping-criteria <CRITERIA>
           The stopping criteria to use during resolution.
           Default: FirstUIP
 
@@ -105,14 +105,14 @@ Options:
 
           [possible values: first-uip, none]
 
-      --VSIDS-variant <VARIANT>
+  -🦇, --VSIDS-variant <VARIANT>
           Which VSIDS variant to use.
           Default: MiniSAT
 
             - MiniSAT: Bump the activity of all variables in the a learnt clause.
             - Chaff  : Bump the activity involved when using resolution to learn a clause.
 
-          [possible values: mini-sat, chaff]
+          [possible values: chaff, mini-sat]
 
   -l, --luby <U>
           The 'u' value to use for the luby calculation when restarts are permitted.
@@ -122,11 +122,12 @@ Options:
           The chance of making a random choice (as opposed to using most VSIDS activity).
           Default: 0
 
-      --polarity-lean <LEAN>
+  -∠, --polarity-lean <LEAN>
           The chance of choosing assigning positive polarity to a variant when making a choice.
           Default: 0
 
-  -t, --time-limit <LIMIT>
+  -t, --time-limit <SECONDS>
           Time limit for the solve in seconds.
           Default: No limit
+
 ```

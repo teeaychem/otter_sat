@@ -1,12 +1,11 @@
 mod analysis;
 pub mod builder;
-pub mod config;
 pub mod core;
 mod resolution_buffer;
 pub mod store;
 
 use {
-    crate::context::config::Config,
+    crate::config::{self, Config},
     crate::io::window::ContextWindow,
     crate::structures::{level::Level, literal::Literal, variable::delegate::VariableStore},
     store::{ClauseId, ClauseKey, ClauseStore},

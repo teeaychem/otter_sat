@@ -1,8 +1,6 @@
 use crate::{
-    context::{
-        config::Config,
-        store::{ClauseKey, ClauseStore},
-    },
+    config::Config,
+    context::store::{ClauseKey, ClauseStore},
     structures::{
         clause::stored::Watch,
         level::Level,

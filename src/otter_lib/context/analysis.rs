@@ -1,6 +1,6 @@
 use crate::{
+    config::{self, Config},
     context::{
-        config::{self, Config},
         resolution_buffer::{ResolutionBuffer, Status as BufferStatus},
         store::ClauseKey,
         Context, GraphLiteral, ImplicationGraphNode, Status as SolveStatus,
