@@ -38,14 +38,14 @@ fn main() {
 
     let matches = cli().get_matches();
     let config = Config::from_args(&matches);
-    // dbg!(&config);
 
     if let Some(formula_paths) = matches.get_raw("paths") {
         for path in formula_paths {
             let the_path = PathBuf::from(path);
+            let unique_config = config.clone();
 
             let mut the_context =
-                Context::from_dimacs(&the_path, &config).expect("failed to build context");
+                Context::from_dimacs(&the_path, unique_config).expect("failed to build context");
             // let _ = the_context.clause_from_string("p -q");
             let _the_result = the_context.solve();
             the_context.print_status();
