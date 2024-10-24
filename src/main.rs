@@ -38,15 +38,30 @@ fn main() {
 
     let config = Config::from_args(Args::parse());
 
-    // let mut the_basic_context = Context::default_config(&config);
-    // the_basic_context.clause_from_string("r s t");
-    // the_basic_context.clause_from_string("-q");
-    // let _ = the_basic_context.literal_update(Literal::new(0, true), 0, Source::Assumption);
-    // let _the_result = the_basic_context.solve();
-    // the_basic_context.print_status();
+    let mut the_basic_context = Context::default_config(&config);
+
+    let mut require_basic_build =
+        |clause_string| match the_basic_context.clause_from_string(clause_string) {
+            Ok(()) => {}
+            Err(e) => panic!("failed to build: {e:?}"),
+        };
+
+    require_basic_build("q");
+    // require_basic_build("-q");
+    require_basic_build("r s t");
+    match the_basic_context.assume_literal(Literal::new(0, false)) {
+        Ok(_) => {
+            println!("made assumption");
+        }
+        Err(e) => {
+            println!("failed to build: {e:?}")
+        }
+    };
+    let _the_result = the_basic_context.solve();
+    the_basic_context.print_status();
 
     let mut the_context = Context::from_dimacs(&config.formula_file.clone().unwrap(), &config);
-    the_context.clause_from_string("p -q");
+    // let _ = the_context.clause_from_string("p -q");
     let _the_result = the_context.solve();
     the_context.print_status();
 }

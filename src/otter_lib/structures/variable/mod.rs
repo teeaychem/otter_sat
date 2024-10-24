@@ -22,7 +22,7 @@ type ActivityRep = f32;
 
 #[derive(Debug)]
 pub enum Status {
-    NotSet,
+    Set,
     Match,
     Conflict,
 }
