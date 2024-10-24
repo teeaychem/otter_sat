@@ -38,8 +38,6 @@ Direct Rust dependencies are:
   Logging (see `config/log4rs.yaml`)
 - [clap](https://docs.rs/clap/latest/clap/)
   Configuration options
-  - [clap-markdown](https://docs.rs/clap-markdown/latest/clap_markdown/)
-    Markdown of the options, for below
 - [petgraph](https://docs.rs/petgraph/latest/petgraph/)
   To help recod resolution history
 - [slotmap](https://docs.rs/slotmap/latest/slotmap/)
@@ -53,71 +51,82 @@ Direct Rust dependencies are:
 
 # Configuration
 
-**Usage:** `otter_sat [OPTIONS] --formula-file <FORMULA_FILE>`
+``` sh
+Usage: otter_sat [OPTIONS] [paths]...
 
-###### **Options:**
+Arguments:
+  [paths]...
+          The DIMACS form CNF files to parse.
 
-* `-f`, `--formula-file <FORMULA_FILE>` — The DIMACS form CNF file to parse
-* `-s`, `--stats` — Display stats on completion
+Options:
+  -c, --show-core
+          Display an unsatisfiable core on finding a given formula is unsatisfiable.
 
-  Default value: `false`
-* `-v`, `--valuation` — Display a satisfying valuation, if possible
+      --no-reduction
+          Prevent clauses from being forgotten.
 
-  Default value: `false`
-* `-c`, `--core` — Display an unsatisfiable core on UNSAT
+      --no-restart
+          Prevent decisions being forgotten.
 
-  Default value: `false`
-* `-g`, `--glue-strength <GLUE_STRENGTH>` — Required glue strength
+      --persevere
+          Deny both to reduce and to restart.
+          Equivalent to passing both '--no-reduction' and 'no_restarts'.
 
-  Default value: `2`
-* `--stopping-criteria <STOPPING_CRITERIA>` — Resolution stopping criteria
+  -p, --preprocess
+          Perform some pre-processing before a solve.
+          For the moment this is limited to settling all atoms which occur with a unique polarity.
 
-  Default value: `first-uip`
+  -s, --stats
+          Display stats during a solve.
 
-  Possible values:
-  - `first-uip`:
-    Resolve until the first unique implication point
-  - `none`:
-    Resolve on each clause used to derive the conflict
+  -u, --subsumption
+          Allow (some simple) self-subsumption.
 
-* `--VSIDS <VSIDS>` — Which VSIDS variant to use
+          That is, when performing resolutinon some stronger form of a clause may be found.
+          Subsumption allows the weaker clause is replaced (subsumed by) the stronger clause.
+          For example, p ∨ r subsumes p ∨ q ∨ r.
 
-  Default value: `mini-sat`
+      --tidy-watches
+          Continue updating watches for all queued literals after a conflict.
 
-  Possible values:
-  - `mini-sat`:
-    Bump the activity of all variables in the a learnt clause
-  - `chaff`:
-    Bump the activity involved when using resolution to learn a clause
+  -v, --valuation
+          Display valuation on completion.
 
-* `-r`, `--reduce-and-restart` — Reduce and restart, where:
+  -g, --glue <STRENGTH>
+          Required minimum (inintial) lbd to retain a clause during a reduction.
+          Default: 2
 
-  Default value: `false`
-* `--reduce` — Allow for the clauses to be forgotten, on occassion
+      --stopping-criteria <CRITERIA>
+          The stopping criteria to use during resolution.
+          Default: FirstUIP
 
-  Default value: `false`
-* `--restart` — Allow for the decisions to be forgotten, on occassion
+            - FirstUIP: Resolve until the first unique implication point
+            - None    : Resolve on each clause used to derive the conflict
 
-  Default value: `false`
-* `--hobson` — Initially settle all atoms which occur with a unique polarity
+          [possible values: first-uip, none]
 
-  Default value: `false`
-* `--random-choice-frequency <RANDOM_CHOICE_FREQUENCY>` — The chance of making a random choice (as opposed to using most VSIDS activity)
+      --VSIDS-variant <VARIANT>
+          Which VSIDS variant to use.
+          Default: MiniSAT
 
-  Default value: `0`
-* `-p`, `--polarity-lean <POLARITY_LEAN>` — The chance of choosing assigning positive polarity to a variant when making a choice
+            - MiniSAT: Bump the activity of all variables in the a learnt clause.
+            - Chaff  : Bump the activity involved when using resolution to learn a clause.
 
-  Default value: `0`
-* `-l`, `--luby <LUBY_U>` — The u value to use for the luby calculation when restarts are permitted
+          [possible values: mini-sat, chaff]
 
-  Default value: `512`
-* `-t`, `--time <TIME>` — Time limit for the solve
-* `-u`, `--subsumption` — Allow (some simple) self-subsumption
-I.e. when performing resolutinon some stronger form of a clause may be found
-For example, p ∨ q ∨ r may be strengthened to p ∨ r
-With subsumption the weaker clause is replaced (subsumed by) the stronger clause, this flag disables the process
+  -l, --luby <U>
+          The 'u' value to use for the luby calculation when restarts are permitted.
+          Default: 512
 
-  Default value: `false`
-* `--tidy-watches` — Continue updating watches for all queued literals after a conflict
+  -r, --random-choice-frequency <FREQUENCY>
+          The chance of making a random choice (as opposed to using most VSIDS activity).
+          Default: 0
 
-  Default value: `false`
+      --polarity-lean <LEAN>
+          The chance of choosing assigning positive polarity to a variant when making a choice.
+          Default: 0
+
+  -t, --time-limit <LIMIT>
+          Time limit for the solve in seconds.
+          Default: No limit
+```
