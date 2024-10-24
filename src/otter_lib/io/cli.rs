@@ -175,17 +175,19 @@ impl Config {
     pub fn from_args(args: &ArgMatches) -> Self {
         let mut the_config = Config::default();
 
-        if let Ok(Some(strength)) = args.try_get_one::<usize>("glue_strength") {
+        if let Ok(Some(strength)) = args.try_get_one::<GlueStrength>("glue_strength") {
             the_config.glue_strength = *strength
         };
 
-        if let Ok(Some(u)) = args.try_get_one::<usize>("luby") {
+        if let Ok(Some(u)) = args.try_get_one::<LubyConstant>("luby") {
             the_config.luby_constant = *u
         };
-        if let Ok(Some(lean)) = args.try_get_one::<f64>("polarity_lean") {
+        if let Ok(Some(lean)) = args.try_get_one::<PolarityLean>("polarity_lean") {
             the_config.polarity_lean = *lean
         };
-        if let Ok(Some(frequency)) = args.try_get_one::<f64>("random_choice_frequency") {
+        if let Ok(Some(frequency)) =
+            args.try_get_one::<RandomChoiceFrequency>("random_choice_frequency")
+        {
             the_config.random_choice_frequency = *frequency
         };
 

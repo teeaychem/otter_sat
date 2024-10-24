@@ -1,9 +1,11 @@
 use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
-    context::{config::Config, Context, GraphClause, ImplicationGraphNode, Status as ClauseStatus},
+    context::{
+        config::{defaults, Config},
+        Context, GraphClause, ImplicationGraphNode, Status as ClauseStatus,
+    },
     io::window::{ContextWindow, WindowItem},
-    procedures::hobson_choices,
     structures::{
         clause::stored::{Source, StoredClause},
         level::{Level, LevelIndex},
@@ -133,7 +135,7 @@ impl Context {
         }
     }
 
-    fn process_choice(&mut self, index: usize, polarity_lean: f64) {
+    fn process_choice(&mut self, index: usize, polarity_lean: defaults::PolarityLean) {
         log::trace!(
             "Choice: {index} @ {} with activity {}",
             self.level().index(),
@@ -163,7 +165,7 @@ impl Context {
     }
 
     fn set_hobson(&mut self) {
-        let (f, t) = hobson_choices(self.clause_store.clauses());
+        let (f, t) = crate::procedures::hobson_choices(self.clause_store.clauses());
 
         for v_id in f.into_iter().chain(t) {
             let the_literal = Literal::new(v_id, false);
@@ -198,7 +200,10 @@ impl Context {
         &self.variables
     }
 
-    pub fn get_unassigned(&self, random_choice_frequency: f64) -> Option<usize> {
+    pub fn get_unassigned(
+        &self,
+        random_choice_frequency: defaults::RandomChoiceFrequency,
+    ) -> Option<usize> {
         match rand::thread_rng().gen_bool(random_choice_frequency) {
             true => self
                 .variables
@@ -294,6 +299,6 @@ impl Context {
 
     pub fn it_is_time_to_reduce(&self, u: usize) -> bool {
         use crate::procedures::luby;
-        self.conflicts_since_last_forget >= u.wrapping_mul(luby(self.restarts + 1))
+        self.conflicts_since_last_forget >= u.wrapping_mul(luby(self.restarts))
     }
 }
