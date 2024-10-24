@@ -2,7 +2,7 @@ use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
     context::{config::Config, Context, GraphClause, ImplicationGraphNode, Status as ClauseStatus},
-    io::{ContextWindow, WindowItem},
+    io::window::{ContextWindow, WindowItem},
     procedures::hobson_choices,
     structures::{
         clause::stored::{Source, StoredClause},
@@ -290,5 +290,10 @@ impl Context {
 
     pub fn clause_count(&self) -> usize {
         self.clause_store.formula_count() + self.clause_store.learned_count()
+    }
+
+    pub fn it_is_time_to_reduce(&self, u: usize) -> bool {
+        use crate::procedures::luby;
+        self.conflicts_since_last_forget >= u.wrapping_mul(luby(self.restarts + 1))
     }
 }

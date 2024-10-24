@@ -19,9 +19,10 @@ use std::{
 
 use otter_lib::{
     context::{
-        config::{cli, Config, StoppingCriteria},
+        config::{Config, StoppingCriteria},
         Context,
     },
+    io::cli::cli,
     structures::literal::{Literal, Source},
 };
 

@@ -51,7 +51,7 @@ Direct Rust dependencies are:
 
 # Configuration
 
-``` sh
+```
 Usage: otter_sat [OPTIONS] [paths]...
 
 Arguments:
