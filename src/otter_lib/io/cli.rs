@@ -1,7 +1,6 @@
 use clap::{value_parser, Arg, ArgMatches, Command};
 
-use crate::context::config::defaults::*;
-use crate::context::config::{Config, StoppingCriteria, VSIDS};
+use crate::config::{self, Config, StoppingCriteria, VSIDS};
 
 pub fn cli() -> Command {
     Command::new("otter_sat")
@@ -30,12 +29,14 @@ pub fn cli() -> Command {
             .num_args(0)
             .help("Prevent decisions being forgotten."))
 
-        .arg(Arg::new("persevere")
-            .long("persevere")
+        .arg(Arg::new("elephant")
+            .long("elephant")
+            .short('🐘')
             .value_parser(value_parser!(bool))
             .required(false)
             .num_args(0)
-            .help("Deny both to reduce and to restart.
+            .help("Remember everything.")
+.long_help("Remember everything.
 Equivalent to passing both '--no-reduction' and 'no_restarts'."))
 
         .arg(Arg::new("preprocessing")
@@ -55,7 +56,6 @@ For the moment this is limited to settling all atoms which occur with a unique p
             .num_args(0)
             .help("Display stats during a solve."))
 
-
         .arg(Arg::new("subsumption")
             .long("subsumption")
             .short('u')
@@ -70,9 +70,9 @@ That is, when performing resolutinon some stronger form of a clause may be found
 Subsumption allows the weaker clause is replaced (subsumed by) the stronger clause.
 For example, p ∨ r subsumes p ∨ q ∨ r."))
 
-
         .arg(Arg::new("tidy_watches")
             .long("tidy-watches")
+            .short('🧹')
             .value_parser(value_parser!(bool))
             .required(false)
             .num_args(0)
@@ -86,7 +86,6 @@ For example, p ∨ r subsumes p ∨ q ∨ r."))
             .num_args(0)
             .help("Display valuation on completion."))
 
-
         .arg(Arg::new("glue_strength")
             .long("glue")
             .short('g')
@@ -95,35 +94,37 @@ For example, p ∨ r subsumes p ∨ q ∨ r."))
             .required(false)
             .num_args(1)
             .help(format!("Required minimum (inintial) lbd to retain a clause during a reduction.
-Default: {GLUE_STRENGTH}")))
+Default: {}", config::defaults::GLUE_STRENGTH)))
 
         .arg(Arg::new("stopping_criteria")
             .long("stopping-criteria")
+            .short('🚏')
             .value_name("CRITERIA")
             .value_parser(value_parser!(StoppingCriteria))
             .required(false)
             .num_args(1)
             .help(format!("Resolution stopping criteria.
-Default: {STOPPING_CRITERIA}"))
+Default: {}", config::defaults::STOPPING_CRITERIA))
             .long_help(format!("The stopping criteria to use during resolution.
-Default: {STOPPING_CRITERIA}
+Default: {}
 
   - FirstUIP: Resolve until the first unique implication point
-  - None    : Resolve on each clause used to derive the conflict")))
+  - None    : Resolve on each clause used to derive the conflict", config::defaults::STOPPING_CRITERIA)))
 
         .arg(Arg::new("VSIDS_variant")
             .value_name("VARIANT")
             .long("VSIDS-variant")
+            .short('🦇')
             .value_parser(value_parser!(VSIDS))
             .required(false)
             .num_args(1)
             .help(format!("Which VSIDS variant to use.
-Default: {VSIDS_VARIANT}"))
+Default: {}", config::defaults::VSIDS_VARIANT))
             .long_help(format!("Which VSIDS variant to use.
-Default: {VSIDS_VARIANT}
+Default: {}
 
   - MiniSAT: Bump the activity of all variables in the a learnt clause.
-  - Chaff  : Bump the activity involved when using resolution to learn a clause.")))
+  - Chaff  : Bump the activity involved when using resolution to learn a clause.", config::defaults::VSIDS_VARIANT)))
 
         .arg(Arg::new("luby")
             .long("luby")
@@ -133,7 +134,7 @@ Default: {VSIDS_VARIANT}
             .required(false)
             .num_args(1)
             .help(format!("The 'u' value to use for the luby calculation when restarts are permitted.
-Default: {LUBY_U}")))
+Default: {}", config::defaults::LUBY_U)))
 
         .arg(Arg::new("random_choice_frequency")
             .long("random-choice-frequency")
@@ -143,16 +144,17 @@ Default: {LUBY_U}")))
             .required(false)
             .num_args(1)
             .help(format!("The chance of making a random choice (as opposed to using most VSIDS activity).
-Default: {RANDOM_CHOICE_FREQUENCY}")))
+Default: {}", config::defaults::RANDOM_CHOICE_FREQUENCY)))
 
         .arg(Arg::new("polarity_lean")
             .long("polarity-lean")
+            .short('∠')
             .value_name("LEAN")
             .value_parser(value_parser!(f64))
             .required(false)
             .num_args(1)
             .help(format!("The chance of choosing assigning positive polarity to a variant when making a choice.
-Default: {POLARITY_LEAN}")))
+Default: {}", config::defaults::POLARITY_LEAN)))
 
         .arg(Arg::new("time_limit")
             .long("time-limit")
@@ -175,18 +177,18 @@ impl Config {
     pub fn from_args(args: &ArgMatches) -> Self {
         let mut the_config = Config::default();
 
-        if let Ok(Some(strength)) = args.try_get_one::<GlueStrength>("glue_strength") {
+        if let Ok(Some(strength)) = args.try_get_one::<config::GlueStrength>("glue_strength") {
             the_config.glue_strength = *strength
         };
 
-        if let Ok(Some(u)) = args.try_get_one::<LubyConstant>("luby") {
+        if let Ok(Some(u)) = args.try_get_one::<config::LubyConstant>("luby") {
             the_config.luby_constant = *u
         };
-        if let Ok(Some(lean)) = args.try_get_one::<PolarityLean>("polarity_lean") {
+        if let Ok(Some(lean)) = args.try_get_one::<config::PolarityLean>("polarity_lean") {
             the_config.polarity_lean = *lean
         };
         if let Ok(Some(frequency)) =
-            args.try_get_one::<RandomChoiceFrequency>("random_choice_frequency")
+            args.try_get_one::<config::RandomChoiceFrequency>("random_choice_frequency")
         {
             the_config.random_choice_frequency = *frequency
         };
@@ -200,10 +202,10 @@ impl Config {
         if let Ok(Some(value)) = args.try_get_one::<bool>("no_reduction") {
             the_config.reduction_allowed = !*value
         };
-        if let Ok(Some(value)) = args.try_get_one::<bool>("show_core") {
+        if let Ok(Some(value)) = args.try_get_one::<bool>("core") {
             the_config.show_core = *value
         };
-        if let Ok(Some(value)) = args.try_get_one::<bool>("show_stats") {
+        if let Ok(Some(value)) = args.try_get_one::<bool>("stats") {
             the_config.show_stats = *value
         };
         if let Ok(Some(value)) = args.try_get_one::<bool>("valuation") {
@@ -228,7 +230,7 @@ impl Config {
             the_config.vsids_variant = *variant
         };
 
-        if let Ok(Some(true)) = args.try_get_one::<bool>("persevere") {
+        if let Ok(Some(true)) = args.try_get_one::<bool>("elephant") {
             the_config.restarts_allowed = false;
             the_config.reduction_allowed = false;
         };

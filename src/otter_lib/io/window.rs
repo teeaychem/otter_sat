@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::io::{stdout, Write};
 
-use crate::context::config::Config;
+use crate::config::Config;
 
 use crossterm::{cursor, terminal, QueueableCommand};
 

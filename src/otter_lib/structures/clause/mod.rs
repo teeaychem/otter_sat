@@ -1,7 +1,7 @@
 pub mod stored;
 
 use crate::{
-    context::config::defaults::GlueStrength,
+    config::GlueStrength,
     structures::{
         literal::Literal,
         variable::{list::VariableList, Variable},

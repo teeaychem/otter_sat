@@ -1,5 +1,5 @@
 use crate::{
-    context::config::defaults,
+    config::{self},
     structures::{
         clause::{
             stored::{Source as ClauseSource, StoredClause},
@@ -123,7 +123,7 @@ impl ClauseStore {
     }
 
     // TODO: figure some improvement…
-    pub fn reduce(&mut self, glue_strength: defaults::GlueStrength) {
+    pub fn reduce(&mut self, glue_strength: config::GlueStrength) {
         let limit = self.learned_count();
         let mut keys_to_drop = vec![];
         for (k, v) in &self.learned {

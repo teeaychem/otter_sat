@@ -1,27 +1,12 @@
-pub mod defaults {
-    use crate::context::config::StoppingCriteria;
-    use crate::context::config::VSIDS;
+pub mod defaults;
 
-    pub type ActivityConflict = f32;
-    pub type DecayFactor = f32;
-    pub type DecayFrequency = usize;
-    pub type GlueStrength = u32;
-    pub type LubyConstant = usize;
-    pub type PolarityLean = f64;
-    pub type RandomChoiceFrequency = f64;
-
-    pub const ACTIVITY_CONFLICT: ActivityConflict = 1.0;
-    pub const DECAY_FACTOR: DecayFactor = 0.95;
-    pub const DECAY_FREQUENCY: DecayFrequency = 1;
-    pub const GLUE_STRENGTH: GlueStrength = 2;
-    pub const LUBY_U: LubyConstant = 512;
-    pub const POLARITY_LEAN: PolarityLean = 0.0;
-    pub const RANDOM_CHOICE_FREQUENCY: RandomChoiceFrequency = 0.0;
-    pub const STOPPING_CRITERIA: StoppingCriteria = StoppingCriteria::FirstUIP;
-    pub const VSIDS_VARIANT: VSIDS = VSIDS::MiniSAT;
-}
-
-use defaults::*;
+pub type ActivityConflict = f32;
+pub type DecayFactor = f32;
+pub type DecayFrequency = usize;
+pub type GlueStrength = u32;
+pub type LubyConstant = usize;
+pub type PolarityLean = f64;
+pub type RandomChoiceFrequency = f64;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -60,7 +45,7 @@ impl Default for Config {
             reduction_allowed: true,
             restarts_allowed: true,
             show_core: false,
-            show_stats: true,
+            show_stats: false,
             show_valuation: false,
             stopping_criteria: STOPPING_CRITERIA,
             subsumption: false,
