@@ -27,6 +27,7 @@ pub enum ParseIssue {
     Line(usize),
     MisplacedProblem(usize),
     NoVariable,
+    NoFile,
 }
 
 impl Context {
@@ -104,7 +105,10 @@ impl Context {
 
     #[allow(clippy::manual_flatten)]
     pub fn from_dimacs(file_path: &PathBuf, config: &Config) -> Result<Self, BuildIssue> {
-        let file = File::open(file_path).unwrap();
+        let file = match File::open(file_path) {
+            Err(_) => return Err(BuildIssue::Parse(ParseIssue::NoFile)),
+            Ok(f) => f,
+        };
 
         let mut buffer = String::with_capacity(1024);
         let mut file_reader = BufReader::new(file);

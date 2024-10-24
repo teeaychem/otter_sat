@@ -17,9 +17,6 @@ use std::{
     path::PathBuf,
 };
 
-
-
-
 use otter_lib::{
     context::{
         config::{cli, Config, StoppingCriteria},
@@ -42,37 +39,19 @@ fn main() {
 
     let matches = cli().get_matches();
     let config = Config::from_args(&matches);
-
+    // dbg!(&config);
 
     if let Some(formula_paths) = matches.get_raw("paths") {
         for path in formula_paths {
-
             let the_path = PathBuf::from(path);
 
             let mut the_context =
-            Context::from_dimacs(&the_path, &config).expect("failed to build context");
+                Context::from_dimacs(&the_path, &config).expect("failed to build context");
             // let _ = the_context.clause_from_string("p -q");
             let _the_result = the_context.solve();
             the_context.print_status();
         }
     }
-
-    // if let Ok(Some(formula_path)) = matches.try_get_one::<std::path::PathBuf>("formula") {
-
-    //     let mut the_context =
-    //         Context::from_dimacs(formula_path, &config).expect("failed to build context");
-    //     // let _ = the_context.clause_from_string("p -q");
-    //     let _the_result = the_context.solve();
-    //     the_context.print_status();
-    // }
-
-    // dbg!(matches);
-
-    // let formula_path = args.formula_file.clone();
-    // let config = Config::from_args(args);
-
-    // let x = Args::default();
-    // dbg!(x);
 
     // let mut the_basic_context = Context::default_config(&config);
 
@@ -96,10 +75,4 @@ fn main() {
     // };
     // let _the_result = the_basic_context.solve();
     // the_basic_context.print_status();
-
-    // let mut the_context = Context::from_dimacs(formula_path, &config)
-    //     .expect("failed to build context");
-    // // let _ = the_context.clause_from_string("p -q");
-    // let _the_result = the_context.solve();
-    // the_context.print_status();
 }
