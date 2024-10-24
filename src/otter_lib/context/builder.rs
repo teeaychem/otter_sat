@@ -3,7 +3,7 @@ use crate::{
     structures::{
         clause::stored::Source as ClauseSource,
         literal::{Literal, Source as LiteralSource},
-        variable::{list::VariableList, Variable, VariableId},
+        variable::{list::VariableList, Status as VariableStatus, Variable, VariableId},
     },
 };
 
@@ -12,6 +12,12 @@ use std::{
     io::{BufRead, BufReader},
     path::Path,
 };
+
+#[derive(Debug)]
+pub enum BuildIssue {
+    UnitClauseConflict,
+    AssumptionConflict,
+}
 
 impl Context {
     pub fn literal_from_string(&mut self, string: &str) -> Literal {
@@ -44,7 +50,18 @@ impl Context {
         Literal::new(the_variable, polarity)
     }
 
-    pub fn clause_from_string(&mut self, string: &str) {
+    pub fn assume_literal(&mut self, literal: Literal) -> Result<(), BuildIssue> {
+        match self.variables.set_value(
+            literal,
+            unsafe { self.levels.get_unchecked_mut(0) },
+            LiteralSource::Assumption,
+        ) {
+            Ok(_) => Ok(()),
+            Err(_e) => Err(BuildIssue::AssumptionConflict),
+        }
+    }
+
+    pub fn clause_from_string(&mut self, string: &str) -> Result<(), BuildIssue> {
         let string_lterals = string.split_whitespace();
         let mut the_clause = vec![];
         for string_literal in string_lterals {
@@ -61,17 +78,18 @@ impl Context {
 
         match the_clause.len() {
             1 => {
-                match self.literal_update(
+                match self.variables.set_value(
                     *the_clause.first().expect("literal vanish"),
-                    0,
+                    unsafe { self.levels.get_unchecked_mut(0) },
                     LiteralSource::Assumption,
                 ) {
-                    Ok(_) => {}
-                    Err(e) => panic!("{e:?}"),
-                };
+                    Ok(_) => Ok(()),
+                    Err(_e) => Err(BuildIssue::UnitClauseConflict),
+                }
             }
             _ => {
                 self.store_clause(the_clause, ClauseSource::Formula);
+                Ok(())
             }
         }
     }
@@ -91,7 +109,7 @@ impl Context {
             match file_reader.read_line(&mut buffer) {
                 Ok(0) => break,
                 Ok(_) => {}
-                Err(e) => panic!("{e:?}"),
+                Err(e) => panic!("error reading line {e:?}"),
             }
 
             match buffer.chars().next() {
@@ -145,7 +163,7 @@ impl Context {
             match file_reader.read_line(&mut buffer) {
                 Ok(0) => break,
                 Ok(_) => {}
-                Err(e) => panic!("{e:?}"),
+                Err(e) => panic!("error reading line {e:?}"),
             }
 
             match buffer.chars().next() {
