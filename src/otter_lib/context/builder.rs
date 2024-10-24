@@ -105,7 +105,7 @@ impl Context {
     }
 
     #[allow(clippy::manual_flatten)]
-    pub fn from_dimacs(file_path: &PathBuf, config: &Config) -> Result<Self, BuildIssue> {
+    pub fn from_dimacs(file_path: &PathBuf, config: Config) -> Result<Self, BuildIssue> {
         let file = match File::open(file_path) {
             Err(_) => return Err(BuildIssue::Parse(ParseIssue::NoFile)),
             Ok(f) => f,
@@ -117,6 +117,8 @@ impl Context {
 
         let mut the_context = None;
         let mut line_counter = 0;
+
+        let show_stats = config.show_stats;
 
         // first phase, read until the formula begins
         loop {
@@ -218,7 +220,7 @@ impl Context {
             buffer.clear();
         }
 
-        if config.show_stats {
+        if show_stats {
             println!(
                 "c Parsing complete with {} variables and {} clauses",
                 the_context.variables().slice().len(),
