@@ -458,7 +458,6 @@ dependencies = [
  "log4rs",
  "petgraph",
  "rand",
- "serde",
  "slotmap",
  "tikv-jemallocator",
 ]
