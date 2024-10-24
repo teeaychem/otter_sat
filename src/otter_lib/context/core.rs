@@ -1,10 +1,8 @@
 use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
-    context::{
-        config::{defaults, Config},
-        Context, GraphClause, ImplicationGraphNode, Status as ClauseStatus,
-    },
+    config::{self, Config},
+    context::{Context, GraphClause, ImplicationGraphNode, Status as ClauseStatus},
     io::window::{ContextWindow, WindowItem},
     structures::{
         clause::stored::{Source, StoredClause},
@@ -135,7 +133,7 @@ impl Context {
         }
     }
 
-    fn process_choice(&mut self, index: usize, polarity_lean: defaults::PolarityLean) {
+    fn process_choice(&mut self, index: usize, polarity_lean: config::PolarityLean) {
         log::trace!(
             "Choice: {index} @ {} with activity {}",
             self.level().index(),
@@ -202,7 +200,7 @@ impl Context {
 
     pub fn get_unassigned(
         &self,
-        random_choice_frequency: defaults::RandomChoiceFrequency,
+        random_choice_frequency: config::RandomChoiceFrequency,
     ) -> Option<usize> {
         match rand::thread_rng().gen_bool(random_choice_frequency) {
             true => self

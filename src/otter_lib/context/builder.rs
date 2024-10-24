@@ -1,5 +1,6 @@
 use crate::{
-    context::{config::Config, Context},
+    config::Config,
+    context::Context,
     structures::{
         clause::stored::Source as ClauseSource,
         literal::{Literal, Source as LiteralSource},

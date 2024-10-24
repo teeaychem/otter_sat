@@ -14,7 +14,7 @@ appenders:
       pattern: "{d(%H:%M:%S)} | {({l}):5.5} | {f}:{L}\t {m}{n}"
 
 root:
-  level: off
+  level: trace
   appenders:
     - stdout
 
@@ -26,7 +26,7 @@ loggers:
     additive: false
 
   forget:
-    level: warn
+    level: debug
     appenders:
     - forget_appender
     additive: false
