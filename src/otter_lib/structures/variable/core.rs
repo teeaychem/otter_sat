@@ -25,10 +25,6 @@ impl Variable {
         unsafe { *self.decision_level.get() }
     }
 
-    pub fn set_decision_level(&self, level: LevelIndex) {
-        unsafe { *self.decision_level.get() = Some(level) }
-    }
-
     pub const fn id(&self) -> VariableId {
         self.id
     }
@@ -50,11 +46,11 @@ impl Variable {
     }
 
     pub fn watch_added(&self, clause_key: ClauseKey, polarity: bool) {
-        let occurrences = match polarity {
+        match polarity {
             true => unsafe { &mut *self.positive_occurrences.get() },
             false => unsafe { &mut *self.negative_occurrences.get() },
-        };
-        occurrences.push(clause_key);
+        }
+        .push(clause_key);
     }
 
     pub fn polarity(&self) -> Option<bool> {
@@ -65,35 +61,38 @@ impl Variable {
         unsafe { *self.previous_polarity.get() }
     }
 
-    pub fn set_polarity(&self, polarity: Option<bool>) {
+    pub fn set_polarity(&self, polarity: Option<bool>, level: Option<LevelIndex>) {
         unsafe {
             *self.previous_polarity.get() = *self.polarity.get();
-            *self.polarity.get() = polarity
+            *self.polarity.get() = polarity;
+            *self.decision_level.get() = level
         }
     }
 
     pub fn occurrence_length(&self, polarity: bool) -> usize {
-        let list = match polarity {
+        match polarity {
             true => unsafe { &*self.positive_occurrences.get() },
             false => unsafe { &*self.negative_occurrences.get() },
-        };
-        list.len()
+        }
+        .len()
     }
 
     pub fn occurrence_key_at_index(&self, polarity: bool, index: usize) -> ClauseKey {
-        let list = match polarity {
-            true => unsafe { &*self.positive_occurrences.get() },
-            false => unsafe { &*self.negative_occurrences.get() },
-        };
-        unsafe { *list.get_unchecked(index) }
+        *unsafe {
+            match polarity {
+                true => &*self.positive_occurrences.get(),
+                false => &*self.negative_occurrences.get(),
+            }
+            .get_unchecked(index)
+        }
     }
 
     pub fn remove_occurrence_at_index(&self, polarity: bool, index: usize) {
-        let list = match polarity {
+        match polarity {
             true => unsafe { &mut *self.positive_occurrences.get() },
             false => unsafe { &mut *self.negative_occurrences.get() },
-        };
-        list.swap_remove(index);
+        }
+        .swap_remove(index);
     }
 }
 

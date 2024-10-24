@@ -8,7 +8,7 @@ use crate::{
         clause::stored::{Source, StoredClause},
         level::{Level, LevelIndex},
         literal::{Literal, Source as LiteralSource},
-        variable::{list::VariableList, Status as VariableStatus, VariableId},
+        variable::{list::VariableList, VariableId},
     },
 };
 
@@ -113,32 +113,6 @@ impl Context {
         }
     }
 
-    pub fn literal_update(
-        &mut self,
-        literal: Literal,
-        level_index: LevelIndex,
-        source: LiteralSource,
-    ) -> Result<(), VariableStatus> {
-        log::trace!("{literal} from {source:?}");
-        match self.variables.check_set_value(literal, level_index) {
-            Ok(_) => unsafe {
-                self.levels
-                    .get_unchecked_mut(level_index)
-                    .record_literal(literal, source);
-                Ok(())
-            },
-            Err(e) => panic!("{e:?}"),
-        }
-    }
-
-    pub fn literal_set_from_vec(&mut self, choices: Vec<VariableId>) {
-        for v_id in choices {
-            let the_literal = Literal::new(v_id, false);
-            self.literal_update(the_literal, 0, LiteralSource::HobsonChoice);
-            self.variables.push_back_consequence(the_literal);
-        }
-    }
-
     fn reductions_and_restarts(&mut self, config: &Config) {
         if self.it_is_time_to_reduce(config.luby_constant) {
             if let Some(window) = &self.window {
@@ -177,14 +151,32 @@ impl Context {
                 ),
             }
         };
-        self.literal_update(choice_literal, level_index, LiteralSource::Choice);
+        match self.variables.set_value(
+            choice_literal,
+            unsafe { self.levels.get_unchecked_mut(level_index) },
+            LiteralSource::Choice,
+        ) {
+            Ok(_) => {}
+            Err(e) => panic!("failed to update on choice: {e:?}"),
+        };
         self.variables.push_back_consequence(choice_literal);
     }
 
     fn set_hobson(&mut self) {
         let (f, t) = hobson_choices(self.clause_store.clauses());
-        self.literal_set_from_vec(f);
-        self.literal_set_from_vec(t);
+
+        for v_id in f.into_iter().chain(t) {
+            let the_literal = Literal::new(v_id, false);
+            match self.variables.set_value(
+                the_literal,
+                unsafe { self.levels.get_unchecked_mut(0) },
+                LiteralSource::HobsonChoice,
+            ) {
+                Ok(_) => {}
+                Err(e) => panic!("issue on hobson update: {e:?}"),
+            };
+            self.variables.push_back_consequence(the_literal);
+        }
     }
 
     pub fn add_fresh_level(&mut self) -> LevelIndex {

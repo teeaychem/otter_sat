@@ -141,18 +141,30 @@ impl VariableStore {
                     (None, None) => {}
                     (Some(a), None) if a == watch_a.polarity() => {}
                     (Some(_), None) => {
-                        self.set_value(watch_b, level.index());
+                        match self.set_value(
+                            watch_b,
+                            level,
+                            Source::Clause(stored_clause.node_index()),
+                        ) {
+                            Ok(_) => {}
+                            Err(e) => panic!("could not set watch {e:?}"),
+                        };
                         // self.consequence_buffer
                         //     .push((Source::Clause(stored_clause.node_index()), watch_b));
-                        level.record_literal(watch_b, Source::Clause(stored_clause.node_index()));
                         self.consequence_q.push_back(watch_b);
                     }
                     (None, Some(b)) if b == watch_b.polarity() => {}
                     (None, Some(_)) => {
-                        self.set_value(watch_a, level.index());
+                        match self.set_value(
+                            watch_a,
+                            level,
+                            Source::Clause(stored_clause.node_index()),
+                        ) {
+                            Ok(_) => {}
+                            Err(e) => panic!("could not set watch {e:?}"),
+                        };
                         // self.consequence_buffer
                         //     .push((Source::Clause(stored_clause.node_index()), watch_a));
-                        level.record_literal(watch_a, Source::Clause(stored_clause.node_index()));
                         self.consequence_q.push_back(watch_a);
                     }
                     (Some(a), Some(b)) if a == watch_a.polarity() || b == watch_b.polarity() => {}

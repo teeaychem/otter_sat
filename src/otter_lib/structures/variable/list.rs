@@ -1,6 +1,6 @@
 use crate::structures::{
-    level::LevelIndex,
-    literal::Literal,
+    level::Level,
+    literal::{Literal, Source as LiteralSource},
     variable::{Status, Variable},
 };
 
@@ -15,13 +15,12 @@ pub trait VariableList {
 
     fn check_literal(&self, literal: Literal) -> Status;
 
-    fn check_set_value(
-        &mut self,
+    fn set_value(
+        &self,
         literal: Literal,
-        level_index: LevelIndex,
+        level: &mut Level,
+        source: LiteralSource,
     ) -> Result<Status, Status>;
-
-    fn set_value(&self, literal: Literal, level_index: LevelIndex);
 
     fn retract_valuation(&mut self, index: usize);
 
@@ -62,42 +61,33 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
         match maybe_value.polarity() {
             Some(already_set) if already_set == literal.polarity() => Status::Match,
             Some(_already_set) => Status::Conflict,
-            None => Status::NotSet,
+            None => Status::Set,
         }
     }
 
-    fn check_set_value(
-        &mut self,
+    fn set_value(
+        &self,
         literal: Literal,
-        level_index: LevelIndex,
+        level: &mut Level,
+        source: LiteralSource,
     ) -> Result<Status, Status> {
         log::trace!("Set literal: {}", literal);
-        let maybe_value = unsafe { self.get_unchecked(literal.index()) };
-        match maybe_value.polarity() {
+        let variable = unsafe { self.get_unchecked(literal.index()) };
+        match variable.polarity() {
             Some(value) if value != literal.polarity() => Err(Status::Conflict),
             Some(_value) => Ok(Status::Match),
             None => {
-                self.set_value(literal, level_index);
-                Ok(Status::NotSet)
+                variable.set_polarity(Some(literal.polarity()), Some(level.index()));
+                level.record_literal(literal, source);
+                Ok(Status::Set)
             }
-        }
-    }
-
-    fn set_value(&self, literal: Literal, level_index: LevelIndex) {
-        log::trace!("Set literal: {}", literal);
-        unsafe {
-            let variable = self.get_unchecked(literal.index());
-            variable.set_polarity(Some(literal.polarity()));
-            variable.set_decision_level(level_index);
         }
     }
 
     fn retract_valuation(&mut self, index: usize) {
         log::trace!("Clear index: {index}");
         unsafe {
-            let the_variable = self.get_unchecked_mut(index);
-            the_variable.set_polarity(None);
-            *the_variable.decision_level.get_mut() = None;
+            self.get_unchecked_mut(index).set_polarity(None, None);
         }
     }
 

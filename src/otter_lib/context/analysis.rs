@@ -37,11 +37,14 @@ impl Context {
             // check to see if missed
             let missed_level = self.backjump_level(conflict_clause.literal_slice());
             self.backjump(missed_level);
-            self.literal_update(
+            match self.variables.set_value(
                 asserted,
-                missed_level,
+                unsafe { self.levels.get_unchecked_mut(missed_level) },
                 LiteralSource::Clause(conflict_index),
-            );
+            ) {
+                Ok(_) => {}
+                Err(_) => return SolveStatus::NoSolution(clause_key),
+            };
             self.variables.push_back_consequence(asserted);
 
             SolveStatus::MissedImplication(clause_key)
@@ -87,11 +90,14 @@ impl Context {
                                 .implication_graph
                                 .add_node(ImplicationGraphNode::Literal(graph_literal));
 
-                            self.literal_update(
+                            match self.variables.set_value(
                                 asserted_literal,
-                                0,
+                                unsafe { self.levels.get_unchecked_mut(0) },
                                 LiteralSource::Resolution(literal_index),
-                            );
+                            ) {
+                                Ok(_) => {}
+                                Err(_) => return SolveStatus::NoSolution(clause_key),
+                            };
 
                             literal_index
                         }
@@ -104,11 +110,14 @@ impl Context {
                                 self.store_clause(resolved_clause, ClauseSource::Resolution);
                             let stored_index = stored_clause.node_index();
 
-                            self.literal_update(
+                            match self.variables.set_value(
                                 asserted_literal,
-                                backjump_level_index,
+                                unsafe { self.levels.get_unchecked_mut(backjump_level_index) },
                                 LiteralSource::Clause(stored_index),
-                            );
+                            ) {
+                                Ok(_) => {}
+                                Err(_) => return SolveStatus::NoSolution(clause_key),
+                            };
 
                             stored_index
                         }
