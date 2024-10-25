@@ -12,6 +12,7 @@ use crate::{
     },
 };
 
+use petgraph::graph::NodeIndex;
 use petgraph::{visit, Direction};
 use std::collections::BTreeSet;
 use std::ops::Deref;
@@ -201,10 +202,46 @@ impl Context {
             });
         }
 
+        for (_, literal) in self.level().observations() {
+            match literal.polarity() {
+                true => println!("{} 0", self.variables[literal.index()].name()),
+                false => println!("-{} 0", self.variables[literal.index()].name()),
+            };
+        }
+
         for source_key in &core_set {
             let source_clause = self.clause_store.retreive(*source_key);
             let full_clause = source_clause.original_clause();
             println!("{}", full_clause.as_dimacs(&self.variables));
+        }
+    }
+
+    pub fn literal_derivation(&self, index: NodeIndex) {
+        let mut core_set = BTreeSet::new();
+
+        visit::depth_first_search(&self.implication_graph, Some(index), |event| {
+            if let visit::DfsEvent::Discover(index, _) = event {
+                let outgoing = self
+                    .implication_graph
+                    .edges_directed(index, Direction::Outgoing);
+                if outgoing.count() == 0 {
+                    let graph_node = self
+                        .implication_graph
+                        .node_weight(index)
+                        .expect("missing node");
+                    match graph_node {
+                        ImplicationGraphNode::Clause(clause_weight) => {
+                            core_set.insert(clause_weight.key);
+                        }
+                        ImplicationGraphNode::Literal(_) => {}
+                    }
+                }
+            }
+        });
+
+        for key in core_set {
+            let clause = self.clause_store.retreive(key);
+            println!("{}", clause.as_string());
         }
     }
 
