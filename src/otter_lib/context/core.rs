@@ -223,7 +223,7 @@ impl Context {
     /// Stores a clause with an automatically generated id.
     /// In order to use the clause the watch literals of the struct must be initialised.
     pub fn store_clause(&mut self, clause: Vec<Literal>, src: Source) -> &StoredClause {
-        assert!(!clause.is_empty(), "Attempt to add an empty clause");
+        assert!(clause.len() > 1, "Attempt to add a short clause");
 
         let clause_key = self.clause_store.insert(src, clause, &self.variables);
         let the_clause = self.clause_store.retreive_mut(clause_key);

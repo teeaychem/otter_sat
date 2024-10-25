@@ -18,7 +18,7 @@ use std::{
 pub enum BuildIssue {
     UnitClauseConflict,
     AssumptionConflict,
-    ClauseTautology,
+    ClauseEmpty,
     Parse(ParseIssue),
 }
 
@@ -83,7 +83,7 @@ impl Context {
         the_clause.dedup();
 
         if the_clause.is_empty() {
-            return Err(BuildIssue::ClauseTautology);
+            return Err(BuildIssue::ClauseEmpty);
         }
 
         match the_clause.len() {
@@ -104,7 +104,7 @@ impl Context {
         }
     }
 
-    #[allow(clippy::manual_flatten)]
+    #[allow(clippy::manual_flatten, unused_labels)]
     pub fn from_dimacs(file_path: &PathBuf, config: Config) -> Result<Self, BuildIssue> {
         let file = match File::open(file_path) {
             Err(_) => return Err(BuildIssue::Parse(ParseIssue::NoFile)),
@@ -121,7 +121,7 @@ impl Context {
         let show_stats = config.show_stats;
 
         // first phase, read until the formula begins
-        loop {
+        'preamble_loop: loop {
             match file_reader.read_line(&mut buffer) {
                 Ok(0) => break,
                 Ok(_) => line_counter += 1,
@@ -179,8 +179,7 @@ impl Context {
 
         let mut the_context = the_context.unwrap_or_default();
 
-        // second phase, read the formula to the context
-        loop {
+        'formula_loop: loop {
             match file_reader.read_line(&mut buffer) {
                 Ok(0) => break,
                 Ok(_) => line_counter += 1,
@@ -188,6 +187,7 @@ impl Context {
             }
 
             match buffer.chars().next() {
+                Some('%') => break 'formula_loop,
                 Some('c') => {}
                 Some('p') => {
                     return Err(BuildIssue::Parse(ParseIssue::MisplacedProblem(
@@ -202,7 +202,23 @@ impl Context {
                                 let mut the_clause = clause_buffer.clone();
                                 the_clause.sort_unstable();
                                 the_clause.dedup();
-                                the_context.store_clause(the_clause, ClauseSource::Formula);
+
+                                match the_clause.len() {
+                                    1 => {
+                                        match the_context.variables.set_value(
+                                            *the_clause.first().expect("literal vanish"),
+                                            unsafe { the_context.levels.get_unchecked_mut(0) },
+                                            LiteralSource::Assumption,
+                                        ) {
+                                            Ok(_) => {}
+                                            Err(_e) => return Err(BuildIssue::UnitClauseConflict),
+                                        }
+                                    }
+                                    _ => {
+                                        the_context.store_clause(the_clause, ClauseSource::Formula);
+                                    }
+                                }
+
                                 clause_buffer.clear();
                             }
                             _ => {
