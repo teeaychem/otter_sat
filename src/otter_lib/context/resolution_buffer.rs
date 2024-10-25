@@ -22,7 +22,7 @@ enum ResolutionCell {
 
 #[derive(Debug)]
 pub struct ResolutionBuffer {
-    valuless_count: usize,
+    valueless_count: usize,
     clause_legnth: usize,
     asserts: Option<Literal>,
     buffer: Vec<ResolutionCell>,
@@ -38,7 +38,7 @@ pub enum Status {
 impl ResolutionBuffer {
     pub fn new(size: usize) -> Self {
         ResolutionBuffer {
-            valuless_count: 0,
+            valueless_count: 0,
             clause_legnth: 0,
             asserts: None,
             buffer: vec![ResolutionCell::Value(None); size],
@@ -48,7 +48,7 @@ impl ResolutionBuffer {
     }
 
     pub fn reset_with(&mut self, variables: &impl VariableList) {
-        self.valuless_count = 0;
+        self.valueless_count = 0;
         self.asserts = None;
         for variable in variables.slice() {
             self.set(variable.index(), ResolutionCell::Value(variable.polarity()))
@@ -61,7 +61,7 @@ impl ResolutionBuffer {
 
     pub fn from_variable_store(variables: &impl VariableList) -> Self {
         ResolutionBuffer {
-            valuless_count: 0,
+            valueless_count: 0,
             clause_legnth: 0,
             asserts: None,
             buffer: variables
@@ -89,7 +89,7 @@ impl ResolutionBuffer {
                 }
                 ResolutionCell::ConflictLiteral(literal) => the_clause.push(*literal),
                 ResolutionCell::NoneLiteral(literal) => {
-                    if self.valuless_count == 1 {
+                    if self.valueless_count == 1 {
                         conflict_literal = Some(*literal)
                     } else {
                         the_clause.push(*literal)
@@ -140,7 +140,7 @@ impl ResolutionBuffer {
                         variables.get_unsafe(literal.index()).multiply_activity(1.1);
                     }
 
-                    if self.valuless_count == 1 {
+                    if self.valueless_count == 1 {
                         match config.stopping_criteria {
                             StoppingCriteria::FirstUIP => return Status::FirstUIP,
                             StoppingCriteria::None => {}
@@ -168,7 +168,7 @@ impl ResolutionBuffer {
     }
 
     pub fn asserts(&self) -> Option<Literal> {
-        if self.valuless_count == 1 {
+        if self.valueless_count == 1 {
             self.asserts
         } else {
             None
@@ -200,7 +200,7 @@ impl ResolutionBuffer {
                 ResolutionCell::Value(maybe) => match maybe {
                     None => {
                         self.clause_legnth += 1;
-                        self.valuless_count += 1;
+                        self.valueless_count += 1;
                         self.set(literal.index(), ResolutionCell::NoneLiteral(*literal));
                         if self.asserts.is_none() {
                             self.asserts = Some(*literal);
@@ -223,7 +223,7 @@ impl ResolutionBuffer {
                 self.merge_clause(clause);
                 self.clause_legnth -= 1;
                 self.set(using.index(), ResolutionCell::Pivot);
-                self.valuless_count -= 1;
+                self.valueless_count -= 1;
 
                 Ok(())
             }

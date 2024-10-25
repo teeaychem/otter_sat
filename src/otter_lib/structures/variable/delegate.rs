@@ -128,7 +128,6 @@ impl VariableStore {
                 the_variable.remove_occurrence_at_index(list_polarity, index);
                 length -= 1;
             } else {
-                // the compiler prefers the conditional matches
                 index += 1;
                 let a_value = self.polarity_of(watch_a.index());
                 let b_value = self.polarity_of(watch_b.index());

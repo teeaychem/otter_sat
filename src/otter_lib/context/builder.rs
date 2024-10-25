@@ -98,7 +98,22 @@ impl Context {
                 }
             }
             _ => {
-                self.store_clause(the_clause, ClauseSource::Formula);
+                // temp taut check
+                let mut tautology = false;
+                for literal in &the_clause {
+                    if the_clause
+                        .iter()
+                        .find(|l| **l == literal.negate())
+                        .is_some()
+                    {
+                        tautology = true;
+                        break;
+                    }
+                }
+
+                if !tautology {
+                    self.store_clause(the_clause, ClauseSource::Formula);
+                }
                 Ok(())
             }
         }
@@ -117,6 +132,7 @@ impl Context {
 
         let mut the_context = None;
         let mut line_counter = 0;
+        let mut assumption_counter = 0;
 
         let show_stats = config.show_stats;
 
@@ -205,6 +221,7 @@ impl Context {
 
                                 match the_clause.len() {
                                     1 => {
+                                        assumption_counter += 1;
                                         match the_context.variables.set_value(
                                             *the_clause.first().expect("literal vanish"),
                                             unsafe { the_context.levels.get_unchecked_mut(0) },
@@ -215,7 +232,23 @@ impl Context {
                                         }
                                     }
                                     _ => {
-                                        the_context.store_clause(the_clause, ClauseSource::Formula);
+                                        // temp taut check
+                                        let mut tautology = false;
+                                        for literal in &the_clause {
+                                            if the_clause
+                                                .iter()
+                                                .find(|l| **l == literal.negate())
+                                                .is_some()
+                                            {
+                                                tautology = true;
+                                                break;
+                                            }
+                                        }
+
+                                        if !tautology {
+                                            the_context
+                                                .store_clause(the_clause, ClauseSource::Formula);
+                                        }
                                     }
                                 }
 
@@ -240,7 +273,7 @@ impl Context {
             println!(
                 "c Parsing complete with {} variables and {} clauses",
                 the_context.variables().slice().len(),
-                the_context.clause_count()
+                the_context.clause_count() + assumption_counter
             );
         }
 
