@@ -1,5 +1,5 @@
 use crate::{
-    config::Config,
+    config::{ActivityConflict, Config},
     context::store::{ClauseKey, ClauseStore},
     structures::{
         clause::stored::Watch,
@@ -18,14 +18,46 @@ pub enum Status {
 }
 
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{BinaryHeap, HashMap, VecDeque},
     ops::{Deref, DerefMut},
 };
+
+pub struct VariableActivity {
+    pub index: usize,
+    pub activity: ActivityConflict,
+}
+
+impl Ord for VariableActivity {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.activity.total_cmp(&other.activity)
+    }
+}
+
+impl PartialOrd for VariableActivity {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for VariableActivity {
+    fn eq(&self, other: &Self) -> bool {
+        self.index == other.index && self.activity == other.activity
+    }
+}
+
+impl Eq for VariableActivity {}
 
 pub struct VariableStore {
     variables: Vec<Variable>,
     consequence_q: VecDeque<Literal>,
     pub string_map: HashMap<String, VariableId>, // pub consequence_buffer: Vec<(Source, Literal)>,
+    pub activity_heap: BinaryHeap<VariableActivity>,
+}
+
+impl VariableActivity {
+    pub fn new(index: usize, activity: ActivityConflict) -> Self {
+        VariableActivity { index, activity }
+    }
 }
 
 impl VariableStore {
@@ -36,6 +68,7 @@ impl VariableStore {
             variables,
             consequence_q: VecDeque::with_capacity(count),
             string_map: HashMap::with_capacity(count), // consequence_buffer: Vec::with_capacity(count),
+            activity_heap: BinaryHeap::new(),
         }
     }
 
@@ -44,6 +77,7 @@ impl VariableStore {
             variables: Vec::with_capacity(variable_count),
             consequence_q: VecDeque::with_capacity(variable_count),
             string_map: HashMap::with_capacity(variable_count), // consequence_buffer: Vec::with_capacity(variable_count),
+            activity_heap: BinaryHeap::with_capacity(variable_count / 2),
         }
     }
 
@@ -60,6 +94,7 @@ impl Default for VariableStore {
             variables: Vec::with_capacity(DEFAULT_VARIABLE_COUNT),
             consequence_q: VecDeque::with_capacity(DEFAULT_VARIABLE_COUNT),
             string_map: HashMap::with_capacity(DEFAULT_VARIABLE_COUNT), // consequence_buffer: Vec::with_capacity(DEFAULT_VARIABLE_COUNT),
+            activity_heap: BinaryHeap::with_capacity(DEFAULT_VARIABLE_COUNT / 2),
         }
     }
 }
