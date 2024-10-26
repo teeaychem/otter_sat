@@ -4,12 +4,21 @@ pub mod core;
 mod resolution_buffer;
 pub mod store;
 
+const RNG_SEED: u64 = 0;
+
 use {
-    crate::config::{self, Config},
-    crate::io::window::ContextWindow,
-    crate::structures::{level::Level, literal::Literal, variable::delegate::VariableStore},
+    crate::{
+        config::{self, Config},
+        io::window::ContextWindow,
+        structures::{level::Level, literal::Literal, variable::delegate::VariableStore},
+    },
     store::{ClauseId, ClauseKey, ClauseStore},
 };
+
+use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128Plus};
+
+// pub type RngChoice = rand::rngs::mock::StepRng;
+pub type RngChoice = Xoroshiro128Plus;
 
 use petgraph::Graph;
 use std::time::Duration;
@@ -47,6 +56,7 @@ pub struct Context {
     implication_graph: ResolutionGraph,
     pub window: Option<ContextWindow>,
     pub status: Status,
+    rng: RngChoice,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -84,6 +94,7 @@ impl Context {
             implication_graph: Graph::new(),
             window: the_window,
             status: Status::Initialised,
+            rng: RngChoice::seed_from_u64(RNG_SEED), //RngChoice::new(0,1)
         };
         the_context.levels.push(Level::new(0));
         the_context
@@ -106,6 +117,7 @@ impl Default for Context {
             implication_graph: Graph::default(),
             window: None,
             status: Status::Initialised,
+            rng: RngChoice::seed_from_u64(RNG_SEED),
         };
         the_context.levels.push(Level::new(0));
         the_context

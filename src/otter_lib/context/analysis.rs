@@ -134,7 +134,6 @@ impl Context {
                     SolveStatus::AssertingClause(clause_key)
                 }
             }
-            // see if resolution can be strengthened
         }
     }
 
