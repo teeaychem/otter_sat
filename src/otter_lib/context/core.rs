@@ -33,13 +33,13 @@ impl Context {
         let this_total_time = std::time::Instant::now();
 
         self.preprocess();
+
         if self.config.show_stats {
             if let Some(window) = &mut self.window {
                 window.draw_window(&self.config);
             }
         }
 
-        // store parts of config for use inside the loop
         let local_config = self.config.clone();
         let time_limit = local_config.time_limit;
 
@@ -145,10 +145,7 @@ impl Context {
 
             match choice_variable.previous_polarity() {
                 Some(polarity) => Literal::new(index as VariableId, polarity),
-                None => Literal::new(
-                    index as VariableId,
-                    rand::thread_rng().gen_bool(polarity_lean),
-                ),
+                None => Literal::new(index as VariableId, self.rng.gen_bool(polarity_lean)),
             }
         };
         match self.variables.set_value(
@@ -199,15 +196,21 @@ impl Context {
     }
 
     pub fn get_unassigned(
-        &self,
+        &mut self,
         random_choice_frequency: config::RandomChoiceFrequency,
     ) -> Option<usize> {
-        match rand::thread_rng().gen_bool(random_choice_frequency) {
+        // for v in self.variables.iter() {
+        //     if v.polarity().is_none() {
+        //         return Some(v.index())
+        //     }
+        // }
+        // return None;
+        match self.rng.gen_bool(random_choice_frequency) {
             true => self
                 .variables
                 .iter()
                 .filter(|variable| variable.polarity().is_none())
-                .choose(&mut rand::thread_rng())
+                .choose(&mut self.rng)
                 .map(|variable| variable.index()),
             false => self
                 .variables
