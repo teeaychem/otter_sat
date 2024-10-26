@@ -8,7 +8,7 @@ use crate::{
         clause::stored::{Source, StoredClause},
         level::{Level, LevelIndex},
         literal::{Literal, Source as LiteralSource},
-        variable::{list::VariableList, VariableId},
+        variable::{delegate::VariableActivity, list::VariableList, VariableId},
     },
 };
 
@@ -199,12 +199,6 @@ impl Context {
         &mut self,
         random_choice_frequency: config::RandomChoiceFrequency,
     ) -> Option<usize> {
-        // for v in self.variables.iter() {
-        //     if v.polarity().is_none() {
-        //         return Some(v.index())
-        //     }
-        // }
-        // return None;
         match self.rng.gen_bool(random_choice_frequency) {
             true => self
                 .variables
@@ -212,14 +206,19 @@ impl Context {
                 .filter(|variable| variable.polarity().is_none())
                 .choose(&mut self.rng)
                 .map(|variable| variable.index()),
-            false => self
-                .variables
-                .iter()
-                .enumerate()
-                .filter(|(_, variable)| variable.polarity().is_none())
-                .map(|(index, _)| (index, self.variables[index].activity()))
-                .max_by(|(_, activity_a), (_, activity_b)| activity_a.total_cmp(activity_b))
-                .map(|(index, _)| index),
+            false => {
+                while let Some(pair) = self.variables.activity_heap.pop() {
+                    let value = self.variables.get_unsafe(pair.index).polarity();
+                    if value.is_none() {
+                        return Some(pair.index);
+                    }
+                }
+                self.variables
+                    .iter()
+                    .filter(|variable| variable.polarity().is_none())
+                    .map(|x| x.index())
+                    .next()
+            }
         }
     }
 
@@ -247,6 +246,10 @@ impl Context {
             for literal in self.levels.pop().expect("Lost level").literals() {
                 log::trace!("Noneset: {}", literal.index());
                 self.variables.retract_valuation(literal.index());
+                let activity = self.variables.get_unsafe(literal.index()).activity();
+                self.variables
+                    .activity_heap
+                    .push(VariableActivity::new(literal.index(), activity));
             }
         }
     }
