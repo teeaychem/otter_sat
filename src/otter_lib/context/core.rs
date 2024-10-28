@@ -3,13 +3,12 @@ use rand::{seq::IteratorRandom, Rng};
 use crate::{
     config::{self, Config},
     context::{Context, GraphClause, ImplicationGraphNode, Status as ClauseStatus},
-    generic::fixed_index::FixedIndex,
     io::window::{ContextWindow, WindowItem},
     structures::{
         clause::stored::{Source, StoredClause},
         level::{Level, LevelIndex},
         literal::{Literal, Source as LiteralSource},
-        variable::{delegate::VariableActivity, list::VariableList, VariableId},
+        variable::{list::VariableList, VariableId},
     },
 };
 
@@ -135,7 +134,7 @@ impl Context {
         log::trace!(
             "Choice: {index} @ {} with activity {}",
             self.level().index(),
-            self.variables.get_unsafe(index).activity()
+            self.variables.activity_heap.value_at(index)
         );
         let level_index = self.add_fresh_level();
         let choice_literal = {
@@ -207,9 +206,13 @@ impl Context {
                 .choose(&mut self.rng)
                 .map(|variable| variable.index()),
             false => {
-                while let Some(variable) = self.variables.activity_heap.pop_max() {
-                    let the_variable = unsafe { &*variable.variable };
+                while let Some(index) = self.variables.activity_heap.pop_max() {
+                    let the_variable = self.variables.get_unsafe(index);
                     if the_variable.polarity().is_none() {
+                        // let this_max = self.variables.activity_heap.value_at(index);
+                        // if let Some(next_max) = self.variables.activity_heap.peek_max_value() {
+                        //     assert!(this_max >= next_max, "{next_max} > {this_max}");
+                        // }
                         return Some(the_variable.index());
                     }
                 }
@@ -251,10 +254,7 @@ impl Context {
             for literal in self.levels.pop().expect("Lost level").literals() {
                 log::trace!("Noneset: {}", literal.index());
                 self.variables.retract_valuation(literal.index());
-                let p = self.variables.index_to_ptr(literal.index());
-                self.variables
-                    .activity_heap
-                    .insert(VariableActivity { variable: p });
+                self.variables.activity_heap.activate(literal.index());
             }
         }
     }

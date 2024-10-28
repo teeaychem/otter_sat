@@ -1,4 +1,5 @@
 #![allow(unused_imports)]
+#![allow(clippy::single_match)]
 // #![allow(unused_variables)]
 
 #[cfg(not(target_env = "msvc"))]
@@ -28,7 +29,7 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
-use otter_lib::generic::{fixed_index::FixedIndex, heap::FixedHeap};
+use otter_lib::generic::heap::FixedHeap;
 
 // #[rustfmt::skip]
 fn main() {

@@ -1,88 +1,87 @@
 #[derive(Debug)]
-pub struct FixedHeap<T: Ord> {
-    structure: Vec<T>,
-    positions: Vec<Option<usize>>,
+
+pub struct FixedHeap<T: PartialOrd + Clone + Copy> {
+    values: Vec<T>,
+    map: Vec<Option<usize>>,
+    heap: Vec<usize>,
+    limit: usize,
 }
-use crate::generic::fixed_index::FixedIndex;
 use std::cmp::Ordering;
 
-impl<T: Ord + FixedIndex> FixedHeap<T> {
-    pub fn new(size: usize) -> Self {
+impl<T: PartialOrd + Clone + Copy + std::fmt::Debug + std::fmt::Display + std::ops::MulAssign>
+    FixedHeap<T>
+{
+    pub fn new(size: usize, default_value: T) -> Self {
         FixedHeap {
-            structure: Vec::with_capacity(size),
-            positions: vec![None; size],
+            values: vec![default_value; size],
+            map: vec![None; size],
+            heap: vec![0; size],
+            limit: 0,
         }
     }
 
-    pub fn left_index(&self, index: usize) -> usize {
+    pub fn heap_index(&self, index: usize) -> usize {
+        unsafe { *self.heap.get_unchecked(index) }
+    }
+
+    pub fn map_heap_index(&self, index: usize) -> Option<usize> {
+        unsafe { *self.map.get_unchecked(*self.heap.get_unchecked(index)) }
+    }
+
+    pub fn heap_left(&self, index: usize) -> usize {
         (2 * index) + 1
     }
 
-    pub fn right_index(&self, index: usize) -> usize {
+    pub fn heap_right(&self, index: usize) -> usize {
         (2 * index) + 2
     }
 
-    pub fn parent_index(&self, index: usize) -> usize {
+    pub fn heap_parent(&self, index: usize) -> usize {
         index.saturating_sub(1) / 2
     }
 
-    pub fn left(&self, index: usize) -> Option<&T> {
-        self.structure.get(self.left_index(index))
-    }
-
-    pub fn right(&self, index: usize) -> Option<&T> {
-        self.structure.get(self.right_index(index))
-    }
-
     pub fn parent(&self, index: usize) -> &T {
-        self.structure
-            .get(self.parent_index(index))
+        self.values
+            .get(self.heap_parent(index))
             .expect("missing parent")
     }
 
     pub fn position(&self, index: usize) -> Option<usize> {
-        unsafe { *self.positions.get_unchecked(index) }
+        unsafe { *self.map.get_unchecked(index) }
     }
 
+    #[allow(clippy::single_match)]
     pub fn heapify_down(&mut self, mut index: usize) {
         loop {
-            let index_item_fixed_index = self
-                .structure
-                .get(index)
-                .expect("missing index item")
-                .index();
-            let mut largest = index;
-            let mut largest_item = self.structure.get(largest).expect("missing index item");
-            let mut largest_item_fixed_index = largest_item.index();
-            if let Some(entry) = self.left(index) {
-                match largest_item.cmp(entry) {
-                    Ordering::Less | Ordering::Equal => {
-                        largest = self.left_index(index);
-                        largest_item = self.structure.get(largest).expect("missing index item");
-                        largest_item_fixed_index = largest_item.index();
-                    }
-                    Ordering::Greater => {}
-                }
-            } else {
+            let left_heap = self.heap_left(index);
+            if left_heap >= self.limit {
                 break;
             }
-            if let Some(entry) = self.right(index) {
-                match largest_item.cmp(entry) {
-                    Ordering::Less | Ordering::Equal => {
-                        largest = self.right_index(index);
-                        largest_item = self.structure.get(largest).expect("missing index item");
-                        largest_item_fixed_index = largest_item.index();
+            let mut largest = index;
+            let mut largest_value = self.values[self.heap[largest]];
+
+            let left_value = self.values[self.heap[left_heap]];
+            match left_value.partial_cmp(&largest_value) {
+                Some(Ordering::Greater) => {
+                    largest = left_heap;
+                    largest_value = left_value;
+                }
+                _ => {}
+            }
+            let right_index = self.heap_right(index);
+            if right_index < self.limit {
+                let right_value = self.values[self.heap[right_index]];
+                match right_value.partial_cmp(&largest_value) {
+                    Some(Ordering::Greater) => {
+                        largest = right_index;
                     }
-                    Ordering::Greater => {}
+                    _ => {}
                 }
             }
             if largest != index {
-                self.structure.swap(largest, index);
-                unsafe {
-                    *self.positions.get_unchecked_mut(index_item_fixed_index) = Some(largest);
-                    *self.positions.get_unchecked_mut(largest_item_fixed_index) = Some(index);
-                }
-
+                self.map[self.heap[largest]] = Some(index);
+                self.map[self.heap[index]] = Some(largest);
+                self.heap.swap(index, largest);
                 index = largest;
             } else {
                 break;
@@ -95,67 +94,107 @@ impl<T: Ord + FixedIndex> FixedHeap<T> {
             if index == 0 {
                 break;
             }
-            let index_item = self.structure.get(index).expect("missing index");
-            let index_item_fixed_index = index_item.index();
-            let parent_item = self.parent(index);
-            let parent_item_fixed_index = parent_item.index();
-            match index_item.cmp(parent_item) {
-                Ordering::Less => break,
+            let parent_heap = self.heap_parent(index);
+
+            let index_value = self.values[self.heap[index]];
+            let parent_value = self.values[self.heap[parent_heap]];
+            match parent_value.partial_cmp(&index_value) {
+                Some(Ordering::Greater) => break,
                 _ => {
-                    let parent_index = self.parent_index(index);
-                    self.structure.swap(index, parent_index);
-                    unsafe {
-                        *self.positions.get_unchecked_mut(index_item_fixed_index) =
-                            Some(parent_index);
-                        *self.positions.get_unchecked_mut(parent_item_fixed_index) = Some(index);
-                    }
-                    index = parent_index;
+                    self.map[self.heap[parent_heap]] = Some(index);
+                    self.map[self.heap[index]] = Some(parent_heap);
+                    self.heap.swap(index, parent_heap);
+                    index = parent_heap;
                 }
             }
         }
     }
 
-    pub fn insert(&mut self, item: T) {
-        let item_index = item.index();
-        if unsafe { self.positions.get_unchecked(item_index).is_none() } {
-            let end_index = self.structure.len();
-            self.structure.push(item);
-            unsafe {
-                *self.positions.get_unchecked_mut(item_index) = Some(end_index);
-            }
-
-            self.heapify_up(end_index);
+    pub fn insert(&mut self, index: usize, value: T) {
+        if unsafe { self.map.get_unchecked(index).is_none() } {
+            self.values[index] = value;
+            self.map[index] = Some(self.limit);
+            self.heap[self.limit] = index;
+            self.heapify_up(self.limit);
+            self.limit += 1;
         }
     }
 
-    pub fn peek_max(&self) -> Option<&T> {
-        self.structure.first()
+    pub fn activate(&mut self, index: usize) {
+        if self.map[index].is_none() {
+            self.map[index] = Some(self.limit);
+            self.heap[self.limit] = index;
+            self.heapify_up(self.limit);
+            self.limit += 1;
+        } else {
+            let heap_index = self.map[index].unwrap();
+            self.heapify_up(heap_index);
+            self.heapify_down(heap_index);
+        }
     }
 
-    pub fn pop_max(&mut self) -> Option<T> {
-        match self.structure.len() {
+    pub fn peek_max(&self) -> Option<usize> {
+        match self.limit {
+            0 => None,
+            _ => {
+                let index = *self.heap.first().unwrap();
+                Some(index)
+            }
+        }
+    }
+
+    pub fn peek_max_value(&self) -> Option<T> {
+        match self.limit {
+            0 => None,
+            _ => {
+                let index = *self.heap.first().unwrap();
+                Some(self.values[index])
+            }
+        }
+    }
+
+    pub fn pop_max(&mut self) -> Option<usize> {
+        match self.limit {
             0 => None,
             1 => {
-                let max_item = self.structure.swap_remove(0);
-                unsafe { *self.positions.get_unchecked_mut(max_item.index()) = None };
-                Some(max_item)
+                let index = self.heap[0];
+                self.map[self.heap[0]] = None;
+                self.limit = 0;
+                Some(index)
             }
             _ => {
-                let max_item = self.structure.swap_remove(0);
-                unsafe {
-                    let new_first_fixed_index = self.structure.get_unchecked(0).index();
-                    *self.positions.get_unchecked_mut(new_first_fixed_index) = Some(0);
-                    *self.positions.get_unchecked_mut(max_item.index()) = None;
-                }
+                let max_index = self.heap[0];
+                self.map[self.heap[0]] = None;
+                self.limit -= 1;
+                self.heap.swap(0, self.limit);
+                self.map[self.heap[0]] = Some(0);
                 self.heapify_down(0);
-                Some(max_item)
+                Some(max_index)
             }
         }
     }
 
     pub fn bobble(&mut self) {
-        for index in (0..self.structure.len()).rev() {
-            self.heapify_up(index)
+        for index in (0..self.limit / 2).rev() {
+            self.heapify_down(index)
+        }
+    }
+
+    pub fn value_at(&self, index: usize) -> T {
+        self.values[index]
+    }
+
+    pub fn update_one(&mut self, index: usize, value: T) {
+        self.values[index] = value;
+        if let Some(heap_index) = self.map[index] {
+            self.heapify_up(heap_index);
+            self.heapify_down(heap_index);
+        }
+    }
+
+    pub fn reduce_all_with(&mut self, factor: T) {
+        for value in &mut self.values {
+            *value *= factor;
         }
     }
 }
@@ -169,12 +208,6 @@ mod tests {
         position: usize,
     }
 
-    impl FixedIndex for TestStruct {
-        fn index(&self) -> usize {
-            self.position
-        }
-    }
-
     impl TestStruct {
         fn new(value: usize, position: usize) -> Self {
             Self { value, position }
@@ -183,54 +216,62 @@ mod tests {
 
     #[test]
     fn heap_simple() {
-        let mut test_heap = FixedHeap::new(7);
-        test_heap.insert(TestStruct::new(10, 6));
-        test_heap.insert(TestStruct::new(20, 5));
-        test_heap.insert(TestStruct::new(30, 4));
-        test_heap.insert(TestStruct::new(60, 1));
-        test_heap.insert(TestStruct::new(70, 0));
+        let mut test_heap = FixedHeap::new(7, 0);
+        test_heap.insert(6, 10);
+        test_heap.insert(5, 20);
+        test_heap.insert(4, 30);
+        test_heap.insert(1, 60);
+        test_heap.insert(0, 70);
 
-        assert_eq!(test_heap.position(0), Some(0));
+        assert!(test_heap.pop_max().is_some_and(|max| max == 0));
+        assert!(test_heap.pop_max().is_some_and(|max| max == 1));
+        assert!(test_heap.pop_max().is_some_and(|max| max == 4));
+        assert!(test_heap.pop_max().is_some_and(|max| max == 5));
+        assert!(test_heap.pop_max().is_some_and(|max| max == 6));
 
-        assert_eq!(test_heap.peek_max().unwrap().value, 70);
-        assert_eq!(test_heap.peek_max().unwrap().position, 0);
+        // assert_eq!(test_heap.position(0), Some(0));
 
-        assert!(test_heap.pop_max().is_some_and(|max| max.value == 70));
+        // assert_eq!(test_heap.peek_max().unwrap(), 70);
+        // assert_eq!(test_heap.peek_max().unwrap().position, 0);
 
-        assert_eq!(
-            test_heap.structure[test_heap.positions[4].unwrap()].position,
-            4
-        );
+        // assert!(test_heap.pop_max().is_some_and(|max| max == 70));
 
-        assert!(test_heap.pop_max().is_some_and(|max| max.value == 60));
+        // assert_eq!(test_heap.values[test_heap.map[4].unwrap()].position, 4);
 
-        assert_eq!(
-            test_heap.structure[test_heap.positions[4].unwrap()].position,
-            4
-        );
+        // assert!(test_heap.pop_max().is_some_and(|max| max.value == 60));
 
-        assert!(test_heap.pop_max().is_some_and(|max| max.value == 30));
+        // assert_eq!(test_heap.values[test_heap.map[4].unwrap()].position, 4);
 
-        assert_eq!(test_heap.positions[4], None);
+        // assert!(test_heap.pop_max().is_some_and(|max| max.value == 30));
 
-        assert!(test_heap.pop_max().is_some_and(|max| max.value == 20));
-        assert!(test_heap.pop_max().is_some_and(|max| max.value == 10));
+        // assert_eq!(test_heap.map[4], None);
+
+        // assert!(test_heap.pop_max().is_some_and(|max| max.value == 20));
+        // assert!(test_heap.pop_max().is_some_and(|max| max.value == 10));
     }
 
     #[test]
     fn heap_update() {
-        let mut test_heap = FixedHeap::new(7);
-        test_heap.insert(TestStruct::new(10, 6));
-        test_heap.insert(TestStruct::new(20, 5));
-        test_heap.insert(TestStruct::new(30, 4));
-        test_heap.insert(TestStruct::new(60, 1));
-        test_heap.insert(TestStruct::new(70, 0));
+        let mut test_heap = FixedHeap::new(7, 0);
+        test_heap.insert(6, 10);
+        test_heap.insert(5, 20);
+        test_heap.insert(4, 30);
+        test_heap.insert(1, 60);
+        test_heap.insert(0, 70);
 
-        test_heap.structure[test_heap.positions[0].unwrap()].value = 0;
-        test_heap.structure[test_heap.positions[1].unwrap()].value = 1;
-        test_heap.structure[test_heap.positions[4].unwrap()].value = 4;
-        test_heap.structure[test_heap.positions[5].unwrap()].value = 5;
-        test_heap.structure[test_heap.positions[6].unwrap()].value = 6;
+        test_heap.values[0] = 0;
+        test_heap.values[1] = 1;
+        test_heap.values[4] = 4;
+        test_heap.values[5] = 5;
+        test_heap.values[6] = 6;
+
+        test_heap.bobble();
+
+        assert!(test_heap.pop_max().is_some_and(|max| max == 6));
+        assert!(test_heap.pop_max().is_some_and(|max| max == 5));
+        assert!(test_heap.pop_max().is_some_and(|max| max == 4));
+        assert!(test_heap.pop_max().is_some_and(|max| max == 1));
+        assert!(test_heap.pop_max().is_some_and(|max| max == 0));
 
         test_heap.bobble();
     }

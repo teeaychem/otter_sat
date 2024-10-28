@@ -1,4 +1,4 @@
-use crate::structures::variable::{ActivityConflict, Variable, VariableId};
+use crate::structures::variable::{Variable, VariableId};
 use crate::{context::store::ClauseKey, structures::level::LevelIndex};
 
 use std::cell::UnsafeCell;
@@ -14,7 +14,6 @@ impl Variable {
             previous_polarity: UnsafeCell::new(None),
             positive_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
             negative_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
-            activity: UnsafeCell::new(0.0),
             _pin: PhantomPinned,
         }
     }
@@ -23,24 +22,16 @@ impl Variable {
         &self.name
     }
 
+    pub fn index(&self) -> usize {
+        self.id as usize
+    }
+
     pub fn decision_level(&self) -> Option<LevelIndex> {
         unsafe { *self.decision_level.get() }
     }
 
     pub const fn id(&self) -> VariableId {
         self.id
-    }
-
-    pub fn add_activity(&self, by: ActivityConflict) {
-        unsafe { *self.activity.get() += by }
-    }
-
-    pub fn multiply_activity(&self, by: ActivityConflict) {
-        unsafe { *self.activity.get() = *self.activity.get() * by }
-    }
-
-    pub fn activity(&self) -> ActivityConflict {
-        unsafe { *self.activity.get() }
     }
 
     pub fn watch_added(&self, clause_key: ClauseKey, polarity: bool) {
