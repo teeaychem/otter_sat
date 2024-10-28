@@ -1,12 +1,19 @@
 use crate::{
     config::{ActivityConflict, Config},
     context::store::{ClauseKey, ClauseStore},
+    generic::{fixed_index::FixedIndex, heap::FixedHeap},
     structures::{
         clause::stored::Watch,
         level::Level,
         literal::{Literal, Source},
-        variable::{list::VariableList, ActivityRep, Variable, VariableId},
+        variable::{list::VariableList, Variable, VariableId},
     },
+};
+
+use std::pin::Pin;
+use std::{
+    collections::{HashMap, VecDeque},
+    ops::{Deref, DerefMut},
 };
 
 const DEFAULT_VARIABLE_COUNT: usize = 1024;
@@ -17,19 +24,26 @@ pub enum Status {
     Conflict,
 }
 
-use std::{
-    collections::{BinaryHeap, HashMap, VecDeque},
-    ops::{Deref, DerefMut},
-};
-
+#[derive(Debug, Clone)]
 pub struct VariableActivity {
-    pub index: usize,
-    pub activity: ActivityConflict,
+    pub variable: *const Variable,
 }
 
 impl Ord for VariableActivity {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.activity.total_cmp(&other.activity)
+        let this = unsafe { &*self.variable };
+        let that = unsafe { &*other.variable };
+        assert!(this.activity().is_finite());
+        assert!(that.activity().is_finite());
+        match this
+            .activity()
+            .partial_cmp(&that.activity())
+            .expect("total cmp needed")
+        {
+            std::cmp::Ordering::Less => std::cmp::Ordering::Less,
+            std::cmp::Ordering::Greater => std::cmp::Ordering::Greater,
+            std::cmp::Ordering::Equal => this.id().cmp(&that.id()),
+        }
     }
 }
 
@@ -41,49 +55,67 @@ impl PartialOrd for VariableActivity {
 
 impl PartialEq for VariableActivity {
     fn eq(&self, other: &Self) -> bool {
-        self.index == other.index && self.activity == other.activity
+        let this = unsafe { self.variable.as_ref().unwrap() };
+        let that = unsafe { other.variable.as_ref().unwrap() };
+        this.id() == that.id()
     }
 }
 
 impl Eq for VariableActivity {}
 
+impl FixedIndex for VariableActivity {
+    fn index(&self) -> usize {
+        let the_variable = unsafe { self.variable.as_ref().unwrap() };
+        the_variable.index()
+    }
+}
+
 pub struct VariableStore {
-    variables: Vec<Variable>,
+    pub score_increment: f64,
+    variables: Vec<Pin<Box<Variable>>>,
     consequence_q: VecDeque<Literal>,
-    pub string_map: HashMap<String, VariableId>, // pub consequence_buffer: Vec<(Source, Literal)>,
-    pub activity_heap: BinaryHeap<VariableActivity>,
+    pub string_map: HashMap<String, VariableId>,
+    pub activity_heap: FixedHeap<VariableActivity>,
 }
 
 impl VariableActivity {
-    pub fn new(index: usize, activity: ActivityConflict) -> Self {
-        VariableActivity { index, activity }
+    pub fn new(ptr: *const Variable) -> Self {
+        VariableActivity { variable: ptr }
     }
 }
 
 impl VariableStore {
     pub fn new(variables: Vec<Variable>) -> Self {
         let count = variables.len();
+        let mut pinned = vec![];
+        for v in variables {
+            let boxed = Box::new(v);
+            let pin = Box::into_pin(boxed);
+            pinned.push(pin);
+        }
 
         VariableStore {
-            variables,
+            score_increment: 1.0,
+            variables: pinned,
             consequence_q: VecDeque::with_capacity(count),
-            string_map: HashMap::with_capacity(count), // consequence_buffer: Vec::with_capacity(count),
-            activity_heap: BinaryHeap::new(),
+            string_map: HashMap::with_capacity(count),
+            activity_heap: FixedHeap::new(count),
         }
     }
 
     pub fn with_capactiy(variable_count: usize) -> Self {
         VariableStore {
+            score_increment: 1.0,
             variables: Vec::with_capacity(variable_count),
             consequence_q: VecDeque::with_capacity(variable_count),
-            string_map: HashMap::with_capacity(variable_count), // consequence_buffer: Vec::with_capacity(variable_count),
-            activity_heap: BinaryHeap::with_capacity(variable_count / 2),
+            string_map: HashMap::with_capacity(variable_count),
+            activity_heap: FixedHeap::new(variable_count),
         }
     }
 
     pub fn add_variable(&mut self, variable: Variable) {
         self.string_map.insert(variable.name.clone(), variable.id);
-        self.variables.push(variable);
+        self.variables.push(Box::pin(variable));
         // self.consequence_buffer;
     }
 }
@@ -91,16 +123,21 @@ impl VariableStore {
 impl Default for VariableStore {
     fn default() -> Self {
         VariableStore {
+            score_increment: 1.0,
             variables: Vec::with_capacity(DEFAULT_VARIABLE_COUNT),
             consequence_q: VecDeque::with_capacity(DEFAULT_VARIABLE_COUNT),
-            string_map: HashMap::with_capacity(DEFAULT_VARIABLE_COUNT), // consequence_buffer: Vec::with_capacity(DEFAULT_VARIABLE_COUNT),
-            activity_heap: BinaryHeap::with_capacity(DEFAULT_VARIABLE_COUNT / 2),
+            string_map: HashMap::with_capacity(DEFAULT_VARIABLE_COUNT),
+            activity_heap: FixedHeap::new(DEFAULT_VARIABLE_COUNT),
         }
     }
 }
 
 impl VariableStore {
-    pub fn multiply_activity(&self, activity: ActivityRep) {
+    pub fn index_to_ptr(&self, index: usize) -> *const Variable {
+        unsafe { &**self.variables.get_unchecked(index) }
+    }
+
+    pub fn multiply_activity(&self, activity: ActivityConflict) {
         for variable in &self.variables {
             variable.multiply_activity(activity);
         }
@@ -114,14 +151,14 @@ impl VariableStore {
         config: &Config,
     ) -> Result<(), ClauseKey> {
         let not_watch_witness = |literal: Literal| {
-            let the_variable = self.variables.get_unsafe(literal.index());
+            let the_variable = unsafe { self.variables.get_unchecked(literal.index()) };
             match the_variable.polarity() {
                 None => true,
                 Some(found_polarity) => found_polarity != literal.polarity(),
             }
         };
 
-        let the_variable = self.variables.get_unsafe(literal.index());
+        let the_variable = unsafe { literal.ptr.as_ref().unwrap() };
         let list_polarity = !literal.polarity();
 
         let mut index = 0;
@@ -218,14 +255,14 @@ impl VariableStore {
     fn clear_queued_consequences(&mut self, stored_clauses: &mut ClauseStore) {
         while let Some(literal) = self.consequence_q.pop_front() {
             let not_watch_witness = |literal: Literal| {
-                let the_variable = self.variables.get_unsafe(literal.index());
+                let the_variable = unsafe { self.variables.get_unchecked(literal.index()) };
                 match the_variable.polarity() {
                     None => true,
                     Some(found_polarity) => found_polarity != literal.polarity(),
                 }
             };
 
-            let variable = self.variables.get_unsafe(literal.index());
+            let variable = unsafe { self.variables.get_unchecked(literal.index()) };
 
             // process whether any change to the watch literals is required
             let list_polarity = !literal.polarity();
@@ -275,7 +312,7 @@ impl VariableStore {
 }
 
 impl Deref for VariableStore {
-    type Target = [Variable];
+    type Target = [Pin<Box<Variable>>];
 
     fn deref(&self) -> &Self::Target {
         &self.variables

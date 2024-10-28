@@ -3,6 +3,7 @@ use rand::{seq::IteratorRandom, Rng};
 use crate::{
     config::{self, Config},
     context::{Context, GraphClause, ImplicationGraphNode, Status as ClauseStatus},
+    generic::fixed_index::FixedIndex,
     io::window::{ContextWindow, WindowItem},
     structures::{
         clause::stored::{Source, StoredClause},
@@ -90,11 +91,6 @@ impl Context {
         self.conflicts += 1;
         self.conflicts_since_last_forget += 1;
         self.conflicts_since_last_reset += 1;
-
-        if self.conflicts % config.decay_frequency == 0 {
-            self.variables.multiply_activity(config.decay_factor);
-        }
-
         self.reductions_and_restarts(config);
     }
 
@@ -142,10 +138,11 @@ impl Context {
         let level_index = self.add_fresh_level();
         let choice_literal = {
             let choice_variable = self.variables.get_unsafe(index);
+            let p = self.variables.index_to_ptr(index);
 
             match choice_variable.previous_polarity() {
-                Some(polarity) => Literal::new(index as VariableId, polarity),
-                None => Literal::new(index as VariableId, self.rng.gen_bool(polarity_lean)),
+                Some(polarity) => Literal::new(p, index as VariableId, polarity),
+                None => Literal::new(p, index as VariableId, self.rng.gen_bool(polarity_lean)),
             }
         };
         match self.variables.set_value(
@@ -163,7 +160,8 @@ impl Context {
         let (f, t) = crate::procedures::hobson_choices(self.clause_store.clauses());
 
         for v_id in f.into_iter().chain(t) {
-            let the_literal = Literal::new(v_id, false);
+            let p = self.variables.index_to_ptr(v_id as usize);
+            let the_literal = Literal::new(p, v_id, false);
             match self.variables.set_value(
                 the_literal,
                 unsafe { self.levels.get_unchecked_mut(0) },
@@ -207,10 +205,10 @@ impl Context {
                 .choose(&mut self.rng)
                 .map(|variable| variable.index()),
             false => {
-                while let Some(pair) = self.variables.activity_heap.pop() {
-                    let value = self.variables.get_unsafe(pair.index).polarity();
-                    if value.is_none() {
-                        return Some(pair.index);
+                while let Some(variable) = self.variables.activity_heap.pop_max() {
+                    let the_variable = unsafe { &*variable.variable };
+                    if the_variable.polarity().is_none() {
+                        return Some(the_variable.index());
                     }
                 }
                 self.variables
@@ -218,6 +216,11 @@ impl Context {
                     .filter(|variable| variable.polarity().is_none())
                     .map(|x| x.index())
                     .next()
+                // self.variables
+                //     .iter()
+                //     .filter(|variable| variable.polarity().is_none())
+                //     .max_by(|v1, v2| v1.activity().total_cmp(&v2.activity()))
+                //     .map(|variable| variable.index())
             }
         }
     }
@@ -246,10 +249,10 @@ impl Context {
             for literal in self.levels.pop().expect("Lost level").literals() {
                 log::trace!("Noneset: {}", literal.index());
                 self.variables.retract_valuation(literal.index());
-                let activity = self.variables.get_unsafe(literal.index()).activity();
+                let p = self.variables.index_to_ptr(literal.index());
                 self.variables
                     .activity_heap
-                    .push(VariableActivity::new(literal.index(), activity));
+                    .insert(VariableActivity { variable: p });
             }
         }
     }

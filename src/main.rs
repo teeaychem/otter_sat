@@ -28,6 +28,8 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
+use otter_lib::generic::{fixed_index::FixedIndex, heap::FixedHeap};
+
 // #[rustfmt::skip]
 fn main() {
     #[cfg(feature = "log")]

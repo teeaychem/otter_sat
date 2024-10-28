@@ -4,6 +4,7 @@ use crate::{
         store::{ClauseKey, ClauseStore},
         ImplicationGraphNode, ResolutionGraph,
     },
+    generic::fixed_index::FixedIndex,
     structures::{
         clause::Clause,
         literal::{Literal, Source as LiteralSource},

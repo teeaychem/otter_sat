@@ -55,7 +55,8 @@ impl Context {
                 }
             }
         };
-        Ok(Literal::new(the_variable, polarity))
+        let p = self.variables.index_to_ptr(the_variable as usize);
+        Ok(Literal::new(p, the_variable, polarity))
     }
 
     pub fn assume_literal(&mut self, literal: Literal) -> Result<(), BuildIssue> {
@@ -101,11 +102,7 @@ impl Context {
                 // temp taut check
                 let mut tautology = false;
                 for literal in &the_clause {
-                    if the_clause
-                        .iter()
-                        .find(|l| **l == literal.negate())
-                        .is_some()
-                    {
+                    if the_clause.iter().any(|l| *l == literal.negate()) {
                         tautology = true;
                         break;
                     }
@@ -235,11 +232,7 @@ impl Context {
                                         // temp taut check
                                         let mut tautology = false;
                                         for literal in &the_clause {
-                                            if the_clause
-                                                .iter()
-                                                .find(|l| **l == literal.negate())
-                                                .is_some()
-                                            {
+                                            if the_clause.iter().any(|l| *l == literal.negate()) {
                                                 tautology = true;
                                                 break;
                                             }

@@ -1,7 +1,8 @@
-use crate::structures::variable::{ActivityRep, Variable, VariableId};
+use crate::structures::variable::{ActivityConflict, Variable, VariableId};
 use crate::{context::store::ClauseKey, structures::level::LevelIndex};
 
 use std::cell::UnsafeCell;
+use std::marker::PhantomPinned;
 
 impl Variable {
     pub fn new(name: &str, id: VariableId) -> Self {
@@ -14,6 +15,7 @@ impl Variable {
             positive_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
             negative_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
             activity: UnsafeCell::new(0.0),
+            _pin: PhantomPinned,
         }
     }
 
@@ -29,19 +31,15 @@ impl Variable {
         self.id
     }
 
-    pub const fn index(&self) -> usize {
-        self.id as usize
-    }
-
-    pub fn add_activity(&self, by: ActivityRep) {
+    pub fn add_activity(&self, by: ActivityConflict) {
         unsafe { *self.activity.get() += by }
     }
 
-    pub fn multiply_activity(&self, by: ActivityRep) {
+    pub fn multiply_activity(&self, by: ActivityConflict) {
         unsafe { *self.activity.get() = *self.activity.get() * by }
     }
 
-    pub fn activity(&self) -> ActivityRep {
+    pub fn activity(&self) -> ActivityConflict {
         unsafe { *self.activity.get() }
     }
 

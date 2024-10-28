@@ -2,17 +2,14 @@ pub mod stored;
 
 use crate::{
     config::GlueStrength,
-    structures::{
-        literal::Literal,
-        variable::{list::VariableList, Variable},
-    },
+    structures::{literal::Literal, variable::list::VariableList},
 };
 use std::ops::Deref;
 
 pub trait Clause {
     fn as_string(&self) -> String;
 
-    fn as_dimacs(&self, variables: &[Variable]) -> String;
+    fn as_dimacs(&self, variables: &impl VariableList) -> String;
 
     fn asserts(&self, val: &impl VariableList) -> Option<Literal>;
 
@@ -37,12 +34,12 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
         the_string
     }
 
-    fn as_dimacs(&self, variables: &[Variable]) -> String {
+    fn as_dimacs(&self, variables: &impl VariableList) -> String {
         let mut the_string = String::new();
         for literal in self.literal_slice() {
             let the_represenetation = match literal.polarity() {
-                true => format!("{} ", variables[literal.index()].name()),
-                false => format!("-{} ", variables[literal.index()].name()),
+                true => format!("{} ", variables.get_unsafe(literal.index()).name()),
+                false => format!("-{} ", variables.get_unsafe(literal.index()).name()),
             };
             the_string.push_str(the_represenetation.as_str());
         }
