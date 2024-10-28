@@ -1,7 +1,4 @@
-use crate::{
-    config::ActivityConflict, context::store::ClauseKey, generic::fixed_index::FixedIndex,
-    structures::level::LevelIndex,
-};
+use crate::{context::store::ClauseKey, structures::level::LevelIndex};
 use std::cell::UnsafeCell;
 use std::marker::PhantomPinned;
 
@@ -20,7 +17,6 @@ pub struct Variable {
     decision_level: UnsafeCell<Option<LevelIndex>>,
     positive_occurrences: UnsafeCell<Vec<ClauseKey>>,
     negative_occurrences: UnsafeCell<Vec<ClauseKey>>,
-    activity: UnsafeCell<ActivityConflict>,
 }
 
 #[derive(Debug)]
@@ -28,10 +24,4 @@ pub enum Status {
     Set,
     Match,
     Conflict,
-}
-
-impl FixedIndex for Variable {
-    fn index(&self) -> usize {
-        self.id as usize
-    }
 }
