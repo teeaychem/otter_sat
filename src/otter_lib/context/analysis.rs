@@ -138,21 +138,55 @@ impl Context {
     }
 
     #[allow(non_snake_case)]
-    fn apply_VSIDS(&self, clause: &impl Clause, buffer: &ResolutionBuffer, config: &Config) {
+    fn apply_VSIDS(&mut self, clause: &impl Clause, buffer: &ResolutionBuffer, config: &Config) {
         let activity = config.activity_conflict;
+        // let MAX_SCORE = 1e150;
+        let MAX_SCORE = 2.0_f64.powi(512);
+
+        let mut rescore = false;
+        for literal in clause.literal_slice() {
+            if self.variables.get_unsafe(literal.index()).activity() + activity > MAX_SCORE {
+                rescore = true;
+                break;
+            }
+        }
+        if rescore {
+            let heap_max = match self.variables.activity_heap.peek_max() {
+                Some(v) => unsafe { v.variable.as_ref().unwrap() }.activity(),
+                None => f64::MIN,
+            };
+            let rescale = f64::max(heap_max, self.variables.score_increment);
+
+            let factor = 1.0 / rescale;
+
+            for v in self.variables.slice() {
+                v.multiply_activity(factor);
+            }
+            self.variables.score_increment *= factor;
+            self.variables.activity_heap.bobble();
+        }
+
         match config.vsids_variant {
             config::VSIDS::Chaff => {
                 for literal in clause.literal_slice() {
                     self.variables
                         .get_unsafe(literal.index())
-                        .add_activity(activity);
+                        .add_activity(self.variables.score_increment);
                 }
             }
             config::VSIDS::MiniSAT => {
                 for index in buffer.variables_used() {
-                    self.variables.get_unsafe(index).add_activity(activity);
+                    self.variables
+                        .get_unsafe(index)
+                        .add_activity(self.variables.score_increment);
                 }
             }
+        }
+
+        {
+            let decay = config.decay_factor * 1e-3;
+            let factor = 1.0 / (1.0 - decay);
+            self.variables.score_increment *= factor;
         }
     }
 

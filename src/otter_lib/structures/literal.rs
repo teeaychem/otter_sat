@@ -1,8 +1,9 @@
-use crate::structures::variable::VariableId;
+use crate::structures::variable::{Variable, VariableId};
 use petgraph::graph::NodeIndex;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Literal {
+    pub ptr: *const Variable,
     v_id: VariableId,
     polarity: bool,
 }
@@ -22,8 +23,9 @@ impl Literal {
         !self
     }
 
-    pub fn new(variable_id: VariableId, polarity: bool) -> Self {
+    pub fn new(v_ptr: *const Variable, variable_id: VariableId, polarity: bool) -> Self {
         Self {
+            ptr: v_ptr,
             v_id: variable_id,
             polarity,
         }
@@ -87,6 +89,7 @@ impl std::ops::Not for Literal {
 
     fn not(self) -> Self::Output {
         Literal {
+            ptr: self.ptr,
             v_id: self.v_id,
             polarity: !self.polarity,
         }
