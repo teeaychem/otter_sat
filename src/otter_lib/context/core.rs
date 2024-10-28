@@ -13,6 +13,8 @@ use crate::{
     },
 };
 
+use super::Report;
+
 macro_rules! level_mut {
     ($self:ident) => {
         unsafe {
@@ -30,7 +32,7 @@ impl Context {
     }
 
     #[allow(unused_labels, clippy::result_unit_err)]
-    pub fn solve(&mut self) -> Result<(), ()> {
+    pub fn solve(&mut self) -> Result<Report, ()> {
         let this_total_time = std::time::Instant::now();
 
         self.preprocess();
@@ -47,12 +49,12 @@ impl Context {
         'main_loop: loop {
             self.time = this_total_time.elapsed();
             if time_limit.is_some_and(|limit| self.time > limit) {
-                return Ok(());
+                return Ok(self.report());
             }
 
             match self.step(&local_config) {
                 Ok(_) => continue 'main_loop,
-                Err(_) => break 'main_loop Ok(()),
+                Err(_) => break 'main_loop Ok(self.report()),
             }
         }
     }
@@ -307,5 +309,13 @@ impl Context {
     pub fn it_is_time_to_reduce(&self, u: usize) -> bool {
         use crate::procedures::luby;
         self.conflicts_since_last_forget >= u.wrapping_mul(luby(self.restarts))
+    }
+
+    pub fn report(&self) -> Report {
+        match self.status {
+            ClauseStatus::AllAssigned => Report::Satisfiable,
+            ClauseStatus::NoSolution(_) => Report::Unsatisfiable,
+            _ => Report::Unknown,
+        }
     }
 }
