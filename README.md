@@ -28,8 +28,13 @@ For the moment, things are fairly green.
 
 I'm a sometimes logician, so the solver has been written in part to help understand modern SAT (research) and in part to improve the way I code (skill).
 The methodology has been (and is) to read some theory, write some code, and do some thinking.
-Some resources I have found, or am finding, helpful can be found in `resources/resources.bib`.
-At some point I'll be happy with what's been implemented and look to contrast, when that happens I'll make a note of the solvers here.
+Some theory resources I have found, or am finding, helpful can be found in `resources/resources.bib`.
+
+Solver resources used are:
+- [kissat](https://github.com/arminbiere/kissat)
+  For specific VSIDS details I could not find a paper for.
+  Even more specifically, the limits and method for rescoring.
+  This also led to FixedHeap structure.
 
 ## Rust dependencies
 

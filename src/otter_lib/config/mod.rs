@@ -1,7 +1,7 @@
 pub mod defaults;
 
-pub type ActivityConflict = f32;
-pub type DecayFactor = f32;
+pub type ActivityConflict = f64;
+pub type DecayFactor = f64;
 pub type DecayFrequency = usize;
 pub type GlueStrength = u32;
 pub type LubyConstant = usize;
