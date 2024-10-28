@@ -26,14 +26,16 @@ pub struct ClauseStore {
     learned: SlotMap<DefaultKey, StoredClause>,
 }
 
-impl ClauseStore {
-    pub fn default() -> Self {
+impl Default for ClauseStore {
+    fn default() -> Self {
         ClauseStore {
             formula: SlotMap::new(),
             learned: SlotMap::new(),
         }
     }
+}
 
+impl ClauseStore {
     pub fn with_capacity(capacity: usize) -> Self {
         ClauseStore {
             formula: SlotMap::with_capacity(capacity),

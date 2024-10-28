@@ -4,7 +4,6 @@ use crate::{
         store::{ClauseKey, ClauseStore},
         ImplicationGraphNode, ResolutionGraph,
     },
-    generic::fixed_index::FixedIndex,
     structures::{
         clause::Clause,
         literal::{Literal, Source as LiteralSource},
@@ -138,7 +137,7 @@ impl ResolutionBuffer {
 
                     if config.subsumption && self.clause_legnth < source_clause.length() {
                         let _ = source_clause.literal_subsumption(*literal, variables);
-                        variables.get_unsafe(literal.index()).multiply_activity(1.1);
+                        // variables.get_unsafe(literal.index()).multiply_activity(1.1);
                     }
 
                     if self.valueless_count == 1 {

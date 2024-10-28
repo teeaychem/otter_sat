@@ -153,7 +153,7 @@ impl StoredClause {
             }
             _ => {
                 let last_literal = unsafe { *self.clause.get_unchecked(2) };
-                let mut last_variable = variables.get_unsafe(last_literal.index());
+                let last_variable = variables.get_unsafe(last_literal.index());
                 match last_variable.polarity() {
                     None => {
                         self.watch_update_replace(watch, 2, last_variable, last_literal);
@@ -179,13 +179,7 @@ impl StoredClause {
                             self.watch_update_replace(watch, index, the_variable, the_literal);
                             break 'search_loop;
                         }
-                        Some(_) => {
-                            if last_variable.activity() < the_variable.activity() {
-                                self.clause.swap(index, index - 1);
-                            } else {
-                                last_variable = the_variable;
-                            }
-                        }
+                        Some(_) => {}
                     }
                 }
             }
@@ -196,6 +190,7 @@ impl StoredClause {
     /// Records the clause has been subsumed, but does not store a record.
     /// In order to keep a record of the clauses used to prove the subsumption, use `literal_subsumption_core`.
     /// Returns Ok(()) if subsumption was ok, Err(()) otherwise
+    #[allow(clippy::result_unit_err)]
     pub fn literal_subsumption(
         &mut self,
         literal: Literal,
