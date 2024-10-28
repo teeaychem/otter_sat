@@ -69,6 +69,13 @@ pub enum Status {
     AllAssigned,
 }
 
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub enum Report {
+    Satisfiable,
+    Unsatisfiable,
+    Unknown,
+}
+
 impl Context {
     pub fn default_config(config: Config) -> Self {
         Self::with_size_hints(1024, 32768, config)
