@@ -99,7 +99,7 @@ Default: {}", config::defaults::GLUE_STRENGTH)))
             .long("stopping-criteria")
             .short('🚏')
             .value_name("CRITERIA")
-            .value_parser(value_parser!(StoppingCriteria))
+            .value_parser(clap::builder::ValueParser::new(stopping_criteria_parser))
             .required(false)
             .num_args(1)
             .help(format!("Resolution stopping criteria.
@@ -112,9 +112,9 @@ Default: {}
 
         .arg(Arg::new("VSIDS_variant")
             .value_name("VARIANT")
-            .long("VSIDS-variant")
+            .long("VSIDS")
             .short('🦇')
-            .value_parser(value_parser!(VSIDS))
+            .value_parser(clap::builder::ValueParser::new(vsids_parser))
             .required(false)
             .num_args(1)
             .help(format!("Which VSIDS variant to use.
@@ -211,7 +211,7 @@ impl Config {
             the_config.show_valuation = *value
         };
         if let Ok(Some(value)) = args.try_get_one::<bool>("no_subsumption") {
-            the_config.subsumption = !gg*value
+            the_config.subsumption = !*value
         };
         if let Ok(Some(value)) = args.try_get_one::<bool>("tidy_watches") {
             the_config.tidy_watches = *value
@@ -235,5 +235,27 @@ impl Config {
         };
 
         the_config
+    }
+}
+
+fn vsids_parser(arg: &str) -> Result<VSIDS, std::io::Error> {
+    match arg {
+        "Chaff" => Ok(VSIDS::Chaff),
+        "MiniSAT" => Ok(VSIDS::MiniSAT),
+        _ => Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Unknown VSIDS variant",
+        )),
+    }
+}
+
+fn stopping_criteria_parser(arg: &str) -> Result<StoppingCriteria, std::io::Error> {
+    match arg {
+        "FirstUIP" => Ok(StoppingCriteria::FirstUIP),
+        "None" => Ok(StoppingCriteria::None),
+        _ => Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Unknown stopping criteria variant",
+        )),
     }
 }

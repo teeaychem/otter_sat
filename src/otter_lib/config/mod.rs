@@ -56,7 +56,7 @@ impl Default for Config {
     }
 }
 
-#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy)]
 pub enum StoppingCriteria {
     FirstUIP,
     None,
@@ -71,7 +71,7 @@ impl std::fmt::Display for StoppingCriteria {
     }
 }
 
-#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum VSIDS {
     Chaff,
