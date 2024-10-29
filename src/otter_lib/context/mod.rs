@@ -4,15 +4,17 @@ pub mod core;
 mod resolution_buffer;
 pub mod store;
 
-const RNG_SEED: u64 = 0;
-
 use {
     crate::{
-        config::{self, Config},
+        config::{
+            self,
+            defaults::{self},
+            Config,
+        },
         io::window::ContextWindow,
         structures::{level::Level, literal::Literal, variable::delegate::VariableStore},
     },
-    store::{ClauseId, ClauseKey, ClauseStore},
+    store::{ClauseKey, ClauseStore},
 };
 
 use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128Plus};
@@ -31,7 +33,6 @@ pub enum ImplicationGraphNode {
 
 #[derive(Debug)]
 pub struct GraphClause {
-    clause_id: ClauseId,
     key: ClauseKey,
 }
 
@@ -101,7 +102,7 @@ impl Context {
             implication_graph: Graph::new(),
             window: the_window,
             status: Status::Initialised,
-            rng: RngChoice::seed_from_u64(RNG_SEED), //RngChoice::new(0,1)
+            rng: RngChoice::seed_from_u64(defaults::RNG_SEED), //RngChoice::new(0,1)
         };
         the_context.levels.push(Level::new(0));
         the_context
@@ -124,7 +125,7 @@ impl Default for Context {
             implication_graph: Graph::default(),
             window: None,
             status: Status::Initialised,
-            rng: RngChoice::seed_from_u64(RNG_SEED),
+            rng: RngChoice::seed_from_u64(defaults::RNG_SEED),
         };
         the_context.levels.push(Level::new(0));
         the_context
