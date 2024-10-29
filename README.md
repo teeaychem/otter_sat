@@ -56,8 +56,6 @@ Optional dependencies are:
 
 # Configuration
 
-(at present, finding an unsat core is non-functional)
-
 ```
 Usage: otter_sat [OPTIONS] [paths]...
 
