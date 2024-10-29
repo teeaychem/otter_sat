@@ -10,6 +10,7 @@ use crate::{
 use petgraph::graph::NodeIndex;
 use std::ops::Deref;
 
+#[derive(Debug)]
 pub struct StoredClause {
     key: ClauseKey,
     source: Source,

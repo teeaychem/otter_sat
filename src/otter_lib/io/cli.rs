@@ -39,6 +39,19 @@ pub fn cli() -> Command {
 .long_help("Remember everything.
 Equivalent to passing both '--no-reduction' and 'no_restarts'."))
 
+        .arg(Arg::new("no_subsumption")
+            .long("no_subsumption")
+            .value_parser(value_parser!(bool))
+            .required(false)
+            .num_args(0)
+            .help(
+                "Prevent (some simple) self-subsumption.")
+            .long_help("Prevent (some simple) self-subsumption.
+
+That is, when performing resolutinon some stronger form of a clause may be found.
+Subsumption allows the weaker clause is replaced (subsumed by) the stronger clause.
+For example, p ∨ r subsumes p ∨ q ∨ r."))
+
         .arg(Arg::new("preprocessing")
             .long("preprocess")
             .short('p')
@@ -55,19 +68,6 @@ For the moment this is limited to settling all atoms which occur with a unique p
             .required(false)
             .num_args(0)
             .help("Display stats during a solve."))
-
-        .arg(Arg::new("no_subsumption")
-            .long("subsumption")
-            .value_parser(value_parser!(bool))
-            .required(false)
-            .num_args(0)
-            .help(
-                "Prevent (some simple) self-subsumption.")
-            .long_help("Prevent (some simple) self-subsumption.
-
-That is, when performing resolutinon some stronger form of a clause may be found.
-Subsumption allows the weaker clause is replaced (subsumed by) the stronger clause.
-For example, p ∨ r subsumes p ∨ q ∨ r."))
 
         .arg(Arg::new("tidy_watches")
             .long("tidy-watches")
