@@ -1,5 +1,8 @@
 use crate::{
-    config::{ActivityConflict, Config},
+    config::{
+        defaults::{self},
+        ActivityConflict, Config,
+    },
     context::store::{ClauseKey, ClauseStore},
     generic::heap::FixedHeap,
     structures::{
@@ -10,13 +13,10 @@ use crate::{
     },
 };
 
-use std::pin::Pin;
 use std::{
     collections::{HashMap, VecDeque},
     ops::{Deref, DerefMut},
 };
-
-const DEFAULT_VARIABLE_COUNT: usize = 1024;
 
 pub enum Status {
     NotSet,
@@ -24,11 +24,9 @@ pub enum Status {
     Conflict,
 }
 
-const DEFAULT_ACTIVITY: ActivityConflict = 0.0;
-
 pub struct VariableStore {
     pub score_increment: ActivityConflict,
-    variables: Vec<Pin<Box<Variable>>>,
+    variables: Vec<Variable>,
     consequence_q: VecDeque<Literal>,
     pub string_map: HashMap<String, VariableId>,
     pub activity_heap: FixedHeap<ActivityConflict>,
@@ -37,19 +35,13 @@ pub struct VariableStore {
 impl VariableStore {
     pub fn new(variables: Vec<Variable>) -> Self {
         let count = variables.len();
-        let mut pinned = vec![];
-        for v in variables {
-            let boxed = Box::new(v);
-            let pin = Box::into_pin(boxed);
-            pinned.push(pin);
-        }
 
         VariableStore {
             score_increment: 1.0,
-            variables: pinned,
+            variables,
             consequence_q: VecDeque::with_capacity(count),
             string_map: HashMap::with_capacity(count),
-            activity_heap: FixedHeap::new(count, DEFAULT_ACTIVITY),
+            activity_heap: FixedHeap::new(count, defaults::DEFAULT_ACTIVITY),
         }
     }
 
@@ -59,13 +51,13 @@ impl VariableStore {
             variables: Vec::with_capacity(variable_count),
             consequence_q: VecDeque::with_capacity(variable_count),
             string_map: HashMap::with_capacity(variable_count),
-            activity_heap: FixedHeap::new(variable_count, DEFAULT_ACTIVITY),
+            activity_heap: FixedHeap::new(variable_count, defaults::DEFAULT_ACTIVITY),
         }
     }
 
     pub fn add_variable(&mut self, variable: Variable) {
         self.string_map.insert(variable.name.clone(), variable.id);
-        self.variables.push(Box::pin(variable));
+        self.variables.push(variable);
         // self.consequence_buffer;
     }
 }
@@ -74,19 +66,18 @@ impl Default for VariableStore {
     fn default() -> Self {
         VariableStore {
             score_increment: 1.0,
-            variables: Vec::with_capacity(DEFAULT_VARIABLE_COUNT),
-            consequence_q: VecDeque::with_capacity(DEFAULT_VARIABLE_COUNT),
-            string_map: HashMap::with_capacity(DEFAULT_VARIABLE_COUNT),
-            activity_heap: FixedHeap::new(DEFAULT_VARIABLE_COUNT, DEFAULT_ACTIVITY),
+            variables: Vec::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
+            consequence_q: VecDeque::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
+            string_map: HashMap::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
+            activity_heap: FixedHeap::new(
+                defaults::DEFAULT_VARIABLE_COUNT,
+                defaults::DEFAULT_ACTIVITY,
+            ),
         }
     }
 }
 
 impl VariableStore {
-    pub fn index_to_ptr(&self, index: usize) -> *const Variable {
-        unsafe { &**self.variables.get_unchecked(index) }
-    }
-
     pub fn propagate(
         &mut self,
         literal: Literal,
@@ -102,7 +93,7 @@ impl VariableStore {
             }
         };
 
-        let the_variable = unsafe { literal.ptr.as_ref().unwrap() };
+        let the_variable = self.variables.get_unsafe(literal.index());
         let list_polarity = !literal.polarity();
 
         let mut index = 0;
@@ -256,7 +247,7 @@ impl VariableStore {
 }
 
 impl Deref for VariableStore {
-    type Target = [Pin<Box<Variable>>];
+    type Target = [Variable];
 
     fn deref(&self) -> &Self::Target {
         &self.variables

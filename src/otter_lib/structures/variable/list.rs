@@ -5,7 +5,6 @@ use crate::structures::{
 };
 
 use std::ops::DerefMut;
-use std::pin::Pin;
 
 pub trait VariableList {
     fn as_display_string(&self) -> String;
@@ -25,12 +24,12 @@ pub trait VariableList {
 
     fn retract_valuation(&mut self, index: usize);
 
-    fn slice(&self) -> &[Pin<Box<Variable>>];
+    fn slice(&self) -> &[Variable];
 
     fn get_unsafe(&self, index: usize) -> &Variable;
 }
 
-impl<T: ?Sized + DerefMut<Target = [Pin<Box<Variable>>]>> VariableList for T {
+impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
     fn as_display_string(&self) -> String {
         self.iter()
             .map(|variable| match variable.polarity() {
@@ -92,7 +91,7 @@ impl<T: ?Sized + DerefMut<Target = [Pin<Box<Variable>>]>> VariableList for T {
         }
     }
 
-    fn slice(&self) -> &[Pin<Box<Variable>>] {
+    fn slice(&self) -> &[Variable] {
         self
     }
 

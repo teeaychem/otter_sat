@@ -10,10 +10,7 @@ use crate::{
     },
 };
 
-pub type ClauseId = u32;
-
 use slotmap::{DefaultKey, SlotMap};
-use std::sync::atomic::{AtomicU32, Ordering};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ClauseKey {
@@ -80,13 +77,7 @@ impl ClauseStore {
         match source {
             ClauseSource::Formula => {
                 let key = self.formula.insert_with_key(|k| {
-                    StoredClause::new_from(
-                        Self::fresh_clause_id(),
-                        ClauseKey::Formula(k),
-                        clause,
-                        source,
-                        variables,
-                    )
+                    StoredClause::new_from(ClauseKey::Formula(k), clause, source, variables)
                 });
                 ClauseKey::Formula(key)
             }
@@ -94,15 +85,7 @@ impl ClauseStore {
                 log::trace!("Learning clause {}", clause.as_string());
 
                 let key = self.learned.insert_with_key(|k| {
-                    let clause = StoredClause::new_from(
-                        Self::fresh_clause_id(),
-                        ClauseKey::Learned(k),
-                        clause,
-                        source,
-                        variables,
-                    );
-                    clause.set_lbd(variables);
-                    clause
+                    StoredClause::new_from(ClauseKey::Learned(k), clause, source, variables)
                 });
                 ClauseKey::Learned(key)
             }
@@ -125,13 +108,14 @@ impl ClauseStore {
     }
 
     // TODO: figure some improvement…
-    pub fn reduce(&mut self, glue_strength: config::GlueStrength) {
-        let limit = self.learned_count();
+    pub fn reduce(&mut self, variables: &impl VariableList, glue_strength: config::GlueStrength) {
+        let limit = self.learned_count() / 2;
         let mut keys_to_drop = vec![];
+
         for (k, v) in &self.learned {
             if keys_to_drop.len() > limit {
                 break;
-            } else if v.get_set_lbd() > glue_strength {
+            } else if v.lbd(variables) > glue_strength {
                 keys_to_drop.push(k);
             }
         }
@@ -140,10 +124,5 @@ impl ClauseStore {
             self.learned.remove(key);
         }
         log::debug!(target: "forget", "Reduced to: {}", self.learned.len());
-    }
-
-    fn fresh_clause_id() -> ClauseId {
-        static CLAUSE_COUNTER: AtomicU32 = AtomicU32::new(0);
-        CLAUSE_COUNTER.fetch_add(1, Ordering::Relaxed)
     }
 }

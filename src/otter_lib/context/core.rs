@@ -119,7 +119,8 @@ impl Context {
 
             if config.reduction_allowed {
                 log::debug!(target: "forget", "Forget @r {}", self.restarts);
-                self.clause_store.reduce(config.glue_strength);
+                self.clause_store
+                    .reduce(&self.variables, config.glue_strength);
             }
 
             if config.restarts_allowed {
@@ -139,11 +140,10 @@ impl Context {
         let level_index = self.add_fresh_level();
         let choice_literal = {
             let choice_variable = self.variables.get_unsafe(index);
-            let p = self.variables.index_to_ptr(index);
 
             match choice_variable.previous_polarity() {
-                Some(polarity) => Literal::new(p, index as VariableId, polarity),
-                None => Literal::new(p, index as VariableId, self.rng.gen_bool(polarity_lean)),
+                Some(polarity) => Literal::new(index as VariableId, polarity),
+                None => Literal::new(index as VariableId, self.rng.gen_bool(polarity_lean)),
             }
         };
         match self.variables.set_value(
@@ -161,12 +161,11 @@ impl Context {
         let (f, t) = crate::procedures::hobson_choices(self.clause_store.clauses());
 
         for v_id in f.into_iter().chain(t) {
-            let p = self.variables.index_to_ptr(v_id as usize);
-            let the_literal = Literal::new(p, v_id, false);
+            let the_literal = Literal::new(v_id, false);
             match self.variables.set_value(
                 the_literal,
                 unsafe { self.levels.get_unchecked_mut(0) },
-                LiteralSource::HobsonChoice,
+                LiteralSource::Pure,
             ) {
                 Ok(_) => {}
                 Err(e) => panic!("issue on hobson update: {e:?}"),
@@ -240,7 +239,6 @@ impl Context {
         let node_index = self
             .implication_graph
             .add_node(ImplicationGraphNode::Clause(GraphClause {
-                clause_id: the_clause.id(),
                 key: the_clause.key(),
             }));
         the_clause.add_node_index(node_index);

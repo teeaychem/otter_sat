@@ -9,3 +9,8 @@ pub const POLARITY_LEAN: config::PolarityLean = 0.0;
 pub const RANDOM_CHOICE_FREQUENCY: config::RandomChoiceFrequency = 0.0;
 pub const STOPPING_CRITERIA: config::StoppingCriteria = config::StoppingCriteria::FirstUIP;
 pub const VSIDS_VARIANT: config::VSIDS = config::VSIDS::MiniSAT;
+
+pub const DEFAULT_ACTIVITY: config::ActivityConflict = 0.0;
+pub const DEFAULT_VARIABLE_COUNT: usize = 1024;
+
+pub const RNG_SEED: u64 = 0;
