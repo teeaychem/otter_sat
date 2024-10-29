@@ -1,9 +1,6 @@
 use crate::{
     config::{Config, StoppingCriteria},
-    context::{
-        store::{ClauseKey, ClauseStore},
-        ImplicationGraphNode, ResolutionGraph,
-    },
+    context::store::{ClauseKey, ClauseStore},
     structures::{
         clause::Clause,
         literal::{Literal, Source as LiteralSource},
@@ -114,22 +111,15 @@ impl ResolutionBuffer {
         &mut self,
         observations: &[(LiteralSource, Literal)],
         stored_clauses: &mut ClauseStore,
-        graph: &ResolutionGraph,
         variables: &impl VariableList,
         config: &Config,
     ) -> Status {
         for (source, literal) in observations.iter().rev() {
-            if let LiteralSource::Clause(node_index) = source {
-                let the_node = graph.node_weight(*node_index).expect("missing node");
-                let the_key = match the_node {
-                    ImplicationGraphNode::Clause(graph_clause) => graph_clause.key,
-                    ImplicationGraphNode::Literal(_) => panic!("literal panic"),
-                };
-
-                let source_clause = stored_clauses.retreive_mut(the_key);
+            if let LiteralSource::Clause(the_key) = source {
+                let source_clause = stored_clauses.retreive_mut(*the_key);
 
                 if self.resolve_clause(source_clause, *literal).is_ok() {
-                    self.trail.push(the_key);
+                    self.trail.push(*the_key);
 
                     for involved_literal in source_clause.literal_slice() {
                         self.used_variables[involved_literal.index()] = true;

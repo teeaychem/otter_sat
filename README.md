@@ -41,8 +41,6 @@ Solver resources used are:
 Direct Rust dependencies are:
 - [clap](https://docs.rs/clap/latest/clap/)
   Configuration options
-- [petgraph](https://docs.rs/petgraph/latest/petgraph/)
-  To help recod resolution history
 - [crossterm](https://docs.rs/crossterm/latest/crossterm/)
   To dynamically display some stats during a solve in a static area of the terminal
 - [rand](https://docs.rs/rand/latest/rand/)
@@ -55,6 +53,8 @@ Optional dependencies are:
   An alternative allocator
 
 # Configuration
+
+(the code for obtaining a core is being rebuilt…)
 
 ```
 Usage: otter_sat [OPTIONS] [paths]...

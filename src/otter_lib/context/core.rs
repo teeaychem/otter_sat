@@ -2,7 +2,7 @@ use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
     config::{self, Config},
-    context::{Context, GraphClause, ImplicationGraphNode, Report, Status as ClauseStatus},
+    context::{Context, Report, Status as ClauseStatus},
     structures::{
         clause::stored::{Source, StoredClause},
         level::{Level, LevelIndex},
@@ -10,6 +10,8 @@ use crate::{
         variable::{list::VariableList, VariableId},
     },
 };
+
+use super::store::ClauseKey;
 
 macro_rules! level_mut {
     ($self:ident) => {
@@ -243,20 +245,17 @@ impl Context {
         &mut self,
         clause: Vec<Literal>,
         src: Source,
+        resolution_keys: Option<Vec<ClauseKey>>,
     ) -> Result<&StoredClause, ContextIssue> {
         if clause.is_empty() {
             return Err(ContextIssue::EmptyClause);
         }
         assert!(clause.len() > 1, "Attempt to add a short clause");
 
-        let clause_key = self.clause_store.insert(src, clause, &self.variables);
+        let clause_key = self
+            .clause_store
+            .insert(src, clause, &self.variables, resolution_keys);
         let the_clause = self.clause_store.retreive_mut(clause_key);
-        let node_index = self
-            .implication_graph
-            .add_node(ImplicationGraphNode::Clause(GraphClause {
-                key: the_clause.key(),
-            }));
-        the_clause.add_node_index(node_index);
         Ok(the_clause)
     }
 

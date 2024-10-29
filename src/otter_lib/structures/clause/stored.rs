@@ -7,7 +7,6 @@ use crate::{
     },
 };
 
-use petgraph::graph::NodeIndex;
 use std::ops::Deref;
 
 #[derive(Debug)]
@@ -16,7 +15,6 @@ pub struct StoredClause {
     source: Source,
     clause: Vec<Literal>,
     subsumed_literals: Vec<Literal>,
-    node_index: Option<NodeIndex>,
 }
 
 // { Clause enums
@@ -59,7 +57,6 @@ impl StoredClause {
             source,
             clause: figured_out,
             subsumed_literals: vec![],
-            node_index: None,
         };
 
         let watched_a = stored_clause.get_watch(Watch::A);
@@ -184,14 +181,6 @@ impl StoredClause {
             original.push(*hidden)
         }
         original
-    }
-
-    pub fn add_node_index(&mut self, index: NodeIndex) {
-        self.node_index = Some(index);
-    }
-
-    pub fn node_index(&self) -> NodeIndex {
-        self.node_index.unwrap()
     }
 }
 
