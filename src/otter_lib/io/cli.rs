@@ -205,7 +205,7 @@ impl Config {
             the_config.show_core = *value
         };
         if let Ok(Some(value)) = args.try_get_one::<bool>("stats") {
-            the_config.show_stats = *value
+            the_config.show_stats = *value;
         };
         if let Ok(Some(value)) = args.try_get_one::<bool>("valuation") {
             the_config.show_valuation = *value

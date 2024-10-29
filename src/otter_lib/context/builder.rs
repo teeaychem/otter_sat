@@ -179,7 +179,7 @@ impl Context {
                     the_context = Some(Context::with_size_hints(
                         variable_count,
                         clause_count,
-                        config,
+                        config.clone(),
                     ));
                     break;
                 }
@@ -189,7 +189,10 @@ impl Context {
             }
         }
 
-        let mut the_context = the_context.unwrap_or_default();
+        let mut the_context = match the_context {
+            Some(context) => context,
+            None => Context::default_config(config),
+        };
 
         'formula_loop: loop {
             match file_reader.read_line(&mut buffer) {

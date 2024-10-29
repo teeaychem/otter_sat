@@ -216,13 +216,6 @@ impl Context {
             });
         }
 
-        for (_, literal) in self.level().observations() {
-            match literal.polarity() {
-                true => println!("{} 0", self.variables.external_name(literal.index())),
-                false => println!("-{} 0", self.variables.external_name(literal.index())),
-            };
-        }
-
         for source_key in &core_set {
             let source_clause = self.clause_store.retreive(*source_key);
             let full_clause = source_clause.original_clause();
