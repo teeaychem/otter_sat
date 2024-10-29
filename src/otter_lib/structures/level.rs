@@ -27,7 +27,7 @@ impl Level {
     pub fn record_literal(&mut self, literal: Literal, source: Source) {
         match source {
             Source::Choice => self.choice = Some(literal),
-            Source::Pure | Source::Assumption | Source::Resolution(_) | Source::Clause(_) => {
+            Source::Pure | Source::Assumption | Source::Resolution | Source::Clause(_) => {
                 self.observations.push((source, literal))
             }
         }

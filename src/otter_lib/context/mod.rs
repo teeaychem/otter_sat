@@ -22,26 +22,7 @@ use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128Plus};
 // pub type RngChoice = rand::rngs::mock::StepRng;
 pub type RngChoice = Xoroshiro128Plus;
 
-use petgraph::Graph;
 use std::time::Duration;
-
-#[derive(Debug)]
-pub enum ImplicationGraphNode {
-    Clause(GraphClause),
-    Literal(GraphLiteral),
-}
-
-#[derive(Debug)]
-pub struct GraphClause {
-    key: ClauseKey,
-}
-
-#[derive(Debug)]
-pub struct GraphLiteral {
-    literal: Literal,
-}
-
-pub type ResolutionGraph = Graph<ImplicationGraphNode, ()>;
 
 pub struct Counters {
     pub conflicts: usize,
@@ -73,10 +54,10 @@ pub struct Context {
     clause_store: ClauseStore,
     variables: VariableStore,
     config: config::Config,
-    implication_graph: ResolutionGraph,
     pub window: Option<ContextWindow>,
     pub status: Status,
     rng: RngChoice,
+    pub proofs: Vec<(Literal, Vec<ClauseKey>)>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -114,10 +95,10 @@ impl Context {
             clause_store: ClauseStore::with_capacity(clause_count),
             variables: VariableStore::with_capactiy(variable_count),
             config,
-            implication_graph: Graph::new(),
             window: the_window,
             status: Status::Initialised,
             rng: RngChoice::seed_from_u64(defaults::RNG_SEED), //RngChoice::new(0,1)
+            proofs: Vec::new(),
         };
         the_context.levels.push(Level::new(0));
         the_context
@@ -132,10 +113,10 @@ impl Default for Context {
             clause_store: ClauseStore::default(),
             variables: VariableStore::default(),
             config: Config::default(),
-            implication_graph: Graph::default(),
             window: None,
             status: Status::Initialised,
             rng: RngChoice::seed_from_u64(defaults::RNG_SEED),
+            proofs: Vec::new(),
         };
         the_context.levels.push(Level::new(0));
         the_context

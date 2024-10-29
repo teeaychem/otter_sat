@@ -111,7 +111,7 @@ impl Context {
                 }
 
                 if !tautology {
-                    match self.store_clause(the_clause, ClauseSource::Formula) {
+                    match self.store_clause(the_clause, ClauseSource::Formula, None) {
                         Ok(_) => {}
                         Err(ContextIssue::EmptyClause) => return Err(BuildIssue::ClauseEmpty),
                         // Err(e) => panic!("Unexpected error: {e:?}"),
@@ -250,9 +250,11 @@ impl Context {
                                         }
 
                                         if !tautology {
-                                            match the_context
-                                                .store_clause(the_clause, ClauseSource::Formula)
-                                            {
+                                            match the_context.store_clause(
+                                                the_clause,
+                                                ClauseSource::Formula,
+                                                None,
+                                            ) {
                                                 Ok(_) => {}
                                                 Err(ContextIssue::EmptyClause) => {
                                                     return Err(BuildIssue::ClauseEmpty);
