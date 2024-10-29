@@ -2,7 +2,7 @@ use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
     config::{self, Config},
-    context::{Context, GraphClause, ImplicationGraphNode, Status as ClauseStatus},
+    context::{Context, GraphClause, ImplicationGraphNode, Report, Status as ClauseStatus},
     structures::{
         clause::stored::{Source, StoredClause},
         level::{Level, LevelIndex},
@@ -11,8 +11,6 @@ use crate::{
     },
 };
 
-use super::Report;
-
 macro_rules! level_mut {
     ($self:ident) => {
         unsafe {
@@ -20,6 +18,11 @@ macro_rules! level_mut {
             $self.levels.get_unchecked_mut(index)
         }
     };
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ContextIssue {
+    EmptyClause,
 }
 
 impl Context {
@@ -34,6 +37,11 @@ impl Context {
         let this_total_time = std::time::Instant::now();
 
         self.preprocess();
+
+        if self.clause_store.formula_count() == 0 {
+            self.status = ClauseStatus::NoClauses;
+            return Ok(Report::Satisfiable);
+        }
 
         if self.config.show_stats {
             if let Some(window) = &mut self.window {
@@ -69,12 +77,12 @@ impl Context {
             match consequence {
                 Ok(_) => {}
                 Err(clause_key) => match self.conflict_analysis(clause_key, config) {
-                    ClauseStatus::MissedImplication(_) => continue 'propagation,
-                    ClauseStatus::NoSolution(key) => {
+                    Ok(ClauseStatus::MissedImplication(_)) => continue 'propagation,
+                    Ok(ClauseStatus::NoSolution(key)) => {
                         self.status = ClauseStatus::NoSolution(key);
                         return Err(());
                     }
-                    ClauseStatus::AssertingClause(key) => {
+                    Ok(ClauseStatus::AssertingClause(key)) => {
                         self.status = ClauseStatus::AssertingClause(key);
                         self.conflict_ceremony(config);
                         return Ok(());
@@ -231,7 +239,14 @@ impl Context {
 
     /// Stores a clause with an automatically generated id.
     /// In order to use the clause the watch literals of the struct must be initialised.
-    pub fn store_clause(&mut self, clause: Vec<Literal>, src: Source) -> &StoredClause {
+    pub fn store_clause(
+        &mut self,
+        clause: Vec<Literal>,
+        src: Source,
+    ) -> Result<&StoredClause, ContextIssue> {
+        if clause.is_empty() {
+            return Err(ContextIssue::EmptyClause);
+        }
         assert!(clause.len() > 1, "Attempt to add a short clause");
 
         let clause_key = self.clause_store.insert(src, clause, &self.variables);
@@ -242,7 +257,7 @@ impl Context {
                 key: the_clause.key(),
             }));
         the_clause.add_node_index(node_index);
-        the_clause
+        Ok(the_clause)
     }
 
     pub fn backjump(&mut self, to: LevelIndex) {
@@ -287,6 +302,10 @@ impl Context {
                     self.display_core(clause_key);
                 }
                 // std::process::exit(20);
+            }
+            ClauseStatus::NoClauses => {
+                println!("c The formula contains no clause and so is interpreted as ⊤");
+                println!("s SATISFIABLE");
             }
             _ => {
                 if let Some(limit) = self.config.time_limit {
