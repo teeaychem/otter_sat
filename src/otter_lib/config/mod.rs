@@ -48,7 +48,7 @@ impl Default for Config {
             show_stats: false,
             show_valuation: false,
             stopping_criteria: STOPPING_CRITERIA,
-            subsumption: false,
+            subsumption: true,
             tidy_watches: false,
             time_limit: None,
             vsids_variant: VSIDS_VARIANT,

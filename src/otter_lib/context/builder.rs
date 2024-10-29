@@ -55,8 +55,7 @@ impl Context {
                 }
             }
         };
-        let p = self.variables.index_to_ptr(the_variable as usize);
-        Ok(Literal::new(p, the_variable, polarity))
+        Ok(Literal::new(the_variable, polarity))
     }
 
     pub fn assume_literal(&mut self, literal: Literal) -> Result<(), BuildIssue> {

@@ -2,7 +2,6 @@ use crate::structures::variable::{Variable, VariableId};
 use crate::{context::store::ClauseKey, structures::level::LevelIndex};
 
 use std::cell::UnsafeCell;
-use std::marker::PhantomPinned;
 
 impl Variable {
     pub fn new(name: &str, id: VariableId) -> Self {
@@ -14,7 +13,6 @@ impl Variable {
             previous_polarity: UnsafeCell::new(None),
             positive_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
             negative_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
-            _pin: PhantomPinned,
         }
     }
 

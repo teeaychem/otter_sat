@@ -56,15 +56,14 @@ For the moment this is limited to settling all atoms which occur with a unique p
             .num_args(0)
             .help("Display stats during a solve."))
 
-        .arg(Arg::new("subsumption")
+        .arg(Arg::new("no_subsumption")
             .long("subsumption")
-            .short('u')
             .value_parser(value_parser!(bool))
             .required(false)
             .num_args(0)
             .help(
-                "Allow (some simple) self-subsumption.")
-            .long_help("Allow (some simple) self-subsumption.
+                "Prevent (some simple) self-subsumption.")
+            .long_help("Prevent (some simple) self-subsumption.
 
 That is, when performing resolutinon some stronger form of a clause may be found.
 Subsumption allows the weaker clause is replaced (subsumed by) the stronger clause.
@@ -211,8 +210,8 @@ impl Config {
         if let Ok(Some(value)) = args.try_get_one::<bool>("valuation") {
             the_config.show_valuation = *value
         };
-        if let Ok(Some(value)) = args.try_get_one::<bool>("subsumption") {
-            the_config.subsumption = *value
+        if let Ok(Some(value)) = args.try_get_one::<bool>("no_subsumption") {
+            the_config.subsumption = !gg*value
         };
         if let Ok(Some(value)) = args.try_get_one::<bool>("tidy_watches") {
             the_config.tidy_watches = *value

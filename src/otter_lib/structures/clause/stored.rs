@@ -1,6 +1,5 @@
 use crate::{
-    config::{self},
-    context::store::{ClauseId, ClauseKey},
+    context::store::ClauseKey,
     structures::{
         clause::Clause,
         literal::Literal,
@@ -9,13 +8,10 @@ use crate::{
 };
 
 use petgraph::graph::NodeIndex;
-use std::cell::UnsafeCell;
 use std::ops::Deref;
 
 pub struct StoredClause {
-    id: ClauseId,
     key: ClauseKey,
-    lbd: UnsafeCell<config::GlueStrength>,
     source: Source,
     clause: Vec<Literal>,
     cached_a: Literal,
@@ -53,7 +49,6 @@ enum WatchStatus {
 
 impl StoredClause {
     pub fn new_from(
-        id: ClauseId,
         key: ClauseKey,
         clause: Vec<Literal>,
         source: Source,
@@ -61,9 +56,7 @@ impl StoredClause {
     ) -> Self {
         let figured_out = figure_out_intial_watches(clause, variables);
         let stored_clause = Self {
-            id,
             key,
-            lbd: UnsafeCell::new(0),
             source,
             cached_a: figured_out[0],
             cached_b: figured_out[1],
@@ -99,14 +92,6 @@ impl StoredClause {
             Watch::A => self.cached_a,
             Watch::B => self.cached_b,
         }
-    }
-
-    pub fn set_lbd(&self, variables: &impl VariableList) {
-        unsafe { *self.lbd.get() = self.lbd(variables) }
-    }
-
-    pub fn get_set_lbd(&self) -> config::GlueStrength {
-        unsafe { *self.lbd.get() }
     }
 
     #[inline(always)]
@@ -227,10 +212,6 @@ impl StoredClause {
             original.push(*hidden)
         }
         original
-    }
-
-    pub fn id(&self) -> ClauseId {
-        self.id
     }
 
     pub fn add_node_index(&mut self, index: NodeIndex) {
