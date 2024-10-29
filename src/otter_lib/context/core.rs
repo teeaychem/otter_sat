@@ -3,7 +3,6 @@ use rand::{seq::IteratorRandom, Rng};
 use crate::{
     config::{self, Config},
     context::{Context, GraphClause, ImplicationGraphNode, Status as ClauseStatus},
-    io::window::{ContextWindow, WindowItem},
     structures::{
         clause::stored::{Source, StoredClause},
         level::{Level, LevelIndex},
@@ -46,8 +45,8 @@ impl Context {
         let time_limit = local_config.time_limit;
 
         'main_loop: loop {
-            self.time = this_total_time.elapsed();
-            if time_limit.is_some_and(|limit| self.time > limit) {
+            self.counters.time = this_total_time.elapsed();
+            if time_limit.is_some_and(|limit| self.counters.time > limit) {
                 return Ok(self.report());
             }
 
@@ -60,7 +59,7 @@ impl Context {
 
     #[allow(unused_labels, clippy::result_unit_err)]
     pub fn step(&mut self, config: &Config) -> Result<(), ()> {
-        self.iterations += 1;
+        self.counters.iterations += 1;
 
         'propagation: while let Some(literal) = self.variables.get_consequence() {
             let consequence =
@@ -89,9 +88,9 @@ impl Context {
     }
 
     fn conflict_ceremony(&mut self, config: &Config) {
-        self.conflicts += 1;
-        self.conflicts_since_last_forget += 1;
-        self.conflicts_since_last_reset += 1;
+        self.counters.conflicts += 1;
+        self.counters.conflicts_since_last_forget += 1;
+        self.counters.conflicts_since_last_reset += 1;
         self.reductions_and_restarts(config);
     }
 
@@ -100,6 +99,7 @@ impl Context {
         match self.get_unassigned(config.random_choice_frequency) {
             Some(choice_index) => {
                 self.process_choice(choice_index, config.polarity_lean);
+                self.counters.decisions += 1;
                 self.status = ClauseStatus::ChoiceMade;
                 Ok(())
             }
@@ -113,20 +113,20 @@ impl Context {
     fn reductions_and_restarts(&mut self, config: &Config) {
         if self.it_is_time_to_reduce(config.luby_constant) {
             if let Some(window) = &self.window {
-                self.update_stats(window);
+                window.update_counters(&self.counters);
                 window.flush();
             }
 
             if config.reduction_allowed {
-                log::debug!(target: "forget", "Forget @r {}", self.restarts);
+                log::debug!(target: "forget", "Forget @r {}", self.counters.restarts);
                 self.clause_store
                     .reduce(&self.variables, config.glue_strength);
             }
 
             if config.restarts_allowed {
                 self.backjump(0);
-                self.restarts += 1;
-                self.conflicts_since_last_forget = 0;
+                self.counters.restarts += 1;
+                self.counters.conflicts_since_last_forget = 0;
             }
         }
     }
@@ -257,20 +257,12 @@ impl Context {
         }
     }
 
-    pub fn update_stats(&self, window: &ContextWindow) {
-        window.update_item(WindowItem::Iterations, self.iterations);
-        window.update_item(WindowItem::Conflicts, self.conflicts);
-        window.update_item(
-            WindowItem::Ratio,
-            self.conflicts as f32 / self.iterations as f32,
-        );
-        window.update_item(WindowItem::Time, format!("{:.2?}", self.time));
-    }
-
     pub fn print_status(&self) {
         if self.config.show_stats {
-            self.update_stats(self.window.as_ref().expect("no window"));
-            self.window.as_ref().unwrap().flush();
+            if let Some(window) = &self.window {
+                window.update_counters(&self.counters);
+                window.flush();
+            }
         }
 
         match self.status {
@@ -298,7 +290,7 @@ impl Context {
             }
             _ => {
                 if let Some(limit) = self.config.time_limit {
-                    if self.config.show_stats && self.time > limit {
+                    if self.config.show_stats && self.counters.time > limit {
                         println!("c TIME LIMIT EXCEEDED");
                     }
                 }
@@ -314,7 +306,7 @@ impl Context {
 
     pub fn it_is_time_to_reduce(&self, u: usize) -> bool {
         use crate::procedures::luby;
-        self.conflicts_since_last_forget >= u.wrapping_mul(luby(self.restarts))
+        self.counters.conflicts_since_last_forget >= u.wrapping_mul(luby(self.counters.restarts))
     }
 
     pub fn report(&self) -> Report {
