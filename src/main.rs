@@ -11,7 +11,6 @@ use tikv_jemallocator::Jemalloc;
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
 
-use clap::Parser;
 use std::{
     fs,
     io::{BufReader, Read},
@@ -19,17 +18,14 @@ use std::{
 };
 
 use otter_lib::{
-    config::{Config, StoppingCriteria},
+    config::Config,
     context::{builder::BuildIssue, Context},
     io::cli::cli,
-    structures::literal::{Literal, Source},
 };
 
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
-
-use otter_lib::generic::heap::FixedHeap;
 
 // #[rustfmt::skip]
 fn main() {

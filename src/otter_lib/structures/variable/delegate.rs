@@ -198,11 +198,7 @@ impl VariableStore {
                     (None, None) => {}
                     (Some(a), None) if a == watch_a.polarity() => {}
                     (Some(_), None) => {
-                        match self.set_value(
-                            watch_b,
-                            level,
-                            Source::Clause(stored_clause.node_index()),
-                        ) {
+                        match self.set_value(watch_b, level, Source::Clause(stored_clause.key())) {
                             Ok(_) => {}
                             Err(e) => panic!("could not set watch {e:?}"),
                         };
@@ -210,11 +206,7 @@ impl VariableStore {
                     }
                     (None, Some(b)) if b == watch_b.polarity() => {}
                     (None, Some(_)) => {
-                        match self.set_value(
-                            watch_a,
-                            level,
-                            Source::Clause(stored_clause.node_index()),
-                        ) {
+                        match self.set_value(watch_a, level, Source::Clause(stored_clause.key())) {
                             Ok(_) => {}
                             Err(e) => panic!("could not set watch {e:?}"),
                         };

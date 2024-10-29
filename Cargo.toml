@@ -19,7 +19,6 @@ log = [ "dep:log4rs" ]
 clap = { version = "4.5.15" }
 crossterm = "0.28.1"
 
-petgraph = "0.6.5"
 rand = { version = "0.8.5" }
 
 log = { version = "0.4.22", features = ["max_level_debug", "release_max_level_off"] }
