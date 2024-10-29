@@ -158,7 +158,7 @@ impl Context {
     }
 
     fn set_hobson(&mut self) {
-        let (f, t) = crate::procedures::hobson_choices(self.clause_store.clauses());
+        let (f, t) = crate::procedures::hobson_choices(self.clause_store.formula_clauses());
 
         for v_id in f.into_iter().chain(t) {
             let the_literal = Literal::new(v_id, false);
