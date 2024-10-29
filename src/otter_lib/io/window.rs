@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::io::{stdout, Write};
 
-use crate::config::Config;
+use crate::{config::Config, context::Counters};
 
 use crossterm::{cursor, terminal, QueueableCommand};
 
@@ -14,6 +14,7 @@ pub struct ContextWindow {
 pub enum WindowItem {
     Iterations,
     Conflicts,
+    Decisions,
     Ratio,
     Time,
 }
@@ -33,9 +34,10 @@ impl ContextWindow {
     fn get_offset(&self, item: WindowItem) -> (u16, u16) {
         let bottom = self.location.1;
         let the_row = match item {
-            WindowItem::Iterations => bottom - 4,
-            WindowItem::Conflicts => bottom - 3,
-            WindowItem::Ratio => bottom - 2,
+            WindowItem::Iterations => bottom - 5,
+            WindowItem::Conflicts => bottom - 4,
+            WindowItem::Ratio => bottom - 3,
+            WindowItem::Decisions => bottom - 2,
             WindowItem::Time => bottom - 1,
         };
         (self.column, the_row)
@@ -57,6 +59,18 @@ impl ContextWindow {
         stdout.queue(cursor::RestorePosition).unwrap();
     }
 
+    pub fn update_counters(&self, counters: &Counters) {
+        self.update_item(WindowItem::Iterations, counters.iterations);
+        self.update_item(WindowItem::Iterations, counters.iterations);
+        self.update_item(WindowItem::Decisions, counters.decisions);
+        self.update_item(WindowItem::Conflicts, counters.conflicts);
+        self.update_item(
+            WindowItem::Ratio,
+            counters.conflicts as f32 / counters.iterations as f32,
+        );
+        self.update_item(WindowItem::Time, format!("{:.2?}", counters.time));
+    }
+
     pub fn flush(&self) {
         stdout().flush().unwrap();
     }
@@ -73,7 +87,8 @@ impl ContextWindow {
         }
         println!("c ITERATIONS");
         println!("c CONFLCITS");
-        println!("c RATIO");
+        println!("c C/I RATIO");
+        println!("c DECISIONS");
         println!("c TIME");
 
         self.update_position();

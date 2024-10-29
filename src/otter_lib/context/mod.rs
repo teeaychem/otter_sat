@@ -43,16 +43,35 @@ pub struct GraphLiteral {
 
 pub type ResolutionGraph = Graph<ImplicationGraphNode, ()>;
 
+pub struct Counters {
+    pub conflicts: usize,
+    pub conflicts_since_last_forget: usize,
+    pub conflicts_since_last_reset: usize,
+    pub decisions: usize,
+    pub iterations: usize,
+    pub restarts: usize,
+    pub time: Duration,
+}
+
+impl Default for Counters {
+    fn default() -> Self {
+        Counters {
+            conflicts_since_last_forget: 0,
+            conflicts_since_last_reset: 0,
+            decisions: 0,
+            iterations: 0,
+            restarts: 0,
+            time: Duration::from_secs(0),
+            conflicts: 0,
+        }
+    }
+}
+
 pub struct Context {
-    conflicts: usize,
-    conflicts_since_last_forget: usize,
-    conflicts_since_last_reset: usize,
-    iterations: usize,
+    counters: Counters,
     levels: Vec<Level>,
-    restarts: usize,
     clause_store: ClauseStore,
     variables: VariableStore,
-    pub time: Duration,
     config: config::Config,
     implication_graph: ResolutionGraph,
     pub window: Option<ContextWindow>,
@@ -89,15 +108,10 @@ impl Context {
         };
 
         let mut the_context = Self {
-            conflicts: 0,
-            conflicts_since_last_forget: 0,
-            conflicts_since_last_reset: 0,
-            iterations: 0,
+            counters: Counters::default(),
             levels: Vec::<Level>::with_capacity(variable_count),
-            restarts: 0,
             clause_store: ClauseStore::with_capacity(clause_count),
             variables: VariableStore::with_capactiy(variable_count),
-            time: Duration::new(0, 0),
             config,
             implication_graph: Graph::new(),
             window: the_window,
@@ -112,15 +126,10 @@ impl Context {
 impl Default for Context {
     fn default() -> Self {
         let mut the_context = Context {
-            conflicts: 0,
-            conflicts_since_last_forget: 0,
-            conflicts_since_last_reset: 0,
-            iterations: 0,
+            counters: Counters::default(),
             levels: Vec::<Level>::with_capacity(1024),
-            restarts: 0,
             clause_store: ClauseStore::default(),
             variables: VariableStore::default(),
-            time: Duration::new(0, 0),
             config: Config::default(),
             implication_graph: Graph::default(),
             window: None,
