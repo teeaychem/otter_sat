@@ -14,12 +14,15 @@ use std::{
     path::PathBuf,
 };
 
+use super::core::ContextIssue;
+
 #[derive(Debug)]
 pub enum BuildIssue {
     UnitClauseConflict,
     AssumptionConflict,
     ClauseEmpty,
     Parse(ParseIssue),
+    OopsAllTautologies,
 }
 
 #[derive(Debug)]
@@ -108,7 +111,11 @@ impl Context {
                 }
 
                 if !tautology {
-                    self.store_clause(the_clause, ClauseSource::Formula);
+                    match self.store_clause(the_clause, ClauseSource::Formula) {
+                        Ok(_) => {}
+                        Err(ContextIssue::EmptyClause) => return Err(BuildIssue::ClauseEmpty),
+                        // Err(e) => panic!("Unexpected error: {e:?}"),
+                    }
                 }
                 Ok(())
             }
@@ -129,6 +136,7 @@ impl Context {
         let mut the_context = None;
         let mut line_counter = 0;
         let mut assumption_counter = 0;
+        let mut tautological_clause_counter = 0;
 
         let show_stats = config.show_stats;
 
@@ -236,13 +244,20 @@ impl Context {
                                         for literal in &the_clause {
                                             if the_clause.iter().any(|l| *l == literal.negate()) {
                                                 tautology = true;
+                                                tautological_clause_counter += 1;
                                                 break;
                                             }
                                         }
 
                                         if !tautology {
-                                            the_context
-                                                .store_clause(the_clause, ClauseSource::Formula);
+                                            match the_context
+                                                .store_clause(the_clause, ClauseSource::Formula)
+                                            {
+                                                Ok(_) => {}
+                                                Err(ContextIssue::EmptyClause) => {
+                                                    return Err(BuildIssue::ClauseEmpty);
+                                                } // Err(e) => panic!("Unexpected error: {e:?}"),
+                                            }
                                         }
                                     }
                                 }
@@ -268,8 +283,12 @@ impl Context {
             println!(
                 "c Parsing complete with {} variables and {} clauses",
                 the_context.variables().slice().len(),
-                the_context.clause_count() + assumption_counter
+                the_context.clause_count() + assumption_counter + tautological_clause_counter
             );
+        }
+
+        if the_context.clause_count() == 0 && tautological_clause_counter != 0 {
+            return Err(BuildIssue::OopsAllTautologies);
         }
 
         Ok(the_context)

@@ -87,6 +87,7 @@ pub enum Status {
     NoSolution(ClauseKey),
     ChoiceMade,
     AllAssigned,
+    NoClauses,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
