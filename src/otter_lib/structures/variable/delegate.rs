@@ -25,11 +25,62 @@ pub enum Status {
 }
 
 pub struct VariableStore {
-    pub score_increment: ActivityConflict,
+    external_map: Vec<String>,
+    score_increment: ActivityConflict,
     variables: Vec<Variable>,
     consequence_q: VecDeque<Literal>,
-    pub string_map: HashMap<String, VariableId>,
-    pub activity_heap: FixedHeap<ActivityConflict>,
+    string_map: HashMap<String, VariableId>,
+    activity_heap: FixedHeap<ActivityConflict>,
+}
+
+impl VariableStore {
+    pub fn id_of(&self, name: &str) -> Option<VariableId> {
+        self.string_map.get(name).copied()
+    }
+
+    pub fn score_increment(&self) -> ActivityConflict {
+        self.score_increment
+    }
+
+    pub fn activity_of(&self, index: usize) -> ActivityConflict {
+        self.activity_heap.value_at(index)
+    }
+
+    pub fn activity_max(&self) -> Option<ActivityConflict> {
+        self.activity_heap.peek_max_value()
+    }
+
+    pub fn rescore_activity(&mut self) {
+        let heap_max = match self.activity_max() {
+            Some(v) => v,
+            None => ActivityConflict::MIN,
+        };
+        let rescale = ActivityConflict::max(heap_max, self.score_increment());
+
+        let factor = 1.0 / rescale;
+        self.activity_heap.reduce_all_with(factor);
+        self.score_increment *= factor;
+        self.activity_heap.bobble();
+    }
+
+    pub fn bump_activity(&mut self, index: usize) {
+        self.activity_heap
+            .update_one(index, self.activity_of(index) + self.score_increment())
+    }
+
+    pub fn decay_activity(&mut self, config: &Config) {
+        let decay = config.decay_factor * 1e-3;
+        let factor = 1.0 / (1.0 - decay);
+        self.score_increment *= factor
+    }
+
+    pub fn heap_pop_most_active(&mut self) -> Option<usize> {
+        self.activity_heap.pop_max()
+    }
+
+    pub fn heap_push(&mut self, index: usize) {
+        self.activity_heap.activate(index)
+    }
 }
 
 impl VariableStore {
@@ -37,6 +88,7 @@ impl VariableStore {
         let count = variables.len();
 
         VariableStore {
+            external_map: Vec::<String>::with_capacity(count),
             score_increment: 1.0,
             variables,
             consequence_q: VecDeque::with_capacity(count),
@@ -47,6 +99,7 @@ impl VariableStore {
 
     pub fn with_capactiy(variable_count: usize) -> Self {
         VariableStore {
+            external_map: Vec::<String>::with_capacity(variable_count),
             score_increment: 1.0,
             variables: Vec::with_capacity(variable_count),
             consequence_q: VecDeque::with_capacity(variable_count),
@@ -55,9 +108,10 @@ impl VariableStore {
         }
     }
 
-    pub fn add_variable(&mut self, variable: Variable) {
-        self.string_map.insert(variable.name.clone(), variable.id);
+    pub fn add_variable(&mut self, name: &str, variable: Variable) {
+        self.string_map.insert(name.to_string(), variable.id);
         self.variables.push(variable);
+        self.external_map.push(name.to_string());
         // self.consequence_buffer;
     }
 }
@@ -65,6 +119,7 @@ impl VariableStore {
 impl Default for VariableStore {
     fn default() -> Self {
         VariableStore {
+            external_map: Vec::<String>::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
             score_increment: 1.0,
             variables: Vec::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
             consequence_q: VecDeque::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
@@ -87,7 +142,7 @@ impl VariableStore {
     ) -> Result<(), ClauseKey> {
         let not_watch_witness = |literal: Literal| {
             let the_variable = unsafe { self.variables.get_unchecked(literal.index()) };
-            match the_variable.polarity() {
+            match the_variable.value() {
                 None => true,
                 Some(found_polarity) => found_polarity != literal.polarity(),
             }
@@ -151,8 +206,6 @@ impl VariableStore {
                             Ok(_) => {}
                             Err(e) => panic!("could not set watch {e:?}"),
                         };
-                        // self.consequence_buffer
-                        //     .push((Source::Clause(stored_clause.node_index()), watch_b));
                         self.consequence_q.push_back(watch_b);
                     }
                     (None, Some(b)) if b == watch_b.polarity() => {}
@@ -165,8 +218,6 @@ impl VariableStore {
                             Ok(_) => {}
                             Err(e) => panic!("could not set watch {e:?}"),
                         };
-                        // self.consequence_buffer
-                        //     .push((Source::Clause(stored_clause.node_index()), watch_a));
                         self.consequence_q.push_back(watch_a);
                     }
                     (Some(a), Some(b)) if a == watch_a.polarity() || b == watch_b.polarity() => {}
@@ -191,7 +242,7 @@ impl VariableStore {
         while let Some(literal) = self.consequence_q.pop_front() {
             let not_watch_witness = |literal: Literal| {
                 let the_variable = unsafe { self.variables.get_unchecked(literal.index()) };
-                match the_variable.polarity() {
+                match the_variable.value() {
                     None => true,
                     Some(found_polarity) => found_polarity != literal.polarity(),
                 }
@@ -243,6 +294,10 @@ impl VariableStore {
 
     pub fn push_back_consequence(&mut self, literal: Literal) {
         self.consequence_q.push_back(literal)
+    }
+
+    pub fn external_name(&self, index: usize) -> &String {
+        &self.external_map[index]
     }
 }
 
