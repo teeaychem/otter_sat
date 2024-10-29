@@ -39,22 +39,24 @@ Solver resources used are:
 ## Rust dependencies
 
 Direct Rust dependencies are:
-- [log4rs](https://docs.rs/log4rs/latest/log4rs/)
-  Logging (see `config/log4rs.yaml`)
 - [clap](https://docs.rs/clap/latest/clap/)
   Configuration options
 - [petgraph](https://docs.rs/petgraph/latest/petgraph/)
   To help recod resolution history
-- [slotmap](https://docs.rs/slotmap/latest/slotmap/)
-  To help forget clauses
 - [crossterm](https://docs.rs/crossterm/latest/crossterm/)
   To dynamically display some stats during a solve in a static area of the terminal
-- [tikv-jemallocator](https://github.com/marv/tikv-jemallocator)
-  An alternative allocator, optional
 - [rand](https://docs.rs/rand/latest/rand/)
-  Perhaps
+  To help make decisions
+
+Optional dependencies are:
+- [log4rs](https://docs.rs/log4rs/latest/log4rs/)
+  Logging (see `config/log4rs.yaml`)
+- [tikv-jemallocator](https://github.com/marv/tikv-jemallocator)
+  An alternative allocator
 
 # Configuration
+
+(at present, finding an unsat core is non-functional)
 
 ```
 Usage: otter_sat [OPTIONS] [paths]...
@@ -77,19 +79,19 @@ Options:
           Remember everything.
           Equivalent to passing both '--no-reduction' and 'no_restarts'.
 
+      --no_subsumption
+          Prevent (some simple) self-subsumption.
+
+          That is, when performing resolutinon some stronger form of a clause may be found.
+          Subsumption allows the weaker clause is replaced (subsumed by) the stronger clause.
+          For example, p ∨ r subsumes p ∨ q ∨ r.
+
   -p, --preprocess
           Perform some pre-processing before a solve.
           For the moment this is limited to settling all atoms which occur with a unique polarity.
 
   -s, --stats
           Display stats during a solve.
-
-  -u, --subsumption
-          Allow (some simple) self-subsumption.
-
-          That is, when performing resolutinon some stronger form of a clause may be found.
-          Subsumption allows the weaker clause is replaced (subsumed by) the stronger clause.
-          For example, p ∨ r subsumes p ∨ q ∨ r.
 
   -🧹, --tidy-watches
           Continue updating watches for all queued literals after a conflict.
@@ -108,16 +110,12 @@ Options:
             - FirstUIP: Resolve until the first unique implication point
             - None    : Resolve on each clause used to derive the conflict
 
-          [possible values: first-uip, none]
-
-  -🦇, --VSIDS-variant <VARIANT>
+  -🦇, --VSIDS <VARIANT>
           Which VSIDS variant to use.
           Default: MiniSAT
 
             - MiniSAT: Bump the activity of all variables in the a learnt clause.
             - Chaff  : Bump the activity involved when using resolution to learn a clause.
-
-          [possible values: chaff, mini-sat]
 
   -l, --luby <U>
           The 'u' value to use for the luby calculation when restarts are permitted.
@@ -134,5 +132,4 @@ Options:
   -t, --time-limit <SECONDS>
           Time limit for the solve in seconds.
           Default: No limit
-
 ```
