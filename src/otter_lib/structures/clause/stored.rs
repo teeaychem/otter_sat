@@ -14,9 +14,7 @@ pub struct StoredClause {
     key: ClauseKey,
     source: Source,
     clause: Vec<Literal>,
-    cached_a: Literal,
-    cached_b: Literal,
-    subsumed: Vec<Literal>,
+    subsumed_literals: Vec<Literal>,
     node_index: Option<NodeIndex>,
 }
 
@@ -58,10 +56,8 @@ impl StoredClause {
         let stored_clause = Self {
             key,
             source,
-            cached_a: figured_out[0],
-            cached_b: figured_out[1],
             clause: figured_out,
-            subsumed: vec![],
+            subsumed_literals: vec![],
             node_index: None,
         };
 
@@ -89,8 +85,8 @@ impl StoredClause {
 
     pub fn get_watch(&self, watch: Watch) -> Literal {
         match watch {
-            Watch::A => self.cached_a,
-            Watch::B => self.cached_b,
+            Watch::A => unsafe { *self.clause.get_unchecked(0) },
+            Watch::B => unsafe { *self.clause.get_unchecked(1) },
         }
     }
 
@@ -104,12 +100,10 @@ impl StoredClause {
     ) {
         match watch {
             Watch::A => {
-                self.cached_a = literal;
                 self.clause.swap(index, 0);
                 variable.watch_added(self.key, literal.polarity());
             }
             Watch::B => {
-                self.cached_b = literal;
                 self.clause.swap(index, 1);
                 variable.watch_added(self.key, literal.polarity());
             }
@@ -121,14 +115,12 @@ impl StoredClause {
     /// The match is to help prototype re-ordering the clause
     /// Specifically, the general case allows storing information about the previous literal
     pub fn update_watch(&mut self, watch: Watch, variables: &impl VariableList) {
-        let length = self.clause.len();
-
-        match length {
+        match self.clause.len() {
             2 => {}
             3 => {
                 let the_literal = unsafe { *self.clause.get_unchecked(2) };
                 let the_variable = variables.get_unsafe(the_literal.index());
-                match the_variable.polarity() {
+                match the_variable.value() {
                     None => self.watch_update_replace(watch, 2, the_variable, the_literal),
                     Some(polarity) if polarity == the_literal.polarity() => {
                         self.watch_update_replace(watch, 2, the_variable, the_literal)
@@ -137,25 +129,11 @@ impl StoredClause {
                 }
             }
             _ => {
-                let last_literal = unsafe { *self.clause.get_unchecked(2) };
-                let last_variable = variables.get_unsafe(last_literal.index());
-                match last_variable.polarity() {
-                    None => {
-                        self.watch_update_replace(watch, 2, last_variable, last_literal);
-                        return;
-                    }
-                    Some(polarity) if polarity == last_literal.polarity() => {
-                        self.watch_update_replace(watch, 2, last_variable, last_literal);
-                        return;
-                    }
-                    Some(_) => {}
-                }
-
-                'search_loop: for index in 3..length {
+                'search_loop: for index in 2..self.clause.len() {
                     let the_literal = unsafe { *self.clause.get_unchecked(index) };
                     let the_variable = variables.get_unsafe(the_literal.index());
 
-                    match the_variable.polarity() {
+                    match the_variable.value() {
                         None => {
                             self.watch_update_replace(watch, index, the_variable, the_literal);
                             break 'search_loop;
@@ -176,27 +154,20 @@ impl StoredClause {
     /// In order to keep a record of the clauses used to prove the subsumption, use `literal_subsumption_core`.
     /// Returns Ok(()) if subsumption was ok, Err(()) otherwise
     #[allow(clippy::result_unit_err)]
-    pub fn literal_subsumption(
-        &mut self,
-        literal: Literal,
-        variables: &impl VariableList,
-    ) -> Result<(), ()> {
+    pub fn subsume(&mut self, literal: Literal, variables: &impl VariableList) -> Result<(), ()> {
         if self.clause.len() > 2 {
             if let Some(position) = self
                 .clause
                 .iter()
                 .position(|clause_literal| *clause_literal == literal)
             {
-                let last = *self.clause.last().expect("literally last");
                 let removed = self.clause.swap_remove(position);
-                if removed == self.cached_a {
-                    self.cached_a = last;
+                if removed == unsafe { *self.clause.get_unchecked(0) } {
                     self.update_watch(Watch::A, variables);
-                } else if removed == self.cached_b {
-                    self.cached_b = last;
+                } else if removed == unsafe { *self.clause.get_unchecked(1) } {
                     self.update_watch(Watch::B, variables);
                 }
-                self.subsumed.push(removed);
+                self.subsumed_literals.push(removed);
                 Ok(())
             } else {
                 Err(())
@@ -208,7 +179,7 @@ impl StoredClause {
 
     pub fn original_clause(&self) -> Vec<Literal> {
         let mut original = self.clause.clone();
-        for hidden in &self.subsumed {
+        for hidden in &self.subsumed_literals {
             original.push(*hidden)
         }
         original
@@ -230,7 +201,6 @@ impl std::fmt::Display for StoredClause {
 }
 
 fn figure_out_intial_watches(mut clause: Vec<Literal>, val: &impl VariableList) -> Vec<Literal> {
-    let length = clause.len();
     let mut watch_a = 0;
     let mut watch_b = 1;
     let mut a_status = get_status(unsafe { *clause.get_unchecked(watch_a) }, val);
@@ -242,16 +212,14 @@ fn figure_out_intial_watches(mut clause: Vec<Literal>, val: &impl VariableList) 
     at which point, b inherits the witness status of a (which may be updated again) or becomes none and no more checks need to happen
      */
 
-    for index in 2..length {
+    for index in 2..clause.len() {
         if a_status == WatchStatus::None && b_status == WatchStatus::None {
             break;
         }
         let literal = unsafe { *clause.get_unchecked(index) };
         let literal_status = get_status(literal, val);
         match literal_status {
-            WatchStatus::Conflict => {
-                // do nothing on a conflict
-            }
+            WatchStatus::Conflict => {} // do nothing on a conflict
             WatchStatus::None => {
                 // by the first check, either a or b fails to be none, so update a or otherwise b
                 if a_status != WatchStatus::None {

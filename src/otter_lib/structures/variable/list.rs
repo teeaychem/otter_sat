@@ -7,8 +7,6 @@ use crate::structures::{
 use std::ops::DerefMut;
 
 pub trait VariableList {
-    fn as_display_string(&self) -> String;
-
     fn as_internal_string(&self) -> String;
 
     fn polarity_of(&self, index: usize) -> Option<bool>;
@@ -30,35 +28,29 @@ pub trait VariableList {
 }
 
 impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
-    fn as_display_string(&self) -> String {
-        self.iter()
-            .map(|variable| match variable.polarity() {
-                Some(true) => variable.name().to_string(),
-                Some(false) => format!("-{}", variable.name()),
-                _ => String::new(),
-            })
-            .collect::<Vec<_>>()
-            .join(" ")
-    }
-
     fn as_internal_string(&self) -> String {
-        self.iter()
-            .map(|variable| match variable.polarity() {
-                Some(true) => format!("{}", variable.id()),
-                Some(false) => format!("-{}", variable.id()),
-                _ => String::new(),
-            })
-            .collect::<Vec<_>>()
-            .join(" ")
+        let mut the_string = String::new();
+        for variable in self.iter() {
+            match variable.value() {
+                Some(true) => {
+                    the_string.push_str(format!(" {}", variable.id()).as_str());
+                }
+                Some(false) => {
+                    the_string.push_str(format!(" -{}", variable.id()).as_str());
+                }
+                _ => {}
+            }
+        }
+        the_string
     }
 
     fn polarity_of(&self, index: usize) -> Option<bool> {
-        unsafe { self.get_unchecked(index).polarity() }
+        unsafe { self.get_unchecked(index).value() }
     }
 
     fn check_literal(&self, literal: Literal) -> Status {
         let maybe_value = unsafe { self.get_unchecked(literal.index()) };
-        match maybe_value.polarity() {
+        match maybe_value.value() {
             Some(already_set) if already_set == literal.polarity() => Status::Match,
             Some(_already_set) => Status::Conflict,
             None => Status::Set,
@@ -73,11 +65,11 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
     ) -> Result<Status, Status> {
         log::trace!("Set literal: {}", literal);
         let variable = unsafe { self.get_unchecked(literal.index()) };
-        match variable.polarity() {
+        match variable.value() {
             Some(value) if value != literal.polarity() => Err(Status::Conflict),
             Some(_value) => Ok(Status::Match),
             None => {
-                variable.set_polarity(Some(literal.polarity()), Some(level.index()));
+                variable.set_value(Some(literal.polarity()), Some(level.index()));
                 level.record_literal(literal, source);
                 Ok(Status::Set)
             }
@@ -87,7 +79,7 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
     fn retract_valuation(&mut self, index: usize) {
         log::trace!("Clear index: {index}");
         unsafe {
-            self.get_unchecked_mut(index).set_polarity(None, None);
+            self.get_unchecked_mut(index).set_value(None, None);
         }
     }
 

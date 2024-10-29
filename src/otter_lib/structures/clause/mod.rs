@@ -6,10 +6,12 @@ use crate::{
 };
 use std::ops::Deref;
 
+use super::variable::delegate::VariableStore;
+
 pub trait Clause {
     fn as_string(&self) -> String;
 
-    fn as_dimacs(&self, variables: &impl VariableList) -> String;
+    fn as_dimacs(&self, variables: &VariableStore) -> String;
 
     fn asserts(&self, val: &impl VariableList) -> Option<Literal>;
 
@@ -34,12 +36,12 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
         the_string
     }
 
-    fn as_dimacs(&self, variables: &impl VariableList) -> String {
+    fn as_dimacs(&self, variables: &VariableStore) -> String {
         let mut the_string = String::new();
         for literal in self.literal_slice() {
             let the_represenetation = match literal.polarity() {
-                true => format!("{} ", variables.get_unsafe(literal.index()).name()),
-                false => format!("-{} ", variables.get_unsafe(literal.index()).name()),
+                true => format!("{} ", variables.external_name(literal.index())),
+                false => format!("-{} ", variables.external_name(literal.index())),
             };
             the_string.push_str(the_represenetation.as_str());
         }

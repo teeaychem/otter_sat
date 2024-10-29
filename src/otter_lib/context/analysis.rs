@@ -145,49 +145,30 @@ impl Context {
 
         let mut rescore = false;
         for literal in clause.literal_slice() {
-            if self.variables.activity_heap.value_at(literal.index()) + activity > MAX_SCORE {
+            if self.variables.activity_of(literal.index()) + activity > MAX_SCORE {
                 rescore = true;
                 break;
             }
         }
         if rescore {
-            let heap_max = match self.variables.activity_heap.peek_max_value() {
-                Some(v) => v,
-                None => ActivityConflict::MIN,
-            };
-            let rescale = ActivityConflict::max(heap_max, self.variables.score_increment);
-
-            let factor = 1.0 / rescale;
-            self.variables.activity_heap.reduce_all_with(factor);
-            self.variables.score_increment *= factor;
-            self.variables.activity_heap.bobble();
+            self.variables.rescore_activity()
         }
 
         match config.vsids_variant {
             config::VSIDS::Chaff => {
                 for literal in clause.literal_slice() {
                     let literal_index = literal.index();
-                    let value = self.variables.activity_heap.value_at(literal_index);
-                    self.variables
-                        .activity_heap
-                        .update_one(literal_index, value + self.variables.score_increment);
+                    self.variables.bump_activity(literal_index);
                 }
             }
             config::VSIDS::MiniSAT => {
                 for index in buffer.variables_used() {
-                    let value = self.variables.activity_heap.value_at(index);
-                    self.variables
-                        .activity_heap
-                        .update_one(index, value + self.variables.score_increment);
+                    self.variables.bump_activity(index);
                 }
             }
         }
 
-        {
-            let decay = config.decay_factor * 1e-3;
-            let factor = 1.0 / (1.0 - decay);
-            self.variables.score_increment *= factor;
-        }
+        self.variables.decay_activity(config);
     }
 
     #[allow(clippy::single_match)]
@@ -237,8 +218,8 @@ impl Context {
 
         for (_, literal) in self.level().observations() {
             match literal.polarity() {
-                true => println!("{} 0", self.variables[literal.index()].name()),
-                false => println!("-{} 0", self.variables[literal.index()].name()),
+                true => println!("{} 0", self.variables.external_name(literal.index())),
+                false => println!("-{} 0", self.variables.external_name(literal.index())),
             };
         }
 

@@ -4,20 +4,15 @@ use crate::{context::store::ClauseKey, structures::level::LevelIndex};
 use std::cell::UnsafeCell;
 
 impl Variable {
-    pub fn new(name: &str, id: VariableId) -> Self {
+    pub fn new(id: VariableId) -> Self {
         Self {
-            name: name.to_string(),
             decision_level: UnsafeCell::new(None),
             id,
-            polarity: UnsafeCell::new(None),
-            previous_polarity: UnsafeCell::new(None),
+            value: UnsafeCell::new(None),
+            previous_value: UnsafeCell::new(None),
             positive_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
             negative_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
         }
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
     }
 
     pub fn index(&self) -> usize {
@@ -40,18 +35,18 @@ impl Variable {
         .push(clause_key);
     }
 
-    pub fn polarity(&self) -> Option<bool> {
-        unsafe { *self.polarity.get() }
+    pub fn value(&self) -> Option<bool> {
+        unsafe { *self.value.get() }
     }
 
-    pub fn previous_polarity(&self) -> Option<bool> {
-        unsafe { *self.previous_polarity.get() }
+    pub fn previous_value(&self) -> Option<bool> {
+        unsafe { *self.previous_value.get() }
     }
 
-    pub fn set_polarity(&self, polarity: Option<bool>, level: Option<LevelIndex>) {
+    pub fn set_value(&self, polarity: Option<bool>, level: Option<LevelIndex>) {
         unsafe {
-            *self.previous_polarity.get() = *self.polarity.get();
-            *self.polarity.get() = polarity;
+            *self.previous_value.get() = *self.value.get();
+            *self.value.get() = polarity;
             *self.decision_level.get() = level
         }
     }
@@ -82,23 +77,3 @@ impl Variable {
         .swap_remove(index);
     }
 }
-
-impl PartialOrd for Variable {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Variable {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.name.cmp(&other.name)
-    }
-}
-
-impl PartialEq for Variable {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-impl Eq for Variable {}
