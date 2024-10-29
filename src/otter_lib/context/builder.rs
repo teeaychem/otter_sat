@@ -46,11 +46,11 @@ impl Context {
         }
 
         let the_variable = {
-            match self.variables.string_map.get(the_name) {
-                Some(variable) => *variable,
+            match self.variables.id_of(the_name) {
+                Some(variable) => variable,
                 None => {
                     let the_id = self.variables.len() as VariableId;
-                    self.variables.add_variable(Variable::new(the_name, the_id));
+                    self.variables.add_variable(the_name, Variable::new(the_id));
                     the_id
                 }
             }

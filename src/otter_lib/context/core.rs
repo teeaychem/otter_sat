@@ -135,13 +135,13 @@ impl Context {
         log::trace!(
             "Choice: {index} @ {} with activity {}",
             self.level().index(),
-            self.variables.activity_heap.value_at(index)
+            self.variables.activity_of(index)
         );
         let level_index = self.add_fresh_level();
         let choice_literal = {
             let choice_variable = self.variables.get_unsafe(index);
 
-            match choice_variable.previous_polarity() {
+            match choice_variable.previous_value() {
                 Some(polarity) => Literal::new(index as VariableId, polarity),
                 None => Literal::new(index as VariableId, self.rng.gen_bool(polarity_lean)),
             }
@@ -201,13 +201,13 @@ impl Context {
             true => self
                 .variables
                 .iter()
-                .filter(|variable| variable.polarity().is_none())
+                .filter(|variable| variable.value().is_none())
                 .choose(&mut self.rng)
                 .map(|variable| variable.index()),
             false => {
-                while let Some(index) = self.variables.activity_heap.pop_max() {
+                while let Some(index) = self.variables.heap_pop_most_active() {
                     let the_variable = self.variables.get_unsafe(index);
-                    if the_variable.polarity().is_none() {
+                    if the_variable.value().is_none() {
                         // let this_max = self.variables.activity_heap.value_at(index);
                         // if let Some(next_max) = self.variables.activity_heap.peek_max_value() {
                         //     assert!(this_max >= next_max, "{next_max} > {this_max}");
@@ -217,7 +217,7 @@ impl Context {
                 }
                 self.variables
                     .iter()
-                    .filter(|variable| variable.polarity().is_none())
+                    .filter(|variable| variable.value().is_none())
                     .map(|x| x.index())
                     .next()
                 // self.variables
@@ -252,7 +252,7 @@ impl Context {
             for literal in self.levels.pop().expect("Lost level").literals() {
                 log::trace!("Noneset: {}", literal.index());
                 self.variables.retract_valuation(literal.index());
-                self.variables.activity_heap.activate(literal.index());
+                self.variables.heap_push(literal.index());
             }
         }
     }
@@ -277,7 +277,15 @@ impl Context {
             ClauseStatus::AllAssigned => {
                 println!("s SATISFIABLE");
                 if self.config.show_valuation {
-                    println!("v {}", self.variables().as_display_string());
+                    print!("v");
+                    for v in self.variables().slice() {
+                        match v.value() {
+                            Some(true) => print!(" {}", self.variables.external_name(v.index())),
+                            Some(false) => print!(" -{}", self.variables.external_name(v.index())),
+                            None => panic!("variables were not all assigned"),
+                        }
+                    }
+                    println!();
                 }
                 // std::process::exit(10);
             }

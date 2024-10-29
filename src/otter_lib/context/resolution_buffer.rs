@@ -51,7 +51,7 @@ impl ResolutionBuffer {
         self.valueless_count = 0;
         self.asserts = None;
         for variable in variables.slice() {
-            self.set(variable.index(), ResolutionCell::Value(variable.polarity()))
+            self.set(variable.index(), ResolutionCell::Value(variable.value()))
         }
         self.trail.clear();
         self.used_variables
@@ -67,7 +67,7 @@ impl ResolutionBuffer {
             buffer: variables
                 .slice()
                 .iter()
-                .map(|variable| ResolutionCell::Value(variable.polarity()))
+                .map(|variable| ResolutionCell::Value(variable.value()))
                 .collect(),
             trail: vec![],
             used_variables: vec![false; variables.slice().len()],
@@ -136,7 +136,7 @@ impl ResolutionBuffer {
                     }
 
                     if config.subsumption && self.clause_legnth < source_clause.length() {
-                        let _ = source_clause.literal_subsumption(*literal, variables);
+                        let _ = source_clause.subsume(*literal, variables);
                         // variables.get_unsafe(literal.index()).multiply_activity(1.1);
                     }
 
