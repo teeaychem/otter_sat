@@ -20,7 +20,7 @@ use std::{
 
 use otter_lib::{
     config::{Config, StoppingCriteria},
-    context::Context,
+    context::{builder::BuildIssue, Context},
     io::cli::cli,
     structures::literal::{Literal, Source},
 };
@@ -47,8 +47,26 @@ fn main() {
             let the_path = PathBuf::from(path);
             let unique_config = config.clone();
 
-            let mut the_context =
-                Context::from_dimacs(&the_path, unique_config).expect("failed to build context");
+            let mut the_context = match Context::from_dimacs(&the_path, unique_config) {
+                Ok(context) => context,
+                Err(BuildIssue::OopsAllTautologies) => {
+                    if config.show_stats {
+                        println!("c All clauses of the formula are tautological");
+                    }
+                    println!("s SATISFIABLE");
+                    std::process::exit(0);
+                }
+                Err(BuildIssue::ClauseEmpty) => {
+                    if config.show_stats {
+                        println!("c The formula contains an empty clause so is interpreted as ⊥");
+                    }
+                    println!("s UNSATISFIABLE");
+                    std::process::exit(0);
+                }
+                Err(e) => {
+                    panic!("Unexpected error when building: {e:?}");
+                }
+            };
             // let _ = the_context.clause_from_string("p -q");
             let _the_result = the_context.solve();
             the_context.print_status();

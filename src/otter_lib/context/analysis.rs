@@ -17,11 +17,17 @@ use petgraph::{visit, Direction};
 use std::collections::BTreeSet;
 use std::ops::Deref;
 
+use super::core::ContextIssue;
+
 impl Context {
-    pub fn conflict_analysis(&mut self, clause_key: ClauseKey, config: &Config) -> SolveStatus {
+    pub fn conflict_analysis(
+        &mut self,
+        clause_key: ClauseKey,
+        config: &Config,
+    ) -> Result<SolveStatus, ContextIssue> {
         log::trace!("Fix @ {}", self.level().index());
         if self.level().index() == 0 {
-            return SolveStatus::NoSolution(clause_key);
+            return Ok(SolveStatus::NoSolution(clause_key));
         }
         let conflict_clause = self.clause_store.retreive(clause_key);
         let conflict_index = conflict_clause.node_index();
@@ -44,11 +50,11 @@ impl Context {
                 LiteralSource::Clause(conflict_index),
             ) {
                 Ok(_) => {}
-                Err(_) => return SolveStatus::NoSolution(clause_key),
+                Err(_) => return Ok(SolveStatus::NoSolution(clause_key)),
             };
             self.variables.push_back_consequence(asserted);
 
-            SolveStatus::MissedImplication(clause_key)
+            Ok(SolveStatus::MissedImplication(clause_key))
         } else {
             // resolve
             match the_buffer.resolve_with(
@@ -97,7 +103,7 @@ impl Context {
                                 LiteralSource::Resolution(literal_index),
                             ) {
                                 Ok(_) => {}
-                                Err(_) => return SolveStatus::NoSolution(clause_key),
+                                Err(_) => return Ok(SolveStatus::NoSolution(clause_key)),
                             };
 
                             literal_index
@@ -108,7 +114,7 @@ impl Context {
                             self.backjump(backjump_level_index);
 
                             let stored_clause =
-                                self.store_clause(resolved_clause, ClauseSource::Resolution);
+                                self.store_clause(resolved_clause, ClauseSource::Resolution)?;
                             let stored_index = stored_clause.node_index();
 
                             match self.variables.set_value(
@@ -117,7 +123,7 @@ impl Context {
                                 LiteralSource::Clause(stored_index),
                             ) {
                                 Ok(_) => {}
-                                Err(_) => return SolveStatus::NoSolution(clause_key),
+                                Err(_) => return Ok(SolveStatus::NoSolution(clause_key)),
                             };
 
                             stored_index
@@ -131,7 +137,7 @@ impl Context {
                     }
 
                     self.variables.push_back_consequence(asserted_literal);
-                    SolveStatus::AssertingClause(clause_key)
+                    Ok(SolveStatus::AssertingClause(clause_key))
                 }
             }
         }
