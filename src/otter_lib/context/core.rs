@@ -30,7 +30,7 @@ pub enum ContextIssue {
 impl Context {
     pub fn preprocess(&mut self) {
         if self.config.preprocessing {
-            self.set_hobson();
+            self.set_pure();
         }
     }
 
@@ -72,9 +72,18 @@ impl Context {
         self.counters.iterations += 1;
 
         'search: while let Some(literal) = self.variables.get_consequence() {
+            match config.consequence_criteria {
+                config::ConsequenceCriteria::Tidy | config::ConsequenceCriteria::Fresh => {}
+                config::ConsequenceCriteria::Messy => {
+                    if self.variables.polarity_of(literal.index()).is_none() {
+                        continue 'search;
+                    }
+                }
+            }
+
             let consequence =
                 self.variables
-                    .propagate(literal, level_mut!(self), &mut self.clause_store, config);
+                    .propagate(literal, level_mut!(self), &mut self.clause_store);
 
             match consequence {
                 Ok(_) => {}
@@ -135,7 +144,6 @@ impl Context {
 
             if config.restarts_allowed {
                 self.backjump(0);
-                self.variables.clear_consequences();
                 self.counters.restarts += 1;
                 self.counters.conflicts_since_last_forget = 0;
             }
@@ -168,7 +176,7 @@ impl Context {
         self.variables.push_back_consequence(choice_literal);
     }
 
-    fn set_hobson(&mut self) {
+    fn set_pure(&mut self) {
         let (f, t) = crate::procedures::hobson_choices(self.clause_store.formula_clauses());
 
         for v_id in f.into_iter().chain(t) {
@@ -270,7 +278,13 @@ impl Context {
                 self.variables.heap_push(literal.index());
             }
         }
-        self.variables.clear_consequences()
+        match self.config.consequence_criteria {
+            config::ConsequenceCriteria::Tidy => self
+                .variables
+                .tidy_queued_consequences(&mut self.clause_store),
+            config::ConsequenceCriteria::Fresh => self.variables.clear_consequences(),
+            config::ConsequenceCriteria::Messy => {}
+        };
     }
 
     pub fn print_status(&self) {
