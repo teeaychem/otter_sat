@@ -1,7 +1,6 @@
 pub mod defaults;
 
-pub type ActivityConflict = f64;
-pub type DecayFactor = f64;
+pub type ActivityType = f64;
 pub type DecayFrequency = usize;
 pub type GlueStrength = u32;
 pub type LubyConstant = usize;
@@ -10,8 +9,9 @@ pub type RandomChoiceFrequency = f64;
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    pub activity_conflict: ActivityConflict,
-    pub decay_factor: DecayFactor,
+    pub activity_conflict: ActivityType,
+    pub activity_max: ActivityType,
+    pub decay_factor: ActivityType,
     pub decay_frequency: DecayFrequency,
     pub glue_strength: GlueStrength,
     pub luby_constant: LubyConstant,
@@ -35,6 +35,7 @@ impl Default for Config {
         use defaults::*;
         Config {
             activity_conflict: ACTIVITY_CONFLICT,
+            activity_max: (2.0 as ActivityType).powi(512), // 1e150
             decay_factor: DECAY_FACTOR,
             decay_frequency: DECAY_FREQUENCY,
             glue_strength: GLUE_STRENGTH,

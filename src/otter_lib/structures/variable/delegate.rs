@@ -1,7 +1,7 @@
 use crate::{
     config::{
         defaults::{self},
-        ActivityConflict, Config,
+        ActivityType, Config,
     },
     context::store::{ClauseKey, ClauseStore},
     generic::heap::FixedHeap,
@@ -26,11 +26,11 @@ pub enum Status {
 
 pub struct VariableStore {
     external_map: Vec<String>,
-    score_increment: ActivityConflict,
+    score_increment: ActivityType,
     variables: Vec<Variable>,
     consequence_q: VecDeque<Literal>,
     string_map: HashMap<String, VariableId>,
-    activity_heap: FixedHeap<ActivityConflict>,
+    activity_heap: FixedHeap<ActivityType>,
 }
 
 impl VariableStore {
@@ -38,24 +38,24 @@ impl VariableStore {
         self.string_map.get(name).copied()
     }
 
-    pub fn score_increment(&self) -> ActivityConflict {
+    pub fn score_increment(&self) -> ActivityType {
         self.score_increment
     }
 
-    pub fn activity_of(&self, index: usize) -> ActivityConflict {
+    pub fn activity_of(&self, index: usize) -> ActivityType {
         self.activity_heap.value_at(index)
     }
 
-    pub fn activity_max(&self) -> Option<ActivityConflict> {
+    pub fn activity_max(&self) -> Option<ActivityType> {
         self.activity_heap.peek_max_value()
     }
 
     pub fn rescore_activity(&mut self) {
         let heap_max = match self.activity_max() {
             Some(v) => v,
-            None => ActivityConflict::MIN,
+            None => ActivityType::MIN,
         };
-        let rescale = ActivityConflict::max(heap_max, self.score_increment());
+        let rescale = ActivityType::max(heap_max, self.score_increment());
 
         let factor = 1.0 / rescale;
         self.activity_heap.reduce_all_with(factor);
@@ -132,6 +132,7 @@ impl Default for VariableStore {
     }
 }
 
+#[allow(clippy::collapsible_if)]
 impl VariableStore {
     pub fn propagate(
         &mut self,
@@ -140,13 +141,14 @@ impl VariableStore {
         clause_store: &mut ClauseStore,
         config: &Config,
     ) -> Result<(), ClauseKey> {
-        let not_watch_witness = |literal: Literal| {
-            let the_variable = unsafe { self.variables.get_unchecked(literal.index()) };
-            match the_variable.value() {
-                None => true,
-                Some(found_polarity) => found_polarity != literal.polarity(),
-            }
-        };
+        // let not_watch_witness = |literal: Literal| {
+        //     let the_variable = unsafe { self.variables.get_unchecked(literal.index()) };
+        //     match the_variable.value() {
+        //         None => true,
+        //         Some(found_polarity) => found_polarity != literal.polarity(),
+        //     }
+        // };
+        // println!("Propagating {} which has value {:?}", literal.index(), self.variables.polarity_of(literal.index()));
 
         let the_variable = self.variables.get_unsafe(literal.index());
         let list_polarity = !literal.polarity();
@@ -166,66 +168,79 @@ impl VariableStore {
 
             let stored_clause = maybe_stored_clause.unwrap();
 
-            let watch_a = stored_clause.get_watch(Watch::A);
-            let watch_b = stored_clause.get_watch(Watch::B);
-
-            if the_variable.id() == watch_a.v_id() {
-                if not_watch_witness(watch_b) {
-                    stored_clause.update_watch(Watch::A, &self.variables);
+            let unknown_watch = // no
+                if the_variable.id() == stored_clause.get_watch(Watch::A).v_id() {
+                // if not_watch_witness(watch_b) {
+                match stored_clause.update_watch(Watch::A, &self.variables) {
+                    Ok(_) => {
+                        the_variable.remove_occurrence_at_index(list_polarity, index);
+                        length -= 1;
+                        continue 'propagation_loop;
+                    }
+                    Err(_) => match self.polarity_of(stored_clause.get_watch(Watch::A).index()) {
+                        None => panic!("Watch A has no value"),
+                        Some(value) => {
+                            match value == stored_clause.get_watch(Watch::A).polarity() {
+                                true => {
+                                    the_variable.remove_occurrence_at_index(list_polarity, index);
+                                    length -= 1;
+                                    continue 'propagation_loop;
+                                }
+                                false => Watch::B,
+                            }
+                        }
+                    },
                 }
-            } else if the_variable.id() == watch_b.v_id() {
-                if not_watch_witness(watch_a) {
-                    stored_clause.update_watch(Watch::B, &self.variables);
+                // }
+            } else if the_variable.id() == stored_clause.get_watch(Watch::B).v_id() {
+                // if not_watch_witness(watch_a) {
+                match stored_clause.update_watch(Watch::B, &self.variables) {
+                    Ok(_) => {
+                        the_variable.remove_occurrence_at_index(list_polarity, index);
+                        length -= 1;
+                        continue 'propagation_loop;
+                    }
+                    Err(_) => match self.polarity_of(stored_clause.get_watch(Watch::B).index()) {
+                        None => panic!("Watch B has no value"),
+                        Some(value) => {
+                            match value == stored_clause.get_watch(Watch::B).polarity() {
+                                true => {
+                                    the_variable.remove_occurrence_at_index(list_polarity, index);
+                                    length -= 1;
+                                    continue 'propagation_loop;
+                                }
+                                false => Watch::A,
+                            }
+                        }
+                    },
                 }
+                // }
             } else {
                 the_variable.remove_occurrence_at_index(list_polarity, index);
                 length -= 1;
                 continue 'propagation_loop;
-            }
+            };
 
-            let watch_a = stored_clause.get_watch(Watch::A);
-            let watch_b = stored_clause.get_watch(Watch::B);
+            index += 1;
 
-            if watch_a.v_id() != literal.v_id() && watch_b.v_id() != literal.v_id() {
-                the_variable.remove_occurrence_at_index(list_polarity, index);
-                length -= 1;
-            } else {
-                index += 1;
-                let a_value = self.polarity_of(watch_a.index());
-                let b_value = self.polarity_of(watch_b.index());
-
-                match (a_value, b_value) {
-                    (None, None) => {}
-                    (Some(a), None) if a == watch_a.polarity() => {}
-                    (Some(_), None) => {
-                        match self.set_value(watch_b, level, Source::Clause(stored_clause.key())) {
-                            Ok(_) => {}
-                            Err(e) => panic!("could not set watch {e:?}"),
-                        };
-                        self.consequence_q.push_back(watch_b);
+            let unknown_literal = stored_clause.get_watch(unknown_watch);
+            let unknown_value = self.polarity_of(unknown_literal.index());
+            if unknown_value.is_none() {
+                match self.set_value(unknown_literal, level, Source::Clause(stored_clause.key())) {
+                    Ok(_) => {}
+                    Err(e) => panic!("could not set watch {e:?}"),
+                };
+                self.consequence_q.push_back(unknown_literal);
+            } else if unknown_literal.polarity() != unknown_value.unwrap() {
+                match config.tidy_watches {
+                    true => {
+                        self.consequence_q.push_back(literal);
+                        self.clear_queued_consequences(clause_store);
                     }
-                    (None, Some(b)) if b == watch_b.polarity() => {}
-                    (None, Some(_)) => {
-                        match self.set_value(watch_a, level, Source::Clause(stored_clause.key())) {
-                            Ok(_) => {}
-                            Err(e) => panic!("could not set watch {e:?}"),
-                        };
-                        self.consequence_q.push_back(watch_a);
-                    }
-                    (Some(a), Some(b)) if a == watch_a.polarity() || b == watch_b.polarity() => {}
-                    (Some(_), Some(_)) => {
-                        match config.tidy_watches {
-                            true => {
-                                self.consequence_q.push_back(literal);
-                                self.clear_queued_consequences(clause_store);
-                            }
-                            false => self.consequence_q.clear(),
-                        }
-
-                        return Err(clause_key);
-                    }
+                    false => self.consequence_q.clear(),
                 }
-            }
+                return Err(clause_key);
+            };
         }
         Ok(())
     }
@@ -285,11 +300,46 @@ impl VariableStore {
     }
 
     pub fn push_back_consequence(&mut self, literal: Literal) {
+        assert!(self.polarity_of(literal.index()).is_some());
         self.consequence_q.push_back(literal)
     }
 
     pub fn external_name(&self, index: usize) -> &String {
         &self.external_map[index]
+    }
+
+    #[inline]
+    #[allow(non_snake_case)]
+    /// Bumps the activities of each variable in 'variables'
+    /// If given a hint to the max activity the rescore check is performed once on the hint
+    pub fn apply_VSIDS<V: Iterator<Item = usize>>(
+        &mut self,
+        variables: V,
+        hint: Option<ActivityType>,
+        config: &Config,
+    ) {
+        let activity = config.activity_conflict;
+        match hint {
+            Some(hint) => {
+                if hint + activity > config.activity_max {
+                    self.rescore_activity()
+                }
+                variables.for_each(|index| self.bump_activity(index));
+            }
+            None => {
+                for index in variables {
+                    if self.activity_of(index) + activity > config.activity_max {
+                        self.rescore_activity()
+                    }
+                    self.bump_activity(index);
+                }
+            }
+        }
+        self.decay_activity(config);
+    }
+
+    pub fn clear_consequences(&mut self) {
+        self.consequence_q.clear()
     }
 }
 
