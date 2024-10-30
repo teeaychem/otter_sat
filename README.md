@@ -54,8 +54,6 @@ Optional dependencies are:
 
 # Configuration
 
-(the code for obtaining a core is being rebuilt…)
-
 ```
 Usage: otter_sat [OPTIONS] [paths]...
 

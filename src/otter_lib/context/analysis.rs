@@ -163,90 +163,88 @@ impl Context {
     }
 
     #[allow(clippy::single_match)]
+    /// Display an unsatisfiable core given some conflict.
     pub fn display_core(&self, conflict_key: ClauseKey) {
         println!();
         println!("c An unsatisfiable core of the formula:\n",);
-        println!("c Well, for now a sketch…\n",);
 
-        for (literal, keys) in &self.proofs {
-            println!(
-                "\nc FOR {} being {}",
-                self.variables.external_name(literal.index()),
-                literal.polarity()
-            );
-            for key in keys {
-                let clause = self.clause_store.retreive(*key);
+        /*
+        Given the conflict clause, collect the following:
+
+        - The formula clauses used to resolve the conflict clause
+        - The formula clauses used to establish any literal whose negation appears in some considered clause
+
+        The core_q queues clause keys for inspection
+        The seen literal set helps to avoid checking the same literal twice
+        Likewise, the key set helps to avoid checking the same key twice
+         */
+
+        let mut core_q = std::collections::VecDeque::<ClauseKey>::new();
+        let mut seen_literal_set = std::collections::BTreeSet::new();
+        let mut key_set = std::collections::BTreeSet::new();
+
+        // for short arguments
+        let observations = self.levels[0].observations();
+
+        // start with the conflict, then loop
+        core_q.push_back(conflict_key);
+
+        /*
+        key set ensures processing only happens on a fresh key
+
+        if the key is for a formula, then clause is printed and the literals of the clause are checked against the observed literals
+        otherwise, the clauses used when resolving the learnt clause are added
+
+         when checking literals, if the negation of the literal has been observed at level 0 then it was relevant to the conflict
+         so, if the literal was obtained either by resolution or directly from some clause, then that clause or the clauses used for resolution are added to the q
+         this skips assumed literals
+         */
+
+        while let Some(key) = core_q.pop_front() {
+            if key_set.insert(key) {
                 match key {
                     ClauseKey::Formula(_) => {
+                        let clause = self.clause_store.retreive(key);
+
                         println!("{}", clause.as_dimacs(&self.variables));
+
+                        for literal in clause.literal_slice() {
+                            if seen_literal_set.insert(*literal) {
+                                let found = observations.iter().find(|(_, observed_literal)| {
+                                    *literal == observed_literal.negate()
+                                });
+                                if let Some((src, _)) = found {
+                                    match src {
+                                        LiteralSource::Resolution => {
+                                            let proof = &self
+                                                .proofs
+                                                .iter()
+                                                .find(|(proven_literal, _)| {
+                                                    *literal == proven_literal.negate()
+                                                })
+                                                .expect("no proof of resolved literal");
+                                            for key in &proof.1 {
+                                                core_q.push_back(*key);
+                                            }
+                                        }
+                                        LiteralSource::Clause(clause_key) => {
+                                            core_q.push_back(*clause_key)
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
                     }
-                    ClauseKey::Learned(_, _) => {
-                        println!("{}\t\tc learnt", clause.as_dimacs(&self.variables));
+                    ClauseKey::Learned(index, usage) => {
+                        let source = &self.clause_store.resolution_graph[index][usage as usize];
+                        for source_key in source {
+                            core_q.push_back(*source_key);
+                        }
                     }
                 }
             }
         }
-
-        println!("\nc …And the conflict clause");
-        for key in
-            &self.clause_store.resolution_graph[conflict_key.index()][conflict_key.usage() as usize]
-        {
-            let clause = self.clause_store.retreive(*key);
-            match key {
-                ClauseKey::Formula(_) => {
-                    println!("{}", clause.as_dimacs(&self.variables));
-                }
-                ClauseKey::Learned(_, _) => {
-                    println!("{}\t\tc learnt", clause.as_dimacs(&self.variables));
-                }
-            }
-        }
-
-        // let conflict_clause = self.clause_store.retreive(conflict_key);
-        // let conflict_index = conflict_clause.node_index();
-
-        // let mut basic_clause_set = BTreeSet::new();
-        // basic_clause_set.insert(conflict_index);
-        // for (source, _) in self.level().observations() {
-        //     match source {
-        //         LiteralSource::Clause(node_index) | LiteralSource::Resolution(node_index) => {
-        //             basic_clause_set.insert(*node_index);
-        //         }
-        //         _ => {}
-        //     }
-        // }
-
-        // let mut core_set = BTreeSet::new();
-        // for node_index in &basic_clause_set {
-        //     visit::depth_first_search(&self.implication_graph, Some(*node_index), |event| {
-        //         match event {
-        //             visit::DfsEvent::Discover(index, _) => {
-        //                 let outgoing = self
-        //                     .implication_graph
-        //                     .edges_directed(index, Direction::Outgoing);
-        //                 if outgoing.count() == 0 {
-        //                     let graph_node = self
-        //                         .implication_graph
-        //                         .node_weight(index)
-        //                         .expect("missing node");
-        //                     match graph_node {
-        //                         ImplicationGraphNode::Clause(clause_weight) => {
-        //                             core_set.insert(clause_weight.key);
-        //                         }
-        //                         ImplicationGraphNode::Literal(_) => {}
-        //                     }
-        //                 }
-        //             }
-        //             _ => {}
-        //         }
-        //     });
-        // }
-
-        // for source_key in &core_set {
-        //     let source_clause = self.clause_store.retreive(*source_key);
-        //     let full_clause = source_clause.original_clause();
-        //     println!("{}", full_clause.as_dimacs(&self.variables));
-        // }
     }
 
     // pub fn literal_derivation(&self, index: NodeIndex) {
