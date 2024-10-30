@@ -139,7 +139,6 @@ impl VariableStore {
         literal: Literal,
         level: &mut Level,
         clause_store: &mut ClauseStore,
-        config: &Config,
     ) -> Result<(), ClauseKey> {
         // let not_watch_witness = |literal: Literal| {
         //     let the_variable = unsafe { self.variables.get_unchecked(literal.index()) };
@@ -232,29 +231,14 @@ impl VariableStore {
                 };
                 self.consequence_q.push_back(unknown_literal);
             } else if unknown_literal.polarity() != unknown_value.unwrap() {
-                match config.tidy_watches {
-                    true => {
-                        self.consequence_q.push_back(literal);
-                        self.clear_queued_consequences(clause_store);
-                    }
-                    false => self.consequence_q.clear(),
-                }
                 return Err(clause_key);
             };
         }
         Ok(())
     }
 
-    fn clear_queued_consequences(&mut self, stored_clauses: &mut ClauseStore) {
+    pub fn tidy_queued_consequences(&mut self, stored_clauses: &mut ClauseStore) {
         while let Some(literal) = self.consequence_q.pop_front() {
-            let not_watch_witness = |literal: Literal| {
-                let the_variable = unsafe { self.variables.get_unchecked(literal.index()) };
-                match the_variable.value() {
-                    None => true,
-                    Some(found_polarity) => found_polarity != literal.polarity(),
-                }
-            };
-
             let variable = unsafe { self.variables.get_unchecked(literal.index()) };
 
             // process whether any change to the watch literals is required
@@ -272,17 +256,25 @@ impl VariableStore {
                         length -= 1;
                     }
                     Some(stored_clause) => {
-                        let watched_a = stored_clause.get_watch(Watch::A);
-                        let watched_b = stored_clause.get_watch(Watch::B);
-
-                        if variable.id() == watched_a.v_id() {
-                            if not_watch_witness(watched_b) {
-                                stored_clause.update_watch(Watch::A, &self.variables);
+                        if variable.id() == stored_clause.get_watch(Watch::A).v_id() {
+                            match stored_clause.update_watch(Watch::A, &self.variables) {
+                                Ok(_) => {
+                                    variable.remove_occurrence_at_index(list_polarity, index);
+                                    length -= 1;
+                                }
+                                Err(_) => {
+                                    index += 1;
+                                }
                             }
-                            index += 1;
-                        } else if variable.id() == watched_b.v_id() {
-                            if not_watch_witness(watched_a) {
-                                stored_clause.update_watch(Watch::B, &self.variables);
+                        } else if variable.id() == stored_clause.get_watch(Watch::B).v_id() {
+                            match stored_clause.update_watch(Watch::B, &self.variables) {
+                                Ok(_) => {
+                                    variable.remove_occurrence_at_index(list_polarity, index);
+                                    length -= 1;
+                                }
+                                Err(_) => {
+                                    index += 1;
+                                }
                             }
                             index += 1;
                         } else {
@@ -300,7 +292,6 @@ impl VariableStore {
     }
 
     pub fn push_back_consequence(&mut self, literal: Literal) {
-        assert!(self.polarity_of(literal.index()).is_some());
         self.consequence_q.push_back(literal)
     }
 
