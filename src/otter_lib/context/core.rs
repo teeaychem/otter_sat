@@ -2,10 +2,9 @@ use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
     config::{self, Config},
-    context::{Context, Report, Status as ClauseStatus},
+    context::{level::LevelIndex, Context, Report, Status as ClauseStatus},
     structures::{
         clause::stored::{Source, StoredClause},
-        level::{Level, LevelIndex},
         literal::{Literal, Source as LiteralSource},
         variable::{list::VariableList, VariableId},
     },
@@ -14,12 +13,10 @@ use crate::{
 use super::store::ClauseKey;
 
 macro_rules! level_mut {
-    ($self:ident) => {
-        unsafe {
-            let index = $self.levels.len() - 1;
-            $self.levels.get_unchecked_mut(index)
-        }
-    };
+    ($self:ident) => {{
+        let index = $self.levels.index();
+        $self.levels.get_mut(index)
+    }};
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -85,9 +82,8 @@ impl Context {
                 self.variables
                     .propagate(literal, level_mut!(self), &mut self.clause_store);
 
-            match consequence {
-                Ok(_) => {}
-                Err(clause_key) => match self.conflict_analysis(clause_key, config) {
+            if let Err(conflict_key) = consequence {
+                match self.conflict_analysis(conflict_key, config) {
                     Ok(ClauseStatus::MissedImplication(_)) => continue 'search,
                     Ok(ClauseStatus::NoSolution(key)) => {
                         self.status = ClauseStatus::NoSolution(key);
@@ -99,7 +95,7 @@ impl Context {
                         return Ok(());
                     }
                     _ => panic!("bad status after analysis"),
-                },
+                }
             }
         }
 
@@ -110,26 +106,7 @@ impl Context {
         self.counters.conflicts += 1;
         self.counters.conflicts_since_last_forget += 1;
         self.counters.conflicts_since_last_reset += 1;
-        self.reductions_and_restarts(config);
-    }
 
-    #[allow(clippy::result_unit_err)]
-    pub fn make_choice(&mut self, config: &Config) -> Result<(), ()> {
-        match self.get_unassigned(config.random_choice_frequency) {
-            Some(choice_index) => {
-                self.process_choice(choice_index, config.polarity_lean);
-                self.counters.decisions += 1;
-                self.status = ClauseStatus::ChoiceMade;
-                Ok(())
-            }
-            None => {
-                self.status = ClauseStatus::AllAssigned;
-                Err(())
-            }
-        }
-    }
-
-    fn reductions_and_restarts(&mut self, config: &Config) {
         if self.it_is_time_to_reduce(config.luby_constant) {
             if let Some(window) = &self.window {
                 window.update_counters(&self.counters);
@@ -150,13 +127,29 @@ impl Context {
         }
     }
 
+    #[allow(clippy::result_unit_err)]
+    pub fn make_choice(&mut self, config: &Config) -> Result<(), ()> {
+        match self.get_unassigned(config.random_choice_frequency) {
+            Some(choice_index) => {
+                self.process_choice(choice_index, config.polarity_lean);
+                self.counters.decisions += 1;
+                self.status = ClauseStatus::ChoiceMade;
+                Ok(())
+            }
+            None => {
+                self.status = ClauseStatus::AllAssigned;
+                Err(())
+            }
+        }
+    }
+
     fn process_choice(&mut self, index: usize, polarity_lean: config::PolarityLean) {
         log::trace!(
             "Choice: {index} @ {} with activity {}",
-            self.level().index(),
+            self.levels.top().index(),
             self.variables.activity_of(index)
         );
-        let level_index = self.add_fresh_level();
+        let level_index = self.levels.get_fresh();
         let choice_literal = {
             let choice_variable = self.variables.get_unsafe(index);
 
@@ -167,7 +160,7 @@ impl Context {
         };
         match self.variables.set_value(
             choice_literal,
-            unsafe { self.levels.get_unchecked_mut(level_index) },
+            self.levels.get_mut(level_index),
             LiteralSource::Choice,
         ) {
             Ok(_) => {}
@@ -181,11 +174,10 @@ impl Context {
 
         for v_id in f.into_iter().chain(t) {
             let the_literal = Literal::new(v_id, false);
-            match self.variables.set_value(
-                the_literal,
-                unsafe { self.levels.get_unchecked_mut(0) },
-                LiteralSource::Pure,
-            ) {
+            match self
+                .variables
+                .set_value(the_literal, self.levels.get_mut(0), LiteralSource::Pure)
+            {
                 Ok(_) => {}
                 Err(e) => panic!("issue on hobson update: {e:?}"),
             };
@@ -193,19 +185,12 @@ impl Context {
         }
     }
 
-    pub fn add_fresh_level(&mut self) -> LevelIndex {
-        let index = self.levels.len();
-        self.levels.push(Level::new(index));
-        index
-    }
-
-    pub fn level(&self) -> &Level {
-        let index = self.levels.len() - 1;
-        unsafe { self.levels.get_unchecked(index) }
-    }
-
-    pub fn level_zero(&self) -> &Level {
-        unsafe { self.levels.get_unchecked(0) }
+    pub fn proven_literals(&self) -> impl Iterator<Item = &Literal> {
+        self.levels
+            .get(0)
+            .observations()
+            .iter()
+            .map(|(_, literal)| literal)
     }
 
     pub fn variables(&self) -> &impl VariableList {
@@ -227,10 +212,6 @@ impl Context {
                 while let Some(index) = self.variables.heap_pop_most_active() {
                     let the_variable = self.variables.get_unsafe(index);
                     if the_variable.value().is_none() {
-                        // let this_max = self.variables.activity_heap.value_at(index);
-                        // if let Some(next_max) = self.variables.activity_heap.peek_max_value() {
-                        //     assert!(this_max >= next_max, "{next_max} > {this_max}");
-                        // }
                         return Some(the_variable.index());
                     }
                 }
@@ -239,11 +220,6 @@ impl Context {
                     .filter(|variable| variable.value().is_none())
                     .map(|x| x.index())
                     .next()
-                // self.variables
-                //     .iter()
-                //     .filter(|variable| variable.polarity().is_none())
-                //     .max_by(|v1, v2| v1.activity().total_cmp(&v2.activity()))
-                //     .map(|variable| variable.index())
             }
         }
     }
@@ -269,9 +245,9 @@ impl Context {
     }
 
     pub fn backjump(&mut self, to: LevelIndex) {
-        log::trace!("Backjump from {} to {}", self.level().index(), to);
+        log::trace!("Backjump from {} to {}", self.levels.top().index(), to);
 
-        for _ in 0..(self.level().index() - to) {
+        for _ in 0..(self.levels.top().index() - to) {
             for literal in self.levels.pop().expect("Lost level").literals() {
                 log::trace!("Noneset: {}", literal.index());
                 self.variables.retract_valuation(literal.index());

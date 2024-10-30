@@ -29,6 +29,7 @@ rand_xoshiro = "0.6.0"
 tikv-jemallocator = { version = "0.6", optional = true }
 
 [profile.profiling]
+codegen-units = 1
 debug = true
 inherits = "release"
 

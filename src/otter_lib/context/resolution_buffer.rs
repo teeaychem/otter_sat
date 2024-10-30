@@ -143,7 +143,7 @@ impl ResolutionBuffer {
     }
 
     /// Remove literals which conflict with those at level zero from the clause
-    pub fn strengthen_given(&mut self, literals: impl Iterator<Item = Literal>) {
+    pub fn strengthen_given<'l>(&mut self, literals: impl Iterator<Item = &'l Literal>) {
         for literal in literals {
             match self.buffer[literal.index()] {
                 ResolutionCell::NoneLiteral(_) | ResolutionCell::ConflictLiteral(_) => {

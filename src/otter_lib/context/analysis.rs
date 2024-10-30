@@ -7,7 +7,7 @@ use crate::{
     },
     structures::{
         clause::{stored::Source as ClauseSource, Clause},
-        literal::{Literal, Source as LiteralSource},
+        literal::{Literal, Source as LiteralSrc},
         variable::list::VariableList,
     },
 };
@@ -22,8 +22,8 @@ impl Context {
         clause_key: ClauseKey,
         config: &Config,
     ) -> Result<SolveStatus, ContextIssue> {
-        log::trace!("Fix @ {}", self.level().index());
-        if self.level().index() == 0 {
+        log::trace!("Fix @ {}", self.levels.index());
+        if self.levels.index() == 0 {
             return Ok(SolveStatus::NoSolution(clause_key));
         }
         let conflict_clause = self.clause_store.retreive(clause_key);
@@ -45,18 +45,18 @@ impl Context {
         let mut the_buffer = ResolutionBuffer::from_variable_store(&self.variables);
 
         the_buffer.reset_with(&self.variables);
-        the_buffer.clear_literals(self.level().literals());
+        the_buffer.clear_literals(self.levels.top().literals());
         the_buffer.set_inital_clause(&conflict_clause.deref(), clause_key);
 
         if let Some(asserted) = the_buffer.asserts() {
             // check to see if missed
             let missed_level = self.backjump_level(conflict_clause.literal_slice());
             self.backjump(missed_level);
-            match self.variables.set_value(
-                asserted,
-                unsafe { self.levels.get_unchecked_mut(missed_level) },
-                LiteralSource::Clause(conflict_index),
-            ) {
+            let level = self.levels.get_mut(missed_level);
+            match self
+                .variables
+                .set_value(asserted, level, LiteralSrc::Clause(conflict_index))
+            {
                 Ok(_) => {}
                 Err(_) => return Ok(SolveStatus::NoSolution(clause_key)),
             };
@@ -65,24 +65,15 @@ impl Context {
             Ok(SolveStatus::MissedImplication(clause_key))
         } else {
             // resolve
+            let observations = self.levels.top().observations();
             match the_buffer.resolve_with(
-                unsafe {
-                    // to avoid borrowing via the context, unsafe as the level index is either 0 or the last item of levels
-                    self.levels
-                        .get_unchecked(self.level().index())
-                        .observations()
-                },
+                observations,
                 &mut self.clause_store,
                 &self.variables,
                 config,
             ) {
                 BufferStatus::FirstUIP | BufferStatus::Exhausted => {
-                    the_buffer.strengthen_given(
-                        self.levels[0]
-                            .observations()
-                            .iter()
-                            .map(|(_, literal)| *literal),
-                    );
+                    the_buffer.strengthen_given(self.proven_literals());
 
                     let (asserted_literal, mut resolved_clause) = the_buffer.to_assertion_clause();
                     if let Some(assertion) = asserted_literal {
@@ -90,11 +81,9 @@ impl Context {
                     }
 
                     if let config::VSIDS::MiniSAT = config.vsids_variant {
-                        self.variables.apply_VSIDS(
-                            the_buffer.variables_used(),
-                            None, // Some(the_buffer.max_activity(&self.variables)),
-                            config,
-                        );
+                        self.variables
+                            .apply_VSIDS(the_buffer.variables_used(), None, config);
+                        // alt hint Some(the_buffer.max_activity(&self.variables)),
                     }
 
                     let asserted_literal = asserted_literal.expect("literal not there");
@@ -106,10 +95,11 @@ impl Context {
                             self.proofs
                                 .push((asserted_literal, the_buffer.trail().to_vec()));
 
+                            let level = self.levels.get_mut(0);
                             match self.variables.set_value(
                                 asserted_literal,
-                                unsafe { self.levels.get_unchecked_mut(0) },
-                                LiteralSource::Resolution,
+                                level,
+                                LiteralSrc::Resolution,
                             ) {
                                 Ok(_) => {}
                                 Err(_) => return Ok(SolveStatus::NoSolution(clause_key)),
@@ -129,8 +119,8 @@ impl Context {
 
                             match self.variables.set_value(
                                 asserted_literal,
-                                unsafe { self.levels.get_unchecked_mut(backjump_level_index) },
-                                LiteralSource::Clause(stored_index),
+                                self.levels.get_mut(backjump_level_index),
+                                LiteralSrc::Clause(stored_index),
                             ) {
                                 Ok(_) => {}
                                 Err(_) => return Ok(SolveStatus::NoSolution(clause_key)),
