@@ -44,7 +44,7 @@ pub struct ClauseStore {
     formula: Vec<StoredClause>,
     formula_count: usize,
     learned: Vec<Option<StoredClause>>,
-    learned_count: usize,
+    pub learned_count: usize,
     pub resolution_graph: Vec<Vec<Vec<ClauseKey>>>,
 }
 
