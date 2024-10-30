@@ -1,15 +1,7 @@
-use std::fmt::Debug;
-
-use crate::structures::literal::{Literal, Source};
-
-pub type LevelIndex = usize;
-
-#[derive(Debug)]
-pub struct Level {
-    index: LevelIndex,
-    choice: Option<Literal>,
-    observations: Vec<(Source, Literal)>,
-}
+use crate::{
+    context::level::{Level, LevelIndex},
+    structures::literal::{Literal, Source},
+};
 
 impl Level {
     pub fn new(index: LevelIndex) -> Self {

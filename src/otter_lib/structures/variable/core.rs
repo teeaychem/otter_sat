@@ -1,5 +1,5 @@
+use crate::context::{level::LevelIndex, store::ClauseKey};
 use crate::structures::variable::{Variable, VariableId};
-use crate::{context::store::ClauseKey, structures::level::LevelIndex};
 
 use std::cell::UnsafeCell;
 

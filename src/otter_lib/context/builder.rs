@@ -62,11 +62,10 @@ impl Context {
     }
 
     pub fn assume_literal(&mut self, literal: Literal) -> Result<(), BuildIssue> {
-        match self.variables.set_value(
-            literal,
-            unsafe { self.levels.get_unchecked_mut(0) },
-            LiteralSource::Assumption,
-        ) {
+        match self
+            .variables
+            .set_value(literal, self.levels.get_mut(0), LiteralSource::Assumption)
+        {
             Ok(_) => Ok(()),
             Err(_e) => Err(BuildIssue::AssumptionConflict),
         }
@@ -93,7 +92,7 @@ impl Context {
             1 => {
                 match self.variables.set_value(
                     *the_clause.first().expect("literal vanish"),
-                    unsafe { self.levels.get_unchecked_mut(0) },
+                    self.levels.get_mut(0),
                     LiteralSource::Assumption,
                 ) {
                     Ok(_) => Ok(()),
@@ -231,7 +230,7 @@ impl Context {
                                         assumption_counter += 1;
                                         match the_context.variables.set_value(
                                             *the_clause.first().expect("literal vanish"),
-                                            unsafe { the_context.levels.get_unchecked_mut(0) },
+                                            the_context.levels.get_mut(0),
                                             LiteralSource::Assumption,
                                         ) {
                                             Ok(_) => {}
