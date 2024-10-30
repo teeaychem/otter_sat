@@ -1,10 +1,10 @@
 use crate::{
-    config::{Config, StoppingCriteria},
+    config::{ActivityType, Config, StoppingCriteria},
     context::store::{ClauseKey, ClauseStore},
     structures::{
         clause::Clause,
         literal::{Literal, Source as LiteralSource},
-        variable::list::VariableList,
+        variable::{delegate::VariableStore, list::VariableList},
     },
 };
 
@@ -111,7 +111,7 @@ impl ResolutionBuffer {
         &mut self,
         observations: &[(LiteralSource, Literal)],
         stored_clauses: &mut ClauseStore,
-        variables: &impl VariableList,
+        variables: &VariableStore,
         config: &Config,
     ) -> Status {
         for (source, literal) in observations.iter().rev() {
@@ -177,6 +177,22 @@ impl ResolutionBuffer {
 
     pub fn trail(&self) -> &[ClauseKey] {
         &self.trail
+    }
+
+    pub fn max_activity(&self, variables: &VariableStore) -> ActivityType {
+        let mut max = ActivityType::default();
+        for item in &self.buffer {
+            match item {
+                ResolutionCell::Strengthened | ResolutionCell::Value(_) | ResolutionCell::Pivot => {
+                }
+                ResolutionCell::ConflictLiteral(literal) | ResolutionCell::NoneLiteral(literal) => {
+                    if variables.activity_of(literal.index()) > max {
+                        max = variables.activity_of(literal.index());
+                    }
+                }
+            }
+        }
+        max
     }
 }
 

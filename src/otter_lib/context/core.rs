@@ -71,7 +71,7 @@ impl Context {
     pub fn step(&mut self, config: &Config) -> Result<(), ()> {
         self.counters.iterations += 1;
 
-        'propagation: while let Some(literal) = self.variables.get_consequence() {
+        'search: while let Some(literal) = self.variables.get_consequence() {
             let consequence =
                 self.variables
                     .propagate(literal, level_mut!(self), &mut self.clause_store, config);
@@ -79,7 +79,7 @@ impl Context {
             match consequence {
                 Ok(_) => {}
                 Err(clause_key) => match self.conflict_analysis(clause_key, config) {
-                    Ok(ClauseStatus::MissedImplication(_)) => continue 'propagation,
+                    Ok(ClauseStatus::MissedImplication(_)) => continue 'search,
                     Ok(ClauseStatus::NoSolution(key)) => {
                         self.status = ClauseStatus::NoSolution(key);
                         return Err(());
@@ -135,6 +135,7 @@ impl Context {
 
             if config.restarts_allowed {
                 self.backjump(0);
+                self.variables.clear_consequences();
                 self.counters.restarts += 1;
                 self.counters.conflicts_since_last_forget = 0;
             }
@@ -269,6 +270,7 @@ impl Context {
                 self.variables.heap_push(literal.index());
             }
         }
+        self.variables.clear_consequences()
     }
 
     pub fn print_status(&self) {

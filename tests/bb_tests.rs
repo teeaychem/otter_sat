@@ -36,7 +36,7 @@ fn test_one_assumption() {
     let _ = the_context.assume_literal(not_p);
     let _the_result = the_context.solve();
     assert_eq!(the_context.status, context::Status::AllAssigned);
-    let the_valuation = the_context.variables().as_display_string();
+    let the_valuation = the_context.variables().as_internal_string();
     assert!(the_valuation.contains("-p"));
     assert!(the_valuation.contains("q"));
 }

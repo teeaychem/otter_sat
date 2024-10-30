@@ -36,7 +36,7 @@ pub enum Watch {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum WatchStatus {
+pub enum WatchStatus {
     Witness,
     None,
     Conflict,
@@ -109,42 +109,61 @@ impl StoredClause {
     }
 
     #[inline(always)]
+    #[allow(clippy::result_unit_err)]
     /// Searches for and then updates to a new literal for the given watch index
+    /// Returns true if the the watch was updated
     /// The match is to help prototype re-ordering the clause
     /// Specifically, the general case allows storing information about the previous literal
-    pub fn update_watch(&mut self, watch: Watch, variables: &impl VariableList) {
+    pub fn update_watch(
+        &mut self,
+        watch: Watch,
+        variables: &impl VariableList,
+    ) -> Result<WatchStatus, ()> {
         match self.clause.len() {
-            2 => {}
+            2 => {
+                match variables.polarity_of(self.get_watch(watch).index()) {
+                    None => return Ok(WatchStatus::None),
+                    Some(polarity) if polarity == self.get_watch(watch).polarity() => {
+                        return Ok(WatchStatus::Witness)
+                    }
+                    Some(_) => return Err(()),
+                };
+            }
             3 => {
                 let the_literal = unsafe { *self.clause.get_unchecked(2) };
                 let the_variable = variables.get_unsafe(the_literal.index());
                 match the_variable.value() {
-                    None => self.watch_update_replace(watch, 2, the_variable, the_literal),
+                    None => {
+                        self.watch_update_replace(watch, 2, the_variable, the_literal);
+                        return Ok(WatchStatus::None);
+                    }
                     Some(polarity) if polarity == the_literal.polarity() => {
-                        self.watch_update_replace(watch, 2, the_variable, the_literal)
+                        self.watch_update_replace(watch, 2, the_variable, the_literal);
+                        return Ok(WatchStatus::Witness);
                     }
                     Some(_) => {}
                 }
             }
             _ => {
-                'search_loop: for index in 2..self.clause.len() {
+                for index in 2..self.clause.len() {
                     let the_literal = unsafe { *self.clause.get_unchecked(index) };
                     let the_variable = variables.get_unsafe(the_literal.index());
 
                     match the_variable.value() {
                         None => {
                             self.watch_update_replace(watch, index, the_variable, the_literal);
-                            break 'search_loop;
+                            return Ok(WatchStatus::None);
                         }
                         Some(polarity) if polarity == the_literal.polarity() => {
                             self.watch_update_replace(watch, index, the_variable, the_literal);
-                            break 'search_loop;
+                            return Ok(WatchStatus::Witness);
                         }
                         Some(_) => {}
                     }
                 }
             }
         }
+        Err(())
     }
 
     /// 'Subsumes' a clause by removing the given literal.
@@ -161,9 +180,9 @@ impl StoredClause {
             {
                 let removed = self.clause.swap_remove(position);
                 if removed == unsafe { *self.clause.get_unchecked(0) } {
-                    self.update_watch(Watch::A, variables);
+                    let _ = self.update_watch(Watch::A, variables);
                 } else if removed == unsafe { *self.clause.get_unchecked(1) } {
-                    self.update_watch(Watch::B, variables);
+                    let _ = self.update_watch(Watch::B, variables);
                 }
                 self.subsumed_literals.push(removed);
                 Ok(())
