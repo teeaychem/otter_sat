@@ -3,11 +3,13 @@ use crate::{
         defaults::{self},
         ActivityType, Config,
     },
-    context::store::{ClauseKey, ClauseStore},
+    context::{
+        level::Level,
+        store::{ClauseKey, ClauseStore},
+    },
     generic::heap::FixedHeap,
     structures::{
         clause::stored::Watch,
-        level::Level,
         literal::{Literal, Source},
         variable::{list::VariableList, Variable, VariableId},
     },

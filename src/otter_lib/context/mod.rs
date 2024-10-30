@@ -1,6 +1,7 @@
 mod analysis;
 pub mod builder;
 pub mod core;
+pub mod level;
 pub mod reports;
 mod resolution_buffer;
 pub mod store;
@@ -13,11 +14,12 @@ use {
             Config,
         },
         io::window::ContextWindow,
-        structures::{level::Level, literal::Literal, variable::delegate::VariableStore},
+        structures::{literal::Literal, variable::delegate::VariableStore},
     },
     store::{ClauseKey, ClauseStore},
 };
 
+use level::LevelStore;
 use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128Plus};
 
 // pub type RngChoice = rand::rngs::mock::StepRng;
@@ -51,7 +53,7 @@ impl Default for Counters {
 
 pub struct Context {
     counters: Counters,
-    levels: Vec<Level>,
+    levels: LevelStore,
     clause_store: ClauseStore,
     variables: VariableStore,
     config: config::Config,
@@ -90,9 +92,9 @@ impl Context {
             false => None,
         };
 
-        let mut the_context = Self {
+        Self {
             counters: Counters::default(),
-            levels: Vec::<Level>::with_capacity(variable_count),
+            levels: LevelStore::with_capacity(variable_count),
             clause_store: ClauseStore::with_capacity(clause_count),
             variables: VariableStore::with_capactiy(variable_count),
             config,
@@ -100,17 +102,15 @@ impl Context {
             status: Status::Initialised,
             rng: RngChoice::seed_from_u64(defaults::RNG_SEED), //RngChoice::new(0,1)
             proofs: Vec::new(),
-        };
-        the_context.levels.push(Level::new(0));
-        the_context
+        }
     }
 }
 
 impl Default for Context {
     fn default() -> Self {
-        let mut the_context = Context {
+        Context {
             counters: Counters::default(),
-            levels: Vec::<Level>::with_capacity(1024),
+            levels: LevelStore::with_capacity(1024),
             clause_store: ClauseStore::default(),
             variables: VariableStore::default(),
             config: Config::default(),
@@ -118,8 +118,6 @@ impl Default for Context {
             status: Status::Initialised,
             rng: RngChoice::seed_from_u64(defaults::RNG_SEED),
             proofs: Vec::new(),
-        };
-        the_context.levels.push(Level::new(0));
-        the_context
+        }
     }
 }

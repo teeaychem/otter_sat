@@ -1,7 +1,9 @@
-use crate::structures::{
-    level::Level,
-    literal::{Literal, Source as LiteralSource},
-    variable::{Status, Variable},
+use crate::{
+    context::level::Level,
+    structures::{
+        literal::{Literal, Source as LiteralSource},
+        variable::{Status, Variable},
+    },
 };
 
 use std::ops::DerefMut;

@@ -1,4 +1,4 @@
-use crate::{context::store::ClauseKey, structures::level::LevelIndex};
+use crate::context::{level::LevelIndex, store::ClauseKey};
 use std::cell::UnsafeCell;
 
 pub mod core;

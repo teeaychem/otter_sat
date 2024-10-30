@@ -27,7 +27,7 @@ impl Context {
         let mut core_keys = std::collections::BTreeSet::new();
 
         // for short arguments
-        let observations = self.levels[0].observations();
+        let observations = self.levels.get(0).observations();
 
         // start with the conflict, then loop
         core_q.push_back(conflict_key);
