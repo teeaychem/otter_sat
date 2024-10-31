@@ -41,6 +41,11 @@ impl LevelStore {
         unsafe { self.levels.get_unchecked(self.index()) }
     }
 
+    pub fn top_mut(&mut self) -> &mut Level {
+        let index = self.index();
+        unsafe { self.levels.get_unchecked_mut(index) }
+    }
+
     pub fn pop(&mut self) -> Option<Level> {
         self.levels.pop()
     }

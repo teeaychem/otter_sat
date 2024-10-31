@@ -1,13 +1,12 @@
 use crate::{
     context::{store::ClauseKey, Context},
-    structures::{clause::Clause, literal::Source as LiteralSource},
+    structures::{clause::Clause, literal::LiteralSource},
 };
 
 impl Context {
     #[allow(clippy::single_match)]
     /// Display an unsatisfiable core given some conflict.
     pub fn get_unsat_core(&self, conflict_key: ClauseKey) -> Vec<ClauseKey> {
-        println!();
         println!("c An unsatisfiable core of the formula:\n",);
 
         /*
@@ -58,7 +57,7 @@ impl Context {
                                 });
                                 if let Some((src, _)) = found {
                                     match src {
-                                        LiteralSource::Resolution => {
+                                        LiteralSource::Resolution(_) => {
                                             let proof = &self
                                                 .proofs
                                                 .iter()

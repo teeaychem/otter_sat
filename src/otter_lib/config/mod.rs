@@ -25,7 +25,6 @@ pub struct Config {
     pub show_valuation: bool,
     pub stopping_criteria: StoppingCriteria,
     pub subsumption: bool,
-    pub consequence_criteria: ConsequenceCriteria,
     pub time_limit: Option<std::time::Duration>,
     pub vsids_variant: VSIDS,
 }
@@ -50,7 +49,6 @@ impl Default for Config {
             show_valuation: false,
             stopping_criteria: STOPPING_CRITERIA,
             subsumption: true,
-            consequence_criteria: CONSEQUENCE_CRITERA,
             time_limit: None,
             vsids_variant: VSIDS_VARIANT,
         }
@@ -84,23 +82,6 @@ impl std::fmt::Display for VSIDS {
         match self {
             Self::Chaff => write!(f, "Chaff"),
             Self::MiniSAT => write!(f, "MiniSAT"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum ConsequenceCriteria {
-    Tidy,
-    Fresh,
-    Messy,
-}
-
-impl std::fmt::Display for ConsequenceCriteria {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Tidy => write!(f, "Tidy"),
-            Self::Fresh => write!(f, "Fresh"),
-            Self::Messy => write!(f, "Messy"),
         }
     }
 }

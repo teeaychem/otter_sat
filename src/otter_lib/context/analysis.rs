@@ -6,9 +6,9 @@ use crate::{
         Context, Status as SolveStatus,
     },
     structures::{
-        clause::{stored::Source as ClauseSource, Clause},
-        literal::{Literal, Source as LiteralSrc},
-        variable::list::VariableList,
+        clause::{stored::ClauseSource, Clause},
+        literal::{Literal, LiteralSource},
+        variable::{delegate::push_back_consequence, list::VariableList},
     },
 };
 
@@ -44,7 +44,7 @@ impl Context {
         // this could be made persistent, but tying it to the solve requires a cell and lots of unsafe
         let mut the_buffer = ResolutionBuffer::from_variable_store(&self.variables);
 
-        the_buffer.reset_with(&self.variables);
+        // the_buffer.reset_with(&self.variables);
         the_buffer.clear_literals(self.levels.top().literals());
         the_buffer.set_inital_clause(&conflict_clause.deref(), clause_key);
 
@@ -52,28 +52,26 @@ impl Context {
             // check to see if missed
             let missed_level = self.backjump_level(conflict_clause.literal_slice());
             self.backjump(missed_level);
-            let level = self.levels.get_mut(missed_level);
-            match self
-                .variables
-                .set_value(asserted, level, LiteralSrc::Clause(conflict_index))
-            {
-                Ok(_) => {}
-                Err(_) => return Ok(SolveStatus::NoSolution(clause_key)),
-            };
-            self.variables.push_back_consequence(asserted);
+            push_back_consequence(
+                &mut self.variables.consequence_q,
+                asserted,
+                LiteralSource::Missed(conflict_index, missed_level),
+                self.levels.index(),
+            );
 
             Ok(SolveStatus::MissedImplication(clause_key))
         } else {
             // resolve
             let observations = self.levels.top().observations();
-            match the_buffer.resolve_with(
+            let buffer_status = the_buffer.resolve_with(
                 observations,
                 &mut self.clause_store,
                 &self.variables,
                 config,
-            ) {
+            );
+            match buffer_status {
                 BufferStatus::FirstUIP | BufferStatus::Exhausted => {
-                    the_buffer.strengthen_given(self.proven_literals());
+                    // the_buffer.strengthen_given(self.proven_literals());
 
                     let (asserted_literal, mut resolved_clause) = the_buffer.to_assertion_clause();
                     if let Some(assertion) = asserted_literal {
@@ -95,15 +93,12 @@ impl Context {
                             self.proofs
                                 .push((asserted_literal, the_buffer.trail().to_vec()));
 
-                            let level = self.levels.get_mut(0);
-                            match self.variables.set_value(
+                            push_back_consequence(
+                                &mut self.variables.consequence_q,
                                 asserted_literal,
-                                level,
-                                LiteralSrc::Resolution,
-                            ) {
-                                Ok(_) => {}
-                                Err(_) => return Ok(SolveStatus::NoSolution(clause_key)),
-                            };
+                                LiteralSource::Resolution(clause_key),
+                                self.levels.index(),
+                            );
                         }
                         _ => {
                             let backjump_level_index =
@@ -116,19 +111,14 @@ impl Context {
                                 Some(the_buffer.trail().to_vec()),
                             )?;
                             let stored_index = stored_clause.key();
-
-                            match self.variables.set_value(
+                            push_back_consequence(
+                                &mut self.variables.consequence_q,
                                 asserted_literal,
-                                self.levels.get_mut(backjump_level_index),
-                                LiteralSrc::Clause(stored_index),
-                            ) {
-                                Ok(_) => {}
-                                Err(_) => return Ok(SolveStatus::NoSolution(clause_key)),
-                            };
+                                LiteralSource::Clause(stored_index),
+                                self.levels.index(),
+                            );
                         }
                     };
-
-                    self.variables.push_back_consequence(asserted_literal);
                     Ok(SolveStatus::AssertingClause(clause_key))
                 }
             }

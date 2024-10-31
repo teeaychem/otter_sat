@@ -4,9 +4,9 @@ use crate::{
     config::{self, Config},
     context::{level::LevelIndex, Context, Report, Status as ClauseStatus},
     structures::{
-        clause::stored::{Source, StoredClause},
-        literal::{Literal, Source as LiteralSource},
-        variable::{list::VariableList, VariableId},
+        clause::stored::{ClauseSource, StoredClause},
+        literal::{Literal, LiteralSource},
+        variable::{delegate::push_back_consequence, list::VariableList, VariableId},
     },
 };
 
@@ -59,7 +59,9 @@ impl Context {
 
             match self.step(&local_config) {
                 Ok(_) => continue 'main_loop,
-                Err(_) => break 'main_loop Ok(self.report()),
+                Err(_) => {
+                    break 'main_loop Ok(self.report());
+                }
             }
         }
     }
@@ -68,19 +70,31 @@ impl Context {
     pub fn step(&mut self, config: &Config) -> Result<(), ()> {
         self.counters.iterations += 1;
 
-        'search: while let Some(literal) = self.variables.get_consequence() {
-            match config.consequence_criteria {
-                config::ConsequenceCriteria::Tidy | config::ConsequenceCriteria::Fresh => {}
-                config::ConsequenceCriteria::Messy => {
-                    if self.variables.polarity_of(literal.index()).is_none() {
-                        continue 'search;
-                    }
+        'search: while let Some((literal, source, _)) = self.variables.get_consequence() {
+            let consequence = match self
+                .variables
+                .set_value(literal, self.levels.top_mut(), source)
+            {
+                Ok(_) => {
+                    self.variables
+                        .propagate(literal, level_mut!(self), &mut self.clause_store)
                 }
-            }
-
-            let consequence =
-                self.variables
-                    .propagate(literal, level_mut!(self), &mut self.clause_store);
+                Err(_) => match source {
+                    LiteralSource::Missed(clause_key, _)
+                    | LiteralSource::Resolution(clause_key)
+                    | LiteralSource::Clause(clause_key) => {
+                        self.status = ClauseStatus::NoSolution(clause_key);
+                        return Err(());
+                    }
+                    LiteralSource::Assumption => panic!("failed to update on assumption"),
+                    LiteralSource::Choice => panic!("failed to update on choice"),
+                    LiteralSource::Pure => panic!("issue on pure update"),
+                    LiteralSource::Propagation(clause_key) => {
+                        self.status = ClauseStatus::NoSolution(clause_key);
+                        Err(clause_key)
+                    }
+                },
+            };
 
             if let Err(conflict_key) = consequence {
                 match self.conflict_analysis(conflict_key, config) {
@@ -129,6 +143,7 @@ impl Context {
 
     #[allow(clippy::result_unit_err)]
     pub fn make_choice(&mut self, config: &Config) -> Result<(), ()> {
+        self.levels.get_fresh();
         match self.get_unassigned(config.random_choice_frequency) {
             Some(choice_index) => {
                 self.process_choice(choice_index, config.polarity_lean);
@@ -149,7 +164,6 @@ impl Context {
             self.levels.top().index(),
             self.variables.activity_of(index)
         );
-        let level_index = self.levels.get_fresh();
         let choice_literal = {
             let choice_variable = self.variables.get_unsafe(index);
 
@@ -158,15 +172,12 @@ impl Context {
                 None => Literal::new(index as VariableId, self.rng.gen_bool(polarity_lean)),
             }
         };
-        match self.variables.set_value(
+        push_back_consequence(
+            &mut self.variables.consequence_q,
             choice_literal,
-            self.levels.get_mut(level_index),
             LiteralSource::Choice,
-        ) {
-            Ok(_) => {}
-            Err(e) => panic!("failed to update on choice: {e:?}"),
-        };
-        self.variables.push_back_consequence(choice_literal);
+            self.levels.index(),
+        );
     }
 
     fn set_pure(&mut self) {
@@ -174,14 +185,12 @@ impl Context {
 
         for v_id in f.into_iter().chain(t) {
             let the_literal = Literal::new(v_id, false);
-            match self
-                .variables
-                .set_value(the_literal, self.levels.get_mut(0), LiteralSource::Pure)
-            {
-                Ok(_) => {}
-                Err(e) => panic!("issue on hobson update: {e:?}"),
-            };
-            self.variables.push_back_consequence(the_literal);
+            push_back_consequence(
+                &mut self.variables.consequence_q,
+                the_literal,
+                LiteralSource::Pure,
+                self.levels.index(),
+            );
         }
     }
 
@@ -229,7 +238,7 @@ impl Context {
     pub fn store_clause(
         &mut self,
         clause: Vec<Literal>,
-        src: Source,
+        src: ClauseSource,
         resolution_keys: Option<Vec<ClauseKey>>,
     ) -> Result<&StoredClause, ContextIssue> {
         if clause.is_empty() {
@@ -254,13 +263,7 @@ impl Context {
                 self.variables.heap_push(literal.index());
             }
         }
-        match self.config.consequence_criteria {
-            config::ConsequenceCriteria::Tidy => self
-                .variables
-                .tidy_queued_consequences(&mut self.clause_store),
-            config::ConsequenceCriteria::Fresh => self.variables.clear_consequences(),
-            config::ConsequenceCriteria::Messy => {}
-        };
+        self.variables.clear_consequences(to);
     }
 
     pub fn print_status(&self) {
