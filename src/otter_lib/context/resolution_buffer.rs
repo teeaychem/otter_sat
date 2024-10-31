@@ -3,7 +3,7 @@ use crate::{
     context::store::{ClauseKey, ClauseStore},
     structures::{
         clause::Clause,
-        literal::{Literal, Source as LiteralSource},
+        literal::{Literal, LiteralSource},
         variable::{delegate::VariableStore, list::VariableList},
     },
 };
@@ -27,6 +27,7 @@ pub struct ResolutionBuffer {
     used_variables: Vec<bool>,
 }
 
+#[derive(Debug)]
 pub enum Status {
     FirstUIP,
     Exhausted,
@@ -76,6 +77,22 @@ impl ResolutionBuffer {
         self.merge_clause(clause);
     }
 
+    pub fn valuation_in_use(&self) {
+        println!("buffer val");
+        println!(
+            "{:?}",
+            self.buffer
+                .iter()
+                .enumerate()
+                .filter_map(|(i, v)| match v {
+                    ResolutionCell::Value(Some(true)) => Some(i as isize),
+                    ResolutionCell::Value(Some(false)) => Some(-(i as isize)),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        );
+    }
+
     /// Returns the possible assertion and clause of the buffer as a pair
     pub fn to_assertion_clause(&self) -> (Option<Literal>, Vec<Literal>) {
         let mut the_clause = vec![];
@@ -115,7 +132,11 @@ impl ResolutionBuffer {
         config: &Config,
     ) -> Status {
         for (source, literal) in observations.iter().rev() {
-            if let LiteralSource::Clause(the_key) = source {
+            if let LiteralSource::Clause(the_key)
+            | LiteralSource::Propagation(the_key)
+            | LiteralSource::Resolution(the_key)
+            | LiteralSource::Missed(the_key, _) = source
+            {
                 let source_clause = stored_clauses.retreive_mut(*the_key);
 
                 if self.resolve_clause(source_clause, *literal).is_ok() {
@@ -127,7 +148,6 @@ impl ResolutionBuffer {
 
                     if config.subsumption && self.clause_legnth < source_clause.length() {
                         let _ = source_clause.subsume(*literal, variables);
-                        // variables.get_unsafe(literal.index()).multiply_activity(1.1);
                     }
 
                     if self.valueless_count == 1 {

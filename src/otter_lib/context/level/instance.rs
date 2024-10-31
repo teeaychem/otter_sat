@@ -1,6 +1,6 @@
 use crate::{
     context::level::{Level, LevelIndex},
-    structures::literal::{Literal, Source},
+    structures::literal::{Literal, LiteralSource},
 };
 
 impl Level {
@@ -16,20 +16,23 @@ impl Level {
         self.index
     }
 
-    pub fn record_literal(&mut self, literal: Literal, source: Source) {
+    pub fn record_literal(&mut self, literal: Literal, source: LiteralSource) {
         match source {
-            Source::Choice => self.choice = Some(literal),
-            Source::Pure | Source::Assumption | Source::Resolution | Source::Clause(_) => {
-                self.observations.push((source, literal))
-            }
+            LiteralSource::Choice => self.choice = Some(literal),
+            LiteralSource::Pure
+            | LiteralSource::Assumption
+            | LiteralSource::Resolution(_)
+            | LiteralSource::Clause(_)
+            | LiteralSource::Propagation(_)
+            | LiteralSource::Missed(_, _) => self.observations.push((source, literal)),
         }
     }
 
-    pub fn observations(&self) -> &[(Source, Literal)] {
+    pub fn observations(&self) -> &[(LiteralSource, Literal)] {
         &self.observations
     }
 
-    pub fn extend_observations(&mut self, with: Vec<(Source, Literal)>) {
+    pub fn extend_observations(&mut self, with: Vec<(LiteralSource, Literal)>) {
         self.observations.extend(with);
     }
 

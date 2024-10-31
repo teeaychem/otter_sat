@@ -4,16 +4,12 @@ use crate::{
         ActivityType, Config,
     },
     context::{
-        level::Level,
+        level::{Level, LevelIndex},
         store::{ClauseKey, ClauseStore},
     },
     generic::heap::FixedHeap,
     structures::{
-        clause::{
-            stored::{StoredClause, Watch},
-            Clause,
-        },
-        literal::{Literal, Source},
+        literal::{Literal, LiteralSource},
         variable::{list::VariableList, Variable, VariableId},
     },
 };
@@ -33,7 +29,7 @@ pub struct VariableStore {
     external_map: Vec<String>,
     score_increment: ActivityType,
     variables: Vec<Variable>,
-    consequence_q: VecDeque<Literal>,
+    pub consequence_q: VecDeque<(Literal, LiteralSource, LevelIndex)>,
     string_map: HashMap<String, VariableId>,
     activity_heap: FixedHeap<ActivityType>,
 }
@@ -137,73 +133,15 @@ impl Default for VariableStore {
     }
 }
 
-enum WatchCheck {
-    NotFound,
-    Updated,
-    Witness,
-    Check(Watch),
-}
-
-enum PropagationResult {
-    Witness,
-    Conflict,
-    Success,
-}
-
 #[allow(clippy::collapsible_if)]
 impl VariableStore {
-    #[inline(always)]
-    fn check_watch(&self, v_id: VariableId, watch: Watch, clause: &mut StoredClause) -> WatchCheck {
-        if v_id != clause.get_watch(watch).v_id() {
-            return WatchCheck::NotFound;
-        }
-
-        match clause.update_watch(watch, &self.variables) {
-            Ok(_) => WatchCheck::Updated,
-            Err(_) => match self.variables.polarity_of(clause.get_watch(watch).index()) {
-                None => panic!("Watch has no value"),
-                Some(value) => match value == clause.get_watch(watch).polarity() {
-                    true => WatchCheck::Witness,
-                    false => WatchCheck::Check(watch.switch()),
-                },
-            },
-        }
-    }
-
-    #[inline(always)]
-    fn propagate_watch(
-        &self,
-        literal: Literal,
-        clause: &mut StoredClause,
-        level: &mut Level,
-    ) -> PropagationResult {
-        match self.polarity_of(literal.index()) {
-            None => match self.set_value(literal, level, Source::Clause(clause.key())) {
-                Ok(_) => PropagationResult::Success,
-                Err(e) => panic!("could not set watch {e:?}"),
-            },
-            Some(value) if literal.polarity() != value => PropagationResult::Conflict,
-            Some(_) => PropagationResult::Witness,
-        }
-    }
-
     pub fn propagate(
         &mut self,
         literal: Literal,
         level: &mut Level,
         clauses: &mut ClauseStore,
     ) -> Result<(), ClauseKey> {
-        // let not_watch_witness = |literal: Literal| {
-        //     let the_variable = unsafe { self.variables.get_unchecked(literal.index()) };
-        //     match the_variable.value() {
-        //         None => true,
-        //         Some(found_polarity) => found_polarity != literal.polarity(),
-        //     }
-        // };
-        // println!("Propagating {} which has value {:?}", literal.index(), self.variables.polarity_of(literal.index()));
-
         let the_variable = self.variables.get_unsafe(literal.index());
-        let the_variable_id = the_variable.id();
         let list_polarity = !literal.polarity();
 
         let mut index = 0;
@@ -221,113 +159,42 @@ impl VariableStore {
                 }
             };
 
-            match self.check_watch(the_variable_id, Watch::A, clause) {
-                WatchCheck::Witness => panic!("corrupted watch list"),
-                WatchCheck::NotFound => {}
-                WatchCheck::Updated => {
+            use crate::structures::clause::stored::WatchStatus;
+            let update_result = clause.update_watch(literal, &self.variables);
+            match update_result {
+                Ok(WatchStatus::TwoWitness) | Ok(WatchStatus::TwoNone) => {
+                    index += 1;
+                    continue 'propagation_loop;
+                }
+                Ok(WatchStatus::Witness) | Ok(WatchStatus::None) => {
                     the_variable.remove_occurrence_at_index(list_polarity, index);
                     length -= 1;
                     continue 'propagation_loop;
                 }
-                WatchCheck::Check(unknown_watch) => {
-                    let literal = clause.get_watch(unknown_watch);
-                    match self.propagate_watch(literal, clause, level) {
-                        PropagationResult::Conflict => return Err(clause_key),
-                        PropagationResult::Witness => {}
-                        PropagationResult::Success => {
-                            self.consequence_q.push_back(literal);
-                        }
+                Ok(_) => panic!("can't get conflict from update"),
+                Err(()) => match self.polarity_of(unsafe { clause.get_unchecked(0) }.index()) {
+                    Some(value) if unsafe { clause.get_unchecked(0) }.polarity() != value => {
+                        return Err(clause_key);
                     }
-                    index += 1;
-                    continue 'propagation_loop;
-                }
-            };
-
-            match self.check_watch(the_variable_id, Watch::B, clause) {
-                WatchCheck::Witness => panic!("corrupted watch list"),
-                WatchCheck::NotFound => {}
-                WatchCheck::Updated => {
-                    the_variable.remove_occurrence_at_index(list_polarity, index);
-                    length -= 1;
-                    continue 'propagation_loop;
-                }
-                WatchCheck::Check(unknown_watch) => {
-                    let literal = clause.get_watch(unknown_watch);
-                    match self.propagate_watch(literal, clause, level) {
-                        PropagationResult::Conflict => return Err(clause_key),
-                        PropagationResult::Witness => {}
-                        PropagationResult::Success => {
-                            self.consequence_q.push_back(literal);
-                        }
+                    None => {
+                        push_back_consequence(
+                            &mut self.consequence_q,
+                            unsafe { *clause.get_unchecked(0) },
+                            LiteralSource::Propagation(clause_key),
+                            level.index(),
+                        );
                     }
-                    index += 1;
-                    continue 'propagation_loop;
-                }
+                    Some(_) => {}
+                },
             }
-
-            the_variable.remove_occurrence_at_index(list_polarity, index);
-            length -= 1;
+            index += 1;
             continue 'propagation_loop;
         }
         Ok(())
     }
 
-    pub fn tidy_queued_consequences(&mut self, stored_clauses: &mut ClauseStore) {
-        while let Some(literal) = self.consequence_q.pop_front() {
-            let variable = unsafe { self.variables.get_unchecked(literal.index()) };
-
-            // process whether any change to the watch literals is required
-            let list_polarity = !literal.polarity();
-
-            let mut index = 0;
-            let mut length = variable.occurrence_length(list_polarity);
-
-            while index < length {
-                let working_key = variable.occurrence_key_at_index(list_polarity, index);
-                let working_clause = stored_clauses.retreive_carefully_mut(working_key);
-                match working_clause {
-                    None => {
-                        variable.remove_occurrence_at_index(list_polarity, index);
-                        length -= 1;
-                    }
-                    Some(stored_clause) => {
-                        if variable.id() == stored_clause.get_watch(Watch::A).v_id() {
-                            match stored_clause.update_watch(Watch::A, &self.variables) {
-                                Ok(_) => {
-                                    variable.remove_occurrence_at_index(list_polarity, index);
-                                    length -= 1;
-                                }
-                                Err(_) => {
-                                    index += 1;
-                                }
-                            }
-                        } else if variable.id() == stored_clause.get_watch(Watch::B).v_id() {
-                            match stored_clause.update_watch(Watch::B, &self.variables) {
-                                Ok(_) => {
-                                    variable.remove_occurrence_at_index(list_polarity, index);
-                                    length -= 1;
-                                }
-                                Err(_) => {
-                                    index += 1;
-                                }
-                            }
-                            index += 1;
-                        } else {
-                            variable.remove_occurrence_at_index(list_polarity, index);
-                            length -= 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn get_consequence(&mut self) -> Option<Literal> {
+    pub fn get_consequence(&mut self) -> Option<(Literal, LiteralSource, LevelIndex)> {
         self.consequence_q.pop_front()
-    }
-
-    pub fn push_back_consequence(&mut self, literal: Literal) {
-        self.consequence_q.push_back(literal)
     }
 
     pub fn external_name(&self, index: usize) -> &String {
@@ -364,8 +231,24 @@ impl VariableStore {
         self.decay_activity(config);
     }
 
-    pub fn clear_consequences(&mut self) {
-        self.consequence_q.clear()
+    pub fn clear_consequences(&mut self, to: LevelIndex) {
+        self.consequence_q.retain(|(_, _, c)| *c < to);
+    }
+
+    pub fn print_valuation(&self) {
+        println!(
+            "v {:?}",
+            self.variables
+                .slice()
+                .iter()
+                .enumerate()
+                .filter_map(|(i, v)| match v.value() {
+                    None => None,
+                    Some(true) => Some(i as isize),
+                    Some(false) => Some(-(i as isize)),
+                })
+                .collect::<Vec<_>>()
+        );
     }
 }
 
@@ -380,5 +263,18 @@ impl Deref for VariableStore {
 impl DerefMut for VariableStore {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.variables
+    }
+}
+
+pub fn push_back_consequence(
+    consequence_q: &mut VecDeque<(Literal, LiteralSource, LevelIndex)>,
+    literal: Literal,
+    source: LiteralSource,
+    level: LevelIndex,
+) {
+    // todo: improve
+    // easy would be to keep track of pending of each variable, then direct lookup
+    if !consequence_q.iter().any(|(l, _, _)| *l == literal) {
+        consequence_q.push_back((literal, source, level))
     }
 }

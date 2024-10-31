@@ -89,15 +89,6 @@ Options:
   -s, --stats
           Display stats during a solve.
 
-  -🧹, --consequences <consequence_criteria>
-          How to handle the consequence queue.
-          Default: Messy
-
-            - Fresh: Clear the queue on conflicts
-            - Tidy : Clear the queue on conflcits and tidy watch lists
-            - Messy: Allow the consequence queue to accumulate
-
-
   -v, --valuation
           Display valuation on completion.
 

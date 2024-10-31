@@ -1,7 +1,7 @@
 use crate::{
     context::level::Level,
     structures::{
-        literal::{Literal, Source as LiteralSource},
+        literal::{Literal, LiteralSource},
         variable::{Status, Variable},
     },
 };

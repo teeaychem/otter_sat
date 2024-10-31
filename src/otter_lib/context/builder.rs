@@ -2,8 +2,8 @@ use crate::{
     config::Config,
     context::Context,
     structures::{
-        clause::stored::Source as ClauseSource,
-        literal::{Literal, Source as LiteralSource},
+        clause::stored::ClauseSource,
+        literal::{Literal, LiteralSource},
         variable::{list::VariableList, Variable, VariableId},
     },
 };

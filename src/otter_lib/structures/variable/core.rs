@@ -29,10 +29,28 @@ impl Variable {
 
     pub fn watch_added(&self, clause_key: ClauseKey, polarity: bool) {
         match polarity {
-            true => unsafe { &mut *self.positive_occurrences.get() },
-            false => unsafe { &mut *self.negative_occurrences.get() },
-        }
-        .push(clause_key);
+            true => unsafe {
+                let list = &mut *self.positive_occurrences.get();
+                list.push(clause_key);
+            },
+            false => unsafe {
+                let list = &mut *self.negative_occurrences.get();
+                list.push(clause_key);
+            },
+        };
+    }
+
+    pub fn watch_removed(&self, clause_key: ClauseKey, polarity: bool) {
+        match polarity {
+            true => unsafe {
+                let list = &mut *self.positive_occurrences.get();
+                list.retain(|key| *key != clause_key);
+            },
+            false => unsafe {
+                let list = &mut *self.negative_occurrences.get();
+                list.retain(|key| *key != clause_key);
+            },
+        };
     }
 
     pub fn value(&self) -> Option<bool> {
