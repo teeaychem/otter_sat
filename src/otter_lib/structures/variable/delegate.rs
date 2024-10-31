@@ -9,7 +9,10 @@ use crate::{
     },
     generic::heap::FixedHeap,
     structures::{
-        clause::stored::Watch,
+        clause::{
+            stored::{StoredClause, Watch},
+            Clause,
+        },
         literal::{Literal, Source},
         variable::{list::VariableList, Variable, VariableId},
     },
@@ -134,13 +137,61 @@ impl Default for VariableStore {
     }
 }
 
+enum WatchCheck {
+    NotFound,
+    Updated,
+    Witness,
+    Check(Watch),
+}
+
+enum PropagationResult {
+    Witness,
+    Conflict,
+    Success,
+}
+
 #[allow(clippy::collapsible_if)]
 impl VariableStore {
+    #[inline(always)]
+    fn check_watch(&self, v_id: VariableId, watch: Watch, clause: &mut StoredClause) -> WatchCheck {
+        if v_id != clause.get_watch(watch).v_id() {
+            return WatchCheck::NotFound;
+        }
+
+        match clause.update_watch(watch, &self.variables) {
+            Ok(_) => WatchCheck::Updated,
+            Err(_) => match self.variables.polarity_of(clause.get_watch(watch).index()) {
+                None => panic!("Watch has no value"),
+                Some(value) => match value == clause.get_watch(watch).polarity() {
+                    true => WatchCheck::Witness,
+                    false => WatchCheck::Check(watch.switch()),
+                },
+            },
+        }
+    }
+
+    #[inline(always)]
+    fn propagate_watch(
+        &self,
+        literal: Literal,
+        clause: &mut StoredClause,
+        level: &mut Level,
+    ) -> PropagationResult {
+        match self.polarity_of(literal.index()) {
+            None => match self.set_value(literal, level, Source::Clause(clause.key())) {
+                Ok(_) => PropagationResult::Success,
+                Err(e) => panic!("could not set watch {e:?}"),
+            },
+            Some(value) if literal.polarity() != value => PropagationResult::Conflict,
+            Some(_) => PropagationResult::Witness,
+        }
+    }
+
     pub fn propagate(
         &mut self,
         literal: Literal,
         level: &mut Level,
-        clause_store: &mut ClauseStore,
+        clauses: &mut ClauseStore,
     ) -> Result<(), ClauseKey> {
         // let not_watch_witness = |literal: Literal| {
         //     let the_variable = unsafe { self.variables.get_unchecked(literal.index()) };
@@ -152,6 +203,7 @@ impl VariableStore {
         // println!("Propagating {} which has value {:?}", literal.index(), self.variables.polarity_of(literal.index()));
 
         let the_variable = self.variables.get_unsafe(literal.index());
+        let the_variable_id = the_variable.id();
         let list_polarity = !literal.polarity();
 
         let mut index = 0;
@@ -159,82 +211,63 @@ impl VariableStore {
 
         'propagation_loop: while index < length {
             let clause_key = the_variable.occurrence_key_at_index(list_polarity, index);
-            let maybe_stored_clause = clause_store.retreive_carefully_mut(clause_key);
 
-            if maybe_stored_clause.is_none() {
-                the_variable.remove_occurrence_at_index(list_polarity, index);
-                length -= 1;
-                continue 'propagation_loop;
+            let clause = match clauses.retreive_carefully_mut(clause_key) {
+                Some(stored_clause) => stored_clause,
+                None => {
+                    the_variable.remove_occurrence_at_index(list_polarity, index);
+                    length -= 1;
+                    continue 'propagation_loop;
+                }
+            };
+
+            match self.check_watch(the_variable_id, Watch::A, clause) {
+                WatchCheck::Witness => panic!("corrupted watch list"),
+                WatchCheck::NotFound => {}
+                WatchCheck::Updated => {
+                    the_variable.remove_occurrence_at_index(list_polarity, index);
+                    length -= 1;
+                    continue 'propagation_loop;
+                }
+                WatchCheck::Check(unknown_watch) => {
+                    let literal = clause.get_watch(unknown_watch);
+                    match self.propagate_watch(literal, clause, level) {
+                        PropagationResult::Conflict => return Err(clause_key),
+                        PropagationResult::Witness => {}
+                        PropagationResult::Success => {
+                            self.consequence_q.push_back(literal);
+                        }
+                    }
+                    index += 1;
+                    continue 'propagation_loop;
+                }
+            };
+
+            match self.check_watch(the_variable_id, Watch::B, clause) {
+                WatchCheck::Witness => panic!("corrupted watch list"),
+                WatchCheck::NotFound => {}
+                WatchCheck::Updated => {
+                    the_variable.remove_occurrence_at_index(list_polarity, index);
+                    length -= 1;
+                    continue 'propagation_loop;
+                }
+                WatchCheck::Check(unknown_watch) => {
+                    let literal = clause.get_watch(unknown_watch);
+                    match self.propagate_watch(literal, clause, level) {
+                        PropagationResult::Conflict => return Err(clause_key),
+                        PropagationResult::Witness => {}
+                        PropagationResult::Success => {
+                            self.consequence_q.push_back(literal);
+                        }
+                    }
+                    index += 1;
+                    continue 'propagation_loop;
+                }
             }
 
-            let stored_clause = maybe_stored_clause.unwrap();
-
-            let unknown_watch = // no
-                if the_variable.id() == stored_clause.get_watch(Watch::A).v_id() {
-                // if not_watch_witness(watch_b) {
-                match stored_clause.update_watch(Watch::A, &self.variables) {
-                    Ok(_) => {
-                        the_variable.remove_occurrence_at_index(list_polarity, index);
-                        length -= 1;
-                        continue 'propagation_loop;
-                    }
-                    Err(_) => match self.polarity_of(stored_clause.get_watch(Watch::A).index()) {
-                        None => panic!("Watch A has no value"),
-                        Some(value) => {
-                            match value == stored_clause.get_watch(Watch::A).polarity() {
-                                true => {
-                                    the_variable.remove_occurrence_at_index(list_polarity, index);
-                                    length -= 1;
-                                    continue 'propagation_loop;
-                                }
-                                false => Watch::B,
-                            }
-                        }
-                    },
-                }
-                // }
-            } else if the_variable.id() == stored_clause.get_watch(Watch::B).v_id() {
-                // if not_watch_witness(watch_a) {
-                match stored_clause.update_watch(Watch::B, &self.variables) {
-                    Ok(_) => {
-                        the_variable.remove_occurrence_at_index(list_polarity, index);
-                        length -= 1;
-                        continue 'propagation_loop;
-                    }
-                    Err(_) => match self.polarity_of(stored_clause.get_watch(Watch::B).index()) {
-                        None => panic!("Watch B has no value"),
-                        Some(value) => {
-                            match value == stored_clause.get_watch(Watch::B).polarity() {
-                                true => {
-                                    the_variable.remove_occurrence_at_index(list_polarity, index);
-                                    length -= 1;
-                                    continue 'propagation_loop;
-                                }
-                                false => Watch::A,
-                            }
-                        }
-                    },
-                }
-                // }
-            } else {
-                the_variable.remove_occurrence_at_index(list_polarity, index);
-                length -= 1;
-                continue 'propagation_loop;
-            };
-
-            index += 1;
-
-            let unknown_literal = stored_clause.get_watch(unknown_watch);
-            let unknown_value = self.polarity_of(unknown_literal.index());
-            if unknown_value.is_none() {
-                match self.set_value(unknown_literal, level, Source::Clause(stored_clause.key())) {
-                    Ok(_) => {}
-                    Err(e) => panic!("could not set watch {e:?}"),
-                };
-                self.consequence_q.push_back(unknown_literal);
-            } else if unknown_literal.polarity() != unknown_value.unwrap() {
-                return Err(clause_key);
-            };
+            the_variable.remove_occurrence_at_index(list_polarity, index);
+            length -= 1;
+            continue 'propagation_loop;
         }
         Ok(())
     }

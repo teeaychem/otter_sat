@@ -35,6 +35,15 @@ pub enum Watch {
     B,
 }
 
+impl Watch {
+    pub fn switch(&self) -> Self {
+        match self {
+            Self::A => Self::B,
+            Self::B => Self::A,
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum WatchStatus {
     Witness,
@@ -94,16 +103,16 @@ impl StoredClause {
         watch: Watch,
         index: usize,
         variable: &Variable,
-        literal: Literal,
+        polarity: bool,
     ) {
         match watch {
             Watch::A => {
                 self.clause.swap(index, 0);
-                variable.watch_added(self.key, literal.polarity());
+                variable.watch_added(self.key, polarity);
             }
             Watch::B => {
                 self.clause.swap(index, 1);
-                variable.watch_added(self.key, literal.polarity());
+                variable.watch_added(self.key, polarity);
             }
         };
     }
@@ -134,11 +143,11 @@ impl StoredClause {
                 let the_variable = variables.get_unsafe(the_literal.index());
                 match the_variable.value() {
                     None => {
-                        self.watch_update_replace(watch, 2, the_variable, the_literal);
+                        self.watch_update_replace(watch, 2, the_variable, the_literal.polarity());
                         return Ok(WatchStatus::None);
                     }
                     Some(polarity) if polarity == the_literal.polarity() => {
-                        self.watch_update_replace(watch, 2, the_variable, the_literal);
+                        self.watch_update_replace(watch, 2, the_variable, the_literal.polarity());
                         return Ok(WatchStatus::Witness);
                     }
                     Some(_) => {}
@@ -151,11 +160,21 @@ impl StoredClause {
 
                     match the_variable.value() {
                         None => {
-                            self.watch_update_replace(watch, index, the_variable, the_literal);
+                            self.watch_update_replace(
+                                watch,
+                                index,
+                                the_variable,
+                                the_literal.polarity(),
+                            );
                             return Ok(WatchStatus::None);
                         }
                         Some(polarity) if polarity == the_literal.polarity() => {
-                            self.watch_update_replace(watch, index, the_variable, the_literal);
+                            self.watch_update_replace(
+                                watch,
+                                index,
+                                the_variable,
+                                the_literal.polarity(),
+                            );
                             return Ok(WatchStatus::Witness);
                         }
                         Some(_) => {}
