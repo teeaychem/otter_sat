@@ -8,7 +8,7 @@ use otter_lib::{
     config::Config,
     context::{self, Context, Report},
     structures::{
-        literal::{Literal, Source},
+        literal::{Literal, LiteralSource},
         variable::list::VariableList,
     },
 };

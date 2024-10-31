@@ -1,6 +1,6 @@
 use clap::{value_parser, Arg, ArgMatches, Command};
 
-use crate::config::{self, Config, ConsequenceCriteria, StoppingCriteria, VSIDS};
+use crate::config::{self, Config, StoppingCriteria, VSIDS};
 
 pub fn cli() -> Command {
     Command::new("otter_sat")
@@ -68,22 +68,6 @@ For the moment this is limited to settling all atoms which occur with a unique p
             .required(false)
             .num_args(0)
             .help("Display stats during a solve."))
-
-        .arg(Arg::new("consequence_criteria")
-            .long("consequences")
-            .short('🧹')
-            .value_parser(clap::builder::ValueParser::new(consequence_criteria_parser))
-            .required(false)
-            .num_args(1)
-            .help("How to handle the consequence queue.")
-            .long_help(format!("How to handle the consequence queue when backjumping.
-Default: {}
-
-  - Fresh: Clear the queue on conflicts
-  - Tidy : Clear the queue on conflcits and tidy watch lists
-  - Messy: Allow the consequence queue to accumulate
-", config::defaults::CONSEQUENCE_CRITERA))
-        )
 
         .arg(Arg::new("valuation")
             .short('v')
@@ -221,9 +205,6 @@ impl Config {
         if let Ok(Some(value)) = args.try_get_one::<bool>("no_subsumption") {
             the_config.subsumption = !*value
         };
-        if let Ok(Some(value)) = args.try_get_one::<ConsequenceCriteria>("consequence_criteria") {
-            the_config.consequence_criteria = *value
-        };
 
         if let Ok(Some(secs)) = args.try_get_one::<u64>("time_limit") {
             the_config.time_limit = Some(std::time::Duration::from_secs(*secs))
@@ -264,18 +245,6 @@ fn stopping_criteria_parser(arg: &str) -> Result<StoppingCriteria, std::io::Erro
         _ => Err(std::io::Error::new(
             std::io::ErrorKind::NotFound,
             "Unknown stopping criteria variant",
-        )),
-    }
-}
-
-fn consequence_criteria_parser(arg: &str) -> Result<ConsequenceCriteria, std::io::Error> {
-    match arg {
-        "Messy" => Ok(ConsequenceCriteria::Messy),
-        "Tidy" => Ok(ConsequenceCriteria::Tidy),
-        "Fresh" => Ok(ConsequenceCriteria::Fresh),
-        _ => Err(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "Unknown consequence criteria variant",
         )),
     }
 }

@@ -1,4 +1,7 @@
-use crate::{context::store::ClauseKey, structures::variable::VariableId};
+use crate::{
+    context::{level::LevelIndex, store::ClauseKey},
+    structures::variable::VariableId,
+};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Literal {
@@ -7,12 +10,14 @@ pub struct Literal {
 }
 
 /// how a literal was settled
-#[derive(Clone, Copy, Debug)]
-pub enum Source {
-    Choice,            // a choice made where the alternative may make a SAT difference
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LiteralSource {
+    Choice,                // a choice made where the alternative may make a SAT difference
     Pure, // a choice made with a guarantee that the alternative would make no SAT difference
     Clause(ClauseKey), // the literal must be the case for SAT given some valuation
-    Resolution, // there was no reason to store the resolved clause
+    Resolution(ClauseKey), // there was no reason to store the resolved clause
+    Propagation(ClauseKey),
+    Missed(ClauseKey, LevelIndex),
     Assumption,
 }
 

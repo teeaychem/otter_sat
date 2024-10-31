@@ -2,7 +2,7 @@ use crate::{
     config::{self},
     structures::{
         clause::{
-            stored::{Source as ClauseSource, StoredClause},
+            stored::{ClauseSource, StoredClause},
             Clause,
         },
         literal::Literal,
@@ -191,7 +191,7 @@ impl ClauseStore {
 
     // TODO: figure some improvement…
     pub fn reduce(&mut self, variables: &impl VariableList, glue_strength: config::GlueStrength) {
-        let limit = self.learned_count / 2;
+        let limit = self.learned_count;
 
         for index in 0..self.learned_count {
             if let Some(clause) = unsafe { self.learned.get_unchecked(index) } {

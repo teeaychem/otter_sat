@@ -1,7 +1,7 @@
 pub mod instance;
 pub mod store;
 
-use crate::structures::literal::{Literal, Source};
+use crate::structures::literal::{Literal, LiteralSource};
 
 pub type LevelIndex = usize;
 
@@ -9,7 +9,7 @@ pub type LevelIndex = usize;
 pub struct Level {
     index: LevelIndex,
     choice: Option<Literal>,
-    observations: Vec<(Source, Literal)>,
+    observations: Vec<(LiteralSource, Literal)>,
 }
 
 pub struct LevelStore {
