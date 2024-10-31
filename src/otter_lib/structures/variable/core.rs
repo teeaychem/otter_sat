@@ -24,7 +24,9 @@ impl Variable {
             value: UnsafeCell::new(None),
             previous_value: UnsafeCell::new(None),
             positive_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
+            positive_occurrences_binary: UnsafeCell::new(Vec::with_capacity(512)),
             negative_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
+            negative_occurrences_binary: UnsafeCell::new(Vec::with_capacity(512)),
         }
     }
 
@@ -41,15 +43,21 @@ impl Variable {
     }
 
     pub fn watch_added(&self, element: WatchElement, polarity: bool) {
-        match polarity {
-            true => unsafe {
-                let list = &mut *self.positive_occurrences.get();
-                list.push(element);
-            },
-            false => unsafe {
-                let list = &mut *self.negative_occurrences.get();
-                list.push(element);
-            },
+        unsafe {
+            match element {
+                WatchElement::Binary(_, _) => match polarity {
+                    true => (*self.positive_occurrences_binary.get()).push(element),
+                    false => {
+                        (*self.negative_occurrences_binary.get()).push(element);
+                    }
+                },
+                WatchElement::Clause(_) => match polarity {
+                    true => (*self.positive_occurrences.get()).push(element),
+                    false => {
+                        (*self.negative_occurrences.get()).push(element);
+                    }
+                },
+            }
         }
     }
 
@@ -100,8 +108,37 @@ pub fn propagate_literal(
     clause_store: &mut ClauseStore,
     level: &Level,
 ) -> Result<(), ClauseKey> {
-    let the_variable = variables.get_unsafe(literal.index());
     unsafe {
+        let the_variable = variables.get_unsafe(literal.index());
+
+        let binary_list = match literal.polarity() {
+            true => &mut *the_variable.negative_occurrences_binary.get(),
+            false => &mut *the_variable.positive_occurrences_binary.get(),
+        };
+
+        for element in binary_list {
+            match element {
+                WatchElement::Clause(_) => {
+                    panic!("binary clause occurence list contains non-binary clause")
+                }
+                WatchElement::Binary(check, clause_key) => {
+                    match variables.value_of(check.index()) {
+                        None => push_back_consequence(
+                            &mut variables.consequence_q,
+                            *check,
+                            LiteralSource::Propagation(*clause_key),
+                            level.index(),
+                        ),
+                        Some(polarity) if polarity == check.polarity() => {}
+                        Some(_) => return Err(*clause_key),
+                    }
+                }
+            }
+        }
+
+        // reborrow required…
+        let the_variable = variables.get_unsafe(literal.index());
+
         let list = match literal.polarity() {
             true => &mut *the_variable.negative_occurrences.get(),
             false => &mut *the_variable.positive_occurrences.get(),
@@ -152,20 +189,8 @@ pub fn propagate_literal(
                         }
                     }
                 }
-                WatchElement::Binary(check, clause_key) => {
-                    match variables.value_of(check.index()) {
-                        None => push_back_consequence(
-                            &mut variables.consequence_q,
-                            *check,
-                            LiteralSource::Propagation(*clause_key),
-                            level.index(),
-                        ),
-                        Some(polarity) if polarity == check.polarity() => {
-                            index += 1;
-                            continue 'propagation_loop;
-                        }
-                        Some(_) => return Err(*clause_key),
-                    }
+                WatchElement::Binary(_, _) => {
+                    panic!("clause occurence list contains binary clause")
                 }
             }
 

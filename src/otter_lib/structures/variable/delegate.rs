@@ -66,7 +66,7 @@ impl VariableStore {
             .update_one(index, self.activity_of(index) + self.score_increment())
     }
 
-    pub fn decay_activity(&mut self, config: &Config) {
+    pub fn exponent_activity(&mut self, config: &Config) {
         let decay = config.decay_factor * 1e-3;
         let factor = 1.0 / (1.0 - decay);
         self.score_increment *= factor
@@ -166,7 +166,7 @@ impl VariableStore {
                 }
             }
         }
-        self.decay_activity(config);
+        self.exponent_activity(config);
     }
 
     pub fn clear_consequences(&mut self, to: LevelIndex) {
