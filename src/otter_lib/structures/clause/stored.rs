@@ -1,6 +1,10 @@
 use crate::{
     context::store::ClauseKey,
-    structures::{clause::Clause, literal::Literal, variable::list::VariableList},
+    structures::{
+        clause::Clause,
+        literal::Literal,
+        variable::{list::VariableList, WatchElement},
+    },
 };
 
 use std::ops::Deref;
@@ -84,7 +88,7 @@ impl StoredClause {
                     self.clause.swap(0, 1)
                 }
                 let other_literal = unsafe { self.clause.get_unchecked(1) };
-                match variables.polarity_of(other_literal.index()) {
+                match variables.value_of(other_literal.index()) {
                     None => Ok(WatchStatus::TwoNone),
                     Some(polarity) if polarity == other_literal.polarity() => {
                         Ok(WatchStatus::TwoWitness)
@@ -107,18 +111,14 @@ impl StoredClause {
                         return Err(());
                     }
                     let last_literal = unsafe { self.clause.get_unchecked(self.last) };
-                    let last_value = variables.polarity_of(last_literal.index());
+                    let last_value = variables.value_of(last_literal.index());
                     match last_value {
                         None => {
-                            variables
-                                .get_unsafe(last_literal.index())
-                                .watch_added(self.key(), last_literal.polarity());
+                            self.note_watch(*last_literal, variables);
                             return Ok(WatchStatus::None);
                         }
                         Some(value) if value == last_literal.polarity() => {
-                            variables
-                                .get_unsafe(last_literal.index())
-                                .watch_added(self.key(), last_literal.polarity());
+                            self.note_watch(*last_literal, variables);
                             return Ok(WatchStatus::Witness);
                         }
                         Some(_) => {}
@@ -153,7 +153,7 @@ impl StoredClause {
                     self.last = 1;
                     for index in 1..clause_length {
                         let index_literal = unsafe { self.clause.get_unchecked(index) };
-                        let index_value = variables.polarity_of(index_literal.index());
+                        let index_value = variables.value_of(index_literal.index());
                         match index_value {
                             None => {
                                 self.last = index;
@@ -166,9 +166,7 @@ impl StoredClause {
                             Some(_) => {}
                         }
                     }
-                    variables
-                        .get_unsafe(self.clause[self.last].index())
-                        .watch_added(self.key, self.clause[self.last].polarity());
+                    self.note_watch(self.clause[self.last], variables);
                 }
 
                 self.subsumed_literals.push(removed);
@@ -199,7 +197,7 @@ impl StoredClause {
             }
 
             let literal = self.clause[index];
-            let literal_value = variables.polarity_of(literal.index());
+            let literal_value = variables.value_of(literal.index());
             match literal_value {
                 None => break index,
                 Some(value) if value == literal.polarity() => break index,
@@ -212,7 +210,7 @@ impl StoredClause {
         self.last = 1;
         for index in 1..clause_length {
             let index_literal = unsafe { self.clause.get_unchecked(index) };
-            let index_value = variables.polarity_of(index_literal.index());
+            let index_value = variables.value_of(index_literal.index());
             match index_value {
                 None => {
                     self.last = index;
@@ -226,13 +224,30 @@ impl StoredClause {
             }
         }
 
-        variables
-            .get_unsafe(self.clause[0].index())
-            .watch_added(self.key, self.clause[0].polarity());
+        self.note_watch(self.clause[0], variables);
+        self.note_watch(self.clause[self.last], variables);
+    }
 
-        variables
-            .get_unsafe(self.clause[self.last].index())
-            .watch_added(self.key, self.clause[self.last].polarity());
+    fn note_watch(&self, literal: Literal, variables: &impl VariableList) {
+        match self.clause.len() {
+            2 => {
+                let check_literal = if self.clause[0].v_id() == literal.v_id() {
+                    self.clause[1]
+                } else {
+                    self.clause[0]
+                };
+
+                variables.get_unsafe(literal.index()).watch_added(
+                    WatchElement::Binary(check_literal, self.key()),
+                    literal.polarity(),
+                );
+            }
+            _ => {
+                variables
+                    .get_unsafe(literal.index())
+                    .watch_added(WatchElement::Clause(self.key()), literal.polarity());
+            }
+        }
     }
 }
 
@@ -243,7 +258,7 @@ impl std::fmt::Display for StoredClause {
 }
 
 fn get_status(literal: Literal, variables: &impl VariableList) -> WatchStatus {
-    match variables.polarity_of(literal.index()) {
+    match variables.value_of(literal.index()) {
         None => WatchStatus::None,
         Some(polarity) if polarity == literal.polarity() => WatchStatus::Witness,
         Some(_) => WatchStatus::Conflict,

@@ -3,10 +3,7 @@ use crate::{
         defaults::{self},
         ActivityType, Config,
     },
-    context::{
-        level::{Level, LevelIndex},
-        store::{ClauseKey, ClauseStore},
-    },
+    context::level::LevelIndex,
     generic::heap::FixedHeap,
     structures::{
         literal::{Literal, LiteralSource},
@@ -133,66 +130,7 @@ impl Default for VariableStore {
     }
 }
 
-#[allow(clippy::collapsible_if)]
 impl VariableStore {
-    pub fn propagate(
-        &mut self,
-        literal: Literal,
-        level: &mut Level,
-        clauses: &mut ClauseStore,
-    ) -> Result<(), ClauseKey> {
-        let the_variable = self.variables.get_unsafe(literal.index());
-        let list_polarity = !literal.polarity();
-
-        let mut index = 0;
-        let mut length = the_variable.occurrence_length(list_polarity);
-
-        'propagation_loop: while index < length {
-            let clause_key = the_variable.occurrence_key_at_index(list_polarity, index);
-
-            let clause = match clauses.retreive_carefully_mut(clause_key) {
-                Some(stored_clause) => stored_clause,
-                None => {
-                    the_variable.remove_occurrence_at_index(list_polarity, index);
-                    length -= 1;
-                    continue 'propagation_loop;
-                }
-            };
-
-            use crate::structures::clause::stored::WatchStatus;
-            let update_result = clause.update_watch(literal, &self.variables);
-            match update_result {
-                Ok(WatchStatus::TwoWitness) | Ok(WatchStatus::TwoNone) => {
-                    index += 1;
-                    continue 'propagation_loop;
-                }
-                Ok(WatchStatus::Witness) | Ok(WatchStatus::None) => {
-                    the_variable.remove_occurrence_at_index(list_polarity, index);
-                    length -= 1;
-                    continue 'propagation_loop;
-                }
-                Ok(_) => panic!("can't get conflict from update"),
-                Err(()) => match self.polarity_of(unsafe { clause.get_unchecked(0) }.index()) {
-                    Some(value) if unsafe { clause.get_unchecked(0) }.polarity() != value => {
-                        return Err(clause_key);
-                    }
-                    None => {
-                        push_back_consequence(
-                            &mut self.consequence_q,
-                            unsafe { *clause.get_unchecked(0) },
-                            LiteralSource::Propagation(clause_key),
-                            level.index(),
-                        );
-                    }
-                    Some(_) => {}
-                },
-            }
-            index += 1;
-            continue 'propagation_loop;
-        }
-        Ok(())
-    }
-
     pub fn get_consequence(&mut self) -> Option<(Literal, LiteralSource, LevelIndex)> {
         self.consequence_q.pop_front()
     }

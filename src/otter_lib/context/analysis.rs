@@ -26,7 +26,7 @@ impl Context {
         if self.levels.index() == 0 {
             return Ok(SolveStatus::NoSolution(clause_key));
         }
-        let conflict_clause = self.clause_store.retreive(clause_key);
+        let conflict_clause = self.clause_store.get(clause_key);
         let conflict_index = conflict_clause.key();
         log::trace!("Clause {conflict_clause}");
 

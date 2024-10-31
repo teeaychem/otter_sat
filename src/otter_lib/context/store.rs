@@ -10,21 +10,24 @@ use crate::{
     },
 };
 
+type FormulaIndex = u32;
+type FormulaReuse = u16;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ClauseKey {
-    Formula(usize),
-    Learned(usize, u32),
+    Formula(FormulaIndex),
+    Learned(FormulaIndex, FormulaReuse),
 }
 
 impl ClauseKey {
     pub fn index(&self) -> usize {
         match self {
-            Self::Formula(i) => *i,
-            Self::Learned(i, _) => *i,
+            Self::Formula(i) => *i as usize,
+            Self::Learned(i, _) => *i as usize,
         }
     }
 
-    pub fn usage(&self) -> u32 {
+    pub fn usage(&self) -> FormulaReuse {
         match self {
             Self::Formula(_) => panic!("Can't `use` formula keys"),
             Self::Learned(_, usage) => *usage,
@@ -34,7 +37,10 @@ impl ClauseKey {
     pub fn reuse(&self) -> Self {
         match self {
             Self::Formula(_) => panic!("Can't reuse formula keys"),
-            Self::Learned(index, reuse) => ClauseKey::Learned(*index, reuse + 1),
+            Self::Learned(index, reuse) => {
+                assert!(*reuse < FormulaReuse::MAX);
+                ClauseKey::Learned(*index, reuse + 1)
+            }
         }
     }
 }
@@ -42,9 +48,9 @@ impl ClauseKey {
 pub struct ClauseStore {
     keys: Vec<ClauseKey>,
     formula: Vec<StoredClause>,
-    formula_count: usize,
+    formula_count: FormulaIndex,
     learned: Vec<Option<StoredClause>>,
-    pub learned_count: usize,
+    pub learned_count: FormulaIndex,
     pub resolution_graph: Vec<Vec<Vec<ClauseKey>>>,
 }
 
@@ -64,12 +70,14 @@ impl Default for ClauseStore {
 
 impl ClauseStore {
     fn new_formula_id(&mut self) -> ClauseKey {
+        assert!(self.formula_count < FormulaIndex::MAX);
         let key = ClauseKey::Formula(self.formula_count);
         self.formula_count += 1;
         key
     }
 
     fn new_learned_id(&mut self) -> ClauseKey {
+        assert!(self.learned_count < FormulaIndex::MAX);
         let key = ClauseKey::Learned(self.learned_count, 0);
         self.learned_count += 1;
         key
@@ -86,21 +94,21 @@ impl ClauseStore {
         }
     }
 
-    pub fn retreive_carefully(&self, key: ClauseKey) -> Option<&StoredClause> {
+    pub fn get_carefully(&self, key: ClauseKey) -> Option<&StoredClause> {
         match key {
-            ClauseKey::Formula(index) => self.formula.get(index),
-            ClauseKey::Learned(index, reuse) => match self.learned.get(index) {
+            ClauseKey::Formula(index) => self.formula.get(index as usize),
+            ClauseKey::Learned(index, reuse) => match self.learned.get(index as usize) {
                 Some(Some(clause)) if clause.key().usage() == reuse => Some(clause),
                 _ => None,
             },
         }
     }
 
-    pub fn retreive(&self, key: ClauseKey) -> &StoredClause {
+    pub fn get(&self, key: ClauseKey) -> &StoredClause {
         match key {
-            ClauseKey::Formula(index) => unsafe { self.formula.get_unchecked(index) },
+            ClauseKey::Formula(index) => unsafe { self.formula.get_unchecked(index as usize) },
             ClauseKey::Learned(index, reuse) => unsafe {
-                match self.learned.get_unchecked(index) {
+                match self.learned.get_unchecked(index as usize) {
                     Some(clause) if clause.key().usage() == reuse => clause,
                     _ => panic!("no"),
                 }
@@ -108,21 +116,21 @@ impl ClauseStore {
         }
     }
 
-    pub fn retreive_carefully_mut(&mut self, key: ClauseKey) -> Option<&mut StoredClause> {
+    pub fn get_carefully_mut(&mut self, key: ClauseKey) -> Option<&mut StoredClause> {
         match key {
-            ClauseKey::Formula(index) => self.formula.get_mut(index),
-            ClauseKey::Learned(index, reuse) => match self.learned.get_mut(index) {
+            ClauseKey::Formula(index) => self.formula.get_mut(index as usize),
+            ClauseKey::Learned(index, reuse) => match self.learned.get_mut(index as usize) {
                 Some(Some(clause)) if clause.key().usage() == reuse => Some(clause),
                 _ => None,
             },
         }
     }
 
-    pub fn retreive_mut(&mut self, key: ClauseKey) -> &mut StoredClause {
+    pub fn get_mut(&mut self, key: ClauseKey) -> &mut StoredClause {
         match key {
-            ClauseKey::Formula(index) => unsafe { self.formula.get_unchecked_mut(index) },
+            ClauseKey::Formula(index) => unsafe { self.formula.get_unchecked_mut(index as usize) },
             ClauseKey::Learned(index, reuse) => unsafe {
-                match self.learned.get_unchecked_mut(index) {
+                match self.learned.get_unchecked_mut(index as usize) {
                     Some(clause) if clause.key().usage() == reuse => clause,
                     _ => panic!("no"),
                 }
@@ -176,11 +184,11 @@ impl ClauseStore {
     }
 
     pub fn formula_count(&self) -> usize {
-        self.formula_count
+        self.formula_count as usize
     }
 
     pub fn learned_count(&self) -> usize {
-        self.learned_count
+        self.learned_count as usize
     }
 
     pub fn formula_clauses(&self) -> impl Iterator<Item = impl Iterator<Item = Literal> + '_> + '_ {
@@ -191,15 +199,15 @@ impl ClauseStore {
 
     // TODO: figure some improvement…
     pub fn reduce(&mut self, variables: &impl VariableList, glue_strength: config::GlueStrength) {
-        let limit = self.learned_count;
+        let limit = self.learned_count as usize;
 
         for index in 0..self.learned_count {
-            if let Some(clause) = unsafe { self.learned.get_unchecked(index) } {
+            if let Some(clause) = unsafe { self.learned.get_unchecked(index as usize) } {
                 if self.keys.len() > limit {
                     break;
                 } else if clause.lbd(variables) > glue_strength {
                     self.keys.push(clause.key());
-                    unsafe { *self.learned.get_unchecked_mut(index) = None };
+                    unsafe { *self.learned.get_unchecked_mut(index as usize) = None };
                 }
             }
         }

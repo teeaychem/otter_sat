@@ -2,22 +2,16 @@ use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
     config::{self, Config},
-    context::{level::LevelIndex, Context, Report, Status as ClauseStatus},
+    context::{level::LevelIndex, store::ClauseKey, Context, Report, Status as ClauseStatus},
     structures::{
         clause::stored::{ClauseSource, StoredClause},
         literal::{Literal, LiteralSource},
-        variable::{delegate::push_back_consequence, list::VariableList, VariableId},
+        variable::{
+            core::propagate_literal, delegate::push_back_consequence, list::VariableList,
+            VariableId,
+        },
     },
 };
-
-use super::store::ClauseKey;
-
-macro_rules! level_mut {
-    ($self:ident) => {{
-        let index = $self.levels.index();
-        $self.levels.get_mut(index)
-    }};
-}
 
 #[derive(Debug, Clone, Copy)]
 pub enum ContextIssue {
@@ -75,10 +69,12 @@ impl Context {
                 .variables
                 .set_value(literal, self.levels.top_mut(), source)
             {
-                Ok(_) => {
-                    self.variables
-                        .propagate(literal, level_mut!(self), &mut self.clause_store)
-                }
+                Ok(_) => propagate_literal(
+                    literal,
+                    &mut self.variables,
+                    &mut self.clause_store,
+                    self.levels.top_mut(),
+                ),
                 Err(_) => match source {
                     LiteralSource::Missed(clause_key, _)
                     | LiteralSource::Resolution(clause_key)
@@ -249,7 +245,7 @@ impl Context {
         let clause_key = self
             .clause_store
             .insert(src, clause, &self.variables, resolution_keys);
-        let the_clause = self.clause_store.retreive_mut(clause_key);
+        let the_clause = self.clause_store.get_mut(clause_key);
         Ok(the_clause)
     }
 
