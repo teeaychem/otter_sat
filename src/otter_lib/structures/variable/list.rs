@@ -11,7 +11,7 @@ use std::ops::DerefMut;
 pub trait VariableList {
     fn as_internal_string(&self) -> String;
 
-    fn polarity_of(&self, index: usize) -> Option<bool>;
+    fn value_of(&self, index: usize) -> Option<bool>;
 
     fn check_literal(&self, literal: Literal) -> Status;
 
@@ -46,7 +46,7 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
         the_string
     }
 
-    fn polarity_of(&self, index: usize) -> Option<bool> {
+    fn value_of(&self, index: usize) -> Option<bool> {
         unsafe { self.get_unchecked(index).value() }
     }
 
