@@ -137,7 +137,7 @@ impl ResolutionBuffer {
             | LiteralSource::Resolution(the_key)
             | LiteralSource::Missed(the_key, _) = source
             {
-                let source_clause = stored_clauses.retreive_mut(*the_key);
+                let source_clause = stored_clauses.get_mut(*the_key);
 
                 if self.resolve_clause(source_clause, *literal).is_ok() {
                     self.trail.push(*the_key);

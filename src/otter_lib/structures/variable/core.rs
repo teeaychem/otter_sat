@@ -1,7 +1,20 @@
-use crate::context::{level::LevelIndex, store::ClauseKey};
-use crate::structures::variable::{Variable, VariableId};
+use crate::context::{
+    level::{Level, LevelIndex},
+    store::{ClauseKey, ClauseStore},
+};
+use crate::structures::variable::list::VariableList;
+use crate::structures::{
+    clause::stored::WatchStatus,
+    literal::{Literal, LiteralSource},
+    variable::{
+        delegate::{push_back_consequence, VariableStore},
+        Variable, VariableId,
+    },
+};
 
 use std::cell::UnsafeCell;
+
+use super::WatchElement;
 
 impl Variable {
     pub fn new(id: VariableId) -> Self {
@@ -27,28 +40,36 @@ impl Variable {
         self.id
     }
 
-    pub fn watch_added(&self, clause_key: ClauseKey, polarity: bool) {
+    pub fn watch_added(&self, element: WatchElement, polarity: bool) {
         match polarity {
             true => unsafe {
                 let list = &mut *self.positive_occurrences.get();
-                list.push(clause_key);
+                list.push(element);
             },
             false => unsafe {
                 let list = &mut *self.negative_occurrences.get();
-                list.push(clause_key);
+                list.push(element);
             },
-        };
+        }
     }
 
     pub fn watch_removed(&self, clause_key: ClauseKey, polarity: bool) {
         match polarity {
             true => unsafe {
                 let list = &mut *self.positive_occurrences.get();
-                list.retain(|key| *key != clause_key);
+                list.retain(|element| match element {
+                    WatchElement::Binary(_, _) => true,
+                    WatchElement::Clause(key) if *key != clause_key => true,
+                    WatchElement::Clause(_) => false,
+                });
             },
             false => unsafe {
                 let list = &mut *self.negative_occurrences.get();
-                list.retain(|key| *key != clause_key);
+                list.retain(|element| match element {
+                    WatchElement::Binary(_, _) => true,
+                    WatchElement::Clause(key) if *key != clause_key => true,
+                    WatchElement::Clause(_) => false,
+                });
             },
         };
     }
@@ -68,30 +89,89 @@ impl Variable {
             *self.decision_level.get() = level
         }
     }
+}
 
-    pub fn occurrence_length(&self, polarity: bool) -> usize {
-        match polarity {
-            true => unsafe { &*self.positive_occurrences.get() },
-            false => unsafe { &*self.negative_occurrences.get() },
-        }
-        .len()
-    }
+/*
+Placed here for access to the occurrence lists of a variable
+*/
+pub fn propagate_literal(
+    literal: Literal,
+    variables: &mut VariableStore,
+    clause_store: &mut ClauseStore,
+    level: &Level,
+) -> Result<(), ClauseKey> {
+    let the_variable = variables.get_unsafe(literal.index());
+    unsafe {
+        let list = match literal.polarity() {
+            true => &mut *the_variable.negative_occurrences.get(),
+            false => &mut *the_variable.positive_occurrences.get(),
+        };
 
-    pub fn occurrence_key_at_index(&self, polarity: bool, index: usize) -> ClauseKey {
-        *unsafe {
-            match polarity {
-                true => &*self.positive_occurrences.get(),
-                false => &*self.negative_occurrences.get(),
+        let mut index = 0;
+        let mut length = list.len();
+
+        'propagation_loop: while index < length {
+            match list.get_unchecked(index) {
+                WatchElement::Clause(clause_key) => {
+                    let clause = match clause_store.get_carefully_mut(*clause_key) {
+                        Some(stored_clause) => stored_clause,
+                        None => {
+                            list.swap_remove(index);
+                            length -= 1;
+                            continue 'propagation_loop;
+                        }
+                    };
+
+                    match clause.update_watch(literal, variables) {
+                        Ok(WatchStatus::TwoWitness) | Ok(WatchStatus::TwoNone) => {
+                            index += 1;
+                            continue 'propagation_loop;
+                        }
+                        Ok(WatchStatus::Witness) | Ok(WatchStatus::None) => {
+                            list.swap_remove(index);
+                            length -= 1;
+                            continue 'propagation_loop;
+                        }
+                        Ok(_) => panic!("can't get conflict from update"),
+                        Err(()) => {
+                            let the_watch = clause.get_unchecked(0);
+                            match variables.value_of(the_watch.index()) {
+                                Some(value) if the_watch.polarity() != value => {
+                                    return Err(*clause_key);
+                                }
+                                None => {
+                                    push_back_consequence(
+                                        &mut variables.consequence_q,
+                                        *the_watch,
+                                        LiteralSource::Propagation(*clause_key),
+                                        level.index(),
+                                    );
+                                }
+                                Some(_) => {}
+                            }
+                        }
+                    }
+                }
+                WatchElement::Binary(check, clause_key) => {
+                    match variables.value_of(check.index()) {
+                        None => push_back_consequence(
+                            &mut variables.consequence_q,
+                            *check,
+                            LiteralSource::Propagation(*clause_key),
+                            level.index(),
+                        ),
+                        Some(polarity) if polarity == check.polarity() => {
+                            index += 1;
+                            continue 'propagation_loop;
+                        }
+                        Some(_) => return Err(*clause_key),
+                    }
+                }
             }
-            .get_unchecked(index)
-        }
-    }
 
-    pub fn remove_occurrence_at_index(&self, polarity: bool, index: usize) {
-        match polarity {
-            true => unsafe { &mut *self.positive_occurrences.get() },
-            false => unsafe { &mut *self.negative_occurrences.get() },
+            index += 1;
+            continue 'propagation_loop;
         }
-        .swap_remove(index);
     }
+    Ok(())
 }

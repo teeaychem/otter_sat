@@ -46,7 +46,7 @@ impl Context {
             if key_set.insert(key) {
                 match key {
                     ClauseKey::Formula(_) => {
-                        let clause = self.clause_store.retreive(key);
+                        let clause = self.clause_store.get(key);
 
                         core_keys.insert(key);
 
@@ -79,7 +79,8 @@ impl Context {
                         }
                     }
                     ClauseKey::Learned(index, usage) => {
-                        let source = &self.clause_store.resolution_graph[index][usage as usize];
+                        let source =
+                            &self.clause_store.resolution_graph[index as usize][usage as usize];
                         for source_key in source {
                             core_q.push_back(*source_key);
                         }
@@ -93,7 +94,7 @@ impl Context {
 
     pub fn display_core(&self, conflict_key: ClauseKey) {
         for key in self.get_unsat_core(conflict_key) {
-            let clause = self.clause_store.retreive(key);
+            let clause = self.clause_store.get(key);
             println!("{}", clause.as_dimacs(&self.variables));
         }
     }
