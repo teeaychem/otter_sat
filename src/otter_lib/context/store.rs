@@ -89,8 +89,8 @@ impl ClauseStore {
     pub fn retreive_carefully(&self, key: ClauseKey) -> Option<&StoredClause> {
         match key {
             ClauseKey::Formula(index) => self.formula.get(index),
-            ClauseKey::Learned(index, _) => match self.learned.get(index) {
-                Some(Some(clause)) => Some(clause),
+            ClauseKey::Learned(index, reuse) => match self.learned.get(index) {
+                Some(Some(clause)) if clause.key().usage() == reuse => Some(clause),
                 _ => None,
             },
         }
@@ -99,10 +99,10 @@ impl ClauseStore {
     pub fn retreive(&self, key: ClauseKey) -> &StoredClause {
         match key {
             ClauseKey::Formula(index) => unsafe { self.formula.get_unchecked(index) },
-            ClauseKey::Learned(index, _) => unsafe {
+            ClauseKey::Learned(index, reuse) => unsafe {
                 match self.learned.get_unchecked(index) {
-                    Some(clause) => clause,
-                    None => panic!("no"),
+                    Some(clause) if clause.key().usage() == reuse => clause,
+                    _ => panic!("no"),
                 }
             },
         }
@@ -111,8 +111,8 @@ impl ClauseStore {
     pub fn retreive_carefully_mut(&mut self, key: ClauseKey) -> Option<&mut StoredClause> {
         match key {
             ClauseKey::Formula(index) => self.formula.get_mut(index),
-            ClauseKey::Learned(index, _) => match self.learned.get_mut(index) {
-                Some(Some(clause)) => Some(clause),
+            ClauseKey::Learned(index, reuse) => match self.learned.get_mut(index) {
+                Some(Some(clause)) if clause.key().usage() == reuse => Some(clause),
                 _ => None,
             },
         }
@@ -121,10 +121,10 @@ impl ClauseStore {
     pub fn retreive_mut(&mut self, key: ClauseKey) -> &mut StoredClause {
         match key {
             ClauseKey::Formula(index) => unsafe { self.formula.get_unchecked_mut(index) },
-            ClauseKey::Learned(index, _) => unsafe {
+            ClauseKey::Learned(index, reuse) => unsafe {
                 match self.learned.get_unchecked_mut(index) {
-                    Some(clause) => clause,
-                    None => panic!("no"),
+                    Some(clause) if clause.key().usage() == reuse => clause,
+                    _ => panic!("no"),
                 }
             },
         }
