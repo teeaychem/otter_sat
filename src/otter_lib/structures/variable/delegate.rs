@@ -44,11 +44,11 @@ impl VariableStore {
     }
 
     pub fn activity_of(&self, index: usize) -> VariableActivity {
-        self.activity_heap.value_at(index)
+        *self.activity_heap.value_at(index)
     }
 
     pub fn activity_max(&self) -> Option<VariableActivity> {
-        self.activity_heap.peek_max_value()
+        self.activity_heap.peek_max_value().copied()
     }
 
     pub fn rescore_activity(&mut self) {
@@ -59,7 +59,8 @@ impl VariableStore {
         let rescale = VariableActivity::max(heap_max, self.score_increment());
 
         let factor = 1.0 / rescale;
-        self.activity_heap.reduce_all_with(factor);
+        let rescale = |v: &VariableActivity| v * factor;
+        self.activity_heap.apply_to_all(rescale);
         self.score_increment *= factor;
         self.activity_heap.reheap();
     }
@@ -94,7 +95,7 @@ impl VariableStore {
             variables,
             consequence_q: VecDeque::with_capacity(count),
             string_map: HashMap::with_capacity(count),
-            activity_heap: IndexHeap::new(count, defaults::DEFAULT_ACTIVITY),
+            activity_heap: IndexHeap::new(count),
         }
     }
 
@@ -105,7 +106,7 @@ impl VariableStore {
             variables: Vec::with_capacity(variable_count),
             consequence_q: VecDeque::with_capacity(variable_count),
             string_map: HashMap::with_capacity(variable_count),
-            activity_heap: IndexHeap::new(variable_count, defaults::DEFAULT_ACTIVITY),
+            activity_heap: IndexHeap::new(variable_count),
         }
     }
 
@@ -125,10 +126,7 @@ impl Default for VariableStore {
             variables: Vec::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
             consequence_q: VecDeque::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
             string_map: HashMap::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
-            activity_heap: IndexHeap::new(
-                defaults::DEFAULT_VARIABLE_COUNT,
-                defaults::DEFAULT_ACTIVITY,
-            ),
+            activity_heap: IndexHeap::new(defaults::DEFAULT_VARIABLE_COUNT),
         }
     }
 }

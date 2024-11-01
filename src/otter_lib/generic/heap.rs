@@ -1,21 +1,33 @@
 #[derive(Debug)]
 
-pub struct IndexHeap<T: PartialOrd + Clone + Copy> {
-    values: Vec<T>,
+pub struct IndexHeap<V: PartialOrd + Default> {
+    values: Vec<V>,
     map: Vec<Option<usize>>,
     heap: Vec<usize>,
     limit: usize,
-    default_value: T,
 }
 use std::cmp::Ordering;
 
-impl<T: PartialOrd + Clone + Copy + std::fmt::Debug + std::fmt::Display + std::ops::MulAssign>
-    IndexHeap<T>
-{
-    pub fn new(size: usize, default_value: T) -> Self {
+impl<V: Default + PartialOrd + Default> Default for IndexHeap<V> {
+    fn default() -> Self {
         IndexHeap {
-            default_value,
-            values: vec![default_value; size],
+            values: Vec::default(),
+            map: Vec::default(),
+            heap: Vec::default(),
+            limit: 0,
+        }
+    }
+}
+
+impl<V: PartialOrd + Default> IndexHeap<V> {
+    pub fn new(size: usize) -> Self {
+        let mut value_vec = Vec::with_capacity(size);
+        for _ in 0..size {
+            value_vec.push(V::default())
+        }
+
+        IndexHeap {
+            values: value_vec,
             map: vec![None; size],
             heap: vec![0; size],
             limit: 0,
@@ -42,7 +54,7 @@ impl<T: PartialOrd + Clone + Copy + std::fmt::Debug + std::fmt::Display + std::o
         index.saturating_sub(1) / 2
     }
 
-    pub fn parent(&self, index: usize) -> &T {
+    pub fn parent(&self, index: usize) -> &V {
         self.values
             .get(self.heap_parent(index))
             .expect("missing parent")
@@ -60,10 +72,10 @@ impl<T: PartialOrd + Clone + Copy + std::fmt::Debug + std::fmt::Display + std::o
                 break;
             }
             let mut largest = index;
-            let mut largest_value = self.values[self.heap[largest]];
+            let mut largest_value = &self.values[self.heap[largest]];
 
-            let left_value = self.values[self.heap[left_heap]];
-            match left_value.partial_cmp(&largest_value) {
+            let left_value = &self.values[self.heap[left_heap]];
+            match left_value.partial_cmp(largest_value) {
                 Some(Ordering::Greater) => {
                     largest = left_heap;
                     largest_value = left_value;
@@ -72,8 +84,8 @@ impl<T: PartialOrd + Clone + Copy + std::fmt::Debug + std::fmt::Display + std::o
             }
             let right_index = self.heap_right(index);
             if right_index < self.limit {
-                let right_value = self.values[self.heap[right_index]];
-                match right_value.partial_cmp(&largest_value) {
+                let right_value = &self.values[self.heap[right_index]];
+                match right_value.partial_cmp(largest_value) {
                     Some(Ordering::Greater) => {
                         largest = right_index;
                     }
@@ -98,9 +110,9 @@ impl<T: PartialOrd + Clone + Copy + std::fmt::Debug + std::fmt::Display + std::o
             }
             let parent_heap = self.heap_parent(index);
 
-            let index_value = self.values[self.heap[index]];
-            let parent_value = self.values[self.heap[parent_heap]];
-            match parent_value.partial_cmp(&index_value) {
+            let index_value = &self.values[self.heap[index]];
+            let parent_value = &self.values[self.heap[parent_heap]];
+            match parent_value.partial_cmp(index_value) {
                 Some(Ordering::Greater) => break,
                 _ => {
                     self.map[self.heap[parent_heap]] = Some(index);
@@ -112,11 +124,17 @@ impl<T: PartialOrd + Clone + Copy + std::fmt::Debug + std::fmt::Display + std::o
         }
     }
 
-    pub fn insert(&mut self, index: usize, value: T) -> bool {
+    pub fn insert(&mut self, index: usize, value: V) -> bool {
         if index > self.heap.len() {
             let required = (index - self.heap.len()) + 1;
             self.map.append(&mut vec![None; required]);
-            self.values.append(&mut vec![self.default_value; required]);
+
+            let mut value_vec = Vec::with_capacity(required);
+            for _ in 0..required {
+                value_vec.push(V::default())
+            }
+
+            self.values.append(&mut value_vec);
             self.heap.append(&mut vec![0; required]);
         }
 
@@ -174,12 +192,12 @@ impl<T: PartialOrd + Clone + Copy + std::fmt::Debug + std::fmt::Display + std::o
         }
     }
 
-    pub fn peek_max_value(&self) -> Option<T> {
+    pub fn peek_max_value(&self) -> Option<&V> {
         match self.limit {
             0 => None,
             _ => {
                 let index = *self.heap.first().unwrap();
-                Some(self.values[index])
+                Some(&self.values[index])
             }
         }
     }
@@ -211,11 +229,11 @@ impl<T: PartialOrd + Clone + Copy + std::fmt::Debug + std::fmt::Display + std::o
         }
     }
 
-    pub fn value_at(&self, index: usize) -> T {
-        self.values[index]
+    pub fn value_at(&self, index: usize) -> &V {
+        &self.values[index]
     }
 
-    pub fn update_one(&mut self, index: usize, value: T) {
+    pub fn update_one(&mut self, index: usize, value: V) {
         self.values[index] = value;
         if let Some(heap_index) = self.map[index] {
             self.heapify_up(heap_index);
@@ -223,9 +241,9 @@ impl<T: PartialOrd + Clone + Copy + std::fmt::Debug + std::fmt::Display + std::o
         }
     }
 
-    pub fn reduce_all_with(&mut self, factor: T) {
+    pub fn apply_to_all(&mut self, f: impl Fn(&V) -> V) {
         for value in &mut self.values {
-            *value *= factor;
+            *value = f(value)
         }
     }
 }
@@ -247,7 +265,7 @@ mod tests {
 
     #[test]
     fn heap_simple() {
-        let mut test_heap = IndexHeap::new(0, 0);
+        let mut test_heap = IndexHeap::new(0);
         test_heap.insert(6, 10);
         test_heap.insert(5, 20);
         test_heap.insert(4, 30);
@@ -263,7 +281,7 @@ mod tests {
 
     #[test]
     fn heap_update() {
-        let mut test_heap = IndexHeap::new(7, 0);
+        let mut test_heap = IndexHeap::new(7);
         test_heap.insert(6, 10);
         test_heap.insert(4, 30);
         test_heap.insert(1, 60);
@@ -287,12 +305,12 @@ mod tests {
 
     #[test]
     fn heap_sparse() {
-        let mut test_heap = IndexHeap::new(0, 0);
+        let mut test_heap = IndexHeap::new(0);
         test_heap.insert(600, 10);
         test_heap.insert(0, 70);
 
         assert_eq!(test_heap.values.len(), 601);
-        assert_eq!(test_heap.values[5], test_heap.default_value);
+        assert_eq!(test_heap.values[5], i32::default());
         assert_eq!(test_heap.pop_max().unwrap(), 0);
         assert_eq!(test_heap.pop_max().unwrap(), 600);
         assert!(test_heap.pop_max().is_none());
@@ -300,7 +318,7 @@ mod tests {
 
     #[test]
     fn heap_remove() {
-        let mut test_heap = IndexHeap::new(0, 0);
+        let mut test_heap = IndexHeap::new(0);
         test_heap.insert(6, 6);
         test_heap.insert(5, 5);
         test_heap.insert(4, 4);
