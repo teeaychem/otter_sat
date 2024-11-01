@@ -199,7 +199,7 @@ impl ClauseStore {
 
     // TODO: figure some improvement…
     pub fn reduce(&mut self, variables: &impl VariableList, glue_strength: config::GlueStrength) {
-        let limit = self.learned_count as usize;
+        let limit = self.learned_count as usize / 2;
 
         for index in 0..self.learned_count {
             if let Some(clause) = unsafe { self.learned.get_unchecked(index as usize) } {

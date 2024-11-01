@@ -106,7 +106,7 @@ pub fn propagate_literal(
     literal: Literal,
     variables: &mut VariableStore,
     clause_store: &mut ClauseStore,
-    level: &Level,
+    level: &mut Level,
 ) -> Result<(), ClauseKey> {
     unsafe {
         let the_variable = variables.get_unsafe(literal.index());
@@ -123,12 +123,15 @@ pub fn propagate_literal(
                 }
                 WatchElement::Binary(check, clause_key) => {
                     match variables.value_of(check.index()) {
-                        None => push_back_consequence(
-                            &mut variables.consequence_q,
+                        None => match push_back_consequence(
+                            variables,
                             *check,
                             LiteralSource::Propagation(*clause_key),
-                            level.index(),
-                        ),
+                            level,
+                        ) {
+                            Ok(()) => {}
+                            Err(key) => return Err(key),
+                        },
                         Some(polarity) if polarity == check.polarity() => {}
                         Some(_) => return Err(*clause_key),
                     }
@@ -177,12 +180,15 @@ pub fn propagate_literal(
                                     return Err(*clause_key);
                                 }
                                 None => {
-                                    push_back_consequence(
-                                        &mut variables.consequence_q,
+                                    match push_back_consequence(
+                                        variables,
                                         *the_watch,
                                         LiteralSource::Propagation(*clause_key),
-                                        level.index(),
-                                    );
+                                        level,
+                                    ) {
+                                        Ok(()) => {}
+                                        Err(key) => return Err(key),
+                                    };
                                 }
                                 Some(_) => {}
                             }
