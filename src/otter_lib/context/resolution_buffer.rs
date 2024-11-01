@@ -1,5 +1,5 @@
 use crate::{
-    config::{ActivityType, Config, StoppingCriteria},
+    config::{Config, StoppingCriteria, VariableActivity},
     context::store::{ClauseKey, ClauseStore},
     structures::{
         clause::Clause,
@@ -199,8 +199,8 @@ impl ResolutionBuffer {
         &self.trail
     }
 
-    pub fn max_activity(&self, variables: &VariableStore) -> ActivityType {
-        let mut max = ActivityType::default();
+    pub fn max_activity(&self, variables: &VariableStore) -> VariableActivity {
+        let mut max = VariableActivity::default();
         for item in &self.buffer {
             match item {
                 ResolutionCell::Strengthened | ResolutionCell::Value(_) | ResolutionCell::Pivot => {

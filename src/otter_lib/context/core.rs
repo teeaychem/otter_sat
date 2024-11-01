@@ -97,22 +97,24 @@ impl Context {
         self.counters.conflicts_since_last_forget += 1;
         self.counters.conflicts_since_last_reset += 1;
 
-        if self.it_is_time_to_reduce(config.luby_constant) {
+        if self.it_is_time_to_restart(config.luby_constant) {
             if let Some(window) = &self.window {
                 window.update_counters(&self.counters);
                 window.flush();
-            }
-
-            if config.reduction_allowed {
-                log::debug!(target: "forget", "Forget @r {}", self.counters.restarts);
-                self.clause_store
-                    .reduce(&self.variables, config.glue_strength);
             }
 
             if config.restarts_allowed {
                 self.backjump(0);
                 self.counters.restarts += 1;
                 self.counters.conflicts_since_last_forget = 0;
+            }
+
+            if config.reduction_allowed
+                && ((self.counters.restarts % config::defaults::REUCE_ON_RESTARTS) == 0)
+            {
+                log::debug!(target: "forget", "Forget @r {}", self.counters.restarts);
+                self.clause_store
+                    .reduce(&self.variables, config.glue_strength);
             }
         }
     }
@@ -220,6 +222,7 @@ impl Context {
     pub fn store_clause(
         &mut self,
         clause: Vec<Literal>,
+        subsumed: Vec<Literal>,
         src: ClauseSource,
         resolution_keys: Option<Vec<ClauseKey>>,
     ) -> Result<&StoredClause, ContextIssue> {
@@ -228,9 +231,9 @@ impl Context {
         }
         assert!(clause.len() > 1, "Attempt to add a short clause");
 
-        let clause_key = self
-            .clause_store
-            .insert(src, clause, &self.variables, resolution_keys);
+        let clause_key =
+            self.clause_store
+                .insert(src, clause, subsumed, &self.variables, resolution_keys);
         let the_clause = self.clause_store.get_mut(clause_key);
         Ok(the_clause)
     }
@@ -299,7 +302,7 @@ impl Context {
         self.clause_store.formula_count() + self.clause_store.learned_count()
     }
 
-    pub fn it_is_time_to_reduce(&self, u: config::LubyConstant) -> bool {
+    pub fn it_is_time_to_restart(&self, u: config::LubyConstant) -> bool {
         use crate::procedures::luby;
         self.counters.conflicts_since_last_forget >= u.wrapping_mul(luby(self.counters.restarts))
     }
