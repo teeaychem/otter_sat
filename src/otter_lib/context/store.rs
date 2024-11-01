@@ -16,30 +16,34 @@ type FormulaReuse = u16;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ClauseKey {
     Formula(FormulaIndex),
-    Learned(FormulaIndex, FormulaReuse),
+    LearnedBinary(FormulaIndex),
+    LearnedLong(FormulaIndex, FormulaReuse),
 }
 
 impl ClauseKey {
     pub fn index(&self) -> usize {
         match self {
             Self::Formula(i) => *i as usize,
-            Self::Learned(i, _) => *i as usize,
+            Self::LearnedBinary(i) => *i as usize,
+            Self::LearnedLong(i, _) => *i as usize,
         }
     }
 
     pub fn usage(&self) -> FormulaReuse {
         match self {
             Self::Formula(_) => panic!("Can't `use` formula keys"),
-            Self::Learned(_, usage) => *usage,
+            Self::LearnedBinary(_) => panic!("Can't `use` binary keys"),
+            Self::LearnedLong(_, usage) => *usage,
         }
     }
 
     pub fn reuse(&self) -> Self {
         match self {
             Self::Formula(_) => panic!("Can't reuse formula keys"),
-            Self::Learned(index, reuse) => {
+            Self::LearnedBinary(_) => panic!("Can't reuse binary keys"),
+            Self::LearnedLong(index, reuse) => {
                 assert!(*reuse < FormulaReuse::MAX);
-                ClauseKey::Learned(*index, reuse + 1)
+                ClauseKey::LearnedLong(*index, reuse + 1)
             }
         }
     }
@@ -52,7 +56,10 @@ pub struct ClauseStore {
     learned: Vec<Option<StoredClause>>,
     pub learned_slots: FormulaIndex,
     pub learned_count: FormulaIndex,
+    pub binary_count: FormulaIndex,
+    pub binary_graph: Vec<Vec<ClauseKey>>,
     pub resolution_graph: Vec<Vec<Vec<ClauseKey>>>,
+    learned_binary: Vec<StoredClause>,
 }
 
 #[allow(clippy::derivable_impls)]
@@ -65,6 +72,9 @@ impl Default for ClauseStore {
             learned: Vec::new(),
             learned_slots: 0,
             learned_count: 0,
+            binary_count: 0,
+            learned_binary: Vec::new(),
+            binary_graph: Vec::new(),
             resolution_graph: Vec::new(),
         }
     }
@@ -78,9 +88,16 @@ impl ClauseStore {
         key
     }
 
+    fn new_binary_id(&mut self) -> ClauseKey {
+        assert!(self.binary_count < FormulaIndex::MAX);
+        let key = ClauseKey::LearnedBinary(self.binary_count);
+        self.binary_count += 1;
+        key
+    }
+
     fn new_learned_id(&mut self) -> ClauseKey {
         assert!(self.learned_slots < FormulaIndex::MAX);
-        let key = ClauseKey::Learned(self.learned_slots, 0);
+        let key = ClauseKey::LearnedLong(self.learned_slots, 0);
         self.learned_slots += 1;
         key
     }
@@ -93,6 +110,9 @@ impl ClauseStore {
             learned: Vec::with_capacity(capacity),
             learned_slots: 0,
             learned_count: 0,
+            binary_count: 0,
+            learned_binary: Vec::new(),
+            binary_graph: Vec::with_capacity(capacity),
             resolution_graph: Vec::with_capacity(capacity),
         }
     }
@@ -100,7 +120,8 @@ impl ClauseStore {
     pub fn get_carefully(&self, key: ClauseKey) -> Option<&StoredClause> {
         match key {
             ClauseKey::Formula(index) => self.formula.get(index as usize),
-            ClauseKey::Learned(index, reuse) => match self.learned.get(index as usize) {
+            ClauseKey::LearnedBinary(index) => self.learned_binary.get(index as usize),
+            ClauseKey::LearnedLong(index, reuse) => match self.learned.get(index as usize) {
                 Some(Some(clause)) if clause.key().usage() == reuse => Some(clause),
                 _ => None,
             },
@@ -110,7 +131,10 @@ impl ClauseStore {
     pub fn get(&self, key: ClauseKey) -> &StoredClause {
         match key {
             ClauseKey::Formula(index) => unsafe { self.formula.get_unchecked(index as usize) },
-            ClauseKey::Learned(index, reuse) => unsafe {
+            ClauseKey::LearnedBinary(index) => unsafe {
+                self.learned_binary.get_unchecked(index as usize)
+            },
+            ClauseKey::LearnedLong(index, reuse) => unsafe {
                 match self.learned.get_unchecked(index as usize) {
                     Some(clause) if clause.key().usage() == reuse => clause,
                     _ => panic!("no"),
@@ -122,7 +146,8 @@ impl ClauseStore {
     pub fn get_carefully_mut(&mut self, key: ClauseKey) -> Option<&mut StoredClause> {
         match key {
             ClauseKey::Formula(index) => self.formula.get_mut(index as usize),
-            ClauseKey::Learned(index, reuse) => match self.learned.get_mut(index as usize) {
+            ClauseKey::LearnedBinary(index) => self.learned_binary.get_mut(index as usize),
+            ClauseKey::LearnedLong(index, reuse) => match self.learned.get_mut(index as usize) {
                 Some(Some(clause)) if clause.key().usage() == reuse => Some(clause),
                 _ => None,
             },
@@ -132,7 +157,10 @@ impl ClauseStore {
     pub fn get_mut(&mut self, key: ClauseKey) -> &mut StoredClause {
         match key {
             ClauseKey::Formula(index) => unsafe { self.formula.get_unchecked_mut(index as usize) },
-            ClauseKey::Learned(index, reuse) => unsafe {
+            ClauseKey::LearnedBinary(index) => unsafe {
+                self.learned_binary.get_unchecked_mut(index as usize)
+            },
+            ClauseKey::LearnedLong(index, reuse) => unsafe {
                 match self.learned.get_unchecked_mut(index as usize) {
                     Some(clause) if clause.key().usage() == reuse => clause,
                     _ => panic!("no"),
@@ -162,30 +190,42 @@ impl ClauseStore {
             ClauseSource::Resolution => {
                 log::trace!("Learning clause {}", clause.as_string());
                 self.learned_count += 1;
-                match self.keys.len() {
-                    0 => {
-                        let key = self.new_learned_id();
-                        self.learned.push(Some(StoredClause::new_from(
+
+                match clause.len() {
+                    2 => {
+                        let key = self.new_binary_id();
+                        self.learned_binary.push(StoredClause::new_from(
                             key, clause, subsumed, source, variables,
-                        )));
-                        self.resolution_graph.push(vec![
-                            resolution_keys.expect("missing resolution info for learnt")
-                        ]);
-                        assert_eq!(self.resolution_graph[key.index()].len(), 1);
+                        ));
+                        self.binary_graph
+                            .push(resolution_keys.expect("missing resolution info for learnt"));
                         key
                     }
-                    _ => unsafe {
-                        let key = self.keys.pop().unwrap().reuse();
-                        *self.learned.get_unchecked_mut(key.index()) = Some(
-                            StoredClause::new_from(key, clause, subsumed, source, variables),
-                        );
-                        self.resolution_graph[key.index()]
-                            .push(resolution_keys.expect("missing resolution info for learnt"));
-                        assert_eq!(
-                            self.resolution_graph[key.index()].len(),
-                            key.usage() as usize + 1
-                        );
-                        key
+                    _ => match self.keys.len() {
+                        0 => {
+                            let key = self.new_learned_id();
+                            self.learned.push(Some(StoredClause::new_from(
+                                key, clause, subsumed, source, variables,
+                            )));
+                            self.resolution_graph.push(vec![
+                                resolution_keys.expect("missing resolution info for learnt")
+                            ]);
+                            assert_eq!(self.resolution_graph[key.index()].len(), 1);
+                            key
+                        }
+                        _ => unsafe {
+                            let key = self.keys.pop().unwrap().reuse();
+                            *self.learned.get_unchecked_mut(key.index()) = Some(
+                                StoredClause::new_from(key, clause, subsumed, source, variables),
+                            );
+                            self.resolution_graph[key.index()]
+                                .push(resolution_keys.expect("missing resolution info for learnt"));
+                            assert_eq!(
+                                self.resolution_graph[key.index()].len(),
+                                key.usage() as usize + 1
+                            );
+                            key
+                        },
                     },
                 }
             }
@@ -197,7 +237,7 @@ impl ClauseStore {
     }
 
     pub fn learned_count(&self) -> usize {
-        self.learned_slots as usize
+        (self.learned_count + self.binary_count) as usize
     }
 
     pub fn formula_clauses(&self) -> impl Iterator<Item = impl Iterator<Item = Literal> + '_> + '_ {
