@@ -276,7 +276,7 @@ impl Context {
 
         if show_stats {
             println!(
-                "c Parsing complete with {} variables and {} clauses (of which {} were added to the context)",
+                "c Parsing complete with {} variables and {} clauses ({} added to the context)",
                 the_context.variables().slice().len(),
                 clause_counter,
                 the_context.clause_count()

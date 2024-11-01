@@ -69,16 +69,27 @@ impl Context {
                                                 core_q.push_back(*key);
                                             }
                                         }
-                                        LiteralSource::Clause(clause_key) => {
+                                        LiteralSource::Clause(clause_key)
+                                        | LiteralSource::Propagation(clause_key)
+                                        | LiteralSource::Missed(clause_key, _) => {
                                             core_q.push_back(*clause_key)
                                         }
-                                        _ => {}
+
+                                        LiteralSource::Choice
+                                        | LiteralSource::Pure
+                                        | LiteralSource::Assumption => {}
                                     }
                                 }
                             }
                         }
                     }
-                    ClauseKey::Learned(index, usage) => {
+                    ClauseKey::LearnedBinary(index) => {
+                        let source = &self.clause_store.binary_graph[index as usize];
+                        for source_key in source {
+                            core_q.push_back(*source_key);
+                        }
+                    }
+                    ClauseKey::LearnedLong(index, usage) => {
                         let source =
                             &self.clause_store.resolution_graph[index as usize][usage as usize];
                         for source_key in source {
