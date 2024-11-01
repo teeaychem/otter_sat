@@ -43,6 +43,8 @@ Direct Rust dependencies are:
   Configuration options
 - [crossterm](https://docs.rs/crossterm/latest/crossterm/)
   To dynamically display some stats during a solve in a static area of the terminal
+- [flate2](https://crates.io/crates/flate2/)
+  gzip support
 - [rand](https://docs.rs/rand/latest/rand/)
   To help make decisions
 

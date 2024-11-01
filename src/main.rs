@@ -12,6 +12,7 @@ use tikv_jemallocator::Jemalloc;
 static GLOBAL: Jemalloc = Jemalloc;
 
 use std::{
+    ffi::OsStr,
     fs,
     io::{BufReader, Read},
     path::PathBuf,
@@ -27,6 +28,8 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
+use flate2::read::GzDecoder;
+
 // #[rustfmt::skip]
 fn main() {
     #[cfg(feature = "log")]
@@ -41,9 +44,23 @@ fn main() {
     if let Some(formula_paths) = matches.get_raw("paths") {
         for path in formula_paths {
             let the_path = PathBuf::from(path);
-            let unique_config = config.clone();
+            let file = match File::open(&the_path) {
+                Err(_) => panic!("o"), // return Err(BuildIssue::Parse(ParseIssue::NoFile)),
+                Ok(f) => f,
+            };
 
-            let mut the_context = match Context::from_dimacs(&the_path, unique_config) {
+            let unique_config = config.clone();
+            let parsed_context = match &the_path.extension() {
+                None => Context::from_dimacs(&the_path, BufReader::new(&file), unique_config),
+                Some(extension) if *extension == "gz" => Context::from_dimacs(
+                    &the_path,
+                    BufReader::new(GzDecoder::new(&file)),
+                    unique_config,
+                ),
+                Some(_) => Context::from_dimacs(&the_path, BufReader::new(&file), unique_config),
+            };
+
+            let mut the_context = match parsed_context {
                 Ok(context) => context,
                 Err(BuildIssue::OopsAllTautologies) => {
                     if config.show_stats {
