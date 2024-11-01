@@ -8,11 +8,7 @@ use crate::{
     },
 };
 
-use std::{
-    fs::File,
-    io::{BufRead, BufReader},
-    path::PathBuf,
-};
+use std::{io::BufRead, path::PathBuf};
 
 use super::core::ContextIssue;
 
@@ -157,14 +153,12 @@ impl Context {
     }
 
     #[allow(clippy::manual_flatten, unused_labels)]
-    pub fn from_dimacs(file_path: &PathBuf, config: Config) -> Result<Self, BuildIssue> {
-        let file = match File::open(file_path) {
-            Err(_) => return Err(BuildIssue::Parse(ParseIssue::NoFile)),
-            Ok(f) => f,
-        };
-
+    pub fn from_dimacs(
+        file_path: &PathBuf,
+        mut file_reader: impl BufRead,
+        config: Config,
+    ) -> Result<Self, BuildIssue> {
         let mut buffer = String::with_capacity(1024);
-        let mut file_reader = BufReader::new(file);
         let mut clause_buffer: Vec<Literal> = Vec::new();
 
         let mut the_context = None;
