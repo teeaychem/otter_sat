@@ -4,7 +4,7 @@ use crate::{
     structures::{
         clause::stored::ClauseSource,
         literal::{Literal, LiteralSource},
-        variable::{list::VariableList, Variable, VariableId},
+        variable::{delegate::push_back_consequence, list::VariableList, Variable, VariableId},
     },
 };
 
@@ -20,6 +20,8 @@ use super::core::ContextIssue;
 pub enum BuildIssue {
     UnitClauseConflict,
     AssumptionConflict,
+    AssumptionDirectConflict,
+    AssumptionIndirectConflict,
     ClauseEmpty,
     Parse(ParseIssue),
     OopsAllTautologies,
@@ -61,13 +63,16 @@ impl Context {
         Ok(Literal::new(the_variable, polarity))
     }
 
-    pub fn assume_literal(&mut self, literal: Literal) -> Result<(), BuildIssue> {
-        match self
-            .variables
-            .set_value(literal, self.levels.get_mut(0), LiteralSource::Assumption)
-        {
+    pub fn assume(&mut self, literal: Literal) -> Result<(), BuildIssue> {
+        let assumption_result = push_back_consequence(
+            &mut self.variables,
+            literal,
+            LiteralSource::Assumption,
+            self.levels.get_mut(0),
+        );
+        match assumption_result {
             Ok(_) => Ok(()),
-            Err(_e) => Err(BuildIssue::AssumptionConflict),
+            Err(_) => Err(BuildIssue::AssumptionConflict),
         }
     }
 
@@ -84,36 +89,66 @@ impl Context {
             }
         }
 
-        if the_clause.is_empty() {
-            return Err(BuildIssue::ClauseEmpty);
-        }
+        self.preprocess_and_store_clause(the_clause)
+    }
 
-        match the_clause.len() {
+    pub fn preprocess_and_store_clause(&mut self, clause: Vec<Literal>) -> Result<(), BuildIssue> {
+        match clause.len() {
+            0 => Err(BuildIssue::ClauseEmpty),
             1 => {
-                match self.variables.set_value(
-                    *the_clause.first().expect("literal vanish"),
-                    self.levels.get_mut(0),
-                    LiteralSource::Assumption,
-                ) {
+                let literal = unsafe { *clause.get_unchecked(0) };
+                match self.assume(literal) {
                     Ok(_) => Ok(()),
-                    Err(_e) => Err(BuildIssue::UnitClauseConflict),
+                    Err(_e) => Err(BuildIssue::AssumptionIndirectConflict),
                 }
             }
             _ => {
-                // temp taut check
-                let mut tautology = false;
-                for literal in &the_clause {
-                    if the_clause.iter().any(|l| *l == literal.negate()) {
-                        tautology = true;
-                        break;
+                // todo: temporary tautology check
+                // do not add a tautology
+                for literal in &clause {
+                    if clause.iter().any(|l| *l == literal.negate()) {
+                        return Ok(());
                     }
                 }
 
-                if !tautology {
-                    match self.store_clause(the_clause, ClauseSource::Formula, None) {
-                        Ok(_) => {}
-                        Err(ContextIssue::EmptyClause) => return Err(BuildIssue::ClauseEmpty),
-                        // Err(e) => panic!("Unexpected error: {e:?}"),
+                let mut strengthened_clause = vec![];
+                let mut subsumed = vec![];
+
+                // strengthen a clause given established assumptions and skip adding a satisfied clause
+                for literal in clause {
+                    match self.variables.value_of(literal.index()) {
+                        None => {
+                            strengthened_clause.push(literal);
+                        }
+                        Some(value) if value != literal.polarity() => subsumed.push(literal),
+                        Some(_) => {
+                            strengthened_clause.push(literal);
+                            return Ok(());
+                        }
+                    }
+                }
+
+                match strengthened_clause.len() {
+                    0 => {} // panic!("proven"),
+                    1 => {
+                        let literal = strengthened_clause[0];
+                        match self.assume(literal) {
+                            Ok(_) => {}
+                            Err(_e) => return Err(BuildIssue::AssumptionIndirectConflict),
+                        }
+                    }
+                    _ => {
+                        match self.store_clause(
+                            strengthened_clause,
+                            subsumed,
+                            ClauseSource::Formula,
+                            None,
+                        ) {
+                            Ok(_) => {}
+                            Err(ContextIssue::EmptyClause) => {
+                                return Err(BuildIssue::ClauseEmpty);
+                            }
+                        }
                     }
                 }
                 Ok(())
@@ -134,8 +169,7 @@ impl Context {
 
         let mut the_context = None;
         let mut line_counter = 0;
-        let mut assumption_counter = 0;
-        let mut tautological_clause_counter = 0;
+        let mut clause_counter = 0;
 
         let show_stats = config.show_stats;
 
@@ -222,43 +256,9 @@ impl Context {
                         match item {
                             "0" => {
                                 let the_clause = clause_buffer.clone();
-
-                                match the_clause.len() {
-                                    1 => {
-                                        assumption_counter += 1;
-                                        match the_context.variables.set_value(
-                                            *the_clause.first().expect("literal vanish"),
-                                            the_context.levels.get_mut(0),
-                                            LiteralSource::Assumption,
-                                        ) {
-                                            Ok(_) => {}
-                                            Err(_e) => return Err(BuildIssue::UnitClauseConflict),
-                                        }
-                                    }
-                                    _ => {
-                                        // temp taut check
-                                        let mut tautology = false;
-                                        for literal in &the_clause {
-                                            if the_clause.iter().any(|l| *l == literal.negate()) {
-                                                tautology = true;
-                                                tautological_clause_counter += 1;
-                                                break;
-                                            }
-                                        }
-
-                                        if !tautology {
-                                            match the_context.store_clause(
-                                                the_clause,
-                                                ClauseSource::Formula,
-                                                None,
-                                            ) {
-                                                Ok(_) => {}
-                                                Err(ContextIssue::EmptyClause) => {
-                                                    return Err(BuildIssue::ClauseEmpty);
-                                                } // Err(e) => panic!("Unexpected error: {e:?}"),
-                                            }
-                                        }
-                                    }
+                                match the_context.preprocess_and_store_clause(the_clause) {
+                                    Ok(_) => clause_counter += 1,
+                                    Err(e) => return Err(e),
                                 }
 
                                 clause_buffer.clear();
@@ -282,13 +282,14 @@ impl Context {
 
         if show_stats {
             println!(
-                "c Parsing complete with {} variables and {} clauses",
+                "c Parsing complete with {} variables and {} clauses (of which {} were added to the context)",
                 the_context.variables().slice().len(),
-                the_context.clause_count() + assumption_counter + tautological_clause_counter
+                clause_counter,
+                the_context.clause_count()
             );
         }
 
-        if the_context.clause_count() == 0 && tautological_clause_counter != 0 {
+        if the_context.clause_count() == 0 {
             return Err(BuildIssue::OopsAllTautologies);
         }
 
