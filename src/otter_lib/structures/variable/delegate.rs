@@ -3,7 +3,10 @@ use crate::{
         defaults::{self},
         ActivityType, Config,
     },
-    context::level::LevelIndex,
+    context::{
+        level::{Level, LevelIndex},
+        store::ClauseKey,
+    },
     generic::heap::FixedHeap,
     structures::{
         literal::{Literal, LiteralSource},
@@ -205,14 +208,41 @@ impl DerefMut for VariableStore {
 }
 
 pub fn push_back_consequence(
-    consequence_q: &mut VecDeque<(Literal, LiteralSource, LevelIndex)>,
+    variables: &mut VariableStore,
     literal: Literal,
     source: LiteralSource,
-    level: LevelIndex,
-) {
+    level: &mut Level,
+) -> Result<(), ClauseKey> {
+    match variables.set_value(literal, level, source) {
+        Ok(_) => {}
+        Err(_) => match source {
+            LiteralSource::Missed(clause_key, _)
+            | LiteralSource::Resolution(clause_key)
+            | LiteralSource::Clause(clause_key) => {
+                // self.status = ClauseStatus::NoSolution(clause_key);
+                return Err(clause_key);
+            }
+            LiteralSource::Assumption => panic!("failed to update on assumption"),
+            LiteralSource::Choice => panic!("failed to update on choice"),
+            LiteralSource::Pure => panic!("issue on pure update"),
+            LiteralSource::Propagation(clause_key) => {
+                // self.status = ClauseStatus::NoSolution(clause_key);
+                return Err(clause_key);
+            }
+        },
+    };
+
     // todo: improve
     // easy would be to keep track of pending of each variable, then direct lookup
-    if !consequence_q.iter().any(|(l, _, _)| *l == literal) {
-        consequence_q.push_back((literal, source, level))
+    if !variables
+        .consequence_q
+        .iter()
+        .any(|(l, _, _)| *l == literal)
+    {
+        variables
+            .consequence_q
+            .push_back((literal, source, level.index()))
     }
+
+    Ok(())
 }
