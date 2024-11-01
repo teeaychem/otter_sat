@@ -1,9 +1,10 @@
 use crate::{
+    config::ClauseActivity,
     context::store::ClauseKey,
     structures::{
         clause::Clause,
         literal::Literal,
-        variable::{list::VariableList, WatchElement},
+        variable::{delegate::VariableStore, list::VariableList, WatchElement},
     },
 };
 
@@ -16,19 +17,14 @@ pub struct StoredClause {
     clause: Vec<Literal>,
     subsumed_literals: Vec<Literal>,
     pub last: usize,
+    pub activity: ClauseActivity,
 }
-
-// { Clause enums
 
 #[derive(Clone, Copy, Debug)]
 pub enum ClauseSource {
     Formula,
     Resolution,
 }
-
-// }
-
-// { Watch enums
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum WatchStatus {
@@ -40,22 +36,21 @@ pub enum WatchStatus {
     TwoConflict,
 }
 
-// }
-
 impl StoredClause {
     pub fn new_from(
         key: ClauseKey,
         clause: Vec<Literal>,
+        subsumed: Vec<Literal>,
         source: ClauseSource,
-        variables: &impl VariableList,
+        variables: &VariableStore,
     ) -> Self {
-        // let (figured_out, last) = figure_out_intial_watches(clause, variables);
         let mut stored_clause = Self {
             key,
             source,
             clause,
-            subsumed_literals: vec![],
+            subsumed_literals: subsumed,
             last: 0,
+            activity: 1.0,
         };
 
         stored_clause.initialise_watches(variables);

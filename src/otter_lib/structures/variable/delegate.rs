@@ -1,7 +1,7 @@
 use crate::{
     config::{
         defaults::{self},
-        ActivityType, Config,
+        Config, VariableActivity,
     },
     context::{
         level::{Level, LevelIndex},
@@ -27,11 +27,11 @@ pub enum Status {
 
 pub struct VariableStore {
     external_map: Vec<String>,
-    score_increment: ActivityType,
+    score_increment: VariableActivity,
     variables: Vec<Variable>,
     pub consequence_q: VecDeque<(Literal, LiteralSource, LevelIndex)>,
     string_map: HashMap<String, VariableId>,
-    activity_heap: FixedHeap<ActivityType>,
+    activity_heap: FixedHeap<VariableActivity>,
 }
 
 impl VariableStore {
@@ -39,24 +39,24 @@ impl VariableStore {
         self.string_map.get(name).copied()
     }
 
-    pub fn score_increment(&self) -> ActivityType {
+    pub fn score_increment(&self) -> VariableActivity {
         self.score_increment
     }
 
-    pub fn activity_of(&self, index: usize) -> ActivityType {
+    pub fn activity_of(&self, index: usize) -> VariableActivity {
         self.activity_heap.value_at(index)
     }
 
-    pub fn activity_max(&self) -> Option<ActivityType> {
+    pub fn activity_max(&self) -> Option<VariableActivity> {
         self.activity_heap.peek_max_value()
     }
 
     pub fn rescore_activity(&mut self) {
         let heap_max = match self.activity_max() {
             Some(v) => v,
-            None => ActivityType::MIN,
+            None => VariableActivity::MIN,
         };
-        let rescale = ActivityType::max(heap_max, self.score_increment());
+        let rescale = VariableActivity::max(heap_max, self.score_increment());
 
         let factor = 1.0 / rescale;
         self.activity_heap.reduce_all_with(factor);
@@ -149,7 +149,7 @@ impl VariableStore {
     pub fn apply_VSIDS<V: Iterator<Item = usize>>(
         &mut self,
         variables: V,
-        hint: Option<ActivityType>,
+        hint: Option<VariableActivity>,
         config: &Config,
     ) {
         let activity = config.activity_conflict;

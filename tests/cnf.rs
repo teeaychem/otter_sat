@@ -23,8 +23,13 @@ fn satlib_path(collection: &str) -> PathBuf {
 }
 
 fn test_path(path: PathBuf, config: &Config) -> Report {
-    let mut the_context =
-        Context::from_dimacs(&path, config.clone()).expect("failed to build context");
+    let mut the_context = match Context::from_dimacs(&path, config.clone()) {
+        Ok(c) => c,
+        Err(e) => {
+            println!("Issue with {path:?}");
+            panic!("{e:?}")
+        }
+    };
     match the_context.solve() {
         Ok(report) => report,
         Err(e) => panic!("solve error {e:?}"),
@@ -37,8 +42,10 @@ fn test_collection(collection: PathBuf, config: &Config, require: Report) {
         .flatten();
 
     for test in formulas {
-        let result = test_path(test.path(), config);
-        assert_eq!(require, result);
+        if test.path().extension().is_some_and(|ext| ext == "cnf") {
+            let result = test_path(test.path(), config);
+            assert_eq!(require, result);
+        }
     }
 }
 

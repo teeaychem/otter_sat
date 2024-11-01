@@ -48,13 +48,13 @@ impl Context {
         the_buffer.clear_literals(self.levels.top().literals());
         the_buffer.set_inital_clause(&conflict_clause.deref(), clause_key);
 
-        if let Some(asserted) = the_buffer.asserts() {
+        if let Some(asserted_literal) = the_buffer.asserts() {
             // check to see if missed
             let missed_level = self.backjump_level(conflict_clause.literal_slice());
             self.backjump(missed_level);
             match push_back_consequence(
                 &mut self.variables,
-                asserted,
+                asserted_literal,
                 LiteralSource::Missed(conflict_index, missed_level),
                 self.levels.top_mut(),
             ) {
@@ -87,6 +87,12 @@ impl Context {
                         // alt hint Some(the_buffer.max_activity(&self.variables)),
                     }
 
+                    self.clause_store.decay();
+                    for key in the_buffer.trail() {
+                        let the_clause = self.clause_store.get_mut(*key);
+                        the_clause.activity += config::defaults::CLAUSE_BUMP;
+                    }
+
                     let asserted_literal = asserted_literal.expect("literal not there");
 
                     match resolved_clause.len() {
@@ -113,6 +119,7 @@ impl Context {
 
                             let stored_clause = self.store_clause(
                                 resolved_clause,
+                                Vec::default(),
                                 ClauseSource::Resolution,
                                 Some(the_buffer.trail().to_vec()),
                             )?;

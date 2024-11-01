@@ -6,7 +6,7 @@ use crate::{
             Clause,
         },
         literal::Literal,
-        variable::list::VariableList,
+        variable::{delegate::VariableStore, list::VariableList},
     },
 };
 
@@ -50,6 +50,7 @@ pub struct ClauseStore {
     formula: Vec<StoredClause>,
     formula_count: FormulaIndex,
     learned: Vec<Option<StoredClause>>,
+    pub learned_slots: FormulaIndex,
     pub learned_count: FormulaIndex,
     pub resolution_graph: Vec<Vec<Vec<ClauseKey>>>,
 }
@@ -62,6 +63,7 @@ impl Default for ClauseStore {
             formula: Vec::new(),
             formula_count: 0,
             learned: Vec::new(),
+            learned_slots: 0,
             learned_count: 0,
             resolution_graph: Vec::new(),
         }
@@ -77,9 +79,9 @@ impl ClauseStore {
     }
 
     fn new_learned_id(&mut self) -> ClauseKey {
-        assert!(self.learned_count < FormulaIndex::MAX);
-        let key = ClauseKey::Learned(self.learned_count, 0);
-        self.learned_count += 1;
+        assert!(self.learned_slots < FormulaIndex::MAX);
+        let key = ClauseKey::Learned(self.learned_slots, 0);
+        self.learned_slots += 1;
         key
     }
 
@@ -89,6 +91,7 @@ impl ClauseStore {
             formula: Vec::with_capacity(capacity),
             formula_count: 0,
             learned: Vec::with_capacity(capacity),
+            learned_slots: 0,
             learned_count: 0,
             resolution_graph: Vec::with_capacity(capacity),
         }
@@ -142,24 +145,29 @@ impl ClauseStore {
         &mut self,
         source: ClauseSource,
         clause: Vec<Literal>,
-        variables: &impl VariableList,
+        subsumed: Vec<Literal>,
+        variables: &VariableStore,
         resolution_keys: Option<Vec<ClauseKey>>,
     ) -> ClauseKey {
         // println!("{:?}", self.formula.iter().map(|c| c.key()).collect::<Vec<_>>());
+
         match source {
             ClauseSource::Formula => {
                 let key = self.new_formula_id();
-                self.formula
-                    .push(StoredClause::new_from(key, clause, source, variables));
+                self.formula.push(StoredClause::new_from(
+                    key, clause, subsumed, source, variables,
+                ));
                 key
             }
             ClauseSource::Resolution => {
                 log::trace!("Learning clause {}", clause.as_string());
+                self.learned_count += 1;
                 match self.keys.len() {
                     0 => {
                         let key = self.new_learned_id();
-                        self.learned
-                            .push(Some(StoredClause::new_from(key, clause, source, variables)));
+                        self.learned.push(Some(StoredClause::new_from(
+                            key, clause, subsumed, source, variables,
+                        )));
                         self.resolution_graph.push(vec![
                             resolution_keys.expect("missing resolution info for learnt")
                         ]);
@@ -168,8 +176,9 @@ impl ClauseStore {
                     }
                     _ => unsafe {
                         let key = self.keys.pop().unwrap().reuse();
-                        *self.learned.get_unchecked_mut(key.index()) =
-                            Some(StoredClause::new_from(key, clause, source, variables));
+                        *self.learned.get_unchecked_mut(key.index()) = Some(
+                            StoredClause::new_from(key, clause, subsumed, source, variables),
+                        );
                         self.resolution_graph[key.index()]
                             .push(resolution_keys.expect("missing resolution info for learnt"));
                         assert_eq!(
@@ -188,7 +197,7 @@ impl ClauseStore {
     }
 
     pub fn learned_count(&self) -> usize {
-        self.learned_count as usize
+        self.learned_slots as usize
     }
 
     pub fn formula_clauses(&self) -> impl Iterator<Item = impl Iterator<Item = Literal> + '_> + '_ {
@@ -197,11 +206,41 @@ impl ClauseStore {
             .map(|clause| clause.literal_slice().iter().copied())
     }
 
+    pub fn decay(&mut self) {
+        for clause in self.learned.iter_mut().flatten() {
+            clause.activity *= config::defaults::CLAUSE_DECAY_FACTOR;
+        }
+    }
+
     // TODO: figure some improvement…
     pub fn reduce(&mut self, variables: &impl VariableList, glue_strength: config::GlueStrength) {
         let limit = self.learned_count as usize / 2;
 
-        for index in 0..self.learned_count {
+        // least active first
+        // let mut activity_sort = self
+        //     .learned
+        //     .iter()
+        //     .enumerate()
+        //     .filter_map(|(i, c)| c.as_ref().map(|x| (i, x)))
+        //     .collect::<Vec<_>>();
+        // activity_sort
+        //     .sort_unstable_by(|a, b| a.1.activity.partial_cmp(&b.1.activity).expect("sort issue"));
+
+        // let mut to_remove = vec![];
+        // for (index, clause) in activity_sort {
+        //     if clause.lbd(variables) > glue_strength {
+        //         to_remove.push(index);
+        //         self.learned_count -= 1;
+        //     }
+        //     if to_remove.len() > limit {
+        //         break;
+        //     }
+        // }
+        // for index in to_remove {
+        //     unsafe { *self.learned.get_unchecked_mut(index) = None }
+        // }
+
+        for index in 0..self.learned_slots {
             if let Some(clause) = unsafe { self.learned.get_unchecked(index as usize) } {
                 if self.keys.len() > limit {
                     break;
@@ -211,6 +250,6 @@ impl ClauseStore {
                 }
             }
         }
-        log::debug!(target: "forget", "Reduced to: {}", self.learned_count);
+        log::debug!(target: "forget", "Reduced to: {}", self.learned_slots);
     }
 }
