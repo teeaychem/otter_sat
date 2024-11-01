@@ -208,25 +208,32 @@ fn beijing() {
     let collection_path = satlib_collection("beijing");
 
     let satisfiable_formulas = vec![
-        "2bitcomp_5.cnf",
-        "2bitmax_6.cnf",
-        "3bitadd_31.cnf",
-        "3bitadd_32.cnf",
-        "3blocks.cnf",
-        "4blocks.cnf",
-        "4blocksb.cnf",
-        "e0ddr2-10-by-5-1.cnf",
-        "e0ddr2-10-by-5-4.cnf",
-        "enddr2-10-by-5-1.cnf",
-        "enddr2-10-by-5-8.cnf",
-        "ewddr2-10-by-5-1.cnf",
-        "ewddr2-10-by-5-8.cnf",
+        "2bitcomp_5.cnf.gz",
+        "2bitmax_6.cnf.gz",
+        "3bitadd_31.cnf.gz",
+        "3bitadd_32.cnf.gz",
+        "3blocks.cnf.gz",
+        "4blocks.cnf.gz",
+        "4blocksb.cnf.gz",
+        "e0ddr2-10-by-5-1.cnf.gz",
+        "e0ddr2-10-by-5-4.cnf.gz",
+        "enddr2-10-by-5-1.cnf.gz",
+        "enddr2-10-by-5-8.cnf.gz",
+        "ewddr2-10-by-5-1.cnf.gz",
+        "ewddr2-10-by-5-8.cnf.gz",
     ];
     for formula in satisfiable_formulas {
-        assert_eq!(
-            default_on_path(collection_path.join(formula), &config),
-            Report::Satisfiable
-        );
+        let mut context_from_path = match context_from_path(collection_path.join(formula), &config)
+        {
+            Ok(c) => c,
+            Err(e) => panic!("Builder error {e:?}"),
+        };
+
+        let report = match context_from_path.solve() {
+            Ok(report) => report,
+            Err(e) => panic!("solve error {e:?}"),
+        };
+        assert_eq!(report, Report::Satisfiable);
     }
 }
 
@@ -236,41 +243,55 @@ fn quasigroup() {
     let collection_path = satlib_collection("quasigroup");
 
     let satisfiable_formulas = vec![
-        "qg1-07.cnf",
-        "qg1-08.cnf",
-        "qg2-07.cnf",
-        "qg2-08.cnf",
-        "qg3-08.cnf",
-        "qg4-09.cnf",
-        "qg5-11.cnf",
-        "qg6-09.cnf",
-        "qg7-09.cnf",
-        "qg7-13.cnf",
+        "qg1-07.cnf.gz",
+        "qg1-08.cnf.gz",
+        "qg2-07.cnf.gz",
+        "qg2-08.cnf.gz",
+        "qg3-08.cnf.gz",
+        "qg4-09.cnf.gz",
+        "qg5-11.cnf.gz",
+        "qg6-09.cnf.gz",
+        "qg7-09.cnf.gz",
+        "qg7-13.cnf.gz",
     ];
     for formula in satisfiable_formulas {
-        assert_eq!(
-            default_on_path(collection_path.join(formula), &config),
-            Report::Satisfiable
-        );
+        let mut context_from_path = match context_from_path(collection_path.join(formula), &config)
+        {
+            Ok(c) => c,
+            Err(e) => panic!("Builder error {e:?}"),
+        };
+
+        let report = match context_from_path.solve() {
+            Ok(report) => report,
+            Err(e) => panic!("solve error {e:?}"),
+        };
+        assert_eq!(report, Report::Satisfiable);
     }
     let unsatisfiable_formulas = vec![
-        "qg5-12.cnf",
-        "qg5-13.cnf",
-        "qg6-10.cnf",
-        "qg6-11.cnf",
-        "qg6-12.cnf",
-        "qg7-10.cnf",
-        "qg7-11.cnf",
-        "qg7-12.cnf",
-        "qg3-09.cnf",
-        "qg4-08.cnf",
-        "qg5-09.cnf",
-        "qg5-10.cnf",
+        "qg5-12.cnf.gz",
+        "qg5-13.cnf.gz",
+        "qg6-10.cnf.gz",
+        "qg6-11.cnf.gz",
+        "qg6-12.cnf.gz",
+        "qg7-10.cnf.gz",
+        "qg7-11.cnf.gz",
+        "qg7-12.cnf.gz",
+        "qg3-09.cnf.gz",
+        "qg4-08.cnf.gz",
+        "qg5-09.cnf.gz",
+        "qg5-10.cnf.gz",
     ];
     for formula in unsatisfiable_formulas {
-        assert_eq!(
-            default_on_path(collection_path.join(formula), &config),
-            Report::Unsatisfiable
-        );
+        let mut context_from_path = match context_from_path(collection_path.join(formula), &config)
+        {
+            Ok(c) => c,
+            Err(e) => panic!("Builder error {e:?}"),
+        };
+
+        let report = match context_from_path.solve() {
+            Ok(report) => report,
+            Err(e) => panic!("solve error {e:?}"),
+        };
+        assert_eq!(report, Report::Unsatisfiable);
     }
 }
