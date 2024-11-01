@@ -64,33 +64,13 @@ impl Context {
     pub fn step(&mut self, config: &Config) -> Result<(), ()> {
         self.counters.iterations += 1;
 
-        'search: while let Some((literal, source, _)) = self.variables.get_consequence() {
-            let consequence = match self
-                .variables
-                .set_value(literal, self.levels.top_mut(), source)
-            {
-                Ok(_) => propagate_literal(
-                    literal,
-                    &mut self.variables,
-                    &mut self.clause_store,
-                    self.levels.top_mut(),
-                ),
-                Err(_) => match source {
-                    LiteralSource::Missed(clause_key, _)
-                    | LiteralSource::Resolution(clause_key)
-                    | LiteralSource::Clause(clause_key) => {
-                        self.status = ClauseStatus::NoSolution(clause_key);
-                        return Err(());
-                    }
-                    LiteralSource::Assumption => panic!("failed to update on assumption"),
-                    LiteralSource::Choice => panic!("failed to update on choice"),
-                    LiteralSource::Pure => panic!("issue on pure update"),
-                    LiteralSource::Propagation(clause_key) => {
-                        self.status = ClauseStatus::NoSolution(clause_key);
-                        Err(clause_key)
-                    }
-                },
-            };
+        'search: while let Some((literal, _source, _)) = self.variables.get_consequence() {
+            let consequence = propagate_literal(
+                literal,
+                &mut self.variables,
+                &mut self.clause_store,
+                self.levels.top_mut(),
+            );
 
             if let Err(conflict_key) = consequence {
                 match self.conflict_analysis(conflict_key, config) {
@@ -168,12 +148,15 @@ impl Context {
                 None => Literal::new(index as VariableId, self.rng.gen_bool(polarity_lean)),
             }
         };
-        push_back_consequence(
-            &mut self.variables.consequence_q,
+        match push_back_consequence(
+            &mut self.variables,
             choice_literal,
             LiteralSource::Choice,
-            self.levels.index(),
-        );
+            self.levels.top_mut(),
+        ) {
+            Ok(()) => {}
+            Err(_) => panic!("could not set choice"),
+        };
     }
 
     fn set_pure(&mut self) {
@@ -181,12 +164,15 @@ impl Context {
 
         for v_id in f.into_iter().chain(t) {
             let the_literal = Literal::new(v_id, false);
-            push_back_consequence(
-                &mut self.variables.consequence_q,
+            match push_back_consequence(
+                &mut self.variables,
                 the_literal,
                 LiteralSource::Pure,
-                self.levels.index(),
-            );
+                self.levels.top_mut(),
+            ) {
+                Ok(()) => {}
+                Err(_) => panic!("could not set pure"),
+            };
         }
     }
 
@@ -313,7 +299,7 @@ impl Context {
         self.clause_store.formula_count() + self.clause_store.learned_count()
     }
 
-    pub fn it_is_time_to_reduce(&self, u: usize) -> bool {
+    pub fn it_is_time_to_reduce(&self, u: config::LubyConstant) -> bool {
         use crate::procedures::luby;
         self.counters.conflicts_since_last_forget >= u.wrapping_mul(luby(self.counters.restarts))
     }

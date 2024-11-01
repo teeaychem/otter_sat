@@ -79,10 +79,10 @@ impl Context {
                 Ok(literal) => literal,
                 Err(e) => return Err(BuildIssue::Parse(e)),
             };
-            the_clause.push(the_literal);
+            if !the_clause.iter().any(|l| *l == the_literal) {
+                the_clause.push(the_literal);
+            }
         }
-        the_clause.sort_unstable();
-        the_clause.dedup();
 
         if the_clause.is_empty() {
             return Err(BuildIssue::ClauseEmpty);
@@ -221,9 +221,7 @@ impl Context {
                     for item in split_buf {
                         match item {
                             "0" => {
-                                let mut the_clause = clause_buffer.clone();
-                                the_clause.sort_unstable();
-                                the_clause.dedup();
+                                let the_clause = clause_buffer.clone();
 
                                 match the_clause.len() {
                                     1 => {
@@ -270,7 +268,9 @@ impl Context {
                                     Ok(literal) => literal,
                                     Err(e) => return Err(BuildIssue::Parse(e)),
                                 };
-                                clause_buffer.push(the_literal);
+                                if !clause_buffer.iter().any(|l| *l == the_literal) {
+                                    clause_buffer.push(the_literal);
+                                }
                             }
                         }
                     }

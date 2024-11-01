@@ -1,8 +1,8 @@
 pub mod defaults;
 
 pub type ActivityType = f64;
-pub type DecayFrequency = usize;
-pub type GlueStrength = u32;
+pub type DecayFrequency = u8;
+pub type GlueStrength = u8;
 pub type LubyConstant = usize;
 pub type PolarityLean = f64;
 pub type RandomChoiceFrequency = f64;

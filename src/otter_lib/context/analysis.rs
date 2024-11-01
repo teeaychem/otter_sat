@@ -52,12 +52,15 @@ impl Context {
             // check to see if missed
             let missed_level = self.backjump_level(conflict_clause.literal_slice());
             self.backjump(missed_level);
-            push_back_consequence(
-                &mut self.variables.consequence_q,
+            match push_back_consequence(
+                &mut self.variables,
                 asserted,
                 LiteralSource::Missed(conflict_index, missed_level),
-                self.levels.index(),
-            );
+                self.levels.top_mut(),
+            ) {
+                Ok(()) => {}
+                Err(key) => return Ok(SolveStatus::NoSolution(key)),
+            };
 
             Ok(SolveStatus::MissedImplication(clause_key))
         } else {
@@ -93,12 +96,15 @@ impl Context {
                             self.proofs
                                 .push((asserted_literal, the_buffer.trail().to_vec()));
 
-                            push_back_consequence(
-                                &mut self.variables.consequence_q,
+                            match push_back_consequence(
+                                &mut self.variables,
                                 asserted_literal,
                                 LiteralSource::Resolution(clause_key),
-                                self.levels.index(),
-                            );
+                                self.levels.top_mut(),
+                            ) {
+                                Ok(()) => {}
+                                Err(key) => return Ok(SolveStatus::NoSolution(key)),
+                            };
                         }
                         _ => {
                             let backjump_level_index =
@@ -111,12 +117,15 @@ impl Context {
                                 Some(the_buffer.trail().to_vec()),
                             )?;
                             let stored_index = stored_clause.key();
-                            push_back_consequence(
-                                &mut self.variables.consequence_q,
+                            match push_back_consequence(
+                                &mut self.variables,
                                 asserted_literal,
                                 LiteralSource::Clause(stored_index),
-                                self.levels.index(),
-                            );
+                                self.levels.top_mut(),
+                            ) {
+                                Ok(()) => {}
+                                Err(key) => return Ok(SolveStatus::NoSolution(key)),
+                            };
                         }
                     };
                     Ok(SolveStatus::AssertingClause(clause_key))
