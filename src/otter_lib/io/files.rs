@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 
 use flate2::read::GzDecoder;
 
+use crate::context::builder::BuildIssue;
 use crate::{
     config::Config,
     context::{self, Context, Report},
@@ -16,14 +17,14 @@ use crate::{
     },
 };
 
-pub fn default_on_path(path: PathBuf, config: &Config) -> Report {
+pub fn context_from_path(path: PathBuf, config: &Config) -> Result<Context, BuildIssue> {
     let the_path = PathBuf::from(&path);
     let file = match File::open(&the_path) {
-        Err(_) => panic!("o"), // return Err(BuildIssue::Parse(ParseIssue::NoFile)),
+        Err(_) => panic!("Could not open {path:?}"), // return Err(BuildIssue::Parse(ParseIssue::NoFile)),
         Ok(f) => f,
     };
     let unique_config = config.clone();
-    let parsed_context = match &the_path.extension() {
+    match &the_path.extension() {
         None => Context::from_dimacs(&the_path, BufReader::new(&file), unique_config),
         Some(extension) if *extension == "gz" => Context::from_dimacs(
             &the_path,
@@ -31,18 +32,6 @@ pub fn default_on_path(path: PathBuf, config: &Config) -> Report {
             unique_config,
         ),
         Some(_) => Context::from_dimacs(&the_path, BufReader::new(&file), unique_config),
-    };
-
-    let mut the_context = match parsed_context {
-        Ok(c) => c,
-        Err(e) => {
-            println!("Issue with {path:?}");
-            panic!("{e:?}")
-        }
-    };
-    match the_context.solve() {
-        Ok(report) => report,
-        Err(e) => panic!("solve error {e:?}"),
     }
 }
 
@@ -57,7 +46,16 @@ pub fn default_on_dir(collection: PathBuf, config: &Config, require: Report) {
             .extension()
             .is_some_and(|ext| ext == "cnf" || ext == "gz")
         {
-            let result = default_on_path(test.path(), config);
+            let mut context_from_path = match context_from_path(test.path(), config) {
+                Ok(c) => c,
+                Err(e) => panic!("Builder error {e:?}"),
+            };
+
+            let result = match context_from_path.solve() {
+                Ok(report) => report,
+                Err(e) => panic!("solve error {e:?}"),
+            };
+
             assert_eq!(require, result);
         }
     }

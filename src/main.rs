@@ -21,7 +21,7 @@ use std::{
 use otter_lib::{
     config::Config,
     context::{builder::BuildIssue, Context},
-    io::cli::cli,
+    io::{cli::cli, files::context_from_path},
 };
 
 use std::fs::File;
@@ -43,24 +43,7 @@ fn main() {
 
     if let Some(formula_paths) = matches.get_raw("paths") {
         for path in formula_paths {
-            let the_path = PathBuf::from(path);
-            let file = match File::open(&the_path) {
-                Err(_) => panic!("o"), // return Err(BuildIssue::Parse(ParseIssue::NoFile)),
-                Ok(f) => f,
-            };
-
-            let unique_config = config.clone();
-            let parsed_context = match &the_path.extension() {
-                None => Context::from_dimacs(&the_path, BufReader::new(&file), unique_config),
-                Some(extension) if *extension == "gz" => Context::from_dimacs(
-                    &the_path,
-                    BufReader::new(GzDecoder::new(&file)),
-                    unique_config,
-                ),
-                Some(_) => Context::from_dimacs(&the_path, BufReader::new(&file), unique_config),
-            };
-
-            let mut the_context = match parsed_context {
+            let mut the_context = match context_from_path(PathBuf::from(path), &config) {
                 Ok(context) => context,
                 Err(BuildIssue::OopsAllTautologies) => {
                     if config.show_stats {
