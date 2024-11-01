@@ -7,7 +7,7 @@ use crate::{
         level::{Level, LevelIndex},
         store::ClauseKey,
     },
-    generic::heap::FixedHeap,
+    generic::heap::IndexHeap,
     structures::{
         literal::{Literal, LiteralSource},
         variable::{list::VariableList, Variable, VariableId},
@@ -31,7 +31,7 @@ pub struct VariableStore {
     variables: Vec<Variable>,
     pub consequence_q: VecDeque<(Literal, LiteralSource, LevelIndex)>,
     string_map: HashMap<String, VariableId>,
-    activity_heap: FixedHeap<VariableActivity>,
+    activity_heap: IndexHeap<VariableActivity>,
 }
 
 impl VariableStore {
@@ -61,7 +61,7 @@ impl VariableStore {
         let factor = 1.0 / rescale;
         self.activity_heap.reduce_all_with(factor);
         self.score_increment *= factor;
-        self.activity_heap.bobble();
+        self.activity_heap.reheap();
     }
 
     pub fn bump_activity(&mut self, index: usize) {
@@ -94,7 +94,7 @@ impl VariableStore {
             variables,
             consequence_q: VecDeque::with_capacity(count),
             string_map: HashMap::with_capacity(count),
-            activity_heap: FixedHeap::new(count, defaults::DEFAULT_ACTIVITY),
+            activity_heap: IndexHeap::new(count, defaults::DEFAULT_ACTIVITY),
         }
     }
 
@@ -105,7 +105,7 @@ impl VariableStore {
             variables: Vec::with_capacity(variable_count),
             consequence_q: VecDeque::with_capacity(variable_count),
             string_map: HashMap::with_capacity(variable_count),
-            activity_heap: FixedHeap::new(variable_count, defaults::DEFAULT_ACTIVITY),
+            activity_heap: IndexHeap::new(variable_count, defaults::DEFAULT_ACTIVITY),
         }
     }
 
@@ -125,7 +125,7 @@ impl Default for VariableStore {
             variables: Vec::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
             consequence_q: VecDeque::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
             string_map: HashMap::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
-            activity_heap: FixedHeap::new(
+            activity_heap: IndexHeap::new(
                 defaults::DEFAULT_VARIABLE_COUNT,
                 defaults::DEFAULT_ACTIVITY,
             ),

@@ -1,18 +1,20 @@
 #[derive(Debug)]
 
-pub struct FixedHeap<T: PartialOrd + Clone + Copy> {
+pub struct IndexHeap<T: PartialOrd + Clone + Copy> {
     values: Vec<T>,
     map: Vec<Option<usize>>,
     heap: Vec<usize>,
     limit: usize,
+    default_value: T,
 }
 use std::cmp::Ordering;
 
 impl<T: PartialOrd + Clone + Copy + std::fmt::Debug + std::fmt::Display + std::ops::MulAssign>
-    FixedHeap<T>
+    IndexHeap<T>
 {
     pub fn new(size: usize, default_value: T) -> Self {
-        FixedHeap {
+        IndexHeap {
+            default_value,
             values: vec![default_value; size],
             map: vec![None; size],
             heap: vec![0; size],
@@ -110,13 +112,42 @@ impl<T: PartialOrd + Clone + Copy + std::fmt::Debug + std::fmt::Display + std::o
         }
     }
 
-    pub fn insert(&mut self, index: usize, value: T) {
+    pub fn insert(&mut self, index: usize, value: T) -> bool {
+        if index > self.heap.len() {
+            let required = (index - self.heap.len()) + 1;
+            self.map.append(&mut vec![None; required]);
+            self.values.append(&mut vec![self.default_value; required]);
+            self.heap.append(&mut vec![0; required]);
+        }
+
         if unsafe { self.map.get_unchecked(index).is_none() } {
             self.values[index] = value;
             self.map[index] = Some(self.limit);
             self.heap[self.limit] = index;
             self.heapify_up(self.limit);
+            self.heapify_down(self.limit);
             self.limit += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn remove(&mut self, index: usize) -> bool {
+        if let Some(heap_position) = self.map[index] {
+            if heap_position == self.limit - 1 {
+                self.limit -= 1;
+                self.map[index] = None;
+            } else if heap_position < self.limit {
+                self.limit -= 1;
+                self.map[self.heap[self.limit]] = Some(heap_position);
+                self.heap.swap(heap_position, self.limit);
+                self.map[index] = None;
+                self.heapify_down(heap_position);
+            }
+            true
+        } else {
+            false
         }
     }
 
@@ -174,7 +205,7 @@ impl<T: PartialOrd + Clone + Copy + std::fmt::Debug + std::fmt::Display + std::o
         }
     }
 
-    pub fn bobble(&mut self) {
+    pub fn reheap(&mut self) {
         for index in (0..self.limit / 2).rev() {
             self.heapify_down(index)
         }
@@ -216,45 +247,24 @@ mod tests {
 
     #[test]
     fn heap_simple() {
-        let mut test_heap = FixedHeap::new(7, 0);
+        let mut test_heap = IndexHeap::new(0, 0);
         test_heap.insert(6, 10);
         test_heap.insert(5, 20);
         test_heap.insert(4, 30);
         test_heap.insert(1, 60);
         test_heap.insert(0, 70);
 
-        assert!(test_heap.pop_max().is_some_and(|max| max == 0));
-        assert!(test_heap.pop_max().is_some_and(|max| max == 1));
-        assert!(test_heap.pop_max().is_some_and(|max| max == 4));
-        assert!(test_heap.pop_max().is_some_and(|max| max == 5));
-        assert!(test_heap.pop_max().is_some_and(|max| max == 6));
-
-        // assert_eq!(test_heap.position(0), Some(0));
-
-        // assert_eq!(test_heap.peek_max().unwrap(), 70);
-        // assert_eq!(test_heap.peek_max().unwrap().position, 0);
-
-        // assert!(test_heap.pop_max().is_some_and(|max| max == 70));
-
-        // assert_eq!(test_heap.values[test_heap.map[4].unwrap()].position, 4);
-
-        // assert!(test_heap.pop_max().is_some_and(|max| max.value == 60));
-
-        // assert_eq!(test_heap.values[test_heap.map[4].unwrap()].position, 4);
-
-        // assert!(test_heap.pop_max().is_some_and(|max| max.value == 30));
-
-        // assert_eq!(test_heap.map[4], None);
-
-        // assert!(test_heap.pop_max().is_some_and(|max| max.value == 20));
-        // assert!(test_heap.pop_max().is_some_and(|max| max.value == 10));
+        assert_eq!(test_heap.pop_max().unwrap(), 0);
+        assert_eq!(test_heap.pop_max().unwrap(), 1);
+        assert_eq!(test_heap.pop_max().unwrap(), 4);
+        assert_eq!(test_heap.pop_max().unwrap(), 5);
+        assert_eq!(test_heap.pop_max().unwrap(), 6);
     }
 
     #[test]
     fn heap_update() {
-        let mut test_heap = FixedHeap::new(7, 0);
+        let mut test_heap = IndexHeap::new(7, 0);
         test_heap.insert(6, 10);
-        test_heap.insert(5, 20);
         test_heap.insert(4, 30);
         test_heap.insert(1, 60);
         test_heap.insert(0, 70);
@@ -262,17 +272,50 @@ mod tests {
         test_heap.values[0] = 0;
         test_heap.values[1] = 1;
         test_heap.values[4] = 4;
-        test_heap.values[5] = 5;
         test_heap.values[6] = 6;
 
-        test_heap.bobble();
+        test_heap.reheap();
 
-        assert!(test_heap.pop_max().is_some_and(|max| max == 6));
-        assert!(test_heap.pop_max().is_some_and(|max| max == 5));
-        assert!(test_heap.pop_max().is_some_and(|max| max == 4));
-        assert!(test_heap.pop_max().is_some_and(|max| max == 1));
-        assert!(test_heap.pop_max().is_some_and(|max| max == 0));
+        assert_eq!(test_heap.pop_max().unwrap(), 6);
+        assert_eq!(test_heap.pop_max().unwrap(), 4);
+        assert_eq!(test_heap.pop_max().unwrap(), 1);
+        assert_eq!(test_heap.pop_max().unwrap(), 0);
+        assert!(test_heap.pop_max().is_none());
 
-        test_heap.bobble();
+        test_heap.reheap();
+    }
+
+    #[test]
+    fn heap_sparse() {
+        let mut test_heap = IndexHeap::new(0, 0);
+        test_heap.insert(600, 10);
+        test_heap.insert(0, 70);
+
+        assert_eq!(test_heap.values.len(), 601);
+        assert_eq!(test_heap.values[5], test_heap.default_value);
+        assert_eq!(test_heap.pop_max().unwrap(), 0);
+        assert_eq!(test_heap.pop_max().unwrap(), 600);
+        assert!(test_heap.pop_max().is_none());
+    }
+
+    #[test]
+    fn heap_remove() {
+        let mut test_heap = IndexHeap::new(0, 0);
+        test_heap.insert(6, 6);
+        test_heap.insert(5, 5);
+        test_heap.insert(4, 4);
+        test_heap.insert(1, 1);
+        test_heap.insert(0, 0);
+
+        assert!(test_heap.remove(4));
+        assert!(!test_heap.remove(4));
+        assert!(test_heap.remove(6));
+        assert!(test_heap.insert(4, 10));
+        assert!(!test_heap.insert(4, 0));
+
+        assert_eq!(test_heap.pop_max().unwrap(), 4);
+        assert_eq!(test_heap.pop_max().unwrap(), 5);
+        assert_eq!(test_heap.pop_max().unwrap(), 1);
+        assert_eq!(test_heap.pop_max().unwrap(), 0);
     }
 }
