@@ -2,8 +2,8 @@ use crate::{
     config::{self, Config},
     context::{
         resolution_buffer::{ResolutionBuffer, Status as BufferStatus},
-        store::{ActivityGlue, ClauseKey},
-        Context, Status as SolveStatus,
+        store::ClauseKey,
+        Context, SolveStatus,
     },
     structures::{
         clause::{stored::ClauseSource, Clause},
@@ -87,16 +87,8 @@ impl Context {
                         // alt hint Some(the_buffer.max_activity(&self.variables)),
                     }
 
-                    self.clause_store.decay();
                     for key in the_buffer.trail() {
-                        let bump_activity = |s: &ActivityGlue| ActivityGlue {
-                            activity: s.activity + config::defaults::CLAUSE_BUMP,
-                            lbd: s.lbd,
-                        };
-
-                        self.clause_store
-                            .learned_activity
-                            .apply_to_index(key.index(), bump_activity);
+                        self.clause_store.bump_activity(*key);
                     }
 
                     let asserted_literal = asserted_literal.expect("literal not there");

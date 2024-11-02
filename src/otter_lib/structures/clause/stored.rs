@@ -12,10 +12,10 @@ use std::ops::Deref;
 #[derive(Debug)]
 pub struct StoredClause {
     pub key: ClauseKey,
-    pub source: ClauseSource,
-    pub clause: Vec<Literal>,
-    pub subsumed_literals: Vec<Literal>,
-    pub last: usize,
+    source: ClauseSource,
+    clause: Vec<Literal>,
+    subsumed_literals: Vec<Literal>,
+    last: usize,
 }
 
 #[derive(Clone, Copy, Debug)]

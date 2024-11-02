@@ -114,12 +114,15 @@ pub struct ClauseStore {
     pub binary_count: FormulaIndex,
     pub binary_graph: Vec<Vec<ClauseKey>>,
     learned: Vec<Option<StoredClause>>,
-    pub learned_activity: IndexHeap<ActivityGlue>,
+
     pub learned_slots: FormulaIndex,
     pub learned_count: FormulaIndex,
 
     pub resolution_graph: Vec<Vec<Vec<ClauseKey>>>,
     learned_binary: Vec<StoredClause>,
+
+    pub learned_activity: IndexHeap<ActivityGlue>,
+    pub learned_increment: ClauseActivity,
 }
 
 #[allow(clippy::derivable_impls)]
@@ -137,6 +140,7 @@ impl Default for ClauseStore {
             binary_graph: Vec::new(),
             resolution_graph: Vec::new(),
             learned_activity: IndexHeap::default(),
+            learned_increment: ClauseActivity::default(),
         }
     }
 }
@@ -176,6 +180,7 @@ impl ClauseStore {
             binary_graph: Vec::with_capacity(capacity),
             resolution_graph: Vec::with_capacity(capacity),
             learned_activity: IndexHeap::new(capacity),
+            learned_increment: ClauseActivity::default(),
         }
     }
 
@@ -260,8 +265,8 @@ impl ClauseStore {
                         self.learned_binary.push(StoredClause::new_from(
                             key, clause, subsumed, source, variables,
                         ));
-                        // self.binary_graph
-                        // .push(resolution_keys.expect("missing resolution info for learnt"));
+                        self.binary_graph
+                            .push(resolution_keys.expect("missing resolution info for binary learnt"));
                         key
                     }
                     _ => {
@@ -331,14 +336,6 @@ impl ClauseStore {
             .map(|clause| clause.literal_slice().iter().copied())
     }
 
-    pub fn decay(&mut self) {
-        let decay_activity = |s: &ActivityGlue| ActivityGlue {
-            activity: s.activity * config::defaults::CLAUSE_DECAY_FACTOR,
-            lbd: s.lbd,
-        };
-        self.learned_activity.apply_to_all(decay_activity);
-    }
-
     /*
     Removing from learned checks to ensure removal is ok
     As the elements are optional for reuse, take places None at the index, as would be needed anyway
@@ -389,6 +386,7 @@ impl ClauseStore {
                 );
 
                 self.learned_binary.push(the_clause);
+                self.binary_graph.push(vec![key]);
                 self.learned_count += 1; // removing decrements the count
 
                 binary_key
@@ -407,5 +405,30 @@ impl ClauseStore {
             }
         }
         log::debug!(target: "forget", "Reduced to: {}", self.learned_slots);
+    }
+
+    pub fn bump_activity(&mut self, key: ClauseKey) {
+        let bump_activity = |s: &ActivityGlue| ActivityGlue {
+            activity: s.activity + config::defaults::CLAUSE_BUMP,
+            lbd: s.lbd,
+        };
+
+        let activity = self.learned_activity.value_at(key.index()).activity;
+        if activity + self.learned_increment > ClauseActivity::MAX {
+            let factor = 1.0 / activity;
+            let decay_activity = |s: &ActivityGlue| ActivityGlue {
+                activity: s.activity * factor,
+                lbd: s.lbd,
+            };
+            self.learned_activity.apply_to_all(decay_activity);
+            self.learned_increment *= factor
+        }
+
+        self.learned_activity
+            .apply_to_index(key.index(), bump_activity);
+
+        let decay = config::defaults::CLAUSE_DECAY_FACTOR * 1e-3;
+        let factor = 1.0 / (1.0 - decay);
+        self.learned_increment *= factor
     }
 }
