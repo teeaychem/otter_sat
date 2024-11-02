@@ -1,5 +1,4 @@
 use crate::{
-    config::ClauseActivity,
     context::store::ClauseKey,
     structures::{
         clause::Clause,
@@ -12,12 +11,11 @@ use std::ops::Deref;
 
 #[derive(Debug)]
 pub struct StoredClause {
-    key: ClauseKey,
-    source: ClauseSource,
-    clause: Vec<Literal>,
-    subsumed_literals: Vec<Literal>,
+    pub key: ClauseKey,
+    pub source: ClauseSource,
+    pub clause: Vec<Literal>,
+    pub subsumed_literals: Vec<Literal>,
     pub last: usize,
-    pub activity: ClauseActivity,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -36,6 +34,12 @@ pub enum WatchStatus {
     TwoConflict,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Subsumption {
+    ShortClause(usize),
+    NoPivot,
+}
+
 impl StoredClause {
     pub fn new_from(
         key: ClauseKey,
@@ -50,7 +54,6 @@ impl StoredClause {
             clause,
             subsumed_literals: subsumed,
             last: 0,
-            activity: 1.0,
         };
 
         stored_clause.initialise_watches(variables);
@@ -123,55 +126,67 @@ impl StoredClause {
         }
     }
 
-    /// 'Subsumes' a clause by removing the given literal.
-    /// Records the clause has been subsumed, but does not store a record.
-    /// In order to keep a record of the clauses used to prove the subsumption, use `literal_subsumption_core`.
-    /// Returns Ok(()) if subsumption was ok, Err(()) otherwise
-    #[allow(clippy::result_unit_err)]
-    pub fn subsume(&mut self, literal: Literal, variables: &impl VariableList) -> Result<(), ()> {
-        if self.clause.len() > 2 {
-            if let Some(mut position) = self
+    /*
+    Subsumption may result in the removal of a watched literal.
+    If `fix_watch` is set then watches will be corrected after removing the literal.
+    Watches may be left in a corrupted state as there may be no interest in fixing them.
+    For example,  subsumption may lead to a binary clause and the watches for the clause may be set elsewhere.
+    (This is what was implemented when this note was written…)
+
+    For the moment subsumption does not allow subsumption to a unit clause
+     */
+    pub fn subsume(
+        &mut self,
+        literal: Literal,
+        variables: &impl VariableList,
+        fix_watch: bool,
+    ) -> Result<usize, Subsumption> {
+        if self.clause.len() <= 2 {
+            return Err(Subsumption::ShortClause(self.len()));
+        }
+        let mut position = {
+            let search = self
                 .clause
                 .iter()
-                .position(|clause_literal| *clause_literal == literal)
-            {
-                if position == 0 {
-                    self.clause.swap(0, self.last);
-                    position = self.last;
-                }
-                let removed = self.clause.swap_remove(position);
-                variables
-                    .get_unsafe(removed.index())
-                    .watch_removed(self.key, removed.polarity());
-                if position == self.last {
-                    let clause_length = self.clause.len();
-                    self.last = 1;
-                    for index in 1..clause_length {
-                        let index_literal = unsafe { self.clause.get_unchecked(index) };
-                        let index_value = variables.value_of(index_literal.index());
-                        match index_value {
-                            None => {
-                                self.last = index;
-                                break;
-                            }
-                            Some(value) if value == index_literal.polarity() => {
-                                self.last = index;
-                                break;
-                            }
-                            Some(_) => {}
-                        }
-                    }
-                    self.note_watch(self.clause[self.last], variables);
-                }
-
-                self.subsumed_literals.push(removed);
-                Ok(())
-            } else {
-                Err(())
+                .position(|clause_literal| *clause_literal == literal);
+            match search {
+                None => return Err(Subsumption::NoPivot),
+                Some(p) => p,
             }
-        } else {
-            Err(())
+        };
+
+        if position == 0 {
+            self.clause.swap(0, self.last);
+            position = self.last;
         }
+
+        let removed = self.clause.swap_remove(position);
+        self.subsumed_literals.push(removed);
+
+        if fix_watch && position == self.last {
+            variables
+                .get_unsafe(removed.index())
+                .watch_removed(self.key, removed.polarity());
+            let clause_length = self.clause.len();
+            self.last = 1;
+            for index in 1..clause_length {
+                let index_literal = unsafe { self.clause.get_unchecked(index) };
+                let index_value = variables.value_of(index_literal.index());
+                match index_value {
+                    None => {
+                        self.last = index;
+                        break;
+                    }
+                    Some(value) if value == index_literal.polarity() => {
+                        self.last = index;
+                        break;
+                    }
+                    Some(_) => {}
+                }
+            }
+            self.note_watch(self.clause[self.last], variables);
+        }
+        Ok(self.clause.len())
     }
 
     pub fn original_clause(&self) -> Vec<Literal> {
@@ -183,12 +198,13 @@ impl StoredClause {
     }
 
     fn initialise_watches(&mut self, variables: &impl VariableList) {
-        let clause_length = self.clause.len();
+        let clause_length = self.clause.len() - 1;
 
         let mut index = 0;
         let watch_a = loop {
             if index == clause_length {
-                panic!("could not initialise watches for clause");
+                break index;
+                // panic!("could not initialise watches for clause");
             }
 
             let literal = self.clause[index];
@@ -224,8 +240,8 @@ impl StoredClause {
     }
 
     fn note_watch(&self, literal: Literal, variables: &impl VariableList) {
-        match self.clause.len() {
-            2 => {
+        match self.key {
+            ClauseKey::LearnedBinary(_) => {
                 let check_literal = if self.clause[0].v_id() == literal.v_id() {
                     self.clause[1]
                 } else {
@@ -237,7 +253,7 @@ impl StoredClause {
                     literal.polarity(),
                 );
             }
-            _ => {
+            ClauseKey::Formula(_) | ClauseKey::LearnedLong(_, _) => {
                 variables
                     .get_unsafe(literal.index())
                     .watch_added(WatchElement::Clause(self.key()), literal.polarity());

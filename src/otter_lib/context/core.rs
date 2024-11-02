@@ -113,8 +113,7 @@ impl Context {
                 && ((self.counters.restarts % config::defaults::REUCE_ON_RESTARTS) == 0)
             {
                 log::debug!(target: "forget", "Forget @r {}", self.counters.restarts);
-                self.clause_store
-                    .reduce(&self.variables, config.glue_strength);
+                self.clause_store.reduce();
             }
         }
     }

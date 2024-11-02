@@ -16,6 +16,7 @@ pub enum LiteralSource {
     Pure, // a choice made with a guarantee that the alternative would make no SAT difference
     Clause(ClauseKey), // the literal must be the case for SAT given some valuation
     Resolution(ClauseKey), // there was no reason to store the resolved clause
+    BinaryPropagation(ClauseKey),
     Propagation(ClauseKey),
     Missed(ClauseKey, LevelIndex),
     Assumption,

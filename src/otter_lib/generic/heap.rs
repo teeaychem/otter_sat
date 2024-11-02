@@ -124,8 +124,22 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
         }
     }
 
+    // todo: tidy
     pub fn insert(&mut self, index: usize, value: V) -> bool {
-        if index > self.heap.len() {
+        if self.heap.is_empty() {
+            let required = (index - self.heap.len()) + 1;
+            self.map.append(&mut vec![None; required]);
+
+            let mut value_vec = Vec::with_capacity(required);
+            for _ in 0..required {
+                value_vec.push(V::default())
+            }
+
+            self.values.append(&mut value_vec);
+            self.heap.append(&mut vec![0; required]);
+        }
+
+        if index > self.heap.len() - 1 {
             let required = (index - self.heap.len()) + 1;
             self.map.append(&mut vec![None; required]);
 
@@ -239,6 +253,10 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
             self.heapify_up(heap_index);
             self.heapify_down(heap_index);
         }
+    }
+
+    pub fn apply_to_index(&mut self, index: usize, f: impl Fn(&V) -> V) {
+        self.values[index] = f(&self.values[index])
     }
 
     pub fn apply_to_all(&mut self, f: impl Fn(&V) -> V) {
