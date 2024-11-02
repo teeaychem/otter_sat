@@ -71,7 +71,7 @@ impl VariableStore {
     }
 
     pub fn exponent_activity(&mut self, config: &Config) {
-        let decay = config.decay_factor * 1e-3;
+        let decay = config.variable_decay * 1e-3;
         let factor = 1.0 / (1.0 - decay);
         self.score_increment *= factor
     }

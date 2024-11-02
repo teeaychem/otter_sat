@@ -1,6 +1,6 @@
 use clap::{value_parser, Arg, ArgMatches, Command};
 
-use crate::config::{self, Config, StoppingCriteria, VSIDS};
+use crate::config::{self, ClauseActivity, Config, StoppingCriteria, VariableActivity, VSIDS};
 
 pub fn cli() -> Command {
     Command::new("otter_sat")
@@ -14,6 +14,44 @@ pub fn cli() -> Command {
             .required(false)
             .num_args(0)
             .help("Display an unsatisfiable core on finding a given formula is unsatisfiable."))
+
+        .arg(Arg::new("variable_decay")
+            .long("variable-decay")
+            .value_parser(value_parser!(VariableActivity))
+            .required(false)
+            .num_args(1)
+            .help("The decay to use for variable activity.")
+            .help(format!("The decay to use for variable activity.
+Default: {}
+
+After a conflict any future variables will be bumped with activity (proportional to) 1 / (1 - decay^-3).
+Viewed otherwise, the activity of all variables is decayed by 1 - decay^-3 each conflict.
+For example, at decay of 3 at each conflict the activity of a variable decays to 0.875 of it's previous activity.", config::defaults::VARIABLE_DECAY_FACTOR)))
+
+        .arg(Arg::new("clause_decay")
+            .long("clause-decay")
+            .value_parser(value_parser!(ClauseActivity))
+            .required(false)
+            .num_args(1)
+            .help("The decay to use for clause activity.")
+            .help(format!("The decay to use for clause activity.
+Default: {}
+
+Works the same as variable activity, but applied to clauses.
+If reductions are allowed then clauses are removed from low to high activity.", config::defaults::CLAUSE_DECAY_FACTOR)))
+
+        .arg(Arg::new("reduction-interval")
+            .long("reduction-interval")
+            .value_parser(value_parser!(usize))
+            .required(false)
+            .num_args(1)
+            .help("The interval to perform reductions, relative to conflicts.")
+            .help(format!("The interval to perform reductions, relative to conflicts.
+Default: {}
+
+After interval number of conflicts the clause database is reduced.
+Clauses of length two are never removed.
+Clauses with length greater than two are removed, low activity to high (and high lbd to low on activity ties).", config::defaults::REDUCTION_INTERVAL)))
 
         .arg(Arg::new("no_reduction")
             .long("no-reduction")
@@ -170,6 +208,17 @@ impl Config {
 
         if let Ok(Some(strength)) = args.try_get_one::<config::GlueStrength>("glue_strength") {
             the_config.glue_strength = *strength
+        };
+
+        if let Ok(Some(decay)) = args.try_get_one::<config::VariableActivity>("variable_decay") {
+            the_config.variable_decay = *decay
+        };
+        if let Ok(Some(decay)) = args.try_get_one::<config::ClauseActivity>("clause_decay") {
+            the_config.clause_decay = *decay
+        };
+
+        if let Ok(Some(interval)) = args.try_get_one::<usize>("reduction-interval") {
+            the_config.reduction_interval = *interval
         };
 
         if let Ok(Some(u)) = args.try_get_one::<config::LubyConstant>("luby") {

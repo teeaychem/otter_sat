@@ -88,7 +88,7 @@ impl Context {
                     }
 
                     for key in the_buffer.trail() {
-                        self.clause_store.bump_activity(*key);
+                        self.clause_store.bump_activity(*key, config);
                     }
 
                     let asserted_literal = asserted_literal.expect("literal not there");
