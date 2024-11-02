@@ -4,7 +4,7 @@ pub const VARIABLE_BUMP: config::VariableActivity = 1.0;
 pub const VARIABLE_DECAY_FACTOR: config::VariableActivity = 50.0;
 
 pub const CLAUSE_BUMP: config::ClauseActivity = 1.0;
-pub const CLAUSE_DECAY_FACTOR: config::ClauseActivity = 0.95;
+pub const CLAUSE_DECAY_FACTOR: config::ClauseActivity = 100.0;
 
 pub const REUCE_ON_RESTARTS: usize = 5 * 10_usize.pow(3);
 
