@@ -2,7 +2,7 @@ use crate::{
     config::{self, Config},
     context::{
         resolution_buffer::{ResolutionBuffer, Status as BufferStatus},
-        store::ClauseKey,
+        store::{ActivityGlue, ClauseKey},
         Context, Status as SolveStatus,
     },
     structures::{
@@ -65,9 +65,9 @@ impl Context {
             Ok(SolveStatus::MissedImplication(clause_key))
         } else {
             // resolve
-            let observations = self.levels.top().observations();
+
             let buffer_status = the_buffer.resolve_with(
-                observations,
+                self.levels.top(),
                 &mut self.clause_store,
                 &self.variables,
                 config,
@@ -89,8 +89,14 @@ impl Context {
 
                     self.clause_store.decay();
                     for key in the_buffer.trail() {
-                        let the_clause = self.clause_store.get_mut(*key);
-                        the_clause.activity += config::defaults::CLAUSE_BUMP;
+                        let bump_activity = |s: &ActivityGlue| ActivityGlue {
+                            activity: s.activity + config::defaults::CLAUSE_BUMP,
+                            lbd: s.lbd,
+                        };
+
+                        self.clause_store
+                            .learned_activity
+                            .apply_to_index(key.index(), bump_activity);
                     }
 
                     let asserted_literal = asserted_literal.expect("literal not there");

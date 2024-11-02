@@ -24,6 +24,7 @@ impl Level {
             | LiteralSource::Resolution(_)
             | LiteralSource::Clause(_)
             | LiteralSource::Propagation(_)
+            | LiteralSource::BinaryPropagation(_)
             | LiteralSource::Missed(_, _) => self.observations.push((source, literal)),
         }
     }
