@@ -204,10 +204,9 @@ fn bounded_model_check() {
 
 #[test]
 fn beijing() {
-    let config = Config::default();
     let collection_path = satlib_collection("beijing");
 
-    let satisfiable_formulas = vec![
+    let satisfiable_formulas = [
         "2bitcomp_5.cnf.gz",
         "2bitmax_6.cnf.gz",
         "3bitadd_31.cnf.gz",
@@ -222,27 +221,23 @@ fn beijing() {
         "ewddr2-10-by-5-1.cnf.gz",
         "ewddr2-10-by-5-8.cnf.gz",
     ];
-    for formula in satisfiable_formulas {
-        let mut context_from_path = match context_from_path(collection_path.join(formula), &config)
-        {
-            Ok(c) => c,
-            Err(e) => panic!("Builder error {e:?}"),
-        };
 
-        let report = match context_from_path.solve() {
-            Ok(report) => report,
-            Err(e) => panic!("solve error {e:?}"),
-        };
-        assert_eq!(report, Report::Satisfiable);
+    let mut count = 0;
+    for formula in satisfiable_formulas {
+        assert_eq!(
+            Report::Satisfiable,
+            formula_report(collection_path.join(formula), &Config::default())
+        );
+        count += 1;
     }
+    assert_eq!(count, satisfiable_formulas.len());
 }
 
 #[test]
 fn quasigroup() {
-    let config = Config::default();
     let collection_path = satlib_collection("quasigroup");
 
-    let satisfiable_formulas = vec![
+    let satisfiable_formulas = [
         "qg1-07.cnf.gz",
         "qg1-08.cnf.gz",
         "qg2-07.cnf.gz",
@@ -254,20 +249,17 @@ fn quasigroup() {
         "qg7-09.cnf.gz",
         "qg7-13.cnf.gz",
     ];
-    for formula in satisfiable_formulas {
-        let mut context_from_path = match context_from_path(collection_path.join(formula), &config)
-        {
-            Ok(c) => c,
-            Err(e) => panic!("Builder error {e:?}"),
-        };
-
-        let report = match context_from_path.solve() {
-            Ok(report) => report,
-            Err(e) => panic!("solve error {e:?}"),
-        };
-        assert_eq!(report, Report::Satisfiable);
+    let mut sat_count = 0;
+    for formula in &satisfiable_formulas {
+        assert_eq!(
+            Report::Satisfiable,
+            formula_report(collection_path.join(formula), &Config::default())
+        );
+        sat_count += 1;
     }
-    let unsatisfiable_formulas = vec![
+    assert_eq!(sat_count, satisfiable_formulas.len());
+
+    let unsatisfiable_formulas = [
         "qg5-12.cnf.gz",
         "qg5-13.cnf.gz",
         "qg6-10.cnf.gz",
@@ -281,17 +273,246 @@ fn quasigroup() {
         "qg5-09.cnf.gz",
         "qg5-10.cnf.gz",
     ];
-    for formula in unsatisfiable_formulas {
-        let mut context_from_path = match context_from_path(collection_path.join(formula), &config)
-        {
-            Ok(c) => c,
-            Err(e) => panic!("Builder error {e:?}"),
-        };
+    let mut unsat_count = 0;
+    for formula in &unsatisfiable_formulas {
+        assert_eq!(
+            Report::Unsatisfiable,
+            formula_report(collection_path.join(formula), &Config::default())
+        );
+        unsat_count += 1;
+    }
+    assert_eq!(unsat_count, unsatisfiable_formulas.len());
+}
 
-        let report = match context_from_path.solve() {
-            Ok(report) => report,
-            Err(e) => panic!("solve error {e:?}"),
-        };
-        assert_eq!(report, Report::Unsatisfiable);
+mod DIMACS {
+    use std::path;
+
+    use super::*;
+    fn dimacs_path() -> PathBuf {
+        satlib_collection("DIMACS")
+    }
+
+    #[test]
+    fn aim() {
+        let mut satisfiable = 0;
+        let mut unsatisfiable = 0;
+
+        let aim_path = satlib_collection("DIMACS").join(Path::new("AIM"));
+        let formulas = fs::read_dir(aim_path).unwrap_or_else(|_| panic!("formulas missing"));
+
+        for formula in formulas.flatten() {
+            let formula_path = formula.path();
+
+            let formula_check = formula_path
+                .extension()
+                .is_some_and(|ext| ext == "cnf" || ext == "gz");
+
+            if formula_check {
+                let formula_name = formula_path.to_str().unwrap().to_owned();
+
+                if formula_name.contains("yes") {
+                    assert_eq!(
+                        Report::Satisfiable,
+                        formula_report(formula.path(), &Config::default())
+                    );
+                    satisfiable += 1;
+                }
+
+                if formula_name.contains("no") {
+                    assert_eq!(
+                        Report::Unsatisfiable,
+                        formula_report(formula.path(), &Config::default())
+                    );
+                    unsatisfiable += 1;
+                }
+            }
+        }
+        assert_eq!(satisfiable, 48);
+        assert_eq!(unsatisfiable, 24);
+    }
+
+    mod cfa {
+        use super::*;
+
+        fn cfa_path(dir: &str) -> PathBuf {
+            dimacs_path().join(Path::new("CFA").join(dir))
+        }
+
+        #[test]
+        fn bf() {
+            default_on_dir(cfa_path("BF"), &Config::default(), Report::Unsatisfiable);
+        }
+
+        #[test]
+        fn ssa() {
+            let unsatisfiable = [
+                "ssa0432-003.cnf.gz",
+                "ssa2670-130.cnf.gz",
+                "ssa2670-141.cnf.gz",
+                "ssa6288-047.cnf.gz",
+            ];
+
+            let mut unsat_count = 0;
+            for formula in unsatisfiable {
+                assert_eq!(
+                    Report::Unsatisfiable,
+                    formula_report(cfa_path("SSA").join(formula), &Config::default())
+                );
+                unsat_count += 1;
+            }
+            assert_eq!(unsat_count, unsatisfiable.len());
+
+            let satisfiable = [
+                "ssa7552-038.cnf.gz",
+                "ssa7552-158.cnf.gz",
+                "ssa7552-159.cnf.gz",
+                "ssa7552-160.cnf.gz",
+            ];
+            let mut sat_count = 0;
+            for formula in satisfiable {
+                assert_eq!(
+                    Report::Satisfiable,
+                    formula_report(cfa_path("SSA").join(formula), &Config::default())
+                );
+                sat_count += 1;
+            }
+            assert_eq!(sat_count, satisfiable.len());
+        }
+    }
+
+    #[test]
+    fn dubois() {
+        default_on_dir(
+            dimacs_path().join("DUBOIS"),
+            &Config::default(),
+            Report::Unsatisfiable,
+        );
+    }
+
+    #[test]
+    fn gcp() {
+        default_on_dir(
+            dimacs_path().join("GCP"),
+            &Config::default(),
+            Report::Satisfiable,
+        );
+    }
+
+    #[test]
+    fn hanoi() {
+        default_on_dir(
+            dimacs_path().join("HANOI"),
+            &Config::default(),
+            Report::Satisfiable,
+        );
+    }
+
+    #[test]
+    fn inductive_inference() {
+        default_on_dir(
+            dimacs_path().join("II"),
+            &Config::default(),
+            Report::Satisfiable,
+        );
+    }
+
+    #[test]
+    fn jnh() {
+        let satisfiable = [
+            "jnh1.cnf.gz",
+            "jnh7.cnf.gz",
+            "jnh12.cnf.gz",
+            "jnh17.cnf.gz",
+            "jnh201.cnf.gz",
+            "jnh204.cnf.gz",
+            "jnh205.cnf.gz",
+            "jnh207.cnf.gz",
+            "jnh209.cnf.gz",
+            "jnh210.cnf.gz",
+            "jnh212.cnf.gz",
+            "jnh213.cnf.gz",
+            "jnh217.cnf.gz",
+            "jnh218.cnf.gz",
+            "jnh220.cnf.gz",
+            "jnh301.cnf.gz",
+            "jnh212.cnf.gz",
+        ];
+
+        let mut sat_count = 0;
+        let mut unsat_count = 0;
+
+        let aim_path = satlib_collection("DIMACS").join(Path::new("JNH"));
+        let formulas = fs::read_dir(aim_path).unwrap_or_else(|_| panic!("formulas missing"));
+
+        for formula in formulas.flatten() {
+            let formula_path = formula.path();
+
+            let formula_check = formula_path
+                .extension()
+                .is_some_and(|ext| ext == "cnf" || ext == "gz");
+
+            if formula_check {
+                let file = formula
+                    .path()
+                    .as_path()
+                    .file_name()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_owned();
+
+                if satisfiable.contains(&file.as_str()) {
+                    assert_eq!(
+                        Report::Satisfiable,
+                        formula_report(formula.path(), &Config::default())
+                    );
+                    sat_count += 1;
+                } else {
+                    assert_eq!(
+                        Report::Unsatisfiable,
+                        formula_report(formula.path(), &Config::default())
+                    );
+                    unsat_count += 1;
+                }
+            }
+        }
+        assert_eq!(sat_count, 16);
+        assert_eq!(unsat_count, 34);
+    }
+
+    #[test]
+    fn lran() {
+        default_on_dir(
+            dimacs_path().join("LRAN"),
+            &Config::default(),
+            Report::Satisfiable,
+        );
+    }
+
+    #[test]
+    fn parity() {
+        default_on_dir(
+            dimacs_path().join("PARITY"),
+            &Config::default(),
+            Report::Satisfiable,
+        );
+    }
+
+    #[test]
+    fn phole() {
+        default_on_dir(
+            dimacs_path().join("PHOLE"),
+            &Config::default(),
+            Report::Unsatisfiable,
+        );
+    }
+
+    #[test]
+    fn pret() {
+        default_on_dir(
+            dimacs_path().join("PRET"),
+            &Config::default(),
+            Report::Unsatisfiable,
+        );
     }
 }
