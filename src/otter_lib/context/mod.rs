@@ -58,13 +58,13 @@ pub struct Context {
     variables: VariableStore,
     config: config::Config,
     pub window: Option<ContextWindow>,
-    pub status: Status,
+    pub status: SolveStatus,
     rng: RngChoice,
     pub proofs: Vec<(Literal, Vec<ClauseKey>)>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Status {
+pub enum SolveStatus {
     Initialised,
     AssertingClause(ClauseKey),
     MissedImplication(ClauseKey),
@@ -99,7 +99,7 @@ impl Context {
             variables: VariableStore::with_capactiy(variable_count),
             config,
             window: the_window,
-            status: Status::Initialised,
+            status: SolveStatus::Initialised,
             rng: RngChoice::seed_from_u64(defaults::RNG_SEED), //RngChoice::new(0,1)
             proofs: Vec::new(),
         }
@@ -115,7 +115,7 @@ impl Default for Context {
             variables: VariableStore::default(),
             config: Config::default(),
             window: None,
-            status: Status::Initialised,
+            status: SolveStatus::Initialised,
             rng: RngChoice::seed_from_u64(defaults::RNG_SEED),
             proofs: Vec::new(),
         }

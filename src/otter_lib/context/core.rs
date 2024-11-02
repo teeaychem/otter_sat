@@ -2,7 +2,7 @@ use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
     config::{self, Config},
-    context::{level::LevelIndex, store::ClauseKey, Context, Report, Status as ClauseStatus},
+    context::{level::LevelIndex, store::ClauseKey, Context, Report, SolveStatus as ClauseStatus},
     structures::{
         clause::stored::{ClauseSource, StoredClause},
         literal::{Literal, LiteralSource},
