@@ -66,6 +66,7 @@ fn main() {
             // let _ = the_context.clause_from_string("p -q");
             let _the_result = the_context.solve();
             the_context.print_status();
+            // dbg!(&the_context.config);
         }
     }
 

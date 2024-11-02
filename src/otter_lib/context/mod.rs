@@ -56,7 +56,7 @@ pub struct Context {
     levels: LevelStore,
     clause_store: ClauseStore,
     variables: VariableStore,
-    config: config::Config,
+    pub config: config::Config,
     pub window: Option<ContextWindow>,
     pub status: SolveStatus,
     rng: RngChoice,

@@ -57,15 +57,31 @@ Optional dependencies are:
 # Configuration
 
 ```
-Usage: otter_sat [OPTIONS] [paths]...
-
-Arguments:
-  [paths]...
-          The DIMACS form CNF files to parse.
-
-Options:
   -c, --show-core
           Display an unsatisfiable core on finding a given formula is unsatisfiable.
+
+      --variable-decay <variable_decay>
+          The decay to use for variable activity.
+          Default: 50
+
+          After a conflict any future variables will be bumped with activity (proportional to) 1 / (1 - decay^-3).
+          Viewed otherwise, the activity of all variables is decayed by 1 - decay^-3 each conflict.
+          For example, at decay of 3 at each conflict the activity of a variable decays to 0.875 of it's previous activity.
+
+      --clause-decay <clause_decay>
+          The decay to use for clause activity.
+          Default: 20
+
+          Works the same as variable activity, but applied to clauses.
+          If reductions are allowed then clauses are removed from low to high activity.
+
+      --reduction-interval <reduction-interval>
+          The interval to perform reductions, relative to conflicts.
+          Default: 500
+
+          After interval number of conflicts the clause database is reduced.
+          Clauses of length two are never removed.
+          Clauses with length greater than two are removed, low activity to high (and high lbd to low on activity ties).
 
       --no-reduction
           Prevent clauses from being forgotten.
@@ -96,7 +112,7 @@ Options:
 
   -g, --glue <STRENGTH>
           Required minimum (inintial) lbd to retain a clause during a reduction.
-          Default: 2
+          Default: 3
 
   -🚏, --stopping-criteria <CRITERIA>
           The stopping criteria to use during resolution.
@@ -114,7 +130,7 @@ Options:
 
   -l, --luby <U>
           The 'u' value to use for the luby calculation when restarts are permitted.
-          Default: 512
+          Default: 128
 
   -r, --random-choice-frequency <FREQUENCY>
           The chance of making a random choice (as opposed to using most VSIDS activity).

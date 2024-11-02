@@ -110,7 +110,7 @@ impl Context {
             }
 
             if config.reduction_allowed
-                && ((self.counters.restarts % config::defaults::REUCE_ON_RESTARTS) == 0)
+                && ((self.counters.restarts % config.reduction_interval) == 0)
             {
                 log::debug!(target: "forget", "Forget @r {}", self.counters.restarts);
                 self.clause_store.reduce();
