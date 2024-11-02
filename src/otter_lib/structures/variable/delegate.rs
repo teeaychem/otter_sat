@@ -216,6 +216,7 @@ pub fn push_back_consequence(
         Err(_) => match source {
             LiteralSource::Missed(clause_key, _)
             | LiteralSource::Resolution(clause_key)
+            | LiteralSource::BinaryPropagation(clause_key)
             | LiteralSource::Clause(clause_key) => {
                 // self.status = ClauseStatus::NoSolution(clause_key);
                 return Err(clause_key);

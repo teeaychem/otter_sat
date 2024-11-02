@@ -1,6 +1,9 @@
 use crate::{
     config::{Config, StoppingCriteria, VariableActivity},
-    context::store::{ClauseKey, ClauseStore},
+    context::{
+        level::Level,
+        store::{ClauseKey, ClauseStore},
+    },
     structures::{
         clause::Clause,
         literal::{Literal, LiteralSource},
@@ -126,28 +129,66 @@ impl ResolutionBuffer {
     #[allow(clippy::too_many_arguments)]
     pub fn resolve_with(
         &mut self,
-        observations: &[(LiteralSource, Literal)],
+        level: &Level,
         stored_clauses: &mut ClauseStore,
         variables: &VariableStore,
         config: &Config,
     ) -> Status {
-        for (source, literal) in observations.iter().rev() {
+        for (source, literal) in level.observations().iter().rev() {
             if let LiteralSource::Clause(the_key)
+            | LiteralSource::BinaryPropagation(the_key)
             | LiteralSource::Propagation(the_key)
             | LiteralSource::Resolution(the_key)
             | LiteralSource::Missed(the_key, _) = source
             {
-                let source_clause = stored_clauses.get_mut(*the_key);
+                let source_clause = match stored_clauses.get_carefully_mut(*the_key) {
+                    None => {
+                        println!("missing key {the_key:?}");
+                        println!("{:?}", level);
+
+                        panic!("failed to find resolution clause")
+                    }
+                    Some(clause) => clause,
+                };
 
                 if self.resolve_clause(source_clause, *literal).is_ok() {
-                    self.trail.push(*the_key);
-
                     for involved_literal in source_clause.literal_slice() {
                         self.used_variables[involved_literal.index()] = true;
                     }
 
-                    if config.subsumption && self.clause_legnth < source_clause.length() {
-                        let _ = source_clause.subsume(*literal, variables);
+                    // TODO: allow subsumption on binary clauses!
+                    if config.subsumption
+                        && self.clause_legnth < source_clause.length()
+                        && source_clause.len() > 2
+                    {
+                        /*
+                        If the resolved clause is binary then subsumption transfers the clause to the store for binary clauses
+                        This is safe to do as:
+                        - After backjumping all the observations at the current level will be forgotten
+                        - The clause does not appear in the observations of any previous stage
+                          + As, if the clause appeared in some previous stage then use of the clause would be a missed implication
+                          + And, missed implications are checked prior to conflicts
+                         */
+                        match self.clause_legnth {
+                            2 => {
+                                match source_clause.subsume(*literal, variables, false) {
+                                    Ok(_) => {
+                                        let new_key =
+                                            stored_clauses.transfer_to_binary(*the_key, variables);
+                                        self.trail.push(new_key);
+                                    }
+                                    Err(e) => panic!("{e:?}"),
+                                };
+                            }
+                            _ => {
+                                match source_clause.subsume(*literal, variables, true) {
+                                    Ok(_) => {
+                                        self.trail.push(*the_key);
+                                    }
+                                    Err(e) => panic!("{e:?}"),
+                                };
+                            }
+                        }
                     }
 
                     if self.valueless_count == 1 {
@@ -236,7 +277,10 @@ impl ResolutionBuffer {
                         self.clause_legnth += 1;
                         self.set(literal.index(), ResolutionCell::ConflictLiteral(*literal))
                     }
-                    Some(_) => panic!("Resolution to a satisfied clause"),
+                    Some(_) => {
+                        println!("{:?}", clause.as_string());
+                        panic!("Resolution to a satisfied clause")
+                    }
                 },
                 ResolutionCell::Strengthened => {}
             }

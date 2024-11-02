@@ -61,25 +61,51 @@ impl Variable {
         }
     }
 
+    /*
+    Swap remove on keys
+    If guarantee that key appears once then this could break early
+    As this shuffles the list any heuristics on traversal order are affected
+    Retain version commented for comparison
+     */
     pub fn watch_removed(&self, clause_key: ClauseKey, polarity: bool) {
-        match polarity {
-            true => unsafe {
-                let list = &mut *self.positive_occurrences.get();
-                list.retain(|element| match element {
-                    WatchElement::Binary(_, _) => true,
-                    WatchElement::Clause(key) if *key != clause_key => true,
-                    WatchElement::Clause(_) => false,
-                });
-            },
-            false => unsafe {
-                let list = &mut *self.negative_occurrences.get();
-                list.retain(|element| match element {
-                    WatchElement::Binary(_, _) => true,
-                    WatchElement::Clause(key) if *key != clause_key => true,
-                    WatchElement::Clause(_) => false,
-                });
-            },
-        };
+        unsafe {
+            match clause_key {
+                ClauseKey::Formula(_) | ClauseKey::LearnedLong(_, _) => {
+                    let list = match polarity {
+                        true => &mut *self.positive_occurrences.get(),
+                        false => &mut *self.negative_occurrences.get(),
+                    };
+                    // list.retain(|element|
+                    //     match element {
+                    //         WatchElement::Binary(_, _) => panic!("binary in clause watch"),
+                    //         WatchElement::Clause(key) if *key != clause_key => true,
+                    //         WatchElement::Clause(_) => false
+                    //     }
+                    // );
+                    let mut index = 0;
+                    let mut limit = list.len();
+                    loop {
+                        match list.get_unchecked(index) {
+                            WatchElement::Clause(key) => {
+                                if *key == clause_key {
+                                    list.swap_remove(index);
+                                    limit -= 1;
+                                } else {
+                                    index += 1;
+                                }
+                            }
+                            WatchElement::Binary(_, _) => panic!("binary in clause list"),
+                        }
+                        if index == limit {
+                            break;
+                        }
+                    }
+                }
+                ClauseKey::LearnedBinary(_) => {
+                    panic!("attempt to remove the watches for a binary clause");
+                }
+            }
+        }
     }
 
     pub fn value(&self) -> Option<bool> {
@@ -126,7 +152,7 @@ pub fn propagate_literal(
                         None => match push_back_consequence(
                             variables,
                             *check,
-                            LiteralSource::Propagation(*clause_key),
+                            LiteralSource::BinaryPropagation(*clause_key),
                             level,
                         ) {
                             Ok(()) => {}
