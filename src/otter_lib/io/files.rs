@@ -35,6 +35,18 @@ pub fn context_from_path(path: PathBuf, config: &Config) -> Result<Context, Buil
     }
 }
 
+pub fn formula_report(path: PathBuf, config: &Config) -> Report {
+    let mut context_from_path = match context_from_path(path, config) {
+        Ok(c) => c,
+        Err(e) => panic!("Builder error {e:?}"),
+    };
+
+    match context_from_path.solve() {
+        Ok(report) => report,
+        Err(e) => panic!("solve error {e:?}"),
+    }
+}
+
 pub fn default_on_dir(collection: PathBuf, config: &Config, require: Report) {
     let formulas = fs::read_dir(collection)
         .unwrap_or_else(|_| panic!("formulas missing"))
