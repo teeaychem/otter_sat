@@ -1,7 +1,7 @@
 pub mod defaults;
 
 pub type VariableActivity = f64;
-pub type ClauseActivity = f32;
+pub type ClauseActivity = f64;
 pub type DecayFrequency = u8;
 pub type GlueStrength = u8;
 pub type LubyConstant = usize;
@@ -12,8 +12,8 @@ pub type RandomChoiceFrequency = f64;
 pub struct Config {
     pub activity_conflict: VariableActivity,
     pub activity_max: VariableActivity,
-    pub decay_factor: VariableActivity,
-    pub decay_frequency: DecayFrequency,
+    pub variable_decay: VariableActivity,
+    pub clause_decay: ClauseActivity,
     pub glue_strength: GlueStrength,
     pub luby_constant: LubyConstant,
     pub polarity_lean: PolarityLean,
@@ -28,6 +28,7 @@ pub struct Config {
     pub subsumption: bool,
     pub time_limit: Option<std::time::Duration>,
     pub vsids_variant: VSIDS,
+    pub reduction_interval: usize,
 }
 
 impl Default for Config {
@@ -36,8 +37,8 @@ impl Default for Config {
         Config {
             activity_conflict: VARIABLE_BUMP,
             activity_max: (2.0 as VariableActivity).powi(512), // 1e150
-            decay_factor: VARIABLE_DECAY_FACTOR,
-            decay_frequency: DECAY_FREQUENCY,
+            variable_decay: VARIABLE_DECAY_FACTOR,
+            clause_decay: CLAUSE_DECAY_FACTOR,
             glue_strength: GLUE_STRENGTH,
             luby_constant: LUBY_U,
             polarity_lean: POLARITY_LEAN,
@@ -52,6 +53,7 @@ impl Default for Config {
             subsumption: true,
             time_limit: None,
             vsids_variant: VSIDS_VARIANT,
+            reduction_interval: REDUCTION_INTERVAL,
         }
     }
 }

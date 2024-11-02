@@ -1,5 +1,5 @@
 use crate::{
-    config::{self, ClauseActivity, GlueStrength},
+    config::{self, ClauseActivity, Config, GlueStrength},
     generic::heap::IndexHeap,
     structures::{
         clause::{
@@ -265,8 +265,9 @@ impl ClauseStore {
                         self.learned_binary.push(StoredClause::new_from(
                             key, clause, subsumed, source, variables,
                         ));
-                        self.binary_graph
-                            .push(resolution_keys.expect("missing resolution info for binary learnt"));
+                        self.binary_graph.push(
+                            resolution_keys.expect("missing resolution info for binary learnt"),
+                        );
                         key
                     }
                     _ => {
@@ -407,7 +408,7 @@ impl ClauseStore {
         log::debug!(target: "forget", "Reduced to: {}", self.learned_slots);
     }
 
-    pub fn bump_activity(&mut self, key: ClauseKey) {
+    pub fn bump_activity(&mut self, key: ClauseKey, config: &Config) {
         let bump_activity = |s: &ActivityGlue| ActivityGlue {
             activity: s.activity + config::defaults::CLAUSE_BUMP,
             lbd: s.lbd,
@@ -427,7 +428,7 @@ impl ClauseStore {
         self.learned_activity
             .apply_to_index(key.index(), bump_activity);
 
-        let decay = config::defaults::CLAUSE_DECAY_FACTOR * 1e-3;
+        let decay = config.clause_decay * 1e-3;
         let factor = 1.0 / (1.0 - decay);
         self.learned_increment *= factor
     }
