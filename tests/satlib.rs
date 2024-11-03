@@ -42,12 +42,25 @@ mod uniform_random_3SAT {
         );
     }
 
-    #[test]
-    fn uniform_random_3_50_128() {
-        default_on_split_dir(
-            unform_random_path().join("UF50.218.1000"),
-            &Config::default(),
-        );
+    mod group_50_218 {
+        use super::*;
+        #[test]
+        fn sat() {
+            default_on_dir(
+                unform_random_path().join("UF50.218.1000").join("sat"),
+                &Config::default(),
+                Report::Satisfiable,
+            );
+        }
+
+        #[test]
+        fn unsat() {
+            default_on_dir(
+                unform_random_path().join("UF50.218.1000").join("unsat"),
+                &Config::default(),
+                Report::Unsatisfiable,
+            );
+        }
     }
 
     #[test]

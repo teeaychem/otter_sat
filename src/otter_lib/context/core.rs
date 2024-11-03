@@ -161,7 +161,7 @@ impl Context {
     }
 
     fn set_pure(&mut self) {
-        let (f, t) = crate::procedures::hobson_choices(self.clause_store.formula_clauses());
+        let (f, t) = crate::procedures::pure_choices(self.clause_store.formula_clauses());
 
         for v_id in f.into_iter().chain(t) {
             let the_literal = Literal::new(v_id, false);
@@ -203,7 +203,7 @@ impl Context {
             false => {
                 while let Some(index) = self.variables.heap_pop_most_active() {
                     let the_variable = self.variables.get_unsafe(index);
-                    if the_variable.value().is_none() {
+                    if self.variables.value_of(the_variable.index()).is_none() {
                         return Some(the_variable.index());
                     }
                 }
@@ -325,6 +325,25 @@ impl Context {
                 Some(true) => Some(self.variables.external_name(i).to_string()),
                 Some(false) => Some(format!("-{}", self.variables.external_name(i))),
             })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    pub fn internal_valuation_string(&self) -> String {
+        let mut v = self
+            .variables
+            .slice()
+            .iter()
+            .enumerate()
+            .filter_map(|(i, v)| match v.value() {
+                None => None,
+                Some(true) => Some(i as isize),
+                Some(false) => Some(-(i as isize)),
+            })
+            .collect::<Vec<_>>();
+        v.sort_unstable();
+        v.iter()
+            .map(|v| v.to_string())
             .collect::<Vec<_>>()
             .join(" ")
     }

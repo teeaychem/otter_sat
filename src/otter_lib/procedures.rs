@@ -3,7 +3,7 @@ use crate::structures::{literal::Literal, variable::VariableId};
 use std::collections::BTreeSet;
 
 /// General order for pairs related to booleans is 0 is false, 1 is true
-pub fn hobson_choices(
+pub fn pure_choices(
     clauses: impl Iterator<Item = impl Iterator<Item = Literal>>,
 ) -> (Vec<VariableId>, Vec<VariableId>) {
     let mut the_true: BTreeSet<VariableId> = BTreeSet::new();

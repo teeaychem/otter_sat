@@ -59,7 +59,9 @@ impl Context {
                 self.levels.top_mut(),
             ) {
                 Ok(()) => {}
-                Err(key) => return Ok(SolveStatus::NoSolution(key)),
+                Err(key) => {
+                    return Ok(SolveStatus::NoSolution(key));
+                }
             };
 
             Ok(SolveStatus::MissedImplication(clause_key))
@@ -91,7 +93,17 @@ impl Context {
                         self.clause_store.bump_activity(*key, config);
                     }
 
-                    let asserted_literal = asserted_literal.expect("literal not there");
+                    let asserted_literal = match asserted_literal {
+                        None => {
+                            println!("{:?}", buffer_status);
+                            println!("{:?}", the_buffer.valueless_count);
+                            println!("{:?}", the_buffer.clause_length);
+                            println!("{:?}", the_buffer.to_assertion_clause());
+                            println!("{:?}", the_buffer.trail());
+                            panic!("literal not there")
+                        }
+                        Some(l) => l,
+                    };
 
                     match resolved_clause.len() {
                         1 => {
@@ -107,7 +119,9 @@ impl Context {
                                 self.levels.top_mut(),
                             ) {
                                 Ok(()) => {}
-                                Err(key) => return Ok(SolveStatus::NoSolution(key)),
+                                Err(key) => {
+                                    return Ok(SolveStatus::NoSolution(key));
+                                }
                             };
                         }
                         _ => {
@@ -129,11 +143,16 @@ impl Context {
                                 self.levels.top_mut(),
                             ) {
                                 Ok(()) => {}
-                                Err(key) => return Ok(SolveStatus::NoSolution(key)),
+                                Err(key) => {
+                                    return Ok(SolveStatus::NoSolution(key));
+                                }
                             };
                         }
                     };
                     Ok(SolveStatus::AssertingClause(clause_key))
+                }
+                BufferStatus::BinarySubsumption => {
+                    panic!("never");
                 }
             }
         }

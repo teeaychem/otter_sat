@@ -241,7 +241,7 @@ impl StoredClause {
 
     fn note_watch(&self, literal: Literal, variables: &impl VariableList) {
         match self.key {
-            ClauseKey::LearnedBinary(_) => {
+            ClauseKey::Binary(_) => {
                 let check_literal = if self.clause[0].v_id() == literal.v_id() {
                     self.clause[1]
                 } else {
@@ -253,7 +253,7 @@ impl StoredClause {
                     literal.polarity(),
                 );
             }
-            ClauseKey::Formula(_) | ClauseKey::LearnedLong(_, _) => {
+            ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
                 variables
                     .get_unsafe(literal.index())
                     .watch_added(WatchElement::Clause(self.key()), literal.polarity());
@@ -265,14 +265,6 @@ impl StoredClause {
 impl std::fmt::Display for StoredClause {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.clause.as_string())
-    }
-}
-
-fn get_status(literal: Literal, variables: &impl VariableList) -> WatchStatus {
-    match variables.value_of(literal.index()) {
-        None => WatchStatus::None,
-        Some(polarity) if polarity == literal.polarity() => WatchStatus::Witness,
-        Some(_) => WatchStatus::Conflict,
     }
 }
 
