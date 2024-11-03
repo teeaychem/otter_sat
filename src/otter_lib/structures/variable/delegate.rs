@@ -173,22 +173,6 @@ impl VariableStore {
     pub fn clear_consequences(&mut self, to: LevelIndex) {
         self.consequence_q.retain(|(_, _, c)| *c < to);
     }
-
-    pub fn print_valuation(&self) {
-        println!(
-            "v {:?}",
-            self.variables
-                .slice()
-                .iter()
-                .enumerate()
-                .filter_map(|(i, v)| match v.value() {
-                    None => None,
-                    Some(true) => Some(i as isize),
-                    Some(false) => Some(-(i as isize)),
-                })
-                .collect::<Vec<_>>()
-        );
-    }
 }
 
 impl Deref for VariableStore {
