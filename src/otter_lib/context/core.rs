@@ -310,7 +310,26 @@ impl Context {
         match self.status {
             ClauseStatus::AllAssigned => Report::Satisfiable,
             ClauseStatus::NoSolution(_) => Report::Unsatisfiable,
+            ClauseStatus::NoClauses => Report::Satisfiable,
             _ => Report::Unknown,
         }
+    }
+
+    pub fn valuation_string(&self) -> String {
+        self.variables
+            .slice()
+            .iter()
+            .enumerate()
+            .filter_map(|(i, v)| match v.value() {
+                None => None,
+                Some(true) => Some(self.variables.external_name(i).to_string()),
+                Some(false) => Some(format!("-{}", self.variables.external_name(i))),
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    pub fn print_valuation(&self) {
+        println!("v {:?}", self.valuation_string());
     }
 }

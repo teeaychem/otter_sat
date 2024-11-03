@@ -33,6 +33,7 @@ mod uniform_random_3SAT {
         satlib_path().join("uniform_random")
     }
 
+    #[test]
     fn uniform_random_3_20_91() {
         default_on_dir(
             unform_random_path().join("UF20.91"),
