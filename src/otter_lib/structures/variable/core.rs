@@ -70,7 +70,7 @@ impl Variable {
     pub fn watch_removed(&self, clause_key: ClauseKey, polarity: bool) {
         unsafe {
             match clause_key {
-                ClauseKey::Formula(_) | ClauseKey::LearnedLong(_, _) => {
+                ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
                     let list = match polarity {
                         true => &mut *self.positive_occurrences.get(),
                         false => &mut *self.negative_occurrences.get(),
@@ -85,6 +85,9 @@ impl Variable {
                     let mut index = 0;
                     let mut limit = list.len();
                     loop {
+                        if index == limit {
+                            break;
+                        }
                         match list.get_unchecked(index) {
                             WatchElement::Clause(key) => {
                                 if *key == clause_key {
@@ -96,12 +99,9 @@ impl Variable {
                             }
                             WatchElement::Binary(_, _) => panic!("binary in clause list"),
                         }
-                        if index == limit {
-                            break;
-                        }
                     }
                 }
-                ClauseKey::LearnedBinary(_) => {
+                ClauseKey::Binary(_) => {
                     panic!("attempt to remove the watches for a binary clause");
                 }
             }
@@ -156,10 +156,16 @@ pub fn propagate_literal(
                             level,
                         ) {
                             Ok(()) => {}
-                            Err(key) => return Err(key),
+                            Err(key) => {
+                                return Err(key);
+                            }
                         },
-                        Some(polarity) if polarity == check.polarity() => {}
-                        Some(_) => return Err(*clause_key),
+                        Some(value) if check.polarity() != value => {
+                            return Err(*clause_key);
+                        }
+                        Some(_) => {
+                            // a missed implication, as this is binary
+                        }
                     }
                 }
             }
@@ -189,10 +195,7 @@ pub fn propagate_literal(
                     };
 
                     match clause.update_watch(literal, variables) {
-                        Ok(WatchStatus::TwoWitness) | Ok(WatchStatus::TwoNone) => {
-                            index += 1;
-                            continue 'propagation_loop;
-                        }
+                        Ok(WatchStatus::TwoWitness) | Ok(WatchStatus::TwoNone) => panic!("two"),
                         Ok(WatchStatus::Witness) | Ok(WatchStatus::None) => {
                             list.swap_remove(index);
                             length -= 1;
@@ -201,6 +204,7 @@ pub fn propagate_literal(
                         Ok(_) => panic!("can't get conflict from update"),
                         Err(()) => {
                             let the_watch = clause.get_unchecked(0);
+                            assert_ne!(the_watch.index(), literal.index());
                             match variables.value_of(the_watch.index()) {
                                 Some(value) if the_watch.polarity() != value => {
                                     return Err(*clause_key);

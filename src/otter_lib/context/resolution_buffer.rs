@@ -1,5 +1,5 @@
 use crate::{
-    config::{Config, StoppingCriteria, VariableActivity},
+    config::{Config, StoppingCriteria},
     context::{
         level::Level,
         store::{ClauseKey, ClauseStore},
@@ -22,8 +22,8 @@ enum ResolutionCell {
 
 #[derive(Debug)]
 pub struct ResolutionBuffer {
-    valueless_count: usize,
-    clause_legnth: usize,
+    pub valueless_count: usize,
+    pub clause_length: usize,
     asserts: Option<Literal>,
     buffer: Vec<ResolutionCell>,
     trail: Vec<ClauseKey>,
@@ -34,13 +34,14 @@ pub struct ResolutionBuffer {
 pub enum Status {
     FirstUIP,
     Exhausted,
+    BinarySubsumption,
 }
 
 impl ResolutionBuffer {
     pub fn new(size: usize) -> Self {
         ResolutionBuffer {
             valueless_count: 0,
-            clause_legnth: 0,
+            clause_length: 0,
             asserts: None,
             buffer: vec![ResolutionCell::Value(None); size],
             trail: vec![],
@@ -63,7 +64,7 @@ impl ResolutionBuffer {
     pub fn from_variable_store(variables: &impl VariableList) -> Self {
         ResolutionBuffer {
             valueless_count: 0,
-            clause_legnth: 0,
+            clause_length: 0,
             asserts: None,
             buffer: variables
                 .slice()
@@ -81,9 +82,9 @@ impl ResolutionBuffer {
     }
 
     pub fn valuation_in_use(&self) {
-        println!("buffer val");
         println!(
-            "{:?}",
+            "buffer val
+{:?}",
             self.buffer
                 .iter()
                 .enumerate()
@@ -143,9 +144,7 @@ impl ResolutionBuffer {
             {
                 let source_clause = match stored_clauses.get_carefully_mut(*the_key) {
                     None => {
-                        println!("missing key {the_key:?}");
-                        println!("{:?}", level);
-
+                        println!("missing key {the_key:?} @ {}", level.index());
                         panic!("failed to find resolution clause")
                     }
                     Some(clause) => clause,
@@ -156,9 +155,9 @@ impl ResolutionBuffer {
                         self.used_variables[involved_literal.index()] = true;
                     }
 
-                    // TODO: allow subsumption on binary clauses!
+                    // TODO: allow subsumption on binary clauses?
                     if config.subsumption
-                        && self.clause_legnth < source_clause.length()
+                        && self.clause_length < source_clause.length()
                         && source_clause.len() > 2
                     {
                         /*
@@ -169,17 +168,21 @@ impl ResolutionBuffer {
                           + As, if the clause appeared in some previous stage then use of the clause would be a missed implication
                           + And, missed implications are checked prior to conflicts
                          */
-                        match self.clause_legnth {
-                            2 => {
-                                match source_clause.subsume(*literal, variables, false) {
-                                    Ok(_) => {
-                                        let new_key =
-                                            stored_clauses.transfer_to_binary(*the_key, variables);
-                                        self.trail.push(new_key);
-                                    }
-                                    Err(e) => panic!("{e:?}"),
-                                };
-                            }
+
+                        match self.clause_length {
+                            2 => match the_key {
+                                ClauseKey::Binary(_) => {}
+                                ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
+                                    match source_clause.subsume(*literal, variables, false) {
+                                        Ok(_) => {
+                                            let new_key = stored_clauses
+                                                .transfer_to_binary(*the_key, variables, *literal);
+                                            self.trail.push(new_key);
+                                        }
+                                        Err(e) => panic!("{e:?}"),
+                                    };
+                                }
+                            },
                             _ => {
                                 match source_clause.subsume(*literal, variables, true) {
                                     Ok(_) => {
@@ -208,8 +211,8 @@ impl ResolutionBuffer {
         for literal in literals {
             match self.buffer[literal.index()] {
                 ResolutionCell::NoneLiteral(_) | ResolutionCell::ConflictLiteral(_) => {
-                    if let Some(length_minus_one) = self.clause_legnth.checked_sub(1) {
-                        self.clause_legnth = length_minus_one;
+                    if let Some(length_minus_one) = self.clause_length.checked_sub(1) {
+                        self.clause_length = length_minus_one;
                     }
                     self.set(literal.index(), ResolutionCell::Strengthened)
                 }
@@ -239,22 +242,6 @@ impl ResolutionBuffer {
     pub fn trail(&self) -> &[ClauseKey] {
         &self.trail
     }
-
-    pub fn max_activity(&self, variables: &VariableStore) -> VariableActivity {
-        let mut max = VariableActivity::default();
-        for item in &self.buffer {
-            match item {
-                ResolutionCell::Strengthened | ResolutionCell::Value(_) | ResolutionCell::Pivot => {
-                }
-                ResolutionCell::ConflictLiteral(literal) | ResolutionCell::NoneLiteral(literal) => {
-                    if variables.activity_of(literal.index()) > max {
-                        max = variables.activity_of(literal.index());
-                    }
-                }
-            }
-        }
-        max
-    }
 }
 
 impl ResolutionBuffer {
@@ -266,7 +253,7 @@ impl ResolutionBuffer {
                 ResolutionCell::Pivot => {}
                 ResolutionCell::Value(maybe) => match maybe {
                     None => {
-                        self.clause_legnth += 1;
+                        self.clause_length += 1;
                         self.valueless_count += 1;
                         self.set(literal.index(), ResolutionCell::NoneLiteral(*literal));
                         if self.asserts.is_none() {
@@ -274,13 +261,10 @@ impl ResolutionBuffer {
                         }
                     }
                     Some(value) if *value != literal.polarity() => {
-                        self.clause_legnth += 1;
+                        self.clause_length += 1;
                         self.set(literal.index(), ResolutionCell::ConflictLiteral(*literal))
                     }
-                    Some(_) => {
-                        println!("{:?}", clause.as_string());
-                        panic!("Resolution to a satisfied clause")
-                    }
+                    Some(_) => panic!("resolution to a satisfied clause"),
                 },
                 ResolutionCell::Strengthened => {}
             }
@@ -291,7 +275,7 @@ impl ResolutionBuffer {
         match unsafe { *self.buffer.get_unchecked(using.index()) } {
             ResolutionCell::NoneLiteral(literal) if using == !literal => {
                 self.merge_clause(clause);
-                self.clause_legnth -= 1;
+                self.clause_length -= 1;
                 self.set(using.index(), ResolutionCell::Pivot);
                 self.valueless_count -= 1;
 
@@ -299,7 +283,7 @@ impl ResolutionBuffer {
             }
             ResolutionCell::ConflictLiteral(literal) if using == !literal => {
                 self.merge_clause(clause);
-                self.clause_legnth -= 1;
+                self.clause_length -= 1;
                 self.set(using.index(), ResolutionCell::Pivot);
 
                 Ok(())
