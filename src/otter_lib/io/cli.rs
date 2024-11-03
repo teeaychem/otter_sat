@@ -78,7 +78,7 @@ Clauses with length greater than two are removed, low activity to high (and high
 Equivalent to passing both '--no-reduction' and 'no_restarts'."))
 
         .arg(Arg::new("no_subsumption")
-            .long("no_subsumption")
+            .long("no-subsumption")
             .value_parser(value_parser!(bool))
             .required(false)
             .num_args(0)

@@ -68,6 +68,10 @@ pub fn default_on_dir(collection: PathBuf, config: &Config, require: Report) {
                 Err(e) => panic!("solve error {e:?}"),
             };
 
+            if require != result {
+                println!("issue with formula:\n{:?}", test);
+            }
+
             assert_eq!(require, result);
         }
     }

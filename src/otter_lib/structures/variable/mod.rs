@@ -9,6 +9,7 @@ pub mod list;
 
 pub type VariableId = u32;
 
+#[derive(Debug)]
 pub enum WatchElement {
     Binary(Literal, ClauseKey),
     Clause(ClauseKey),

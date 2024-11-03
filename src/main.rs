@@ -4,33 +4,17 @@
 
 #[cfg(not(target_env = "msvc"))]
 #[cfg(feature = "jemalloc")]
-use tikv_jemallocator::Jemalloc;
-
-#[cfg(not(target_env = "msvc"))]
-#[cfg(feature = "jemalloc")]
 #[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
-
-use std::{
-    ffi::OsStr,
-    fs,
-    io::{BufReader, Read},
-    path::PathBuf,
-};
+static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
 use otter_lib::{
     config::Config,
-    context::{builder::BuildIssue, Context},
+    context::builder::BuildIssue,
     io::{cli::cli, files::context_from_path},
 };
 
-use std::fs::File;
-use std::io::{self, BufRead};
-use std::path::Path;
+use std::path::PathBuf;
 
-use flate2::read::GzDecoder;
-
-// #[rustfmt::skip]
 fn main() {
     #[cfg(feature = "log")]
     match log4rs::init_file("config/log4rs.yaml", Default::default()) {
@@ -66,7 +50,6 @@ fn main() {
             // let _ = the_context.clause_from_string("p -q");
             let _the_result = the_context.solve();
             the_context.print_status();
-            // dbg!(&the_context.config);
         }
     }
 
