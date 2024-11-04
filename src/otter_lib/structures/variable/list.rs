@@ -1,5 +1,5 @@
 use crate::{
-    context::{level::Level, stores::variable::ValueStatus},
+    context::stores::{level::Level, variable::ValueStatus},
     structures::{
         literal::{Literal, LiteralSource},
         variable::Variable,

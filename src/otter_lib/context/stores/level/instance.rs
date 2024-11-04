@@ -1,5 +1,5 @@
 use crate::{
-    context::level::{Level, LevelIndex},
+    context::stores::{level::Level, LevelIndex},
     structures::literal::{Literal, LiteralSource},
 };
 

@@ -121,7 +121,7 @@ impl Context {
                 }
 
                 match strengthened_clause.len() {
-                    0 => {} // panic!("proven"),
+                    0 => {} // Any empty clause before strengthening raised an error above, so this is safe to ignore
                     1 => {
                         let literal = strengthened_clause[0];
                         match self.assume(literal) {

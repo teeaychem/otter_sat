@@ -5,7 +5,7 @@ use crate::{
     context::{
         analysis::AnalysisResult,
         core::{ContextFailure, StepInfo},
-        level::LevelIndex,
+        stores::LevelIndex,
         Context, Report, SolveStatus,
     },
     structures::{
@@ -43,6 +43,9 @@ impl Context {
 
             match self.step(&config_clone) {
                 Ok(_) => continue 'solve_loop,
+                Err(StepInfo::Backfall) => panic!("Backjumping failed"),
+                Err(StepInfo::AnalysisFailure) => panic!("Analysis failed"),
+                Err(StepInfo::ChoiceFailure) => panic!("Choice failure"),
                 Err(_) => {
                     break 'solve_loop Ok(self.report());
                 }
@@ -59,7 +62,7 @@ impl Context {
                 Err(key) => {
                     let Ok(analysis_result) = self.conflict_analysis(key, config) else {
                         log::error!(target: crate::log::targets::STEP, "Conflict analysis failed.");
-                        panic!("Analysis failed")
+                        return Err(StepInfo::AnalysisFailure);
                     };
 
                     match analysis_result {
@@ -129,7 +132,9 @@ impl Context {
 
         self.make_choice(config)
     }
+}
 
+impl Context {
     fn conflict_ceremony(&mut self, config: &Config) {
         self.counters.conflicts += 1;
         self.counters.conflicts_in_memory += 1;
@@ -159,7 +164,7 @@ impl Context {
         }
     }
 
-    pub fn make_choice(&mut self, config: &Config) -> Result<(), StepInfo> {
+    fn make_choice(&mut self, config: &Config) -> Result<(), StepInfo> {
         match self.get_unassigned(config) {
             Some(choice_index) => {
                 self.counters.decisions += 1;
@@ -181,7 +186,7 @@ impl Context {
                 };
                 match self.q_literal(choice_literal, LiteralSource::Choice) {
                     Ok(()) => {}
-                    Err(_) => panic!("could not set choice"),
+                    Err(_) => return Err(StepInfo::ChoiceFailure),
                 };
 
                 self.status = SolveStatus::ChoiceMade;
@@ -194,7 +199,7 @@ impl Context {
         }
     }
 
-    pub fn get_unassigned(&mut self, config: &Config) -> Option<usize> {
+    fn get_unassigned(&mut self, config: &Config) -> Option<usize> {
         match self.counters.rng.gen_bool(config.random_choice_frequency) {
             true => self
                 .variables
@@ -218,7 +223,7 @@ impl Context {
         }
     }
 
-    pub fn backjump(&mut self, to: LevelIndex) {
+    fn backjump(&mut self, to: LevelIndex) {
         log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.top().index(), to);
 
         for _ in 0..(self.levels.top().index() - to) {

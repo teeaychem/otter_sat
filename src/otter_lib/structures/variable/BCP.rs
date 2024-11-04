@@ -1,5 +1,5 @@
 use crate::{
-    context::stores::clause_key::ClauseKey,
+    context::stores::ClauseKey,
     context::Context,
     structures::{
         clause::stored::WatchStatus,
