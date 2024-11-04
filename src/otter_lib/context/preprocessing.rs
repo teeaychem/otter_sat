@@ -2,7 +2,7 @@ use crate::{
     context::Context,
     structures::{
         literal::{Literal, LiteralSource},
-        variable::{delegate::queue_consequence, VariableId},
+        variable::VariableId,
     },
 };
 
@@ -42,12 +42,7 @@ impl Context {
 
         for v_id in f.into_iter().chain(t) {
             let the_literal = Literal::new(v_id, false);
-            match queue_consequence(
-                &mut self.variables,
-                the_literal,
-                LiteralSource::Pure,
-                self.levels.top_mut(),
-            ) {
+            match self.q_literal(the_literal, LiteralSource::Pure) {
                 Ok(()) => {}
                 Err(_) => panic!("could not set pure"),
             };

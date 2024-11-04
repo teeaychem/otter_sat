@@ -5,6 +5,7 @@ pub mod level;
 mod preprocessing;
 pub mod reports;
 mod resolution_buffer;
+pub mod solve;
 pub mod store;
 
 use {
@@ -54,9 +55,9 @@ impl Default for Counters {
 
 pub struct Context {
     counters: Counters,
-    levels: LevelStore,
-    clause_store: ClauseStore,
-    variables: VariableStore,
+    pub levels: LevelStore,
+    pub clause_store: ClauseStore,
+    pub variables: VariableStore,
     pub config: config::Config,
     pub window: Option<ContextWindow>,
     pub status: SolveStatus,
@@ -72,7 +73,7 @@ pub enum SolveStatus {
     NoSolution(ClauseKey),
     Proof(ClauseKey),
     ChoiceMade,
-    AllAssigned,
+    FullValuation,
     NoClauses,
 }
 
@@ -84,7 +85,7 @@ impl std::fmt::Display for SolveStatus {
             SolveStatus::MissedImplication(key) => write!(f, "MissedImplication({key})"),
             SolveStatus::NoSolution(key) => write!(f, "NoSolution({key})"),
             SolveStatus::ChoiceMade => write!(f, "ChoiceMade"),
-            SolveStatus::AllAssigned => write!(f, "AllAssigned"),
+            SolveStatus::FullValuation => write!(f, "AllAssigned"),
             SolveStatus::NoClauses => write!(f, "NoClauses"),
             SolveStatus::Proof(key) => write!(f, "NoSolution({key})"),
         }

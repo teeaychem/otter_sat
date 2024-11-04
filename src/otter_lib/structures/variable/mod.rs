@@ -3,6 +3,8 @@ use std::cell::UnsafeCell;
 
 use super::literal::Literal;
 
+#[allow(non_snake_case)]
+pub mod BCP;
 pub mod core;
 pub mod delegate;
 pub mod list;
