@@ -2,6 +2,7 @@ mod analysis;
 pub mod builder;
 pub mod core;
 pub mod level;
+mod preprocessing;
 pub mod reports;
 mod resolution_buffer;
 pub mod store;
@@ -69,9 +70,25 @@ pub enum SolveStatus {
     AssertingClause(ClauseKey),
     MissedImplication(ClauseKey),
     NoSolution(ClauseKey),
+    Proof(ClauseKey),
     ChoiceMade,
     AllAssigned,
     NoClauses,
+}
+
+impl std::fmt::Display for SolveStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SolveStatus::Initialised => write!(f, "Initialised"),
+            SolveStatus::AssertingClause(key) => write!(f, "AssertingClause({key})"),
+            SolveStatus::MissedImplication(key) => write!(f, "MissedImplication({key})"),
+            SolveStatus::NoSolution(key) => write!(f, "NoSolution({key})"),
+            SolveStatus::ChoiceMade => write!(f, "ChoiceMade"),
+            SolveStatus::AllAssigned => write!(f, "AllAssigned"),
+            SolveStatus::NoClauses => write!(f, "NoClauses"),
+            SolveStatus::Proof(key) => write!(f, "NoSolution({key})"),
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]

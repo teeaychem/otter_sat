@@ -1,0 +1,84 @@
+<HTML>
+<HEAD>
+   <TITLE>SATLIB - Benchmark Problems</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="white" TEXT="black" LINK="#0000FF" VLINK="#551A8B" ALINK="#FF0000">
+
+<h1>SAT-encoded Towers of Hanoi Problems</h1>
+
+The Towers of Hanoi is the following well known problem:<br><br>
+
+One is given three pins and a stack of <i>n</i> discs of decreasing
+diameter on one of the pins. The problem then is to transfer these
+<i>n</i> discs to one of the other pins according to the following rules:
+
+<UL>
+<LI>(1) A move places a disc on another pin</LI>
+<LI>(2) Only one disc at a time can be moved</LI>
+<LI>(3) A disc may not be placed on top of a smaller disc</LI>
+</UL>
+
+The problem then involves finding a sequence of moves which, when
+applied to the initial configuration, lead to the goal situation.
+
+<h4>Benchmark instances</h4>
+
+There are two SAT-encoded instances available from the original DIMACS
+challenge set; both instances had been contributed by Bart Selman and
+Henry Kautz. The instances involve 4 and 5 discs, respectively. The
+instances are described in Table 1; they belong to some of the hardest
+instances of our benchmark suit.<br><br>
+
+
+<TABLE BORDER >
+<TR>
+<TD ALIGN=CENTER><B>instance&nbsp;</B></TD>
+
+<TD ALIGN=CENTER><B>discs&nbsp;</B></TD>
+
+<TD ALIGN=CENTER><B>vars&nbsp;</B></TD>
+
+<TD ALIGN=CENTER><B>clauses&nbsp;</B></TD>
+
+<TD ALIGN=CENTER><B>satisfiable?&nbsp;</B></TD>
+</TR>
+
+<TR>
+<TD ALIGN=RIGHT>hanoi4.cnf&nbsp;</TD>
+
+<TD ALIGN=RIGHT>4&nbsp;</TD>
+
+<TD ALIGN=RIGHT>718&nbsp;</TD>
+
+<TD ALIGN=RIGHT>4934&nbsp;</TD>
+
+<TD ALIGN=RIGHT>yes&nbsp;</TD>
+</TR>
+
+<TR NOSAVE>
+<TD ALIGN=RIGHT>hanoi5.cnf</TD>
+
+<TD ALIGN=RIGHT>5&nbsp;</TD>
+
+<TD ALIGN=RIGHT>1931&nbsp;</TD>
+
+<TD ALIGN=RIGHT>14468&nbsp;</TD>
+
+<TD ALIGN=RIGHT NOSAVE>yes&nbsp;</TD>
+</TR>
+</TABLE><br>
+<B>Table 1:</B> SAT-encodings of the Towers of Hanoi problem
+<BR>&nbsp;
+<BR>&nbsp;
+
+
+<h4>Acknowledgements</h4>
+
+The instances have originally been contributed to the DIMACS benchmark
+set by <A HREF="http://simon.cs.cornell.edu/home/selman/">Bart Selman</A>
+and <A HREF="http://www.research.att.com/~kautz/">Henry Kautz</A>.<br>
+
+
+</body>
+</html>

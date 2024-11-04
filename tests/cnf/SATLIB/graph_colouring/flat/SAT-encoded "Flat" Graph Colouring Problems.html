@@ -1,0 +1,100 @@
+<HTML>
+<HEAD>
+<TITLE>SATLIB - Benchmark Problems</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="white" TEXT="black" LINK="#0000FF" VLINK="#551A8B" ALINK="#FF0000">
+
+
+<h1>SAT-encoded "Flat" Graph Colouring Problems</h1>
+
+The Graph Colouring problem (GCP) is a well-known combinatorial
+problem from graph theory: Given a graph <i>G=(V,E)</i>, where
+<i>V={v_1,v_2,...,v_n}</i> is the set of vertices and 
+<i>E</i> the set of edges connecting the vertices, find 
+a colouring <i>C: V -> <b>N</b></i>, such that connected
+vertices always have different colours.
+There are two variants of this problem: In the optimisation 
+variant, the goal is to find a colouring with a minimal 
+number of colours, whereas in the decision
+variant, the question is to decide whether for a particular 
+number of colours, a couloring of the given graph exists. 
+The two variants are tightly related, as optimal colourings can 
+be found by solving a series of decision problems, using, for instance,
+binary search to determine the minimal number of colours.
+In the context of SAT-encoded Graph Colouring problems,
+we focus on the decision variant.
+
+<h4>SAT encoding</h4>
+Following earlier approaches in literature, we use a 
+straightforward strategy for encoding GCP instances into SAT:
+Each assignment of a colour to a single vertex 
+is represented by a propositional variable; each colouring constraint
+(edge of the graph) is represented by a set of clauses ensuring that
+the corresponding vertices have different colours,
+and two additional sets of clauses 
+ensure that valid SAT assignments assign exactly one colour 
+to each vertex.
+
+<h4>GCP test-sets</h4> The test-sets provided here (see Table 1) are
+generated using J.Culberson's <A
+HREF="http://web.cs.ualberta.ca/~joe/Coloring/Generators/flat.html">
+flat graph generator</A> (see also <A
+HREF="http://web.cs.ualberta.ca/~joe/Coloring/index.html">Joe
+Culbersons's Graph Coloring Page</A> for more information).  They
+consist of 3-colourable flat graphs the connectivity of which is
+adjusted in such a way that the instances are very hard to solve (in
+average) for graph colouring algorithms like the Brelaz heuristic
+[Hog96]. All instances are satisfiable.
+
+<p>
+<table border=1>
+<tr>
+<td align=center><b> test-set <td align=center><b> instances
+<td align=center><b> vertices <td align=center><b> edges 
+<td align=center><b> colours
+<td align=center><b> vars <td align=center><b> clauses
+<tr>
+<td align=right> flat30-60 <td align=right> 100 <td align=right> 30 <td align=right> 60 <td align=right> 3 <td align=right> 90 <td align=right> 300
+<tr>
+<td align=right> flat50-115 <td align=right> 1000 <td align=right> 50 <td align=right> 115 <td align=right> 3 <td align=right> 150 <td align=right> 545
+<tr>
+<td align=right> flat75-180 <td align=right> 100 <td align=right> 75 <td align=right> 180 <td align=right> 3 <td align=right> 225 <td align=right> 840
+<tr>
+<td align=right> flat100-239 <td align=right> 100 <td align=right> 100 <td align=right> 239 <td align=right> 3 <td align=right> 300 <td align=right> 1117
+<tr>
+<td align=right> flat125-301 <td align=right> 100 <td align=right> 125 <td align=right> 301 <td align=right> 3 <td align=right> 375 <td align=right> 1403
+<tr>
+<td align=right> flat150-360 <td align=right> 100 <td align=right> 150 <td align=right> 360 <td align=right> 3 <td align=right> 450 <td align=right> 1680
+<tr>
+<td align=right> flat175-417 <td align=right> 100 <td align=right> 175 <td align=right> 417 <td align=right> 3 <td align=right> 525 <td align=right> 1951
+<tr>
+<td align=right> flat200-479 <td align=right> 100 <td align=right> 200 <td align=right> 479 <td align=right> 3 <td align=right> 600 <td align=right> 2237
+</table>
+<p>
+<b>Table 1:</b> SAT-encoded Graph Colouring test-sets (flat random graphs).
+All instances are satisfiable.
+
+<p><br>
+<h4>Bibliography</h4>
+
+<table>
+<tr>
+<td valign=top><small>[Hogg96]
+<td><small> <I>Tad Hogg</I>
+<STRONG>Refining the Phase Transition in Combinatorial Search.</STRONG>
+<CITE>Artificial Inteligence,</CITE> Vol. 81, pages 127-154, 1996<br>
+</tr>
+
+<table>
+<tr>
+<td valign=top><small>[Hog96]
+<td><small> <I>Tad Hogg</I>
+<STRONG>Refining the Phase Transition in Combinatorial Search.</STRONG>
+<CITE>Artificial Inteligence,</CITE> Vol. 81, pages 127-154, 1996<br>
+<tr>
+</table>
+</small>
+
+</body>
+</html>

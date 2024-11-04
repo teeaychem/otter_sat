@@ -1,0 +1,120 @@
+<HTML>
+<HEAD>
+<TITLE>SATLIB - Benchmark Problems</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="white" TEXT="black" LINK="#0000FF" VLINK="#551A8B" ALINK="#FF0000">
+
+<h1>SAT-encoded "Morphed" Graph Colouring Problems</h1>
+
+The Graph Colouring problem (GCP) is a well-known combinatorial
+problem from graph theory: Given a graph <i>G=(V,E)</i>, where
+<i>V={v_1,v_2,...,v_n}</i> is the set of vertices and 
+<i>E</i> the set of edges connecting the vertices, find 
+a colouring <i>C: V -> <b>N</b></i>, such that connected
+vertices always have different colours.
+Generally, there are two variants of the Graph Colouring Problem: 
+In the optimisation 
+variant, the goal is to find a colouring with a minimal 
+number of colours, whereas in the decision
+variant, the question is to decide whether for a particular 
+number of colours, a couloring of the given graph exists. 
+The two variants are tightly related, as optimal colourings can 
+be found by solving a series of decision problems, using, for instance,
+binary search to determine the minimal number of colours.
+In the context of SAT-encoded Graph Colouring problems,
+we focus on the decision variant.
+
+<p>
+An interesting class of Graph Colouring Problems is obtained
+by <i>morphing</i> regular ring lattices with random graphs
+[GHPW99]: A (type B) <i>p</i>-morph of two graphs <i>A=(V,E1)</i>
+and <i>B=(V,E2)</i> is a graph <i>C=(V,E)</i> where
+<i>E</i> contains all the edges common to <i>A</i> and <i>B</i>,
+a fraction <i>p</i> of the edges from <i>E1-E2</i> (the remaining
+edges of <i>A</i>), and a fraction <i>1-p</i> of the edges from <i>E2-E1</i>. 
+The test-sets considered here are obtained by morphing 
+regular ring lattices, where the vertices are ordered cyclically and
+each vertex is connected to its <i>k</i> closest in this ordering,
+and random graphs from the well-known class <i>Gnm</i>.
+The morphing ratio <i>p</i> controls the amount of structure in
+the problem instances, and by varying <i>p</i>, the behaviour 
+of various algorithms depending on the degree of structure and
+randomness can be studied [GHPW99].
+
+<h4>SAT encoding</h4>
+Following earlier approaches in literature, we use a 
+straightforward strategy for encoding GCP instances into SAT:
+Each assignment of a colour to a single vertex 
+is represented by a propositional variable; each colouring constraint
+(edge of the graph) is represented by a set of clauses ensuring that
+the corresponding vertices have different colours,
+and two additional sets of clauses 
+ensure that valid SAT assignments assign exactly one colour 
+to each vertex.
+
+<h4>GCP test-sets</h4> The test-sets provided here (see Table 1) are
+generated using a generator program provided by Toby Walsh.
+All graphs have 100 vertices and 400 edges, the regular ring lattice
+used for morphing connects each vertex to its 8 nearest neighbours
+in the cyclic ordering.
+For <i>0 < p < 1</i>, the chromatic number of the graphs thus obtained
+varies. Using a special graph colouring program provided by Joe Culberson,
+we filtered out all instances with <i>c!=5</i> colours (the regular ring
+lattice, i.e., the morphed graph for <i>p=0</i>, has chromatic number <i>5</i>).
+All instances are satisfiable.
+[GHPW99] show that that for small <i>p</i> (around 0.01), these 
+instances are hardest for local search algorithms, such as WalkSAT,
+while for higher <i>p</i> (around 0.2), some of the instances are
+extremely hard for systematic search algorithms, such as Satz.
+
+<p>
+<table border=1>
+<tr>
+<td align=center><b> test-set <td align=center><b> instances
+<td align=center><b> vertices <td align=center><b> edges 
+<td align=center><b> morphing ratio
+<td align=center><b> colours
+<td align=center><b> vars <td align=center><b> clauses
+<tr>
+<td align=right> sw100-8-lp0-c5 <td align=right> 100 <td align=right> 100 <td align=right> 400 <td align=right> 1 <td align=right> 5  <td align=right> 500 <td align=right> 310
+<tr>
+<td align=right> sw100-8-lp1-c5 <td align=right> 100 <td align=right> 100 <td align=right> 400 <td align=right> 0.5 <td align=right> 5  <td align=right> 500 <td align=right> 3100
+<tr>
+<td align=right> sw100-8-lp2-c5 <td align=right> 100 <td align=right> 100 <td align=right> 400 <td align=right> 0.25 <td align=right> 5  <td align=right> 500 <td align=right> 3100
+<tr>
+<td align=right> sw100-8-lp3-c5 <td align=right> 100 <td align=right> 100 <td align=right> 400 <td align=right> 0.125 <td align=right> 5  <td align=right> 500 <td align=right> 3100
+<tr>
+<td align=right> sw100-8-lp4-c5 <td align=right> 100 <td align=right> 100 <td align=right> 400 <td align=right> 2^-4 <td align=right> 5  <td align=right> 500 <td align=right> 3100
+<tr>
+<td align=right> sw100-8-lp5-c5 <td align=right> 100 <td align=right> 100 <td align=right> 400 <td align=right> 2^-5 <td align=right> 5  <td align=right> 500 <td align=right> 3100
+<tr>
+<td align=right> sw100-8-lp6-c5 <td align=right> 100 <td align=right> 100 <td align=right> 400 <td align=right> 2^-6 <td align=right> 5  <td align=right> 500 <td align=right> 3100
+<tr>
+<td align=right> sw100-8-lp7-c5 <td align=right> 100 <td align=right> 100 <td align=right> 400 <td align=right> 2^-7 <td align=right> 5  <td align=right> 500 <td align=right> 3100
+<tr>
+<td align=right> sw100-8-lp8-c5 <td align=right> 100 <td align=right> 100 <td align=right> 400 <td align=right> 2^-8 <td align=right> 5  <td align=right> 500 <td align=right> 3100
+<tr>
+<td align=left> sw100-8-p0-c5 <td align=right> 1 <td align=right> 100 <td align=right> 400 <td align=right> 0 <td align=right> 5  <td align=right> 500 <td align=right> 3100
+
+</table>
+<p>
+<b>Table 1:</b> SAT-encoded "Morphed" Graph Colouring test-sets.
+All instances are satisfiable.
+
+<p><br>
+<h4>Bibliography</h4>
+
+<table>
+<tr>
+<td valign=top><small>[GHPW99]
+<td><small> <I>Ian Gent, Holger H. Hoos, Patrick Prosser, and Toby Walsh</I>
+<STRONG>Morphing: Combining Structure and Randomness.</STRONG>
+<CITE>Proc. of AAAI-99,</CITE> pages 654-660, 1999<br>
+</tr>
+</table>
+
+</small>
+
+</body>
+</html>

@@ -1,5 +1,4 @@
 #![allow(unused_imports)]
-#![allow(dead_code)]
 #![allow(non_snake_case)]
 
 use std::fs;
@@ -9,10 +8,6 @@ use otter_lib::{
     config::Config,
     context::{self, Context, Report},
     io::files::*,
-    structures::{
-        literal::{Literal, LiteralSource},
-        variable::list::VariableList,
-    },
 };
 
 fn cnf_path() -> PathBuf {
@@ -85,7 +80,7 @@ mod random_3SAT_and_backbone_minimal_subinstances {
     #[test]
     fn rti_k3_n100_m429() {
         default_on_dir(
-            satlib_collection("RTI_k3_n100_m429"),
+            satlib_collection("backbone").join("RTI_k3_n100_m429"),
             &Config::default(),
             Report::Satisfiable,
         );
@@ -94,7 +89,7 @@ mod random_3SAT_and_backbone_minimal_subinstances {
     #[test]
     fn bms_k3_n100_m429() {
         default_on_dir(
-            satlib_collection("BMS_k3_n100_m429"),
+            satlib_collection("backbone").join("BMS_k3_n100_m429"),
             &Config::default(),
             Report::Satisfiable,
         );
@@ -106,7 +101,7 @@ mod planning {
     #[test]
     fn logistics() {
         default_on_dir(
-            satlib_collection("logistics"),
+            satlib_collection("planning").join("logistics"),
             &Config::default(),
             Report::Satisfiable,
         );
@@ -115,7 +110,7 @@ mod planning {
     #[test]
     fn blocksworld() {
         default_on_dir(
-            satlib_collection("blocksworld"),
+            satlib_collection("planning").join("blocksworld"),
             &Config::default(),
             Report::Satisfiable,
         );

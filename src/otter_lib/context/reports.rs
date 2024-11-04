@@ -69,10 +69,9 @@ impl Context {
                                                 core_q.push_back(*key);
                                             }
                                         }
-                                        LiteralSource::Clause(clause_key)
-                                        | LiteralSource::BinaryPropagation(clause_key)
+                                        LiteralSource::Analysis(clause_key)
                                         | LiteralSource::Propagation(clause_key)
-                                        | LiteralSource::Missed(clause_key, _) => {
+                                        | LiteralSource::Missed(clause_key) => {
                                             core_q.push_back(*clause_key)
                                         }
 

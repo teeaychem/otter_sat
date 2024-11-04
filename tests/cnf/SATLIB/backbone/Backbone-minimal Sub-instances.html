@@ -1,0 +1,96 @@
+<HTML>
+<HEAD>
+<TITLE>SATLIB - Benchmark Problems</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="white" TEXT="black" LINK="#0000FF" VLINK="#551A8B" ALINK="#FF0000">
+
+<h1>Backbone-minimal Sub-instances</h1>
+
+<h4>The Backbone and Backbone-minimality</h4>
+
+A literal <em>l</em> is <em> entailed </em> by a satisfiable SAT
+instance <em>C</em> iff <em>C AND (NOT l)</em> is unsatisfiable. The
+<em> backbone</em> of a satisfiable SAT instance is the set of
+entailed literals and so the <em>backbone size</em> is the number of
+entailed literals.An instance <em>C</em> is <em>backbone-minimal</em>
+if for each clause <em>c</em> in <em>C</em> there exists a literal
+<em>l</em> in the backbone of <em>C</em> such that <em>l</em> is not
+in the backbone of <em>C - {c}</em> (<em>C</em> with <em>c</em>
+removed).
+
+<h4>Instance Generation</h4>
+
+Two types of instance are provided. Firstly, some standard satisfiable
+threshold Random-<em>k</em>-SAT instances. These are generated
+according to 3 parameters: <em>k</em>: the number of literals per
+clause, <em>n</em>: the number of variables, <em>m</em>: the number of
+clauses. Each Random-<em>k</em>-SAT instance is generated as follows:
+<ol>
+<li> Generate <em>m</em> random <em>k</em>-clauses. For each clause:
+     <ul> 
+     <li> Select at random <em>k</em> distinct variables from the set of
+     <em>n</em>.</li> 
+     <li> Negate each with probabilty 1/2. These form the literals of
+     the clause.</li></ul> 
+</li>
+<li> If the instance is unsatisfiable, restart the generation process. </li>
+</ol><p> 
+Details of the Random-<em>k</em>-SAT instances are given in the table below.<p>
+
+The second type of instances were generated from the
+Random-<em>k</em>-SAT instances. For each Random-3-SAT instance
+<em>C</em>, one backbone-minimal sub-instance of <em>C</em> was
+found. This was done by removing clauses from <em>C</em> such that the
+backbone was unaffected. This was iterated until the resulting
+instance was backbone-minimal. At each step the removed clause was
+selected at random from those whose removal did not affect the
+backbone. Details of these instances are given in the table. The number
+of clauses varies since the generation process can stop after a
+varying number of clause removals.<p>
+
+
+[SGS00] used these instances as part of a study which aimed to explain
+why cost for local search algorithms was high in the threshold region
+of Random-3-SAT. For the local search algorithm WSAT/SKC, the
+backbone-minimal sub-instances had a far higher search cost than the
+Random-3-SAT instances from which they were derived, even though the
+sub-instances have fewer clauses, the same backbone size and at least
+as many solutions.
+
+<p>
+<table border=1>
+<tr>
+<td align=center><b> test-set <td align=center><b> instances
+<td align=center><b> literals per clause <td align=center><b> vars 
+<td align=center><b> clauses
+<tr>
+<td align=right> RTI_k3_n100_m429 <td align=right> 500 <td
+align=right> 3 <td align=right> 100 <td align=right> 429<tr> 
+<td align=right> BMS_k3_n100_m429 <td align=right> 500 <td
+align=right> 3 <td align=right> 100 <td align=right> varies<tr> 
+
+
+</table><p> Random-3-SAT (RTI) and backbone minimal sub-instance
+(BMS) test-sets. Each instance in the Random-3-SAT collection has a
+corresponding backbone minimal sub-instance in the other collection.
+All instances are satisfiable.<p><br>
+
+<h4>Bibliography</h4>
+
+<table>
+<tr>
+<td valign=top><small>[SGS00]
+<td><small> <I>Josh Singer, Ian Gent and Alan Smaill </I>
+<STRONG> Backbone Fragility and the Local Search Cost Peak.</STRONG>
+<CITE><A HREF="http://www.jair.org"> Journal of Artificial
+Intelligence Research</A>,</CITE> <b>12:</b> 235-270 2000<br>
+</tr>
+</table>
+
+</small>
+
+
+</body>
+</html>
+

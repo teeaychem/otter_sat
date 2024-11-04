@@ -46,7 +46,7 @@ impl StoredClause {
         clause: Vec<Literal>,
         subsumed: Vec<Literal>,
         source: ClauseSource,
-        variables: &VariableStore,
+        variables: &mut VariableStore,
     ) -> Self {
         let mut stored_clause = Self {
             key,
@@ -78,7 +78,7 @@ impl StoredClause {
     pub fn update_watch(
         &mut self,
         literal: Literal,
-        variables: &impl VariableList,
+        variables: &mut VariableStore,
     ) -> Result<WatchStatus, ()> {
         match self.clause.len() {
             2 => {
@@ -138,7 +138,7 @@ impl StoredClause {
     pub fn subsume(
         &mut self,
         literal: Literal,
-        variables: &impl VariableList,
+        variables: &mut VariableStore,
         fix_watch: bool,
     ) -> Result<usize, Subsumption> {
         if self.clause.len() <= 2 {
@@ -164,9 +164,8 @@ impl StoredClause {
         self.subsumed_literals.push(removed);
 
         if fix_watch && position == self.last {
-            variables
-                .get_unsafe(removed.index())
-                .watch_removed(self.key, removed.polarity());
+            variables.remove_watch(removed, self.key);
+
             let clause_length = self.clause.len();
             self.last = 1;
             for index in 1..clause_length {
@@ -197,7 +196,7 @@ impl StoredClause {
         original
     }
 
-    fn initialise_watches(&mut self, variables: &impl VariableList) {
+    fn initialise_watches(&mut self, variables: &mut VariableStore) {
         let clause_length = self.clause.len() - 1;
 
         let mut index = 0;
@@ -239,7 +238,7 @@ impl StoredClause {
         self.note_watch(self.clause[self.last], variables);
     }
 
-    fn note_watch(&self, literal: Literal, variables: &impl VariableList) {
+    fn note_watch(&self, literal: Literal, variables: &mut VariableStore) {
         match self.key {
             ClauseKey::Binary(_) => {
                 let check_literal = if self.clause[0].v_id() == literal.v_id() {
@@ -248,15 +247,10 @@ impl StoredClause {
                     self.clause[0]
                 };
 
-                variables.get_unsafe(literal.index()).watch_added(
-                    WatchElement::Binary(check_literal, self.key()),
-                    literal.polarity(),
-                );
+                variables.add_watch(literal, WatchElement::Binary(check_literal, self.key()));
             }
             ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
-                variables
-                    .get_unsafe(literal.index())
-                    .watch_added(WatchElement::Clause(self.key()), literal.polarity());
+                variables.add_watch(literal, WatchElement::Clause(self.key()));
             }
         }
     }
