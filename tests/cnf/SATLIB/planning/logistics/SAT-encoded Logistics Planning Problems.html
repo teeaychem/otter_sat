@@ -1,0 +1,116 @@
+<HTML>
+<HEAD>
+<TITLE>SATLIB - Benchmark Problems</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="white" TEXT="black" LINK="#0000FF" VLINK="#551A8B" ALINK="#FF0000">
+
+
+<h1>SAT-encoded Logistics Planning Problems</h1>
+
+In the logistics planning domain, packages have to be moved
+between different locations in different cities. 
+Within cities, packages are carried by
+trucks while between cities they are flown in planes. Both, trucks and
+airplanes are of limited capacity. 
+The problem involves 3 operators <i>(load, unload, move)</i>
+and two state predicates <i>(in,at)</i>.
+The initial and goal state specify locations for 
+all packages, trucks, and planes;
+the plans allow multiple actions to be executed simultaneously,
+as long as no conflicts arise from their preconditions and effects.
+Like in the Blocks World Plannig problem,
+there is an optimisation and a decition variant of 
+the Logistics Planning problem:
+In the optimisation variant, the goal is to find a shortest plan, 
+whereas in the decision variant, the question is to decide whether 
+a plan of a given length exists. 
+Again, the two variants are tightly related, as shortest plans can 
+be found by solving a series of decision problems.
+SAT-based approaches to Logistics Planning typically focus on 
+the decision variant.
+
+<h4>SAT encoding of Logistics Planning instances</h4>
+
+A state-based encoding strategy was used for translating
+Logistics instances into CNF formulae.
+In this encoding, only the state predicates are explicitely
+represented by propositional variables, whereas 
+the operators are only implicitly represented by
+constraints on transitions of the state predicates.
+
+<p>
+The SAT encoding used for generating the benchmark problems
+relies critically on two important techniques for reducing the 
+size of the CNF formulae: operator splitting [KMS96] and 
+simple propositional reductions (unit propagation and subsumption).
+Operator splitting replaces a predicate which take three or
+more arguments by a number of binary predicates. This
+reduces the number of propositional variables
+for the given problem from <i>O(kn^3)</i> to <i>O(kn^2)</i> where <i>n</i> is
+the number of blocks and <i>k</i> the number of plan steps.
+Unit propagation and subsumptions, two well-known
+propositional reduction strategies, are used to simplify the formulae
+before applying stochastic local search. These reducations can be 
+computed in polynomial time and eliminate a number of propositional 
+variables thus efficiently reducing the search space.
+Intuitively, these by applying these strategies the 
+initial and goal states are propagated into the planning structure.
+Details on the SAT encoding used to generate the
+benchmark problems can be found in [KS96,KMS96].
+
+
+<h4>The benchmark instances</h4>
+
+<p>
+Our benchmark set contains 7 blocks world planning instances
+taken from Henry Kautz' and Bart Selman's SATPLAN distribution.
+These instances are described in Table 1; 
+despite their size they seem to be easier
+than the Blocks World Planning instances for local search methods.
+
+<p>
+<table border=1>
+<tr>
+<td align=center><b> instance
+<td align=center><b> packages <td align=center><b> (parallel) plan steps
+<td align=center><b> vars <td align=center><b> clauses
+<tr>
+<td align=right> logistics.a <td align=right> 8 <td align=right> 11
+<td align=right> 828 <td align=right> 6,718
+<tr>
+<td align=right> logistics.b <td align=right> 5 <td align=right> 13
+<td align=right> 843 <td align=right> 7,301
+<tr>
+<td align=right> logistics.c <td align=right> 7 <td align=right> 13
+<td align=right> 1,141 <td align=right> 10,719
+<tr>
+<td align=right> logistics.d <td align=right> 9 <td align=right> 14
+<td align=right> 4,713 <td align=right>  21,991
+<tr>
+</table>
+<p>
+<b>Table 1:</b> SAT-encoded Logistics Planning instances,
+contributed by Henry Kautz and Bart Selman (all instances
+are satisfiable).
+
+
+<p><br>
+<h4>Bibliography</h4>
+
+<table>
+<tr>
+<td valign=top><small>[KS96]
+<td><small> <I>Henry Kautz and Bart Selman</I>
+<STRONG>Pushing the Envelope: Planning, Propositional Logic, and Stochastic Search.</STRONG>
+<CITE>Proc. AAAI-96,</CITE> pages 1194--1201, 1996<br>
+<tr>
+<td valign=top><small>[KMS96]
+<td><small> <I>Henry Kautz and David McAllester and Bart Selman</I>
+<STRONG>Encoding Plans in Propositional Logic.</STRONG>
+<CITE>Proc. KR-96,</CITE> pages 374--384, 1996<br>
+</table>
+</small>
+
+</body>
+</html>

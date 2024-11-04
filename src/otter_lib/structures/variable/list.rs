@@ -65,7 +65,7 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
         level: &mut Level,
         source: LiteralSource,
     ) -> Result<Status, Status> {
-        log::trace!("Set literal: {}", literal);
+        log::trace!(target: crate::log::targets::VALUATION, "Set: {}", literal);
         let variable = unsafe { self.get_unchecked(literal.index()) };
         match variable.value() {
             Some(value) if value != literal.polarity() => Err(Status::Conflict),
@@ -79,7 +79,7 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
     }
 
     fn retract_valuation(&mut self, index: usize) {
-        log::trace!("Clear index: {index}");
+        log::trace!(target: crate::log::targets::VALUATION, "Cleared: {index}");
         unsafe {
             self.get_unchecked_mut(index).set_value(None, None);
         }

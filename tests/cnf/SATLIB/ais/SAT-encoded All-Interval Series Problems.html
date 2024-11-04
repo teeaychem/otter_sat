@@ -1,0 +1,158 @@
+<HTML>
+<HEAD>
+<TITLE>SATLIB - Benchmark Problems</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="white" TEXT="black" LINK="#0000FF" VLINK="#551A8B" ALINK="#FF0000">
+
+<h1>SAT-encoded All-Interval Series Problems</h1>
+
+The All-Interval Series (AIS) problem is an arithmetic problem 
+first used in [Hoos98] in the context of evaluating SLS algorithms
+and now contained in 
+<A HREF="http://csplib.cs.strath.ac.uk/prob/prob007/">CSPLIB (prob007)</A>.
+It is inspired by a well-known problem occurring in serial musical
+composition, which, in its original form,
+can be stated in the following way:
+
+Given the twelve standard pitch-classes (c,c#,d, ...),
+represented by numbers <i>0,1,...,11</i>, find a series in which each
+pitch-class occurs exactly once and in which the musical 
+intervals between neighbouring notes cover the full set of
+intervals from the minor second (1 semitone) to the
+major seventh (11 semitones), i.e., for each of these intervals,
+there is a pair of neigbhouring pitch-classes in the series, 
+between which this interval appears.
+
+These musical all-interval series have a certain prominence
+in serial composition; they can be traced back
+to Alban Berg and have been extensively studied and used
+by Ernst Krenek, e.g., in his orchestral piece op.170,
+``Quaestio temporis'' (A Question of Time).
+
+The problem of finding such series can be easily
+formulated as an instance of a more general arithmetic problem in
+<i>Z_n</i>, the set of integer residues modulo <i>n</i>:
+
+For given positive integer <i>n</i>, find a vector 
+<i>s = (s_1, ..., s_n)</i>, such that
+
+<OL>
+<LI> <i>s</i> is a permutation of <i>Z_n = {0,1,...,n-1}</i>; and
+<LI>  the interval vector 
+	<i>v = (|s_2-s_1|, |s_3-s_2|, ... |s_n-s_{n-1}|)</i> 
+	is a permutation of <i>Z_n-{0} = {1,2,...,n-1}</i>.
+</ol>
+
+A vector <i>v</i> satisfying these conditions is called
+an <i>all-interval series of size n</i>;
+the problem of finding such a series is called the
+<i>All-Interval Series Problem of size n</i>.
+
+
+<h4>SAT encoding</h4>
+
+The all-interval series problem can be represented as a 
+Constraint Satisfaction Problem in a rather straightforward way.
+Each element of <i>s</i> and <i>v</i> is represented as a variable; 
+the domains of these variables are <i>Z_n</i> and <i>Z_n-{0}</i>,
+respectively; and the contraint relations encode the
+conditions 1. and 2. from the definition given above.
+From this CSP formulation, instances of the all-interval series 
+problem can be easily transformed
+into a SAT instance by using essentially the same encoding
+as for the Graph Colouring Problem, where each assignment
+of a value to a single CSP variable is represented by a 
+propositional variable; each of the three sets of 
+constraints from the definition above is represented 
+by a set of clauses; and two additional sets of clauses 
+ensure that valid SAT assignments 
+assign exactly one value to each CSP variable.
+
+
+<h4>Hardness</h4>
+
+There is a constructive solution to the  All-Interval Series problem
+which does not require any search, therefore the pure problem is 
+inherently easy.
+The SAT encoded problems, considering their size, very hard
+for local search methods like GSAT or Walksat [Hoos98]
+but rather easy for systematic algorithms, such as satz.
+
+<a href="http://csplib.cs.strath.ac.uk/prob/prob007/helmut.pdf">
+Simonis and Beldiceanu</a> showed that using the CHIP CSP solver
+on a CSP formulation using global constraints the canonical
+solution can be found without search
+while finding all solutions is difficult even with the efficient 
+cycle constraint.
+
+In musical composition, solutions different from the
+canonical solution, which has a very regular
+interval structure, might be more interesting.
+Furthermore, it might be interesting to slightly modify the problem
+by adding additional constraints on the structure of the
+series.
+
+The all-interval series problem presents several potential 
+challenge for SAT algorithms:
+
+<UL>
+<LI>for local search algorithms, to find the canonical
+  as efficiently as when using systematic search;
+<LI>for stochastic (systematic or local) search algorithms
+  to sample the full solution space in a reasonably unbiased way;
+<LI>for complete algorithms, to find all solutions (an apparently hard problem,
+  although the number of solutions is relatively small).
+</UL>
+
+
+<h4>The benchmark instances</h4>
+
+<p>
+The benchmark set provided here contains
+the four (satisfiable) SAT instances for n=6,8,10,12.
+The larger problem instances
+have found to be extremely hard to solve for state-of-the-art SLS-based SAT 
+algorithms [Hoos98], all instances are fairly easy for systematic search.
+
+<p>
+<table border=1>
+<tr>
+<td align=center><b> instance
+<td align=center><b> n 
+<td align=center><b> vars <td align=center><b> clauses
+<tr>
+<td align=right> ais6 <td align=right> 6
+<td align=right> 61 <td align=right> 581
+<tr>
+<td align=right> ais8 <td align=right> 8 
+<td align=right> 113 <td align=right> 1,520
+<tr> 
+<td align=right> ais10 <td align=right> 10
+<td align=right> 181 <td align=right> 3,151
+<tr>
+<td align=right> ais12 <td align=right> 12
+<td align=right> 265 <td align=right> 5,666
+</table>
+<p>
+<b>Table 1:</b> SAT-encoded instances of the All-Interval Series problem,
+all satisfiable.
+
+
+<p><br>
+<h4>Bibliography</h4>
+
+<table>
+<tr>
+<td valign=top><small>[Hoos98]
+<td><small> <I>Holger H. Hoos</I>
+<STRONG>Stochastic Local Search - Methods, Models, Applications.</STRONG>
+<CITE>PhD thesis,</CITE> CS Department, TU Darmstadt, 1998<br>
+</table>
+</small>
+
+<P>
+See also <A HREF="http://csplib.cs.strath.ac.uk/prob/prob007/">CSPLIB, prob007</A>.
+
+</body>
+</html>

@@ -1,0 +1,66 @@
+<HTML>
+<HEAD>
+   <TITLE>SATLIB - Benchmark Problems</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="white" TEXT="black" LINK="#0000FF" VLINK="#551A8B" ALINK="#FF0000">
+
+
+<br>
+<h1>Inductive Inference</h1>
+<br>
+
+
+These are instances which stem from a formulation of Boolean Function
+Synthesis Problems in SAT; The instances are described in [KKRR92] and
+have been contributed to the DIMACS benchmark set by <A
+HREF="http://www.research.att.com/~mgcr/">Mauricio Resende</A>.
+
+
+<h4>Benchmark instances</h4>
+
+
+There is a total of 41 benchmark instances of this problem type
+ranging from instances with 66 variables and 186 clauses (the smallest
+instance) up to 1728 variables and 24792 clauses (the largest
+instance). A more detailed overview over the size of the instances can
+be found in the <A HREF="../dimacs.ps">ps-file (72k)</A> (taken from
+the DIMACS FTP site, updated version) which gives an overview over
+instances from the DIMACS benchmark set.<br><br>
+
+
+<h4>Instance hardness</h4>
+
+In general, the instances appear to be rather easy for local
+search. For example, Walksat (with a noise setting of -noise 60 100 as
+the command line parameter) solves all instances with the hardest
+instance taking on averge roughly 13000 variable flips. On 25 of the
+41 instances WalkSAT, on average, even needs less than 1000 variable
+flips to find a solution. Nevertheless, complete algorithms have some
+more difficulties with these formulae. For example, SATZ (one of the
+best performing complete algorithms to date) does not solve one of the
+instances within 30 minutes on a Pentium II 300Mhz. Of the complete
+solvers, REL_SAT appears to be the best performing complete algorithm
+for these instances.<br><br>
+
+
+
+<h4>Acknowledgements</h4>
+
+The instances have originally been contributed to the DIMACS benchmark
+set by <A HREF="http://www.research.att.com/~mgcr/">Mauricio
+Resende</A>.<br>
+
+
+<table>
+<tr>
+<td valign=top><small>[KKRR92]
+<td><small> <I>A.P. Kamath, N.K. Karmarkar, K.G. Ramakrishnan, and M.G.C. Resende.</I>
+<STRONG>A Continuous Approach to Inductive Inference.</STRONG>
+<CITE>Mathematical Programming,</CITE> Vol. 57, pages 215-238, 1992.<br>
+</tr>
+</table>
+</small>
+
+</BODY>
+</HTML>

@@ -1,0 +1,323 @@
+<HTML>
+<HEAD>
+<TITLE>SATLIB - Benchmark Problems</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="white" TEXT="black" LINK="#0000FF" VLINK="#551A8B" ALINK="#FF0000">
+
+<br>
+<H1>SATLIB - Benchmark Problems</H1>
+<hr>
+
+<p>
+All instances provided here are cnf formulae encoded
+in DIMACS cnf format.
+This format is supported by most of the solvers provided 
+in the SATLIB Solvers Collection. For a description of the
+DIMACS cnf format, see 
+<A HREF="Benchmarks/SAT/satformat.ps">DIMACS Challenge - Satisfiability: Suggested Format (ps file, 108k)</A> 
+(taken from the 
+<A HREF="ftp://dimacs.rutgers.edu/pub/challenge/satisfiability/">
+DIMACS FTP site</A>).
+
+<p>
+Please help us to extend our benchmark set by <A
+HREF="submission.html">submitting new benchmark instances</A> or <A
+HREF="mailto:hoos@cs.ubc.ca">suggesting existing benchmarks</A> we
+should include. We are especially interested in SAT-encoded problems
+from other domains, for example, encodings of problems available from
+<A HREF="http://csplib.cs.strath.ac.uk/index.html">CSPLIB</A>.
+
+<p>
+<i>At the moment, we provide mainly satisfiable instances, as 
+many popular SAT algorithms are incomplete. However, we will
+extend our collection of unsatisfiable benchmark instances
+in the near future, to further facilitate comparative studies
+of complete algorithms.</i>
+
+<UL>
+<LI><B>Uniform Random-3-SAT</B>, phase transition region, unforced filtered
+- <A HREF=Benchmarks/SAT/RND3SAT/descr.html>description (html)</A>
+  <UL>
+  <LI><A HREF=Benchmarks/SAT/RND3SAT/uf20-91.tar.gz>uf20-91</A>: 20 variables, 91 clauses  - 1000 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/RND3SAT/uf50-218.tar.gz>uf50-218</A> / 
+	    <A HREF=Benchmarks/SAT/RND3SAT/uuf50-218.tar.gz>uuf50-218</A>: 
+	    50 variables, 218 clauses  - 1000 instances, all sat/unsat
+  <LI><A HREF=Benchmarks/SAT/RND3SAT/uf75-325.tar.gz>uf75-325</A> /
+<A HREF=Benchmarks/SAT/RND3SAT/uuf75-325.tar.gz>uuf75-325</A>:
+	    75 variables, 325 clauses  - 100 instances, all sat/unsat
+	  <LI><A HREF=Benchmarks/SAT/RND3SAT/uf100-430.tar.gz>uf100-430</A> /
+	    <A HREF=Benchmarks/SAT/RND3SAT/uuf100-430.tar.gz>uuf100-430</A>:
+	    100 variables, 430 clauses  - 1000 instances, all sat/unsat  
+  <LI><A HREF=Benchmarks/SAT/RND3SAT/uf125-538.tar.gz>uf125-538</A> /
+	    <A HREF=Benchmarks/SAT/RND3SAT/uuf125-538.tar.gz>uuf125-538</A>:
+	    125 variables, 538 clauses  - 100 instances, all sat/unsat
+  <LI><A HREF=Benchmarks/SAT/RND3SAT/uf150-645.tar.gz>uf150-645</A> /
+	    <A HREF=Benchmarks/SAT/RND3SAT/uuf150-645.tar.gz>uuf150-645</A>: 
+	    150 variables, 645 clauses  - 100 instances, all sat/unsat
+  <LI><A HREF=Benchmarks/SAT/RND3SAT/uf175-753.tar.gz>uf175-753</A> /
+	    <A HREF=Benchmarks/SAT/RND3SAT/uuf175-753.tar.gz>uuf175-753</A>: 
+	    175 variables, 753 clauses  - 100 instances, all sat/unsat
+  <LI><A HREF=Benchmarks/SAT/RND3SAT/uf200-860.tar.gz>uf200-860</A> / 
+	   <A HREF=Benchmarks/SAT/RND3SAT/uuf200-860.tar.gz>uuf200-860</A>:
+	    200 variables, 860 clauses  - 100 instances, all sat/unsat
+	  <LI><A HREF=Benchmarks/SAT/RND3SAT/uf225-960.tar.gz>uf225-960</A> /
+	    <A HREF=Benchmarks/SAT/RND3SAT/uuf225-960.tar.gz>uuf225-960</A>:
+	    225 variables, 960 clauses  - 100 instances, all sat/unsat
+  <LI><A HREF=Benchmarks/SAT/RND3SAT/uf250-1065.tar.gz>uf250-1065</A> /
+	    <A HREF=Benchmarks/SAT/RND3SAT/uuf250-1065.tar.gz>uuf250-1065</A>:
+	    250 variables, 1065 clauses  - 100 instances, all sat/unsat
+<!--
+  <LI>10 variables, 49 clauses
+  <LI>20 variables, 91 clauses
+  <LI>50 variables, 163 clauses
+  <LI>50 variables, 215 clauses
+  <LI>50 variables, 216 clauses
+  <LI>50 variables, 216 clauses, exactly 1 solution
+  <LI>50 variables, 273 clauses
+  <LI>100 variables, 430 clauses
+  <LI>200 variables, 860 clauses
+-->
+  </UL>
+
+<P>
+<LI><b>Random-3-SAT Instances and Backbone-minimal Sub-instances</b>
+(contributed by Josh Singer)
+- <A HREF=Benchmarks/SAT/BMS/descr_BMS.html>description (html)</A>
+  <UL>
+<LI><A HREF=Benchmarks/SAT/BMS/RTI_k3_n100_m429.tar.gz
+>RTI_k3_n100_m429</A>: 
+100 variables, 429 clauses - 500 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/BMS/BMS_k3_n100_m429.tar.gz
+>BMS_k3_n100_m429</A>: 
+100 variables, number of clauses varies - 500 instances, all satisfiable
+  </UL>
+
+<P>
+<LI><b>Random-3-SAT Instances with Controlled Backbone Size</b>
+(contributed by Josh Singer)
+- <A HREF=Benchmarks/SAT/CBS/descr_CBS.html>description (html)</A>
+  <UL>
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m403_b10.tar.gz
+>CBS_k3_n100_m403_b10</A>: 
+100 variables, 403 clauses, backbone size 10  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m403_b30.tar.gz
+>CBS_k3_n100_m403_b30</A>: 
+100 variables, 403 clauses, backbone size 30  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m403_b50.tar.gz
+>CBS_k3_n100_m403_b50</A>: 
+100 variables, 403 clauses, backbone size 50  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m403_b70.tar.gz
+>CBS_k3_n100_m403_b70</A>: 
+100 variables, 403 clauses, backbone size 70  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m403_b90.tar.gz
+>CBS_k3_n100_m403_b90</A>: 
+100 variables, 403 clauses, backbone size 90  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m411_b10.tar.gz
+>CBS_k3_n100_m411_b10</A>: 
+100 variables, 411 clauses, backbone size 10  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m411_b30.tar.gz
+>CBS_k3_n100_m411_b30</A>: 
+100 variables, 411 clauses, backbone size 30  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m411_b50.tar.gz
+>CBS_k3_n100_m411_b50</A>: 
+100 variables, 411 clauses, backbone size 50  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m411_b70.tar.gz
+>CBS_k3_n100_m411_b70</A>: 
+100 variables, 411 clauses, backbone size 70  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m411_b90.tar.gz
+>CBS_k3_n100_m411_b90</A>: 
+100 variables, 411 clauses, backbone size 90  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m418_b10.tar.gz
+>CBS_k3_n100_m418_b10</A>: 
+100 variables, 418 clauses, backbone size 10  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m418_b30.tar.gz
+>CBS_k3_n100_m418_b30</A>: 
+100 variables, 418 clauses, backbone size 30  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m418_b50.tar.gz
+>CBS_k3_n100_m418_b50</A>: 
+100 variables, 418 clauses, backbone size 50  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m418_b70.tar.gz
+>CBS_k3_n100_m418_b70</A>: 
+100 variables, 418 clauses, backbone size 70  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m418_b90.tar.gz
+>CBS_k3_n100_m418_b90</A>: 
+100 variables, 418 clauses, backbone size 90  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m423_b10.tar.gz
+>CBS_k3_n100_m423_b10</A>: 
+100 variables, 423 clauses, backbone size 10  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m423_b30.tar.gz
+>CBS_k3_n100_m423_b30</A>: 
+100 variables, 423 clauses, backbone size 30  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m423_b50.tar.gz
+>CBS_k3_n100_m423_b50</A>: 
+100 variables, 423 clauses, backbone size 50  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m423_b70.tar.gz
+>CBS_k3_n100_m423_b70</A>: 
+100 variables, 423 clauses, backbone size 70  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m423_b90.tar.gz
+>CBS_k3_n100_m423_b90</A>: 
+100 variables, 423 clauses, backbone size 90  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m429_b10.tar.gz
+>CBS_k3_n100_m429_b10</A>: 
+100 variables, 429 clauses, backbone size 10  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m429_b30.tar.gz
+>CBS_k3_n100_m429_b30</A>: 
+100 variables, 429 clauses, backbone size 30  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m429_b50.tar.gz
+>CBS_k3_n100_m429_b50</A>: 
+100 variables, 429 clauses, backbone size 50  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m429_b70.tar.gz
+>CBS_k3_n100_m429_b70</A>: 
+100 variables, 429 clauses, backbone size 70  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m429_b90.tar.gz
+>CBS_k3_n100_m429_b90</A>: 
+100 variables, 429 clauses, backbone size 90  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m435_b10.tar.gz
+>CBS_k3_n100_m435_b10</A>: 
+100 variables, 435 clauses, backbone size 10  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m435_b30.tar.gz
+>CBS_k3_n100_m435_b30</A>: 
+100 variables, 435 clauses, backbone size 30  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m435_b50.tar.gz
+>CBS_k3_n100_m435_b50</A>: 
+100 variables, 435 clauses, backbone size 50  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m435_b70.tar.gz
+>CBS_k3_n100_m435_b70</A>: 
+100 variables, 435 clauses, backbone size 70  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m435_b90.tar.gz
+>CBS_k3_n100_m435_b90</A>: 
+100 variables, 435 clauses, backbone size 90  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m441_b10.tar.gz
+>CBS_k3_n100_m441_b10</A>: 
+100 variables, 441 clauses, backbone size 10  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m441_b30.tar.gz
+>CBS_k3_n100_m441_b30</A>: 
+100 variables, 441 clauses, backbone size 30  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m441_b50.tar.gz
+>CBS_k3_n100_m441_b50</A>: 
+100 variables, 441 clauses, backbone size 50  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m441_b70.tar.gz
+>CBS_k3_n100_m441_b70</A>: 
+100 variables, 441 clauses, backbone size 70  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m441_b90.tar.gz
+>CBS_k3_n100_m441_b90</A>: 
+100 variables, 441 clauses, backbone size 90  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m449_b10.tar.gz
+>CBS_k3_n100_m449_b10</A>: 
+100 variables, 449 clauses, backbone size 10  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m449_b30.tar.gz
+>CBS_k3_n100_m449_b30</A>: 
+100 variables, 449 clauses, backbone size 30  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m449_b50.tar.gz
+>CBS_k3_n100_m449_b50</A>: 
+100 variables, 449 clauses, backbone size 50  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m449_b70.tar.gz
+>CBS_k3_n100_m449_b70</A>: 
+100 variables, 449 clauses, backbone size 70  - 1000 instances, all satisfiable
+<LI><A HREF=Benchmarks/SAT/CBS/CBS_k3_n100_m449_b90.tar.gz
+>CBS_k3_n100_m449_b90</A>: 
+100 variables, 449 clauses, backbone size 90  - 1000 instances, all satisfiable
+  </UL>
+
+<P>
+<LI><B>"Flat" Graph Colouring</B>, 3 colourable
+- <A HREF=Benchmarks/SAT/GCP/descr.html>description (html)</A>
+  <UL>
+  <LI><A HREF=Benchmarks/SAT/GCP/flat30-60.tar.gz>flat30-60</A>: 30 vertices, 60 edges  - 100 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/GCP/flat50-115.tar.gz>flat50-115</A>: 50 vertices, 115 edges - 1000 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/GCP/flat75-180.tar.gz>flat75-180</A>: 75 vertices, 180 edges - 100 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/GCP/flat100-239.tar.gz>flat100-239</A>: 100 vertices, 239 edges - 100 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/GCP/flat125-301.tar.gz>flat125-301</A>: 125 vertices, 301 edges - 100 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/GCP/flat150-360.tar.gz>flat150-360</A>: 150 vertices, 360 edges - 100 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/GCP/flat175-417.tar.gz>flat175-417</A>: 175 vertices, 417 edges - 100 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/GCP/flat200-479.tar.gz>flat200-479</A>: 200 vertices, 479 edges - 100 instances, all satisfiable
+  </UL>
+<P>
+<P>
+<LI><B>"Morphed" Graph Colouring</B>, 5 colourable
+- <A HREF=Benchmarks/SAT/SW-GCP/descr.html>description (html)</A>
+  <UL>
+  <LI><A HREF=Benchmarks/SAT/SW-GCP/sw100-8-lp0-c5.tar.gz>sw100-8-lp0-c5</A>: 100 vertices, 400 edges, p=1 - 100 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/SW-GCP/sw100-8-lp1-c5.tar.gz>sw100-8-lp1-c5</A>: 100 vertices, 400 edges, p=2^-1 - 100 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/SW-GCP/sw100-8-lp2-c5.tar.gz>sw100-8-lp2-c5</A>: 100 vertices, 400 edges, p=2^-2 - 100 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/SW-GCP/sw100-8-lp3-c5.tar.gz>sw100-8-lp3-c5</A>: 100 vertices, 400 edges, p=2^-3 - 100 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/SW-GCP/sw100-8-lp4-c5.tar.gz>sw100-8-lp4-c5</A>: 100 vertices, 400 edges, p=2^-4 - 100 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/SW-GCP/sw100-8-lp5-c5.tar.gz>sw100-8-lp5-c5</A>: 100 vertices, 400 edges, p=2^-5 - 100 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/SW-GCP/sw100-8-lp6-c5.tar.gz>sw100-8-lp6-c5</A>: 100 vertices, 400 edges, p=2^-6 - 100 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/SW-GCP/sw100-8-lp7-c5.tar.gz>sw100-8-lp7-c5</A>: 100 vertices, 400 edges, p=2^-7 - 100 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/SW-GCP/sw100-8-lp8-c5.tar.gz>sw100-8-lp8-c5</A>: 100 vertices, 400 edges, p=2^-8 - 100 instances, all satisfiable
+  <LI><A HREF=Benchmarks/SAT/SW-GCP/sw100-8-p0-c5.tar.gz>sw100-8-p0-c5</A>: 100 vertices, 400 edges, p=0 - 1 instance, satisfiable
+  </UL>
+<P>
+<LI><B>Planning</B> (contributed by Henry Kautz and Bart Selman)
+  <UL>
+  <LI><A HREF=Benchmarks/SAT/PLANNING/BlocksWorld/blocksworld.tar.gz>blocksworld</A>: 7 instances, all satisfiable
+- <A HREF=Benchmarks/SAT/PLANNING/BlocksWorld/descr.html>description (html)</A>
+  <LI><A HREF=Benchmarks/SAT/PLANNING/Logistics/logistics.tar.gz>logistics</A>: 3 instances, all satisfiable
+- <A HREF=Benchmarks/SAT/PLANNING/Logistics/descr.html>description (html)</A>
+  </UL>
+<P>
+<LI><B>All Intervall Series</B> - <A HREF=Benchmarks/SAT/AIS/descr.html>description (html)</A>
+  <UL>
+  <LI><A HREF=Benchmarks/SAT/AIS/ais.tar.gz>ais</A>: 4 instances, all satisfiable
+  </UL>
+
+<P>
+<LI><B>SAT-encoded Quasigroup (or Latin square) instances</B> (contributed by Hantao Zhang)- <A HREF=Benchmarks/SAT/QG/qg.descr.html>description (html)</A>
+  <UL>
+  <LI><A HREF=Benchmarks/SAT/QG/QG.tar.gz>qg</A>: 22 instances
+  </UL>
+
+
+<P>
+<LI><B>SAT-encoded bounded model checking intances</B> (contributed by Ofer Shtrichman)- <A HREF=Benchmarks/SAT/BMC/description.html>description (html)</A>
+  <UL>
+  <LI><A HREF=Benchmarks/SAT/BMC/bmc.tar.gz>bmc</A>: 13 instances
+  </UL>
+
+<P>
+<LI><B>DIMACS Benchmark Instances</B> (original source: <A
+HREF="ftp://dimacs.rutgers.edu/pub/challenge/satisfiability/benchmarks/cnf/">DIMACS
+Benchmark set for SAT</A>) 
+-  <A HREF="Benchmarks/SAT/DIMACS/dimacs.ps">overview (ps-file, 72k)</A>
+  <UL>
+  <LI><A HREF=Benchmarks/SAT/DIMACS/AIM/aim.tar.gz>AIM</A>: Artificially generated Random-3-SAT - 48 instances satisfiable, 24 unsatisfiable <A HREF=Benchmarks/SAT/DIMACS/AIM/descr.html>description (html)</A>
+  <LI><A HREF=Benchmarks/SAT/DIMACS/LRAN/f.tar.gz>LRAN</A>: Large Random-3-SAT instances - 3 instances, all satisfiable <A HREF=Benchmarks/SAT/DIMACS/LRAN/descr.html>description (html)</A>
+  <LI><A HREF=Benchmarks/SAT/DIMACS/JNH/jnh.tar.gz>JNH</A>: Random SAT
+instances with variable length clauses - 16 instances satisfiable, 34 instances unsatisfiable <A HREF=Benchmarks/SAT/DIMACS/JNH/descr.html>description (html)</A>
+  <LI><A HREF=Benchmarks/SAT/DIMACS/DUBOIS/dubois.tar.gz>DUBOIS</A>: Randomly generated SAT instances - 13 instances, all unsatisfiable <A HREF=Benchmarks/SAT/DIMACS/DUBOIS/descr.html>description (html)</A>
+  <LI><A HREF=Benchmarks/SAT/DIMACS/GCP/gcp-large.tar.gz>GCP</A>: Large SAT-encoded Graph Colouring problems - 4 instances, all satisfiable <A HREF=Benchmarks/SAT/DIMACS/GCP/descr.html>description (html)</A>
+  <LI><A HREF=Benchmarks/SAT/DIMACS/PARITY/parity.tar.gz>PARITY</A>: Instances for problem in learning the parity function - 20 instances, all satisfiable <A HREF=Benchmarks/SAT/DIMACS/PARITY/descr.html>description (html)</A>
+  <LI><A HREF=Benchmarks/SAT/DIMACS/II/inductive-inference.tar.gz>II</A>: Instances from a problem in inductive inference - 41 instances, all satisfiable <A HREF=Benchmarks/SAT/DIMACS/II/descr.html>description (html)</A>
+  <LI><A HREF=Benchmarks/SAT/DIMACS/HANOI/hanoi.tar.gz>HANOI</A>: SAT-encoding of Towers of Hanoi - 2 instances, all satisfiable <A HREF=Benchmarks/SAT/DIMACS/HANOI/descr.html>description (html)</A>
+  <LI><A HREF=Benchmarks/SAT/DIMACS/BF/bf.tar.gz>BF</A>: Circuit fault analysis: bridge fault - 4 instances, all unsatisfiable <A HREF=Benchmarks/SAT/DIMACS/BF/descr.html>description (html)</A>
+  <LI><A HREF=Benchmarks/SAT/DIMACS/SSA/ssa.tar.gz>SSA</A>: Circuit fault analysis: single-stuck-at fault - 4 instances satisfiable, 4 instances unsatisfiable <A HREF=Benchmarks/SAT/DIMACS/BF/descr.html>description (html)</A>
+  <LI><A HREF=Benchmarks/SAT/DIMACS/PHOLE/pigeon-hole.tar.gz>PHOLE</A>: Pigeon hole problem - 5 instances, all unsatisfiable <A HREF=Benchmarks/SAT/DIMACS/PHOLE/descr.html>description (html)</A>
+  <LI><A HREF=Benchmarks/SAT/DIMACS/PRET/pret.tar.gz>PRET</A>: Encoded 2-colouring forced to be unsatisfiable - 8 instances, all unsatisfiable <A HREF=Benchmarks/SAT/DIMACS/PRET/descr.html>description (html)</A>
+  </UL>
+<P>
+<LI><B>SAT Competition Bejing</B> (original source: <A
+HREF="http://www.cirl.uoregon.edu/crawford/beijing/">Bejing Competition benchmark set</A>) 
+-  <A HREF="Benchmarks/SAT/Bejing/guide.ps">original guide (ps-file, 42k)</A> - <A HREF=Benchmarks/SAT/Bejing/bejing.descr.html>description (html)</A>
+  <UL>
+  <LI><A HREF=Benchmarks/SAT/Bejing/Bejing.tar.gz>Bejing</A>: 16 instances
+  </UL>
+<P>
+<P>
+<LI>More test-sets and instances coming soon!
+<!--
+<LI>Random-CSP
+<LI>Hamiltonian Circuit
+-->
+</UL>
+
+<p>
+<hr>
+<small>
+&copy; <A HREF="mailto:hoos@cs.ubc.ca">hh</A>,
+last update 00/08/11.
+</small>
+</BODY>
+</HTML>
+

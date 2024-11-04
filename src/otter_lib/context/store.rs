@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     config::{self, ClauseActivity, Config, GlueStrength},
     generic::heap::IndexHeap,
@@ -7,7 +9,7 @@ use crate::{
             Clause,
         },
         literal::Literal,
-        variable::{delegate::VariableStore, list::VariableList, WatchElement},
+        variable::{delegate::VariableStore, WatchElement},
     },
 };
 
@@ -21,6 +23,16 @@ pub enum ClauseKey {
     Learned(FormulaIndex, FormulaReuse),
 }
 
+impl Display for ClauseKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Formula(key) => write!(f, "Formula({key})"),
+            Self::Learned(key, usage) => write!(f, "Learned({key}, {usage})"),
+            Self::Binary(key) => write!(f, "Learned({key})"),
+        }
+    }
+}
+
 impl ClauseKey {
     pub fn index(&self) -> usize {
         match self {
@@ -32,8 +44,8 @@ impl ClauseKey {
 
     pub fn usage(&self) -> FormulaReuse {
         match self {
-            Self::Formula(_) => panic!("Can't `use` formula keys"),
-            Self::Binary(_) => panic!("Can't `use` binary keys"),
+            Self::Formula(_) => panic!("can't `use` formula keys"),
+            Self::Binary(_) => panic!("can't `use` binary keys"),
             Self::Learned(_, usage) => *usage,
         }
     }
@@ -108,15 +120,14 @@ impl PartialEq for ActivityGlue {
 }
 
 pub struct ClauseStore {
+    counts: ClauseStoreCounts,
     keys: Vec<ClauseKey>,
     formula: Vec<StoredClause>,
-    formula_count: FormulaIndex,
-    pub binary_count: FormulaIndex,
+
     pub binary_graph: Vec<Vec<ClauseKey>>,
     learned: Vec<Option<StoredClause>>,
 
     pub learned_slots: FormulaIndex,
-    pub learned_count: FormulaIndex,
 
     pub resolution_graph: Vec<Vec<Vec<ClauseKey>>>,
     binary: Vec<StoredClause>,
@@ -125,17 +136,32 @@ pub struct ClauseStore {
     pub learned_increment: ClauseActivity,
 }
 
+pub struct ClauseStoreCounts {
+    formula: FormulaIndex,
+    binary: FormulaIndex,
+    learned: FormulaIndex,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for ClauseStoreCounts {
+    fn default() -> Self {
+        ClauseStoreCounts {
+            formula: 0,
+            binary: 0,
+            learned: 0,
+        }
+    }
+}
+
 #[allow(clippy::derivable_impls)]
 impl Default for ClauseStore {
     fn default() -> Self {
         ClauseStore {
+            counts: ClauseStoreCounts::default(),
             keys: Vec::new(),
             formula: Vec::new(),
-            formula_count: 0,
             learned: Vec::new(),
             learned_slots: 0,
-            learned_count: 0,
-            binary_count: 0,
             binary: Vec::new(),
             binary_graph: Vec::new(),
             resolution_graph: Vec::new(),
@@ -147,16 +173,16 @@ impl Default for ClauseStore {
 
 impl ClauseStore {
     fn new_formula_id(&mut self) -> ClauseKey {
-        assert!(self.formula_count < FormulaIndex::MAX);
-        let key = ClauseKey::Formula(self.formula_count);
-        self.formula_count += 1;
+        assert!(self.counts.formula < FormulaIndex::MAX);
+        let key = ClauseKey::Formula(self.counts.formula);
+        self.counts.formula += 1;
         key
     }
 
     fn new_binary_id(&mut self) -> ClauseKey {
-        assert!(self.binary_count < FormulaIndex::MAX);
-        let key = ClauseKey::Binary(self.binary_count);
-        self.binary_count += 1;
+        assert!(self.counts.binary < FormulaIndex::MAX);
+        let key = ClauseKey::Binary(self.counts.binary);
+        self.counts.binary += 1;
         key
     }
 
@@ -169,13 +195,11 @@ impl ClauseStore {
 
     pub fn with_capacity(capacity: usize) -> Self {
         ClauseStore {
+            counts: ClauseStoreCounts::default(),
             keys: Vec::new(),
             formula: Vec::with_capacity(capacity),
-            formula_count: 0,
             learned: Vec::with_capacity(capacity),
             learned_slots: 0,
-            learned_count: 0,
-            binary_count: 0,
             binary: Vec::new(),
             binary_graph: Vec::with_capacity(capacity),
             resolution_graph: Vec::with_capacity(capacity),
@@ -239,7 +263,7 @@ impl ClauseStore {
         source: ClauseSource,
         clause: Vec<Literal>,
         subsumed: Vec<Literal>,
-        variables: &VariableStore,
+        variables: &mut VariableStore,
         resolution_keys: Option<Vec<ClauseKey>>,
     ) -> ClauseKey {
         match clause.len() {
@@ -260,8 +284,8 @@ impl ClauseStore {
                     key
                 }
                 ClauseSource::Resolution => {
-                    log::trace!("Learning clause {}", clause.as_string());
-                    self.learned_count += 1;
+                    log::trace!(target: crate::log::targets::CLAUSE_STORE, "Learning clause {}", clause.as_string());
+                    self.counts.learned += 1;
                     match self.keys.len() {
                         0 => {
                             let key = self.new_learned_id();
@@ -309,18 +333,19 @@ impl ClauseStore {
         }
     }
 
-    pub fn formula_count(&self) -> usize {
-        self.formula_count as usize
-    }
-
-    pub fn learned_count(&self) -> usize {
-        (self.learned_count + self.binary_count) as usize
+    pub fn clause_count(&self) -> usize {
+        (self.counts.formula + self.counts.learned + self.counts.binary) as usize
     }
 
     pub fn formula_clauses(&self) -> impl Iterator<Item = impl Iterator<Item = Literal> + '_> + '_ {
         self.formula
             .iter()
             .map(|clause| clause.literal_slice().iter().copied())
+            .chain(
+                self.binary
+                    .iter()
+                    .map(|clause| clause.literal_slice().iter().copied()),
+            )
     }
 
     /*
@@ -336,7 +361,7 @@ impl ClauseStore {
                 std::mem::take(unsafe { self.learned.get_unchecked_mut(index) }).unwrap();
             self.learned_activity.remove(index);
             self.keys.push(the_clause.key());
-            self.learned_count -= 1;
+            self.counts.learned -= 1;
             the_clause
         }
     }
@@ -356,33 +381,21 @@ impl ClauseStore {
     pub fn transfer_to_binary(
         &mut self,
         key: ClauseKey,
-        variables: &VariableStore,
+        variables: &mut VariableStore,
         literal: Literal,
     ) -> ClauseKey {
         match key {
             ClauseKey::Binary(_) => panic!("cannot transfer binary"),
             ClauseKey::Formula(index) => {
-                // TODO: Tidy formula transfers
                 let formula_clause = &self.formula[index as usize];
                 let copied_clause = formula_clause.literal_slice().to_vec();
                 let binary_key = self.new_binary_id();
 
                 assert_eq!(copied_clause.len(), 2);
 
-                let a = unsafe { *copied_clause.get_unchecked(0) };
-                let b = unsafe { *copied_clause.get_unchecked(1) };
-
-                variables
-                    .get_unsafe(literal.index())
-                    .watch_removed(key, literal.polarity());
-
-                variables
-                    .get_unsafe(a.index())
-                    .watch_removed(key, a.polarity());
-
-                variables
-                    .get_unsafe(b.index())
-                    .watch_removed(key, b.polarity());
+                variables.remove_watch(literal, key);
+                variables.remove_watch(unsafe { *copied_clause.get_unchecked(0) }, key);
+                variables.remove_watch(unsafe { *copied_clause.get_unchecked(1) }, key);
 
                 // as a new clause is created there's no need to add watches as in the learnt case
 
@@ -404,32 +417,19 @@ impl ClauseStore {
                 let binary_key = self.new_binary_id();
                 the_clause.key = binary_key;
 
-                variables
-                    .get_unsafe(literal.index())
-                    .watch_removed(key, literal.polarity());
+                variables.remove_watch(literal, key);
 
                 let a = unsafe { *the_clause.get_unchecked(0) };
                 let b = unsafe { *the_clause.get_unchecked(1) };
 
-                variables
-                    .get_unsafe(a.index())
-                    .watch_removed(key, a.polarity());
-
-                variables
-                    .get_unsafe(a.index())
-                    .watch_added(WatchElement::Binary(b, binary_key), a.polarity());
-
-                variables
-                    .get_unsafe(b.index())
-                    .watch_removed(key, b.polarity());
-
-                variables
-                    .get_unsafe(b.index())
-                    .watch_added(WatchElement::Binary(a, binary_key), b.polarity());
+                variables.remove_watch(a, key);
+                variables.remove_watch(b, key);
+                variables.add_watch(a, WatchElement::Binary(b, binary_key));
+                variables.add_watch(b, WatchElement::Binary(a, binary_key));
 
                 self.binary.push(the_clause);
                 self.binary_graph.push(vec![key]);
-                self.learned_count += 1; // removing decrements the count
+                self.counts.learned += 1; // removing decrements the count
 
                 binary_key
             }
@@ -438,7 +438,7 @@ impl ClauseStore {
 
     // TODO: figure some improvement…
     pub fn reduce(&mut self) {
-        let limit = self.learned_count as usize / 2;
+        let limit = self.counts.learned as usize / 2;
         for _ in 0..limit {
             if let Some(index) = self.learned_activity.pop_max() {
                 self.remove_from_learned(index);
@@ -446,7 +446,7 @@ impl ClauseStore {
                 panic!("reduce issue")
             }
         }
-        log::debug!(target: "forget", "Reduced to: {}", self.learned_slots);
+        log::debug!(target: crate::log::targets::REDUCTION, "Learnt clauses reduced to: {}", self.counts.learned);
     }
 
     pub fn bump_activity(&mut self, key: ClauseKey, config: &Config) {

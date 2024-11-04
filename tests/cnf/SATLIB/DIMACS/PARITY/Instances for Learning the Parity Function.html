@@ -1,0 +1,199 @@
+<HTML>
+<HEAD>
+<TITLE>SATLIB - Benchmark Problems</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="white" TEXT="black" LINK="#0000FF" VLINK="#551A8B" ALINK="#FF0000">
+
+<h1>Instances for Learning the Parity Function</h1>
+
+
+The following description is based on the original description of <A
+HREF="http://www.cirl.uoregon.edu/crawford/crawford.html">James
+Crawford</A> which is available <A
+HREF="ftp://dimacs.rutgers.edu/pub/challenge/satisfiability/contributed/crawford/README">here</a>
+from the DIMACS ftp-site.<br><br>
+
+
+
+These instances are a propositional versions of parity learning
+problems.  This problem is believed to be quite difficult because it
+is self-reducible (i.e. any instance of the problem can be reduced to
+a collection of randomly distributed instances of the problem). The
+problem was suggested by Mike Kearns. Rob Schapire and Haym Hirsh
+helped with building the generator.<br><br>
+
+The files are named:<br><br>
+
+<UL>	parn-i.cnf</UL>
+
+where n is the number of variables in the original parity learning
+problem and i is just the instance number.  There are five instances
+each with n=8, 16, and 32. All instances are satisfiable.<br><br>
+
+There are also files named:<br><br>
+
+<UL>parn-i-c.cnf</UL>
+
+These are just compressed versions of the other files (using a simple
+polynomial time simplifier). Some algorithms work better on the
+compressed versions and some may work better on the uncompressed
+versions.<br><br>
+
+
+<h4>Informal Problem Statement</h4>
+
+The general problem is to identify an unknown Boolean function given
+(potentially noisy) I/O samples of the function (and given the class
+of the function).  A successful solution to this problem need not
+actually be the function that gave rise to the I/O samples, as long as
+the function that is returned as a solution satisfies some suitably
+low bound on the number of mistakes it makes on the samples.<br><br>
+
+The class of Boolean functions considered here is the set of all
+parity functions over a set of Boolean variables and subsets of those
+variables.  Stated more precisely:<br><br>
+
+PROBLEM STATEMENT:<br><br>
+
+Given:<br>
+ 	m vectors: X_1,...,X_m of length n  [these are the sample inputs]<br>
+	m bits:    y_1,...,y_m              [these are the sample outputs]<br>
+	An error tolerance 0 <= E < 1.<br><br>
+
+Find:<br>
+   n bits: a_1,...,a_n such that there are at most mE numbers t for which<br><br>
+
+	    <UL>parity( a_1*X_t^1,..., a_n*X_t^n) NOT= y_t</UL>
+
+EXPLANATION:<br><br>
+
+The X_i represent m sample inputs over n Boolean variables, the y_i
+the (potentially incorrect) value of the unknown parity function on
+each of the m inputs.  E represents a bound on the acceptable error rate.<br><br>
+
+The hard part of this learning problem is to identify the subset of
+the n Boolean variables over which the parity function is computed.
+This is represented by the n bits a_1,...,a_n: for those variables i that
+are part of the parity function, a_i=1 (and for those that are
+not a_i=0).  Again, learning need not identify the correct
+set of variables, as long as the parity function over the set that is
+identified gets a sufficient number of the samples (all but mE of
+them) correct.<br><br>
+
+GENERATING PROBLEMS:<br><br>
+
+One can generate guaranteed solvable instances by randomly generating
+the X's and the a's, calculating the parities, and then randomly
+corrupting Em (or less) of them.<br><br>
+
+GENERATING HARD PROBLEMS:<br><br>
+
+For E=0 a polynomial algorithm is known.  For E=.5 almost any random
+assignment of the a's is likely to work.  The problem is believed to
+be quite difficult for m=2n, E ~= 1/4.  We have found empirically that
+for small n, m=2n, E = 1/8 seems to work well (since for small n there
+tend to be too many solutions for E ~= 1/4).<br><br>
+
+PROPOSITIONALIZATION:<br><br>
+
+We generate a propositional wff saying "a_1,...,a_n is a solution
+to this parity learning problem".  This formula will contain
+propositional variables for a_1,...,a_n (thus one can read out the
+"answer" by looking at the values assigned to a_1,...,a_n by a model
+of the formula).<br><br>
+
+0. Setup: Randomly choose the X's.  Randomly choose bits s_1,...,s_n
+(this will be the unknown target that the a's will try to "learn").
+Compute y's by taking parity and corrupting the appropriate number of
+them.<br><br>
+
+1. Generate propositional formula that "calculate" the parities of
+a*X_t.  We do this with a matrix R of propositional variables.  We
+generate propositional formula equivalent to the following:<br><br>
+	
+For j=1 to m: R^j_0 = y^j<br>
+For i=1 to n: R^j_i = R^j_(i-1) XOR a_i * x^j_i<br><br>
+
+For all t, these formula force R^t_n = 0 iff y^t is the parity of the
+vector x^t.<br><br>
+
+2. Generate propositional formula to sum the R^t_n.  We do this using
+matrices S and c (carry) of propositional variables.  The invariant
+here is that for i = 0 to log_2(m): S^t_i = ith bit of sum of first t
+terms.<br><br>
+
+For i=0 to log_2(m): S^0_i = 0.<br><br>
+
+For j=1 to m:<br>
+  c^j_0 = R^j_n<br>
+  For i = 0 to log_2(m): S^j_i = S^(j-1)_i XOR c^j_i<br>
+  For i = 1 to log_2(m): c^j_i = S^(j-1)_(i-1) AND c^j_(i-1)<br><br>
+
+These formula force S^m to be a base two representation of the
+number of disagreements between the parity of X*a and y.<br><br>
+
+3. We generate propositional formula saying "S^m is at least m*E".
+We currently set n to a power of two, E to 7/8, and m to 2n.  This
+reduces this last check to just a check that the high order bits
+of S^m are not set.<br><br>
+
+
+<h4>Instance hardness</h4>
+
+These instances have been shown to be rather hard for systematic as
+well as local search algorithms. Only very recently an algorithm for
+solving the n=32 instances has been developped and they were shown to
+be satisfiable [WM99]. Standard state-of-the-art systematic algorithms
+solve the instances upto n=16 [LA97].<br> Local search algorithms
+perform worse on these instances than the systematic algorithms when,
+for example, comparing CPU-time [HS99]. The best performing local search
+algorithms for these instances is the R-Novelty, a variant of the
+WalkSAT family of algorithms. It still can solve the compressed
+instances for n=16 in reasonable time (ca. 40 Mio. variable flips).
+The preprocessing (compression) of the instances (the parn-i-c.cnf
+instances are preprocessed by a polynomial simplifier) largely
+improves the performance of the local search algorithms, as can be
+noted when comparing local search performance on the n=8 instances (We
+observed a factor of roughly 35 of the mean search effort for
+R-Novelty).<br><br>
+
+
+<h4>Acknowledgements</h4>
+
+The instances have originally been contributed to the DIMACS benchmark
+set by <A
+HREF="http://www.cirl.uoregon.edu/crawford/crawford.html">James
+Crawford</A>.<br>
+
+<p><br>
+<h4>Bibliography</h4>
+
+<table>
+<tr>
+<td valign=top><small>[HS99]
+<td><small> <I>Holger H. Hoos and Thomas St&uuml;tzle.</I>
+<STRONG>Systematic vs. Local Search for SAT.</STRONG>
+<CITE>Technical Report TR-99-06.</CITE> Department of Computer Science, 
+University of BC, Canada, 1999.<br>
+</tr>
+<tr>
+<td valign=top><small>[LA97]
+<td><small> <I>C.M. Li and Anbulagan.</I>
+<STRONG>Look-Ahead Versus Lock-Back for Satisfiability
+Problems.</STRONG>
+In <CITE>Proceedings of CP'97.</CITE> LNCS, pages 341--355, 1997.<br>
+</tr>
+<tr>
+<td valign=top><small>[WM99]
+<td><small> <I>Joost P. Warners and Hans van Maaren.</I>
+<STRONG>A two phase algorithm for solving a class of hard satisfiability 
+problems.</STRONG>
+<CITE>Operations Research Letters.</CITE> Vol. 23(3-5), pages 81-88, 1999.<br>
+</tr>
+</table>
+
+</body>
+</html>
+
+

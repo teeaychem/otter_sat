@@ -1,0 +1,259 @@
+<HTML>
+<HEAD>
+   <TITLE>SATLIB - Benchmark Problems</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="white" TEXT="black" LINK="#0000FF" VLINK="#551A8B" ALINK="#FF0000">
+
+<h1>SAT-encoded Quasigroup (or Latin square) instances</h1>
+
+Given a set <i>S</i>, a <i>Latin square indexed by S</i> is an
+|<i>S</i>|x|<i>S</i>| array such that each row and each column of the
+array is a permutation of the elements in <i>S</i>. |<i>S</i>| is
+called the <i>order</i> of the Latin square. A Latin square of order v
+is specified by:<br><br>
+
+<UL>
+<LI>(1) (x * u = y, x * w = y) ==> u = w</LI>
+<LI>(2) (u * x = y, w * x = y) ==> u = w</LI>
+<LI>(3) (x * y = u, x * y = w) ==> u = w</LI>
+<LI>(4) (x * y = 0) | (x * y = 1) | ... |  (x * y = (v-1))</LI>
+</UL> 
+
+Some additional constraints may be added.
+The constraints used here are named as follows:<br><br>
+
+
+<TABLE BORDER >
+<TR>
+<TD ALIGN=CENTER><B>Name&nbsp;</B></TD>
+
+<TD ALIGN=CENTER><B>Constraint&nbsp;</B></TD>
+
+</TR>
+
+<TR>
+<TD ALIGN=RIGHT>qg1&nbsp;</TD>
+
+<TD ALIGN=RIGHT>(x * y = u, z * w = u, v * y = x, v * w = z) ==> x = z&nbsp;</TD>
+
+</TR>
+
+<TR NOSAVE>
+<TD ALIGN=RIGHT>qg2</TD>
+
+<TD ALIGN=RIGHT>(x * y = u, z * w = u, y * v = x, w * v = z) ==> x = z&nbsp;</TD>
+</TR>
+<TR NOSAVE>
+<TD ALIGN=RIGHT>qg3</TD>
+
+<TD ALIGN=RIGHT>(x * y) * (y * x) = x&nbsp;</TD>
+</TR>
+<TR NOSAVE>
+<TD ALIGN=RIGHT>qg4</TD>
+
+<TD ALIGN=RIGHT>(x * y) * (y * x) = y&nbsp;</TD>
+</TR>
+<TR NOSAVE>
+<TD ALIGN=RIGHT>qg5</TD>
+
+<TD ALIGN=RIGHT>((x * y) * x) * x = y&nbsp;</TD>
+</TR>
+<TR NOSAVE>
+<TD ALIGN=RIGHT>qg6</TD>
+
+<TD ALIGN=RIGHT>(x * y) * y = x * (x * y)&nbsp;</TD>
+</TR>
+<TR NOSAVE>
+<TD ALIGN=RIGHT>qg7</TD>
+
+<TD ALIGN=RIGHT>((x * y) * x) * y = x&nbsp;</TD>
+</TR>
+</TABLE><br>
+<B>Table 1:</B>Additional constraints for quasigroup instances.
+<BR>&nbsp;
+<BR>&nbsp;
+
+<h4>Benchmark instances</h4>
+
+
+A Latin square of order v is encoded by v^3 propositional variables.
+The number of propositional clauses are listed below:<br><br>
+
+<TABLE BORDER >
+<TR>
+<TD ALIGN=CENTER><B>instance&nbsp;</B></TD>
+<TD ALIGN=CENTER><B>vars&nbsp;</B></TD>
+<TD ALIGN=CENTER><B>clauses&nbsp;</B></TD>
+<TD ALIGN=CENTER><B>satisfiable?&nbsp;</B></TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg1-07.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>343&nbsp;</TD>
+<TD ALIGN=RIGHT>68083&nbsp;</TD>
+<TD ALIGN=RIGHT>yes&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg1-08.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>512&nbsp;</TD>
+<TD ALIGN=RIGHT>148957&nbsp;</TD>
+<TD ALIGN=RIGHT>yes&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg2-07.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>343&nbsp;</TD>
+<TD ALIGN=RIGHT>68083&nbsp;</TD>
+<TD ALIGN=RIGHT>yes&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg2-08.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>512&nbsp;</TD>
+<TD ALIGN=RIGHT>148957&nbsp;</TD>
+<TD ALIGN=RIGHT>yes&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg3-08.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>512&nbsp;</TD>
+<TD ALIGN=RIGHT>10469&nbsp;</TD>
+<TD ALIGN=RIGHT>yes&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg3-09.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>729&nbsp;</TD>
+<TD ALIGN=RIGHT>16732&nbsp;</TD>
+<TD ALIGN=RIGHT>no&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg4-08.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>512&nbsp;</TD>
+<TD ALIGN=RIGHT>9685&nbsp;</TD>
+<TD ALIGN=RIGHT>no&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg4-09.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>729&nbsp;</TD>
+<TD ALIGN=RIGHT>15580&nbsp;</TD>
+<TD ALIGN=RIGHT>yes&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg5-09.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>729&nbsp;</TD>
+<TD ALIGN=RIGHT>28540&nbsp;</TD>
+<TD ALIGN=RIGHT>no&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg5-10.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>1000&nbsp;</TD>
+<TD ALIGN=RIGHT>43636&nbsp;</TD>
+<TD ALIGN=RIGHT>no&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg5-11.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>1331&nbsp;</TD>
+<TD ALIGN=RIGHT>64054&nbsp;</TD>
+<TD ALIGN=RIGHT>yes&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg5-12.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>1728&nbsp;</TD>
+<TD ALIGN=RIGHT>90919&nbsp;</TD>
+<TD ALIGN=RIGHT>no&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg5-13.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>2197&nbsp;</TD>
+<TD ALIGN=RIGHT>125464&nbsp;</TD>
+<TD ALIGN=RIGHT>no&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg6-09.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>729&nbsp;</TD>
+<TD ALIGN=RIGHT>21844&nbsp;</TD>
+<TD ALIGN=RIGHT>yes&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg6-10.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>1000&nbsp;</TD>
+<TD ALIGN=RIGHT>33466&nbsp;</TD>
+<TD ALIGN=RIGHT>no&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg6-11.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>1331&nbsp;</TD>
+<TD ALIGN=RIGHT>49204&nbsp;</TD>
+<TD ALIGN=RIGHT>no&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg6-12.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>1728&nbsp;</TD>
+<TD ALIGN=RIGHT>69931&nbsp;</TD>
+<TD ALIGN=RIGHT>no&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg7-09.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>729&nbsp;</TD>
+<TD ALIGN=RIGHT>22060&nbsp;</TD>
+<TD ALIGN=RIGHT>yes&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg7-10.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>1000&nbsp;</TD>
+<TD ALIGN=RIGHT>33736&nbsp;</TD>
+<TD ALIGN=RIGHT>no&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg7-11.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>1331&nbsp;</TD>
+<TD ALIGN=RIGHT>49534&nbsp;</TD>
+<TD ALIGN=RIGHT>no&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg7-12.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>1728&nbsp;</TD>
+<TD ALIGN=RIGHT>70327&nbsp;</TD>
+<TD ALIGN=RIGHT>no&nbsp;</TD>
+</TR>
+<TR>
+<TD ALIGN=RIGHT>qg7-13.cnf&nbsp;</TD>
+<TD ALIGN=RIGHT>2197&nbsp;</TD>
+<TD ALIGN=RIGHT>97072&nbsp;</TD>
+<TD ALIGN=RIGHT>yes&nbsp;</TD>
+</TR>
+</TABLE><br>
+<B>Table 1:</B> SAT-encodings of Quasigroup (or Latin square) instances.
+<BR>&nbsp;
+<BR>&nbsp;
+<br>
+
+The file qg1-07.cnf contains the propositional clauses in DIMACS
+format for Latin square of order 7 with constraint qg1, etc. These
+instances are used in <A
+HREF="http://www.cs.uiowa.edu/ftp/hzhang/sato/papers/davis16.ps.Z">
+[ZS00]</a>, where more details on Latin squares are given and the
+performances of a dozen of different implementations of the
+Davis-Putnam method were compared. In <br>
+
+
+<p><br>
+<h4>Bibliography</h4>
+<table>
+<tr>
+<td valign=top><small><A
+HREF="http://www.cs.uiowa.edu/ftp/hzhang/sato/papers/davis16.ps.Z">[ZS00]</a>
+<td><small>Hantao Zhang and Mark E. Stickel<STRONG>Implementing the
+Davis-Putnam Method.</STRONG> <CITE>Journal of Automated Reasoning,
+Special issue on Propositional Satisfiability </CITE>, to appear,
+2000<br>
+<tr>
+</table>
+</small>
+
+
+<h4>Acknowledgements</h4>
+
+The instances have been contributed by <A
+HREF="http://www.cs.uiowa.edu/~hzhang/">Hantao Zhang</a>.<br><br>
+
+
+</body>
+</html>

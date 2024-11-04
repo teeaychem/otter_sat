@@ -4,7 +4,7 @@ use crate::{
     structures::{
         clause::stored::ClauseSource,
         literal::{Literal, LiteralSource},
-        variable::{delegate::push_back_consequence, list::VariableList, Variable, VariableId},
+        variable::{delegate::queue_consequence, list::VariableList, Variable, VariableId},
     },
 };
 
@@ -60,7 +60,7 @@ impl Context {
     }
 
     pub fn assume(&mut self, literal: Literal) -> Result<(), BuildIssue> {
-        let assumption_result = push_back_consequence(
+        let assumption_result = queue_consequence(
             &mut self.variables,
             literal,
             LiteralSource::Assumption,

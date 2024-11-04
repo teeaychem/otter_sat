@@ -22,10 +22,9 @@ impl Level {
             LiteralSource::Pure
             | LiteralSource::Assumption
             | LiteralSource::Resolution(_)
-            | LiteralSource::Clause(_)
+            | LiteralSource::Analysis(_)
             | LiteralSource::Propagation(_)
-            | LiteralSource::BinaryPropagation(_)
-            | LiteralSource::Missed(_, _) => self.observations.push((source, literal)),
+            | LiteralSource::Missed(_) => self.observations.push((source, literal)),
         }
     }
 

@@ -2,13 +2,15 @@ use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
     config::{self, Config},
-    context::{level::LevelIndex, store::ClauseKey, Context, Report, SolveStatus as ClauseStatus},
+    context::{level::LevelIndex, store::ClauseKey, Context, Report, SolveStatus},
     structures::{
-        clause::stored::{ClauseSource, StoredClause},
+        clause::{
+            stored::{ClauseSource, StoredClause},
+            Clause,
+        },
         literal::{Literal, LiteralSource},
         variable::{
-            core::propagate_literal, delegate::push_back_consequence, list::VariableList,
-            VariableId,
+            core::propagate_literal, delegate::queue_consequence, list::VariableList, VariableId,
         },
     },
 };
@@ -18,21 +20,22 @@ pub enum ContextIssue {
     EmptyClause,
 }
 
-impl Context {
-    pub fn preprocess(&mut self) {
-        if self.config.preprocessing {
-            self.set_pure();
-        }
-    }
+pub enum StepInfo {
+    Conflict(ClauseKey),
+    QueueConflict(ClauseKey),
+    QueueProof(ClauseKey),
+    ChoicesExhausted,
+}
 
+impl Context {
     #[allow(unused_labels, clippy::result_unit_err)]
     pub fn solve(&mut self) -> Result<Report, ()> {
         let this_total_time = std::time::Instant::now();
 
         self.preprocess();
 
-        if self.clause_store.formula_count() == 0 {
-            self.status = ClauseStatus::NoClauses;
+        if self.clause_store.clause_count() == 0 {
+            self.status = SolveStatus::NoClauses;
             return Ok(Report::Satisfiable);
         }
 
@@ -61,7 +64,7 @@ impl Context {
     }
 
     #[allow(unused_labels, clippy::result_unit_err)]
-    pub fn step(&mut self, config: &Config) -> Result<(), ()> {
+    pub fn step(&mut self, config: &Config) -> Result<(), StepInfo> {
         self.counters.iterations += 1;
 
         'search: while let Some((literal, _source, _)) = self.variables.get_consequence() {
@@ -72,19 +75,84 @@ impl Context {
                 self.levels.top_mut(),
             );
 
-            if let Err(conflict_key) = consequence {
-                match self.conflict_analysis(conflict_key, config) {
-                    Ok(ClauseStatus::MissedImplication(_)) => continue 'search,
-                    Ok(ClauseStatus::NoSolution(key)) => {
-                        self.status = ClauseStatus::NoSolution(key);
-                        return Err(());
+            match consequence {
+                Ok(()) => {}
+                Err(key) => {
+                    let analysis_result = self.conflict_analysis(key, config);
+                    match analysis_result {
+                        Ok(analysis_result) => {
+                            use super::analysis::AnalysisResult::*;
+                            match analysis_result {
+                                MissedImplication(key, literal) => {
+                                    self.status = SolveStatus::MissedImplication(key);
+
+                                    let the_clause = self.clause_store.get(key);
+                                    let missed_level =
+                                        self.backjump_level(the_clause.literal_slice());
+                                    self.backjump(missed_level);
+                                    match queue_consequence(
+                                        &mut self.variables,
+                                        literal,
+                                        LiteralSource::Missed(key),
+                                        self.levels.top_mut(),
+                                    ) {
+                                        Ok(()) => {}
+                                        Err(key) => {
+                                            return Err(StepInfo::QueueConflict(key));
+                                        }
+                                    };
+
+                                    continue 'search;
+                                }
+                                FundamentalConflict(key) | QueueConflict(key) => {
+                                    self.status = SolveStatus::NoSolution(key);
+
+                                    return Err(StepInfo::Conflict(key));
+                                }
+                                Proof(key, literal) => {
+                                    self.status = SolveStatus::Proof(key);
+
+                                    self.backjump(0);
+                                    match queue_consequence(
+                                        &mut self.variables,
+                                        literal,
+                                        LiteralSource::Resolution(key),
+                                        self.levels.top_mut(),
+                                    ) {
+                                        Ok(()) => {}
+                                        Err(key) => return Err(StepInfo::QueueProof(key)),
+                                    }
+                                }
+
+                                AssertingClause(key, literal) => {
+                                    self.status = SolveStatus::AssertingClause(key);
+
+                                    let the_clause = self.clause_store.get(key);
+
+                                    let backjump_level_index =
+                                        self.backjump_level(the_clause.literal_slice());
+                                    self.backjump(backjump_level_index);
+
+                                    match queue_consequence(
+                                        &mut self.variables,
+                                        literal,
+                                        LiteralSource::Analysis(key),
+                                        self.levels.top_mut(),
+                                    ) {
+                                        Ok(()) => {}
+                                        Err(key) => return Err(StepInfo::QueueConflict(key)),
+                                    }
+
+                                    self.conflict_ceremony(config);
+                                    return Ok(());
+                                }
+                            }
+                        }
+                        Err(_issue) => {
+                            log::error!(target: crate::log::targets::STEP, "Conflict analysis failed.");
+                            panic!("Analysis failed")
+                        }
                     }
-                    Ok(ClauseStatus::AssertingClause(key)) => {
-                        self.status = ClauseStatus::AssertingClause(key);
-                        self.conflict_ceremony(config);
-                        return Ok(());
-                    }
-                    _ => panic!("bad status after analysis"),
                 }
             }
         }
@@ -112,32 +180,32 @@ impl Context {
             if config.reduction_allowed
                 && ((self.counters.restarts % config.reduction_interval) == 0)
             {
-                log::debug!(target: "forget", "Forget @r {}", self.counters.restarts);
+                log::debug!(target: crate::log::targets::REDUCTION, "Forget @r {}", self.counters.restarts);
                 self.clause_store.reduce();
             }
         }
     }
 
     #[allow(clippy::result_unit_err)]
-    pub fn make_choice(&mut self, config: &Config) -> Result<(), ()> {
+    pub fn make_choice(&mut self, config: &Config) -> Result<(), StepInfo> {
         self.levels.get_fresh();
         match self.get_unassigned(config.random_choice_frequency) {
             Some(choice_index) => {
                 self.process_choice(choice_index, config.polarity_lean);
                 self.counters.decisions += 1;
-                self.status = ClauseStatus::ChoiceMade;
+                self.status = SolveStatus::ChoiceMade;
                 Ok(())
             }
             None => {
-                self.status = ClauseStatus::AllAssigned;
-                Err(())
+                self.status = SolveStatus::AllAssigned;
+                Err(StepInfo::ChoicesExhausted)
             }
         }
     }
 
     fn process_choice(&mut self, index: usize, polarity_lean: config::PolarityLean) {
-        log::trace!(
-            "Choice: {index} @ {} with activity {}",
+        log::trace!(target: crate::log::targets::STEP,
+            "Choice of {index} at level {} with activity {}",
             self.levels.top().index(),
             self.variables.activity_of(index)
         );
@@ -149,7 +217,7 @@ impl Context {
                 None => Literal::new(index as VariableId, self.rng.gen_bool(polarity_lean)),
             }
         };
-        match push_back_consequence(
+        match queue_consequence(
             &mut self.variables,
             choice_literal,
             LiteralSource::Choice,
@@ -158,23 +226,6 @@ impl Context {
             Ok(()) => {}
             Err(_) => panic!("could not set choice"),
         };
-    }
-
-    fn set_pure(&mut self) {
-        let (f, t) = crate::procedures::pure_choices(self.clause_store.formula_clauses());
-
-        for v_id in f.into_iter().chain(t) {
-            let the_literal = Literal::new(v_id, false);
-            match push_back_consequence(
-                &mut self.variables,
-                the_literal,
-                LiteralSource::Pure,
-                self.levels.top_mut(),
-            ) {
-                Ok(()) => {}
-                Err(_) => panic!("could not set pure"),
-            };
-        }
     }
 
     pub fn proven_literals(&self) -> impl Iterator<Item = &Literal> {
@@ -232,17 +283,17 @@ impl Context {
 
         let clause_key =
             self.clause_store
-                .insert(src, clause, subsumed, &self.variables, resolution_keys);
+                .insert(src, clause, subsumed, &mut self.variables, resolution_keys);
         let the_clause = self.clause_store.get_mut(clause_key);
         Ok(the_clause)
     }
 
     pub fn backjump(&mut self, to: LevelIndex) {
-        log::trace!("Backjump from {} to {}", self.levels.top().index(), to);
+        log::trace!(target: crate::log::targets::STEP, "Backjump from {} to {}", self.levels.top().index(), to);
 
         for _ in 0..(self.levels.top().index() - to) {
             for literal in self.levels.pop().expect("Lost level").literals() {
-                log::trace!("Noneset: {}", literal.index());
+                log::trace!(target: crate::log::targets::STEP, "Noneset: {}", literal.index());
                 self.variables.retract_valuation(literal.index());
                 self.variables.heap_push(literal.index());
             }
@@ -259,7 +310,7 @@ impl Context {
         }
 
         match self.status {
-            ClauseStatus::AllAssigned => {
+            SolveStatus::AllAssigned => {
                 println!("s SATISFIABLE");
                 if self.config.show_valuation {
                     print!("v");
@@ -274,14 +325,14 @@ impl Context {
                 }
                 // std::process::exit(10);
             }
-            ClauseStatus::NoSolution(clause_key) => {
+            SolveStatus::NoSolution(clause_key) => {
                 println!("s UNSATISFIABLE");
                 if self.config.show_core {
                     self.display_core(clause_key);
                 }
                 // std::process::exit(20);
             }
-            ClauseStatus::NoClauses => {
+            SolveStatus::NoClauses => {
                 println!("c The formula contains no clause and so is interpreted as ⊤");
                 println!("s SATISFIABLE");
             }
@@ -298,7 +349,7 @@ impl Context {
     }
 
     pub fn clause_count(&self) -> usize {
-        self.clause_store.formula_count() + self.clause_store.learned_count()
+        self.clause_store.clause_count()
     }
 
     pub fn it_is_time_to_restart(&self, u: config::LubyConstant) -> bool {
@@ -308,9 +359,9 @@ impl Context {
 
     pub fn report(&self) -> Report {
         match self.status {
-            ClauseStatus::AllAssigned => Report::Satisfiable,
-            ClauseStatus::NoSolution(_) => Report::Unsatisfiable,
-            ClauseStatus::NoClauses => Report::Satisfiable,
+            SolveStatus::AllAssigned => Report::Satisfiable,
+            SolveStatus::NoSolution(_) => Report::Unsatisfiable,
+            SolveStatus::NoClauses => Report::Satisfiable,
             _ => Report::Unknown,
         }
     }

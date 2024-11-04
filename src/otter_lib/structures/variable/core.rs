@@ -7,7 +7,7 @@ use crate::structures::{
     clause::stored::WatchStatus,
     literal::{Literal, LiteralSource},
     variable::{
-        delegate::{push_back_consequence, VariableStore},
+        delegate::{queue_consequence, VariableStore},
         Variable, VariableId,
     },
 };
@@ -125,9 +125,17 @@ impl Variable {
     }
 }
 
+pub enum PropagationInfo {
+    BinaryQueue(ClauseKey),
+    BinaryInspection(ClauseKey),
+    LongQueue(ClauseKey),
+    LongInspection(ClauseKey),
+}
+
 /*
 Placed here for access to the occurrence lists of a variable
 */
+use crate::log::targets::PROPAGATION as LOG_PROPAGATION;
 pub fn propagate_literal(
     literal: Literal,
     variables: &mut VariableStore,
@@ -145,25 +153,29 @@ pub fn propagate_literal(
         for element in binary_list {
             match element {
                 WatchElement::Clause(_) => {
-                    panic!("binary clause occurence list contains non-binary clause")
+                    log::error!(target: LOG_PROPAGATION, "Long clause found in binary watch list.");
+                    panic!("Corrupt watch list")
                 }
                 WatchElement::Binary(check, clause_key) => {
                     match variables.value_of(check.index()) {
-                        None => match push_back_consequence(
+                        None => match queue_consequence(
                             variables,
                             *check,
-                            LiteralSource::BinaryPropagation(*clause_key),
+                            LiteralSource::Propagation(*clause_key),
                             level,
                         ) {
                             Ok(()) => {}
-                            Err(key) => {
-                                return Err(key);
+                            Err(_key) => {
+                                log::trace!(target: LOG_PROPAGATION, "Queueing consueqnece of {clause_key} {literal} failed.");
+                                return Err(*clause_key);
                             }
                         },
                         Some(value) if check.polarity() != value => {
+                            log::trace!(target: LOG_PROPAGATION, "Inspecting consueqnece of {clause_key} {literal} failed.");
                             return Err(*clause_key);
                         }
                         Some(_) => {
+                            log::trace!(target: LOG_PROPAGATION, "Missed implication of {clause_key} {literal}.");
                             // a missed implication, as this is binary
                         }
                     }
@@ -182,7 +194,7 @@ pub fn propagate_literal(
         let mut index = 0;
         let mut length = list.len();
 
-        'propagation_loop: while index < length {
+        'long_loop: while index < length {
             match list.get_unchecked(index) {
                 WatchElement::Clause(clause_key) => {
                     let clause = match clause_store.get_carefully_mut(*clause_key) {
@@ -190,34 +202,44 @@ pub fn propagate_literal(
                         None => {
                             list.swap_remove(index);
                             length -= 1;
-                            continue 'propagation_loop;
+                            continue 'long_loop;
                         }
                     };
 
                     match clause.update_watch(literal, variables) {
-                        Ok(WatchStatus::TwoWitness) | Ok(WatchStatus::TwoNone) => panic!("two"),
+                        Ok(WatchStatus::TwoWitness) | Ok(WatchStatus::TwoNone) => {
+                            log::error!(target: LOG_PROPAGATION, "Length two clause found in long list.");
+                            panic!("Corrupt watch list")
+                        }
                         Ok(WatchStatus::Witness) | Ok(WatchStatus::None) => {
                             list.swap_remove(index);
                             length -= 1;
-                            continue 'propagation_loop;
+                            continue 'long_loop;
                         }
-                        Ok(_) => panic!("can't get conflict from update"),
+                        Ok(WatchStatus::Conflict) | Ok(WatchStatus::TwoConflict) => {
+                            log::error!(target: LOG_PROPAGATION, "Conflict from updating watch during propagation.");
+                            panic!("Corrupt watch list")
+                        }
                         Err(()) => {
                             let the_watch = clause.get_unchecked(0);
-                            assert_ne!(the_watch.index(), literal.index());
+                            // assert_ne!(the_watch.index(), literal.index());
                             match variables.value_of(the_watch.index()) {
                                 Some(value) if the_watch.polarity() != value => {
+                                    log::trace!(target: LOG_PROPAGATION, "Inspecting consueqnece of {clause_key} {literal} failed.");
                                     return Err(*clause_key);
                                 }
                                 None => {
-                                    match push_back_consequence(
+                                    match queue_consequence(
                                         variables,
                                         *the_watch,
                                         LiteralSource::Propagation(*clause_key),
                                         level,
                                     ) {
                                         Ok(()) => {}
-                                        Err(key) => return Err(key),
+                                        Err(_key) => {
+                                            log::trace!(target: LOG_PROPAGATION, "Queuing consueqnece of {clause_key} {literal} failed.");
+                                            return Err(*clause_key);
+                                        }
                                     };
                                 }
                                 Some(_) => {}
@@ -226,12 +248,13 @@ pub fn propagate_literal(
                     }
                 }
                 WatchElement::Binary(_, _) => {
-                    panic!("clause occurence list contains binary clause")
+                    log::error!(target: LOG_PROPAGATION, "Binary clause found in long watch list.");
+                    panic!("Corrupt watch list")
                 }
             }
 
             index += 1;
-            continue 'propagation_loop;
+            continue 'long_loop;
         }
     }
     Ok(())
