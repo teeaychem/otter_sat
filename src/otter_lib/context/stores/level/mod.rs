@@ -1,9 +1,10 @@
 pub mod instance;
 pub mod store;
 
-use crate::structures::literal::{Literal, LiteralSource};
-
-pub type LevelIndex = usize;
+use crate::{
+    context::stores::LevelIndex,
+    structures::literal::{Literal, LiteralSource},
+};
 
 #[derive(Debug)]
 pub struct Level {

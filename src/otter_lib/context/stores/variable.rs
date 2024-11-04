@@ -3,17 +3,15 @@ use crate::{
         defaults::{self},
         Config, VariableActivity,
     },
-    context::{level::LevelIndex, stores::clause_key::ClauseKey, Context},
+    context::{
+        stores::{ClauseKey, LevelIndex},
+        Context,
+    },
     generic::heap::IndexHeap,
     structures::{
         literal::{Literal, LiteralSource},
         variable::{list::VariableList, Variable, VariableId, WatchElement},
     },
-};
-
-use std::{
-    collections::{HashMap, VecDeque},
-    ops::{Deref, DerefMut},
 };
 
 pub enum ValueStatus {
@@ -27,8 +25,8 @@ pub struct VariableStore {
     external_map: Vec<String>,
     score_increment: VariableActivity,
     variables: Vec<Variable>,
-    consequence_q: VecDeque<(Literal, LiteralSource, LevelIndex)>,
-    string_map: HashMap<String, VariableId>,
+    consequence_q: std::collections::VecDeque<(Literal, LiteralSource, LevelIndex)>,
+    string_map: std::collections::HashMap<String, VariableId>,
     activity_heap: IndexHeap<VariableActivity>,
 }
 
@@ -38,14 +36,16 @@ impl Default for VariableStore {
             external_map: Vec::<String>::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
             score_increment: 1.0,
             variables: Vec::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
-            consequence_q: VecDeque::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
-            string_map: HashMap::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
+            consequence_q: std::collections::VecDeque::with_capacity(
+                defaults::DEFAULT_VARIABLE_COUNT,
+            ),
+            string_map: std::collections::HashMap::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
             activity_heap: IndexHeap::new(defaults::DEFAULT_VARIABLE_COUNT),
         }
     }
 }
 
-impl Deref for VariableStore {
+impl std::ops::Deref for VariableStore {
     type Target = [Variable];
 
     fn deref(&self) -> &Self::Target {
@@ -53,7 +53,7 @@ impl Deref for VariableStore {
     }
 }
 
-impl DerefMut for VariableStore {
+impl std::ops::DerefMut for VariableStore {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.variables
     }
@@ -69,8 +69,8 @@ impl VariableStore {
             external_map: Vec::<String>::with_capacity(variable_count),
             score_increment: 1.0,
             variables: Vec::with_capacity(variable_count),
-            consequence_q: VecDeque::with_capacity(variable_count),
-            string_map: HashMap::with_capacity(variable_count),
+            consequence_q: std::collections::VecDeque::with_capacity(variable_count),
+            string_map: std::collections::HashMap::with_capacity(variable_count),
             activity_heap: IndexHeap::new(variable_count),
         }
     }

@@ -1,12 +1,13 @@
-use crate::context::{level::LevelIndex, stores::clause_key::ClauseKey};
+use crate::{
+    context::stores::{ClauseKey, LevelIndex},
+    structures::literal::Literal,
+};
 use std::cell::UnsafeCell;
-
-use super::literal::Literal;
 
 #[allow(non_snake_case)]
 pub mod BCP;
-pub mod core;
 pub mod list;
+pub mod variable_impl;
 
 pub type VariableId = u32;
 
