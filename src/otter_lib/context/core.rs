@@ -1,5 +1,4 @@
 use crate::{
-    config::{self},
     context::{store::ClauseKey, Context, Report, SolveStatus},
     structures::{
         clause::stored::{ClauseSource, StoredClause},
@@ -34,6 +33,10 @@ impl Context {
 
     pub fn variable_count(&self) -> usize {
         self.variables.len()
+    }
+
+    pub fn clause_count(&self) -> usize {
+        self.clause_store.clause_count()
     }
 
     /// Stores a clause with an automatically generated id.
@@ -100,15 +103,6 @@ impl Context {
                 // std::process::exit(30);
             }
         }
-    }
-
-    pub fn clause_count(&self) -> usize {
-        self.clause_store.clause_count()
-    }
-
-    pub fn it_is_time_to_restart(&self, u: config::LubyConstant) -> bool {
-        use crate::procedures::luby;
-        self.counters.conflicts_since_last_forget >= u.wrapping_mul(luby(self.counters.restarts))
     }
 
     pub fn report(&self) -> Report {
