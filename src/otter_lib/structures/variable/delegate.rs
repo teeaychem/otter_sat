@@ -3,10 +3,7 @@ use crate::{
         defaults::{self},
         Config, VariableActivity,
     },
-    context::{
-        level::{Level, LevelIndex},
-        store::ClauseKey,
-    },
+    context::{level::LevelIndex, store::ClauseKey, Context},
     generic::heap::IndexHeap,
     structures::{
         literal::{Literal, LiteralSource},
@@ -184,38 +181,39 @@ impl VariableStore {
     }
 }
 
-pub fn queue_consequence(
-    variables: &mut VariableStore,
-    literal: Literal,
-    source: LiteralSource,
-    level: &mut Level,
-) -> Result<(), ClauseKey> {
-    match variables.set_value(literal, level, source) {
-        Ok(_) => {}
-        Err(_) => match source {
-            LiteralSource::Assumption => panic!("failed to update on assumption"),
-            LiteralSource::Choice => panic!("failed to update on choice"),
-            LiteralSource::Pure => panic!("issue on pure update"),
-            LiteralSource::Missed(clause_key)
-            | LiteralSource::Resolution(clause_key)
-            | LiteralSource::Propagation(clause_key)
-            | LiteralSource::Analysis(clause_key) => {
-                return Err(clause_key);
-            }
-        },
-    };
+impl Context {
+    pub fn q_literal(&mut self, literal: Literal, source: LiteralSource) -> Result<(), ClauseKey> {
+        match self
+            .variables
+            .set_value(literal, self.levels.top_mut(), source)
+        {
+            Ok(_) => {}
+            Err(_) => match source {
+                LiteralSource::Assumption => panic!("failed to update on assumption"),
+                LiteralSource::Choice => panic!("failed to update on choice"),
+                LiteralSource::Pure => panic!("issue on pure update"),
+                LiteralSource::Missed(clause_key)
+                | LiteralSource::Resolution(clause_key)
+                | LiteralSource::BCP(clause_key)
+                | LiteralSource::Analysis(clause_key) => {
+                    return Err(clause_key);
+                }
+            },
+        };
 
-    // TODO: improve push back consequence
-    // easy would be to keep track of pending of each variable, then direct lookup
-    if !variables
-        .consequence_q
-        .iter()
-        .any(|(l, _, _)| *l == literal)
-    {
-        variables
+        // TODO: improve push back consequence
+        // easy would be to keep track of pending of each variable, then direct lookup
+        if !self
+            .variables
             .consequence_q
-            .push_back((literal, source, level.index()))
-    }
+            .iter()
+            .any(|(l, _, _)| *l == literal)
+        {
+            self.variables
+                .consequence_q
+                .push_back((literal, source, self.levels.index()))
+        }
 
-    Ok(())
+        Ok(())
+    }
 }

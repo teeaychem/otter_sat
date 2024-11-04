@@ -5,4 +5,5 @@ pub mod targets {
     pub const REDUCTION: &str = "reduction";
     pub const CLAUSE_STORE: &str = "clause store";
     pub const VALUATION: &str = "valuation";
+    pub const BACKJUMP: &str = "backjump";
 }

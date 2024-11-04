@@ -121,7 +121,7 @@ impl ResolutionBuffer {
     ) -> BufferStatus {
         for (source, literal) in level.observations().iter().rev() {
             if let LiteralSource::Analysis(the_key)
-            | LiteralSource::Propagation(the_key)
+            | LiteralSource::BCP(the_key)
             | LiteralSource::Resolution(the_key)
             | LiteralSource::Missed(the_key) = source
             {
