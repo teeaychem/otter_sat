@@ -70,7 +70,7 @@ impl Context {
                                             }
                                         }
                                         LiteralSource::Analysis(clause_key)
-                                        | LiteralSource::Propagation(clause_key)
+                                        | LiteralSource::BCP(clause_key)
                                         | LiteralSource::Missed(clause_key) => {
                                             core_q.push_back(*clause_key)
                                         }

@@ -4,7 +4,7 @@ use crate::{
     structures::{
         clause::stored::ClauseSource,
         literal::{Literal, LiteralSource},
-        variable::{delegate::queue_consequence, list::VariableList, Variable, VariableId},
+        variable::{list::VariableList, Variable, VariableId},
     },
 };
 
@@ -60,12 +60,8 @@ impl Context {
     }
 
     pub fn assume(&mut self, literal: Literal) -> Result<(), BuildIssue> {
-        let assumption_result = queue_consequence(
-            &mut self.variables,
-            literal,
-            LiteralSource::Assumption,
-            self.levels.get_mut(0),
-        );
+        assert_eq!(self.levels.index(), 0);
+        let assumption_result = self.q_literal(literal, LiteralSource::Assumption);
         match assumption_result {
             Ok(_) => Ok(()),
             Err(_) => Err(BuildIssue::AssumptionConflict),
@@ -277,7 +273,7 @@ impl Context {
         if show_stats {
             println!(
                 "c Parsing complete with {} variables and {} clauses ({} added to the context)",
-                the_context.variables().slice().len(),
+                the_context.variable_count(),
                 clause_counter,
                 the_context.clause_count()
             );

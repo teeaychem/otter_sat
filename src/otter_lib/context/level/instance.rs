@@ -23,7 +23,7 @@ impl Level {
             | LiteralSource::Assumption
             | LiteralSource::Resolution(_)
             | LiteralSource::Analysis(_)
-            | LiteralSource::Propagation(_)
+            | LiteralSource::BCP(_)
             | LiteralSource::Missed(_) => self.observations.push((source, literal)),
         }
     }
