@@ -269,17 +269,6 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
-    struct TestStruct {
-        value: usize,
-        position: usize,
-    }
-
-    impl TestStruct {
-        fn new(value: usize, position: usize) -> Self {
-            Self { value, position }
-        }
-    }
 
     #[test]
     fn heap_simple() {

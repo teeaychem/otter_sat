@@ -2,7 +2,7 @@ use crate::{
     config::{self, Config, StoppingCriteria},
     context::{
         resolution_buffer::{BufferStatus, ResolutionBuffer},
-        store::ClauseKey,
+        stores::clause_key::ClauseKey,
         Context,
     },
     structures::{
@@ -124,11 +124,12 @@ impl Context {
     The implementation works through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
     the top decision level will be for the literal to be asserted when clause is learnt
      */
-    pub fn backjump_level(&self, literals: &[Literal]) -> usize {
+    pub fn backjump_level(&self, literals: &[Literal]) -> Option<usize> {
         let mut top_two = (None, None);
-        for lit in literals {
-            let Some(dl) = self.variables.get_unsafe(lit.index()).decision_level() else {
-                panic!("could not get decision level")
+        for literal in literals {
+            let Some(dl) = self.variables.get_unsafe(literal.index()).decision_level() else {
+                log::error!(target: crate::log::targets::BACKJUMP, "No decision level for {literal}");
+                return None;
             };
 
             match top_two {
@@ -144,8 +145,8 @@ impl Context {
         }
 
         match top_two {
-            (None, _) => 0,
-            (Some(second_to_top), _) => second_to_top,
+            (None, _) => Some(0),
+            (Some(second_to_top), _) => Some(second_to_top),
         }
     }
 }

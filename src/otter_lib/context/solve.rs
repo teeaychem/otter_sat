@@ -82,7 +82,7 @@ impl Context {
 
                             match self.q_literal(literal, LiteralSource::Resolution(key)) {
                                 Ok(()) => {}
-                                Err(key) => return Err(StepInfo::QueueProof(key)),
+                                Err(_) => return Err(StepInfo::QueueProof(key)),
                             }
                         }
 
@@ -91,13 +91,14 @@ impl Context {
 
                             let the_clause = self.clause_store.get(key);
 
-                            let missed_level = self.backjump_level(the_clause.literal_slice());
-
-                            self.backjump(missed_level);
+                            match self.backjump_level(the_clause.literal_slice()) {
+                                None => return Err(StepInfo::Backfall),
+                                Some(index) => self.backjump(index),
+                            }
 
                             match self.q_literal(literal, LiteralSource::Missed(key)) {
                                 Ok(()) => {}
-                                Err(key) => return Err(StepInfo::QueueConflict(key)),
+                                Err(_) => return Err(StepInfo::QueueConflict(key)),
                             };
 
                             continue 'search;
@@ -108,13 +109,14 @@ impl Context {
 
                             let the_clause = self.clause_store.get(key);
 
-                            let backjump_index = self.backjump_level(the_clause.literal_slice());
-
-                            self.backjump(backjump_index);
+                            match self.backjump_level(the_clause.literal_slice()) {
+                                None => return Err(StepInfo::Backfall),
+                                Some(index) => self.backjump(index),
+                            }
 
                             match self.q_literal(literal, LiteralSource::Analysis(key)) {
                                 Ok(()) => {}
-                                Err(key) => return Err(StepInfo::QueueConflict(key)),
+                                Err(_) => return Err(StepInfo::QueueConflict(key)),
                             }
 
                             self.conflict_ceremony(config);
@@ -164,15 +166,17 @@ impl Context {
                 self.levels.get_fresh();
 
                 log::trace!(target: crate::log::targets::STEP,
-                    "Choice of {choice_index} at level {} with activity {}",
+                    "Choice of {choice_index} at level {}",
                     self.levels.top().index(),
-                    self.variables.activity_of(choice_index)
                 );
                 let choice_literal = {
                     let choice_id = choice_index as VariableId;
                     match self.variables.get_unsafe(choice_index).previous_value() {
                         Some(polarity) => Literal::new(choice_id, polarity),
-                        None => Literal::new(choice_id, self.rng.gen_bool(config.polarity_lean)),
+                        None => {
+                            let random_value = self.counters.rng.gen_bool(config.polarity_lean);
+                            Literal::new(choice_id, random_value)
+                        }
                     }
                 };
                 match self.q_literal(choice_literal, LiteralSource::Choice) {
@@ -191,12 +195,12 @@ impl Context {
     }
 
     pub fn get_unassigned(&mut self, config: &Config) -> Option<usize> {
-        match self.rng.gen_bool(config.random_choice_frequency) {
+        match self.counters.rng.gen_bool(config.random_choice_frequency) {
             true => self
                 .variables
                 .iter()
                 .filter(|variable| variable.value().is_none())
-                .choose(&mut self.rng)
+                .choose(&mut self.counters.rng)
                 .map(|variable| variable.index()),
             false => {
                 while let Some(index) = self.variables.heap_pop_most_active() {
@@ -222,7 +226,6 @@ impl Context {
             log::trace!(target: crate::log::targets::BACKJUMP, "To clear: {:?}", the_level.literals().collect::<Vec<_>>());
             for literal in the_level.literals() {
                 self.variables.retract_valuation(literal.index());
-                self.variables.heap_push(literal.index());
             }
         }
         self.variables.clear_consequences(to);

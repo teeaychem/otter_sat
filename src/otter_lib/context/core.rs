@@ -1,5 +1,5 @@
 use crate::{
-    context::{store::ClauseKey, Context, Report, SolveStatus},
+    context::{stores::clause_key::ClauseKey, Context, Report, SolveStatus},
     structures::{
         clause::stored::{ClauseSource, StoredClause},
         literal::Literal,
@@ -17,6 +17,7 @@ pub enum StepInfo {
     QueueConflict(ClauseKey),
     QueueProof(ClauseKey),
     ChoicesExhausted,
+    Backfall,
 }
 
 #[derive(Debug)]
