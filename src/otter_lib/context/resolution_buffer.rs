@@ -1,9 +1,6 @@
 use crate::{
     config::{Config, StoppingCriteria},
-    context::{
-        level::Level,
-        stores::{clause::ClauseStore, clause_key::ClauseKey, variable::VariableStore},
-    },
+    context::stores::{clause::ClauseStore, level::Level, variable::VariableStore, ClauseKey},
     structures::{
         clause::Clause,
         literal::{Literal, LiteralSource},

@@ -2,7 +2,7 @@ use crate::{
     config::{self, Config, StoppingCriteria},
     context::{
         resolution_buffer::{BufferStatus, ResolutionBuffer},
-        stores::clause_key::ClauseKey,
+        stores::ClauseKey,
         Context,
     },
     structures::{
@@ -24,6 +24,8 @@ pub enum AnalysisResult {
 
 pub enum AnalysisIssue {
     ResolutionStore,
+    EmptyResolution,
+    NoAssertion,
 }
 
 use crate::log::targets::ANALYSIS as LOG_ANALYSIS;
@@ -91,14 +93,15 @@ impl Context {
             }
 
             let the_literal = match asserted_literal {
-                None => panic!("failed to resolve to an asserting clause"),
+                None => {
+                    log::error!(target: crate::log::targets::ANALYSIS, "Failed to resolve to an asserting clause");
+                    return Err(AnalysisIssue::NoAssertion);
+                }
                 Some(literal) => literal,
             };
 
             match resolved_clause.len() {
-                0 => {
-                    panic!("oh")
-                }
+                0 => Err(AnalysisIssue::EmptyResolution),
                 1 => {
                     self.proofs.push((the_literal, the_buffer.trail().to_vec()));
                     Ok(AnalysisResult::Proof(clause_key, the_literal))

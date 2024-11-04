@@ -1,7 +1,6 @@
 mod analysis;
 pub mod builder;
 pub mod core;
-pub mod level;
 mod preprocessing;
 pub mod reports;
 mod resolution_buffer;
@@ -18,11 +17,11 @@ use {
         io::window::ContextWindow,
         structures::literal::Literal,
     },
-    stores::{clause::ClauseStore, clause_key::ClauseKey, variable::VariableStore},
+    stores::{clause::ClauseStore, variable::VariableStore, ClauseKey},
 };
 
-use level::LevelStore;
 use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128Plus};
+use stores::level::LevelStore;
 
 // pub type RngChoice = rand::rngs::mock::StepRng;
 pub type RngChoice = Xoroshiro128Plus;

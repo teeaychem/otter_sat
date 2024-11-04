@@ -1,5 +1,5 @@
 use crate::{
-    context::{level::LevelIndex, stores::clause_key::ClauseKey},
+    context::stores::{ClauseKey, LevelIndex},
     structures::variable::{Variable, VariableId},
 };
 

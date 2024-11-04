@@ -8,6 +8,8 @@ use crate::{
 
 use std::collections::BTreeSet;
 
+use super::stores::variable::ValueStatus;
+
 /// General order for pairs related to booleans is 0 is false, 1 is true
 pub fn pure_choices(
     clauses: impl Iterator<Item = impl Iterator<Item = Literal>>,
@@ -32,20 +34,21 @@ pub fn pure_choices(
 impl Context {
     pub fn preprocess(&mut self) {
         if self.config.preprocessing {
-            self.set_pure();
+            match self.set_pure() {
+                Ok(()) => {}
+                Err(_) => panic!("could not set pure"),
+            };
         }
     }
 
-    pub fn set_pure(&mut self) {
+    pub fn set_pure(&mut self) -> Result<(), ValueStatus> {
         let (f, t) =
             crate::context::preprocessing::pure_choices(self.clause_store.formula_clauses());
 
         for v_id in f.into_iter().chain(t) {
             let the_literal = Literal::new(v_id, false);
-            match self.q_literal(the_literal, LiteralSource::Pure) {
-                Ok(()) => {}
-                Err(_) => panic!("could not set pure"),
-            };
+            self.q_literal(the_literal, LiteralSource::Pure)?
         }
+        Ok(())
     }
 }

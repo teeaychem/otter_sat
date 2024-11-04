@@ -1,4 +1,7 @@
-use crate::context::level::{Level, LevelIndex, LevelStore};
+use crate::context::stores::{
+    level::{Level, LevelStore},
+    LevelIndex,
+};
 
 impl Default for LevelStore {
     fn default() -> Self {

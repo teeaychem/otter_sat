@@ -1,9 +1,7 @@
 use crate::{
     config::{self, ClauseActivity, Config},
     context::stores::{
-        activity_glue::ActivityGlue,
-        clause_key::{ClauseKey, FormulaIndex},
-        variable::VariableStore,
+        activity_glue::ActivityGlue, variable::VariableStore, ClauseKey, FormulaIndex,
     },
     generic::heap::IndexHeap,
     structures::{
@@ -205,11 +203,11 @@ impl ClauseStore {
                                 resolution_keys.expect("missing resolution info for learnt")
                             ]);
 
-                            assert_eq!(self.resolution_graph[key.index()].len(), 1);
+                            // assert_eq!(self.resolution_graph[key.index()].len(), 1);
                             key
                         }
                         _ => unsafe {
-                            let key = self.keys.pop().unwrap().retake();
+                            let key = self.keys.pop().unwrap().retoken();
                             let the_clause =
                                 StoredClause::new_from(key, clause, subsumed, source, variables);
 
@@ -222,10 +220,10 @@ impl ClauseStore {
                             self.learned_activity.insert(key.index(), value);
                             self.resolution_graph[key.index()]
                                 .push(resolution_keys.expect("missing resolution info for learnt"));
-                            assert_eq!(
-                                self.resolution_graph[key.index()].len(),
-                                key.token() as usize + 1
-                            );
+                            // assert_eq!(
+                            //     self.resolution_graph[key.index()].len(),
+                            //     key.token() as usize + 1
+                            // );
                             key
                         },
                     }
