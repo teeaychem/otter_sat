@@ -1,0 +1,220 @@
+<HTML>
+<HEAD>
+<TITLE>SATLIB - Benchmark Problems</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="white" TEXT="black" LINK="#0000FF" VLINK="#551A8B" ALINK="#FF0000">
+
+<B><FONT FACE="Arial" SIZE=4><P ALIGN="LEFT">Bounded Model Checking</P>
+</B></FONT><FONT SIZE=2><P ALIGN="LEFT">In Bounded Model Checking (BMC) [BCCZ99], a rather newly introduced problem in formal methods, the task is to check whether a given model <B><I>M</B></I> (typically a hardware design) satisfies a temporal property <B><I>P</B></I> in all paths with length less or equal to some bound <B><I>k</B></I>. The BMC problem can be efficiently reduced to a propositional satisfiability problem, and in fact if the property is in the form of an <I>invariant</I> (Invariants are the most common type of properties, and many other temporal properties can be reduced to their form. It has the form of '<I>it is always true that </I>... '.), it has a structure which is similar to many AI <I>planning </I>problems. </P>
+<P ALIGN="LEFT">The general structure of BMC invariant formulas is the following:</P>
+</FONT><P ALIGN="LEFT"><IMG SRC="Image13.gif" WIDTH=160 HEIGHT=41></P>
+<FONT SIZE=2><P ALIGN="LEFT">Where:</P>
+</FONT><P ALIGN="LEFT"><IMG SRC="Image10.gif" WIDTH=16 HEIGHT=23></P>
+<FONT SIZE=2><P ALIGN="LEFT">&#9;is the initial state, </P>
+</FONT><P ALIGN="LEFT"><IMG SRC="Image11.gif" WIDTH=60 HEIGHT=23></P>
+<FONT SIZE=2><P ALIGN="LEFT">is a formula representing the transition between cycles <I>i</I> and <I>i</I>+1, and</P>
+</FONT><P ALIGN="LEFT"><IMG SRC="Image12.gif" WIDTH=16 HEIGHT=23></P>
+<FONT SIZE=2><P ALIGN="LEFT">is the property in cycle i. </P>
+<P ALIGN="LEFT">It is not hard to see that this formula can be satisfied if and only if there exists a reachable state in cycle <I>i</I> (<I>i</I> </FONT><FONT FACE="Symbol" SIZE=2>£</FONT><FONT SIZE=2> <I>k</I>) which contradicts the property <I>P<SUB>i</I></SUB> . Focusing on potential bugs in a specific cycle can be formulated by simply restricting the disjunction over <I>P<SUB>i</I></SUB> to the appropriate cycle. </P>
+<P ALIGN="LEFT">Normally verification with BMC is based on a gradual process, where <B><I>k</B></I> is increased until either a bug is found or the problem becomes intractable. There is also an upper bound <B><I>D</B></I>, called the <I>diameter</I> of <B><I>M</B></I>, beyond which there is no point to look for bugs, i.e. it can be proven that if the SAT instance corresponding to <B><I>k = D </B></I>is unsatisfiable, then <B><I>M </B></I>satisfies <B><I>P</B></I> for every path length. In mathematical logic terms, this means that for a large enough <B><I>k</B></I>, this method is <I>complete</I>. </P>
+<P ALIGN="LEFT">A tool called (</FONT><A HREF="http://www.cs.cmu.edu/~modelcheck/bmc.html"><FONT SIZE=2>BMC</FONT></A><FONT SIZE=2>), originally developed by Armin Biere, takes an SMV - compatible model (SMV is a popular description language in model checking) and a bound <B><I>k</B></I>, and generates a propositional SAT instance according to the above equation. The size of the generated formula is linear in <B><I>k</B></I>, and indeed empirical results show that <B><I>k</B></I> strongly affects the performance. As a second step, BMC transforms the formula to CNF. <B>&nbsp;</P>
+<P ALIGN="LEFT">The Benchmark instances</P>
+</B><P ALIGN="LEFT">The 13 SAT instances given in the benchmark set are all taken from real industrial hardware designs, a contribution of the </FONT><A HREF="http://www.haifa.il.ibm.com/projects/verification/index.html">verification technologies department</A> <FONT SIZE=2>in the IBM research Laboratory in Haifa (home of </FONT><A HREF="http://www.haifa.il.ibm.com/projects/verification/RB_Homepage/">RuleBase</A><FONT SIZE=2>, the IBM Corporate Model-Checker)</FONT><FONT SIZE=1>, </FONT><FONT SIZE=2>and </FONT><A HREF="http://www.galileot.com/">Galileo</A><FONT SIZE=2> (a leader in communication hardware design and a heavy user of model checking). In all cases the property is in the form of an invariant. </P>
+<P ALIGN="LEFT">All the instances are satisfiable. The fourth column, titled '<B><I>k</B></I>', indicates the number of cycles which the transition was 'unrolled' (e.g. <B><I>k</B></I> = 10 means that the bug can be found after 10 cycles. This is similar to the 'number of steps' indication in planning problems). The fourth and fifth columns indicate the number of variables and clauses, respectively.</P>
+<P ALIGN="LEFT">&nbsp;</P></FONT>
+<TABLE BORDER CELLSPACING=1 BORDERCOLOR="#000000" CELLPADDING=9 WIDTH=931>
+<TR><TD WIDTH="6%" VALIGN="TOP">
+<P ALIGN="LEFT"><B><I><FONT SIZE=2>#</B></I></FONT></TD>
+<TD WIDTH="37%" VALIGN="TOP">
+<B><I><FONT SIZE=2><P ALIGN="LEFT">Instance</B></I></FONT></TD>
+<TD WIDTH="35%" VALIGN="TOP">
+<B><I><FONT SIZE=2><P ALIGN="LEFT">Description</B></I></FONT></TD>
+<TD WIDTH="5%" VALIGN="TOP">
+<B><I><FONT SIZE=2><P ALIGN="LEFT">k</B></I></FONT></TD>
+<TD WIDTH="8%" VALIGN="TOP">
+<B><I><FONT SIZE=2><P ALIGN="LEFT">#vars</B></I></FONT></TD>
+<TD WIDTH="9%" VALIGN="TOP">
+<B><I><FONT SIZE=2><P ALIGN="LEFT">#clauses</B></I></FONT></TD>
+</TR>
+<TR><TD WIDTH="6%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">1</FONT></TD>
+<TD WIDTH="37%" VALIGN="TOP">
+<P ALIGN="LEFT"><A HREF="bmc-ibm-1.cnf">bmc-ibm-1.cnf</A></TD>
+<TD WIDTH="35%" VALIGN="TOP">
+<P ALIGN="LEFT">IBM CPU Part #1</TD>
+<TD WIDTH="5%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">18</FONT></TD>
+<TD WIDTH="8%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">9685</FONT></TD>
+<TD WIDTH="9%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">55870</FONT></TD>
+</TR>
+<TR><TD WIDTH="6%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">2</FONT></TD>
+<TD WIDTH="37%" VALIGN="TOP">
+<P ALIGN="LEFT"><A HREF="bmc-ibm-2.cnf">bmc-ibm-2.cnf</A></TD>
+<TD WIDTH="35%" VALIGN="TOP">
+<P ALIGN="LEFT">IBM CPU Part #2</TD>
+<TD WIDTH="5%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">5</FONT></TD>
+<TD WIDTH="8%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">3628</FONT></TD>
+<TD WIDTH="9%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">14468</FONT></TD>
+</TR>
+<TR><TD WIDTH="6%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">3</FONT></TD>
+<TD WIDTH="37%" VALIGN="TOP">
+<P ALIGN="LEFT"><A HREF="bmc-ibm-3.cnf">bmc-ibm-3.cnf</A></TD>
+<TD WIDTH="35%" VALIGN="TOP">
+<P ALIGN="LEFT">IBM BIU 1996</TD>
+<TD WIDTH="5%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">14</FONT></TD>
+<TD WIDTH="8%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">14930</FONT></TD>
+<TD WIDTH="9%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">72106</FONT></TD>
+</TR>
+<TR><TD WIDTH="6%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">4</FONT></TD>
+<TD WIDTH="37%" VALIGN="TOP">
+<P ALIGN="LEFT"><A HREF="bmc-ibm-4.cnf">bmc-ibm-4.cnf</A></TD>
+<TD WIDTH="35%" VALIGN="TOP">
+<P ALIGN="LEFT">IBM PowerPC BIU #1</TD>
+<TD WIDTH="5%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">24</FONT></TD>
+<TD WIDTH="8%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">28161</FONT></TD>
+<TD WIDTH="9%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">139716</FONT></TD>
+</TR>
+<TR><TD WIDTH="6%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">5</FONT></TD>
+<TD WIDTH="37%" VALIGN="TOP">
+<P ALIGN="LEFT"><A HREF="bmc-ibm-5.cnf">bmc-ibm-5.cnf</A></TD>
+<TD WIDTH="35%" VALIGN="TOP">
+<P ALIGN="LEFT">IBM Arbiter #1</TD>
+<TD WIDTH="5%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">12</FONT></TD>
+<TD WIDTH="8%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">9396</FONT></TD>
+<TD WIDTH="9%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">41207</FONT></TD>
+</TR>
+<TR><TD WIDTH="6%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">6</FONT></TD>
+<TD WIDTH="37%" VALIGN="TOP">
+<P ALIGN="LEFT"><A HREF="bmc-ibm-6.cnf">bmc-ibm-6.cnf</A></TD>
+<TD WIDTH="35%" VALIGN="TOP">
+<P ALIGN="LEFT">IBM LSU 1997</TD>
+<TD WIDTH="5%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">22</FONT></TD>
+<TD WIDTH="8%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">51654</FONT></TD>
+<TD WIDTH="9%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">368367</FONT></TD>
+</TR>
+<TR><TD WIDTH="6%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">7</FONT></TD>
+<TD WIDTH="37%" VALIGN="TOP">
+<P ALIGN="LEFT"><A HREF="bmc-ibm-7.cnf">bmc-ibm-7.cnf</A></TD>
+<TD WIDTH="35%" VALIGN="TOP">
+<P ALIGN="LEFT">IBM Arbiter #2</TD>
+<TD WIDTH="5%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">9</FONT></TD>
+<TD WIDTH="8%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">8710</FONT></TD>
+<TD WIDTH="9%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">39774</FONT></TD>
+</TR>
+<TR><TD WIDTH="6%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">8</FONT></TD>
+<TD WIDTH="37%" VALIGN="TOP">
+<P ALIGN="LEFT"><A HREF="bmc-galileo-8.cnf">bmc-galileo-8.cnf</A></TD>
+<TD WIDTH="35%" VALIGN="TOP">
+<P ALIGN="LEFT">Galileo FIFO #1</TD>
+<TD WIDTH="5%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">35</FONT></TD>
+<TD WIDTH="8%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">58074</FONT></TD>
+<TD WIDTH="9%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">294821</FONT></TD>
+</TR>
+<TR><TD WIDTH="6%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">9</FONT></TD>
+<TD WIDTH="37%" VALIGN="TOP">
+<P ALIGN="LEFT"><A HREF="bmc-galileo-9.cnf">bmc-galileo-9.cnf</A></TD>
+<TD WIDTH="35%" VALIGN="TOP">
+<P ALIGN="LEFT">Galileo FIFO #2</TD>
+<TD WIDTH="5%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">38</FONT></TD>
+<TD WIDTH="8%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">63624</FONT></TD>
+<TD WIDTH="9%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">326999</FONT></TD>
+</TR>
+<TR><TD WIDTH="6%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">10</FONT></TD>
+<TD WIDTH="37%" VALIGN="TOP">
+<P ALIGN="LEFT"><A HREF="bmc-ibm-10.cnf">bmc-ibm-10.cnf</A></TD>
+<TD WIDTH="35%" VALIGN="TOP">
+<P ALIGN="LEFT">IBM PowerPC BIU #2</TD>
+<TD WIDTH="5%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">31</FONT></TD>
+<TD WIDTH="8%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">61088</FONT></TD>
+<TD WIDTH="9%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">334861</FONT></TD>
+</TR>
+<TR><TD WIDTH="6%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">11</FONT></TD>
+<TD WIDTH="37%" VALIGN="TOP">
+<P ALIGN="LEFT"><A HREF="bmc-ibm-11.cnf">bmc-ibm-11.cnf</A></TD>
+<TD WIDTH="35%" VALIGN="TOP">
+<P ALIGN="LEFT">IBM Cache Control #1</TD>
+<TD WIDTH="5%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">32</FONT></TD>
+<TD WIDTH="8%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">32109</FONT></TD>
+<TD WIDTH="9%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">150027</FONT></TD>
+</TR>
+<TR><TD WIDTH="6%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">12</FONT></TD>
+<TD WIDTH="37%" VALIGN="TOP">
+<P ALIGN="LEFT"><A HREF="bmc-ibm-12.cnf">bmc-ibm-12.cnf</A></TD>
+<TD WIDTH="35%" VALIGN="TOP">
+<P ALIGN="LEFT">IBM PowerPC BIU #3</TD>
+<TD WIDTH="5%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">31</FONT></TD>
+<TD WIDTH="8%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">39598</FONT></TD>
+<TD WIDTH="9%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">19477</FONT></TD>
+</TR>
+<TR><TD WIDTH="6%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">13</FONT></TD>
+<TD WIDTH="37%" VALIGN="TOP">
+<P ALIGN="LEFT"><A HREF="bmc-ibm-13.cnf">bmc-ibm-13.cnf</A></TD>
+<TD WIDTH="35%" VALIGN="TOP">
+<P ALIGN="LEFT">IBM Cache Control #2</TD>
+<TD WIDTH="5%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">14</FONT></TD>
+<TD WIDTH="8%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">13215</FONT></TD>
+<TD WIDTH="9%" VALIGN="TOP">
+<FONT SIZE=2><P ALIGN="LEFT">6572</FONT></TD>
+</TR>
+</TABLE>
+
+<FONT SIZE=2><P ALIGN="LEFT">&nbsp;</P>
+<P ALIGN="LEFT">The first 10 instances could be solved with the methods described in [S00], while the 3 last ones could not be solved (they are known to be satisfiable because we used standard BDD-based model checkers to verify them). The accurate results achieved with these designs under various heuristics are listed in the above reference. The SAT solver <B>Chaff </B>is able to solve all 13 designs in about 8 minutes on a Pentium III. / 700 Mhz. </P>
+<B><P ALIGN="LEFT">&#9;</P>
+<P ALIGN="LEFT">Bibliography</P>
+</B><P ALIGN="LEFT">Bounded model checking was introduced in:</P>
+<P ALIGN="LEFT">[BCCZ99] A. Biere and A. Cimatti and E. Clarke and Y. Zhu, </FONT><A HREF="http://www.inf.ethz.ch/personal/biere/papers/BiereCimattiClarkeZhu-TACAS99.ps.gz">Symbolic Model Checking without BDDs</A><FONT SIZE=2>, In the Proc. of the Workshop on Tools and Algorithms for the Construction and Analysis of Systems (TACAS99), lncs, springer, 1999</P>
+<P ALIGN="LEFT">The results for the benchmark are given in: </P>
+<P ALIGN="LEFT">[S00] Ofer Shtrichman, </FONT><A HREF="http://www.wisdom.weizmann.ac.il/~ofers/sat-bmc1.ps">Tuning SAT checkers for Bounded Model Checking</A><FONT SIZE=2>, In E.A. Emerson and A.P. Sistla Eds, Proc. of Computer Aided Verification 2000 (CAV2000), lncs, springer. </P>
+<I><P ALIGN="LEFT">For more information please contact </I></FONT><A HREF="http://www.wisdom.weizmann.ac.il/~ofers"><I><FONT SIZE=2>Ofer Shtrichman</I></FONT></A></P></BODY>
+</HTML>

@@ -1,0 +1,128 @@
+<HTML>
+<HEAD>
+   <TITLE>SATLIB - Benchmark Problems</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="white" TEXT="black" LINK="#0000FF" VLINK="#551A8B" ALINK="#FF0000">
+
+
+<H1>
+Large SAT-encoded Graph Colouring Problems</H1>
+The Graph Colouring problem (GCP) is a well-known combinatorial problem
+from graph theory: Given a graph <I>G=(V,E)</I>, where <I>V={v_1,v_2,...,v_n}</I>
+is the set of vertices and <I>E</I> the set of edges connecting the vertices,
+find a colouring <I>C: V -> <B>N</B></I>, such that connected vertices
+always have different colours. There are two variants of this problem:
+In the optimisation variant, the goal is to find a colouring with a minimal
+number of colours, whereas in the decision variant, the question is to
+decide whether for a particular number of colours, a couloring of the given
+graph exists. The two variants are tightly related, as optimal colourings
+can be found by solving a series of decision problems, using, for instance,
+binary search to determine the minimal number of colours. In the context
+of SAT-encoded Graph Colouring problems, we focus on the decision variant.
+<H4>
+SAT encoding</H4>
+Following earlier approaches in literature, we use a straightforward strategy
+for encoding GCP instances into SAT: Each assignment of a colour to a single
+vertex is represented by a propositional variable; each colouring constraint
+(edge of the graph) is represented by a set of clauses ensuring that the
+corresponding vertices have different colours, and two additional sets
+of clauses ensure that valid SAT assignments assign exactly one colour
+to each vertex.
+<H4>
+Large DIMACS GCP instances</H4> The large graph colouring instances
+included in the DIMACS benchmark test-set&nbsp; (see Table 1) stem
+originally from a study of algorithms for the optimisation variant of
+the graph colouring problem which has focused on Simulated Annealing
+[JAMS89]. The instances stem from randomly generated graphs in which
+an edges between two given vertices is included with a fixed
+probability <i>p</i>. All the instances are satisfiable.<br>
+Interestingly, the instances <I>g125.18.cnf</i> and <I>g125.17.cnf</i>
+are based on the same graph, in the first instance 18-colouring are
+allowed and in the latter only 17 colours are allowed. In fact, when
+trying to solve these two instances with Walksat, instance
+<I>g125.18.cnf</i> is easily solved with reasonable parameter
+settigns, while instance <I>g125.17.cnf</i> is much harder.<br><br>
+
+
+<TABLE BORDER >
+<TR>
+<TD ALIGN=CENTER><B>instance&nbsp;</B></TD>
+
+<TD ALIGN=CENTER><B>colours&nbsp;</B></TD>
+
+<TD ALIGN=CENTER><B>vars&nbsp;</B></TD>
+
+<TD ALIGN=CENTER><B>clauses&nbsp;</B></TD>
+
+<TD ALIGN=CENTER><B>satisfiable?&nbsp;</B></TD>
+</TR>
+
+<TR>
+<TD ALIGN=RIGHT>g125.18.cnf&nbsp;</TD>
+
+<TD ALIGN=RIGHT>18&nbsp;</TD>
+
+<TD ALIGN=RIGHT>2250&nbsp;</TD>
+
+<TD ALIGN=RIGHT>70163&nbsp;</TD>
+
+<TD ALIGN=RIGHT>yes&nbsp;</TD>
+</TR>
+
+<TR>
+<TD ALIGN=RIGHT>g125.17.cnf&nbsp;</TD>
+
+<TD ALIGN=RIGHT>17&nbsp;</TD>
+
+<TD ALIGN=RIGHT>2125&nbsp;</TD>
+
+<TD ALIGN=RIGHT>66272&nbsp;</TD>
+
+<TD ALIGN=RIGHT>yes&nbsp;</TD>
+</TR>
+
+<TR NOSAVE>
+<TD ALIGN=RIGHT>g250.15.cnf</TD>
+
+<TD ALIGN=RIGHT>15&nbsp;</TD>
+
+<TD ALIGN=RIGHT>3750&nbsp;</TD>
+
+<TD ALIGN=RIGHT>233965&nbsp;</TD>
+
+<TD ALIGN=RIGHT>yes&nbsp;</TD>
+</TR>
+
+<TR NOSAVE>
+<TD ALIGN=RIGHT>g250.29.cnf</TD>
+
+<TD ALIGN=RIGHT>29&nbsp;</TD>
+
+<TD ALIGN=RIGHT>7250&nbsp;</TD>
+
+<TD ALIGN=RIGHT>454622&nbsp;</TD>
+
+<TD ALIGN=RIGHT NOSAVE>yes&nbsp;</TD>
+</TR>
+</TABLE><br>
+<B>Table 1:</B> Large SAT-encoded Graph Colouring instances
+<BR>&nbsp;
+<BR>&nbsp;
+
+<H4>Bibliography</H4>
+
+<table>
+<tr>
+<td valign=top><small>[JAMS89]
+<td><small> <I>D.S. Johnson, C.R. Aragon, L.A. McGeoch, and C. Schevon.</I>
+<STRONG>Optimization by 
+Simulated Annealing: An Experimental Evaluation: Part II, Graph Coloring and Number 
+Partitioning.</STRONG>
+<CITE>Operations Research,,</CITE> Vol. 37(6), pages 865-892, 1989.<br>
+</tr>
+</table>
+</small>
+
+</BODY>
+</HTML>

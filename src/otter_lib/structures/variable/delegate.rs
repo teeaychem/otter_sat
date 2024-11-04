@@ -19,6 +19,8 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+use super::WatchElement;
+
 pub enum Status {
     NotSet,
     Match,
@@ -34,9 +36,48 @@ pub struct VariableStore {
     activity_heap: IndexHeap<VariableActivity>,
 }
 
+impl Default for VariableStore {
+    fn default() -> Self {
+        VariableStore {
+            external_map: Vec::<String>::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
+            score_increment: 1.0,
+            variables: Vec::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
+            consequence_q: VecDeque::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
+            string_map: HashMap::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
+            activity_heap: IndexHeap::new(defaults::DEFAULT_VARIABLE_COUNT),
+        }
+    }
+}
+
+impl Deref for VariableStore {
+    type Target = [Variable];
+
+    fn deref(&self) -> &Self::Target {
+        &self.variables
+    }
+}
+
+impl DerefMut for VariableStore {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.variables
+    }
+}
+
 impl VariableStore {
     pub fn id_of(&self, name: &str) -> Option<VariableId> {
         self.string_map.get(name).copied()
+    }
+
+    pub fn add_watch(&mut self, literal: Literal, element: WatchElement) {
+        self.variables
+            .get_unsafe(literal.index())
+            .watch_added(element, literal.polarity());
+    }
+
+    pub fn remove_watch(&mut self, literal: Literal, key: ClauseKey) {
+        self.variables
+            .get_unsafe(literal.index())
+            .watch_removed(key, literal.polarity());
     }
 
     pub fn score_increment(&self) -> VariableActivity {
@@ -83,9 +124,7 @@ impl VariableStore {
     pub fn heap_push(&mut self, index: usize) {
         self.activity_heap.activate(index)
     }
-}
 
-impl VariableStore {
     pub fn new(variables: Vec<Variable>) -> Self {
         let count = variables.len();
 
@@ -116,22 +155,7 @@ impl VariableStore {
         self.external_map.push(name.to_string());
         // self.consequence_buffer;
     }
-}
 
-impl Default for VariableStore {
-    fn default() -> Self {
-        VariableStore {
-            external_map: Vec::<String>::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
-            score_increment: 1.0,
-            variables: Vec::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
-            consequence_q: VecDeque::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
-            string_map: HashMap::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
-            activity_heap: IndexHeap::new(defaults::DEFAULT_VARIABLE_COUNT),
-        }
-    }
-}
-
-impl VariableStore {
     pub fn get_consequence(&mut self) -> Option<(Literal, LiteralSource, LevelIndex)> {
         self.consequence_q.pop_front()
     }
@@ -144,29 +168,14 @@ impl VariableStore {
     #[allow(non_snake_case)]
     /// Bumps the activities of each variable in 'variables'
     /// If given a hint to the max activity the rescore check is performed once on the hint
-    pub fn apply_VSIDS<V: Iterator<Item = usize>>(
-        &mut self,
-        variables: V,
-        hint: Option<VariableActivity>,
-        config: &Config,
-    ) {
-        let activity = config.activity_conflict;
-        match hint {
-            Some(hint) => {
-                if hint + activity > config.activity_max {
-                    self.rescore_activity()
-                }
-                variables.for_each(|index| self.bump_activity(index));
+    pub fn apply_VSIDS<V: Iterator<Item = usize>>(&mut self, variables: V, config: &Config) {
+        for index in variables {
+            if self.activity_of(index) + config.activity_conflict > config.activity_max {
+                self.rescore_activity()
             }
-            None => {
-                for index in variables {
-                    if self.activity_of(index) + activity > config.activity_max {
-                        self.rescore_activity()
-                    }
-                    self.bump_activity(index);
-                }
-            }
+            self.bump_activity(index);
         }
+
         self.exponent_activity(config);
     }
 
@@ -175,21 +184,7 @@ impl VariableStore {
     }
 }
 
-impl Deref for VariableStore {
-    type Target = [Variable];
-
-    fn deref(&self) -> &Self::Target {
-        &self.variables
-    }
-}
-
-impl DerefMut for VariableStore {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.variables
-    }
-}
-
-pub fn push_back_consequence(
+pub fn queue_consequence(
     variables: &mut VariableStore,
     literal: Literal,
     source: LiteralSource,
@@ -198,24 +193,19 @@ pub fn push_back_consequence(
     match variables.set_value(literal, level, source) {
         Ok(_) => {}
         Err(_) => match source {
-            LiteralSource::Missed(clause_key, _)
-            | LiteralSource::Resolution(clause_key)
-            | LiteralSource::BinaryPropagation(clause_key)
-            | LiteralSource::Clause(clause_key) => {
-                // self.status = ClauseStatus::NoSolution(clause_key);
-                return Err(clause_key);
-            }
             LiteralSource::Assumption => panic!("failed to update on assumption"),
             LiteralSource::Choice => panic!("failed to update on choice"),
             LiteralSource::Pure => panic!("issue on pure update"),
-            LiteralSource::Propagation(clause_key) => {
-                // self.status = ClauseStatus::NoSolution(clause_key);
+            LiteralSource::Missed(clause_key)
+            | LiteralSource::Resolution(clause_key)
+            | LiteralSource::Propagation(clause_key)
+            | LiteralSource::Analysis(clause_key) => {
                 return Err(clause_key);
             }
         },
     };
 
-    // todo: improve
+    // TODO: improve push back consequence
     // easy would be to keep track of pending of each variable, then direct lookup
     if !variables
         .consequence_q

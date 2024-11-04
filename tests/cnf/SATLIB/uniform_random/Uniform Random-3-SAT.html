@@ -1,0 +1,172 @@
+<HTML>
+<HEAD>
+<TITLE>SATLIB - Benchmark Problems</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="white" TEXT="black" LINK="#0000FF" VLINK="#551A8B" ALINK="#FF0000">
+
+
+<H1>Uniform Random-3-SAT</H1>
+
+Uniform Random-3-SAT is a family of SAT problems 
+distributions obtained by randomly generating 3-CNF formulae
+in the following way: 
+For an instance with <i>n</i> variables and <i>k</i> clauses, 
+each of the <i>k</i> clauses is constructed from 3 literals
+which are randomly drawn from the <i>2n</i> possible literals
+(the <i>n</i> variables and their negations)
+such that each possible literal is selected with the same probability
+of <i>1/2n</i>.
+Clauses are not accepted for the construction of the problem
+instance if they contain multiple copies of the same literal
+or if they are tautological (i.e., they contain a variable
+and its negation as a literal).
+Each choice of <i>n</i> and <i>k</i> thus induces a distribution
+of Random-3-SAT instances. Uniform Random-3-SAT is the
+union of these distributions over all <i>n</i> and <i>k</i>.
+
+
+<h4>Forced vs. unforced generation</h4>
+
+Random-3-SAT instances can be satisfiable or unsatisfiable.
+Since the behaviour of SAT algorithms can be expected to
+differ significantly between satisfiable and unsatisfiable instances,
+we seperated these into different test-sets using
+a complete algorithm. As complete SAT algorithms have usually
+considerable higher run-times than (incomplete) SLS algorithms,
+this approach for generating benchmark problems is computationally
+very expensive, especially when dealing with larger problem sizes.
+Therefore, especially when dealing with satisfiable instances, 
+it would be preferable to generate the instances
+in a way such that their satisfiability (or unsatisfiability) is guaranteed
+by construction. 
+
+<p>
+For generating satisfiable instances, one possibility for achieving this 
+is to randomly determine
+a variable assignment <i>B</i> at the beginning of the generation process.
+Then, the clauses are generated as before, but only clauses which are
+compatible with <i>B</i> (i.e., clauses which have <i>B</i> as a model) 
+are accepted for the formula <i>F</i> to be constructed. Thus,
+<i>F</i> has at least one model (namely <i>B</i>).
+The problem distributions thus obtained are called 
+``forced'' uniform Random-3-SAT problems; earlier literature on SLS
+algorithms for SAT used these for evaluating algorithms, until
+it was noticed that these problems tend to be much easier
+to solve for SLS algorithms then ``unforced'' problems obtained
+as described before. It has been speculated for some time that
+the reason for this phenomenon might be that in forced formulae,
+the clause are somehow guiding the SLS algorithm into the right
+direction. 
+
+
+<h4>Phase transitions</h4>
+
+One particularly interesting property of uniform Random-3-SAT
+is the occurence of a phase transition phenomenon [CKT91], i.e., 
+a rapid change in solubility which can be observed when
+systematically increasing (or decreasing) the number of <i>k</i> clauses
+for fixed problem size <i>n</i>.
+More precisely, for small <i>k</i> almost all formulae are 
+satisfiable; at some critical <i>k=k'</i>, the probability
+of generating a satisfiable instance drops sharply to almost zero.
+Beyond <i>k'</i>, almost all instances are unsatisfiable.
+Intuitively, <i>k'</i> characterises the transition between
+a region of underconstrained instances which are almost
+certainly soluble, to overconstrained instanced which are mostly
+insoluble. For Random-3-SAT, this phase transition occurs 
+approximately at <i>k' = 4.26 n</i> for large <i>n</i>; 
+for smaller <i>n</i>, the critical clauses/variable ratio
+<i>k'/n</i> is slightly higher. Furthermore, for growing <i>n</i>
+the transition becomes increasingly sharp.
+
+The phase transition would not be very interesting in the context
+of evaluating SLS algorithms, didn't empirical analyses show that
+problems from the phase transition region of uniform Random-3-SAT
+tend to be particularly hard for both systematic SAT solvers
+<!-- \cite{??} --> and SLS algorithms <!-- \cite{??} -->.
+Striving for testing their algorithms on hard problem instances,
+many researchers used test-sets sampled from the phase transition
+region of uniform Random-3-SAT (see <!-- \cite{??,??,??} --> for some examples).
+Although, similar phase transition phenomena have been observed
+for other subclasses of SAT, including uniform Random-<i>k</i>-SAT
+with <i>k >= 4</i>, but these have never gained the popularity of
+uniform Random-3-SAT <!-- \cite{??} -->. Maybe, one of the reasons for this is 
+the the prominent role of 3-SAT as a prototypical and syntactically 
+particularly simple NP-complete problem. <br>
+
+
+<h4>The benchmark test-sets</h4>
+
+The test-sets provided here are sampled from the phase transition 
+region of uniform Random-3-SAT. The instances were generated in an 
+unforced way and were separated into test-sets of satisfiable and 
+unsatisfiable instances . The characteristics of these
+test-sets are shown in Table 1. The smallest
+problems (20 variables) are typically used for studying scaling 
+properties. Due to limited computational resources,
+only the test-sets for n=20,50,100 contain
+1000 instances, while for larger problem sizes
+each test-set contains 100 instances.
+
+
+<p>
+<table border=1>
+<tr>
+<td align=center><b> test-set <td align=center><b> instances
+<td align=center><b> clause-len <td align=center><b> vars <td align=center><b> clauses
+<tr>
+<td align=right> uf20-91 <td align=right> 1000 
+<td align=right> 3 <td align=right> 20 <td align=right> 91
+<tr>
+<td align=right> uf50-218 / uuf50-218<td align=right> 1000 
+<td align=right> 3 <td align=right> 50 <td align=right> 218
+<tr>
+<td align=right> uf75-325 / uuf75-325 <td align=right> 100
+<td align=right> 3 <td align=right> 75 <td align=right> 325
+<tr>
+<td align=right> uf100-430 / uuf100-430 <td align=right> 1000 
+<td align=right> 3 <td align=right> 100 <td align=right> 430
+<tr>
+<td align=right> uf125-538 / uuf125-538 <td align=right> 100
+<td align=right> 3 <td align=right> 125 <td align=right> 538
+<tr>
+<td align=right> uf150-645 / uuf150-645 <td align=right> 100
+<td align=right> 3 <td align=right> 150 <td align=right> 645
+<tr>
+<td align=right> uf175-753 / uuf175-753 <td align=right> 100
+<td align=right> 3 <td align=right> 175 <td align=right> 753
+<tr>
+<td align=right> uf200-860 / uuf200-860 <td align=right> 100 
+<td align=right> 3 <td align=right> 200 <td align=right> 860
+<tr>
+<td align=right> uf225-960 / uuf225-960 <td align=right> 100
+<td align=right> 3 <td align=right> 225 <td align=right> 960
+<tr>
+<td align=right> uf250-1065 / uuf250-1065 <td align=right> 100
+<td align=right> 3 <td align=right> 250 <td align=right> 1065
+</table>
+<p>
+<b>Table 1:</b> Uniform Random-3-SAT test-sets;
+      test-sets uf* contain only satisfiable instances,
+      uuf* only unsatisfiable instances.
+
+
+<p><br>
+<h4>Bibliography</h4>
+
+<table>
+<tr>
+<td valign=top><small>[CKT91]
+<td><small> <I>Peter Cheeseman and Bob Kanefsky and William
+M. Taylor</I>
+<STRONG><A
+HREF="http://ic-www.arc.nasa.gov/fia/projects/bayes-group/group/NP/ijcai91/paper/IJCAI91-paper.html">Where the really hard problems are</A>.</STRONG>
+<CITE>Proc. IJCAI-91,</CITE> pages 331--337, 1991<br>
+<tr>
+</table>
+
+
+</body>
+</html>
+
