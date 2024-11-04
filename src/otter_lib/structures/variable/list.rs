@@ -1,8 +1,8 @@
 use crate::{
-    context::level::Level,
+    context::{level::Level, stores::variable::ValueStatus},
     structures::{
         literal::{Literal, LiteralSource},
-        variable::{Status, Variable},
+        variable::Variable,
     },
 };
 
@@ -13,16 +13,14 @@ pub trait VariableList {
 
     fn value_of(&self, index: usize) -> Option<bool>;
 
-    fn check_literal(&self, literal: Literal) -> Status;
+    fn check_literal(&self, literal: Literal) -> ValueStatus;
 
     fn set_value(
         &self,
         literal: Literal,
         level: &mut Level,
         source: LiteralSource,
-    ) -> Result<Status, Status>;
-
-    fn retract_valuation(&mut self, index: usize);
+    ) -> Result<ValueStatus, ValueStatus>;
 
     fn slice(&self) -> &[Variable];
 
@@ -50,12 +48,12 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
         unsafe { self.get_unchecked(index).value() }
     }
 
-    fn check_literal(&self, literal: Literal) -> Status {
+    fn check_literal(&self, literal: Literal) -> ValueStatus {
         let maybe_value = unsafe { self.get_unchecked(literal.index()) };
         match maybe_value.value() {
-            Some(already_set) if already_set == literal.polarity() => Status::Match,
-            Some(_already_set) => Status::Conflict,
-            None => Status::Set,
+            Some(already_set) if already_set == literal.polarity() => ValueStatus::Match,
+            Some(_already_set) => ValueStatus::Conflict,
+            None => ValueStatus::Set,
         }
     }
 
@@ -64,24 +62,17 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
         literal: Literal,
         level: &mut Level,
         source: LiteralSource,
-    ) -> Result<Status, Status> {
+    ) -> Result<ValueStatus, ValueStatus> {
         log::trace!(target: crate::log::targets::VALUATION, "Set: {}", literal);
         let variable = unsafe { self.get_unchecked(literal.index()) };
         match variable.value() {
-            Some(value) if value != literal.polarity() => Err(Status::Conflict),
-            Some(_value) => Ok(Status::Match),
+            Some(value) if value != literal.polarity() => Err(ValueStatus::Conflict),
+            Some(_value) => Ok(ValueStatus::Match),
             None => {
                 variable.set_value(Some(literal.polarity()), Some(level.index()));
                 level.record_literal(literal, source);
-                Ok(Status::Set)
+                Ok(ValueStatus::Set)
             }
-        }
-    }
-
-    fn retract_valuation(&mut self, index: usize) {
-        log::trace!(target: crate::log::targets::VALUATION, "Cleared: {index}");
-        unsafe {
-            self.get_unchecked_mut(index).set_value(None, None);
         }
     }
 

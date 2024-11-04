@@ -1,4 +1,4 @@
-use crate::{context::store::ClauseKey, structures::variable::VariableId};
+use crate::{context::stores::clause_key::ClauseKey, structures::variable::VariableId};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Literal {

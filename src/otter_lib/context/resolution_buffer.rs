@@ -2,12 +2,12 @@ use crate::{
     config::{Config, StoppingCriteria},
     context::{
         level::Level,
-        store::{ClauseKey, ClauseStore},
+        stores::{clause::ClauseStore, clause_key::ClauseKey, variable::VariableStore},
     },
     structures::{
         clause::Clause,
         literal::{Literal, LiteralSource},
-        variable::{delegate::VariableStore, list::VariableList, VariableId},
+        variable::{list::VariableList, VariableId},
     },
 };
 

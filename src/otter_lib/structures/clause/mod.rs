@@ -2,11 +2,10 @@ pub mod stored;
 
 use crate::{
     config::GlueStrength,
+    context::stores::variable::VariableStore,
     structures::{literal::Literal, variable::list::VariableList},
 };
 use std::ops::Deref;
-
-use super::variable::delegate::VariableStore;
 
 pub trait Clause {
     fn as_string(&self) -> String;

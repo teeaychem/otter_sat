@@ -1,9 +1,9 @@
 use crate::{
-    context::store::ClauseKey,
+    context::stores::{clause_key::ClauseKey, variable::VariableStore},
     structures::{
         clause::Clause,
         literal::Literal,
-        variable::{delegate::VariableStore, list::VariableList, WatchElement},
+        variable::{list::VariableList, WatchElement},
     },
 };
 

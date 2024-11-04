@@ -6,7 +6,7 @@ mod preprocessing;
 pub mod reports;
 mod resolution_buffer;
 pub mod solve;
-pub mod store;
+pub mod stores;
 
 use {
     crate::{
@@ -16,9 +16,9 @@ use {
             Config,
         },
         io::window::ContextWindow,
-        structures::{literal::Literal, variable::delegate::VariableStore},
+        structures::literal::Literal,
     },
-    store::{ClauseKey, ClauseStore},
+    stores::{clause::ClauseStore, clause_key::ClauseKey, variable::VariableStore},
 };
 
 use level::LevelStore;
@@ -37,6 +37,7 @@ pub struct Counters {
     pub restarts: usize,
     pub time: Duration,
     pub luby: crate::generic::luby::Luby,
+    rng: RngChoice,
 }
 
 impl Default for Counters {
@@ -49,6 +50,7 @@ impl Default for Counters {
             time: Duration::from_secs(0),
             conflicts: 0,
             luby: crate::generic::luby::Luby::default(),
+            rng: RngChoice::seed_from_u64(defaults::RNG_SEED), //RngChoice::new(0,1)
         }
     }
 }
@@ -61,7 +63,7 @@ pub struct Context {
     pub config: config::Config,
     pub window: Option<ContextWindow>,
     pub status: SolveStatus,
-    rng: RngChoice,
+
     pub proofs: Vec<(Literal, Vec<ClauseKey>)>,
 }
 
@@ -101,7 +103,7 @@ pub enum Report {
 
 impl Context {
     pub fn default_config(config: Config) -> Self {
-        Self::with_size_hints(1024, 32768, config)
+        Self::with_size_hints(2048, 32768, config)
     }
 
     pub fn with_size_hints(variable_count: usize, clause_count: usize, config: Config) -> Self {
@@ -118,7 +120,6 @@ impl Context {
             config,
             window: the_window,
             status: SolveStatus::Initialised,
-            rng: RngChoice::seed_from_u64(defaults::RNG_SEED), //RngChoice::new(0,1)
             proofs: Vec::new(),
         }
     }
@@ -134,7 +135,6 @@ impl Default for Context {
             config: Config::default(),
             window: None,
             status: SolveStatus::Initialised,
-            rng: RngChoice::seed_from_u64(defaults::RNG_SEED),
             proofs: Vec::new(),
         }
     }
