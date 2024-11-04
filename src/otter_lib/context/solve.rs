@@ -130,10 +130,13 @@ impl Context {
 
     fn conflict_ceremony(&mut self, config: &Config) {
         self.counters.conflicts += 1;
-        self.counters.conflicts_since_last_forget += 1;
-        self.counters.conflicts_since_last_reset += 1;
+        self.counters.conflicts_in_memory += 1;
 
-        if self.it_is_time_to_restart(config.luby_constant) {
+        if self.counters.conflicts_in_memory
+            % (config.luby_constant * self.counters.luby.current()) as usize
+            == 0
+        {
+            self.counters.luby.next();
             if let Some(window) = &self.window {
                 window.update_counters(&self.counters);
                 window.flush();
@@ -142,7 +145,7 @@ impl Context {
             if config.restarts_allowed {
                 self.backjump(0);
                 self.counters.restarts += 1;
-                self.counters.conflicts_since_last_forget = 0;
+                self.counters.conflicts_in_memory = 0;
             }
 
             if config.reduction_allowed
