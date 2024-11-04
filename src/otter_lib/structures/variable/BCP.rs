@@ -1,5 +1,5 @@
 use crate::{
-    context::store::ClauseKey,
+    context::stores::clause_key::ClauseKey,
     context::Context,
     structures::{
         clause::stored::WatchStatus,
@@ -7,13 +7,6 @@ use crate::{
         variable::list::VariableList,
     },
 };
-
-pub enum PropagationInfo {
-    BinaryQueue(ClauseKey),
-    BinaryInspection(ClauseKey),
-    LongQueue(ClauseKey),
-    LongInspection(ClauseKey),
-}
 
 use crate::log::targets::PROPAGATION as LOG_PROPAGATION;
 
@@ -105,7 +98,7 @@ impl Context {
                             None => {
                                 match self.q_literal(the_watch, LiteralSource::BCP(*clause_key)) {
                                     Ok(()) => {}
-                                    Err(_key) => {
+                                    Err(_) => {
                                         log::trace!(target: LOG_PROPAGATION, "Queuing consueqnece of {clause_key} {literal} failed.");
                                         return Err(*clause_key);
                                     }

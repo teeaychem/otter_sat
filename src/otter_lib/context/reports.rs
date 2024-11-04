@@ -1,5 +1,5 @@
 use crate::{
-    context::{store::ClauseKey, Context},
+    context::{stores::clause_key::ClauseKey, Context},
     structures::{clause::Clause, literal::LiteralSource},
 };
 

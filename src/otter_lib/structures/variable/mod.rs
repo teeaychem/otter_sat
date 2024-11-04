@@ -1,4 +1,4 @@
-use crate::context::{level::LevelIndex, store::ClauseKey};
+use crate::context::{level::LevelIndex, stores::clause_key::ClauseKey};
 use std::cell::UnsafeCell;
 
 use super::literal::Literal;
@@ -6,7 +6,6 @@ use super::literal::Literal;
 #[allow(non_snake_case)]
 pub mod BCP;
 pub mod core;
-pub mod delegate;
 pub mod list;
 
 pub type VariableId = u32;
@@ -26,11 +25,4 @@ pub struct Variable {
     positive_occurrences_binary: UnsafeCell<Vec<WatchElement>>,
     negative_occurrences: UnsafeCell<Vec<WatchElement>>,
     negative_occurrences_binary: UnsafeCell<Vec<WatchElement>>,
-}
-
-#[derive(Debug)]
-pub enum Status {
-    Set,
-    Match,
-    Conflict,
 }
