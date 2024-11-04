@@ -4,7 +4,7 @@ pub type VariableActivity = f64;
 pub type ClauseActivity = f64;
 pub type DecayFrequency = u8;
 pub type GlueStrength = u8;
-pub type LubyConstant = usize;
+pub type LubyConstant = crate::generic::luby::LubyType;
 pub type PolarityLean = f64;
 pub type RandomChoiceFrequency = f64;
 

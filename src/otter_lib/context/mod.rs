@@ -31,24 +31,24 @@ use std::time::Duration;
 
 pub struct Counters {
     pub conflicts: usize,
-    pub conflicts_since_last_forget: usize,
-    pub conflicts_since_last_reset: usize,
+    pub conflicts_in_memory: usize,
     pub decisions: usize,
     pub iterations: usize,
     pub restarts: usize,
     pub time: Duration,
+    pub luby: crate::generic::luby::Luby,
 }
 
 impl Default for Counters {
     fn default() -> Self {
         Counters {
-            conflicts_since_last_forget: 0,
-            conflicts_since_last_reset: 0,
+            conflicts_in_memory: 0,
             decisions: 0,
             iterations: 0,
             restarts: 0,
             time: Duration::from_secs(0),
             conflicts: 0,
+            luby: crate::generic::luby::Luby::default(),
         }
     }
 }
