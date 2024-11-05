@@ -22,27 +22,35 @@ pub enum AnalysisResult {
     AssertingClause(ClauseKey, Literal),
 }
 
-pub enum AnalysisIssue {
+pub enum AnalysisError {
     ResolutionStore,
     EmptyResolution,
     NoAssertion,
     Buffer(BufferIssue),
+    ClauseStore,
+    FailedStoppingCriteria,
+}
+
+impl From<ClauseStoreError> for AnalysisError {
+    fn from(_: ClauseStoreError) -> Self {
+        AnalysisError::ClauseStore
+    }
 }
 
 use crate::log::targets::ANALYSIS as LOG_ANALYSIS;
 
-use super::resolution_buffer::BufferIssue;
+use super::{resolution_buffer::BufferIssue, stores::clause::ClauseStoreError};
 impl Context {
     pub fn conflict_analysis(
         &mut self,
         clause_key: ClauseKey,
         config: &Config,
-    ) -> Result<AnalysisResult, AnalysisIssue> {
+    ) -> Result<AnalysisResult, AnalysisError> {
         log::trace!(target: LOG_ANALYSIS, "Analysis called on {clause_key} at level {}", self.levels.index());
         if self.levels.index() == 0 {
             return Ok(AnalysisResult::FundamentalConflict(clause_key));
         }
-        let conflict_clause = self.clause_store.get(clause_key);
+        let conflict_clause = self.clause_store.get(clause_key)?;
         // log::trace!(target: LOG_ANALYSIS, "Clause {conflict_clause}");
 
         if let config::VSIDS::Chaff = config.vsids_variant {
@@ -61,7 +69,7 @@ impl Context {
         the_buffer.clear_literals(self.levels.top().literals());
         match the_buffer.set_inital_clause(&conflict_clause.deref(), clause_key) {
             Ok(()) => {}
-            Err(e) => return Err(AnalysisIssue::Buffer(e)),
+            Err(e) => return Err(AnalysisError::Buffer(e)),
         };
 
         if let Some(asserted_literal) = the_buffer.asserts() {
@@ -79,10 +87,12 @@ impl Context {
             match buffer_status {
                 Ok(BufferStatus::FirstUIP) => {}
                 Ok(BufferStatus::Exhausted) => {
-                    assert_ne!(config.stopping_criteria, StoppingCriteria::FirstUIP)
+                    if config.stopping_criteria == StoppingCriteria::FirstUIP {
+                        return Err(AnalysisError::FailedStoppingCriteria);
+                    }
                 }
                 Err(buffer_issue) => {
-                    return Err(AnalysisIssue::Buffer(buffer_issue));
+                    return Err(AnalysisError::Buffer(buffer_issue));
                 }
             }
             the_buffer.strengthen_given(self.proven_literals());
@@ -104,27 +114,27 @@ impl Context {
             let the_literal = match asserted_literal {
                 None => {
                     log::error!(target: crate::log::targets::ANALYSIS, "Failed to resolve to an asserting clause");
-                    return Err(AnalysisIssue::NoAssertion);
+                    return Err(AnalysisError::NoAssertion);
                 }
                 Some(literal) => literal,
             };
 
             match resolved_clause.len() {
-                0 => Err(AnalysisIssue::EmptyResolution),
+                0 => Err(AnalysisError::EmptyResolution),
                 1 => {
                     self.proofs.push((the_literal, the_buffer.trail().to_vec()));
                     Ok(AnalysisResult::Proof(clause_key, the_literal))
                 }
                 _ => {
-                    let Ok(clause) = self.store_clause(
+                    let Ok(clause_key) = self.store_clause(
                         resolved_clause,
                         Vec::default(),
                         ClauseSource::Resolution,
                         Some(the_buffer.trail().to_vec()),
                     ) else {
-                        return Err(AnalysisIssue::ResolutionStore);
+                        return Err(AnalysisError::ResolutionStore);
                     };
-                    Ok(AnalysisResult::AssertingClause(clause.key(), the_literal))
+                    Ok(AnalysisResult::AssertingClause(clause_key, the_literal))
                 }
             }
         }

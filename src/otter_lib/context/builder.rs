@@ -1,6 +1,6 @@
 use crate::{
     config::Config,
-    context::Context,
+    context::{stores::clause::ClauseStoreError, Context},
     structures::{
         clause::stored::ClauseSource,
         literal::{Literal, LiteralSource},
@@ -10,7 +10,7 @@ use crate::{
 
 use std::{io::BufRead, path::PathBuf};
 
-use super::core::ContextIssue;
+use super::core::ContextError;
 
 #[derive(Debug)]
 pub enum BuildIssue {
@@ -18,9 +18,9 @@ pub enum BuildIssue {
     AssumptionConflict,
     AssumptionDirectConflict,
     AssumptionIndirectConflict,
-    ClauseEmpty,
     Parse(ParseIssue),
     OopsAllTautologies,
+    ClauseStore(ClauseStoreError),
 }
 
 #[derive(Debug)]
@@ -59,12 +59,15 @@ impl Context {
         Ok(Literal::new(the_variable, polarity))
     }
 
-    pub fn assume(&mut self, literal: Literal) -> Result<(), BuildIssue> {
-        assert_eq!(self.levels.index(), 0);
+    pub fn assume(&mut self, literal: Literal) -> Result<(), ContextError> {
+        if self.levels.index() != 0 {
+            return Err(ContextError::AssumptionAfterChoice);
+        }
+
         let assumption_result = self.q_literal(literal, LiteralSource::Assumption);
         match assumption_result {
             Ok(_) => Ok(()),
-            Err(_) => Err(BuildIssue::AssumptionConflict),
+            Err(_) => Err(ContextError::AssumptionConflict),
         }
     }
 
@@ -86,7 +89,7 @@ impl Context {
 
     pub fn preprocess_and_store_clause(&mut self, clause: Vec<Literal>) -> Result<(), BuildIssue> {
         match clause.len() {
-            0 => Err(BuildIssue::ClauseEmpty),
+            0 => Err(BuildIssue::ClauseStore(ClauseStoreError::EmptyClause)),
             1 => {
                 let literal = unsafe { *clause.get_unchecked(0) };
                 match self.assume(literal) {
@@ -137,8 +140,8 @@ impl Context {
                             None,
                         ) {
                             Ok(_) => {}
-                            Err(ContextIssue::EmptyClause) => {
-                                return Err(BuildIssue::ClauseEmpty);
+                            Err(e) => {
+                                return Err(BuildIssue::ClauseStore(e));
                             }
                         }
                     }

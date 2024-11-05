@@ -80,6 +80,7 @@ impl Context {
                 match clause.update_watch(literal, &mut self.variables) {
                     Ok(WatchStatus::TwoWitness) | Ok(WatchStatus::TwoNone) => {
                         log::error!(target: LOG_PROPAGATION, "Length two clause found in long list.");
+                        println!("here");
                         return Err(BCPIssue::CorruptWatch);
                     }
                     Ok(WatchStatus::Witness) | Ok(WatchStatus::None) => {

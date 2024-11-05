@@ -19,3 +19,5 @@ pub const DEFAULT_ACTIVITY: config::VariableActivity = 0.0;
 pub const DEFAULT_VARIABLE_COUNT: usize = 1024;
 
 pub const RNG_SEED: u64 = 0;
+
+pub const VERBOSITY: u8 = 2;

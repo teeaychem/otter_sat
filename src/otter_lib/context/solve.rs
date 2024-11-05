@@ -15,6 +15,8 @@ use crate::{
     },
 };
 
+use super::core::StepError;
+
 impl Context {
     pub fn solve(&mut self) -> Result<Report, ContextFailure> {
         let this_total_time = std::time::Instant::now();
@@ -45,18 +47,24 @@ impl Context {
             }
 
             match self.step(&config_clone) {
-                Ok(_) => continue 'solve_loop,
-                Err(StepInfo::Backfall) => panic!("Backjumping failed"),
-                Err(StepInfo::AnalysisFailure) => panic!("Analysis failed"),
-                Err(StepInfo::ChoiceFailure) => panic!("Choice failure"),
-                Err(_) => {
-                    break 'solve_loop Ok(self.report());
+                Ok(StepInfo::One) => continue 'solve_loop,
+                Ok(StepInfo::ChoiceMade) => continue 'solve_loop,
+                Ok(StepInfo::ChoicesExhausted) => break 'solve_loop Ok(self.report()),
+                Ok(StepInfo::Conflict(_)) => break 'solve_loop Ok(self.report()),
+
+                Err(StepError::EmptyClause) => break 'solve_loop Ok(self.report()),
+
+                Err(StepError::Backfall) => panic!("Backjumping failed"),
+                Err(StepError::AnalysisFailure) => panic!("Analysis failed"),
+                Err(StepError::ChoiceFailure) => panic!("Choice failure"),
+                Err(e) => {
+                    panic!("{e:?}");
                 }
             }
         }
     }
 
-    pub fn step(&mut self, config: &Config) -> Result<(), StepInfo> {
+    pub fn step(&mut self, config: &Config) -> Result<StepInfo, StepError> {
         self.counters.iterations += 1;
 
         'search: while let Some((literal, _source, _)) = self.variables.get_consequence() {
@@ -65,20 +73,20 @@ impl Context {
                 Err(BCPIssue::Conflict(key)) => {
                     let Ok(analysis_result) = self.conflict_analysis(key, config) else {
                         log::error!(target: crate::log::targets::STEP, "Conflict analysis failed.");
-                        return Err(StepInfo::AnalysisFailure);
+                        return Err(StepError::AnalysisFailure);
                     };
 
                     match analysis_result {
                         AnalysisResult::FundamentalConflict(key) => {
                             self.status = SolveStatus::NoSolution(key);
 
-                            return Err(StepInfo::Conflict(key));
+                            return Ok(StepInfo::Conflict(key));
                         }
 
                         AnalysisResult::QueueConflict(key) => {
                             self.status = SolveStatus::NoSolution(key);
 
-                            return Err(StepInfo::Conflict(key));
+                            return Ok(StepInfo::Conflict(key));
                         }
 
                         AnalysisResult::Proof(key, literal) => {
@@ -88,23 +96,23 @@ impl Context {
 
                             match self.q_literal(literal, LiteralSource::Resolution(key)) {
                                 Ok(()) => {}
-                                Err(_) => return Err(StepInfo::QueueProof(key)),
+                                Err(_) => return Err(StepError::QueueProof(key)),
                             }
                         }
 
                         AnalysisResult::MissedImplication(key, literal) => {
                             self.status = SolveStatus::MissedImplication(key);
 
-                            let the_clause = self.clause_store.get(key);
+                            let the_clause = self.clause_store.get(key)?;
 
                             match self.backjump_level(the_clause.literal_slice()) {
-                                None => return Err(StepInfo::Backfall),
+                                None => return Err(StepError::Backfall),
                                 Some(index) => self.backjump(index),
                             }
 
                             match self.q_literal(literal, LiteralSource::Missed(key)) {
                                 Ok(()) => {}
-                                Err(_) => return Err(StepInfo::QueueConflict(key)),
+                                Err(_) => return Err(StepError::QueueConflict(key)),
                             };
 
                             continue 'search;
@@ -113,24 +121,24 @@ impl Context {
                         AnalysisResult::AssertingClause(key, literal) => {
                             self.status = SolveStatus::AssertingClause(key);
 
-                            let the_clause = self.clause_store.get(key);
+                            let the_clause = self.clause_store.get(key)?;
 
                             match self.backjump_level(the_clause.literal_slice()) {
-                                None => return Err(StepInfo::Backfall),
+                                None => return Err(StepError::Backfall),
                                 Some(index) => self.backjump(index),
                             }
 
                             match self.q_literal(literal, LiteralSource::Analysis(key)) {
                                 Ok(()) => {}
-                                Err(_) => return Err(StepInfo::QueueConflict(key)),
+                                Err(_) => return Err(StepError::QueueConflict(key)),
                             }
 
-                            self.conflict_ceremony(config);
-                            return Ok(());
+                            self.conflict_ceremony(config)?;
+                            return Ok(StepInfo::One);
                         }
                     }
                 }
-                Err(BCPIssue::CorruptWatch) => return Err(StepInfo::CorruptWatch),
+                Err(BCPIssue::CorruptWatch) => return Err(StepError::CorruptWatch),
             }
         }
 
@@ -139,7 +147,7 @@ impl Context {
 }
 
 impl Context {
-    fn conflict_ceremony(&mut self, config: &Config) {
+    fn conflict_ceremony(&mut self, config: &Config) -> Result<(), StepError> {
         self.counters.conflicts += 1;
         self.counters.conflicts_in_memory += 1;
 
@@ -163,12 +171,13 @@ impl Context {
                 && ((self.counters.restarts % config.reduction_interval) == 0)
             {
                 log::debug!(target: crate::log::targets::REDUCTION, "Reduction after {} restarts", self.counters.restarts);
-                self.clause_store.reduce(config);
+                self.clause_store.reduce(config)?;
             }
         }
+        Ok(())
     }
 
-    fn make_choice(&mut self, config: &Config) -> Result<(), StepInfo> {
+    fn make_choice(&mut self, config: &Config) -> Result<StepInfo, StepError> {
         match self.get_unassigned(config) {
             Some(choice_index) => {
                 self.counters.decisions += 1;
@@ -190,15 +199,15 @@ impl Context {
                 };
                 match self.q_literal(choice_literal, LiteralSource::Choice) {
                     Ok(()) => {}
-                    Err(_) => return Err(StepInfo::ChoiceFailure),
+                    Err(_) => return Err(StepError::ChoiceFailure),
                 };
 
                 self.status = SolveStatus::ChoiceMade;
-                Ok(())
+                Ok(StepInfo::ChoiceMade)
             }
             None => {
                 self.status = SolveStatus::FullValuation;
-                Err(StepInfo::ChoicesExhausted)
+                Ok(StepInfo::ChoicesExhausted)
             }
         }
     }

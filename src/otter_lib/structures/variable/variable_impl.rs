@@ -5,7 +5,7 @@ use crate::{
 
 use std::cell::UnsafeCell;
 
-use super::WatchElement;
+use super::{WatchElement, WatchError};
 
 impl Variable {
     pub fn new(id: VariableId) -> Self {
@@ -52,39 +52,32 @@ impl Variable {
     Swap remove on keys
     If guarantee that key appears once then this could break early
     As this shuffles the list any heuristics on traversal order are affected
-    Retain version commented for comparison
      */
-    pub fn watch_removed(&self, clause_key: ClauseKey, polarity: bool) {
+    pub fn watch_removed(&self, key: ClauseKey, polarity: bool) -> Result<(), WatchError> {
         unsafe {
-            match clause_key {
+            match key {
                 ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
                     let list = match polarity {
                         true => &mut *self.positive_occurrences.get(),
                         false => &mut *self.negative_occurrences.get(),
                     };
-                    // list.retain(|element|
-                    //     match element {
-                    //         WatchElement::Binary(_, _) => panic!("binary in clause watch"),
-                    //         WatchElement::Clause(key) if *key != clause_key => true,
-                    //         WatchElement::Clause(_) => false
-                    //     }
-                    // );
                     let mut index = 0;
                     let mut limit = list.len();
                     while index < limit {
-                        let WatchElement::Clause(key) = list.get_unchecked(index) else {
-                            panic!("binary in clause list")
+                        let WatchElement::Clause(list_key) = list.get_unchecked(index) else {
+                            return Err(WatchError::BinaryInLong);
                         };
 
-                        if *key == clause_key {
+                        if *list_key == key {
                             list.swap_remove(index);
                             limit -= 1;
                         } else {
                             index += 1;
                         }
                     }
+                    Ok(())
                 }
-                ClauseKey::Binary(_) => panic!("attempt to remove the watches for a binary clause"),
+                ClauseKey::Binary(_) => Err(WatchError::BinaryInLong),
             }
         }
     }

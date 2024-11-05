@@ -13,7 +13,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
 use otter_lib::{
     config::Config,
-    context::builder::BuildIssue,
+    context::{builder::BuildIssue, stores::clause::ClauseStoreError, Report},
     io::{cli::cli, files::context_from_path},
 };
 
@@ -29,34 +29,65 @@ fn main() {
     let matches = cli().get_matches();
     let config = Config::from_args(&matches);
 
-    let Some(formula_paths) = matches.get_raw("paths") else {
+    let Some(mut formula_paths) = matches.get_raw("paths") else {
         println!("c Could not find formula paths");
-        std::process::exit(15);
+        std::process::exit(1);
     };
 
-    for path in formula_paths {
-        let mut the_context = match context_from_path(PathBuf::from(path), &config) {
-            Ok(context) => context,
-            Err(BuildIssue::OopsAllTautologies) => {
-                if config.show_stats {
-                    println!("c All clauses of the formula are tautological");
-                }
-                println!("s SATISFIABLE");
-                std::process::exit(0);
-            }
-            Err(BuildIssue::ClauseEmpty) => {
-                if config.show_stats {
-                    println!("c The formula contains an empty clause so is interpreted as ⊥");
-                }
-                println!("s UNSATISFIABLE");
-                std::process::exit(0);
-            }
-            Err(e) => {
-                println!("c Unexpected error when building: {e:?}");
-                std::process::exit(2);
-            }
-        };
-        let _the_result = the_context.solve();
-        the_context.print_status();
+    if config.verbosity > 0 {
+        println!("c Found {} formulas\n", formula_paths.len());
     }
+
+    match formula_paths.len() {
+        1 => {
+            let the_path = PathBuf::from(formula_paths.next().unwrap());
+            let the_report = process_formula(the_path, &config);
+            match the_report {
+                otter_lib::context::Report::Satisfiable => std::process::exit(10),
+                otter_lib::context::Report::Unsatisfiable => std::process::exit(20),
+                otter_lib::context::Report::Unknown => std::process::exit(30),
+            }
+        }
+        _ => {
+            for path in formula_paths {
+                process_formula(PathBuf::from(path), &config);
+                println!();
+            }
+            std::process::exit(0)
+        }
+    }
+}
+
+fn process_formula(path: PathBuf, config: &Config) -> Report {
+    let mut the_context = match context_from_path(path, config) {
+        Ok(context) => context,
+        Err(BuildIssue::OopsAllTautologies) => {
+            if config.verbosity > 0 {
+                println!("c All clauses of the formula are tautological");
+            }
+            println!("s SATISFIABLE");
+            std::process::exit(10);
+        }
+        Err(BuildIssue::ClauseStore(ClauseStoreError::EmptyClause)) => {
+            if config.verbosity > 0 {
+                println!("c The formula contains an empty clause so is interpreted as ⊥");
+            }
+            println!("s UNSATISFIABLE");
+            std::process::exit(20);
+        }
+        Err(e) => {
+            println!("c Unexpected error when building: {e:?}");
+            std::process::exit(2);
+        }
+    };
+    let the_report = match the_context.solve() {
+        Ok(report) => report,
+        Err(e) => {
+            println!("Context error: {e:?}");
+            std::process::exit(1);
+        }
+    };
+
+    the_context.print_status();
+    the_report
 }

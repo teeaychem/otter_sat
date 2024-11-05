@@ -35,9 +35,10 @@ pub enum WatchStatus {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum SubsumptionIssue {
+pub enum SubsumptionError {
     ShortClause(usize),
     NoPivot,
+    WatchError,
 }
 
 impl StoredClause {
@@ -140,10 +141,10 @@ impl StoredClause {
         literal: Literal,
         variables: &mut VariableStore,
         fix_watch: bool,
-    ) -> Result<usize, SubsumptionIssue> {
-        if self.clause.len() <= 2 {
+    ) -> Result<usize, SubsumptionError> {
+        if self.clause.len() < 3 {
             log::error!(target: crate::log::targets::SUBSUMPTION, "Subsumption attempted on non-long clause");
-            return Err(SubsumptionIssue::ShortClause(self.len()));
+            return Err(SubsumptionError::ShortClause(self.len()));
         }
         let mut position = {
             let search = self
@@ -153,7 +154,7 @@ impl StoredClause {
             match search {
                 None => {
                     log::error!(target: crate::log::targets::SUBSUMPTION, "Pivot not found for subsumption");
-                    return Err(SubsumptionIssue::NoPivot);
+                    return Err(SubsumptionError::NoPivot);
                 }
                 Some(p) => p,
             }
@@ -167,9 +168,12 @@ impl StoredClause {
         let removed = self.clause.swap_remove(position);
         self.subsumed_literals.push(removed);
 
-        if fix_watch && position == self.last {
-            variables.remove_watch(removed, self.key);
+        match variables.remove_watch(removed, self.key) {
+            Ok(()) => {}
+            Err(_) => return Err(SubsumptionError::WatchError),
+        };
 
+        if fix_watch && position == self.last {
             let clause_length = self.clause.len();
             self.last = 1;
             for index in 1..clause_length {

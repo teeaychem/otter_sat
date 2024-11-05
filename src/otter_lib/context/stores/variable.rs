@@ -10,7 +10,7 @@ use crate::{
     generic::heap::IndexHeap,
     structures::{
         literal::{Literal, LiteralSource},
-        variable::{list::VariableList, Variable, VariableId, WatchElement},
+        variable::{list::VariableList, Variable, VariableId, WatchElement, WatchError},
     },
 };
 
@@ -87,10 +87,10 @@ impl VariableStore {
             .watch_added(element, literal.polarity());
     }
 
-    pub fn remove_watch(&mut self, literal: Literal, key: ClauseKey) {
+    pub fn remove_watch(&mut self, literal: Literal, key: ClauseKey) -> Result<(), WatchError> {
         self.variables
             .get_unsafe(literal.index())
-            .watch_removed(key, literal.polarity());
+            .watch_removed(key, literal.polarity())
     }
 
     pub fn heap_pop_most_active(&mut self) -> Option<usize> {

@@ -10,9 +10,27 @@ use crate::{
             Clause,
         },
         literal::Literal,
-        variable::WatchElement,
+        variable::{WatchElement, WatchError},
     },
 };
+
+#[derive(Debug, Clone, Copy)]
+pub enum ClauseStoreError {
+    TransferBinary,
+    TransferWatch,
+    MissingLearned,
+    InvalidKeyToken,
+    InvalidKeyIndex,
+    EmptyClause,
+    UnitClause,
+    StorageExhausted,
+}
+
+impl From<WatchError> for ClauseStoreError {
+    fn from(_: WatchError) -> Self {
+        ClauseStoreError::TransferWatch
+    }
+}
 
 pub struct ClauseStore {
     counts: ClauseStoreCounts,
@@ -84,25 +102,31 @@ impl ClauseStore {
 }
 
 impl ClauseStore {
-    fn new_formula_id(&mut self) -> ClauseKey {
-        assert!(self.counts.formula < FormulaIndex::MAX);
+    fn new_formula_id(&mut self) -> Result<ClauseKey, ClauseStoreError> {
+        if self.counts.formula == FormulaIndex::MAX {
+            return Err(ClauseStoreError::StorageExhausted);
+        }
         let key = ClauseKey::Formula(self.counts.formula);
         self.counts.formula += 1;
-        key
+        Ok(key)
     }
 
-    fn new_binary_id(&mut self) -> ClauseKey {
-        assert!(self.counts.binary < FormulaIndex::MAX);
+    fn new_binary_id(&mut self) -> Result<ClauseKey, ClauseStoreError> {
+        if self.counts.binary == FormulaIndex::MAX {
+            return Err(ClauseStoreError::StorageExhausted);
+        }
         let key = ClauseKey::Binary(self.counts.binary);
         self.counts.binary += 1;
-        key
+        Ok(key)
     }
 
-    fn new_learned_id(&mut self) -> ClauseKey {
-        assert!(self.learned_slots < FormulaIndex::MAX);
+    fn new_learned_id(&mut self) -> Result<ClauseKey, ClauseStoreError> {
+        if self.learned_slots == FormulaIndex::MAX {
+            return Err(ClauseStoreError::StorageExhausted);
+        }
         let key = ClauseKey::Learned(self.learned_slots, 0);
         self.learned_slots += 1;
-        key
+        Ok(key)
     }
 }
 
@@ -112,21 +136,26 @@ impl ClauseStore {
             ClauseKey::Formula(index) => self.formula.get(index as usize),
             ClauseKey::Binary(index) => self.binary.get(index as usize),
             ClauseKey::Learned(index, token) => match self.learned.get(index as usize) {
-                Some(Some(clause)) if clause.key().token() == token => Some(clause),
+                Some(Some(clause)) => match clause.key() {
+                    ClauseKey::Learned(_, clause_token) if clause_token == token => Some(clause),
+                    _ => None,
+                },
                 _ => None,
             },
         }
     }
 
-    pub fn get(&self, key: ClauseKey) -> &StoredClause {
+    pub fn get(&self, key: ClauseKey) -> Result<&StoredClause, ClauseStoreError> {
         match key {
-            ClauseKey::Formula(index) => unsafe { self.formula.get_unchecked(index as usize) },
-            ClauseKey::Binary(index) => unsafe { self.binary.get_unchecked(index as usize) },
+            ClauseKey::Formula(index) => unsafe { Ok(self.formula.get_unchecked(index as usize)) },
+            ClauseKey::Binary(index) => unsafe { Ok(self.binary.get_unchecked(index as usize)) },
             ClauseKey::Learned(index, token) => unsafe {
                 match self.learned.get_unchecked(index as usize) {
-                    Some(clause) if clause.key().token() == token => clause,
-                    None => panic!("missing {key:?}"),
-                    Some(_) => panic!("reuse {key:?}"),
+                    Some(clause) => match clause.key() {
+                        ClauseKey::Learned(_, clause_token) if clause_token == token => Ok(clause),
+                        _ => Err(ClauseStoreError::InvalidKeyToken),
+                    },
+                    None => Err(ClauseStoreError::InvalidKeyIndex),
                 }
             },
         }
@@ -137,21 +166,30 @@ impl ClauseStore {
             ClauseKey::Formula(index) => self.formula.get_mut(index as usize),
             ClauseKey::Binary(index) => self.binary.get_mut(index as usize),
             ClauseKey::Learned(index, token) => match self.learned.get_mut(index as usize) {
-                Some(Some(clause)) if clause.key().token() == token => Some(clause),
+                Some(Some(clause)) => match clause.key() {
+                    ClauseKey::Learned(_, clause_token) if clause_token == token => Some(clause),
+                    _ => None,
+                },
                 _ => None,
             },
         }
     }
 
-    pub fn get_mut(&mut self, key: ClauseKey) -> &mut StoredClause {
+    pub fn get_mut(&mut self, key: ClauseKey) -> Result<&mut StoredClause, ClauseStoreError> {
         match key {
-            ClauseKey::Formula(index) => unsafe { self.formula.get_unchecked_mut(index as usize) },
-            ClauseKey::Binary(index) => unsafe { self.binary.get_unchecked_mut(index as usize) },
+            ClauseKey::Formula(index) => unsafe {
+                Ok(self.formula.get_unchecked_mut(index as usize))
+            },
+            ClauseKey::Binary(index) => unsafe {
+                Ok(self.binary.get_unchecked_mut(index as usize))
+            },
             ClauseKey::Learned(index, token) => unsafe {
                 match self.learned.get_unchecked_mut(index as usize) {
-                    Some(clause) if clause.key().token() == token => clause,
-                    None => panic!("missing {key:?}"),
-                    Some(_) => panic!("reuse {key:?}"),
+                    Some(clause) => match clause.key() {
+                        ClauseKey::Learned(_, clause_token) if clause_token == token => Ok(clause),
+                        _ => Err(ClauseStoreError::InvalidKeyToken),
+                    },
+                    None => Err(ClauseStoreError::InvalidKeyIndex),
                 }
             },
         }
@@ -164,30 +202,32 @@ impl ClauseStore {
         subsumed: Vec<Literal>,
         variables: &mut VariableStore,
         resolution_keys: Option<Vec<ClauseKey>>,
-    ) -> ClauseKey {
+    ) -> Result<ClauseKey, ClauseStoreError> {
         match clause.len() {
+            0 => Err(ClauseStoreError::EmptyClause),
+            1 => Err(ClauseStoreError::UnitClause),
             2 => {
-                let key = self.new_binary_id();
+                let key = self.new_binary_id()?;
                 self.binary.push(StoredClause::new_from(
                     key, clause, subsumed, source, variables,
                 ));
                 self.binary_graph.push(resolution_keys.unwrap_or_default());
-                key
+                Ok(key)
             }
             _ => match source {
                 ClauseSource::Formula => {
-                    let key = self.new_formula_id();
+                    let key = self.new_formula_id()?;
                     self.formula.push(StoredClause::new_from(
                         key, clause, subsumed, source, variables,
                     ));
-                    key
+                    Ok(key)
                 }
                 ClauseSource::Resolution => {
                     log::trace!(target: crate::log::targets::CLAUSE_STORE, "Learning clause {}", clause.as_string());
                     self.counts.learned += 1;
                     match self.keys.len() {
                         0 => {
-                            let key = self.new_learned_id();
+                            let key = self.new_learned_id()?;
                             let the_clause =
                                 StoredClause::new_from(key, clause, subsumed, source, variables);
 
@@ -204,10 +244,10 @@ impl ClauseStore {
                             ]);
 
                             // assert_eq!(self.resolution_graph[key.index()].len(), 1);
-                            key
+                            Ok(key)
                         }
                         _ => unsafe {
-                            let key = self.keys.pop().unwrap().retoken();
+                            let key = self.keys.pop().unwrap().retoken()?;
                             let the_clause =
                                 StoredClause::new_from(key, clause, subsumed, source, variables);
 
@@ -220,11 +260,7 @@ impl ClauseStore {
                             self.learned_activity.insert(key.index(), value);
                             self.resolution_graph[key.index()]
                                 .push(resolution_keys.expect("missing resolution info for learnt"));
-                            // assert_eq!(
-                            //     self.resolution_graph[key.index()].len(),
-                            //     key.token() as usize + 1
-                            // );
-                            key
+                            Ok(key)
                         },
                     }
                 }
@@ -263,23 +299,25 @@ impl ClauseStore {
         &mut self,
         key: ClauseKey,
         variables: &mut VariableStore,
-        literal: Literal,
-    ) -> Result<ClauseKey, ()> {
+    ) -> Result<ClauseKey, ClauseStoreError> {
         match key {
             ClauseKey::Binary(_) => {
                 log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
-                return Err(());
+                Err(ClauseStoreError::TransferBinary)
             }
             ClauseKey::Formula(index) => {
                 let formula_clause = &self.formula[index as usize];
                 let copied_clause = formula_clause.literal_slice().to_vec();
-                let binary_key = self.new_binary_id();
 
-                assert_eq!(copied_clause.len(), 2);
+                if copied_clause.len() != 2 {
+                    log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
+                    return Err(ClauseStoreError::TransferBinary);
+                }
 
-                variables.remove_watch(literal, key);
-                variables.remove_watch(unsafe { *copied_clause.get_unchecked(0) }, key);
-                variables.remove_watch(unsafe { *copied_clause.get_unchecked(1) }, key);
+                let binary_key = self.new_binary_id()?;
+
+                variables.remove_watch(unsafe { *copied_clause.get_unchecked(0) }, key)?;
+                variables.remove_watch(unsafe { *copied_clause.get_unchecked(1) }, key)?;
 
                 // as a new clause is created there's no need to add watches as in the learnt case
 
@@ -296,21 +334,23 @@ impl ClauseStore {
                 Ok(binary_key)
             }
             ClauseKey::Learned(_, _) => {
-                let mut the_clause = self.remove_from_learned(key.index());
-                assert_eq!(the_clause.len(), 2);
+                let mut the_clause = self.remove_from_learned(key.index())?;
 
-                let binary_key = self.new_binary_id();
+                if the_clause.len() != 2 {
+                    log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
+                    return Err(ClauseStoreError::TransferBinary);
+                }
+
+                let binary_key = self.new_binary_id()?;
                 the_clause.key = binary_key;
 
-                variables.remove_watch(literal, key);
+                let watch_a = unsafe { *the_clause.get_unchecked(0) };
+                let watch_b = unsafe { *the_clause.get_unchecked(1) };
 
-                let a = unsafe { *the_clause.get_unchecked(0) };
-                let b = unsafe { *the_clause.get_unchecked(1) };
-
-                variables.remove_watch(a, key);
-                variables.remove_watch(b, key);
-                variables.add_watch(a, WatchElement::Binary(b, binary_key));
-                variables.add_watch(b, WatchElement::Binary(a, binary_key));
+                variables.remove_watch(watch_a, key)?;
+                variables.remove_watch(watch_b, key)?;
+                variables.add_watch(watch_a, WatchElement::Binary(watch_b, binary_key));
+                variables.add_watch(watch_b, WatchElement::Binary(watch_a, binary_key));
 
                 self.binary.push(the_clause);
                 self.binary_graph.push(vec![key]);
@@ -322,7 +362,7 @@ impl ClauseStore {
     }
 
     // TODO: figure some improvement…
-    pub fn reduce(&mut self, config: &Config) {
+    pub fn reduce(&mut self, config: &Config) -> Result<(), ClauseStoreError> {
         let limit = self.counts.learned as usize / 2;
         'reduction_loop: for _ in 0..limit {
             if let Some(index) = self.learned_activity.peek_max() {
@@ -331,13 +371,14 @@ impl ClauseStore {
                     break 'reduction_loop;
                 } else {
                     self.learned_activity.remove(index);
-                    self.remove_from_learned(index);
+                    self.remove_from_learned(index)?;
                 }
             } else {
                 log::warn!(target: crate::log::targets::REDUCTION, "Reduction called but there were no candidates");
             }
         }
         log::debug!(target: crate::log::targets::REDUCTION, "Learnt clauses reduced to: {}", self.counts.learned);
+        Ok(())
     }
 
     pub fn bump_activity(&mut self, key: ClauseKey, config: &Config) {
@@ -371,9 +412,10 @@ impl ClauseStore {
     Removing from learned checks to ensure removal is ok
     As the elements are optional for reuse, take places None at the index, as would be needed anyway
      */
-    fn remove_from_learned(&mut self, index: usize) -> StoredClause {
+    fn remove_from_learned(&mut self, index: usize) -> Result<StoredClause, ClauseStoreError> {
         if unsafe { self.learned.get_unchecked(index) }.is_none() {
-            panic!("attempt to remove something that is not there")
+            log::error!(target: crate::log::targets::CLAUSE_STORE, "attempt to remove something that is not there");
+            Err(ClauseStoreError::MissingLearned)
         } else {
             // assert!(matches!(the_clause.key(), ClauseKey::LearnedLong(_, _)));
             let the_clause =
@@ -381,7 +423,7 @@ impl ClauseStore {
             self.learned_activity.remove(index);
             self.keys.push(the_clause.key());
             self.counts.learned -= 1;
-            the_clause
+            Ok(the_clause)
         }
     }
 }

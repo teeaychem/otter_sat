@@ -2,7 +2,7 @@ use crate::{
     config::{Config, StoppingCriteria},
     context::stores::{clause::ClauseStore, level::Level, variable::VariableStore, ClauseKey},
     structures::{
-        clause::{stored::SubsumptionIssue, Clause},
+        clause::{stored::SubsumptionError, Clause},
         literal::{Literal, LiteralSource},
         variable::{list::VariableList, VariableId},
     },
@@ -36,7 +36,7 @@ pub enum BufferStatus {
 #[derive(Debug)]
 pub enum BufferIssue {
     MissingClause,
-    Subsumption(SubsumptionIssue),
+    Subsumption(SubsumptionError),
     SatisfiedResolution,
     Transfer,
 }
@@ -168,7 +168,7 @@ impl ResolutionBuffer {
                                     match source_clause.subsume(*literal, variables, false) {
                                         Ok(_) => {
                                             let Ok(new_key) = stored_clauses
-                                                .transfer_to_binary(*the_key, variables, *literal)
+                                                .transfer_to_binary(*the_key, variables)
                                             else {
                                                 return Err(BufferIssue::Transfer);
                                             };
