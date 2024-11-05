@@ -41,7 +41,7 @@ fn main() {
     match formula_paths.len() {
         1 => {
             let the_path = PathBuf::from(formula_paths.next().unwrap());
-            let the_report = process_formula(the_path, &config);
+            let the_report = report_on_formula(the_path, &config);
             match the_report {
                 otter_lib::context::Report::Satisfiable => std::process::exit(10),
                 otter_lib::context::Report::Unsatisfiable => std::process::exit(20),
@@ -50,7 +50,7 @@ fn main() {
         }
         _ => {
             for path in formula_paths {
-                process_formula(PathBuf::from(path), &config);
+                report_on_formula(PathBuf::from(path), &config);
                 println!();
             }
             std::process::exit(0)
@@ -58,7 +58,7 @@ fn main() {
     }
 }
 
-fn process_formula(path: PathBuf, config: &Config) -> Report {
+fn report_on_formula(path: PathBuf, config: &Config) -> Report {
     let mut the_context = match context_from_path(path, config) {
         Ok(context) => context,
         Err(BuildIssue::OopsAllTautologies) => {
@@ -87,7 +87,6 @@ fn process_formula(path: PathBuf, config: &Config) -> Report {
             std::process::exit(1);
         }
     };
-
     the_context.print_status();
     the_report
 }

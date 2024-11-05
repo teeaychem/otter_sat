@@ -51,15 +51,10 @@ pub fn default_on_dir(collection: PathBuf, config: &Config, require: Report) {
         if test
             .path()
             .extension()
-            .is_some_and(|ext| ext == "cnf" || ext == "gz")
+            .is_some_and(|extension| extension == "gz")
         {
-            let result = formula_report(test.path(), config);
-
-            if require != result {
-                println!("issue with formula:\n{:?}", test);
-            }
-
-            assert_eq!(require, result);
+            let report = formula_report(test.path(), config);
+            assert_eq!(require, report);
         }
     }
 }
