@@ -319,11 +319,17 @@ impl ClauseStore {
     }
 
     // TODO: figure some improvement…
-    pub fn reduce(&mut self) {
+    pub fn reduce(&mut self, config: &Config) {
         let limit = self.counts.learned as usize / 2;
-        for _ in 0..limit {
-            if let Some(index) = self.learned_activity.pop_max() {
-                self.remove_from_learned(index);
+        'reduction_loop: for _ in 0..limit {
+            if let Some(index) = self.learned_activity.peek_max() {
+                let value = self.learned_activity.value_at(index);
+                if value.lbd < config.glue_strength {
+                    break 'reduction_loop;
+                } else {
+                    self.learned_activity.remove(index);
+                    self.remove_from_learned(index);
+                }
             } else {
                 panic!("reduce issue")
             }

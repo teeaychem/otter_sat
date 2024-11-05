@@ -8,7 +8,7 @@ pub const CLAUSE_DECAY_FACTOR: config::ClauseActivity = 20.0;
 
 pub const REDUCTION_INTERVAL: usize = 5 * 10_usize.pow(2);
 
-pub const GLUE_STRENGTH: config::GlueStrength = 3;
+pub const GLUE_STRENGTH: config::GlueStrength = 8;
 pub const LUBY_U: config::LubyConstant = 128;
 pub const POLARITY_LEAN: config::PolarityLean = 0.0;
 pub const RANDOM_CHOICE_FREQUENCY: config::RandomChoiceFrequency = 0.0;

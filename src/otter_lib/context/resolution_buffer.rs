@@ -2,7 +2,7 @@ use crate::{
     config::{Config, StoppingCriteria},
     context::stores::{clause::ClauseStore, level::Level, variable::VariableStore, ClauseKey},
     structures::{
-        clause::Clause,
+        clause::{stored::SubsumptionIssue, Clause},
         literal::{Literal, LiteralSource},
         variable::{list::VariableList, VariableId},
     },
@@ -31,6 +31,13 @@ pub struct ResolutionBuffer {
 pub enum BufferStatus {
     FirstUIP,
     Exhausted,
+}
+
+#[derive(Debug)]
+pub enum BufferIssue {
+    MissingClause,
+    Subsumption(SubsumptionIssue),
+    SatisfiedResolution,
 }
 
 impl ResolutionBuffer {
@@ -62,9 +69,13 @@ impl ResolutionBuffer {
         }
     }
 
-    pub fn set_inital_clause(&mut self, clause: &impl Clause, key: ClauseKey) {
+    pub fn set_inital_clause(
+        &mut self,
+        clause: &impl Clause,
+        key: ClauseKey,
+    ) -> Result<(), BufferIssue> {
         self.trail.push(key);
-        self.merge_clause(clause);
+        self.merge_clause(clause)
     }
 
     #[allow(dead_code)]
@@ -115,7 +126,7 @@ impl ResolutionBuffer {
         stored_clauses: &mut ClauseStore,
         variables: &mut VariableStore,
         config: &Config,
-    ) -> BufferStatus {
+    ) -> Result<BufferStatus, BufferIssue> {
         for (source, literal) in level.observations().iter().rev() {
             if let LiteralSource::Analysis(the_key)
             | LiteralSource::BCP(the_key)
@@ -124,8 +135,8 @@ impl ResolutionBuffer {
             {
                 let source_clause = match stored_clauses.get_carefully_mut(*the_key) {
                     None => {
-                        println!("missing key {the_key:?} @ {}", level.index());
-                        panic!("failed to find resolution clause")
+                        log::error!(target: crate::log::targets::RESOLUTION, "Failed to find resolution clause {the_key:?}");
+                        return Err(BufferIssue::MissingClause);
                     }
                     Some(clause) => clause,
                 };
@@ -159,7 +170,7 @@ impl ResolutionBuffer {
                                                 .transfer_to_binary(*the_key, variables, *literal);
                                             self.trail.push(new_key);
                                         }
-                                        Err(e) => panic!("{e:?}"),
+                                        Err(e) => return Err(BufferIssue::Subsumption(e)),
                                     };
                                 }
                             },
@@ -168,7 +179,7 @@ impl ResolutionBuffer {
                                     Ok(_) => {
                                         self.trail.push(*the_key);
                                     }
-                                    Err(e) => panic!("{e:?}"),
+                                    Err(e) => return Err(BufferIssue::Subsumption(e)),
                                 };
                             }
                         }
@@ -176,14 +187,14 @@ impl ResolutionBuffer {
 
                     if self.valueless_count == 1 {
                         match config.stopping_criteria {
-                            StoppingCriteria::FirstUIP => return BufferStatus::FirstUIP,
+                            StoppingCriteria::FirstUIP => return Ok(BufferStatus::FirstUIP),
                             StoppingCriteria::None => {}
                         }
                     };
                 }
             }
         }
-        BufferStatus::Exhausted
+        Ok(BufferStatus::Exhausted)
     }
 
     /// Remove literals which conflict with those at level zero from the clause
@@ -226,7 +237,7 @@ impl ResolutionBuffer {
 
 impl ResolutionBuffer {
     /// Merge a clause into the buffer
-    fn merge_clause(&mut self, clause: &impl Clause) {
+    fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), BufferIssue> {
         for literal in clause.literal_slice() {
             match self.buffer.get(literal.index()).expect("lost literal") {
                 ResolutionCell::ConflictLiteral(_) | ResolutionCell::NoneLiteral(_) => {}
@@ -244,17 +255,22 @@ impl ResolutionBuffer {
                         self.clause_length += 1;
                         self.set(literal.index(), ResolutionCell::ConflictLiteral(*literal))
                     }
-                    Some(_) => panic!("resolution to a satisfied clause"),
+                    Some(_) => {
+                        log::error!(target: crate::log::targets::RESOLUTION, "Resolution to a satisfied clause");
+
+                        return Err(BufferIssue::SatisfiedResolution);
+                    }
                 },
                 ResolutionCell::Strengthened => {}
             }
         }
+        Ok(())
     }
 
-    fn resolve_clause(&mut self, clause: &impl Clause, using: Literal) -> Result<(), ()> {
+    fn resolve_clause(&mut self, clause: &impl Clause, using: Literal) -> Result<(), BufferIssue> {
         match unsafe { *self.buffer.get_unchecked(using.index()) } {
             ResolutionCell::NoneLiteral(literal) if using == !literal => {
-                self.merge_clause(clause);
+                self.merge_clause(clause)?;
                 self.clause_length -= 1;
                 self.set(using.index(), ResolutionCell::Pivot);
                 self.valueless_count -= 1;
@@ -262,13 +278,13 @@ impl ResolutionBuffer {
                 Ok(())
             }
             ResolutionCell::ConflictLiteral(literal) if using == !literal => {
-                self.merge_clause(clause);
+                self.merge_clause(clause)?;
                 self.clause_length -= 1;
                 self.set(using.index(), ResolutionCell::Pivot);
 
                 Ok(())
             }
-            _ => Err(()),
+            _ => Err(BufferIssue::MissingClause),
         }
     }
 
