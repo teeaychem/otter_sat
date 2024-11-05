@@ -1,26 +1,41 @@
 use crate::{
     context::{stores::ClauseKey, Context, Report, SolveStatus},
-    structures::{
-        clause::stored::{ClauseSource, StoredClause},
-        literal::Literal,
-        variable::list::VariableList,
-    },
+    structures::{clause::stored::ClauseSource, literal::Literal, variable::list::VariableList},
 };
 
+use super::stores::clause::ClauseStoreError;
+
 #[derive(Debug, Clone, Copy)]
-pub enum ContextIssue {
+pub enum ContextError {
     EmptyClause,
+    AssumptionAfterChoice,
+    AssumptionConflict,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum StepInfo {
     Conflict(ClauseKey),
+    ChoicesExhausted,
+    ChoiceMade,
+    One,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum StepError {
     QueueConflict(ClauseKey),
     QueueProof(ClauseKey),
-    ChoicesExhausted,
     Backfall,
     AnalysisFailure,
     ChoiceFailure,
     CorruptWatch,
+    ClauseStore(ClauseStoreError),
+    EmptyClause,
+}
+
+impl From<ClauseStoreError> for StepError {
+    fn from(value: ClauseStoreError) -> Self {
+        StepError::ClauseStore(value)
+    }
 }
 
 #[derive(Debug)]
@@ -51,21 +66,15 @@ impl Context {
         subsumed: Vec<Literal>,
         source: ClauseSource,
         resolution_keys: Option<Vec<ClauseKey>>,
-    ) -> Result<&StoredClause, ContextIssue> {
-        if clause.is_empty() {
-            return Err(ContextIssue::EmptyClause);
-        }
-        assert!(clause.len() > 1, "Attempt to add a short clause");
-
+    ) -> Result<ClauseKey, ClauseStoreError> {
         let clause_key = self.clause_store.insert(
             source,
             clause,
             subsumed,
             &mut self.variables,
             resolution_keys,
-        );
-        let the_clause = self.clause_store.get_mut(clause_key);
-        Ok(the_clause)
+        )?;
+        Ok(clause_key)
     }
 
     pub fn print_status(&self) {
@@ -82,14 +91,12 @@ impl Context {
                 if self.config.show_valuation {
                     println!("v {}", self.valuation_string());
                 }
-                // std::process::exit(10);
             }
             SolveStatus::NoSolution(clause_key) => {
                 println!("s UNSATISFIABLE");
                 if self.config.show_core {
-                    self.display_core(clause_key);
+                    let _ = self.display_core(clause_key);
                 }
-                // std::process::exit(20);
             }
             SolveStatus::NoClauses => {
                 if self.config.verbosity > 0 {
@@ -104,7 +111,6 @@ impl Context {
                     }
                 }
                 println!("s UNKNOWN");
-                // std::process::exit(30);
             }
         }
     }

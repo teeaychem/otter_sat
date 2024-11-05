@@ -55,7 +55,7 @@ impl Default for Config {
             time_limit: None,
             vsids_variant: VSIDS_VARIANT,
             reduction_interval: REDUCTION_INTERVAL,
-            verbosity: 0,
+            verbosity: VERBOSITY,
         }
     }
 }

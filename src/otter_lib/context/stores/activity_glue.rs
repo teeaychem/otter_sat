@@ -26,7 +26,7 @@ impl PartialOrd for ActivityGlue {
             std::cmp::Ordering::Less => std::cmp::Ordering::Greater,
             std::cmp::Ordering::Greater => std::cmp::Ordering::Less,
             std::cmp::Ordering::Equal => match self.activity.partial_cmp(&other.activity) {
-                None => panic!("could not compare activity/lbd"),
+                None => std::cmp::Ordering::Equal, // TODO: consider
                 Some(comparison) => match comparison {
                     std::cmp::Ordering::Less => std::cmp::Ordering::Greater,
                     std::cmp::Ordering::Greater => std::cmp::Ordering::Less,

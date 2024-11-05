@@ -3,10 +3,22 @@ use crate::{
     structures::{clause::Clause, literal::LiteralSource},
 };
 
+use super::stores::clause::ClauseStoreError;
+
+pub enum ReportError {
+    ClauseStore,
+}
+
+impl From<ClauseStoreError> for ReportError {
+    fn from(_: ClauseStoreError) -> Self {
+        ReportError::ClauseStore
+    }
+}
+
 impl Context {
     #[allow(clippy::single_match)]
     /// Display an unsatisfiable core given some conflict.
-    pub fn get_unsat_core(&self, conflict_key: ClauseKey) -> Vec<ClauseKey> {
+    pub fn get_unsat_core(&self, conflict_key: ClauseKey) -> Result<Vec<ClauseKey>, ReportError> {
         println!("c An unsatisfiable core of the formula:\n",);
 
         /*
@@ -46,7 +58,7 @@ impl Context {
             if key_set.insert(key) {
                 match key {
                     ClauseKey::Formula(_) => {
-                        let clause = self.clause_store.get(key);
+                        let clause = self.clause_store.get(key)?;
 
                         core_keys.insert(key);
 
@@ -100,13 +112,15 @@ impl Context {
             }
         }
 
-        core_keys.into_iter().collect()
+        Ok(core_keys.into_iter().collect())
     }
 
-    pub fn display_core(&self, conflict_key: ClauseKey) {
-        for key in self.get_unsat_core(conflict_key) {
-            let clause = self.clause_store.get(key);
+    pub fn display_core(&self, conflict_key: ClauseKey) -> Result<(), ReportError> {
+        let the_core = self.get_unsat_core(conflict_key)?;
+        for key in the_core {
+            let clause = self.clause_store.get(key)?;
             println!("{}", clause.as_dimacs(&self.variables));
         }
+        Ok(())
     }
 }
