@@ -1,9 +1,9 @@
 pub mod clause;
-pub mod clause_key_impl;
 pub mod level;
 pub mod variable;
 
 mod activity_glue;
+mod clause_key_impl;
 
 pub type LevelIndex = usize;
 

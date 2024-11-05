@@ -20,16 +20,16 @@ pub struct ClauseStore {
     keys: Vec<ClauseKey>,
     formula: Vec<StoredClause>,
 
-    pub binary_graph: Vec<Vec<ClauseKey>>,
+    binary_graph: Vec<Vec<ClauseKey>>,
     learned: Vec<Option<StoredClause>>,
 
-    pub learned_slots: FormulaIndex,
+    learned_slots: FormulaIndex,
 
-    pub resolution_graph: Vec<Vec<Vec<ClauseKey>>>,
+    resolution_graph: Vec<Vec<Vec<ClauseKey>>>,
     binary: Vec<StoredClause>,
 
-    pub learned_activity: IndexHeap<ActivityGlue>,
-    pub learned_increment: ClauseActivity,
+    learned_activity: IndexHeap<ActivityGlue>,
+    learned_increment: ClauseActivity,
 }
 
 pub struct ClauseStoreCounts {
@@ -388,6 +388,16 @@ impl ClauseStore {
         let decay = config.clause_decay * 1e-3;
         let factor = 1.0 / (1.0 - decay);
         self.learned_increment *= factor
+    }
+
+    pub fn source(&self, key: ClauseKey) -> &[ClauseKey] {
+        match key {
+            ClauseKey::Formula(_) => &[],
+            ClauseKey::Binary(index) => &self.binary_graph[index as usize],
+            ClauseKey::Learned(index, token) => {
+                &self.resolution_graph[index as usize][token as usize]
+            }
+        }
     }
 }
 

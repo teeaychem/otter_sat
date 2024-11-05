@@ -13,7 +13,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
 use otter_lib::{
     config::Config,
-    context::{builder::BuildIssue, Report},
+    context::{builder::BuildErr, Report},
     errors::ClauseStoreErr,
     io::{cli::cli, files::context_from_path},
 };
@@ -62,14 +62,14 @@ fn main() {
 fn report_on_formula(path: PathBuf, config: &Config) -> Report {
     let mut the_context = match context_from_path(path, config) {
         Ok(context) => context,
-        Err(BuildIssue::OopsAllTautologies) => {
+        Err(BuildErr::OopsAllTautologies) => {
             if config.verbosity > 0 {
                 println!("c All clauses of the formula are tautological");
             }
             println!("s SATISFIABLE");
             std::process::exit(10);
         }
-        Err(BuildIssue::ClauseStore(ClauseStoreErr::EmptyClause)) => {
+        Err(BuildErr::ClauseStore(ClauseStoreErr::EmptyClause)) => {
             if config.verbosity > 0 {
                 println!("c The formula contains an empty clause so is interpreted as ⊥");
             }
