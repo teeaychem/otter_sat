@@ -19,8 +19,8 @@ enum ResolutionCell {
 
 #[derive(Debug)]
 pub struct ResolutionBuffer {
-    pub valueless_count: usize,
-    pub clause_length: usize,
+    valueless_count: usize,
+    clause_length: usize,
     asserts: Option<Literal>,
     buffer: Vec<ResolutionCell>,
     trail: Vec<ClauseKey>,
@@ -43,6 +43,10 @@ pub enum BufErr {
 }
 
 impl ResolutionBuffer {
+    pub fn clause_legnth(&self) -> usize {
+        self.clause_length
+    }
+
     #[allow(dead_code)]
     pub fn reset_with(&mut self, variables: &impl VariableList) {
         self.valueless_count = 0;

@@ -4,16 +4,16 @@ use std::path::PathBuf;
 
 use flate2::read::GzDecoder;
 
-use crate::context::builder::{BuildIssue, ParseIssue};
+use crate::context::builder::{BuildErr, ParseErr};
 use crate::{
     config::Config,
     context::{Context, Report},
 };
 
-pub fn context_from_path(path: PathBuf, config: &Config) -> Result<Context, BuildIssue> {
+pub fn context_from_path(path: PathBuf, config: &Config) -> Result<Context, BuildErr> {
     let the_path = PathBuf::from(&path);
     let file = match File::open(&the_path) {
-        Err(_) => return Err(BuildIssue::Parse(ParseIssue::NoFile)),
+        Err(_) => return Err(BuildErr::Parse(ParseErr::NoFile)),
         Ok(f) => f,
     };
     let unique_config = config.clone();

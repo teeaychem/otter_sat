@@ -96,7 +96,7 @@ impl Context {
             This is skipped for a literal whose proof is to be noted
             This is also skipped for binary clauses, as if the other literal is proven the assertion will also be added as a proof, regardless
              */
-            if the_buffer.clause_length > 2 {
+            if the_buffer.clause_legnth() > 2 {
                 the_buffer.strengthen_given(self.proven_literals());
             }
 
