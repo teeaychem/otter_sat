@@ -6,4 +6,7 @@ pub mod targets {
     pub const CLAUSE_STORE: &str = "clause store";
     pub const VALUATION: &str = "valuation";
     pub const BACKJUMP: &str = "backjump";
+    pub const PREPROCESSING: &str = "preprocessing";
+    pub const RESOLUTION: &str = "resolution";
+    pub const SUBSUMPTION: &str = "subsumption";
 }

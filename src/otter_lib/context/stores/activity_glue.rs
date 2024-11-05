@@ -38,24 +38,6 @@ impl PartialOrd for ActivityGlue {
     }
 }
 
-// impl PartialOrd for ActivityGlue {
-//     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-//         let lbd_comparison = match self.activity.partial_cmp(&other.activity) {
-//             None => panic!("could not compare activity/lbd"),
-//             Some(comparison) => match comparison {
-//                 std::cmp::Ordering::Less => std::cmp::Ordering::Greater,
-//                 std::cmp::Ordering::Greater => std::cmp::Ordering::Less,
-//                 std::cmp::Ordering::Equal => match self.lbd.cmp(&other.lbd) {
-//                     std::cmp::Ordering::Less => std::cmp::Ordering::Greater,
-//                     std::cmp::Ordering::Greater => std::cmp::Ordering::Less,
-//                     std::cmp::Ordering::Equal => std::cmp::Ordering::Equal,
-//                 },
-//             },
-//         };
-//         Some(lbd_comparison)
-//     }
-// }
-
 impl PartialEq for ActivityGlue {
     fn eq(&self, other: &Self) -> bool {
         self.lbd.eq(&other.lbd) && self.activity.eq(&other.activity)
