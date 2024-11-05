@@ -33,6 +33,7 @@ tikv-jemallocator = { version = "0.6", optional = true }
 codegen-units = 1
 debug = true
 inherits = "release"
+lto = true
 
 [profile.redline]
 codegen-units = 1

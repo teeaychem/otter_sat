@@ -12,6 +12,7 @@ pub trait Clause {
 
     fn as_dimacs(&self, variables: &VariableStore) -> String;
 
+    #[allow(dead_code)]
     fn asserts(&self, val: &impl VariableList) -> Option<Literal>;
 
     fn lbd(&self, variables: &impl VariableList) -> GlueStrength;

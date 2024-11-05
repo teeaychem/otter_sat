@@ -35,7 +35,7 @@ pub struct Counters {
     pub iterations: usize,
     pub restarts: usize,
     pub time: Duration,
-    pub luby: crate::generic::luby::Luby,
+    luby: crate::generic::luby::Luby,
     rng: RngChoice,
 }
 
@@ -56,12 +56,12 @@ impl Default for Counters {
 
 pub struct Context {
     counters: Counters,
-    pub levels: LevelStore,
+    levels: LevelStore,
     pub clause_store: ClauseStore,
     pub variables: VariableStore,
     pub config: config::Config,
-    pub window: Option<ContextWindow>,
-    pub status: SolveStatus,
+    window: Option<ContextWindow>,
+    status: SolveStatus,
 
     pub proofs: Vec<(Literal, Vec<ClauseKey>)>,
 }

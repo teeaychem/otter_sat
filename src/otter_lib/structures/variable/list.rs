@@ -9,10 +9,12 @@ use crate::{
 use std::ops::DerefMut;
 
 pub trait VariableList {
+    #[allow(dead_code)]
     fn as_internal_string(&self) -> String;
 
     fn value_of(&self, index: usize) -> Option<bool>;
 
+    #[allow(dead_code)]
     fn check_literal(&self, literal: Literal) -> ValueStatus;
 
     fn set_value(

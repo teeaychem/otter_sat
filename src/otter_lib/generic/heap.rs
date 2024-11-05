@@ -19,6 +19,7 @@ impl<V: Default + PartialOrd + Default> Default for IndexHeap<V> {
     }
 }
 
+#[allow(dead_code)]
 impl<V: PartialOrd + Default> IndexHeap<V> {
     pub fn new(size: usize) -> Self {
         let mut value_vec = Vec::with_capacity(size);

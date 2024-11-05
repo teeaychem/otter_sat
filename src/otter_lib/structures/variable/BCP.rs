@@ -19,11 +19,17 @@ use super::WatchElement;
 impl Context {
     pub fn BCP(&mut self, literal: Literal) -> Result<(), BCPIssue> {
         unsafe {
-            let the_variable = self.variables.get_unsafe(literal.index());
-
             let binary_list = match literal.polarity() {
-                true => &mut *the_variable.negative_occurrences_binary.get(),
-                false => &mut *the_variable.positive_occurrences_binary.get(),
+                true => &mut *self
+                    .variables
+                    .get_unsafe(literal.index())
+                    .negative_occurrences_binary
+                    .get(),
+                false => &mut *self
+                    .variables
+                    .get_unsafe(literal.index())
+                    .positive_occurrences_binary
+                    .get(),
             };
 
             for element in binary_list {
@@ -51,12 +57,17 @@ impl Context {
                 }
             }
 
-            // reborrow required…
-            let the_variable = self.variables.get_unsafe(literal.index());
-
             let list = match literal.polarity() {
-                true => &mut *the_variable.negative_occurrences.get(),
-                false => &mut *the_variable.positive_occurrences.get(),
+                true => &mut *self
+                    .variables
+                    .get_unsafe(literal.index())
+                    .negative_occurrences
+                    .get(),
+                false => &mut *self
+                    .variables
+                    .get_unsafe(literal.index())
+                    .positive_occurrences
+                    .get(),
             };
 
             let mut index = 0;

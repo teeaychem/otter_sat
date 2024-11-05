@@ -12,18 +12,18 @@ use crate::{
 use std::{io::BufRead, path::PathBuf};
 
 #[derive(Debug)]
-pub enum BuildIssue {
+pub enum BuildErr {
     UnitClauseConflict,
     AssumptionConflict,
     AssumptionDirectConflict,
     AssumptionIndirectConflict,
-    Parse(ParseIssue),
+    Parse(ParseErr),
     OopsAllTautologies,
     ClauseStore(ClauseStoreErr),
 }
 
 #[derive(Debug)]
-pub enum ParseIssue {
+pub enum ParseErr {
     ProblemSpecification,
     Line(usize),
     MisplacedProblem(usize),
@@ -32,10 +32,10 @@ pub enum ParseIssue {
 }
 
 impl Context {
-    pub fn literal_from_string(&mut self, string: &str) -> Result<Literal, ParseIssue> {
+    pub fn literal_from_string(&mut self, string: &str) -> Result<Literal, ParseErr> {
         let trimmed_string = string.trim();
         if trimmed_string.is_empty() || trimmed_string == "-" {
-            return Err(ParseIssue::NoVariable);
+            return Err(ParseErr::NoVariable);
         };
 
         let polarity = !trimmed_string.starts_with('-');
@@ -70,13 +70,13 @@ impl Context {
         }
     }
 
-    pub fn clause_from_string(&mut self, string: &str) -> Result<(), BuildIssue> {
+    pub fn clause_from_string(&mut self, string: &str) -> Result<(), BuildErr> {
         let string_lterals = string.split_whitespace();
         let mut the_clause = vec![];
         for string_literal in string_lterals {
             let the_literal = match self.literal_from_string(string_literal) {
                 Ok(literal) => literal,
-                Err(e) => return Err(BuildIssue::Parse(e)),
+                Err(e) => return Err(BuildErr::Parse(e)),
             };
             if !the_clause.iter().any(|l| *l == the_literal) {
                 the_clause.push(the_literal);
@@ -86,14 +86,14 @@ impl Context {
         self.preprocess_and_store_clause(the_clause)
     }
 
-    pub fn preprocess_and_store_clause(&mut self, clause: Vec<Literal>) -> Result<(), BuildIssue> {
+    pub fn preprocess_and_store_clause(&mut self, clause: Vec<Literal>) -> Result<(), BuildErr> {
         match clause.len() {
-            0 => Err(BuildIssue::ClauseStore(ClauseStoreErr::EmptyClause)),
+            0 => Err(BuildErr::ClauseStore(ClauseStoreErr::EmptyClause)),
             1 => {
                 let literal = unsafe { *clause.get_unchecked(0) };
                 match self.assume(literal) {
                     Ok(_) => Ok(()),
-                    Err(_e) => Err(BuildIssue::AssumptionIndirectConflict),
+                    Err(_e) => Err(BuildErr::AssumptionIndirectConflict),
                 }
             }
             _ => {
@@ -128,7 +128,7 @@ impl Context {
                         let literal = strengthened_clause[0];
                         match self.assume(literal) {
                             Ok(_) => {}
-                            Err(_e) => return Err(BuildIssue::AssumptionIndirectConflict),
+                            Err(_e) => return Err(BuildErr::AssumptionIndirectConflict),
                         }
                     }
                     _ => {
@@ -140,7 +140,7 @@ impl Context {
                         ) {
                             Ok(_) => {}
                             Err(e) => {
-                                return Err(BuildIssue::ClauseStore(e));
+                                return Err(BuildErr::ClauseStore(e));
                             }
                         }
                     }
@@ -155,7 +155,7 @@ impl Context {
         file_path: &PathBuf,
         mut file_reader: impl BufRead,
         config: Config,
-    ) -> Result<Self, BuildIssue> {
+    ) -> Result<Self, BuildErr> {
         let mut buffer = String::with_capacity(1024);
         let mut clause_buffer: Vec<Literal> = Vec::new();
 
@@ -170,7 +170,7 @@ impl Context {
             match file_reader.read_line(&mut buffer) {
                 Ok(0) => break,
                 Ok(_) => line_counter += 1,
-                Err(_) => return Err(BuildIssue::Parse(ParseIssue::Line(line_counter))),
+                Err(_) => return Err(BuildErr::Parse(ParseErr::Line(line_counter))),
             }
 
             match buffer.chars().next() {
@@ -181,21 +181,17 @@ impl Context {
                 Some('p') => {
                     let mut problem_details = buffer.split_whitespace();
                     let variable_count: usize = match problem_details.nth(2) {
-                        None => return Err(BuildIssue::Parse(ParseIssue::ProblemSpecification)),
+                        None => return Err(BuildErr::Parse(ParseErr::ProblemSpecification)),
                         Some(string) => match string.parse() {
-                            Err(_) => {
-                                return Err(BuildIssue::Parse(ParseIssue::ProblemSpecification))
-                            }
+                            Err(_) => return Err(BuildErr::Parse(ParseErr::ProblemSpecification)),
                             Ok(count) => count,
                         },
                     };
 
                     let clause_count: usize = match problem_details.next() {
-                        None => return Err(BuildIssue::Parse(ParseIssue::ProblemSpecification)),
+                        None => return Err(BuildErr::Parse(ParseErr::ProblemSpecification)),
                         Some(string) => match string.parse() {
-                            Err(_) => {
-                                return Err(BuildIssue::Parse(ParseIssue::ProblemSpecification))
-                            }
+                            Err(_) => return Err(BuildErr::Parse(ParseErr::ProblemSpecification)),
                             Ok(count) => count,
                         },
                     };
@@ -231,17 +227,13 @@ impl Context {
             match file_reader.read_line(&mut buffer) {
                 Ok(0) => break,
                 Ok(_) => line_counter += 1,
-                Err(_) => return Err(BuildIssue::Parse(ParseIssue::Line(line_counter))),
+                Err(_) => return Err(BuildErr::Parse(ParseErr::Line(line_counter))),
             }
 
             match buffer.chars().next() {
                 Some('%') => break 'formula_loop,
                 Some('c') => {}
-                Some('p') => {
-                    return Err(BuildIssue::Parse(ParseIssue::MisplacedProblem(
-                        line_counter,
-                    )))
-                }
+                Some('p') => return Err(BuildErr::Parse(ParseErr::MisplacedProblem(line_counter))),
                 _ => {
                     let split_buf = buffer.split_whitespace();
                     for item in split_buf {
@@ -258,7 +250,7 @@ impl Context {
                             _ => {
                                 let the_literal = match the_context.literal_from_string(item) {
                                     Ok(literal) => literal,
-                                    Err(e) => return Err(BuildIssue::Parse(e)),
+                                    Err(e) => return Err(BuildErr::Parse(e)),
                                 };
                                 if !clause_buffer.iter().any(|l| *l == the_literal) {
                                     clause_buffer.push(the_literal);
@@ -282,7 +274,7 @@ impl Context {
         }
 
         if the_context.clause_count() == 0 {
-            return Err(BuildIssue::OopsAllTautologies);
+            return Err(BuildErr::OopsAllTautologies);
         }
 
         Ok(the_context)

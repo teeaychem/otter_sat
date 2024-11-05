@@ -84,15 +84,8 @@ impl Context {
                             }
                         }
                     }
-                    ClauseKey::Binary(index) => {
-                        let source = &self.clause_store.binary_graph[index as usize];
-                        for source_key in source {
-                            core_q.push_back(*source_key);
-                        }
-                    }
-                    ClauseKey::Learned(index, usage) => {
-                        let source =
-                            &self.clause_store.resolution_graph[index as usize][usage as usize];
+                    ClauseKey::Binary(_) | ClauseKey::Learned(_, _) => {
+                        let source = self.clause_store.source(key);
                         for source_key in source {
                             core_q.push_back(*source_key);
                         }
