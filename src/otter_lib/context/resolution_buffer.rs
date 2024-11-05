@@ -2,7 +2,7 @@ use crate::{
     config::{Config, StoppingCriteria},
     context::stores::{clause::ClauseStore, level::Level, variable::VariableStore, ClauseKey},
     structures::{
-        clause::{stored::SubsumptionError, Clause},
+        clause::Clause,
         literal::{Literal, LiteralSource},
         variable::{list::VariableList, VariableId},
     },
@@ -28,15 +28,16 @@ pub struct ResolutionBuffer {
 }
 
 #[derive(Debug)]
-pub enum BufferStatus {
+pub enum BufOk {
     FirstUIP,
     Exhausted,
+    Proof,
 }
 
 #[derive(Debug)]
-pub enum BufferIssue {
+pub enum BufErr {
     MissingClause,
-    Subsumption(SubsumptionError),
+    Subsumption,
     SatisfiedResolution,
     Transfer,
 }
@@ -74,7 +75,7 @@ impl ResolutionBuffer {
         &mut self,
         clause: &impl Clause,
         key: ClauseKey,
-    ) -> Result<(), BufferIssue> {
+    ) -> Result<(), BufErr> {
         self.trail.push(key);
         self.merge_clause(clause)
     }
@@ -127,7 +128,7 @@ impl ResolutionBuffer {
         stored_clauses: &mut ClauseStore,
         variables: &mut VariableStore,
         config: &Config,
-    ) -> Result<BufferStatus, BufferIssue> {
+    ) -> Result<BufOk, BufErr> {
         for (source, literal) in level.observations().iter().rev() {
             if let LiteralSource::Analysis(the_key)
             | LiteralSource::BCP(the_key)
@@ -137,7 +138,7 @@ impl ResolutionBuffer {
                 let source_clause = match stored_clauses.get_carefully_mut(*the_key) {
                     None => {
                         log::error!(target: crate::log::targets::RESOLUTION, "Failed to find resolution clause {the_key:?}");
-                        return Err(BufferIssue::MissingClause);
+                        return Err(BufErr::MissingClause);
                     }
                     Some(clause) => clause,
                 };
@@ -148,10 +149,7 @@ impl ResolutionBuffer {
                     }
 
                     // TODO: allow subsumption on binary clauses?
-                    if config.subsumption
-                        && self.clause_length < source_clause.length()
-                        && source_clause.len() > 2
-                    {
+                    if config.subsumption && self.clause_length < source_clause.length() {
                         /*
                         If the resolved clause is binary then subsumption transfers the clause to the store for binary clauses
                         This is safe to do as:
@@ -162,6 +160,8 @@ impl ResolutionBuffer {
                          */
 
                         match self.clause_length {
+                            0 => {}
+                            1 => return Ok(BufOk::Proof),
                             2 => match the_key {
                                 ClauseKey::Binary(_) => {}
                                 ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
@@ -170,11 +170,11 @@ impl ResolutionBuffer {
                                             let Ok(new_key) = stored_clauses
                                                 .transfer_to_binary(*the_key, variables)
                                             else {
-                                                return Err(BufferIssue::Transfer);
+                                                return Err(BufErr::Transfer);
                                             };
                                             self.trail.push(new_key);
                                         }
-                                        Err(e) => return Err(BufferIssue::Subsumption(e)),
+                                        Err(_) => return Err(BufErr::Subsumption),
                                     };
                                 }
                             },
@@ -183,7 +183,7 @@ impl ResolutionBuffer {
                                     Ok(_) => {
                                         self.trail.push(*the_key);
                                     }
-                                    Err(e) => return Err(BufferIssue::Subsumption(e)),
+                                    Err(_) => return Err(BufErr::Subsumption),
                                 };
                             }
                         }
@@ -191,20 +191,20 @@ impl ResolutionBuffer {
 
                     if self.valueless_count == 1 {
                         match config.stopping_criteria {
-                            StoppingCriteria::FirstUIP => return Ok(BufferStatus::FirstUIP),
+                            StoppingCriteria::FirstUIP => return Ok(BufOk::FirstUIP),
                             StoppingCriteria::None => {}
                         }
                     };
                 }
             }
         }
-        Ok(BufferStatus::Exhausted)
+        Ok(BufOk::Exhausted)
     }
 
     /// Remove literals which conflict with those at level zero from the clause
     pub fn strengthen_given<'l>(&mut self, literals: impl Iterator<Item = &'l Literal>) {
         for literal in literals {
-            match self.buffer[literal.index()] {
+            match unsafe { *self.buffer.get_unchecked(literal.index()) } {
                 ResolutionCell::NoneLiteral(_) | ResolutionCell::ConflictLiteral(_) => {
                     if let Some(length_minus_one) = self.clause_length.checked_sub(1) {
                         self.clause_length = length_minus_one;
@@ -241,7 +241,7 @@ impl ResolutionBuffer {
 
 impl ResolutionBuffer {
     /// Merge a clause into the buffer
-    fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), BufferIssue> {
+    fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), BufErr> {
         for literal in clause.literal_slice() {
             match self.buffer.get(literal.index()).expect("lost literal") {
                 ResolutionCell::ConflictLiteral(_) | ResolutionCell::NoneLiteral(_) => {}
@@ -262,7 +262,7 @@ impl ResolutionBuffer {
                     Some(_) => {
                         log::error!(target: crate::log::targets::RESOLUTION, "Resolution to a satisfied clause");
 
-                        return Err(BufferIssue::SatisfiedResolution);
+                        return Err(BufErr::SatisfiedResolution);
                     }
                 },
                 ResolutionCell::Strengthened => {}
@@ -271,7 +271,7 @@ impl ResolutionBuffer {
         Ok(())
     }
 
-    fn resolve_clause(&mut self, clause: &impl Clause, using: Literal) -> Result<(), BufferIssue> {
+    fn resolve_clause(&mut self, clause: &impl Clause, using: Literal) -> Result<(), BufErr> {
         match unsafe { *self.buffer.get_unchecked(using.index()) } {
             ResolutionCell::NoneLiteral(literal) if using == !literal => {
                 self.merge_clause(clause)?;
@@ -288,7 +288,7 @@ impl ResolutionBuffer {
 
                 Ok(())
             }
-            _ => Err(BufferIssue::MissingClause),
+            _ => Err(BufErr::MissingClause),
         }
     }
 

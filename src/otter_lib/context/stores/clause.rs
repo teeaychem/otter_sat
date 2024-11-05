@@ -3,6 +3,7 @@ use crate::{
     context::stores::{
         activity_glue::ActivityGlue, variable::VariableStore, ClauseKey, FormulaIndex,
     },
+    errors::ClauseStoreErr,
     generic::heap::IndexHeap,
     structures::{
         clause::{
@@ -10,27 +11,9 @@ use crate::{
             Clause,
         },
         literal::Literal,
-        variable::{WatchElement, WatchError},
+        variable::WatchElement,
     },
 };
-
-#[derive(Debug, Clone, Copy)]
-pub enum ClauseStoreError {
-    TransferBinary,
-    TransferWatch,
-    MissingLearned,
-    InvalidKeyToken,
-    InvalidKeyIndex,
-    EmptyClause,
-    UnitClause,
-    StorageExhausted,
-}
-
-impl From<WatchError> for ClauseStoreError {
-    fn from(_: WatchError) -> Self {
-        ClauseStoreError::TransferWatch
-    }
-}
 
 pub struct ClauseStore {
     counts: ClauseStoreCounts,
@@ -102,27 +85,27 @@ impl ClauseStore {
 }
 
 impl ClauseStore {
-    fn new_formula_id(&mut self) -> Result<ClauseKey, ClauseStoreError> {
+    fn new_formula_id(&mut self) -> Result<ClauseKey, ClauseStoreErr> {
         if self.counts.formula == FormulaIndex::MAX {
-            return Err(ClauseStoreError::StorageExhausted);
+            return Err(ClauseStoreErr::StorageExhausted);
         }
         let key = ClauseKey::Formula(self.counts.formula);
         self.counts.formula += 1;
         Ok(key)
     }
 
-    fn new_binary_id(&mut self) -> Result<ClauseKey, ClauseStoreError> {
+    fn new_binary_id(&mut self) -> Result<ClauseKey, ClauseStoreErr> {
         if self.counts.binary == FormulaIndex::MAX {
-            return Err(ClauseStoreError::StorageExhausted);
+            return Err(ClauseStoreErr::StorageExhausted);
         }
         let key = ClauseKey::Binary(self.counts.binary);
         self.counts.binary += 1;
         Ok(key)
     }
 
-    fn new_learned_id(&mut self) -> Result<ClauseKey, ClauseStoreError> {
+    fn new_learned_id(&mut self) -> Result<ClauseKey, ClauseStoreErr> {
         if self.learned_slots == FormulaIndex::MAX {
-            return Err(ClauseStoreError::StorageExhausted);
+            return Err(ClauseStoreErr::StorageExhausted);
         }
         let key = ClauseKey::Learned(self.learned_slots, 0);
         self.learned_slots += 1;
@@ -145,7 +128,7 @@ impl ClauseStore {
         }
     }
 
-    pub fn get(&self, key: ClauseKey) -> Result<&StoredClause, ClauseStoreError> {
+    pub fn get(&self, key: ClauseKey) -> Result<&StoredClause, ClauseStoreErr> {
         match key {
             ClauseKey::Formula(index) => unsafe { Ok(self.formula.get_unchecked(index as usize)) },
             ClauseKey::Binary(index) => unsafe { Ok(self.binary.get_unchecked(index as usize)) },
@@ -153,9 +136,9 @@ impl ClauseStore {
                 match self.learned.get_unchecked(index as usize) {
                     Some(clause) => match clause.key() {
                         ClauseKey::Learned(_, clause_token) if clause_token == token => Ok(clause),
-                        _ => Err(ClauseStoreError::InvalidKeyToken),
+                        _ => Err(ClauseStoreErr::InvalidKeyToken),
                     },
-                    None => Err(ClauseStoreError::InvalidKeyIndex),
+                    None => Err(ClauseStoreErr::InvalidKeyIndex),
                 }
             },
         }
@@ -175,7 +158,7 @@ impl ClauseStore {
         }
     }
 
-    pub fn get_mut(&mut self, key: ClauseKey) -> Result<&mut StoredClause, ClauseStoreError> {
+    pub fn get_mut(&mut self, key: ClauseKey) -> Result<&mut StoredClause, ClauseStoreErr> {
         match key {
             ClauseKey::Formula(index) => unsafe {
                 Ok(self.formula.get_unchecked_mut(index as usize))
@@ -187,9 +170,9 @@ impl ClauseStore {
                 match self.learned.get_unchecked_mut(index as usize) {
                     Some(clause) => match clause.key() {
                         ClauseKey::Learned(_, clause_token) if clause_token == token => Ok(clause),
-                        _ => Err(ClauseStoreError::InvalidKeyToken),
+                        _ => Err(ClauseStoreErr::InvalidKeyToken),
                     },
-                    None => Err(ClauseStoreError::InvalidKeyIndex),
+                    None => Err(ClauseStoreErr::InvalidKeyIndex),
                 }
             },
         }
@@ -202,10 +185,10 @@ impl ClauseStore {
         subsumed: Vec<Literal>,
         variables: &mut VariableStore,
         resolution_keys: Option<Vec<ClauseKey>>,
-    ) -> Result<ClauseKey, ClauseStoreError> {
+    ) -> Result<ClauseKey, ClauseStoreErr> {
         match clause.len() {
-            0 => Err(ClauseStoreError::EmptyClause),
-            1 => Err(ClauseStoreError::UnitClause),
+            0 => Err(ClauseStoreErr::EmptyClause),
+            1 => Err(ClauseStoreErr::UnitClause),
             2 => {
                 let key = self.new_binary_id()?;
                 self.binary.push(StoredClause::new_from(
@@ -299,11 +282,11 @@ impl ClauseStore {
         &mut self,
         key: ClauseKey,
         variables: &mut VariableStore,
-    ) -> Result<ClauseKey, ClauseStoreError> {
+    ) -> Result<ClauseKey, ClauseStoreErr> {
         match key {
             ClauseKey::Binary(_) => {
                 log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
-                Err(ClauseStoreError::TransferBinary)
+                Err(ClauseStoreErr::TransferBinary)
             }
             ClauseKey::Formula(index) => {
                 let formula_clause = &self.formula[index as usize];
@@ -311,7 +294,7 @@ impl ClauseStore {
 
                 if copied_clause.len() != 2 {
                     log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
-                    return Err(ClauseStoreError::TransferBinary);
+                    return Err(ClauseStoreErr::TransferBinary);
                 }
 
                 let binary_key = self.new_binary_id()?;
@@ -338,7 +321,7 @@ impl ClauseStore {
 
                 if the_clause.len() != 2 {
                     log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
-                    return Err(ClauseStoreError::TransferBinary);
+                    return Err(ClauseStoreErr::TransferBinary);
                 }
 
                 let binary_key = self.new_binary_id()?;
@@ -362,7 +345,8 @@ impl ClauseStore {
     }
 
     // TODO: figure some improvement…
-    pub fn reduce(&mut self, config: &Config) -> Result<(), ClauseStoreError> {
+    // For example, before dropping a clause the lbd could be recalculated…
+    pub fn reduce(&mut self, config: &Config) -> Result<(), ClauseStoreErr> {
         let limit = self.counts.learned as usize / 2;
         'reduction_loop: for _ in 0..limit {
             if let Some(index) = self.learned_activity.peek_max() {
@@ -412,10 +396,10 @@ impl ClauseStore {
     Removing from learned checks to ensure removal is ok
     As the elements are optional for reuse, take places None at the index, as would be needed anyway
      */
-    fn remove_from_learned(&mut self, index: usize) -> Result<StoredClause, ClauseStoreError> {
+    fn remove_from_learned(&mut self, index: usize) -> Result<StoredClause, ClauseStoreErr> {
         if unsafe { self.learned.get_unchecked(index) }.is_none() {
             log::error!(target: crate::log::targets::CLAUSE_STORE, "attempt to remove something that is not there");
-            Err(ClauseStoreError::MissingLearned)
+            Err(ClauseStoreErr::MissingLearned)
         } else {
             // assert!(matches!(the_clause.key(), ClauseKey::LearnedLong(_, _)));
             let the_clause =

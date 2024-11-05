@@ -1,11 +1,12 @@
 use crate::{
     context::stores::{ClauseKey, LevelIndex},
+    errors::WatchError,
     structures::variable::{Variable, VariableId},
 };
 
 use std::cell::UnsafeCell;
 
-use super::{WatchElement, WatchError};
+use super::WatchElement;
 
 impl Variable {
     pub fn new(id: VariableId) -> Self {

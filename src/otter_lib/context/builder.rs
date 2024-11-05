@@ -1,6 +1,7 @@
 use crate::{
     config::Config,
-    context::{stores::clause::ClauseStoreError, Context},
+    context::Context,
+    errors::{ClauseStoreErr, ContextErr},
     structures::{
         clause::stored::ClauseSource,
         literal::{Literal, LiteralSource},
@@ -10,8 +11,6 @@ use crate::{
 
 use std::{io::BufRead, path::PathBuf};
 
-use super::core::ContextError;
-
 #[derive(Debug)]
 pub enum BuildIssue {
     UnitClauseConflict,
@@ -20,7 +19,7 @@ pub enum BuildIssue {
     AssumptionIndirectConflict,
     Parse(ParseIssue),
     OopsAllTautologies,
-    ClauseStore(ClauseStoreError),
+    ClauseStore(ClauseStoreErr),
 }
 
 #[derive(Debug)]
@@ -59,15 +58,15 @@ impl Context {
         Ok(Literal::new(the_variable, polarity))
     }
 
-    pub fn assume(&mut self, literal: Literal) -> Result<(), ContextError> {
+    pub fn assume(&mut self, literal: Literal) -> Result<(), ContextErr> {
         if self.levels.index() != 0 {
-            return Err(ContextError::AssumptionAfterChoice);
+            return Err(ContextErr::AssumptionAfterChoice);
         }
 
         let assumption_result = self.q_literal(literal, LiteralSource::Assumption);
         match assumption_result {
             Ok(_) => Ok(()),
-            Err(_) => Err(ContextError::AssumptionConflict),
+            Err(_) => Err(ContextErr::AssumptionConflict),
         }
     }
 
@@ -89,7 +88,7 @@ impl Context {
 
     pub fn preprocess_and_store_clause(&mut self, clause: Vec<Literal>) -> Result<(), BuildIssue> {
         match clause.len() {
-            0 => Err(BuildIssue::ClauseStore(ClauseStoreError::EmptyClause)),
+            0 => Err(BuildIssue::ClauseStore(ClauseStoreErr::EmptyClause)),
             1 => {
                 let literal = unsafe { *clause.get_unchecked(0) };
                 match self.assume(literal) {

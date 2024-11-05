@@ -1,19 +1,8 @@
 use crate::{
     context::{stores::ClauseKey, Context},
+    errors::ReportError,
     structures::{clause::Clause, literal::LiteralSource},
 };
-
-use super::stores::clause::ClauseStoreError;
-
-pub enum ReportError {
-    ClauseStore,
-}
-
-impl From<ClauseStoreError> for ReportError {
-    fn from(_: ClauseStoreError) -> Self {
-        ReportError::ClauseStore
-    }
-}
 
 impl Context {
     #[allow(clippy::single_match)]

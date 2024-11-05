@@ -7,10 +7,11 @@ use crate::{
         stores::{ClauseKey, LevelIndex},
         Context,
     },
+    errors::WatchError,
     generic::heap::IndexHeap,
     structures::{
         literal::{Literal, LiteralSource},
-        variable::{list::VariableList, Variable, VariableId, WatchElement, WatchError},
+        variable::{list::VariableList, Variable, VariableId, WatchElement},
     },
 };
 

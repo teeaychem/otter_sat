@@ -1,8 +1,6 @@
-#![allow(unused_imports)]
-
 use otter_lib::{
     config::Config,
-    context::{self, Context, Report},
+    context::{Context, Report},
 };
 
 mod basic {

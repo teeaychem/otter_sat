@@ -1,10 +1,11 @@
 use crate::{
     config::{self, Config, StoppingCriteria},
     context::{
-        resolution_buffer::{BufferStatus, ResolutionBuffer},
+        resolution_buffer::{BufOk, ResolutionBuffer},
         stores::ClauseKey,
         Context,
     },
+    errors::AnalysisError,
     structures::{
         clause::{stored::ClauseSource, Clause},
         literal::Literal,
@@ -22,24 +23,8 @@ pub enum AnalysisResult {
     AssertingClause(ClauseKey, Literal),
 }
 
-pub enum AnalysisError {
-    ResolutionStore,
-    EmptyResolution,
-    NoAssertion,
-    Buffer(BufferIssue),
-    ClauseStore,
-    FailedStoppingCriteria,
-}
-
-impl From<ClauseStoreError> for AnalysisError {
-    fn from(_: ClauseStoreError) -> Self {
-        AnalysisError::ClauseStore
-    }
-}
-
 use crate::log::targets::ANALYSIS as LOG_ANALYSIS;
 
-use super::{resolution_buffer::BufferIssue, stores::clause::ClauseStoreError};
 impl Context {
     pub fn conflict_analysis(
         &mut self,
@@ -63,13 +48,13 @@ impl Context {
             );
         }
 
-        // this could be made persistent, but tying it to the solve requires a cell and lots of unsafe
+        // this could be made persistent, but tying it to the solve may require a cell and lots of unsafe
         let mut the_buffer = ResolutionBuffer::from_variable_store(&self.variables);
 
         the_buffer.clear_literals(self.levels.top().literals());
         match the_buffer.set_inital_clause(&conflict_clause.deref(), clause_key) {
             Ok(()) => {}
-            Err(e) => return Err(AnalysisError::Buffer(e)),
+            Err(_) => return Err(AnalysisError::Buffer),
         };
 
         if let Some(asserted_literal) = the_buffer.asserts() {
@@ -85,23 +70,17 @@ impl Context {
                 config,
             );
             match buffer_status {
-                Ok(BufferStatus::FirstUIP) => {}
-                Ok(BufferStatus::Exhausted) => {
+                Ok(BufOk::Proof) => {}
+                Ok(BufOk::FirstUIP) => {}
+                Ok(BufOk::Exhausted) => {
                     if config.stopping_criteria == StoppingCriteria::FirstUIP {
                         return Err(AnalysisError::FailedStoppingCriteria);
                     }
                 }
-                Err(buffer_issue) => {
-                    return Err(AnalysisError::Buffer(buffer_issue));
+                Err(_buffer_error) => {
+                    return Err(AnalysisError::Buffer);
                 }
             }
-            the_buffer.strengthen_given(self.proven_literals());
-
-            let (asserted_literal, mut resolved_clause) = the_buffer.to_assertion_clause();
-            if let Some(assertion) = asserted_literal {
-                resolved_clause.push(assertion);
-            }
-
             if let config::VSIDS::MiniSAT = config.vsids_variant {
                 self.variables
                     .apply_VSIDS(the_buffer.variables_used(), config);
@@ -109,6 +88,21 @@ impl Context {
 
             for key in the_buffer.trail() {
                 self.clause_store.bump_activity(*key, config);
+            }
+
+            /*
+            TODO: Alternative?
+            Strengthening iterates through all the proven literals.
+            This is skipped for a literal whose proof is to be noted
+            This is also skipped for binary clauses, as if the other literal is proven the assertion will also be added as a proof, regardless
+             */
+            if the_buffer.clause_length > 2 {
+                the_buffer.strengthen_given(self.proven_literals());
+            }
+
+            let (asserted_literal, mut resolved_clause) = the_buffer.to_assertion_clause();
+            if let Some(assertion) = asserted_literal {
+                resolved_clause.push(assertion);
             }
 
             let the_literal = match asserted_literal {
@@ -132,7 +126,7 @@ impl Context {
                         ClauseSource::Resolution,
                         Some(the_buffer.trail().to_vec()),
                     ) else {
-                        return Err(AnalysisError::ResolutionStore);
+                        return Err(AnalysisError::ResolutionNotStored);
                     };
                     Ok(AnalysisResult::AssertingClause(clause_key, the_literal))
                 }
@@ -140,12 +134,9 @@ impl Context {
         }
     }
 
-    /// The backjump level for a slice of an asserting slice of literals/clause
-    /// I.e. returns the second highest decision level from the given literals, or 0
-    /*
-    The implementation works through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
-    the top decision level will be for the literal to be asserted when clause is learnt
-     */
+    /// The second highest decision level from the given literals, or 0
+    /// Aka. The backjump level for a slice of an asserting slice of literals/clause
+    // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
     pub fn backjump_level(&self, literals: &[Literal]) -> Option<usize> {
         let mut top_two = (None, None);
         for literal in literals {
@@ -156,12 +147,12 @@ impl Context {
 
             match top_two {
                 (_, None) => top_two.1 = Some(dl),
-                (_, Some(t1)) if dl > t1 => {
+                (_, Some(the_top)) if dl > the_top => {
                     top_two.0 = top_two.1;
                     top_two.1 = Some(dl);
                 }
                 (None, _) => top_two.0 = Some(dl),
-                (Some(t2), _) if dl > t2 => top_two.0 = Some(dl),
+                (Some(second_to_top), _) if dl > second_to_top => top_two.0 = Some(dl),
                 _ => {}
             }
         }
