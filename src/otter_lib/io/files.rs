@@ -1,20 +1,13 @@
-#![allow(unused_imports)]
-#![allow(dead_code)]
-
 use std::fs::{self, File};
 use std::io::BufReader;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use flate2::read::GzDecoder;
 
 use crate::context::builder::{BuildIssue, ParseIssue};
 use crate::{
     config::Config,
-    context::{self, Context, Report},
-    structures::{
-        literal::{Literal, LiteralSource},
-        variable::list::VariableList,
-    },
+    context::{Context, Report},
 };
 
 pub fn context_from_path(path: PathBuf, config: &Config) -> Result<Context, BuildIssue> {

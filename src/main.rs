@@ -13,7 +13,8 @@ static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
 use otter_lib::{
     config::Config,
-    context::{builder::BuildIssue, stores::clause::ClauseStoreError, Report},
+    context::{builder::BuildIssue, Report},
+    errors::ClauseStoreErr,
     io::{cli::cli, files::context_from_path},
 };
 
@@ -68,7 +69,7 @@ fn report_on_formula(path: PathBuf, config: &Config) -> Report {
             println!("s SATISFIABLE");
             std::process::exit(10);
         }
-        Err(BuildIssue::ClauseStore(ClauseStoreError::EmptyClause)) => {
+        Err(BuildIssue::ClauseStore(ClauseStoreErr::EmptyClause)) => {
             if config.verbosity > 0 {
                 println!("c The formula contains an empty clause so is interpreted as ⊥");
             }

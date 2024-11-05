@@ -1,6 +1,10 @@
 use super::*;
+use otter_lib::{config::Config, context::Report, io::files::default_on_dir};
 
 mod ThreeSAT {
+
+    use otter_lib::io::files::default_on_split_dir;
+
     use super::*;
     fn unform_random_path() -> PathBuf {
         satlib_path().join("uniform_random")
