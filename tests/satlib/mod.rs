@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 #![allow(non_snake_case)]
 
 mod dimacs;
@@ -7,12 +6,6 @@ mod uniform_random;
 
 use std::fs;
 use std::path::{Path, PathBuf};
-
-use otter_lib::{
-    config::Config,
-    context::{self, Context, Report},
-    io::files::*,
-};
 
 fn cnf_path() -> PathBuf {
     Path::new(".").join("tests").join("cnf")

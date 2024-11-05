@@ -1,16 +1,8 @@
 use crate::{
     context::{stores::ClauseKey, Context, Report, SolveStatus},
+    errors::ClauseStoreErr,
     structures::{clause::stored::ClauseSource, literal::Literal, variable::list::VariableList},
 };
-
-use super::stores::clause::ClauseStoreError;
-
-#[derive(Debug, Clone, Copy)]
-pub enum ContextError {
-    EmptyClause,
-    AssumptionAfterChoice,
-    AssumptionConflict,
-}
 
 #[derive(Debug, Clone, Copy)]
 pub enum StepInfo {
@@ -18,24 +10,6 @@ pub enum StepInfo {
     ChoicesExhausted,
     ChoiceMade,
     One,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum StepError {
-    QueueConflict(ClauseKey),
-    QueueProof(ClauseKey),
-    Backfall,
-    AnalysisFailure,
-    ChoiceFailure,
-    CorruptWatch,
-    ClauseStore(ClauseStoreError),
-    EmptyClause,
-}
-
-impl From<ClauseStoreError> for StepError {
-    fn from(value: ClauseStoreError) -> Self {
-        StepError::ClauseStore(value)
-    }
 }
 
 #[derive(Debug)]
@@ -66,7 +40,7 @@ impl Context {
         subsumed: Vec<Literal>,
         source: ClauseSource,
         resolution_keys: Option<Vec<ClauseKey>>,
-    ) -> Result<ClauseKey, ClauseStoreError> {
+    ) -> Result<ClauseKey, ClauseStoreErr> {
         let clause_key = self.clause_store.insert(
             source,
             clause,

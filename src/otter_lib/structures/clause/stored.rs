@@ -36,7 +36,7 @@ pub enum WatchStatus {
 
 #[derive(Debug, Clone, Copy)]
 pub enum SubsumptionError {
-    ShortClause(usize),
+    ShortClause,
     NoPivot,
     WatchError,
 }
@@ -144,7 +144,7 @@ impl StoredClause {
     ) -> Result<usize, SubsumptionError> {
         if self.clause.len() < 3 {
             log::error!(target: crate::log::targets::SUBSUMPTION, "Subsumption attempted on non-long clause");
-            return Err(SubsumptionError::ShortClause(self.len()));
+            return Err(SubsumptionError::ShortClause);
         }
         let mut position = {
             let search = self

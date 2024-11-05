@@ -17,11 +17,6 @@ pub enum WatchElement {
     Clause(ClauseKey),
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum WatchError {
-    BinaryInLong,
-}
-
 pub struct Variable {
     id: VariableId,
     value: UnsafeCell<Option<bool>>,

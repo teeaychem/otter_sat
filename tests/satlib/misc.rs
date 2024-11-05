@@ -1,6 +1,14 @@
+use otter_lib::{
+    config::Config,
+    context::Report,
+    io::files::{default_on_dir, formula_report},
+};
+
 use crate::satlib::*;
 
 mod planning {
+    use otter_lib::{config::Config, context::Report, io::files::default_on_dir};
+
     use super::*;
     #[test]
     fn logistics() {
@@ -27,6 +35,8 @@ mod graph_colouring {
         satlib_path().join("graph_colouring")
     }
     mod morphed {
+        use otter_lib::{config::Config, context::Report, io::files::default_on_dir};
+
         use super::*;
         fn morphed_path() -> PathBuf {
             colouring_path().join("morphed")

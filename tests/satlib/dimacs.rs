@@ -1,3 +1,9 @@
+use otter_lib::{
+    config::Config,
+    context::Report,
+    io::files::{default_on_dir, formula_report},
+};
+
 use super::*;
 fn dimacs_path() -> PathBuf {
     satlib_collection("DIMACS")
@@ -43,6 +49,8 @@ fn aim() {
 }
 
 mod cfa {
+    use otter_lib::io::files::default_on_dir;
+
     use super::*;
 
     fn cfa_path(dir: &str) -> PathBuf {
