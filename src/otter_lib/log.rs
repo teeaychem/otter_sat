@@ -9,4 +9,5 @@ pub mod targets {
     pub const PREPROCESSING: &str = "preprocessing";
     pub const RESOLUTION: &str = "resolution";
     pub const SUBSUMPTION: &str = "subsumption";
+    pub const TRANSFER: &str = "transfer";
 }
