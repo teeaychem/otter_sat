@@ -4,6 +4,10 @@
 
 #[cfg(not(target_env = "msvc"))]
 #[cfg(feature = "jemalloc")]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[cfg(feature = "jemalloc")]
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
@@ -26,7 +30,8 @@ fn main() {
     let config = Config::from_args(&matches);
 
     let Some(formula_paths) = matches.get_raw("paths") else {
-        panic!("could not find formula paths")
+        println!("c Could not find formula paths");
+        std::process::exit(15);
     };
 
     for path in formula_paths {
@@ -47,34 +52,11 @@ fn main() {
                 std::process::exit(0);
             }
             Err(e) => {
-                panic!("Unexpected error when building: {e:?}");
+                println!("c Unexpected error when building: {e:?}");
+                std::process::exit(2);
             }
         };
-        // let _ = the_context.clause_from_string("p -q");
         let _the_result = the_context.solve();
         the_context.print_status();
     }
-
-    // let mut the_basic_context = Context::default_config(&config);
-
-    // let mut require_basic_build =
-    //     |clause_string| match the_basic_context.clause_from_string(clause_string) {
-    //         Ok(()) => {}
-    //         Err(e) => panic!("failed to build: {e:?}"),
-    //     };
-
-    // require_basic_build("q");
-    // // require_basic_build("-q");
-    // require_basic_build("r s t");
-    // let assumption = the_basic_context.literal_from_string("-q");
-    // match the_basic_context.assume_literal(assumption) {
-    //     Ok(_) => {
-    //         println!("made assumption");
-    //     }
-    //     Err(e) => {
-    //         println!("failed to build: {e:?}")
-    //     }
-    // };
-    // let _the_result = the_basic_context.solve();
-    // the_basic_context.print_status();
 }

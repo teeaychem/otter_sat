@@ -20,6 +20,7 @@ pub enum StepInfo {
     Backfall,
     AnalysisFailure,
     ChoiceFailure,
+    CorruptWatch,
 }
 
 #[derive(Debug)]
