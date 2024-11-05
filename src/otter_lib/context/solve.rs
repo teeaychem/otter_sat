@@ -19,7 +19,10 @@ impl Context {
     pub fn solve(&mut self) -> Result<Report, ContextFailure> {
         let this_total_time = std::time::Instant::now();
 
-        self.preprocess();
+        match self.preprocess() {
+            Ok(()) => {}
+            Err(_) => panic!("Preprocessing failure"),
+        };
 
         if self.clause_store.clause_count() == 0 {
             self.status = SolveStatus::NoClauses;
@@ -159,7 +162,7 @@ impl Context {
                 && ((self.counters.restarts % config.reduction_interval) == 0)
             {
                 log::debug!(target: crate::log::targets::REDUCTION, "Reduction after {} restarts", self.counters.restarts);
-                self.clause_store.reduce();
+                self.clause_store.reduce(config);
             }
         }
     }

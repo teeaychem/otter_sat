@@ -31,14 +31,22 @@ pub fn pure_choices(
     (pure_false, pure_true)
 }
 
+pub enum PreFailure {
+    PureFailure,
+}
+
 impl Context {
-    pub fn preprocess(&mut self) {
+    pub fn preprocess(&mut self) -> Result<(), PreFailure> {
         if self.config.preprocessing {
             match self.set_pure() {
                 Ok(()) => {}
-                Err(_) => panic!("could not set pure"),
+                Err(_) => {
+                    log::error!(target: crate::log::targets::PREPROCESSING, "Failed to set pure literals");
+                    return Err(PreFailure::PureFailure);
+                }
             };
         }
+        Ok(())
     }
 
     pub fn set_pure(&mut self) -> Result<(), ValueStatus> {

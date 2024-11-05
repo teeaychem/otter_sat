@@ -26,9 +26,12 @@ pub enum AnalysisIssue {
     ResolutionStore,
     EmptyResolution,
     NoAssertion,
+    Buffer(BufferIssue),
 }
 
 use crate::log::targets::ANALYSIS as LOG_ANALYSIS;
+
+use super::resolution_buffer::BufferIssue;
 impl Context {
     pub fn conflict_analysis(
         &mut self,
@@ -56,7 +59,10 @@ impl Context {
         let mut the_buffer = ResolutionBuffer::from_variable_store(&self.variables);
 
         the_buffer.clear_literals(self.levels.top().literals());
-        the_buffer.set_inital_clause(&conflict_clause.deref(), clause_key);
+        match the_buffer.set_inital_clause(&conflict_clause.deref(), clause_key) {
+            Ok(()) => {}
+            Err(e) => return Err(AnalysisIssue::Buffer(e)),
+        };
 
         if let Some(asserted_literal) = the_buffer.asserts() {
             Ok(AnalysisResult::MissedImplication(
@@ -71,9 +77,12 @@ impl Context {
                 config,
             );
             match buffer_status {
-                BufferStatus::FirstUIP => {}
-                BufferStatus::Exhausted => {
+                Ok(BufferStatus::FirstUIP) => {}
+                Ok(BufferStatus::Exhausted) => {
                     assert_ne!(config.stopping_criteria, StoppingCriteria::FirstUIP)
+                }
+                Err(buffer_issue) => {
+                    return Err(AnalysisIssue::Buffer(buffer_issue));
                 }
             }
             the_buffer.strengthen_given(self.proven_literals());
