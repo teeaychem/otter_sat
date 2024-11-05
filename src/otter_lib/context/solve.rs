@@ -11,7 +11,7 @@ use crate::{
     structures::{
         clause::Clause,
         literal::{Literal, LiteralSource},
-        variable::{list::VariableList, VariableId},
+        variable::{list::VariableList, VariableId, BCP::BCPIssue},
     },
 };
 
@@ -62,7 +62,7 @@ impl Context {
         'search: while let Some((literal, _source, _)) = self.variables.get_consequence() {
             match self.BCP(literal) {
                 Ok(()) => {}
-                Err(key) => {
+                Err(BCPIssue::Conflict(key)) => {
                     let Ok(analysis_result) = self.conflict_analysis(key, config) else {
                         log::error!(target: crate::log::targets::STEP, "Conflict analysis failed.");
                         return Err(StepInfo::AnalysisFailure);
@@ -130,6 +130,7 @@ impl Context {
                         }
                     }
                 }
+                Err(BCPIssue::CorruptWatch) => return Err(StepInfo::CorruptWatch),
             }
         }
 

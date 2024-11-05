@@ -264,9 +264,12 @@ impl ClauseStore {
         key: ClauseKey,
         variables: &mut VariableStore,
         literal: Literal,
-    ) -> ClauseKey {
+    ) -> Result<ClauseKey, ()> {
         match key {
-            ClauseKey::Binary(_) => panic!("cannot transfer binary"),
+            ClauseKey::Binary(_) => {
+                log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
+                return Err(());
+            }
             ClauseKey::Formula(index) => {
                 let formula_clause = &self.formula[index as usize];
                 let copied_clause = formula_clause.literal_slice().to_vec();
@@ -290,7 +293,7 @@ impl ClauseStore {
 
                 self.binary.push(binary_clause);
                 self.binary_graph.push(vec![key]);
-                binary_key
+                Ok(binary_key)
             }
             ClauseKey::Learned(_, _) => {
                 let mut the_clause = self.remove_from_learned(key.index());
@@ -313,7 +316,7 @@ impl ClauseStore {
                 self.binary_graph.push(vec![key]);
                 self.counts.learned += 1; // removing decrements the count
 
-                binary_key
+                Ok(binary_key)
             }
         }
     }
@@ -331,7 +334,7 @@ impl ClauseStore {
                     self.remove_from_learned(index);
                 }
             } else {
-                panic!("reduce issue")
+                log::warn!(target: crate::log::targets::REDUCTION, "Reduction called but there were no candidates");
             }
         }
         log::debug!(target: crate::log::targets::REDUCTION, "Learnt clauses reduced to: {}", self.counts.learned);

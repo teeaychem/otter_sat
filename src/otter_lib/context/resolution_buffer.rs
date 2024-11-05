@@ -38,6 +38,7 @@ pub enum BufferIssue {
     MissingClause,
     Subsumption(SubsumptionIssue),
     SatisfiedResolution,
+    Transfer,
 }
 
 impl ResolutionBuffer {
@@ -166,8 +167,11 @@ impl ResolutionBuffer {
                                 ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
                                     match source_clause.subsume(*literal, variables, false) {
                                         Ok(_) => {
-                                            let new_key = stored_clauses
-                                                .transfer_to_binary(*the_key, variables, *literal);
+                                            let Ok(new_key) = stored_clauses
+                                                .transfer_to_binary(*the_key, variables, *literal)
+                                            else {
+                                                return Err(BufferIssue::Transfer);
+                                            };
                                             self.trail.push(new_key);
                                         }
                                         Err(e) => return Err(BufferIssue::Subsumption(e)),
