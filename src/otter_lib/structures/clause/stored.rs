@@ -1,57 +1,28 @@
 use crate::{
     context::stores::{variable::VariableStore, ClauseKey},
-    structures::{
-        clause::Clause,
-        literal::Literal,
-        variable::{list::VariableList, WatchElement},
-    },
+    structures::{clause::Clause, literal::Literal, variable::list::VariableList},
+    types::clause::{WatchElement, WatchStatus},
 };
 
 use std::{borrow::Borrow, ops::Deref};
 
 #[derive(Debug)]
 pub struct StoredClause {
-    pub key: ClauseKey,
-    source: ClauseSource,
+    key: ClauseKey,
     clause: Vec<Literal>,
     subsumed_literals: Vec<Literal>,
     last: usize,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum ClauseSource {
-    Formula,
-    Resolution,
-}
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum WatchStatus {
-    Witness,
-    None,
-    Conflict,
-    TwoWitness,
-    TwoNone,
-    TwoConflict,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum SubsumptionError {
-    ShortClause,
-    NoPivot,
-    WatchError,
-}
-
 impl StoredClause {
-    pub fn new_from(
+    pub fn from(
         key: ClauseKey,
         clause: Vec<Literal>,
         subsumed: Vec<Literal>,
-        source: ClauseSource,
         variables: &mut VariableStore,
     ) -> Self {
         let mut stored_clause = Self {
             key,
-            source,
             clause,
             subsumed_literals: subsumed,
             last: 0,
@@ -66,8 +37,79 @@ impl StoredClause {
         self.key
     }
 
-    pub const fn source(&self) -> ClauseSource {
-        self.source
+    pub fn replace_key(&mut self, key: ClauseKey) {
+        self.key = key
+    }
+
+    pub fn original_clause(&self) -> Vec<Literal> {
+        let mut original = self.clause.clone();
+        for hidden in &self.subsumed_literals {
+            original.push(*hidden)
+        }
+        original
+    }
+}
+
+// Watches
+
+impl StoredClause {
+    fn initialise_watches(&mut self, variables: &mut VariableStore) {
+        let clause_length = self.clause.len() - 1;
+
+        let mut index = 0;
+        let watch_a = loop {
+            if index == clause_length {
+                break index;
+            }
+
+            let literal = self.clause[index];
+            let literal_value = variables.value_of(literal);
+            match literal_value {
+                None => break index,
+                Some(value) if value == literal.polarity() => break index,
+                Some(_) => index += 1,
+            }
+        };
+
+        self.clause.swap(0, watch_a);
+
+        self.last = 1;
+        for index in 1..clause_length {
+            let index_literal = unsafe { self.clause.get_unchecked(index) };
+            let index_value = variables.value_of(*index_literal);
+            match index_value {
+                None => {
+                    self.last = index;
+                    break;
+                }
+                Some(value) if value == index_literal.polarity() => {
+                    self.last = index;
+                    break;
+                }
+                Some(_) => {}
+            }
+        }
+
+        self.note_watch(self.clause[0], variables);
+        self.note_watch(self.clause[self.last], variables);
+    }
+
+    fn note_watch<L: Borrow<Literal>>(&self, literal: L, variables: &mut VariableStore) {
+        let literal = literal.borrow();
+        match self.key {
+            ClauseKey::Binary(_) => {
+                let check_literal = if self.clause[0].v_id() == literal.v_id() {
+                    self.clause[1]
+                } else {
+                    self.clause[0]
+                };
+
+                variables.add_watch(literal, WatchElement::Binary(check_literal, self.key()));
+            }
+            ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
+                variables.add_watch(literal, WatchElement::Clause(self.key()));
+            }
+        }
     }
 
     #[inline(always)]
@@ -151,7 +193,18 @@ impl StoredClause {
         // }
         Err(())
     }
+}
 
+// Subsumption
+
+#[derive(Debug, Clone, Copy)]
+pub enum SubsumptionError {
+    ShortClause,
+    NoPivot,
+    WatchError,
+}
+
+impl StoredClause {
     /*
     Subsumption may result in the removal of a watched literal.
     If `fix_watch` is set then watches will be corrected after removing the literal.
@@ -219,73 +272,6 @@ impl StoredClause {
             self.note_watch(self.clause[self.last], variables);
         }
         Ok(self.clause.len())
-    }
-
-    pub fn original_clause(&self) -> Vec<Literal> {
-        let mut original = self.clause.clone();
-        for hidden in &self.subsumed_literals {
-            original.push(*hidden)
-        }
-        original
-    }
-
-    fn initialise_watches(&mut self, variables: &mut VariableStore) {
-        let clause_length = self.clause.len() - 1;
-
-        let mut index = 0;
-        let watch_a = loop {
-            if index == clause_length {
-                break index;
-            }
-
-            let literal = self.clause[index];
-            let literal_value = variables.value_of(literal);
-            match literal_value {
-                None => break index,
-                Some(value) if value == literal.polarity() => break index,
-                Some(_) => index += 1,
-            }
-        };
-
-        self.clause.swap(0, watch_a);
-
-        self.last = 1;
-        for index in 1..clause_length {
-            let index_literal = unsafe { self.clause.get_unchecked(index) };
-            let index_value = variables.value_of(*index_literal);
-            match index_value {
-                None => {
-                    self.last = index;
-                    break;
-                }
-                Some(value) if value == index_literal.polarity() => {
-                    self.last = index;
-                    break;
-                }
-                Some(_) => {}
-            }
-        }
-
-        self.note_watch(self.clause[0], variables);
-        self.note_watch(self.clause[self.last], variables);
-    }
-
-    fn note_watch<L: Borrow<Literal>>(&self, literal: L, variables: &mut VariableStore) {
-        let literal = literal.borrow();
-        match self.key {
-            ClauseKey::Binary(_) => {
-                let check_literal = if self.clause[0].v_id() == literal.v_id() {
-                    self.clause[1]
-                } else {
-                    self.clause[0]
-                };
-
-                variables.add_watch(literal, WatchElement::Binary(check_literal, self.key()));
-            }
-            ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
-                variables.add_watch(literal, WatchElement::Clause(self.key()));
-            }
-        }
     }
 }
 

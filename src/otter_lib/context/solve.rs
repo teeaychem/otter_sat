@@ -8,12 +8,12 @@ use crate::{
         stores::LevelIndex,
         Context, Report, SolveStatus,
     },
-    errors::StepErr,
     structures::{
         clause::Clause,
         literal::{Literal, LiteralSource},
-        variable::{list::VariableList, VariableId, BCP::BCPIssue},
+        variable::{list::VariableList, VariableId, BCP::BCPErr},
     },
+    types::errs::StepErr,
 };
 
 impl Context {
@@ -54,9 +54,7 @@ impl Context {
                 Err(StepErr::Backfall) => panic!("Backjumping failed"),
                 Err(StepErr::AnalysisFailure) => panic!("Analysis failed"),
                 Err(StepErr::ChoiceFailure) => panic!("Choice failure"),
-                Err(e) => {
-                    panic!("{e:?}");
-                }
+                Err(e) => panic!("{e:?}"),
             }
         }
     }
@@ -67,7 +65,7 @@ impl Context {
         'search: while let Some((literal, _source, _)) = self.variables.get_consequence() {
             match self.BCP(literal) {
                 Ok(()) => {}
-                Err(BCPIssue::Conflict(key)) => {
+                Err(BCPErr::Conflict(key)) => {
                     let Ok(analysis_result) = self.conflict_analysis(key, config) else {
                         log::error!(target: crate::log::targets::STEP, "Conflict analysis failed.");
                         return Err(StepErr::AnalysisFailure);
@@ -135,11 +133,17 @@ impl Context {
                         }
                     }
                 }
-                Err(BCPIssue::CorruptWatch) => return Err(StepErr::BCPFailure),
+                Err(BCPErr::CorruptWatch) => return Err(StepErr::BCPFailure),
             }
         }
 
         self.make_choice(config)
+    }
+}
+
+impl Context {
+    pub fn clear_decisions(&mut self) {
+        self.backjump(0);
     }
 }
 

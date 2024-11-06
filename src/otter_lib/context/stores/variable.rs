@@ -6,23 +6,17 @@ use crate::{
         Config, VariableActivity,
     },
     context::{
+        core::ContextFailure,
         stores::{ClauseKey, LevelIndex},
         Context,
     },
-    errors::WatchError,
     generic::heap::IndexHeap,
     structures::{
         literal::{Literal, LiteralSource},
-        variable::{list::VariableList, Variable, VariableId, WatchElement},
+        variable::{list::VariableList, Variable, VariableId},
     },
+    types::{clause::WatchElement, errs::WatchError},
 };
-
-pub enum ValueStatus {
-    Set,
-    NotSet,
-    Match,
-    Conflict,
-}
 
 pub struct VariableStore {
     external_map: Vec<String>,
@@ -184,9 +178,13 @@ impl Context {
         &mut self,
         lit: L,
         source: LiteralSource,
-    ) -> Result<(), ValueStatus> {
-        self.variables
-            .set_value(lit.borrow(), self.levels.top_mut(), source)?;
+    ) -> Result<(), ContextFailure> {
+        let Ok(_) = self
+            .variables
+            .set_value(lit.borrow(), self.levels.top_mut(), source)
+        else {
+            return Err(ContextFailure::QueueConflict);
+        };
 
         // TODO: improve push back consequence
         self.variables

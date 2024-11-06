@@ -1,7 +1,4 @@
-use crate::{
-    context::stores::{ClauseKey, LevelIndex},
-    structures::literal::Literal,
-};
+use crate::{context::stores::LevelIndex, types::clause::WatchElement};
 use std::cell::UnsafeCell;
 
 #[allow(non_snake_case)]
@@ -10,12 +7,6 @@ pub mod list;
 pub mod variable_impl;
 
 pub type VariableId = u32;
-
-#[derive(Debug)]
-pub enum WatchElement {
-    Binary(Literal, ClauseKey),
-    Clause(ClauseKey),
-}
 
 pub struct Variable {
     id: VariableId,

@@ -8,17 +8,17 @@ use crate::{
 
 use std::collections::BTreeSet;
 
-use super::stores::variable::ValueStatus;
+use super::core::ContextFailure;
 
 /// General order for pairs related to booleans is 0 is false, 1 is true
-pub fn pure_choices(
-    clauses: impl Iterator<Item = impl Iterator<Item = Literal>>,
+pub fn pure_choices<'l>(
+    clauses: impl Iterator<Item = &'l [Literal]>,
 ) -> (Vec<VariableId>, Vec<VariableId>) {
     let mut the_true: BTreeSet<VariableId> = BTreeSet::new();
     let mut the_false: BTreeSet<VariableId> = BTreeSet::new();
 
     clauses.for_each(|literals| {
-        literals.for_each(|literal| {
+        literals.iter().for_each(|literal| {
             match literal.polarity() {
                 true => the_true.insert(literal.v_id()),
                 false => the_false.insert(literal.v_id()),
@@ -49,9 +49,8 @@ impl Context {
         Ok(())
     }
 
-    pub fn set_pure(&mut self) -> Result<(), ValueStatus> {
-        let (f, t) =
-            crate::context::preprocessing::pure_choices(self.clause_store.formula_clauses());
+    pub fn set_pure(&mut self) -> Result<(), ContextFailure> {
+        let (f, t) = crate::context::preprocessing::pure_choices(self.clause_store.all_clauses());
 
         for v_id in f.into_iter().chain(t) {
             let the_literal = Literal::new(v_id, false);

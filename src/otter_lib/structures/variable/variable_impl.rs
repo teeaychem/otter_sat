@@ -1,7 +1,7 @@
 use crate::{
     context::stores::{ClauseKey, LevelIndex},
-    errors::WatchError,
     structures::variable::{Variable, VariableId},
+    types::errs::WatchError,
 };
 
 use std::cell::UnsafeCell;
