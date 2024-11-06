@@ -7,6 +7,8 @@ mod resolution_buffer;
 pub mod solve;
 pub mod stores;
 
+use crate::types::gen::SolveStatus;
+
 use {
     crate::{
         config::{
@@ -66,18 +68,6 @@ pub struct Context {
     pub proofs: Vec<(Literal, Vec<ClauseKey>)>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum SolveStatus {
-    Initialised,
-    AssertingClause(ClauseKey),
-    MissedImplication(ClauseKey),
-    NoSolution(ClauseKey),
-    Proof(ClauseKey),
-    ChoiceMade,
-    FullValuation,
-    NoClauses,
-}
-
 impl std::fmt::Display for SolveStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -91,13 +81,6 @@ impl std::fmt::Display for SolveStatus {
             SolveStatus::Proof(key) => write!(f, "NoSolution({key})"),
         }
     }
-}
-
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum Report {
-    Satisfiable,
-    Unsatisfiable,
-    Unknown,
 }
 
 impl Context {

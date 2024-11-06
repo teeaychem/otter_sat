@@ -1,7 +1,7 @@
 use otter_lib::{
     config::Config,
-    context::Report,
     io::files::{default_on_dir, formula_report},
+    types::gen::Report,
 };
 
 use super::*;

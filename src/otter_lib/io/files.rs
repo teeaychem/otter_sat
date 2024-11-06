@@ -5,10 +5,7 @@ use std::path::PathBuf;
 use flate2::read::GzDecoder;
 
 use crate::context::builder::{BuildErr, ParseErr};
-use crate::{
-    config::Config,
-    context::{Context, Report},
-};
+use crate::{config::Config, context::Context, types::gen::Report};
 
 pub fn context_from_path(path: PathBuf, config: &Config) -> Result<Context, BuildErr> {
     let the_path = PathBuf::from(&path);

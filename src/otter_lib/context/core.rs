@@ -1,5 +1,5 @@
 use crate::{
-    context::{stores::ClauseKey, Context, Report, SolveStatus},
+    context::{stores::ClauseKey, Context, SolveStatus},
     structures::{literal::Literal, variable::list::VariableList},
     types::{clause::ClauseSource, errs::ClauseStoreErr},
 };
@@ -88,15 +88,6 @@ impl Context {
                 }
                 println!("s UNKNOWN");
             }
-        }
-    }
-
-    pub fn report(&self) -> Report {
-        match self.status {
-            SolveStatus::FullValuation => Report::Satisfiable,
-            SolveStatus::NoClauses => Report::Satisfiable,
-            SolveStatus::NoSolution(_) => Report::Unsatisfiable,
-            _ => Report::Unknown,
         }
     }
 

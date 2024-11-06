@@ -12,7 +12,7 @@ use crate::{
     },
     generic::heap::IndexHeap,
     structures::{
-        literal::{Literal, LiteralSource},
+        literal::{Literal, LiteralSource, LiteralTrait},
         variable::{list::VariableList, Variable, VariableId},
     },
     types::{clause::WatchElement, errs::WatchError},
@@ -174,22 +174,24 @@ impl VariableStore {
 }
 
 impl Context {
-    pub fn q_literal<L: Borrow<Literal>>(
+    pub fn q_literal<L: Borrow<impl LiteralTrait>>(
         &mut self,
         lit: L,
         source: LiteralSource,
     ) -> Result<(), ContextFailure> {
-        let Ok(_) = self
-            .variables
-            .set_value(lit.borrow(), self.levels.top_mut(), source)
+        let Ok(_) =
+            self.variables
+                .set_value(lit.borrow().canonical(), self.levels.top_mut(), source)
         else {
             return Err(ContextFailure::QueueConflict);
         };
 
         // TODO: improve push back consequence
-        self.variables
-            .consequence_q
-            .push_back((*lit.borrow(), source, self.levels.index()));
+        self.variables.consequence_q.push_back((
+            lit.borrow().canonical(),
+            source,
+            self.levels.index(),
+        ));
 
         Ok(())
     }

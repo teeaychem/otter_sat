@@ -1,19 +1,19 @@
 use crate::{
     config::GlueStrength,
     context::stores::variable::VariableStore,
-    structures::{clause::Clause, literal::Literal, variable::list::VariableList},
+    structures::{
+        clause::Clause,
+        literal::{Literal, LiteralTrait},
+        variable::list::VariableList,
+    },
 };
 
 use std::ops::Deref;
 
 impl<T: Deref<Target = [Literal]>> Clause for T {
-    fn literal_slice(&self) -> &[Literal] {
-        self
-    }
-
     fn as_string(&self) -> String {
         let mut the_string = String::from("(");
-        for literal in self.literal_slice() {
+        for literal in self.deref() {
             the_string.push_str(format!(" {literal} ").as_str());
         }
         the_string += ")";
@@ -22,7 +22,7 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
 
     fn as_dimacs(&self, variables: &VariableStore) -> String {
         let mut the_string = String::new();
-        for literal in self.literal_slice() {
+        for literal in self.deref() {
             let the_represenetation = match literal.polarity() {
                 true => format!("{} ", variables.external_name(literal.index())),
                 false => format!("-{} ", variables.external_name(literal.index())),
@@ -36,7 +36,7 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
     /// Returns the literal asserted by the clause on the given valuation
     fn asserts(&self, val: &impl VariableList) -> Option<Literal> {
         let mut the_literal = None;
-        for lit in self.literal_slice() {
+        for lit in self.deref() {
             if let Some(existing_val) = val.value_of(lit) {
                 match existing_val == lit.polarity() {
                     true => return None,
@@ -61,9 +61,5 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
         decision_levels.sort_unstable();
         decision_levels.dedup();
         decision_levels.len() as GlueStrength
-    }
-
-    fn length(&self) -> usize {
-        self.len()
     }
 }

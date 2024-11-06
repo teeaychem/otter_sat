@@ -16,8 +16,4 @@ pub trait Clause {
     fn asserts(&self, val: &impl VariableList) -> Option<Literal>;
 
     fn lbd(&self, variables: &impl VariableList) -> GlueStrength;
-
-    fn literal_slice(&self) -> &[Literal];
-
-    fn length(&self) -> usize;
 }

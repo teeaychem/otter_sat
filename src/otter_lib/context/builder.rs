@@ -2,8 +2,8 @@ use crate::{
     config::Config,
     context::Context,
     structures::{
-        literal::{Literal, LiteralSource},
-        variable::{list::VariableList, Variable, VariableId},
+        literal::{Literal, LiteralSource, LiteralTrait},
+        variable::{Variable, VariableId},
     },
     types::{
         clause::ClauseSource,
@@ -60,7 +60,7 @@ impl Context {
         Ok(Literal::new(the_variable, polarity))
     }
 
-    pub fn assume<L: Borrow<Literal>>(&mut self, literal: L) -> Result<(), ContextErr> {
+    pub fn assume<L: Borrow<impl LiteralTrait>>(&mut self, literal: L) -> Result<(), ContextErr> {
         if self.levels.index() != 0 {
             return Err(ContextErr::AssumptionAfterChoice);
         }
@@ -137,7 +137,7 @@ impl Context {
                     0 => {} // Any empty clause before strengthening raised an error above, so this is safe to ignore
                     1 => {
                         let literal = unsafe { clause.get_unchecked(0) };
-                        let Ok(_) = self.assume(literal) else {
+                        let Ok(_) = self.assume(literal.canonical()) else {
                             return Err(BuildErr::AssumptionIndirectConflict);
                         };
                     }
@@ -165,8 +165,6 @@ impl Context {
         let mut the_context = None;
         let mut line_counter = 0;
         let mut clause_counter = 0;
-
-        let show_stats = config.show_stats;
 
         // first phase, read until the formula begins
         'preamble_loop: loop {
@@ -203,7 +201,9 @@ impl Context {
 
                     if config.show_stats {
                         println!("c Parsing {:#?}", file_path);
-                        println!("c Expectation is to get {variable_count} variables and {clause_count} clauses");
+                        if config.detail > 0 {
+                            println!("c Expectation is to get {variable_count} variables and {clause_count} clauses");
+                        }
                     }
                     the_context = Some(Context::with_size_hints(
                         variable_count,
@@ -264,19 +264,17 @@ impl Context {
             buffer.clear();
         }
 
-        if show_stats {
+        if config_detail > 0 {
             let mut message = format!(
                 "c Parsing complete with {} variables and {} clauses",
                 the_context.variable_count(),
                 clause_counter
             );
-
-            if config_detail > 0 {
+            if config_detail > 1 {
                 message.push_str(
                     format!(" ({} added to the context)", the_context.clause_count()).as_str(),
                 );
             }
-
             println!("{message}");
         }
 

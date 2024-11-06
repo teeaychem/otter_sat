@@ -1,7 +1,4 @@
-use otter_lib::{
-    config::Config,
-    context::{Context, Report},
-};
+use otter_lib::{config::Config, context::Context, types::gen::Report};
 
 mod basic {
     use super::*;
