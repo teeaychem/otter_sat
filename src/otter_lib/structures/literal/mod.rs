@@ -1,13 +1,19 @@
-mod literal_impl;
+mod literal_eye;
+mod literal_struct;
 // pub use crate::structures::literal::literal_impl;
 
 use crate::{context::stores::ClauseKey, structures::variable::VariableId};
 
+pub type Literal = LiteralEye;
+
 #[derive(Clone, Copy, Debug)]
-pub struct Literal {
+pub struct LiteralStruct {
     v_id: VariableId,
     polarity: bool,
 }
+
+#[derive(Clone, Copy, Debug)]
+pub struct LiteralEye(isize);
 
 /// how a literal was settled
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -20,4 +26,18 @@ pub enum LiteralSource {
     BCP(ClauseKey),
     Missed(ClauseKey),
     Assumption,
+}
+
+pub trait LiteralTrait {
+    fn new(variable_id: VariableId, polarity: bool) -> Self;
+
+    fn negate(&self) -> Self;
+
+    fn v_id(&self) -> VariableId;
+
+    fn polarity(&self) -> bool;
+
+    fn index(&self) -> usize;
+
+    fn canonical(&self) -> Literal;
 }

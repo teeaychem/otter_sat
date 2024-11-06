@@ -1,13 +1,33 @@
+use std::ops::Deref;
+
 use crate::{
     context::{stores::ClauseKey, Context},
-    structures::{clause::Clause, literal::LiteralSource},
-    types::errs::ReportError,
+    structures::{
+        clause::Clause,
+        literal::{LiteralSource, LiteralTrait},
+    },
+    types::{errs::ReportError, gen::Report},
 };
 
+use super::SolveStatus;
+
 impl Context {
+    pub fn report(&self) -> Report {
+        match self.status {
+            SolveStatus::FullValuation => Report::Satisfiable,
+            SolveStatus::NoClauses => Report::Satisfiable,
+            SolveStatus::NoSolution(_) => Report::Unsatisfiable,
+            _ => Report::Unknown,
+        }
+    }
+
     #[allow(clippy::single_match)]
-    /// Display an unsatisfiable core given some conflict.
+    /// An unsatisfiable core
     pub fn get_unsat_core(&self, conflict_key: ClauseKey) -> Result<Vec<ClauseKey>, ReportError> {
+        let Report::Unsatisfiable = self.report() else {
+            return Err(ReportError::UnsatCoreUnavailable);
+        };
+
         println!("c An unsatisfiable core of the formula:\n",);
 
         /*
@@ -42,7 +62,6 @@ impl Context {
          so, if the literal was obtained either by resolution or directly from some clause, then that clause or the clauses used for resolution are added to the q
          this skips assumed literals
          */
-
         while let Some(key) = core_q.pop_front() {
             if key_set.insert(key) {
                 match key {
@@ -51,7 +70,7 @@ impl Context {
 
                         core_keys.insert(key);
 
-                        for literal in clause.literal_slice() {
+                        for literal in clause.deref() {
                             if seen_literal_set.insert(*literal) {
                                 let found = observations.iter().find(|(_, observed_literal)| {
                                     literal == &observed_literal.negate()

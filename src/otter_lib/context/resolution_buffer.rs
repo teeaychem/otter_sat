@@ -1,11 +1,11 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, ops::Deref};
 
 use crate::{
     config::{Config, StoppingCriteria},
     context::stores::{clause::ClauseStore, level::Level, variable::VariableStore, ClauseKey},
     structures::{
-        clause::Clause,
-        literal::{Literal, LiteralSource},
+        clause::stored::StoredClause,
+        literal::{Literal, LiteralSource, LiteralTrait},
         variable::{list::VariableList, VariableId},
     },
 };
@@ -79,7 +79,7 @@ impl ResolutionBuffer {
 
     pub fn set_inital_clause(
         &mut self,
-        clause: &impl Clause,
+        clause: &StoredClause,
         key: ClauseKey,
     ) -> Result<(), BufErr> {
         self.trail.push(key);
@@ -150,11 +150,11 @@ impl ResolutionBuffer {
                 };
 
                 if self.resolve_clause(source_clause, literal).is_ok() {
-                    for involved_literal in source_clause.literal_slice() {
+                    for involved_literal in source_clause.deref().deref() {
                         self.used_variables[involved_literal.index()] = true;
                     }
 
-                    if config.subsumption && self.clause_length < source_clause.length() {
+                    if config.subsumption && self.clause_length < source_clause.len() {
                         /*
                         If the resolved clause is binary then subsumption transfers the clause to the store for binary clauses
                         This is safe to do as:
@@ -243,8 +243,8 @@ impl ResolutionBuffer {
 
 impl ResolutionBuffer {
     /// Merge a clause into the buffer
-    fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), BufErr> {
-        for literal in clause.literal_slice() {
+    fn merge_clause(&mut self, clause: &StoredClause) -> Result<(), BufErr> {
+        for literal in clause.deref() {
             match self.buffer.get(literal.index()).expect("lost literal") {
                 ResolutionCell::ConflictLiteral(_) | ResolutionCell::NoneLiteral(_) => {}
                 ResolutionCell::Pivot => {}
@@ -275,7 +275,7 @@ impl ResolutionBuffer {
 
     fn resolve_clause<L: Borrow<Literal>>(
         &mut self,
-        clause: &impl Clause,
+        clause: &StoredClause,
         using: L,
     ) -> Result<(), BufErr> {
         let using = using.borrow();

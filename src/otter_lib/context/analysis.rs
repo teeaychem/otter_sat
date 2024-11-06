@@ -5,7 +5,10 @@ use crate::{
         stores::ClauseKey,
         Context,
     },
-    structures::{clause::Clause, literal::Literal, variable::list::VariableList},
+    structures::{
+        literal::{Literal, LiteralTrait},
+        variable::list::VariableList,
+    },
     types::{clause::ClauseSource, errs::AnalysisError},
 };
 
@@ -37,7 +40,7 @@ impl Context {
         if let config::VSIDS::Chaff = config.vsids_variant {
             self.variables.apply_VSIDS(
                 conflict_clause
-                    .literal_slice()
+                    .deref()
                     .iter()
                     .map(|literal| literal.index()),
                 config,
@@ -48,7 +51,7 @@ impl Context {
         let mut the_buffer = ResolutionBuffer::from_variable_store(&self.variables);
 
         the_buffer.clear_literals(self.levels.top().literals());
-        match the_buffer.set_inital_clause(&conflict_clause.deref(), clause_key) {
+        match the_buffer.set_inital_clause(conflict_clause, clause_key) {
             Ok(()) => {}
             Err(_) => return Err(AnalysisError::Buffer),
         };
