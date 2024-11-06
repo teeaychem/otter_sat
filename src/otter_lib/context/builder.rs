@@ -60,7 +60,9 @@ impl Context {
         Ok(Literal::new(the_variable, polarity))
     }
 
-    pub fn assume<L: Borrow<impl LiteralTrait>>(&mut self, literal: L) -> Result<(), ContextErr> {
+    // Aka. soft assumption
+    // This will hold until a restart happens
+    pub fn believe<L: Borrow<impl LiteralTrait>>(&mut self, literal: L) -> Result<(), ContextErr> {
         if self.levels.index() != 0 {
             return Err(ContextErr::AssumptionAfterChoice);
         }
@@ -70,6 +72,11 @@ impl Context {
             Ok(_) => Ok(()),
             Err(_) => Err(ContextErr::AssumptionConflict),
         }
+    }
+
+    pub fn assume<L: Borrow<impl LiteralTrait>>(&mut self, literal: L) -> Result<(), ContextErr> {
+        self.proofs.push((literal.borrow().canonical(), vec![]));
+        self.believe(literal)
     }
 }
 
