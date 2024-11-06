@@ -220,7 +220,7 @@ impl Context {
             false => {
                 while let Some(index) = self.variables.heap_pop_most_active() {
                     let the_variable = self.variables.get_unsafe(index);
-                    if self.variables.value_of(the_variable.index()).is_none() {
+                    if self.variables.value_at(the_variable.index()).is_none() {
                         return Some(the_variable.index());
                     }
                 }

@@ -1,5 +1,4 @@
 // #![allow(unused_imports)]
-#![allow(clippy::single_match)]
 // #![allow(unused_variables)]
 
 #[cfg(not(target_env = "msvc"))]

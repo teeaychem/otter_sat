@@ -54,7 +54,7 @@ impl Context {
                         for literal in clause.literal_slice() {
                             if seen_literal_set.insert(*literal) {
                                 let found = observations.iter().find(|(_, observed_literal)| {
-                                    *literal == observed_literal.negate()
+                                    literal == &observed_literal.negate()
                                 });
                                 if let Some((src, _)) = found {
                                     match src {
@@ -63,7 +63,7 @@ impl Context {
                                                 .proofs
                                                 .iter()
                                                 .find(|(proven_literal, _)| {
-                                                    *literal == proven_literal.negate()
+                                                    literal == &proven_literal.negate()
                                                 })
                                                 .expect("no proof of resolved literal");
                                             for key in &proof.1 {

@@ -252,16 +252,6 @@ fn lran() {
     );
 }
 
-#[test]
-#[ignore = "expensive"]
-fn parity() {
-    default_on_dir(
-        dimacs_path().join("PARITY"),
-        &Config::default(),
-        Report::Satisfiable,
-    );
-}
-
 mod partiy {
     use super::*;
 

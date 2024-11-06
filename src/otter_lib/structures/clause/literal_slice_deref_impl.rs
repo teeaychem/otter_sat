@@ -37,7 +37,7 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
     fn asserts(&self, val: &impl VariableList) -> Option<Literal> {
         let mut the_literal = None;
         for lit in self.literal_slice() {
-            if let Some(existing_val) = val.value_of(lit.index()) {
+            if let Some(existing_val) = val.value_of(lit) {
                 match existing_val == lit.polarity() {
                     true => return None,
                     false => continue,
@@ -65,5 +65,17 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
 
     fn length(&self) -> usize {
         self.len()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::structures::literal::Literal;
+
+    #[test]
+    fn aaa() {
+        let a = &Literal::new(1, true);
+        let b = &Literal::new(1, true);
+        assert!(&a == &b);
     }
 }
