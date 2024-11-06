@@ -14,8 +14,8 @@ pub struct Literal {
 #[allow(clippy::upper_case_acronyms)]
 pub enum LiteralSource {
     Choice,                // a choice made where the alternative may make a SAT difference
-    Pure, // a choice made with a guarantee that the alternative would make no SAT difference
-    Analysis(ClauseKey), // the literal must be the case for SAT given some valuation
+    Pure,                  // a choice made when the alternative would make no SAT difference
+    Analysis(ClauseKey),   // the literal must be the case for SAT given some valuation
     Resolution(ClauseKey), // there was no reason to store the resolved clause
     BCP(ClauseKey),
     Missed(ClauseKey),

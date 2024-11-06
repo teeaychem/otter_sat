@@ -195,6 +195,16 @@ Default: {}", config::defaults::POLARITY_LEAN)))
             .help("Time limit for the solve in seconds.
 Default: No limit"))
 
+        .arg(Arg::new("detail")
+            .long("detail")
+            .short('d')
+            .value_name("LEVEL")
+            .value_parser(value_parser!(u8))
+            .required(false)
+            .num_args(1)
+            .help(format!("The level to which details are communicated during a solve.
+Default: {}", config::defaults::DETAILS)))
+
         .arg(Arg::new("paths")
             .required(false)
             .trailing_var_arg(true)
@@ -270,6 +280,10 @@ impl Config {
         if let Ok(Some(true)) = args.try_get_one::<bool>("elephant") {
             the_config.restarts_allowed = false;
             the_config.reduction_allowed = false;
+        };
+
+        if let Ok(Some(detail)) = args.try_get_one::<u8>("detail") {
+            the_config.detail = *detail
         };
 
         the_config

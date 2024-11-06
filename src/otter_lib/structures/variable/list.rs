@@ -1,10 +1,17 @@
 use crate::{
-    context::stores::{level::Level, variable::ValueStatus},
+    context::stores::level::Level,
     structures::{
         literal::{Literal, LiteralSource},
         variable::Variable,
     },
 };
+
+// Information about the valuation of a variable, tied to some expectation
+pub enum ValueInfo {
+    Set,
+    Match,
+    Conflict,
+}
 
 use std::{borrow::Borrow, ops::DerefMut};
 
@@ -17,14 +24,14 @@ pub trait VariableList {
     fn value_of<L: Borrow<Literal>>(&self, literal: L) -> Option<bool>;
 
     #[allow(dead_code)]
-    fn check_literal<L: Borrow<Literal>>(&self, literal: L) -> ValueStatus;
+    fn check_literal<L: Borrow<Literal>>(&self, literal: L) -> ValueInfo;
 
     fn set_value<L: Borrow<Literal>>(
         &self,
         literal: L,
         level: &mut Level,
         source: LiteralSource,
-    ) -> Result<ValueStatus, ValueStatus>;
+    ) -> Result<ValueInfo, ValueInfo>;
 
     fn slice(&self) -> &[Variable];
 
@@ -35,15 +42,16 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
     fn as_internal_string(&self) -> String {
         let mut the_string = String::new();
         for variable in self.iter() {
-            match variable.value() {
+            let formatted = match variable.value() {
                 Some(true) => {
-                    the_string.push_str(format!(" {}", variable.id()).as_str());
+                    format!(" {}", variable.id())
                 }
                 Some(false) => {
-                    the_string.push_str(format!(" -{}", variable.id()).as_str());
+                    format!(" -{}", variable.id())
                 }
-                _ => {}
-            }
+                _ => String::default(),
+            };
+            the_string.push_str(formatted.as_str());
         }
         the_string
     }
@@ -56,12 +64,12 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
         unsafe { self.get_unchecked(literal.borrow().index()).value() }
     }
 
-    fn check_literal<L: Borrow<Literal>>(&self, literal: L) -> ValueStatus {
+    fn check_literal<L: Borrow<Literal>>(&self, literal: L) -> ValueInfo {
         let maybe_value = unsafe { self.get_unchecked(literal.borrow().index()) };
         match maybe_value.value() {
-            Some(already_set) if already_set == literal.borrow().polarity() => ValueStatus::Match,
-            Some(_already_set) => ValueStatus::Conflict,
-            None => ValueStatus::Set,
+            Some(already_set) if already_set == literal.borrow().polarity() => ValueInfo::Match,
+            Some(_already_set) => ValueInfo::Conflict,
+            None => ValueInfo::Set,
         }
     }
 
@@ -70,16 +78,16 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
         literal: L,
         level: &mut Level,
         source: LiteralSource,
-    ) -> Result<ValueStatus, ValueStatus> {
+    ) -> Result<ValueInfo, ValueInfo> {
         log::trace!(target: crate::log::targets::VALUATION, "Set: {}", literal.borrow());
         let variable = unsafe { self.get_unchecked(literal.borrow().index()) };
         match variable.value() {
-            Some(value) if value != literal.borrow().polarity() => Err(ValueStatus::Conflict),
-            Some(_value) => Ok(ValueStatus::Match),
+            Some(value) if value != literal.borrow().polarity() => Err(ValueInfo::Conflict),
+            Some(_value) => Ok(ValueInfo::Match),
             None => {
                 variable.set_value(Some(literal.borrow().polarity()), Some(level.index()));
                 level.record_literal(literal.borrow(), source);
-                Ok(ValueStatus::Set)
+                Ok(ValueInfo::Set)
             }
         }
     }

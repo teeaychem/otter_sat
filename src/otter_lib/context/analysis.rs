@@ -5,12 +5,8 @@ use crate::{
         stores::ClauseKey,
         Context,
     },
-    errors::AnalysisError,
-    structures::{
-        clause::{stored::ClauseSource, Clause},
-        literal::Literal,
-        variable::list::VariableList,
-    },
+    structures::{clause::Clause, literal::Literal, variable::list::VariableList},
+    types::{clause::ClauseSource, errs::AnalysisError},
 };
 
 use std::ops::Deref;

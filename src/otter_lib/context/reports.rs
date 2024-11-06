@@ -1,7 +1,7 @@
 use crate::{
     context::{stores::ClauseKey, Context},
-    errors::ReportError,
     structures::{clause::Clause, literal::LiteralSource},
+    types::errs::ReportError,
 };
 
 impl Context {
@@ -104,5 +104,21 @@ impl Context {
             println!("{}", clause.as_dimacs(&self.variables));
         }
         Ok(())
+    }
+}
+
+impl Context {
+    pub fn clause_database(&self) -> Vec<String> {
+        self.clause_store
+            .all_clauses()
+            .map(|clause| clause.as_dimacs(&self.variables))
+            .collect::<Vec<_>>()
+    }
+
+    pub fn proven_literal_database(&self) -> Vec<String> {
+        self.proofs
+            .iter()
+            .map(|(literal, _)| format!("{} 0", self.variables.external_name(literal.index())))
+            .collect::<Vec<_>>()
     }
 }

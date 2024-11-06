@@ -29,7 +29,7 @@ pub struct Config {
     pub time_limit: Option<std::time::Duration>,
     pub vsids_variant: VSIDS,
     pub reduction_interval: usize,
-    pub verbosity: u8,
+    pub detail: u8,
 }
 
 impl Default for Config {
@@ -55,7 +55,7 @@ impl Default for Config {
             time_limit: None,
             vsids_variant: VSIDS_VARIANT,
             reduction_interval: REDUCTION_INTERVAL,
-            verbosity: VERBOSITY,
+            detail: DETAILS,
         }
     }
 }

@@ -154,7 +154,6 @@ impl ResolutionBuffer {
                         self.used_variables[involved_literal.index()] = true;
                     }
 
-                    // TODO: allow subsumption on binary clauses?
                     if config.subsumption && self.clause_length < source_clause.length() {
                         /*
                         If the resolved clause is binary then subsumption transfers the clause to the store for binary clauses
@@ -171,26 +170,23 @@ impl ResolutionBuffer {
                             2 => match the_key {
                                 ClauseKey::Binary(_) => {}
                                 ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
-                                    match source_clause.subsume(literal, variables, false) {
-                                        Ok(_) => {
-                                            let Ok(new_key) = stored_clauses
-                                                .transfer_to_binary(*the_key, variables)
-                                            else {
-                                                return Err(BufErr::Transfer);
-                                            };
-                                            self.trail.push(new_key);
-                                        }
-                                        Err(_) => return Err(BufErr::Subsumption),
+                                    let Ok(_) = source_clause.subsume(literal, variables, false)
+                                    else {
+                                        return Err(BufErr::Subsumption);
                                     };
+                                    let Ok(new_key) =
+                                        stored_clauses.transfer_to_binary(*the_key, variables)
+                                    else {
+                                        return Err(BufErr::Transfer);
+                                    };
+                                    self.trail.push(new_key);
                                 }
                             },
                             _ => {
-                                match source_clause.subsume(literal, variables, true) {
-                                    Ok(_) => {
-                                        self.trail.push(*the_key);
-                                    }
-                                    Err(_) => return Err(BufErr::Subsumption),
+                                let Ok(_) = source_clause.subsume(literal, variables, true) else {
+                                    return Err(BufErr::Subsumption);
                                 };
+                                self.trail.push(*the_key);
                             }
                         }
                     }

@@ -3,15 +3,14 @@ use crate::{
     context::stores::{
         activity_glue::ActivityGlue, variable::VariableStore, ClauseKey, FormulaIndex,
     },
-    errors::ClauseStoreErr,
     generic::heap::IndexHeap,
     structures::{
-        clause::{
-            stored::{ClauseSource, StoredClause},
-            Clause,
-        },
+        clause::{stored::StoredClause, Clause},
         literal::Literal,
-        variable::WatchElement,
+    },
+    types::{
+        clause::{ClauseSource, WatchElement},
+        errs::ClauseStoreErr,
     },
 };
 
@@ -191,18 +190,16 @@ impl ClauseStore {
             1 => Err(ClauseStoreErr::UnitClause),
             2 => {
                 let key = self.new_binary_id()?;
-                self.binary.push(StoredClause::new_from(
-                    key, clause, subsumed, source, variables,
-                ));
+                self.binary
+                    .push(StoredClause::from(key, clause, subsumed, variables));
                 self.binary_graph.push(resolution_keys.unwrap_or_default());
                 Ok(key)
             }
             _ => match source {
                 ClauseSource::Formula => {
                     let key = self.new_formula_id()?;
-                    self.formula.push(StoredClause::new_from(
-                        key, clause, subsumed, source, variables,
-                    ));
+                    self.formula
+                        .push(StoredClause::from(key, clause, subsumed, variables));
                     Ok(key)
                 }
                 ClauseSource::Resolution => {
@@ -211,8 +208,7 @@ impl ClauseStore {
                     match self.keys.len() {
                         0 => {
                             let key = self.new_learned_id()?;
-                            let the_clause =
-                                StoredClause::new_from(key, clause, subsumed, source, variables);
+                            let the_clause = StoredClause::from(key, clause, subsumed, variables);
 
                             let value = ActivityGlue {
                                 activity: ClauseActivity::default(),
@@ -231,8 +227,7 @@ impl ClauseStore {
                         }
                         _ => unsafe {
                             let key = self.keys.pop().unwrap().retoken()?;
-                            let the_clause =
-                                StoredClause::new_from(key, clause, subsumed, source, variables);
+                            let the_clause = StoredClause::from(key, clause, subsumed, variables);
 
                             let value = ActivityGlue {
                                 activity: ClauseActivity::default(),
@@ -255,14 +250,17 @@ impl ClauseStore {
         (self.counts.formula + self.counts.learned + self.counts.binary) as usize
     }
 
-    pub fn formula_clauses(&self) -> impl Iterator<Item = impl Iterator<Item = Literal> + '_> + '_ {
+    pub fn all_clauses(&self) -> impl Iterator<Item = &[Literal]> + '_ {
         self.formula
             .iter()
-            .map(|clause| clause.literal_slice().iter().copied())
+            .map(|clause| clause.literal_slice())
             .chain(
                 self.binary
                     .iter()
-                    .map(|clause| clause.literal_slice().iter().copied()),
+                    .map(|clause| clause.literal_slice())
+                    .chain(self.learned.iter().flat_map(|maybe_clause| {
+                        maybe_clause.as_ref().map(|clause| clause.literal_slice())
+                    })),
             )
     }
 
@@ -304,13 +302,8 @@ impl ClauseStore {
 
                 // as a new clause is created there's no need to add watches as in the learnt case
 
-                let binary_clause = StoredClause::new_from(
-                    binary_key,
-                    copied_clause,
-                    Vec::default(),
-                    ClauseSource::Resolution,
-                    variables,
-                );
+                let binary_clause =
+                    StoredClause::from(binary_key, copied_clause, Vec::default(), variables);
 
                 self.binary.push(binary_clause);
                 self.binary_graph.push(vec![key]);
@@ -325,7 +318,7 @@ impl ClauseStore {
                 }
 
                 let binary_key = self.new_binary_id()?;
-                the_clause.key = binary_key;
+                the_clause.replace_key(binary_key);
 
                 let watch_a = unsafe { the_clause.get_unchecked(0) };
                 let watch_b = unsafe { the_clause.get_unchecked(1) };

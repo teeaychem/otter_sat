@@ -1,7 +1,7 @@
 pub mod config;
 pub mod context;
-pub mod errors;
 pub mod io;
+pub mod types;
 
 mod log;
 mod procedures;
