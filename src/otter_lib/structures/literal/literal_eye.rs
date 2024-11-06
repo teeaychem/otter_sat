@@ -92,7 +92,7 @@ impl std::fmt::Display for LiteralEye {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match &self.polarity() {
             true => write!(f, "{}", self.0),
-            false => write!(f, "-{}", self.0),
+            false => write!(f, "-{}", !self.0),
         }
     }
 }
