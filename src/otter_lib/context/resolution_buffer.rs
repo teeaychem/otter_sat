@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use crate::{
     config::{Config, StoppingCriteria},
     context::stores::{clause::ClauseStore, level::Level, variable::VariableStore, ClauseKey},
@@ -147,7 +149,7 @@ impl ResolutionBuffer {
                     Some(clause) => clause,
                 };
 
-                if self.resolve_clause(source_clause, *literal).is_ok() {
+                if self.resolve_clause(source_clause, literal).is_ok() {
                     for involved_literal in source_clause.literal_slice() {
                         self.used_variables[involved_literal.index()] = true;
                     }
@@ -169,7 +171,7 @@ impl ResolutionBuffer {
                             2 => match the_key {
                                 ClauseKey::Binary(_) => {}
                                 ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
-                                    match source_clause.subsume(*literal, variables, false) {
+                                    match source_clause.subsume(literal, variables, false) {
                                         Ok(_) => {
                                             let Ok(new_key) = stored_clauses
                                                 .transfer_to_binary(*the_key, variables)
@@ -183,7 +185,7 @@ impl ResolutionBuffer {
                                 }
                             },
                             _ => {
-                                match source_clause.subsume(*literal, variables, true) {
+                                match source_clause.subsume(literal, variables, true) {
                                     Ok(_) => {
                                         self.trail.push(*the_key);
                                     }
@@ -275,9 +277,14 @@ impl ResolutionBuffer {
         Ok(())
     }
 
-    fn resolve_clause(&mut self, clause: &impl Clause, using: Literal) -> Result<(), BufErr> {
+    fn resolve_clause<L: Borrow<Literal>>(
+        &mut self,
+        clause: &impl Clause,
+        using: L,
+    ) -> Result<(), BufErr> {
+        let using = using.borrow();
         match unsafe { *self.buffer.get_unchecked(using.index()) } {
-            ResolutionCell::NoneLiteral(literal) if using == !literal => {
+            ResolutionCell::NoneLiteral(literal) if using == &literal.negate() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
                 self.set(using.index(), ResolutionCell::Pivot);
@@ -285,7 +292,7 @@ impl ResolutionBuffer {
 
                 Ok(())
             }
-            ResolutionCell::ConflictLiteral(literal) if using == !literal => {
+            ResolutionCell::ConflictLiteral(literal) if using == &literal.negate() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
                 self.set(using.index(), ResolutionCell::Pivot);

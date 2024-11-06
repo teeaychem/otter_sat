@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-use std::{io::BufRead, path::PathBuf};
+use std::{borrow::Borrow, io::BufRead, path::PathBuf};
 
 #[derive(Debug)]
 pub enum BuildErr {
@@ -58,7 +58,7 @@ impl Context {
         Ok(Literal::new(the_variable, polarity))
     }
 
-    pub fn assume(&mut self, literal: Literal) -> Result<(), ContextErr> {
+    pub fn assume<L: Borrow<Literal>>(&mut self, literal: L) -> Result<(), ContextErr> {
         if self.levels.index() != 0 {
             return Err(ContextErr::AssumptionAfterChoice);
         }
@@ -110,7 +110,7 @@ impl Context {
 
                 // strengthen a clause given established assumptions and skip adding a satisfied clause
                 for literal in clause {
-                    match self.variables.value_of(literal.index()) {
+                    match self.variables.value_of(literal) {
                         None => {
                             strengthened_clause.push(literal);
                         }

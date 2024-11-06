@@ -299,8 +299,8 @@ impl ClauseStore {
 
                 let binary_key = self.new_binary_id()?;
 
-                variables.remove_watch(unsafe { *copied_clause.get_unchecked(0) }, key)?;
-                variables.remove_watch(unsafe { *copied_clause.get_unchecked(1) }, key)?;
+                variables.remove_watch(unsafe { copied_clause.get_unchecked(0) }, key)?;
+                variables.remove_watch(unsafe { copied_clause.get_unchecked(1) }, key)?;
 
                 // as a new clause is created there's no need to add watches as in the learnt case
 
@@ -327,13 +327,13 @@ impl ClauseStore {
                 let binary_key = self.new_binary_id()?;
                 the_clause.key = binary_key;
 
-                let watch_a = unsafe { *the_clause.get_unchecked(0) };
-                let watch_b = unsafe { *the_clause.get_unchecked(1) };
+                let watch_a = unsafe { the_clause.get_unchecked(0) };
+                let watch_b = unsafe { the_clause.get_unchecked(1) };
 
                 variables.remove_watch(watch_a, key)?;
                 variables.remove_watch(watch_b, key)?;
-                variables.add_watch(watch_a, WatchElement::Binary(watch_b, binary_key));
-                variables.add_watch(watch_b, WatchElement::Binary(watch_a, binary_key));
+                variables.add_watch(watch_a, WatchElement::Binary(*watch_b, binary_key));
+                variables.add_watch(watch_b, WatchElement::Binary(*watch_a, binary_key));
 
                 self.binary.push(the_clause);
                 self.binary_graph.push(vec![key]);
