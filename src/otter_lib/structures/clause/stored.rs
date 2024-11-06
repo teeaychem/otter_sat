@@ -7,7 +7,7 @@ use crate::{
     },
 };
 
-use std::ops::Deref;
+use std::{borrow::Borrow, ops::Deref};
 
 #[derive(Debug)]
 pub struct StoredClause {
@@ -72,59 +72,84 @@ impl StoredClause {
 
     #[inline(always)]
     #[allow(clippy::result_unit_err)]
-    /// Searches for and then updates to a new literal for the given watch index
-    /// Returns true if the the watch was updated
-    /// The match is to help prototype re-ordering the clause
-    /// Specifically, the general case allows storing information about the previous literal
-    pub fn update_watch(
+    pub fn update_watch<L: Borrow<Literal>>(
         &mut self,
-        literal: Literal,
+        literal: L,
         variables: &mut VariableStore,
     ) -> Result<WatchStatus, ()> {
-        match self.clause.len() {
-            2 => {
-                if unsafe { self.clause.get_unchecked(0).v_id() == literal.v_id() } {
-                    self.clause.swap(0, 1)
+        /*
+        This will, logic issues aside, only be called on long formulas
+        And, given how often it is called, checks to ensure there are no logic issues aren't worthwhile
+        The assertion is commented for when needed
+         */
+        // assert!(self.clause.len() > 2);
+
+        if unsafe { self.clause.get_unchecked(0).v_id() == literal.borrow().v_id() } {
+            self.clause.swap(0, self.last)
+        }
+        /*
+        The two for loops avoid the need to check whether the search pointer is equal to where the last search pointer stopped each time it's incremented
+        Naive tests suggest there isn't a significant difference…
+         */
+
+        for i in (self.last + 1)..self.clause.len() {
+            let last_literal = unsafe { self.clause.get_unchecked(i) };
+            match variables.value_of(*last_literal) {
+                None => {
+                    self.last = i;
+                    self.note_watch(*last_literal, variables);
+                    return Ok(WatchStatus::None);
                 }
-                let other_literal = unsafe { self.clause.get_unchecked(1) };
-                match variables.value_of(other_literal.index()) {
-                    None => Ok(WatchStatus::TwoNone),
-                    Some(polarity) if polarity == other_literal.polarity() => {
-                        Ok(WatchStatus::TwoWitness)
-                    }
-                    Some(_) => Err(()),
+                Some(value) if value == last_literal.polarity() => {
+                    self.last = i;
+                    self.note_watch(*last_literal, variables);
+                    return Ok(WatchStatus::Witness);
                 }
-            }
-            _ => {
-                if unsafe { self.clause.get_unchecked(0).v_id() == literal.v_id() } {
-                    self.clause.swap(0, self.last)
-                }
-                let last_cache = self.last;
-                let clause_length = self.clause.len();
-                loop {
-                    self.last += 1;
-                    if self.last == clause_length {
-                        self.last = 1 // skip 0
-                    }
-                    if self.last == last_cache {
-                        return Err(());
-                    }
-                    let last_literal = unsafe { self.clause.get_unchecked(self.last) };
-                    let last_value = variables.value_of(last_literal.index());
-                    match last_value {
-                        None => {
-                            self.note_watch(*last_literal, variables);
-                            return Ok(WatchStatus::None);
-                        }
-                        Some(value) if value == last_literal.polarity() => {
-                            self.note_watch(*last_literal, variables);
-                            return Ok(WatchStatus::Witness);
-                        }
-                        Some(_) => {}
-                    }
-                }
+                Some(_) => {}
             }
         }
+
+        for i in 1..self.last {
+            let last_literal = unsafe { self.clause.get_unchecked(i) };
+            match variables.value_of(*last_literal) {
+                None => {
+                    self.last = i;
+                    self.note_watch(*last_literal, variables);
+                    return Ok(WatchStatus::None);
+                }
+                Some(value) if value == last_literal.polarity() => {
+                    self.last = i;
+                    self.note_watch(*last_literal, variables);
+                    return Ok(WatchStatus::Witness);
+                }
+                Some(_) => {}
+            }
+        }
+
+        // let last_cache = self.last;
+        // let clause_length = self.clause.len();
+        // loop {
+        //     self.last += 1;
+        //     if self.last == clause_length {
+        //         self.last = 1 // skip 0
+        //     }
+        //     if self.last == last_cache {
+        //         return Err(());
+        //     }
+        //     let last_literal = unsafe { self.clause.get_unchecked(self.last) };
+        //     match variables.value_of(last_literal.index()) {
+        //         None => {
+        //             self.note_watch(*last_literal, variables);
+        //             return Ok(WatchStatus::None);
+        //         }
+        //         Some(value) if value == last_literal.polarity() => {
+        //             self.note_watch(*last_literal, variables);
+        //             return Ok(WatchStatus::Witness);
+        //         }
+        //         Some(_) => {}
+        //     }
+        // }
+        Err(())
     }
 
     /*
@@ -136,9 +161,9 @@ impl StoredClause {
 
     For the moment subsumption does not allow subsumption to a unit clause
      */
-    pub fn subsume(
+    pub fn subsume<L: Borrow<Literal>>(
         &mut self,
-        literal: Literal,
+        literal: L,
         variables: &mut VariableStore,
         fix_watch: bool,
     ) -> Result<usize, SubsumptionError> {
@@ -150,7 +175,7 @@ impl StoredClause {
             let search = self
                 .clause
                 .iter()
-                .position(|clause_literal| *clause_literal == literal);
+                .position(|clause_literal| clause_literal == literal.borrow());
             match search {
                 None => {
                     log::error!(target: crate::log::targets::SUBSUMPTION, "Pivot not found for subsumption");
@@ -178,7 +203,7 @@ impl StoredClause {
             self.last = 1;
             for index in 1..clause_length {
                 let index_literal = unsafe { self.clause.get_unchecked(index) };
-                let index_value = variables.value_of(index_literal.index());
+                let index_value = variables.value_of(*index_literal);
                 match index_value {
                     None => {
                         self.last = index;
@@ -214,7 +239,7 @@ impl StoredClause {
             }
 
             let literal = self.clause[index];
-            let literal_value = variables.value_of(literal.index());
+            let literal_value = variables.value_of(literal);
             match literal_value {
                 None => break index,
                 Some(value) if value == literal.polarity() => break index,
@@ -227,7 +252,7 @@ impl StoredClause {
         self.last = 1;
         for index in 1..clause_length {
             let index_literal = unsafe { self.clause.get_unchecked(index) };
-            let index_value = variables.value_of(index_literal.index());
+            let index_value = variables.value_of(*index_literal);
             match index_value {
                 None => {
                     self.last = index;
@@ -245,7 +270,8 @@ impl StoredClause {
         self.note_watch(self.clause[self.last], variables);
     }
 
-    fn note_watch(&self, literal: Literal, variables: &mut VariableStore) {
+    fn note_watch<L: Borrow<Literal>>(&self, literal: L, variables: &mut VariableStore) {
+        let literal = literal.borrow();
         match self.key {
             ClauseKey::Binary(_) => {
                 let check_literal = if self.clause[0].v_id() == literal.v_id() {

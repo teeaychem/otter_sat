@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use crate::{
     context::stores::ClauseKey,
     context::Context,
@@ -17,7 +19,8 @@ pub enum BCPIssue {
 
 use super::WatchElement;
 impl Context {
-    pub fn BCP(&mut self, literal: Literal) -> Result<(), BCPIssue> {
+    pub fn BCP<L: Borrow<Literal>>(&mut self, literal: L) -> Result<(), BCPIssue> {
+        let literal = literal.borrow();
         unsafe {
             let binary_list = match literal.polarity() {
                 true => &mut *self
@@ -38,7 +41,7 @@ impl Context {
                     return Err(BCPIssue::CorruptWatch);
                 };
 
-                match self.variables.value_of(check.index()) {
+                match self.variables.value_of(*check) {
                     None => match self.q_literal(*check, LiteralSource::BCP(*clause_key)) {
                         Ok(()) => {}
                         Err(_key) => {
@@ -106,7 +109,7 @@ impl Context {
                     Err(()) => {
                         let the_watch = *clause.get_unchecked(0);
                         // assert_ne!(the_watch.index(), literal.index());
-                        let watch_value = self.variables.value_of(the_watch.index());
+                        let watch_value = self.variables.value_of(the_watch);
                         match watch_value {
                             Some(value) if the_watch.polarity() != value => {
                                 log::trace!(target: LOG_PROPAGATION, "Inspecting consequence of {clause_key} {literal} failed.");

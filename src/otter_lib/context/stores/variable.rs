@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use crate::{
     config::{
         defaults::{self},
@@ -82,16 +84,20 @@ impl VariableStore {
         self.string_map.get(name).copied()
     }
 
-    pub fn add_watch(&mut self, literal: Literal, element: WatchElement) {
+    pub fn add_watch<L: Borrow<Literal>>(&mut self, literal: L, element: WatchElement) {
         self.variables
-            .get_unsafe(literal.index())
-            .watch_added(element, literal.polarity());
+            .get_unsafe(literal.borrow().index())
+            .watch_added(element, literal.borrow().polarity());
     }
 
-    pub fn remove_watch(&mut self, literal: Literal, key: ClauseKey) -> Result<(), WatchError> {
+    pub fn remove_watch<L: Borrow<Literal>>(
+        &mut self,
+        literal: L,
+        key: ClauseKey,
+    ) -> Result<(), WatchError> {
         self.variables
-            .get_unsafe(literal.index())
-            .watch_removed(key, literal.polarity())
+            .get_unsafe(literal.borrow().index())
+            .watch_removed(key, literal.borrow().polarity())
     }
 
     pub fn heap_pop_most_active(&mut self) -> Option<usize> {
@@ -174,14 +180,18 @@ impl VariableStore {
 }
 
 impl Context {
-    pub fn q_literal(&mut self, lit: Literal, source: LiteralSource) -> Result<(), ValueStatus> {
+    pub fn q_literal<L: Borrow<Literal>>(
+        &mut self,
+        lit: L,
+        source: LiteralSource,
+    ) -> Result<(), ValueStatus> {
         self.variables
-            .set_value(lit, self.levels.top_mut(), source)?;
+            .set_value(lit.borrow(), self.levels.top_mut(), source)?;
 
         // TODO: improve push back consequence
         self.variables
             .consequence_q
-            .push_back((lit, source, self.levels.index()));
+            .push_back((*lit.borrow(), source, self.levels.index()));
 
         Ok(())
     }
