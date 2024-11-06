@@ -1,5 +1,4 @@
 // #![allow(unused_imports)]
-// #![allow(unused_variables)]
 
 #[cfg(not(target_env = "msvc"))]
 #[cfg(feature = "jemalloc")]
@@ -12,9 +11,9 @@ static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
 use otter_lib::{
     config::Config,
-    context::{builder::BuildErr, Report},
+    context::builder::BuildErr,
     io::{cli::cli, files::context_from_path},
-    types::errs::ClauseStoreErr,
+    types::{errs::ClauseStoreErr, gen::Report},
 };
 
 use std::path::PathBuf;
@@ -22,7 +21,7 @@ use std::path::PathBuf;
 fn main() {
     #[cfg(feature = "log")]
     match log4rs::init_file("config/log4rs.yaml", Default::default()) {
-        Ok(()) => log::trace!("Log find loaded"),
+        Ok(()) => log::trace!("log find loaded"),
         Err(e) => log::error!("{e:?}"),
     }
 
@@ -43,9 +42,9 @@ fn main() {
             let the_path = PathBuf::from(formula_paths.next().unwrap());
             let the_report = report_on_formula(the_path, &config);
             match the_report {
-                otter_lib::context::Report::Satisfiable => std::process::exit(10),
-                otter_lib::context::Report::Unsatisfiable => std::process::exit(20),
-                otter_lib::context::Report::Unknown => std::process::exit(30),
+                Report::Satisfiable => std::process::exit(10),
+                Report::Unsatisfiable => std::process::exit(20),
+                Report::Unknown => std::process::exit(30),
             }
         }
         _ => {

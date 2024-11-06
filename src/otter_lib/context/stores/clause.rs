@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::{
     config::{self, ClauseActivity, Config},
     context::stores::{
@@ -251,17 +253,13 @@ impl ClauseStore {
     }
 
     pub fn all_clauses(&self) -> impl Iterator<Item = &[Literal]> + '_ {
-        self.formula
-            .iter()
-            .map(|clause| clause.literal_slice())
-            .chain(
-                self.binary
+        self.formula.iter().map(|clause| clause.deref()).chain(
+            self.binary.iter().map(|clause| clause.deref()).chain(
+                self.learned
                     .iter()
-                    .map(|clause| clause.literal_slice())
-                    .chain(self.learned.iter().flat_map(|maybe_clause| {
-                        maybe_clause.as_ref().map(|clause| clause.literal_slice())
-                    })),
-            )
+                    .flat_map(|maybe_clause| maybe_clause.as_ref().map(|clause| clause.deref())),
+            ),
+        )
     }
 
     /*
@@ -288,7 +286,7 @@ impl ClauseStore {
             }
             ClauseKey::Formula(index) => {
                 let formula_clause = &self.formula[index as usize];
-                let copied_clause = formula_clause.literal_slice().to_vec();
+                let copied_clause = formula_clause.deref().to_vec();
 
                 if copied_clause.len() != 2 {
                     log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");

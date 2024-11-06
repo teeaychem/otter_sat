@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
@@ -6,14 +8,13 @@ use crate::{
         analysis::AnalysisResult,
         core::{ContextFailure, StepInfo},
         stores::LevelIndex,
-        Context, Report, SolveStatus,
+        Context, SolveStatus,
     },
     structures::{
-        clause::Clause,
-        literal::{Literal, LiteralSource},
+        literal::{Literal, LiteralSource, LiteralTrait},
         variable::{list::VariableList, VariableId, BCP::BCPErr},
     },
-    types::errs::StepErr,
+    types::{errs::StepErr, gen::Report},
 };
 
 impl Context {
@@ -100,7 +101,7 @@ impl Context {
 
                             let the_clause = self.clause_store.get(key)?;
 
-                            match self.backjump_level(the_clause.literal_slice()) {
+                            match self.backjump_level(the_clause.deref()) {
                                 None => return Err(StepErr::Backfall),
                                 Some(index) => self.backjump(index),
                             }
@@ -118,7 +119,7 @@ impl Context {
 
                             let the_clause = self.clause_store.get(key)?;
 
-                            match self.backjump_level(the_clause.literal_slice()) {
+                            match self.backjump_level(the_clause.deref()) {
                                 None => return Err(StepErr::Backfall),
                                 Some(index) => self.backjump(index),
                             }

@@ -1,7 +1,7 @@
 use crate::{
     context::stores::level::Level,
     structures::{
-        literal::{Literal, LiteralSource},
+        literal::{Literal, LiteralSource, LiteralTrait},
         variable::Variable,
     },
 };
@@ -26,7 +26,7 @@ pub trait VariableList {
     #[allow(dead_code)]
     fn check_literal<L: Borrow<Literal>>(&self, literal: L) -> ValueInfo;
 
-    fn set_value<L: Borrow<Literal>>(
+    fn set_value<L: Borrow<impl LiteralTrait>>(
         &self,
         literal: L,
         level: &mut Level,
@@ -73,20 +73,21 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
         }
     }
 
-    fn set_value<L: Borrow<Literal>>(
+    fn set_value<L: Borrow<impl LiteralTrait>>(
         &self,
         literal: L,
         level: &mut Level,
         source: LiteralSource,
     ) -> Result<ValueInfo, ValueInfo> {
-        log::trace!(target: crate::log::targets::VALUATION, "Set: {}", literal.borrow());
+        // TODO: Fix
+        // log::trace!(target: crate::log::targets::VALUATION, "Set: {}", literal.borrow());
         let variable = unsafe { self.get_unchecked(literal.borrow().index()) };
         match variable.value() {
             Some(value) if value != literal.borrow().polarity() => Err(ValueInfo::Conflict),
             Some(_value) => Ok(ValueInfo::Match),
             None => {
                 variable.set_value(Some(literal.borrow().polarity()), Some(level.index()));
-                level.record_literal(literal.borrow(), source);
+                level.record_literal(literal.borrow().canonical(), source);
                 Ok(ValueInfo::Set)
             }
         }

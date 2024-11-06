@@ -66,6 +66,7 @@ impl From<ClauseStoreErr> for AnalysisError {
 
 pub enum ReportError {
     StoreFailure, // Failure to retreive a clause from the store for any reason
+    UnsatCoreUnavailable,
 }
 
 // Ignore the reason for failing to retreive a clause

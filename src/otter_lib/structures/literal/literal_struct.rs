@@ -1,38 +1,54 @@
-use crate::structures::{literal::Literal, variable::VariableId};
+use crate::structures::variable::VariableId;
 
-impl Literal {
-    pub fn negate(self) -> Self {
-        !self
+use super::{LiteralEye, LiteralStruct, LiteralTrait};
+
+impl LiteralStruct {
+    pub fn as_eye(&self) -> LiteralEye {
+        match self.polarity {
+            true => LiteralEye(self.v_id as isize),
+            false => LiteralEye(-(self.v_id as isize)),
+        }
+    }
+}
+
+impl LiteralTrait for LiteralStruct {
+    fn negate(&self) -> Self {
+        !*self
     }
 
-    pub fn new(variable_id: VariableId, polarity: bool) -> Self {
+    fn new(variable_id: VariableId, polarity: bool) -> Self {
         Self {
             v_id: variable_id,
             polarity,
         }
     }
 
-    pub const fn v_id(self) -> VariableId {
+    fn v_id(&self) -> VariableId {
         self.v_id
     }
 
-    pub const fn polarity(self) -> bool {
+    fn polarity(&self) -> bool {
         self.polarity
     }
 
-    pub const fn index(self) -> usize {
+    fn index(&self) -> usize {
         self.v_id as usize
+    }
+
+    fn canonical(&self) -> super::Literal {
+        self.as_eye()
+        // *self
     }
 }
 
-impl PartialOrd for Literal {
+impl PartialOrd for LiteralStruct {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
 /// Literals are ordered by id and polarity on a tie with false < true.
-impl Ord for Literal {
+impl Ord for LiteralStruct {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         if self.v_id == other.v_id {
             if self.polarity == other.polarity {
@@ -48,15 +64,15 @@ impl Ord for Literal {
     }
 }
 
-impl PartialEq for Literal {
+impl PartialEq for LiteralStruct {
     fn eq(&self, other: &Self) -> bool {
         self.v_id == other.v_id && self.polarity == other.polarity
     }
 }
 
-impl Eq for Literal {}
+impl Eq for LiteralStruct {}
 
-impl std::fmt::Display for Literal {
+impl std::fmt::Display for LiteralStruct {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.polarity {
             true => write!(f, "{}", self.v_id),
@@ -65,11 +81,11 @@ impl std::fmt::Display for Literal {
     }
 }
 
-impl std::ops::Not for Literal {
+impl std::ops::Not for LiteralStruct {
     type Output = Self;
 
     fn not(self) -> Self::Output {
-        Literal {
+        Self {
             v_id: self.v_id,
             polarity: !self.polarity,
         }

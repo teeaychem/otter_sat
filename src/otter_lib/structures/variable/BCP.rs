@@ -1,10 +1,9 @@
 use std::borrow::Borrow;
 
 use crate::{
-    context::stores::ClauseKey,
-    context::Context,
+    context::{stores::ClauseKey, Context},
     structures::{
-        literal::{Literal, LiteralSource},
+        literal::{Literal, LiteralSource, LiteralTrait},
         variable::list::VariableList,
     },
     types::clause::WatchStatus,

@@ -1,5 +1,5 @@
 use super::*;
-use otter_lib::{config::Config, context::Report, io::files::default_on_dir};
+use otter_lib::{config::Config, io::files::default_on_dir, types::gen::Report};
 
 mod ThreeSAT {
 

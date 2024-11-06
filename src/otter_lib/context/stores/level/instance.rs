@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use crate::{
     context::stores::{level::Level, LevelIndex},
-    structures::literal::{Literal, LiteralSource},
+    structures::literal::{Literal, LiteralSource, LiteralTrait},
 };
 
 impl Level {
@@ -18,15 +18,21 @@ impl Level {
         self.index
     }
 
-    pub fn record_literal<L: Borrow<Literal> + Copy>(&mut self, literal: L, source: LiteralSource) {
+    pub fn record_literal<L: Borrow<impl LiteralTrait> + Copy>(
+        &mut self,
+        literal: L,
+        source: LiteralSource,
+    ) {
         match source {
-            LiteralSource::Choice => self.choice = Some(*literal.borrow()),
+            LiteralSource::Choice => self.choice = Some(literal.borrow().canonical()),
             LiteralSource::Pure
             | LiteralSource::Assumption
             | LiteralSource::Resolution(_)
             | LiteralSource::Analysis(_)
             | LiteralSource::BCP(_)
-            | LiteralSource::Missed(_) => self.observations.push((source, *literal.borrow())),
+            | LiteralSource::Missed(_) => self
+                .observations
+                .push((source, literal.borrow().canonical())),
         }
     }
 

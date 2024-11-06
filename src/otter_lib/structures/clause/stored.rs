@@ -1,6 +1,10 @@
 use crate::{
     context::stores::{variable::VariableStore, ClauseKey},
-    structures::{clause::Clause, literal::Literal, variable::list::VariableList},
+    structures::{
+        clause::Clause,
+        literal::{Literal, LiteralTrait},
+        variable::list::VariableList,
+    },
     types::clause::{WatchElement, WatchStatus},
 };
 
