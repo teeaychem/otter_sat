@@ -67,15 +67,3 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
         self.len()
     }
 }
-
-#[cfg(test)]
-mod test {
-    use crate::structures::literal::Literal;
-
-    #[test]
-    fn aaa() {
-        let a = &Literal::new(1, true);
-        let b = &Literal::new(1, true);
-        assert!(&a == &b);
-    }
-}

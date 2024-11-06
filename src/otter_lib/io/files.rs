@@ -18,13 +18,13 @@ pub fn context_from_path(path: PathBuf, config: &Config) -> Result<Context, Buil
     };
     let unique_config = config.clone();
     match &the_path.extension() {
-        None => Context::from_dimacs(&the_path, BufReader::new(&file), unique_config),
-        Some(extension) if *extension == "gz" => Context::from_dimacs(
+        None => Context::from_dimacs_file(&the_path, BufReader::new(&file), unique_config),
+        Some(extension) if *extension == "gz" => Context::from_dimacs_file(
             &the_path,
             BufReader::new(GzDecoder::new(&file)),
             unique_config,
         ),
-        Some(_) => Context::from_dimacs(&the_path, BufReader::new(&file), unique_config),
+        Some(_) => Context::from_dimacs_file(&the_path, BufReader::new(&file), unique_config),
     }
 }
 

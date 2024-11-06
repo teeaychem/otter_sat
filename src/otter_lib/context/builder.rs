@@ -1,11 +1,13 @@
 use crate::{
     config::Config,
     context::Context,
-    errors::{ClauseStoreErr, ContextErr},
     structures::{
-        clause::stored::ClauseSource,
         literal::{Literal, LiteralSource},
         variable::{list::VariableList, Variable, VariableId},
+    },
+    types::{
+        clause::ClauseSource,
+        errs::{ClauseStoreErr, ContextErr},
     },
 };
 
@@ -69,7 +71,9 @@ impl Context {
             Err(_) => Err(ContextErr::AssumptionConflict),
         }
     }
+}
 
+impl Context {
     pub fn clause_from_string(&mut self, string: &str) -> Result<(), BuildErr> {
         let string_lterals = string.split_whitespace();
         let mut the_clause = vec![];
@@ -83,10 +87,12 @@ impl Context {
             }
         }
 
-        self.preprocess_and_store_clause(the_clause)
+        self.store_preprocessed_clause(the_clause)
     }
+}
 
-    pub fn preprocess_and_store_clause(&mut self, clause: Vec<Literal>) -> Result<(), BuildErr> {
+impl Context {
+    pub fn store_preprocessed_clause(&mut self, clause: Vec<Literal>) -> Result<(), BuildErr> {
         match clause.len() {
             0 => Err(BuildErr::ClauseStore(ClauseStoreErr::EmptyClause)),
             1 => {
@@ -97,53 +103,48 @@ impl Context {
                 }
             }
             _ => {
-                // todo: temporary tautology check
-                // do not add a tautology
-                for literal in &clause {
-                    if clause.iter().any(|l| *l == literal.negate()) {
-                        return Ok(());
-                    }
-                }
-
-                let mut strengthened_clause = vec![];
+                let mut processed_clause: Vec<Literal> = vec![];
                 let mut subsumed = vec![];
 
-                // strengthen a clause given established assumptions and skip adding a satisfied clause
-                for literal in clause {
-                    match self.variables.value_of(literal) {
-                        None => {
-                            strengthened_clause.push(literal);
-                        }
-                        Some(value) if value != literal.polarity() => subsumed.push(literal),
-                        Some(_) => {
-                            strengthened_clause.push(literal);
+                for literal in &clause {
+                    if let Some(processed_literal) = processed_clause
+                        .iter()
+                        .find(|l| l.index() == literal.index())
+                    {
+                        if processed_literal.polarity() != literal.polarity() {
+                            // Skip tautologies
+                            // Could be made more efficient by sorting the literals within a clause, but preference to preserve order for now
                             return Ok(());
+                        }
+                        // Otherwise, avoid adding the duplicate
+                    } else {
+                        // Though, strengthen the clause if possible
+                        if !self
+                            .proofs
+                            .iter()
+                            .any(|(proven_literal, _)| &proven_literal.negate() == literal)
+                        {
+                            processed_clause.push(*literal)
+                        } else {
+                            subsumed.push(*literal)
                         }
                     }
                 }
 
-                match strengthened_clause.len() {
+                let clause = processed_clause;
+
+                match clause.len() {
                     0 => {} // Any empty clause before strengthening raised an error above, so this is safe to ignore
                     1 => {
-                        let literal = strengthened_clause[0];
-                        match self.assume(literal) {
-                            Ok(_) => {}
-                            Err(_e) => return Err(BuildErr::AssumptionIndirectConflict),
-                        }
+                        let literal = unsafe { clause.get_unchecked(0) };
+                        let Ok(_) = self.assume(literal) else {
+                            return Err(BuildErr::AssumptionIndirectConflict);
+                        };
                     }
-                    _ => {
-                        match self.store_clause(
-                            strengthened_clause,
-                            subsumed,
-                            ClauseSource::Formula,
-                            None,
-                        ) {
-                            Ok(_) => {}
-                            Err(e) => {
-                                return Err(BuildErr::ClauseStore(e));
-                            }
-                        }
-                    }
+                    _ => match self.store_clause(clause, subsumed, ClauseSource::Formula, None) {
+                        Ok(_) => {}
+                        Err(e) => return Err(BuildErr::ClauseStore(e)),
+                    },
                 }
                 Ok(())
             }
@@ -151,13 +152,15 @@ impl Context {
     }
 
     #[allow(clippy::manual_flatten, unused_labels)]
-    pub fn from_dimacs(
+    pub fn from_dimacs_file(
         file_path: &PathBuf,
         mut file_reader: impl BufRead,
         config: Config,
     ) -> Result<Self, BuildErr> {
         let mut buffer = String::with_capacity(1024);
         let mut clause_buffer: Vec<Literal> = Vec::new();
+
+        let config_detail = config.detail;
 
         let mut the_context = None;
         let mut line_counter = 0;
@@ -200,10 +203,7 @@ impl Context {
 
                     if config.show_stats {
                         println!("c Parsing {:#?}", file_path);
-                        println!(
-                            "c Expectation is to get {} variables and {} clauses",
-                            variable_count, clause_count
-                        );
+                        println!("c Expectation is to get {variable_count} variables and {clause_count} clauses");
                     }
                     the_context = Some(Context::with_size_hints(
                         variable_count,
@@ -240,7 +240,7 @@ impl Context {
                         match item {
                             "0" => {
                                 let the_clause = clause_buffer.clone();
-                                match the_context.preprocess_and_store_clause(the_clause) {
+                                match the_context.store_preprocessed_clause(the_clause) {
                                     Ok(_) => clause_counter += 1,
                                     Err(e) => return Err(e),
                                 }
@@ -265,12 +265,19 @@ impl Context {
         }
 
         if show_stats {
-            println!(
-                "c Parsing complete with {} variables and {} clauses ({} added to the context)",
+            let mut message = format!(
+                "c Parsing complete with {} variables and {} clauses",
                 the_context.variable_count(),
-                clause_counter,
-                the_context.clause_count()
+                clause_counter
             );
+
+            if config_detail > 0 {
+                message.push_str(
+                    format!(" ({} added to the context)", the_context.clause_count()).as_str(),
+                );
+            }
+
+            println!("{message}");
         }
 
         if the_context.clause_count() == 0 {

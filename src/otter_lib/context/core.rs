@@ -1,7 +1,7 @@
 use crate::{
     context::{stores::ClauseKey, Context, Report, SolveStatus},
-    errors::ClauseStoreErr,
-    structures::{clause::stored::ClauseSource, literal::Literal, variable::list::VariableList},
+    structures::{literal::Literal, variable::list::VariableList},
+    types::{clause::ClauseSource, errs::ClauseStoreErr},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -13,7 +13,9 @@ pub enum StepInfo {
 }
 
 #[derive(Debug)]
-pub enum ContextFailure {}
+pub enum ContextFailure {
+    QueueConflict,
+}
 
 impl Context {
     pub fn proven_literals(&self) -> impl Iterator<Item = &Literal> {
@@ -73,7 +75,7 @@ impl Context {
                 }
             }
             SolveStatus::NoClauses => {
-                if self.config.verbosity > 0 {
+                if self.config.detail > 0 {
                     println!("c The formula contains no clause and so is interpreted as ⊤");
                 }
                 println!("s SATISFIABLE");

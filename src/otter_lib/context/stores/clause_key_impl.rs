@@ -1,6 +1,6 @@
 use crate::{
     context::stores::{ClauseKey, FormulaToken},
-    errors::ClauseStoreErr,
+    types::errs::ClauseStoreErr,
 };
 
 impl std::fmt::Display for ClauseKey {

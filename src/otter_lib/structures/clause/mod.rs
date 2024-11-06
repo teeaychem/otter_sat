@@ -1,5 +1,5 @@
 mod literal_slice_deref_impl;
-pub mod stored;
+pub(crate) mod stored;
 
 use crate::{
     config::GlueStrength,
