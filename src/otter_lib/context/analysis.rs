@@ -3,6 +3,7 @@ use crate::{
     context::{
         resolution_buffer::{BufOk, ResolutionBuffer},
         stores::ClauseKey,
+        unique_id::UniqueId,
         Context,
     },
     structures::{
@@ -127,6 +128,15 @@ impl Context {
                     ) else {
                         return Err(AnalysisError::ResolutionNotStored);
                     };
+                    self.record.push((
+                        clause_key.unique_id(),
+                        the_buffer
+                            .trail()
+                            .iter()
+                            .map(|key| key.unique_id())
+                            .collect(),
+                    ));
+
                     Ok(AnalysisResult::AssertingClause(clause_key, the_literal))
                 }
             }

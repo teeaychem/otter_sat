@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{io::Write, ops::Deref};
 
 use rand::{seq::IteratorRandom, Rng};
 
@@ -162,6 +162,24 @@ impl Context {
                 self.backjump(0);
                 self.counters.restarts += 1;
                 self.counters.conflicts_in_memory = 0;
+
+                let mut write = false;
+                if write {
+                    let mut file = std::fs::OpenOptions::new()
+                        .append(true)
+                        .open("temp.txt")
+                        .unwrap();
+                    for record in &self.record {
+                        // let _ = file.write_all(&record.0.to_le_bytes());
+                        let _ = file.write(format!("{} ", record.0 as u32).as_bytes());
+                        for before in &record.1 {
+                            // let _ = file.write_all(&before.to_le_bytes());
+                            let _ = file.write(format!("{} ", *before as u32).as_bytes());
+                        }
+                        let _ = file.write(b"0\n");
+                    }
+                }
+                self.record.clear();
             }
 
             if config.reduction_allowed

@@ -1,11 +1,13 @@
 mod analysis;
 pub mod builder;
 pub mod core;
+mod frat;
 mod preprocessing;
 pub mod reports;
 mod resolution_buffer;
 pub mod solve;
 pub mod stores;
+mod unique_id;
 
 use crate::types::gen::SolveStatus;
 
@@ -24,6 +26,7 @@ use {
 
 use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128Plus};
 use stores::level::LevelStore;
+use unique_id::UniqueIdentifier;
 
 // pub type RngChoice = rand::rngs::mock::StepRng;
 pub type RngChoice = Xoroshiro128Plus;
@@ -66,6 +69,8 @@ pub struct Context {
     status: SolveStatus,
 
     pub proofs: Vec<(Literal, Vec<ClauseKey>)>,
+
+    pub record: Vec<(UniqueIdentifier, Vec<UniqueIdentifier>)>,
 }
 
 impl std::fmt::Display for SolveStatus {
@@ -102,7 +107,8 @@ impl Context {
             config,
             window: the_window,
             status: SolveStatus::Initialised,
-            proofs: Vec::new(),
+            proofs: Vec::default(),
+            record: Vec::default(),
         }
     }
 }
@@ -117,7 +123,8 @@ impl Default for Context {
             config: Config::default(),
             window: None,
             status: SolveStatus::Initialised,
-            proofs: Vec::new(),
+            proofs: Vec::default(),
+            record: Vec::default(),
         }
     }
 }
