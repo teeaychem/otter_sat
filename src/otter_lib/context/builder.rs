@@ -76,9 +76,14 @@ impl Context {
         }
     }
 
+    // TODO: Type hint issue
     pub fn assume<L: Borrow<impl LiteralTrait>>(&mut self, literal: L) -> Result<(), ContextErr> {
-        self.proofs.push((literal.borrow().canonical(), vec![]));
-        self.believe(literal)
+        if self.believe(literal.borrow().canonical()).is_ok() {
+            self.proofs.push((literal.borrow().canonical(), vec![]));
+            Ok(())
+        } else {
+            Err(ContextErr::AssumptionConflict)
+        }
     }
 }
 

@@ -15,14 +15,32 @@ At present, features include:
 - Phase saving.
 - Some optional unpredictability.
 - An unsatisfiable core of the original formula, if the formua is UNSAT.
-- Very basic clause subsumption.
+- On-the-fly self-subsumption.
 - Some documentation.
-- Various todos!
+- xz support for easy [Global Benchmark Database](https://benchmark-database.de) interaction.
 
 The command overview, below, may give some additional insight.
 
 Docmentation and tests are moslty added as the solver develops and parts solidify.
 For the moment, things are fairly green.
+
+## Examples
+
+Some small examples of using the crate as a library are included in `examples/`.
+Examples can be ran by passing the `example` flag and the name of the example to `cargo run`.
+The general pattern is:
+
+```
+cargo run --example <EXAMPLE NAME>
+```
+
+Specific examples are:
+
+```
+cargo run --example
+cargo run --example all_models
+```
+
 
 ### How this was made
 
@@ -43,8 +61,8 @@ Direct Rust dependencies are:
   Configuration options
 - [crossterm](https://docs.rs/crossterm/latest/crossterm/)
   To dynamically display some stats during a solve in a static area of the terminal
-- [flate2](https://crates.io/crates/flate2/)
-  gzip support
+- [xz2](https://docs.rs/xz2/)
+  xz support
 - [rand](https://docs.rs/rand/latest/rand/)
   To help make decisions
 

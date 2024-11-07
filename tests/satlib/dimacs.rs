@@ -22,7 +22,7 @@ fn aim() {
 
         let formula_check = formula_path
             .extension()
-            .is_some_and(|ext| ext == "cnf" || ext == "gz");
+            .is_some_and(|ext| ext == "cnf" || ext == "xz");
 
         if formula_check {
             let formula_name = formula_path.to_str().unwrap().to_owned();
@@ -65,10 +65,10 @@ mod cfa {
     #[test]
     fn ssa() {
         let unsatisfiable = [
-            "ssa0432-003.cnf.gz",
-            "ssa2670-130.cnf.gz",
-            "ssa2670-141.cnf.gz",
-            "ssa6288-047.cnf.gz",
+            "ssa0432-003.cnf.xz",
+            "ssa2670-130.cnf.xz",
+            "ssa2670-141.cnf.xz",
+            "ssa6288-047.cnf.xz",
         ];
 
         let mut unsat_count = 0;
@@ -82,10 +82,10 @@ mod cfa {
         assert_eq!(unsat_count, unsatisfiable.len());
 
         let satisfiable = [
-            "ssa7552-038.cnf.gz",
-            "ssa7552-158.cnf.gz",
-            "ssa7552-159.cnf.gz",
-            "ssa7552-160.cnf.gz",
+            "ssa7552-038.cnf.xz",
+            "ssa7552-158.cnf.xz",
+            "ssa7552-159.cnf.xz",
+            "ssa7552-160.cnf.xz",
         ];
         let mut sat_count = 0;
         for formula in satisfiable {
@@ -117,7 +117,7 @@ mod graph_colouring {
         assert_eq!(
             Report::Satisfiable,
             formula_report(
-                dimacs_path().join("GCP").join("g125.17.cnf.gz"),
+                dimacs_path().join("GCP").join("g125.17.cnf.xz"),
                 &Config::default()
             )
         );
@@ -129,7 +129,7 @@ mod graph_colouring {
         assert_eq!(
             Report::Satisfiable,
             formula_report(
-                dimacs_path().join("GCP").join("g125.18.cnf.gz"),
+                dimacs_path().join("GCP").join("g125.18.cnf.xz"),
                 &Config::default()
             )
         );
@@ -141,7 +141,7 @@ mod graph_colouring {
         assert_eq!(
             Report::Satisfiable,
             formula_report(
-                dimacs_path().join("GCP").join("g250.15.cnf.gz"),
+                dimacs_path().join("GCP").join("g250.15.cnf.xz"),
                 &Config::default()
             )
         );
@@ -153,7 +153,7 @@ mod graph_colouring {
         assert_eq!(
             Report::Satisfiable,
             formula_report(
-                dimacs_path().join("GCP").join("g250.29.cnf.gz"),
+                dimacs_path().join("GCP").join("g250.29.cnf.xz"),
                 &Config::default()
             )
         );
@@ -181,23 +181,23 @@ fn inductive_inference() {
 #[test]
 fn jnh() {
     let satisfiable = [
-        "jnh1.cnf.gz",
-        "jnh7.cnf.gz",
-        "jnh12.cnf.gz",
-        "jnh17.cnf.gz",
-        "jnh201.cnf.gz",
-        "jnh204.cnf.gz",
-        "jnh205.cnf.gz",
-        "jnh207.cnf.gz",
-        "jnh209.cnf.gz",
-        "jnh210.cnf.gz",
-        "jnh212.cnf.gz",
-        "jnh213.cnf.gz",
-        "jnh217.cnf.gz",
-        "jnh218.cnf.gz",
-        "jnh220.cnf.gz",
-        "jnh301.cnf.gz",
-        "jnh212.cnf.gz",
+        "jnh1.cnf.xz",
+        "jnh7.cnf.xz",
+        "jnh12.cnf.xz",
+        "jnh17.cnf.xz",
+        "jnh201.cnf.xz",
+        "jnh204.cnf.xz",
+        "jnh205.cnf.xz",
+        "jnh207.cnf.xz",
+        "jnh209.cnf.xz",
+        "jnh210.cnf.xz",
+        "jnh212.cnf.xz",
+        "jnh213.cnf.xz",
+        "jnh217.cnf.xz",
+        "jnh218.cnf.xz",
+        "jnh220.cnf.xz",
+        "jnh301.cnf.xz",
+        "jnh212.cnf.xz",
     ];
 
     let mut sat_count = 0;
@@ -211,7 +211,7 @@ fn jnh() {
 
         let formula_check = formula_path
             .extension()
-            .is_some_and(|ext| ext == "cnf" || ext == "gz");
+            .is_some_and(|ext| ext == "cnf" || ext == "xz");
 
         if formula_check {
             let file = formula
@@ -259,7 +259,7 @@ mod partiy {
     fn eight() {
         let mut formulas = Vec::new();
         for index in 1..6 {
-            formulas.push(format!("par8-{index}.cnf.gz"));
+            formulas.push(format!("par8-{index}.cnf.xz"));
         }
 
         let mut ok_count = 0;
@@ -280,7 +280,7 @@ mod partiy {
     fn sixteen() {
         let mut formulas = Vec::new();
         for index in 1..6 {
-            formulas.push(format!("par16-{index}.cnf.gz"));
+            formulas.push(format!("par16-{index}.cnf.xz"));
         }
 
         let mut ok_count = 0;
@@ -302,7 +302,7 @@ mod partiy {
     fn thirty_two() {
         let mut formulas = Vec::new();
         for index in 1..6 {
-            formulas.push(format!("par32-{index}.cnf.gz"));
+            formulas.push(format!("par32-{index}.cnf.xz"));
         }
 
         let mut ok_count = 0;
@@ -325,7 +325,7 @@ mod phole {
 
     #[test]
     fn normal() {
-        let formulas = ["hole6.cnf.gz", "hole7.cnf.gz", "hole8.cnf.gz"];
+        let formulas = ["hole6.cnf.xz", "hole7.cnf.xz", "hole8.cnf.xz"];
 
         let mut ok_count = 0;
         for formula in formulas {
@@ -344,7 +344,7 @@ mod phole {
     #[test]
     #[ignore = "expensive"]
     fn tough() {
-        let formulas = ["hole9.cnf.gz", "hole10.cnf.gz"];
+        let formulas = ["hole9.cnf.xz", "hole10.cnf.xz"];
 
         let mut ok_count = 0;
         for formula in formulas {
