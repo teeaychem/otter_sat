@@ -34,6 +34,17 @@ pub enum ParseErr {
 }
 
 impl Context {
+    pub fn variable_from_string(&mut self, name: &str) -> Result<VariableId, ParseErr> {
+        match self.variables.id_of(name) {
+            Some(variable) => Ok(variable),
+            None => {
+                let the_id = self.variables.len() as VariableId;
+                self.variables.add_variable(name, Variable::new(the_id));
+                Ok(the_id)
+            }
+        }
+    }
+
     pub fn literal_from_string(&mut self, string: &str) -> Result<Literal, ParseErr> {
         let trimmed_string = string.trim();
         if trimmed_string.is_empty() || trimmed_string == "-" {
@@ -47,16 +58,7 @@ impl Context {
             the_name = &the_name[1..];
         }
 
-        let the_variable = {
-            match self.variables.id_of(the_name) {
-                Some(variable) => variable,
-                None => {
-                    let the_id = self.variables.len() as VariableId;
-                    self.variables.add_variable(the_name, Variable::new(the_id));
-                    the_id
-                }
-            }
-        };
+        let the_variable = { self.variable_from_string(the_name).unwrap() };
         Ok(Literal::new(the_variable, polarity))
     }
 

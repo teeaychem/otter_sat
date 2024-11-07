@@ -79,6 +79,14 @@ fn report_on_formula(path: PathBuf, config: &Config) -> Report {
             std::process::exit(2);
         }
     };
+    if the_context.clause_count() == 0 {
+        if config.detail > 0 {
+            println!("c The formula does not contain any clauses");
+        }
+        println!("s SATISFIABLE");
+        std::process::exit(10);
+    }
+
     let the_report = match the_context.solve() {
         Ok(report) => report,
         Err(e) => {
