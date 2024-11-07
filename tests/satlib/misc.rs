@@ -110,11 +110,12 @@ mod graph_colouring {
 
 #[test]
 fn all_interval_series() {
-    default_on_dir(
+    let pass = default_on_dir(
         satlib_collection("ais"),
         &Config::default(),
         Report::Satisfiable,
     );
+    assert_eq!(pass, 4);
 }
 
 #[test]
@@ -131,19 +132,19 @@ fn beijing() {
     let collection_path = satlib_collection("beijing");
 
     let satisfiable_formulas = [
-        "2bitcomp_5.cnf.gz",
-        "2bitmax_6.cnf.gz",
-        "3bitadd_31.cnf.gz",
-        "3bitadd_32.cnf.gz",
-        "3blocks.cnf.gz",
-        "4blocks.cnf.gz",
-        "4blocksb.cnf.gz",
-        "e0ddr2-10-by-5-1.cnf.gz",
-        "e0ddr2-10-by-5-4.cnf.gz",
-        "enddr2-10-by-5-1.cnf.gz",
-        "enddr2-10-by-5-8.cnf.gz",
-        "ewddr2-10-by-5-1.cnf.gz",
-        "ewddr2-10-by-5-8.cnf.gz",
+        "2bitcomp_5.cnf.xz",
+        "2bitmax_6.cnf.xz",
+        "3bitadd_31.cnf.xz",
+        "3bitadd_32.cnf.xz",
+        "3blocks.cnf.xz",
+        "4blocks.cnf.xz",
+        "4blocksb.cnf.xz",
+        "e0ddr2-10-by-5-1.cnf.xz",
+        "e0ddr2-10-by-5-4.cnf.xz",
+        "enddr2-10-by-5-1.cnf.xz",
+        "enddr2-10-by-5-8.cnf.xz",
+        "ewddr2-10-by-5-1.cnf.xz",
+        "ewddr2-10-by-5-8.cnf.xz",
     ];
 
     let mut count = 0;
@@ -162,16 +163,16 @@ fn quasigroup() {
     let collection_path = satlib_collection("quasigroup");
 
     let satisfiable_formulas = [
-        "qg1-07.cnf.gz",
-        "qg1-08.cnf.gz",
-        "qg2-07.cnf.gz",
-        "qg2-08.cnf.gz",
-        "qg3-08.cnf.gz",
-        "qg4-09.cnf.gz",
-        "qg5-11.cnf.gz",
-        "qg6-09.cnf.gz",
-        "qg7-09.cnf.gz",
-        "qg7-13.cnf.gz",
+        "qg1-07.cnf.xz",
+        "qg1-08.cnf.xz",
+        "qg2-07.cnf.xz",
+        "qg2-08.cnf.xz",
+        "qg3-08.cnf.xz",
+        "qg4-09.cnf.xz",
+        "qg5-11.cnf.xz",
+        "qg6-09.cnf.xz",
+        "qg7-09.cnf.xz",
+        "qg7-13.cnf.xz",
     ];
     let mut sat_count = 0;
     for formula in &satisfiable_formulas {
@@ -184,18 +185,18 @@ fn quasigroup() {
     assert_eq!(sat_count, satisfiable_formulas.len());
 
     let unsatisfiable_formulas = [
-        "qg5-12.cnf.gz",
-        "qg5-13.cnf.gz",
-        "qg6-10.cnf.gz",
-        "qg6-11.cnf.gz",
-        "qg6-12.cnf.gz",
-        "qg7-10.cnf.gz",
-        "qg7-11.cnf.gz",
-        "qg7-12.cnf.gz",
-        "qg3-09.cnf.gz",
-        "qg4-08.cnf.gz",
-        "qg5-09.cnf.gz",
-        "qg5-10.cnf.gz",
+        "qg5-12.cnf.xz",
+        "qg5-13.cnf.xz",
+        "qg6-10.cnf.xz",
+        "qg6-11.cnf.xz",
+        "qg6-12.cnf.xz",
+        "qg7-10.cnf.xz",
+        "qg7-11.cnf.xz",
+        "qg7-12.cnf.xz",
+        "qg3-09.cnf.xz",
+        "qg4-08.cnf.xz",
+        "qg5-09.cnf.xz",
+        "qg5-10.cnf.xz",
     ];
     let mut unsat_count = 0;
     for formula in &unsatisfiable_formulas {

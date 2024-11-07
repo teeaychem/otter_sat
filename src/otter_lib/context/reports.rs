@@ -11,6 +11,16 @@ use crate::{
 
 use super::SolveStatus;
 
+impl std::fmt::Display for Report {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Satisfiable => write!(f, "Satisfiable"),
+            Self::Unsatisfiable => write!(f, "Unsatisfiable"),
+            Self::Unknown => write!(f, "Unknown"),
+        }
+    }
+}
+
 impl Context {
     pub fn report(&self) -> Report {
         match self.status {
