@@ -26,11 +26,6 @@ impl Context {
             Err(_) => panic!("Preprocessing failure"),
         };
 
-        if self.clause_store.clause_count() == 0 {
-            self.status = SolveStatus::NoClauses;
-            return Ok(Report::Satisfiable);
-        }
-
         if self.config.show_stats {
             if let Some(window) = &mut self.window {
                 window.draw_window(&self.config);

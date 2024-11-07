@@ -97,7 +97,7 @@ impl Context {
             .iter()
             .filter_map(|v| match v.value() {
                 None => None,
-                Some(true) => Some(self.variables.external_name(v.index()).to_string()),
+                Some(true) => Some(format!(" {}", self.variables.external_name(v.index()))),
                 Some(false) => Some(format!("-{}", self.variables.external_name(v.index()))),
             })
             .collect::<Vec<_>>()
