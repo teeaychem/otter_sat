@@ -52,7 +52,7 @@ impl Context {
         match self.status {
             SolveStatus::FullValuation => Report::Satisfiable,
             SolveStatus::NoClauses => Report::Satisfiable,
-            SolveStatus::NoSolution(_) => Report::Unsatisfiable,
+            SolveStatus::NoSolution => Report::Unsatisfiable,
             _ => Report::Unknown,
         }
     }

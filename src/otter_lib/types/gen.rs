@@ -10,10 +10,10 @@ pub enum Report {
 #[derive(Debug, PartialEq, Eq)]
 pub enum SolveStatus {
     Initialised,
-    AssertingClause(ClauseKey),
-    MissedImplication(ClauseKey),
-    NoSolution(ClauseKey),
-    Proof(ClauseKey),
+    AssertingClause,
+    MissedImplication,
+    NoSolution,
+    Proof,
     ChoiceMade,
     FullValuation,
     NoClauses,

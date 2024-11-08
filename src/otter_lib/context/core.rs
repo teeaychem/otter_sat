@@ -15,7 +15,7 @@ use crate::context::unique_id::UniqueId;
 
 #[derive(Debug, Clone, Copy)]
 pub enum StepInfo {
-    Conflict(ClauseKey),
+    Conflict,
     ChoicesExhausted,
     ChoiceMade,
     One,
@@ -101,7 +101,7 @@ impl Context {
                     println!("v {}", self.valuation_string());
                 }
             }
-            SolveStatus::NoSolution(clause_key) => {
+            SolveStatus::NoSolution => {
                 println!("s UNSATISFIABLE");
                 if self.config.show_core {
                     // let _ = self.display_core(clause_key);

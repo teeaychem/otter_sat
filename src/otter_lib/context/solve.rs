@@ -51,7 +51,7 @@ impl Context {
                 Ok(StepInfo::One) => continue 'solve_loop,
                 Ok(StepInfo::ChoiceMade) => continue 'solve_loop,
                 Ok(StepInfo::ChoicesExhausted) => break 'solve_loop Ok(self.report()),
-                Ok(StepInfo::Conflict(_)) => break 'solve_loop Ok(self.report()),
+                Ok(StepInfo::Conflict) => break 'solve_loop Ok(self.report()),
 
                 Err(StepErr::Backfall) => panic!("Backjumping failed"),
                 Err(StepErr::AnalysisFailure) => panic!("Analysis failed"),
@@ -64,7 +64,7 @@ impl Context {
     pub fn step(&mut self, config: &Config) -> Result<StepInfo, StepErr> {
         self.counters.iterations += 1;
 
-        'search: while let Some((literal, _source, _)) = self.variables.get_consequence() {
+        'search: while let Some((literal, _)) = self.variables.get_consequence() {
             match self.BCP(literal) {
                 Ok(()) => {}
                 Err(BCPErr::Conflict(key)) => {
@@ -74,20 +74,20 @@ impl Context {
                     };
 
                     match analysis_result {
-                        AnalysisResult::FundamentalConflict(key) => {
-                            self.status = SolveStatus::NoSolution(key);
+                        AnalysisResult::FundamentalConflict => {
+                            self.status = SolveStatus::NoSolution;
 
-                            return Ok(StepInfo::Conflict(key));
+                            return Ok(StepInfo::Conflict);
                         }
 
-                        AnalysisResult::QueueConflict(key) => {
-                            self.status = SolveStatus::NoSolution(key);
+                        AnalysisResult::QueueConflict => {
+                            self.status = SolveStatus::NoSolution;
 
-                            return Ok(StepInfo::Conflict(key));
+                            return Ok(StepInfo::Conflict);
                         }
 
                         AnalysisResult::Proof(key, literal) => {
-                            self.status = SolveStatus::Proof(key);
+                            self.status = SolveStatus::Proof;
 
                             self.backjump(0);
 
@@ -98,7 +98,7 @@ impl Context {
                         }
 
                         AnalysisResult::MissedImplication(key, literal) => {
-                            self.status = SolveStatus::MissedImplication(key);
+                            self.status = SolveStatus::MissedImplication;
 
                             let Ok(the_clause) = self.clause_store.get(key) else {
                                 panic!("mi");
@@ -118,7 +118,7 @@ impl Context {
                         }
 
                         AnalysisResult::AssertingClause(key, literal) => {
-                            self.status = SolveStatus::AssertingClause(key);
+                            self.status = SolveStatus::AssertingClause;
 
                             let Ok(the_clause) = self.clause_store.get(key) else {
                                 println!("{key:?}");

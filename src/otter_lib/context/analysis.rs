@@ -18,8 +18,8 @@ use std::ops::Deref;
 pub enum AnalysisResult {
     MissedImplication(ClauseKey, Literal),
     Proof(ClauseKey, Literal),
-    FundamentalConflict(ClauseKey),
-    QueueConflict(ClauseKey),
+    FundamentalConflict,
+    QueueConflict,
     AssertingClause(ClauseKey, Literal),
 }
 
@@ -33,7 +33,7 @@ impl Context {
     ) -> Result<AnalysisResult, AnalysisError> {
         // log::trace!(target: LOG_ANALYSIS, "Analysis called on {clause_key} at level {}", self.levels.index());
         if !self.levels.decision_made() {
-            return Ok(AnalysisResult::FundamentalConflict(clause_key));
+            return Ok(AnalysisResult::FundamentalConflict);
         }
         let Ok(conflict_clause) = self.clause_store.get(clause_key) else {
             panic!("x");

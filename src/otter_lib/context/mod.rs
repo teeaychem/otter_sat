@@ -84,13 +84,13 @@ impl std::fmt::Display for SolveStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SolveStatus::Initialised => write!(f, "Initialised"),
-            SolveStatus::AssertingClause(key) => write!(f, "AssertingClause({key})"),
-            SolveStatus::MissedImplication(key) => write!(f, "MissedImplication({key})"),
-            SolveStatus::NoSolution(key) => write!(f, "NoSolution({key})"),
+            SolveStatus::AssertingClause => write!(f, "AssertingClause"),
+            SolveStatus::MissedImplication => write!(f, "MissedImplication"),
+            SolveStatus::NoSolution => write!(f, "NoSolution"),
             SolveStatus::ChoiceMade => write!(f, "ChoiceMade"),
             SolveStatus::FullValuation => write!(f, "AllAssigned"),
             SolveStatus::NoClauses => write!(f, "NoClauses"),
-            SolveStatus::Proof(key) => write!(f, "NoSolution({key})"),
+            SolveStatus::Proof => write!(f, "Proof"),
         }
     }
 }

@@ -29,8 +29,7 @@ pub trait VariableList {
     fn set_value<L: Borrow<impl LiteralTrait>>(
         &self,
         literal: L,
-        levels: &mut LevelStore,
-        source: LiteralSource,
+        decision_level: Option<usize>,
     ) -> Result<ValueInfo, ValueInfo>;
 
     fn slice(&self) -> &[Variable];
@@ -77,8 +76,7 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
     fn set_value<L: Borrow<impl LiteralTrait>>(
         &self,
         literal: L,
-        levels: &mut LevelStore,
-        source: LiteralSource,
+        decision_level: Option<usize>,
     ) -> Result<ValueInfo, ValueInfo> {
         // TODO: Fix
         // log::trace!(target: crate::log::targets::VALUATION, "Set: {}", literal.borrow());
@@ -87,11 +85,8 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
             Some(value) if value != literal.borrow().polarity() => Err(ValueInfo::Conflict),
             Some(_value) => Ok(ValueInfo::Match),
             None => {
-                variable.set_value(
-                    Some(literal.borrow().polarity()),
-                    Some(levels.decision_count()),
-                );
-                levels.record_literal(literal.borrow().canonical(), source);
+                variable.set_value(Some(literal.borrow().polarity()), decision_level);
+
                 Ok(ValueInfo::NotSet)
             }
         }

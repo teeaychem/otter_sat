@@ -22,7 +22,7 @@ pub struct VariableStore {
     external_map: Vec<String>,
     score_increment: VariableActivity,
     variables: Vec<Variable>,
-    consequence_q: std::collections::VecDeque<(Literal, LiteralSource, LevelIndex)>,
+    consequence_q: std::collections::VecDeque<(Literal, LevelIndex)>,
     string_map: std::collections::HashMap<String, VariableId>,
     activity_heap: IndexHeap<VariableActivity>,
 }
@@ -113,7 +113,7 @@ impl VariableStore {
         // self.consequence_buffer;
     }
 
-    pub fn get_consequence(&mut self) -> Option<(Literal, LiteralSource, LevelIndex)> {
+    pub fn get_consequence(&mut self) -> Option<(Literal, LevelIndex)> {
         self.consequence_q.pop_front()
     }
 
@@ -137,7 +137,7 @@ impl VariableStore {
     }
 
     pub fn clear_consequences(&mut self, to: LevelIndex) {
-        self.consequence_q.retain(|(_, _, c)| *c < to);
+        self.consequence_q.retain(|(_, c)| *c < to);
     }
 }
 
@@ -181,17 +181,16 @@ impl Context {
     ) -> Result<(), ContextFailure> {
         let Ok(_) = self
             .variables
-            .set_value(lit.borrow().canonical(), &mut self.levels, source)
+            .set_value(lit.borrow().canonical(), Some(self.levels.decision_count()))
         else {
             return Err(ContextFailure::QueueConflict);
         };
+        self.levels.record_literal(lit.borrow().canonical(), source);
 
         // TODO: improve push back consequence
-        self.variables.consequence_q.push_back((
-            lit.borrow().canonical(),
-            source,
-            self.levels.decision_count(),
-        ));
+        self.variables
+            .consequence_q
+            .push_back((lit.borrow().canonical(), self.levels.decision_count()));
 
         Ok(())
     }
