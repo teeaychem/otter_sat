@@ -245,9 +245,9 @@ impl Context {
     }
 
     fn backjump(&mut self, to: LevelIndex) {
-        log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.index(), to);
+        // log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.index(), to);
 
-        for _ in 0..(self.levels.index() - to) {
+        for _ in 0..(self.levels.decision_count() - to) {
             let the_level = self.levels.pop().expect("lost level");
             self.variables.retract_valuation(the_level.choice().index());
             for literal in the_level.observations().iter().map(|(_, l)| *l) {

@@ -87,7 +87,10 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
             Some(value) if value != literal.borrow().polarity() => Err(ValueInfo::Conflict),
             Some(_value) => Ok(ValueInfo::Match),
             None => {
-                variable.set_value(Some(literal.borrow().polarity()), Some(levels.index()));
+                variable.set_value(
+                    Some(literal.borrow().polarity()),
+                    Some(levels.decision_count()),
+                );
                 levels.record_literal(literal.borrow().canonical(), source);
                 Ok(ValueInfo::NotSet)
             }

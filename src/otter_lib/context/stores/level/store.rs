@@ -20,10 +20,6 @@ impl Default for LevelStore {
 }
 
 impl LevelStore {
-    pub fn index(&self) -> usize {
-        self.levels.len() - 1
-    }
-
     pub fn make_choice(&mut self, choice: Literal) {
         let mut level = DecisionLevel::new(Some(choice));
         self.levels.push(level);
@@ -44,28 +40,42 @@ impl LevelStore {
     pub fn record_literal(&mut self, literal: Literal, source: LiteralSource) {
         match source {
             LiteralSource::Choice => {}
-            LiteralSource::Assumption => self.zero_mut().record_literal(literal),
-            LiteralSource::Pure => self.zero_mut().record_literal(literal),
+            LiteralSource::Assumption => self.knowledge.record_literal(literal),
+            LiteralSource::Pure => self.knowledge.record_literal(literal),
             _ => self.top_mut().record_literal(literal, source),
         }
+    }
+
+    pub fn decision_made(&self) -> bool {
+        self.levels.len() > 1
+    }
+
+    pub fn decision_count(&self) -> usize {
+        self.levels.len() - 1
     }
 }
 
 impl LevelStore {
+    fn index(&self) -> usize {
+        self.levels.len() - 1
+    }
+
     fn top_mut(&mut self) -> &mut DecisionLevel {
         let index = self.index();
         unsafe { self.levels.get_unchecked_mut(index) }
     }
 
-    fn zero_mut(&mut self) -> &mut KnowledgeLevel {
-        &mut self.knowledge
-    }
-
     fn get(&self, index: LevelIndex) -> &DecisionLevel {
+        if index == 0 {
+            panic!("hm")
+        };
         self.levels.get(index).expect("mising level")
     }
 
     fn get_mut(&mut self, index: LevelIndex) -> &mut DecisionLevel {
+        if index == 0 {
+            panic!("hm mut")
+        };
         self.levels.get_mut(index).expect("mising level")
     }
 }

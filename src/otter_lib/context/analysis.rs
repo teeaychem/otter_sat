@@ -31,8 +31,8 @@ impl Context {
         clause_key: ClauseKey,
         config: &Config,
     ) -> Result<AnalysisResult, AnalysisError> {
-        log::trace!(target: LOG_ANALYSIS, "Analysis called on {clause_key} at level {}", self.levels.index());
-        if self.levels.index() == 0 {
+        // log::trace!(target: LOG_ANALYSIS, "Analysis called on {clause_key} at level {}", self.levels.index());
+        if !self.levels.decision_made() {
             return Ok(AnalysisResult::FundamentalConflict(clause_key));
         }
         let Ok(conflict_clause) = self.clause_store.get(clause_key) else {

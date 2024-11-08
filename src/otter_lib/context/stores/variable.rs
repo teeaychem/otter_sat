@@ -190,7 +190,7 @@ impl Context {
         self.variables.consequence_q.push_back((
             lit.borrow().canonical(),
             source,
-            self.levels.index(),
+            self.levels.decision_count(),
         ));
 
         Ok(())

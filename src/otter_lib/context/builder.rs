@@ -65,7 +65,7 @@ impl Context {
     // Aka. soft assumption
     // This will hold until a restart happens
     pub fn believe<L: Borrow<impl LiteralTrait>>(&mut self, literal: L) -> Result<(), ContextErr> {
-        if self.levels.index() != 0 {
+        if self.levels.decision_made() {
             return Err(ContextErr::AssumptionAfterChoice);
         }
         let assumption_result = self.q_literal(literal, LiteralSource::Assumption);
@@ -76,7 +76,7 @@ impl Context {
     }
 
     pub fn assume<L: Borrow<impl LiteralTrait>>(&mut self, literal: L) -> Result<(), ContextErr> {
-        if self.levels.index() != 0 {
+        if self.levels.decision_made() {
             return Err(ContextErr::AssumptionAfterChoice);
         }
         use crate::structures::variable::list::ValueInfo;
