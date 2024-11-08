@@ -2,7 +2,9 @@ use std::{borrow::Borrow, ops::Deref};
 
 use crate::{
     config::{Config, StoppingCriteria},
-    context::stores::{clause::ClauseStore, level::Level, variable::VariableStore, ClauseKey},
+    context::stores::{
+        clause::ClauseStore, level::DecisionLevel, variable::VariableStore, ClauseKey,
+    },
     structures::{
         clause::stored::StoredClause,
         literal::{Literal, LiteralSource, LiteralTrait},
@@ -136,7 +138,7 @@ impl ResolutionBuffer {
 
     pub fn resolve_with(
         &mut self,
-        level: &Level,
+        level: &DecisionLevel,
         stored_clauses: &mut ClauseStore,
         variables: &mut VariableStore,
         traces: &mut Traces,

@@ -1,14 +1,17 @@
 use crate::context::stores::{
-    level::{Level, LevelStore},
+    level::{DecisionLevel, LevelStore},
     LevelIndex,
 };
+
+use super::KnowledgeLevel;
 
 impl Default for LevelStore {
     fn default() -> Self {
         let mut the_store = LevelStore {
+            knowledge: KnowledgeLevel::default(),
             levels: Vec::default(),
         };
-        the_store.levels.push(Level::new(0));
+        the_store.levels.push(DecisionLevel::new(0));
         the_store
     }
 }
@@ -16,17 +19,18 @@ impl Default for LevelStore {
 impl LevelStore {
     pub fn with_capacity(capacity: usize) -> Self {
         let mut the_store = LevelStore {
+            knowledge: KnowledgeLevel::default(),
             levels: Vec::with_capacity(capacity),
         };
-        the_store.levels.push(Level::new(0));
+        the_store.levels.push(DecisionLevel::new(0));
         the_store
     }
 
-    pub fn get(&self, index: LevelIndex) -> &Level {
+    pub fn get(&self, index: LevelIndex) -> &DecisionLevel {
         self.levels.get(index).expect("mising level")
     }
 
-    pub fn get_mut(&mut self, index: LevelIndex) -> &mut Level {
+    pub fn get_mut(&mut self, index: LevelIndex) -> &mut DecisionLevel {
         self.levels.get_mut(index).expect("mising level")
     }
 
@@ -36,28 +40,28 @@ impl LevelStore {
 
     pub fn get_fresh(&mut self) -> LevelIndex {
         let index = self.levels.len();
-        self.levels.push(Level::new(index));
+        self.levels.push(DecisionLevel::new(index));
         index
     }
 
-    pub fn top(&self) -> &Level {
+    pub fn top(&self) -> &DecisionLevel {
         unsafe { self.levels.get_unchecked(self.index()) }
     }
 
-    pub fn top_mut(&mut self) -> &mut Level {
+    pub fn top_mut(&mut self) -> &mut DecisionLevel {
         let index = self.index();
         unsafe { self.levels.get_unchecked_mut(index) }
     }
 
-    pub fn zero(&self) -> &Level {
-        unsafe { self.levels.get_unchecked(0) }
+    pub fn zero(&self) -> &KnowledgeLevel {
+        &self.knowledge
     }
 
-    pub fn zero_mut(&mut self) -> &mut Level {
-        unsafe { self.levels.get_unchecked_mut(0) }
+    pub fn zero_mut(&mut self) -> &mut KnowledgeLevel {
+        &mut self.knowledge
     }
 
-    pub fn pop(&mut self) -> Option<Level> {
+    pub fn pop(&mut self) -> Option<DecisionLevel> {
         self.levels.pop()
     }
 }

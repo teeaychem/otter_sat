@@ -28,11 +28,7 @@ pub enum ContextFailure {
 
 impl Context {
     pub fn proven_literals(&self) -> impl Iterator<Item = &Literal> {
-        self.levels
-            .get(0)
-            .observations()
-            .iter()
-            .map(|(_, literal)| literal)
+        self.levels.zero().literals().iter()
     }
 
     pub fn variable_count(&self) -> usize {
@@ -70,7 +66,7 @@ impl Context {
     ) {
         let canonical = literal.borrow().canonical();
 
-        self.levels.zero_mut().record_literal(canonical, source);
+        self.levels.zero_mut().record_literal(canonical);
 
         if self.config.trace {
             let step = match source {

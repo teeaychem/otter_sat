@@ -82,7 +82,8 @@ impl Context {
         use crate::structures::variable::list::ValueInfo;
         let literal: Literal = literal.borrow().canonical();
         match self.variables.check_literal(literal) {
-            ValueInfo::Set => {
+            ValueInfo::NotSet => {
+                self.q_literal(literal, LiteralSource::Assumption);
                 self.store_literal(literal, LiteralSource::Assumption, Vec::default());
                 Ok(())
             }
@@ -142,9 +143,7 @@ impl Context {
                     } else {
                         // Though, strengthen the clause if possible
                         if !self
-                            .levels
-                            .zero()
-                            .literals()
+                            .proven_literals()
                             .any(|proven_literal| &proven_literal.negate() == literal)
                         {
                             processed_clause.push(*literal)

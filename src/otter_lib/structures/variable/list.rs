@@ -1,5 +1,5 @@
 use crate::{
-    context::stores::level::Level,
+    context::stores::level::DecisionLevel,
     structures::{
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::Variable,
@@ -8,7 +8,7 @@ use crate::{
 
 // Information about the valuation of a variable, tied to some expectation
 pub enum ValueInfo {
-    Set,
+    NotSet,
     Match,
     Conflict,
 }
@@ -29,7 +29,7 @@ pub trait VariableList {
     fn set_value<L: Borrow<impl LiteralTrait>>(
         &self,
         literal: L,
-        level: &mut Level,
+        level: &mut DecisionLevel,
         source: LiteralSource,
     ) -> Result<ValueInfo, ValueInfo>;
 
@@ -69,14 +69,15 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
         match maybe_value.value() {
             Some(already_set) if already_set == literal.borrow().polarity() => ValueInfo::Match,
             Some(_already_set) => ValueInfo::Conflict,
-            None => ValueInfo::Set,
+            None => ValueInfo::NotSet,
         }
     }
 
+    // On okay reports the status of the variable *before* any actions happened
     fn set_value<L: Borrow<impl LiteralTrait>>(
         &self,
         literal: L,
-        level: &mut Level,
+        level: &mut DecisionLevel,
         source: LiteralSource,
     ) -> Result<ValueInfo, ValueInfo> {
         // TODO: Fix
@@ -88,7 +89,7 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
             None => {
                 variable.set_value(Some(literal.borrow().polarity()), Some(level.index()));
                 level.record_literal(literal.borrow().canonical(), source);
-                Ok(ValueInfo::Set)
+                Ok(ValueInfo::NotSet)
             }
         }
     }

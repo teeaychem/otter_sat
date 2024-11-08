@@ -4,6 +4,7 @@ use crate::context::stores::ClauseKey;
 pub enum ContextErr {
     AssumptionAfterChoice, // Aka. an assumption not made on level zero
     AssumptionConflict, // An attempt to make an assumption which conflicts with some proven literal
+    AssumptionSet,      // Somehow checking the literal returned that the literal was set.
 }
 
 #[derive(Debug, Clone, Copy)]

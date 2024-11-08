@@ -7,12 +7,18 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct Level {
+pub struct KnowledgeLevel {
+    observations: Vec<Literal>,
+}
+
+#[derive(Debug)]
+pub struct DecisionLevel {
     index: LevelIndex,
     choice: Option<Literal>,
     observations: Vec<(LiteralSource, Literal)>,
 }
 
 pub struct LevelStore {
-    levels: Vec<Level>,
+    knowledge: KnowledgeLevel,
+    levels: Vec<DecisionLevel>,
 }

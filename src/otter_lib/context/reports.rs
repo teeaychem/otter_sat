@@ -170,11 +170,8 @@ impl Context {
     }
 
     pub fn proven_literal_database(&self) -> Vec<String> {
-        self.levels
-            .zero()
-            .observations()
-            .iter()
-            .map(|(_, literal)| format!("{} 0", self.variables.external_name(literal.index())))
+        self.proven_literals()
+            .map(|literal| format!("{} 0", self.variables.external_name(literal.index())))
             .collect::<Vec<_>>()
     }
 }

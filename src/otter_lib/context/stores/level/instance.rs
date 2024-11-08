@@ -1,11 +1,13 @@
 use std::borrow::Borrow;
 
 use crate::{
-    context::stores::{level::Level, LevelIndex},
+    context::stores::{level::DecisionLevel, LevelIndex},
     structures::literal::{Literal, LiteralSource, LiteralTrait},
 };
 
-impl Level {
+use super::KnowledgeLevel;
+
+impl DecisionLevel {
     pub fn new(index: LevelIndex) -> Self {
         Self {
             index,
@@ -47,5 +49,24 @@ impl Level {
                 .map(|(_, literal)| literal)
                 .copied(),
         )
+    }
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for KnowledgeLevel {
+    fn default() -> Self {
+        Self {
+            observations: Vec::default(),
+        }
+    }
+}
+
+impl KnowledgeLevel {
+    pub fn record_literal<L: Borrow<impl LiteralTrait>>(&mut self, literal: L) {
+        self.observations.push(literal.borrow().canonical())
+    }
+
+    pub fn literals(&self) -> &[Literal] {
+        &self.observations
     }
 }
