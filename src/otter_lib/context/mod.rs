@@ -108,7 +108,7 @@ impl Context {
 
         Self {
             counters: Counters::default(),
-            levels: LevelStore::with_capacity(variable_count),
+            levels: LevelStore::default(),
             clause_store: ClauseStore::with_capacity(clause_count),
             variables: VariableStore::with_capactiy(variable_count),
             config,
@@ -126,7 +126,7 @@ impl Default for Context {
     fn default() -> Self {
         Context {
             counters: Counters::default(),
-            levels: LevelStore::with_capacity(1024),
+            levels: LevelStore::default(),
             clause_store: ClauseStore::default(),
             variables: VariableStore::default(),
             config: Config::default(),

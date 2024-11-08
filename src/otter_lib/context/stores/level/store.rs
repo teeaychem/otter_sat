@@ -17,15 +17,6 @@ impl Default for LevelStore {
 }
 
 impl LevelStore {
-    pub fn with_capacity(capacity: usize) -> Self {
-        let mut the_store = LevelStore {
-            knowledge: KnowledgeLevel::default(),
-            levels: Vec::with_capacity(capacity),
-        };
-        the_store.levels.push(DecisionLevel::new());
-        the_store
-    }
-
     pub fn get(&self, index: LevelIndex) -> &DecisionLevel {
         self.levels.get(index).expect("mising level")
     }
