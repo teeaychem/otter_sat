@@ -66,7 +66,7 @@ impl Context {
     ) {
         let canonical = literal.borrow().canonical();
 
-        self.levels.zero_mut().record_literal(canonical);
+        self.levels.record_literal(canonical, source);
 
         if self.config.trace {
             let step = match source {

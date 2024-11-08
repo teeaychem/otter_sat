@@ -193,12 +193,7 @@ impl Context {
         match self.get_unassigned(config) {
             Some(choice_index) => {
                 self.counters.decisions += 1;
-                self.levels.get_fresh();
 
-                log::trace!(target: crate::log::targets::STEP,
-                    "Choice of {choice_index} at level {}",
-                    self.levels.index(),
-                );
                 let choice_literal = {
                     let choice_id = choice_index as VariableId;
                     match self.variables.get_unsafe(choice_index).previous_value() {
@@ -209,6 +204,7 @@ impl Context {
                         }
                     }
                 };
+                self.levels.make_choice(choice_literal);
                 match self.q_literal(choice_literal, LiteralSource::Choice) {
                     Ok(()) => {}
                     Err(_) => return Err(StepErr::ChoiceFailure),
@@ -253,7 +249,6 @@ impl Context {
 
         for _ in 0..(self.levels.index() - to) {
             let the_level = self.levels.pop().expect("lost level");
-            log::trace!(target: crate::log::targets::BACKJUMP, "To clear: {:?}", the_level.literals().collect::<Vec<_>>());
             for literal in the_level.literals() {
                 self.variables.retract_valuation(literal.index());
             }

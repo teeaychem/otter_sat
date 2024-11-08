@@ -88,9 +88,7 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
             Some(_value) => Ok(ValueInfo::Match),
             None => {
                 variable.set_value(Some(literal.borrow().polarity()), Some(levels.index()));
-                levels
-                    .top_mut()
-                    .record_literal(literal.borrow().canonical(), source);
+                levels.record_literal(literal.borrow().canonical(), source);
                 Ok(ValueInfo::NotSet)
             }
         }

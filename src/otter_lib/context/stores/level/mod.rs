@@ -24,14 +24,14 @@ pub struct LevelStore {
 use std::borrow::Borrow;
 
 impl DecisionLevel {
-    pub fn new() -> Self {
+    pub fn new(literal: Option<Literal>) -> Self {
         Self {
-            choice: None,
+            choice: literal,
             observations: vec![],
         }
     }
 
-    pub fn record_literal<L: Borrow<impl LiteralTrait> + Copy>(
+    fn record_literal<L: Borrow<impl LiteralTrait> + Copy>(
         &mut self,
         literal: L,
         source: LiteralSource,
@@ -65,7 +65,7 @@ impl DecisionLevel {
 
 impl Default for DecisionLevel {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
