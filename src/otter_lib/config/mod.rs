@@ -30,6 +30,7 @@ pub struct Config {
     pub vsids_variant: VSIDS,
     pub reduction_interval: usize,
     pub detail: u8,
+    pub trace: bool,
 }
 
 impl Default for Config {
@@ -56,6 +57,7 @@ impl Default for Config {
             vsids_variant: VSIDS_VARIANT,
             reduction_interval: REDUCTION_INTERVAL,
             detail: DETAILS,
+            trace: TRACE,
         }
     }
 }

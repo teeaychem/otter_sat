@@ -1,4 +1,7 @@
-use std::{io::Write, ops::Deref};
+use std::{
+    io::{BufWriter, Write},
+    ops::Deref,
+};
 
 use rand::{seq::IteratorRandom, Rng};
 
@@ -11,11 +14,14 @@ use crate::{
         Context, SolveStatus,
     },
     structures::{
+        clause::Clause,
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::{list::VariableList, VariableId, BCP::BCPErr},
     },
     types::{errs::StepErr, gen::Report},
 };
+
+use super::unique_id::unique_clause_key;
 
 impl Context {
     pub fn solve(&mut self) -> Result<Report, ContextFailure> {
@@ -94,7 +100,9 @@ impl Context {
                         AnalysisResult::MissedImplication(key, literal) => {
                             self.status = SolveStatus::MissedImplication(key);
 
-                            let the_clause = self.clause_store.get(key)?;
+                            let Ok(the_clause) = self.clause_store.get(key) else {
+                                panic!("mi");
+                            };
 
                             match self.backjump_level(the_clause.deref()) {
                                 None => return Err(StepErr::Backfall),
@@ -112,7 +120,10 @@ impl Context {
                         AnalysisResult::AssertingClause(key, literal) => {
                             self.status = SolveStatus::AssertingClause(key);
 
-                            let the_clause = self.clause_store.get(key)?;
+                            let Ok(the_clause) = self.clause_store.get(key) else {
+                                println!("{key:?}");
+                                panic!("here, asserting")
+                            };
 
                             match self.backjump_level(the_clause.deref()) {
                                 None => return Err(StepErr::Backfall),
@@ -162,31 +173,25 @@ impl Context {
                 self.backjump(0);
                 self.counters.restarts += 1;
                 self.counters.conflicts_in_memory = 0;
+            }
 
-                let mut write = false;
-                if write {
-                    let mut file = std::fs::OpenOptions::new()
-                        .append(true)
-                        .open("temp.txt")
-                        .unwrap();
-                    for record in &self.record {
-                        // let _ = file.write_all(&record.0.to_le_bytes());
-                        let _ = file.write(format!("{} ", record.0 as u32).as_bytes());
-                        for before in &record.1 {
-                            // let _ = file.write_all(&before.to_le_bytes());
-                            let _ = file.write(format!("{} ", *before as u32).as_bytes());
-                        }
-                        let _ = file.write(b"0\n");
-                    }
+            if self.config.trace {
+                let file = std::fs::OpenOptions::new()
+                    .append(true)
+                    .open("temp.txt")
+                    .unwrap();
+                let mut writer = BufWriter::new(file);
+                for line in &self.traces.frat {
+                    let _ = writer.write_all(line.as_bytes());
                 }
-                self.record.clear();
+                self.traces.frat.clear()
             }
 
             if config.reduction_allowed
                 && ((self.counters.restarts % config.reduction_interval) == 0)
             {
                 log::debug!(target: crate::log::targets::REDUCTION, "Reduction after {} restarts", self.counters.restarts);
-                self.clause_store.reduce(config)?;
+                self.clause_store.reduce(config, &mut self.traces)?;
             }
         }
         Ok(())

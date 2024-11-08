@@ -4,6 +4,8 @@ use crate::{
     types::{clause::ClauseSource, errs::ClauseStoreErr},
 };
 
+use super::unique_id::UniqueIdentifier;
+
 #[derive(Debug, Clone, Copy)]
 pub enum StepInfo {
     Conflict(ClauseKey),
@@ -39,18 +41,17 @@ impl Context {
     pub fn store_clause(
         &mut self,
         clause: Vec<Literal>,
-        subsumed: Vec<Literal>,
         source: ClauseSource,
-        resolution_keys: Option<Vec<ClauseKey>>,
+        resolution_keys: Vec<UniqueIdentifier>,
     ) -> Result<ClauseKey, ClauseStoreErr> {
-        let clause_key = self.clause_store.insert(
+        self.clause_store.insert(
             source,
             clause,
-            subsumed,
             &mut self.variables,
+            &mut self.traces,
             resolution_keys,
-        )?;
-        Ok(clause_key)
+            &self.config,
+        )
     }
 
     pub fn print_status(&self) {
@@ -71,7 +72,7 @@ impl Context {
             SolveStatus::NoSolution(clause_key) => {
                 println!("s UNSATISFIABLE");
                 if self.config.show_core {
-                    let _ = self.display_core(clause_key);
+                    // let _ = self.display_core(clause_key);
                 }
             }
             SolveStatus::NoClauses => {

@@ -79,7 +79,7 @@ impl Context {
     // TODO: Type hint issue
     pub fn assume<L: Borrow<impl LiteralTrait>>(&mut self, literal: L) -> Result<(), ContextErr> {
         if self.believe(literal.borrow().canonical()).is_ok() {
-            self.proofs.push((literal.borrow().canonical(), vec![]));
+            self.proofs.push(literal.borrow().canonical());
             Ok(())
         } else {
             Err(ContextErr::AssumptionConflict)
@@ -136,7 +136,7 @@ impl Context {
                         if !self
                             .proofs
                             .iter()
-                            .any(|(proven_literal, _)| &proven_literal.negate() == literal)
+                            .any(|proven_literal| &proven_literal.negate() == literal)
                         {
                             processed_clause.push(*literal)
                         } else {
@@ -155,7 +155,7 @@ impl Context {
                             return Err(BuildErr::AssumptionIndirectConflict);
                         };
                     }
-                    _ => match self.store_clause(clause, subsumed, ClauseSource::Formula, None) {
+                    _ => match self.store_clause(clause, ClauseSource::Formula, Vec::default()) {
                         Ok(_) => {}
                         Err(e) => return Err(BuildErr::ClauseStore(e)),
                     },

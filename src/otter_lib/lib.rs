@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 pub mod config;
 pub mod context;
 pub mod io;
@@ -8,3 +10,6 @@ mod procedures;
 mod structures;
 
 mod generic;
+
+#[allow(non_snake_case)]
+mod FRAT;

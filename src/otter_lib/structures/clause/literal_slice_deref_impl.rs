@@ -12,15 +12,15 @@ use std::ops::Deref;
 
 impl<T: Deref<Target = [Literal]>> Clause for T {
     fn as_string(&self) -> String {
-        let mut the_string = String::from("(");
+        let mut the_string = String::default();
         for literal in self.deref() {
-            the_string.push_str(format!(" {literal} ").as_str());
+            the_string.push_str(format!("{literal} ").as_str());
         }
-        the_string += ")";
+        the_string.pop();
         the_string
     }
 
-    fn as_dimacs(&self, variables: &VariableStore) -> String {
+    fn as_dimacs(&self, variables: &VariableStore, zero: bool) -> String {
         let mut the_string = String::new();
         for literal in self.deref() {
             let the_represenetation = match literal.polarity() {
@@ -29,8 +29,13 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
             };
             the_string.push_str(the_represenetation.as_str());
         }
-        the_string += "0";
-        the_string
+        if zero {
+            the_string += "0";
+            the_string
+        } else {
+            the_string.pop();
+            the_string
+        }
     }
 
     /// Returns the literal asserted by the clause on the given valuation

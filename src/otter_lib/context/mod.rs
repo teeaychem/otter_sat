@@ -1,15 +1,14 @@
 mod analysis;
 pub mod builder;
 pub mod core;
-mod frat;
 mod preprocessing;
 pub mod reports;
 mod resolution_buffer;
 pub mod solve;
 pub mod stores;
-mod unique_id;
+pub mod unique_id;
 
-use crate::types::gen::SolveStatus;
+use crate::{types::gen::SolveStatus, FRAT::FRATStr};
 
 use {
     crate::{
@@ -21,7 +20,7 @@ use {
         io::window::ContextWindow,
         structures::literal::Literal,
     },
-    stores::{clause::ClauseStore, variable::VariableStore, ClauseKey},
+    stores::{clause::ClauseStore, variable::VariableStore},
 };
 
 use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128Plus};
@@ -59,6 +58,13 @@ impl Default for Counters {
     }
 }
 
+#[derive(Default)]
+pub struct Traces {
+    // TODO: Provide functions for serealising
+    serial: Vec<(UniqueIdentifier, Vec<UniqueIdentifier>)>,
+    frat: Vec<FRATStr>,
+}
+
 pub struct Context {
     counters: Counters,
     levels: LevelStore,
@@ -68,9 +74,9 @@ pub struct Context {
     window: Option<ContextWindow>,
     status: SolveStatus,
 
-    pub proofs: Vec<(Literal, Vec<ClauseKey>)>,
-
-    pub record: Vec<(UniqueIdentifier, Vec<UniqueIdentifier>)>,
+    pub proofs: Vec<Literal>,
+    pub traces: Traces,
+    //
 }
 
 impl std::fmt::Display for SolveStatus {
@@ -108,7 +114,7 @@ impl Context {
             window: the_window,
             status: SolveStatus::Initialised,
             proofs: Vec::default(),
-            record: Vec::default(),
+            traces: Traces::default(),
         }
     }
 }
@@ -124,7 +130,7 @@ impl Default for Context {
             window: None,
             status: SolveStatus::Initialised,
             proofs: Vec::default(),
-            record: Vec::default(),
+            traces: Traces::default(),
         }
     }
 }

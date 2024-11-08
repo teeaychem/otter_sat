@@ -35,7 +35,9 @@ impl Context {
         if self.levels.index() == 0 {
             return Ok(AnalysisResult::FundamentalConflict(clause_key));
         }
-        let conflict_clause = self.clause_store.get(clause_key)?;
+        let Ok(conflict_clause) = self.clause_store.get(clause_key) else {
+            panic!("x");
+        };
         // log::trace!(target: LOG_ANALYSIS, "Clause {conflict_clause}");
 
         if let config::VSIDS::Chaff = config.vsids_variant {
@@ -67,6 +69,7 @@ impl Context {
                 self.levels.top(),
                 &mut self.clause_store,
                 &mut self.variables,
+                &mut self.traces,
                 config,
             );
             match buffer_status {
@@ -86,8 +89,8 @@ impl Context {
                     .apply_VSIDS(the_buffer.variables_used(), config);
             }
 
-            for key in the_buffer.trail() {
-                self.clause_store.bump_activity(*key, config);
+            for key in the_buffer.view_trail() {
+                self.clause_store.bump_activity(*key as u32, config);
             }
 
             /*
@@ -101,6 +104,7 @@ impl Context {
             }
 
             let (asserted_literal, mut resolved_clause) = the_buffer.to_assertion_clause();
+            // TODO: Revise this, maybe, as it means the watch is in the last place looked…
             if let Some(assertion) = asserted_literal {
                 resolved_clause.push(assertion);
             }
@@ -113,29 +117,26 @@ impl Context {
                 Some(literal) => literal,
             };
 
+            let output = true;
+
             match resolved_clause.len() {
                 0 => Err(AnalysisError::EmptyResolution),
                 1 => {
-                    self.proofs.push((the_literal, the_buffer.trail().to_vec()));
+                    self.proofs.push(the_literal);
+                    // TODO: Something parallel to store_clause
+                    self.traces
+                        .serial
+                        .push((the_literal.unique_id(), unsafe { the_buffer.take_trail() }));
                     Ok(AnalysisResult::Proof(clause_key, the_literal))
                 }
                 _ => {
-                    let Ok(clause_key) = self.store_clause(
-                        resolved_clause,
-                        Vec::default(),
-                        ClauseSource::Resolution,
-                        Some(the_buffer.trail().to_vec()),
-                    ) else {
+                    let Ok(clause_key) =
+                        self.store_clause(resolved_clause, ClauseSource::Resolution, unsafe {
+                            the_buffer.take_trail()
+                        })
+                    else {
                         return Err(AnalysisError::ResolutionNotStored);
                     };
-                    self.record.push((
-                        clause_key.unique_id(),
-                        the_buffer
-                            .trail()
-                            .iter()
-                            .map(|key| key.unique_id())
-                            .collect(),
-                    ));
 
                     Ok(AnalysisResult::AssertingClause(clause_key, the_literal))
                 }

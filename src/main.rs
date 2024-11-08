@@ -25,6 +25,8 @@ fn main() {
         Err(e) => log::error!("{e:?}"),
     }
 
+    std::fs::File::create("temp.txt");
+
     let matches = cli().get_matches();
     let config = Config::from_args(&matches);
 

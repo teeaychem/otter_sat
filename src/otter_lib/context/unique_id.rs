@@ -11,23 +11,33 @@ Primarily for FRAT proofs.
 The idea is to store encode an internal identifier to a u64 with some flags to allow decoding.
 The layout is:
 
-[Index: u32, Relative: u16, Flags: u16]
+[Index: u32, Disambiguation: u8, Action: u8, Relative: u16]
 
 - Bytes 0..4 are the internal id
   The use of u32s is standard for all internal indicies
-- Bytes 4 and 5 are used for flags
-  For example, to determine whether the remaining bytes should be interpreted with respect to a literal, clause key, etc.
+- Byte 4 is used for disambiguation
+- Byte 5 is used for action
 - Bytes 6 .. are relative information
   For literals, these store the polarity, for clause keys the token, if it exists
 
 Things are set this way so unique ids can easily be cast to the encoded index
  */
 
-pub type UniqueIdentifier = u64;
+/*
+The primary motivation is to allow external recording of what's happened.
+I think, also, to help with this it might be worthwhile to `schedule` the removal of clauses
+Though, this isn't too pressing
+
+For now, keeping a record of this information is sufficient to build an unsat core, external to the core of the solver
+
+This doesn't help much with proofs, though…
+ */
+
+pub(crate) type UniqueIdentifier = u64;
 
 #[allow(dead_code)]
-#[derive(Clone, Copy, Debug)]
-enum TypeFlag {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TypeFlag {
     Variable,
     Literal,
     Binary,
@@ -45,6 +55,14 @@ impl TypeFlag {
             Self::Learned => 5,
         }
     }
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ActionFlag {
+    None,
+    Addition,
+    Deletion,
 }
 
 pub trait UniqueId {
@@ -102,6 +120,40 @@ impl UniqueId for Literal {
     }
 }
 
+pub fn unique_index(unique_id: UniqueIdentifier) -> u32 {
+    unique_id as u32
+}
+
+pub fn unique_relative(unique_id: UniqueIdentifier) -> u16 {
+    unique_id.shr(8 * 6) as u16
+}
+
+pub fn unique_meta(unique_id: UniqueIdentifier) -> TypeFlag {
+    let token = unique_id.shr(8 * 4) as u8;
+    match token {
+        1 => TypeFlag::Variable,
+        2 => TypeFlag::Literal,
+        3 => TypeFlag::Binary,
+        4 => TypeFlag::Formula,
+        5 => TypeFlag::Learned,
+        _ => panic!("{token}"),
+    }
+}
+
+pub fn unique_clause_key(unique_id: UniqueIdentifier) -> Option<ClauseKey> {
+    let index = unique_index(unique_id);
+
+    match unique_meta(unique_id) {
+        TypeFlag::Binary => Some(ClauseKey::Binary(index)),
+        TypeFlag::Formula => Some(ClauseKey::Formula(index)),
+        TypeFlag::Learned => {
+            let token = unique_relative(unique_id);
+            Some(ClauseKey::Learned(index, token))
+        }
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -129,5 +181,23 @@ mod tests {
         let expectation = u64::from_le_bytes(expectation_bytes);
         assert_ne!(unique, expectation);
         assert_eq!(unique as u32, the_literal.v_id());
+    }
+
+    #[test]
+    fn unique_clause_key_test() {
+        let index: u32 = 5353;
+        let token: u16 = 643;
+        let clause_key = ClauseKey::Learned(index, token);
+        let unique_id = clause_key.unique_id();
+
+        println!("{:?}", unique_id.to_be_bytes());
+
+        let retreived_index = unique_index(unique_id);
+        assert_eq!(index, retreived_index);
+        let retreived_token = unique_relative(unique_id);
+        assert_eq!(token, retreived_token);
+        let meta = unique_meta(unique_id);
+        assert_eq!(meta, TypeFlag::Learned);
+        assert_eq!(clause_key, unique_clause_key(unique_id).unwrap());
     }
 }

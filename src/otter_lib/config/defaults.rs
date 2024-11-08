@@ -8,7 +8,7 @@ pub const CLAUSE_DECAY_FACTOR: config::ClauseActivity = 20.0;
 
 pub const REDUCTION_INTERVAL: usize = 5 * 10_usize.pow(2);
 
-pub const GLUE_STRENGTH: config::GlueStrength = 8;
+pub const GLUE_STRENGTH: config::GlueStrength = 2;
 pub const LUBY_U: config::LubyConstant = 128;
 pub const POLARITY_LEAN: config::PolarityLean = 0.0;
 pub const RANDOM_CHOICE_FREQUENCY: config::RandomChoiceFrequency = 0.0;
@@ -21,3 +21,5 @@ pub const DEFAULT_VARIABLE_COUNT: usize = 1024;
 pub const RNG_SEED: u64 = 0;
 
 pub const DETAILS: u8 = 0;
+
+pub const TRACE: bool = true;
