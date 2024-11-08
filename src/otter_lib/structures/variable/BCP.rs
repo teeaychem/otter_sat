@@ -81,6 +81,10 @@ impl Context {
                     return Err(BCPErr::CorruptWatch);
                 };
 
+                /*
+                TODO: From the FRAT paper neither MiniSAT nor CaDiCaL store clause identifiers
+                So, there may be some way to avoid this… unless there's a NULLPTR check or something…
+                 */
                 let clause = match self.clause_store.get_carefully_mut(*clause_key) {
                     Some(stored_clause) => stored_clause,
                     None => {

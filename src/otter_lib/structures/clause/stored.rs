@@ -14,6 +14,7 @@ use std::{borrow::Borrow, ops::Deref};
 pub struct StoredClause {
     key: ClauseKey,
     clause: Vec<Literal>,
+    active: bool,
     last: usize,
 }
 
@@ -22,6 +23,7 @@ impl StoredClause {
         let mut stored_clause = Self {
             key,
             clause,
+            active: true,
             last: 0,
         };
 
@@ -36,6 +38,14 @@ impl StoredClause {
 
     pub fn replace_key(&mut self, key: ClauseKey) {
         self.key = key
+    }
+
+    pub fn activate(&mut self) {
+        self.active = true
+    }
+
+    pub fn deactivate(&mut self) {
+        self.active = false
     }
 
     // pub fn original_clause(&self) -> Vec<Literal> {

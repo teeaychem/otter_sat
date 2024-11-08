@@ -7,6 +7,7 @@ use crate::{
         literal::{LiteralSource, LiteralTrait},
     },
     types::{errs::ReportError, gen::Report},
+    FRAT::FRATStep,
 };
 
 use super::SolveStatus;
@@ -18,6 +19,31 @@ impl std::fmt::Display for Report {
             Self::Unsatisfiable => write!(f, "Unsatisfiable"),
             Self::Unknown => write!(f, "Unknown"),
         }
+    }
+}
+
+// FRAT
+impl Context {
+    pub fn frat_formula(&mut self) {
+        for formula in self.clause_store.formula_clauses() {
+            self.traces.frat.record(FRATStep::original(
+                formula.key(),
+                formula.deref(),
+                &self.variables,
+            ))
+        }
+        self.traces.frat.flush()
+    }
+
+    pub fn frat_finalise(&mut self) {
+        for formula in self.clause_store.all_clauses() {
+            self.traces.frat.record(FRATStep::finalise(
+                formula.key(),
+                formula.deref(),
+                &self.variables,
+            ))
+        }
+        self.traces.frat.flush()
     }
 }
 

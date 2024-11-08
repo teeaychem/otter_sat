@@ -6,7 +6,7 @@ use crate::{
     },
 };
 
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, ops::Deref};
 
 use super::core::ContextFailure;
 
@@ -50,7 +50,9 @@ impl Context {
     }
 
     pub fn set_pure(&mut self) -> Result<(), ContextFailure> {
-        let (f, t) = crate::context::preprocessing::pure_choices(self.clause_store.all_clauses());
+        let (f, t) = crate::context::preprocessing::pure_choices(
+            self.clause_store.all_clauses().map(|sc| sc.deref()),
+        );
 
         for v_id in f.into_iter().chain(t) {
             let the_literal = Literal::new(v_id, false);

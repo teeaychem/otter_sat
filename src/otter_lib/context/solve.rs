@@ -176,15 +176,7 @@ impl Context {
             }
 
             if self.config.trace {
-                let file = std::fs::OpenOptions::new()
-                    .append(true)
-                    .open("temp.txt")
-                    .unwrap();
-                let mut writer = BufWriter::new(file);
-                for line in &self.traces.frat {
-                    let _ = writer.write_all(line.as_bytes());
-                }
-                self.traces.frat.clear()
+                self.traces.frat.flush()
             }
 
             if config.reduction_allowed

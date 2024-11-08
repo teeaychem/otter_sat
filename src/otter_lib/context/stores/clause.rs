@@ -19,7 +19,7 @@ use crate::{
         clause::{ClauseSource, WatchElement},
         errs::ClauseStoreErr,
     },
-    FRAT::FRATStr,
+    FRAT::FRATStep,
 };
 
 pub struct ClauseStore {
@@ -115,6 +115,10 @@ impl ClauseStore {
 }
 
 impl ClauseStore {
+    pub fn formula_clauses(&self) -> &[StoredClause] {
+        &self.formula
+    }
+
     pub fn get_carefully(&self, key: ClauseKey) -> Option<&StoredClause> {
         match key {
             ClauseKey::Formula(index) => self.formula.get(index as usize),
@@ -189,8 +193,8 @@ impl ClauseStore {
         config: &Config,
     ) -> Result<ClauseKey, ClauseStoreErr> {
         match clause.len() {
-            0 => return Err(ClauseStoreErr::EmptyClause),
-            1 => return Err(ClauseStoreErr::UnitClause),
+            0 => Err(ClauseStoreErr::EmptyClause),
+            1 => Err(ClauseStoreErr::UnitClause),
             2 => {
                 let the_key = self.new_binary_id()?;
                 self.binary
@@ -217,9 +221,12 @@ impl ClauseStore {
                     };
 
                     if config.trace {
-                        traces
-                            .frat
-                            .push(FRATStr::learnt(the_key, &clause, &resolution_keys));
+                        traces.frat.record(FRATStep::learnt_clause(
+                            the_key,
+                            &clause,
+                            &resolution_keys,
+                            variables,
+                        ));
                     }
 
                     let the_clause = StoredClause::from(the_key, clause, variables);
@@ -252,12 +259,12 @@ impl ClauseStore {
         (self.counts.formula + self.counts.learned + self.counts.binary) as usize
     }
 
-    pub fn all_clauses(&self) -> impl Iterator<Item = &[Literal]> + '_ {
-        self.formula.iter().map(|clause| clause.deref()).chain(
-            self.binary.iter().map(|clause| clause.deref()).chain(
+    pub fn all_clauses(&self) -> impl Iterator<Item = &StoredClause> + '_ {
+        self.formula.iter().chain(
+            self.binary.iter().chain(
                 self.learned
                     .iter()
-                    .flat_map(|maybe_clause| maybe_clause.as_ref().map(|clause| clause.deref())),
+                    .flat_map(|maybe_clause| maybe_clause.as_ref()),
             ),
         )
     }
@@ -273,9 +280,6 @@ impl ClauseStore {
       - Updates notifies literals of the new watch
       - Adds the clause to the binary vec
         This order is mostly dictated by the borrow checker
-
-
-
     */
     pub fn transfer_to_binary(
         &mut self,
@@ -289,7 +293,8 @@ impl ClauseStore {
                 Err(ClauseStoreErr::TransferBinary)
             }
             ClauseKey::Formula(index) => {
-                let formula_clause = &self.formula[index as usize];
+                let formula_clause = &mut self.formula[index as usize];
+                formula_clause.deactivate();
                 let copied_clause = formula_clause.deref().to_vec();
 
                 if copied_clause.len() != 2 {
@@ -300,9 +305,10 @@ impl ClauseStore {
                 let formula_key = formula_clause.key();
                 let binary_key = self.new_binary_id()?;
 
+                // TODO: May need to note the original formula
                 trace
                     .frat
-                    .push(FRATStr::relocation(formula_key, binary_key));
+                    .record(FRATStep::relocation(formula_key, binary_key));
 
                 variables.remove_watch(unsafe { copied_clause.get_unchecked(0) }, key)?;
                 variables.remove_watch(unsafe { copied_clause.get_unchecked(1) }, key)?;
@@ -326,7 +332,7 @@ impl ClauseStore {
 
                 trace
                     .frat
-                    .push(FRATStr::relocation(the_clause.key(), binary_key));
+                    .record(FRATStep::relocation(the_clause.key(), binary_key));
 
                 the_clause.replace_key(binary_key);
 
@@ -353,7 +359,7 @@ impl ClauseStore {
         'reduction_loop: for _ in 0..limit {
             if let Some(index) = self.learned_activity.peek_max() {
                 let value = self.learned_activity.value_at(index);
-                if value.lbd < config.glue_strength {
+                if value.lbd <= config.glue_strength {
                     break 'reduction_loop;
                 } else {
                     self.learned_activity.remove(index);
@@ -420,7 +426,7 @@ impl ClauseStore {
             // assert!(matches!(the_clause.key(), ClauseKey::LearnedLong(_, _)));
             let the_clause =
                 std::mem::take(unsafe { self.learned.get_unchecked_mut(index) }).unwrap();
-            trace.frat.push(FRATStr::deletion(index));
+            trace.frat.record(FRATStep::deletion(index));
             self.learned_activity.remove(index);
             self.keys.push(the_clause.key());
             self.counts.learned -= 1;

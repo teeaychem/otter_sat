@@ -8,7 +8,10 @@ pub mod solve;
 pub mod stores;
 pub mod unique_id;
 
-use crate::{types::gen::SolveStatus, FRAT::FRATStr};
+use crate::{
+    types::gen::SolveStatus,
+    FRAT::{FRATProof, FRATStep},
+};
 
 use {
     crate::{
@@ -58,11 +61,10 @@ impl Default for Counters {
     }
 }
 
-#[derive(Default)]
 pub struct Traces {
     // TODO: Provide functions for serealising
     serial: Vec<(UniqueIdentifier, Vec<UniqueIdentifier>)>,
-    frat: Vec<FRATStr>,
+    frat: FRATProof,
 }
 
 pub struct Context {
@@ -114,7 +116,10 @@ impl Context {
             window: the_window,
             status: SolveStatus::Initialised,
             proofs: Vec::default(),
-            traces: Traces::default(),
+            traces: Traces {
+                serial: Vec::default(),
+                frat: FRATProof::new(),
+            },
         }
     }
 }
@@ -130,7 +135,10 @@ impl Default for Context {
             window: None,
             status: SolveStatus::Initialised,
             proofs: Vec::default(),
-            traces: Traces::default(),
+            traces: Traces {
+                serial: Vec::default(),
+                frat: FRATProof::new(),
+            },
         }
     }
 }

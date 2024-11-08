@@ -25,7 +25,7 @@ fn main() {
         Err(e) => log::error!("{e:?}"),
     }
 
-    std::fs::File::create("temp.txt");
+    let _ = std::fs::File::create("temp.txt");
 
     let matches = cli().get_matches();
     let config = Config::from_args(&matches);
@@ -93,6 +93,10 @@ fn report_on_formula(path: PathBuf, config: &Config) -> Report {
         std::process::exit(10);
     }
 
+    if config.trace {
+        the_context.frat_formula()
+    }
+
     let the_report = match the_context.solve() {
         Ok(report) => report,
         Err(e) => {
@@ -100,6 +104,11 @@ fn report_on_formula(path: PathBuf, config: &Config) -> Report {
             std::process::exit(1);
         }
     };
+
+    if config.trace {
+        the_context.frat_finalise()
+    }
+
     the_context.print_status();
     the_report
 }

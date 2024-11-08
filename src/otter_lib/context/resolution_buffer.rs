@@ -8,6 +8,7 @@ use crate::{
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::{list::VariableList, VariableId},
     },
+    FRAT::FRATStep,
 };
 
 use super::{
@@ -175,7 +176,19 @@ impl ResolutionBuffer {
                             1 => return Ok(BufOk::Proof),
                             2 => match the_key {
                                 ClauseKey::Binary(_) => {}
-                                ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
+                                ClauseKey::Formula(_) => {
+                                    let Ok(_) = source_clause.subsume(literal, variables, false)
+                                    else {
+                                        return Err(BufErr::Subsumption);
+                                    };
+                                    let Ok(new_key) = stored_clauses
+                                        .transfer_to_binary(*the_key, variables, traces)
+                                    else {
+                                        return Err(BufErr::Transfer);
+                                    };
+                                    self.trail.push(new_key.unique_id());
+                                }
+                                ClauseKey::Learned(_, _) => {
                                     let Ok(_) = source_clause.subsume(literal, variables, false)
                                     else {
                                         return Err(BufErr::Subsumption);
