@@ -22,4 +22,4 @@ pub const RNG_SEED: u64 = 0;
 
 pub const DETAILS: u8 = 0;
 
-pub const TRACE: bool = true;
+pub const TRACE: bool = false;

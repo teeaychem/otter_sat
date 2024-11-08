@@ -248,11 +248,12 @@ impl Context {
         // log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.index(), to);
 
         for _ in 0..(self.levels.decision_count() - to) {
-            let the_level = self.levels.pop().expect("lost level");
-            self.variables.retract_valuation(the_level.choice().index());
-            for literal in the_level.observations().iter().map(|(_, l)| *l) {
+            self.variables
+                .retract_valuation(self.levels.current_choice().index());
+            for literal in self.levels.current_consequences().iter().map(|(_, l)| *l) {
                 self.variables.retract_valuation(literal.index());
             }
+            let the_level = self.levels.forget_choice().expect("lost level");
         }
         self.variables.clear_consequences(to);
     }

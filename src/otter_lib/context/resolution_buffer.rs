@@ -142,7 +142,7 @@ impl ResolutionBuffer {
         traces: &mut Traces,
         config: &Config,
     ) -> Result<BufOk, BufErr> {
-        for (source, literal) in level.observations().iter().rev() {
+        for (source, literal) in level.consequences().iter().rev() {
             if let LiteralSource::Analysis(the_key)
             | LiteralSource::BCP(the_key)
             | LiteralSource::Resolution(the_key)

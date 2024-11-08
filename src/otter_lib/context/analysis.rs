@@ -53,8 +53,8 @@ impl Context {
         // this could be made persistent, but tying it to the solve may require a cell and lots of unsafe
         let mut the_buffer = ResolutionBuffer::from_variable_store(&self.variables);
 
-        the_buffer.clear_literal(self.levels.top().choice());
-        for (_, lit) in self.levels.top().observations() {
+        the_buffer.clear_literal(self.levels.current_choice());
+        for (_, lit) in self.levels.current_consequences() {
             the_buffer.clear_literal(*lit);
         }
         match the_buffer.set_inital_clause(conflict_clause, clause_key) {
@@ -103,7 +103,7 @@ impl Context {
             This is also skipped for binary clauses, as if the other literal is proven the assertion will also be added as a proof, regardless
              */
             if the_buffer.clause_legnth() > 2 {
-                the_buffer.strengthen_given(self.proven_literals());
+                the_buffer.strengthen_given(self.levels.proven_literals().iter());
             }
 
             let (asserted_literal, mut resolved_clause) = the_buffer.to_assertion_clause();

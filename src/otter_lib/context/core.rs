@@ -27,10 +27,6 @@ pub enum ContextFailure {
 }
 
 impl Context {
-    pub fn proven_literals(&self) -> impl Iterator<Item = &Literal> {
-        self.levels.zero().literals().iter()
-    }
-
     pub fn variable_count(&self) -> usize {
         self.variables.len()
     }

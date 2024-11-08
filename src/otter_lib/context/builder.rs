@@ -143,7 +143,9 @@ impl Context {
                     } else {
                         // Though, strengthen the clause if possible
                         if !self
+                            .levels
                             .proven_literals()
+                            .iter()
                             .any(|proven_literal| &proven_literal.negate() == literal)
                         {
                             processed_clause.push(*literal)

@@ -12,7 +12,7 @@ pub struct KnowledgeLevel {
 
 #[derive(Debug)]
 pub struct DecisionLevel {
-    choice: Option<Literal>,
+    choice: Literal,
     observations: Vec<(LiteralSource, Literal)>,
 }
 
@@ -24,28 +24,22 @@ pub struct LevelStore {
 use std::borrow::Borrow;
 
 impl DecisionLevel {
-    pub fn new(literal: Option<Literal>) -> Self {
+    pub fn new(literal: Literal) -> Self {
         Self {
             choice: literal,
             observations: vec![],
         }
     }
 
-    fn record_literal<L: Borrow<impl LiteralTrait> + Copy>(
-        &mut self,
-        literal: L,
-        source: LiteralSource,
-    ) {
-        self.observations
-            .push((source, literal.borrow().canonical()))
-    }
-
-    pub fn observations(&self) -> &[(LiteralSource, Literal)] {
+    pub fn consequences(&self) -> &[(LiteralSource, Literal)] {
         &self.observations
     }
+}
 
-    pub fn choice(&self) -> Literal {
-        self.choice.unwrap()
+impl DecisionLevel {
+    fn record_literal<L: Borrow<impl LiteralTrait>>(&mut self, literal: L, source: LiteralSource) {
+        self.observations
+            .push((source, literal.borrow().canonical()))
     }
 }
 
@@ -61,9 +55,5 @@ impl Default for KnowledgeLevel {
 impl KnowledgeLevel {
     pub fn record_literal<L: Borrow<impl LiteralTrait>>(&mut self, literal: L) {
         self.observations.push(literal.borrow().canonical())
-    }
-
-    pub fn literals(&self) -> &[Literal] {
-        &self.observations
     }
 }
