@@ -197,7 +197,7 @@ impl Context {
 
                 log::trace!(target: crate::log::targets::STEP,
                     "Choice of {choice_index} at level {}",
-                    self.levels.top().index(),
+                    self.levels.index(),
                 );
                 let choice_literal = {
                     let choice_id = choice_index as VariableId;
@@ -249,9 +249,9 @@ impl Context {
     }
 
     fn backjump(&mut self, to: LevelIndex) {
-        log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.top().index(), to);
+        log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.index(), to);
 
-        for _ in 0..(self.levels.top().index() - to) {
+        for _ in 0..(self.levels.index() - to) {
             let the_level = self.levels.pop().expect("lost level");
             log::trace!(target: crate::log::targets::BACKJUMP, "To clear: {:?}", the_level.literals().collect::<Vec<_>>());
             for literal in the_level.literals() {

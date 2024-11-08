@@ -179,9 +179,9 @@ impl Context {
         lit: L,
         source: LiteralSource,
     ) -> Result<(), ContextFailure> {
-        let Ok(_) =
-            self.variables
-                .set_value(lit.borrow().canonical(), self.levels.top_mut(), source)
+        let Ok(_) = self
+            .variables
+            .set_value(lit.borrow().canonical(), &mut self.levels, source)
         else {
             return Err(ContextFailure::QueueConflict);
         };

@@ -8,16 +8,11 @@ use crate::{
 use super::KnowledgeLevel;
 
 impl DecisionLevel {
-    pub fn new(index: LevelIndex) -> Self {
+    pub fn new() -> Self {
         Self {
-            index,
             choice: None,
             observations: vec![],
         }
-    }
-
-    pub fn index(&self) -> LevelIndex {
-        self.index
     }
 
     pub fn record_literal<L: Borrow<impl LiteralTrait> + Copy>(

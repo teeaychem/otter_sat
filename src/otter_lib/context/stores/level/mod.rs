@@ -13,7 +13,6 @@ pub struct KnowledgeLevel {
 
 #[derive(Debug)]
 pub struct DecisionLevel {
-    index: LevelIndex,
     choice: Option<Literal>,
     observations: Vec<(LiteralSource, Literal)>,
 }

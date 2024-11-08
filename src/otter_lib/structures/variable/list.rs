@@ -1,5 +1,5 @@
 use crate::{
-    context::stores::level::DecisionLevel,
+    context::stores::level::{DecisionLevel, LevelStore},
     structures::{
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::Variable,
@@ -29,7 +29,7 @@ pub trait VariableList {
     fn set_value<L: Borrow<impl LiteralTrait>>(
         &self,
         literal: L,
-        level: &mut DecisionLevel,
+        levels: &mut LevelStore,
         source: LiteralSource,
     ) -> Result<ValueInfo, ValueInfo>;
 
@@ -77,7 +77,7 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
     fn set_value<L: Borrow<impl LiteralTrait>>(
         &self,
         literal: L,
-        level: &mut DecisionLevel,
+        levels: &mut LevelStore,
         source: LiteralSource,
     ) -> Result<ValueInfo, ValueInfo> {
         // TODO: Fix
@@ -87,8 +87,10 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
             Some(value) if value != literal.borrow().polarity() => Err(ValueInfo::Conflict),
             Some(_value) => Ok(ValueInfo::Match),
             None => {
-                variable.set_value(Some(literal.borrow().polarity()), Some(level.index()));
-                level.record_literal(literal.borrow().canonical(), source);
+                variable.set_value(Some(literal.borrow().polarity()), Some(levels.index()));
+                levels
+                    .top_mut()
+                    .record_literal(literal.borrow().canonical(), source);
                 Ok(ValueInfo::NotSet)
             }
         }

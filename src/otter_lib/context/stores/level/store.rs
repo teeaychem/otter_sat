@@ -11,7 +11,7 @@ impl Default for LevelStore {
             knowledge: KnowledgeLevel::default(),
             levels: Vec::default(),
         };
-        the_store.levels.push(DecisionLevel::new(0));
+        the_store.levels.push(DecisionLevel::new());
         the_store
     }
 }
@@ -22,7 +22,7 @@ impl LevelStore {
             knowledge: KnowledgeLevel::default(),
             levels: Vec::with_capacity(capacity),
         };
-        the_store.levels.push(DecisionLevel::new(0));
+        the_store.levels.push(DecisionLevel::new());
         the_store
     }
 
@@ -40,7 +40,7 @@ impl LevelStore {
 
     pub fn get_fresh(&mut self) -> LevelIndex {
         let index = self.levels.len();
-        self.levels.push(DecisionLevel::new(index));
+        self.levels.push(DecisionLevel::new());
         index
     }
 
