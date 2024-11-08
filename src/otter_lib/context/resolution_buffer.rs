@@ -130,10 +130,8 @@ impl ResolutionBuffer {
         (conflict_literal, the_clause)
     }
 
-    pub fn clear_literals(&mut self, literals: impl Iterator<Item = Literal>) {
-        for literal in literals {
-            self.set(literal.index(), ResolutionCell::Value(None))
-        }
+    pub fn clear_literal(&mut self, literal: Literal) {
+        self.set(literal.index(), ResolutionCell::Value(None))
     }
 
     pub fn resolve_with(

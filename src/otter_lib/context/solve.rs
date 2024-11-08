@@ -249,7 +249,8 @@ impl Context {
 
         for _ in 0..(self.levels.index() - to) {
             let the_level = self.levels.pop().expect("lost level");
-            for literal in the_level.literals() {
+            self.variables.retract_valuation(the_level.choice().index());
+            for literal in the_level.observations().iter().map(|(_, l)| *l) {
                 self.variables.retract_valuation(literal.index());
             }
         }

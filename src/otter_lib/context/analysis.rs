@@ -53,7 +53,10 @@ impl Context {
         // this could be made persistent, but tying it to the solve may require a cell and lots of unsafe
         let mut the_buffer = ResolutionBuffer::from_variable_store(&self.variables);
 
-        the_buffer.clear_literals(self.levels.top().literals());
+        the_buffer.clear_literal(self.levels.top().choice());
+        for (_, lit) in self.levels.top().observations() {
+            the_buffer.clear_literal(*lit);
+        }
         match the_buffer.set_inital_clause(conflict_clause, clause_key) {
             Ok(()) => {}
             Err(_) => return Err(AnalysisError::Buffer),

@@ -20,16 +20,6 @@ impl Default for LevelStore {
 }
 
 impl LevelStore {
-    fn get(&self, index: LevelIndex) -> &DecisionLevel {
-        self.levels.get(index).expect("mising level")
-    }
-
-    fn get_mut(&mut self, index: LevelIndex) -> &mut DecisionLevel {
-        self.levels.get_mut(index).expect("mising level")
-    }
-}
-
-impl LevelStore {
     pub fn index(&self) -> usize {
         self.levels.len() - 1
     }
@@ -69,5 +59,13 @@ impl LevelStore {
 
     fn zero_mut(&mut self) -> &mut KnowledgeLevel {
         &mut self.knowledge
+    }
+
+    fn get(&self, index: LevelIndex) -> &DecisionLevel {
+        self.levels.get(index).expect("mising level")
+    }
+
+    fn get_mut(&mut self, index: LevelIndex) -> &mut DecisionLevel {
+        self.levels.get_mut(index).expect("mising level")
     }
 }
