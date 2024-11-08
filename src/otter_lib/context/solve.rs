@@ -91,8 +91,13 @@ impl Context {
 
                             self.backjump(0);
 
-                            match self.q_literal(literal, LiteralSource::Resolution(key)) {
-                                Ok(()) => {}
+                            match self.q_literal(literal) {
+                                Ok(()) => {
+                                    self.levels.record_literal(
+                                        literal.canonical(),
+                                        LiteralSource::Resolution(key),
+                                    );
+                                }
                                 Err(_) => return Err(StepErr::QueueProof(key)),
                             }
                         }
@@ -109,8 +114,13 @@ impl Context {
                                 Some(index) => self.backjump(index),
                             }
 
-                            match self.q_literal(literal, LiteralSource::Missed(key)) {
-                                Ok(()) => {}
+                            match self.q_literal(literal) {
+                                Ok(()) => {
+                                    self.levels.record_literal(
+                                        literal.canonical(),
+                                        LiteralSource::Missed(key),
+                                    );
+                                }
                                 Err(_) => return Err(StepErr::QueueConflict(key)),
                             };
 
@@ -130,8 +140,13 @@ impl Context {
                                 Some(index) => self.backjump(index),
                             }
 
-                            match self.q_literal(literal, LiteralSource::Analysis(key)) {
-                                Ok(()) => {}
+                            match self.q_literal(literal) {
+                                Ok(()) => {
+                                    self.levels.record_literal(
+                                        literal.canonical(),
+                                        LiteralSource::Analysis(key),
+                                    );
+                                }
                                 Err(_) => return Err(StepErr::QueueConflict(key)),
                             }
 
@@ -205,7 +220,7 @@ impl Context {
                     }
                 };
                 self.levels.make_choice(choice_literal);
-                match self.q_literal(choice_literal, LiteralSource::Choice) {
+                match self.q_literal(choice_literal) {
                     Ok(()) => {}
                     Err(_) => return Err(StepErr::ChoiceFailure),
                 };

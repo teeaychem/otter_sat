@@ -56,7 +56,13 @@ impl Context {
 
         for v_id in f.into_iter().chain(t) {
             let the_literal = Literal::new(v_id, false);
-            self.q_literal(the_literal, LiteralSource::Pure)?
+            match self.q_literal(the_literal) {
+                Ok(()) => {
+                    self.levels
+                        .record_literal(the_literal.canonical(), LiteralSource::Pure);
+                }
+                Err(e) => return Err(e),
+            }
         }
         Ok(())
     }

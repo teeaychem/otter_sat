@@ -177,15 +177,14 @@ impl Context {
     pub fn q_literal<L: Borrow<impl LiteralTrait>>(
         &mut self,
         lit: L,
-        source: LiteralSource,
     ) -> Result<(), ContextFailure> {
         let Ok(_) = self
             .variables
             .set_value(lit.borrow().canonical(), Some(self.levels.decision_count()))
         else {
+            println!("X");
             return Err(ContextFailure::QueueConflict);
         };
-        self.levels.record_literal(lit.borrow().canonical(), source);
 
         // TODO: improve push back consequence
         self.variables

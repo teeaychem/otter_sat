@@ -41,8 +41,11 @@ impl Context {
                 };
 
                 match self.variables.value_of(*check) {
-                    None => match self.q_literal(*check, LiteralSource::BCP(*clause_key)) {
-                        Ok(()) => {}
+                    None => match self.q_literal(*check) {
+                        Ok(()) => {
+                            self.levels
+                                .record_literal(check.canonical(), LiteralSource::BCP(*clause_key));
+                        }
                         Err(_key) => {
                             log::trace!(target: LOG_PROPAGATION, "Queueing consequence of {clause_key} {literal} failed.");
                             return Err(BCPErr::Conflict(*clause_key));
@@ -114,8 +117,13 @@ impl Context {
                                 return Err(BCPErr::Conflict(*clause_key));
                             }
                             None => {
-                                match self.q_literal(the_watch, LiteralSource::BCP(*clause_key)) {
-                                    Ok(()) => {}
+                                match self.q_literal(the_watch) {
+                                    Ok(()) => {
+                                        self.levels.record_literal(
+                                            the_watch.canonical(),
+                                            LiteralSource::BCP(*clause_key),
+                                        );
+                                    }
                                     Err(_) => {
                                         log::trace!(target: LOG_PROPAGATION, "Queuing consequence of {clause_key} {literal} failed.");
                                         return Err(BCPErr::Conflict(*clause_key));

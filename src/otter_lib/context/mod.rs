@@ -69,7 +69,7 @@ pub struct Traces {
 
 pub struct Context {
     counters: Counters,
-    levels: LevelStore,
+    pub levels: LevelStore,
     pub clause_store: ClauseStore,
     pub variables: VariableStore,
     pub config: config::Config,

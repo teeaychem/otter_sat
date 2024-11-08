@@ -21,8 +21,7 @@ impl Default for LevelStore {
 
 impl LevelStore {
     pub fn make_choice(&mut self, choice: Literal) {
-        let mut level = DecisionLevel::new(choice);
-        self.levels.push(level);
+        self.levels.push(DecisionLevel::new(choice));
     }
 
     pub fn top(&self) -> &DecisionLevel {
