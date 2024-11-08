@@ -59,11 +59,11 @@ impl Default for ClauseStore {
     fn default() -> Self {
         ClauseStore {
             counts: ClauseStoreCounts::default(),
-            keys: Vec::new(),
-            formula: Vec::new(),
-            learned: Vec::new(),
+            keys: Vec::default(),
+            formula: Vec::default(),
+            learned: Vec::default(),
             learned_slots: 0,
-            binary: Vec::new(),
+            binary: Vec::default(),
             learned_activity: IndexHeap::default(),
             learned_increment: ClauseActivity::default(),
         }
@@ -183,7 +183,7 @@ impl ClauseStore {
         }
     }
 
-    pub fn insert(
+    pub fn insert_clause(
         &mut self,
         source: ClauseSource,
         clause: Vec<Literal>,

@@ -26,7 +26,7 @@ impl std::fmt::Display for Report {
 impl Context {
     pub fn frat_formula(&mut self) {
         for formula in self.clause_store.formula_clauses() {
-            self.traces.frat.record(FRATStep::original(
+            self.traces.frat.record(FRATStep::original_clause(
                 formula.key(),
                 formula.deref(),
                 &self.variables,
@@ -170,9 +170,11 @@ impl Context {
     }
 
     pub fn proven_literal_database(&self) -> Vec<String> {
-        self.proofs
+        self.levels
+            .zero()
+            .observations()
             .iter()
-            .map(|literal| format!("{} 0", self.variables.external_name(literal.index())))
+            .map(|(_, literal)| format!("{} 0", self.variables.external_name(literal.index())))
             .collect::<Vec<_>>()
     }
 }

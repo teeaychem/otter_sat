@@ -76,7 +76,6 @@ pub struct Context {
     window: Option<ContextWindow>,
     status: SolveStatus,
 
-    pub proofs: Vec<Literal>,
     pub traces: Traces,
     //
 }
@@ -115,7 +114,6 @@ impl Context {
             config,
             window: the_window,
             status: SolveStatus::Initialised,
-            proofs: Vec::default(),
             traces: Traces {
                 serial: Vec::default(),
                 frat: FRATProof::new(),
@@ -134,7 +132,6 @@ impl Default for Context {
             config: Config::default(),
             window: None,
             status: SolveStatus::Initialised,
-            proofs: Vec::default(),
             traces: Traces {
                 serial: Vec::default(),
                 frat: FRATProof::new(),

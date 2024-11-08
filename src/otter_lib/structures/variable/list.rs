@@ -24,7 +24,7 @@ pub trait VariableList {
     fn value_of<L: Borrow<Literal>>(&self, literal: L) -> Option<bool>;
 
     #[allow(dead_code)]
-    fn check_literal<L: Borrow<Literal>>(&self, literal: L) -> ValueInfo;
+    fn check_literal<L: Borrow<impl LiteralTrait>>(&self, literal: L) -> ValueInfo;
 
     fn set_value<L: Borrow<impl LiteralTrait>>(
         &self,
@@ -64,7 +64,7 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
         unsafe { self.get_unchecked(literal.borrow().index()).value() }
     }
 
-    fn check_literal<L: Borrow<Literal>>(&self, literal: L) -> ValueInfo {
+    fn check_literal<L: Borrow<impl LiteralTrait>>(&self, literal: L) -> ValueInfo {
         let maybe_value = unsafe { self.get_unchecked(literal.borrow().index()) };
         match maybe_value.value() {
             Some(already_set) if already_set == literal.borrow().polarity() => ValueInfo::Match,

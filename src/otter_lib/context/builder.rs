@@ -3,7 +3,7 @@ use crate::{
     context::Context,
     structures::{
         literal::{Literal, LiteralSource, LiteralTrait},
-        variable::{Variable, VariableId},
+        variable::{list::VariableList, Variable, VariableId},
     },
     types::{
         clause::ClauseSource,
@@ -68,7 +68,6 @@ impl Context {
         if self.levels.index() != 0 {
             return Err(ContextErr::AssumptionAfterChoice);
         }
-
         let assumption_result = self.q_literal(literal, LiteralSource::Assumption);
         match assumption_result {
             Ok(_) => Ok(()),
@@ -76,13 +75,22 @@ impl Context {
         }
     }
 
-    // TODO: Type hint issue
     pub fn assume<L: Borrow<impl LiteralTrait>>(&mut self, literal: L) -> Result<(), ContextErr> {
-        if self.believe(literal.borrow().canonical()).is_ok() {
-            self.proofs.push(literal.borrow().canonical());
-            Ok(())
-        } else {
-            Err(ContextErr::AssumptionConflict)
+        if self.levels.index() != 0 {
+            return Err(ContextErr::AssumptionAfterChoice);
+        }
+        use crate::structures::variable::list::ValueInfo;
+        let literal: Literal = literal.borrow().canonical();
+        match self.variables.check_literal(literal) {
+            ValueInfo::Set => {
+                self.store_literal(literal, LiteralSource::Assumption, Vec::default());
+                Ok(())
+            }
+            ValueInfo::Match => {
+                // Must be at zero for an assumption, so there's nothing to do
+                Ok(())
+            }
+            ValueInfo::Conflict => Err(ContextErr::AssumptionConflict),
         }
     }
 }
@@ -134,8 +142,9 @@ impl Context {
                     } else {
                         // Though, strengthen the clause if possible
                         if !self
-                            .proofs
-                            .iter()
+                            .levels
+                            .zero()
+                            .literals()
                             .any(|proven_literal| &proven_literal.negate() == literal)
                         {
                             processed_clause.push(*literal)

@@ -90,11 +90,30 @@ impl FRATStep {
 }
 
 impl FRATStep {
-    pub fn original(key: ClauseKey, clause: &[Literal], variables: &VariableStore) -> Self {
+    pub fn original_clause(key: ClauseKey, clause: &[Literal], variables: &VariableStore) -> Self {
         let mut the_string = String::from("o ");
         the_string.push_str(&FRATStep::key_id(&key));
         the_string.push(' ');
         the_string.push_str(clause.as_dimacs(variables, false).as_str());
+
+        the_string.push_str("0\n");
+        FRATStep { str: the_string }
+    }
+
+    pub fn original_literal<L: Borrow<impl LiteralTrait>>(
+        literal: L,
+        variables: &VariableStore,
+    ) -> Self {
+        let mut the_string = String::from("o ");
+        let literal_copy: Literal = literal.borrow().canonical();
+        the_string.push_str(&FRATStep::literal_id(literal_copy));
+        the_string.push(' ');
+        match literal_copy.polarity() {
+            true => the_string.push_str(variables.external_name(literal.borrow().index())),
+            false => the_string.push_str(
+                format!("-{}", variables.external_name(literal.borrow().index())).as_str(),
+            ),
+        };
 
         the_string.push_str("0\n");
         FRATStep { str: the_string }
@@ -137,7 +156,12 @@ impl FRATStep {
         let literal_copy: Literal = literal.borrow().canonical();
         the_string.push_str(&FRATStep::literal_id(literal_copy));
         the_string.push(' ');
-        the_string.push_str(variables.external_name(literal.borrow().index()));
+        match literal_copy.polarity() {
+            true => the_string.push_str(variables.external_name(literal.borrow().index())),
+            false => the_string.push_str(
+                format!("-{}", variables.external_name(literal.borrow().index())).as_str(),
+            ),
+        };
 
         if !resolution_keys.is_empty() {
             the_string.push_str(" l ");

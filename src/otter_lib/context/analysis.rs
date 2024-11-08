@@ -7,7 +7,7 @@ use crate::{
         Context,
     },
     structures::{
-        literal::{Literal, LiteralTrait},
+        literal::{Literal, LiteralSource, LiteralTrait},
         variable::list::VariableList,
     },
     types::{clause::ClauseSource, errs::AnalysisError},
@@ -122,11 +122,12 @@ impl Context {
             match resolved_clause.len() {
                 0 => Err(AnalysisError::EmptyResolution),
                 1 => {
-                    self.proofs.push(the_literal);
-                    // TODO: Something parallel to store_clause
-                    self.traces
-                        .serial
-                        .push((the_literal.unique_id(), unsafe { the_buffer.take_trail() }));
+                    self.store_literal(
+                        the_literal,
+                        LiteralSource::Resolution(clause_key),
+                        unsafe { the_buffer.take_trail() },
+                    );
+
                     Ok(AnalysisResult::Proof(clause_key, the_literal))
                 }
                 _ => {

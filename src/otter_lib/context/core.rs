@@ -1,10 +1,17 @@
+use std::borrow::Borrow;
+
 use crate::{
     context::{stores::ClauseKey, Context, SolveStatus},
-    structures::{literal::Literal, variable::list::VariableList},
+    structures::{
+        literal::{Literal, LiteralSource, LiteralTrait},
+        variable::list::VariableList,
+    },
     types::{clause::ClauseSource, errs::ClauseStoreErr},
+    FRAT::FRATStep,
 };
 
 use super::unique_id::UniqueIdentifier;
+use crate::context::unique_id::UniqueId;
 
 #[derive(Debug, Clone, Copy)]
 pub enum StepInfo {
@@ -44,7 +51,7 @@ impl Context {
         source: ClauseSource,
         resolution_keys: Vec<UniqueIdentifier>,
     ) -> Result<ClauseKey, ClauseStoreErr> {
-        self.clause_store.insert(
+        self.clause_store.insert_clause(
             source,
             clause,
             &mut self.variables,
@@ -52,6 +59,39 @@ impl Context {
             resolution_keys,
             &self.config,
         )
+    }
+
+    // TODO: FRAT
+    pub fn store_literal<L: Borrow<impl LiteralTrait>>(
+        &mut self,
+        literal: L,
+        source: LiteralSource,
+        resolution_keys: Vec<UniqueIdentifier>,
+    ) {
+        let canonical = literal.borrow().canonical();
+
+        self.levels.zero_mut().record_literal(canonical, source);
+
+        if self.config.trace {
+            let step = match source {
+                LiteralSource::Resolution(_) => Some(FRATStep::learnt_literal(
+                    canonical,
+                    &resolution_keys,
+                    &self.variables,
+                )),
+                LiteralSource::Assumption => {
+                    Some(FRATStep::original_literal(canonical, &self.variables))
+                }
+                _ => None,
+            };
+            if let Some(made_step) = step {
+                self.traces.frat.record(made_step);
+            }
+        }
+
+        self.traces
+            .serial
+            .push((literal.borrow().canonical().unique_id(), resolution_keys));
     }
 
     pub fn print_status(&self) {

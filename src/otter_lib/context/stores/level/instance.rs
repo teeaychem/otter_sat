@@ -40,10 +40,6 @@ impl Level {
         &self.observations
     }
 
-    pub fn extend_observations(&mut self, with: Vec<(LiteralSource, Literal)>) {
-        self.observations.extend(with);
-    }
-
     pub fn literals(&self) -> impl Iterator<Item = Literal> + '_ {
         self.choice.into_iter().chain(
             self.observations
