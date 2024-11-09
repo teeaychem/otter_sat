@@ -1,10 +1,9 @@
-use crate::{
-    context::stores::level::{DecisionLevel, LevelStore},
-    structures::{
-        literal::{Literal, LiteralSource, LiteralTrait},
-        variable::Variable,
-    },
+use crate::structures::{
+    literal::{Literal, LiteralTrait},
+    variable::Variable,
 };
+
+use std::{borrow::Borrow, ops::DerefMut};
 
 // Information about the valuation of a variable, tied to some expectation
 pub enum ValueInfo {
@@ -12,8 +11,6 @@ pub enum ValueInfo {
     Match,
     Conflict,
 }
-
-use std::{borrow::Borrow, ops::DerefMut};
 
 pub trait VariableList {
     #[allow(dead_code)]

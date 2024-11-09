@@ -2,9 +2,7 @@ use std::{borrow::Borrow, ops::Deref};
 
 use crate::{
     config::{Config, StoppingCriteria},
-    context::stores::{
-        clause::ClauseStore, level::DecisionLevel, variable::VariableStore, ClauseKey,
-    },
+    context::stores::{clause::ClauseStore, variable::VariableStore, ClauseKey},
     structures::{
         clause::stored::StoredClause,
         literal::{Literal, LiteralSource, LiteralTrait},
@@ -14,6 +12,7 @@ use crate::{
 };
 
 use super::{
+    stores::level::LevelStore,
     unique_id::{UniqueId, UniqueIdentifier},
     Traces,
 };
@@ -136,13 +135,13 @@ impl ResolutionBuffer {
 
     pub fn resolve_with(
         &mut self,
-        level: &DecisionLevel,
+        levels: &LevelStore,
         stored_clauses: &mut ClauseStore,
         variables: &mut VariableStore,
         traces: &mut Traces,
         config: &Config,
     ) -> Result<BufOk, BufErr> {
-        for (source, literal) in level.consequences().iter().rev() {
+        for (source, literal) in levels.current_consequences().iter().rev() {
             if let LiteralSource::Analysis(the_key)
             | LiteralSource::BCP(the_key)
             | LiteralSource::Resolution(the_key)

@@ -1,7 +1,4 @@
-use std::{
-    io::{BufWriter, Write},
-    ops::Deref,
-};
+use std::ops::Deref;
 
 use rand::{seq::IteratorRandom, Rng};
 
@@ -21,7 +18,7 @@ use crate::{
     types::{errs::StepErr, gen::Report},
 };
 
-use super::unique_id::unique_clause_key;
+use super::stores::variable::QStatus;
 
 impl Context {
     pub fn solve(&mut self) -> Result<Report, ContextFailure> {
@@ -91,15 +88,15 @@ impl Context {
 
                             self.backjump(0);
 
-                            match self.q_literal(literal) {
-                                Ok(()) => {
-                                    self.levels.record_literal(
-                                        literal.canonical(),
-                                        LiteralSource::Resolution(key),
-                                    );
-                                }
-                                Err(_) => return Err(StepErr::QueueProof(key)),
-                            }
+                            let Ok(QStatus::Qd) = self.q_literal(literal) else {
+                                return Err(StepErr::QueueProof(key));
+                            };
+
+                            self.note_literal(
+                                literal.canonical(),
+                                LiteralSource::Resolution(key),
+                                Vec::default(),
+                            );
                         }
 
                         AnalysisResult::MissedImplication(key, literal) => {
@@ -114,15 +111,14 @@ impl Context {
                                 Some(index) => self.backjump(index),
                             }
 
-                            match self.q_literal(literal) {
-                                Ok(()) => {
-                                    self.levels.record_literal(
-                                        literal.canonical(),
-                                        LiteralSource::Missed(key),
-                                    );
-                                }
-                                Err(_) => return Err(StepErr::QueueConflict(key)),
+                            let Ok(QStatus::Qd) = self.q_literal(literal) else {
+                                return Err(StepErr::QueueConflict(key));
                             };
+                            self.note_literal(
+                                literal.canonical(),
+                                LiteralSource::Missed(key),
+                                Vec::default(),
+                            );
 
                             continue 'search;
                         }
@@ -141,10 +137,11 @@ impl Context {
                             }
 
                             match self.q_literal(literal) {
-                                Ok(()) => {
-                                    self.levels.record_literal(
+                                Ok(QStatus::Qd) => {
+                                    self.note_literal(
                                         literal.canonical(),
                                         LiteralSource::Analysis(key),
+                                        Vec::default(),
                                     );
                                 }
                                 Err(_) => return Err(StepErr::QueueConflict(key)),
@@ -220,9 +217,8 @@ impl Context {
                     }
                 };
                 self.levels.make_choice(choice_literal);
-                match self.q_literal(choice_literal) {
-                    Ok(()) => {}
-                    Err(_) => return Err(StepErr::ChoiceFailure),
+                let Ok(QStatus::Qd) = self.q_literal(choice_literal) else {
+                    return Err(StepErr::ChoiceFailure);
                 };
 
                 self.status = SolveStatus::ChoiceMade;
@@ -268,7 +264,7 @@ impl Context {
             for literal in self.levels.current_consequences().iter().map(|(_, l)| *l) {
                 self.variables.retract_valuation(literal.index());
             }
-            let the_level = self.levels.forget_choice().expect("lost level");
+            self.levels.forget_current_choice();
         }
         self.variables.clear_consequences(to);
     }

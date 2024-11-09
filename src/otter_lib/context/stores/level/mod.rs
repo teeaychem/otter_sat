@@ -5,20 +5,49 @@ use crate::{
     structures::literal::{Literal, LiteralSource, LiteralTrait},
 };
 
-#[derive(Debug)]
-pub struct KnowledgeLevel {
-    observations: Vec<Literal>,
-}
+/*
+A struct abstracting over decision levels.
+Internally this makes use of a pair of private structs.
+Though, this should probably be revised at some point…
 
-#[derive(Debug)]
-pub struct DecisionLevel {
-    choice: Literal,
-    observations: Vec<(LiteralSource, Literal)>,
-}
+- KnowledgeLevel
+  Aka. decision level zero
+  This contains assumptions or proven literals
+
+- DecisionLevel
+  A choice and the consequences of that choice
+
+Specifically, each structs can be replaced by a simple vec.
+And, for decision levels a stack of pointers to where the level began would work.
+The choice/consequence distinction requires some attention, though.
+
+For now, this works ok.
+ */
 
 pub struct LevelStore {
     knowledge: KnowledgeLevel,
     levels: Vec<DecisionLevel>,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for LevelStore {
+    fn default() -> Self {
+        LevelStore {
+            knowledge: KnowledgeLevel::default(),
+            levels: Vec::default(),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct KnowledgeLevel {
+    observations: Vec<Literal>,
+}
+
+#[derive(Debug)]
+struct DecisionLevel {
+    choice: Literal,
+    consequences: Vec<(LiteralSource, Literal)>,
 }
 
 use std::borrow::Borrow;
@@ -27,18 +56,22 @@ impl DecisionLevel {
     pub fn new(literal: Literal) -> Self {
         Self {
             choice: literal,
-            observations: vec![],
+            consequences: vec![],
         }
     }
 
     pub fn consequences(&self) -> &[(LiteralSource, Literal)] {
-        &self.observations
+        &self.consequences
     }
 }
 
 impl DecisionLevel {
-    fn record_literal<L: Borrow<impl LiteralTrait>>(&mut self, literal: L, source: LiteralSource) {
-        self.observations
+    fn record_consequence<L: Borrow<impl LiteralTrait>>(
+        &mut self,
+        literal: L,
+        source: LiteralSource,
+    ) {
+        self.consequences
             .push((source, literal.borrow().canonical()))
     }
 }

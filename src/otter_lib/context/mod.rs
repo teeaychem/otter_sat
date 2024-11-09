@@ -8,10 +8,7 @@ pub mod solve;
 pub mod stores;
 pub mod unique_id;
 
-use crate::{
-    types::gen::SolveStatus,
-    FRAT::{FRATProof, FRATStep},
-};
+use crate::{types::gen::SolveStatus, FRAT::FRATProof};
 
 use {
     crate::{
@@ -21,7 +18,6 @@ use {
             Config,
         },
         io::window::ContextWindow,
-        structures::literal::Literal,
     },
     stores::{clause::ClauseStore, variable::VariableStore},
 };

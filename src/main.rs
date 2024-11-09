@@ -39,10 +39,6 @@ fn main() {
         println!("c Found {} formulas\n", formula_paths.len());
     }
 
-    // let mut file = File::create("test.txt").unwrap();
-    // file.write_all(b"hello, reader");
-    // panic!("x");
-
     match formula_paths.len() {
         1 => {
             let the_path = PathBuf::from(formula_paths.next().unwrap());

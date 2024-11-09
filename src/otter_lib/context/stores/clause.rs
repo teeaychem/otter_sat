@@ -1,7 +1,4 @@
-use std::{
-    io::{BufWriter, Write},
-    ops::Deref,
-};
+use std::ops::Deref;
 
 use crate::{
     config::{self, ClauseActivity, Config},

@@ -8,7 +8,7 @@ use crate::{
 
 use std::{collections::BTreeSet, ops::Deref};
 
-use super::core::ContextFailure;
+use super::{core::ContextFailure, stores::variable::QStatus};
 
 /// General order for pairs related to booleans is 0 is false, 1 is true
 pub fn pure_choices<'l>(
@@ -57,9 +57,8 @@ impl Context {
         for v_id in f.into_iter().chain(t) {
             let the_literal = Literal::new(v_id, false);
             match self.q_literal(the_literal) {
-                Ok(()) => {
-                    self.levels
-                        .record_literal(the_literal.canonical(), LiteralSource::Pure);
+                Ok(QStatus::Qd) => {
+                    self.note_literal(the_literal.canonical(), LiteralSource::Pure, Vec::default());
                 }
                 Err(e) => return Err(e),
             }

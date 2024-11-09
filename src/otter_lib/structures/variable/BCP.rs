@@ -1,7 +1,10 @@
 use std::borrow::Borrow;
 
 use crate::{
-    context::{stores::ClauseKey, Context},
+    context::{
+        stores::{variable::QStatus, ClauseKey},
+        Context,
+    },
     structures::{
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::list::VariableList,
@@ -42,9 +45,12 @@ impl Context {
 
                 match self.variables.value_of(*check) {
                     None => match self.q_literal(*check) {
-                        Ok(()) => {
-                            self.levels
-                                .record_literal(check.canonical(), LiteralSource::BCP(*clause_key));
+                        Ok(QStatus::Qd) => {
+                            self.note_literal(
+                                check.canonical(),
+                                LiteralSource::BCP(*clause_key),
+                                Vec::default(),
+                            );
                         }
                         Err(_key) => {
                             log::trace!(target: LOG_PROPAGATION, "Queueing consequence of {clause_key} {literal} failed.");
@@ -117,18 +123,15 @@ impl Context {
                                 return Err(BCPErr::Conflict(*clause_key));
                             }
                             None => {
-                                match self.q_literal(the_watch) {
-                                    Ok(()) => {
-                                        self.levels.record_literal(
-                                            the_watch.canonical(),
-                                            LiteralSource::BCP(*clause_key),
-                                        );
-                                    }
-                                    Err(_) => {
-                                        log::trace!(target: LOG_PROPAGATION, "Queuing consequence of {clause_key} {literal} failed.");
-                                        return Err(BCPErr::Conflict(*clause_key));
-                                    }
+                                let Ok(QStatus::Qd) = self.q_literal(the_watch) else {
+                                    log::trace!(target: LOG_PROPAGATION, "Queuing consequence of {clause_key} {literal} failed.");
+                                    return Err(BCPErr::Conflict(*clause_key));
                                 };
+                                self.note_literal(
+                                    the_watch.canonical(),
+                                    LiteralSource::BCP(*clause_key),
+                                    Vec::default(),
+                                );
                             }
                             Some(_) => {}
                         }

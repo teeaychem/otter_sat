@@ -12,7 +12,7 @@ use crate::{
     },
     generic::heap::IndexHeap,
     structures::{
-        literal::{Literal, LiteralSource, LiteralTrait},
+        literal::{Literal, LiteralTrait},
         variable::{list::VariableList, Variable, VariableId},
     },
     types::{clause::WatchElement, errs::WatchError},
@@ -173,11 +173,15 @@ impl VariableStore {
     }
 }
 
+pub enum QStatus {
+    Qd,
+}
+
 impl Context {
     pub fn q_literal<L: Borrow<impl LiteralTrait>>(
         &mut self,
         lit: L,
-    ) -> Result<(), ContextFailure> {
+    ) -> Result<QStatus, ContextFailure> {
         let Ok(_) = self
             .variables
             .set_value(lit.borrow().canonical(), Some(self.levels.decision_count()))
@@ -191,6 +195,6 @@ impl Context {
             .consequence_q
             .push_back((lit.borrow().canonical(), self.levels.decision_count()));
 
-        Ok(())
+        Ok(QStatus::Qd)
     }
 }

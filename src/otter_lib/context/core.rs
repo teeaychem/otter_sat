@@ -53,8 +53,7 @@ impl Context {
         )
     }
 
-    // TODO: FRAT
-    pub fn store_literal<L: Borrow<impl LiteralTrait>>(
+    pub fn note_literal<L: Borrow<impl LiteralTrait>>(
         &mut self,
         literal: L,
         source: LiteralSource,
@@ -65,25 +64,28 @@ impl Context {
         self.levels.record_literal(canonical, source);
 
         if self.config.trace {
+            // Only record…
             let step = match source {
+                // … resolution instances which led to a unit asserting clause
                 LiteralSource::Resolution(_) => Some(FRATStep::learnt_literal(
                     canonical,
                     &resolution_keys,
                     &self.variables,
                 )),
+                // … unit clauses of the original formula reinterpreted as assumptions
                 LiteralSource::Assumption => {
                     Some(FRATStep::original_literal(canonical, &self.variables))
                 }
+                // … and nothing else
                 _ => None,
             };
             if let Some(made_step) = step {
                 self.traces.frat.record(made_step);
+                self.traces
+                    .serial
+                    .push((literal.borrow().canonical().unique_id(), resolution_keys));
             }
         }
-
-        self.traces
-            .serial
-            .push((literal.borrow().canonical().unique_id(), resolution_keys));
     }
 
     pub fn print_status(&self) {

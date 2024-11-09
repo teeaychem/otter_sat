@@ -1,31 +1,44 @@
 use crate::{
     context::stores::{
-        level::{DecisionLevel, LevelStore},
+        level::{DecisionLevel, KnowledgeLevel, LevelStore},
         LevelIndex,
     },
     structures::literal::{Literal, LiteralSource},
 };
-
-use super::KnowledgeLevel;
-
-#[allow(clippy::derivable_impls)]
-impl Default for LevelStore {
-    fn default() -> Self {
-        // the_store.levels.push(DecisionLevel::new(None));
-        LevelStore {
-            knowledge: KnowledgeLevel::default(),
-            levels: Vec::default(),
-        }
-    }
-}
 
 impl LevelStore {
     pub fn make_choice(&mut self, choice: Literal) {
         self.levels.push(DecisionLevel::new(choice));
     }
 
-    pub fn top(&self) -> &DecisionLevel {
-        unsafe { self.levels.get_unchecked(self.levels.len() - 1) }
+    /*
+    Can't assume a decision has been made…
+
+    Choices are ignored, assumptions and pure are always known
+    Everything else depends on whether a decision has been made
+         */
+    pub(crate) fn record_literal(&mut self, literal: Literal, source: LiteralSource) {
+        match source {
+            LiteralSource::Choice => {}
+            LiteralSource::Assumption => self.knowledge.record_literal(literal),
+            LiteralSource::Pure => self.knowledge.record_literal(literal),
+            LiteralSource::BCP(_) => match self.levels.len() {
+                0 => self.knowledge.record_literal(literal),
+                _ => self.top_mut().record_consequence(literal, source),
+            },
+            LiteralSource::Resolution(_) => match self.levels.len() {
+                0 => self.knowledge.record_literal(literal),
+                _ => self.top_mut().record_consequence(literal, source),
+            },
+            LiteralSource::Analysis(_) => match self.levels.len() {
+                0 => self.knowledge.record_literal(literal),
+                _ => self.top_mut().record_consequence(literal, source),
+            },
+            LiteralSource::Missed(_) => match self.levels.len() {
+                0 => self.knowledge.record_literal(literal),
+                _ => self.top_mut().record_consequence(literal, source),
+            },
+        }
     }
 
     pub fn current_choice(&self) -> Literal {
@@ -37,52 +50,16 @@ impl LevelStore {
             &self
                 .levels
                 .get_unchecked(self.levels.len() - 1)
-                .observations
+                .consequences
         }
     }
 
-    pub fn forget_choice(&mut self) -> Option<DecisionLevel> {
-        self.levels.pop()
+    pub fn forget_current_choice(&mut self) {
+        self.levels.pop();
     }
 
     pub fn proven_literals(&self) -> &[Literal] {
         &self.knowledge.observations
-    }
-
-    /*
-    Can't assume a decision has been made…
-
-    Choices are ignored, assumptions and pure are always known
-    Everything else depends on whether a decision has been made
-         */
-    pub fn record_literal(&mut self, literal: Literal, source: LiteralSource) {
-        // println!("RECORDING {source:?}");
-        match source {
-            LiteralSource::Choice => {}
-            LiteralSource::Assumption => self.knowledge.record_literal(literal),
-            LiteralSource::Pure => self.knowledge.record_literal(literal),
-            LiteralSource::BCP(_) => match self.levels.len() {
-                0 => self.knowledge.record_literal(literal),
-                _ => self.top_mut().record_literal(literal, source),
-            },
-            LiteralSource::Resolution(_) => match self.levels.len() {
-                0 => self.knowledge.record_literal(literal),
-                _ => self.top_mut().record_literal(literal, source),
-            },
-            LiteralSource::Analysis(_) => match self.levels.len() {
-                0 => self.knowledge.record_literal(literal),
-                _ => self.top_mut().record_literal(literal, source),
-            },
-            LiteralSource::Missed(_) => match self.levels.len() {
-                0 => self.knowledge.record_literal(literal),
-                _ => self.top_mut().record_literal(literal, source),
-            },
-            _ => {
-                println!("td {source:?}");
-
-                todo!()
-            } //self.top_mut().record_literal(literal, source),
-        }
     }
 
     pub fn decision_made(&self) -> bool {
@@ -96,15 +73,7 @@ impl LevelStore {
 
 impl LevelStore {
     fn top_mut(&mut self) -> &mut DecisionLevel {
-        let x = self.levels.len() - 1;
-        unsafe { self.levels.get_unchecked_mut(x) }
-    }
-
-    fn get(&self, index: LevelIndex) -> &DecisionLevel {
-        self.levels.get(index).expect("mising level")
-    }
-
-    fn get_mut(&mut self, index: LevelIndex) -> &mut DecisionLevel {
-        self.levels.get_mut(index).expect("mising level")
+        let level_count = self.levels.len() - 1;
+        unsafe { self.levels.get_unchecked_mut(level_count) }
     }
 }

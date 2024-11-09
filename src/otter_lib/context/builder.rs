@@ -1,6 +1,6 @@
 use crate::{
     config::Config,
-    context::Context,
+    context::{stores::variable::QStatus, Context},
     structures::{
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::{list::VariableList, Variable, VariableId},
@@ -70,8 +70,11 @@ impl Context {
         }
         match self.q_literal(literal.borrow().canonical()) {
             Ok(_) => {
-                self.levels
-                    .record_literal(literal.borrow().canonical(), LiteralSource::Assumption);
+                self.note_literal(
+                    literal.borrow().canonical(),
+                    LiteralSource::Assumption,
+                    Vec::default(),
+                );
                 Ok(())
             }
             Err(_) => Err(ContextErr::AssumptionConflict),
@@ -87,16 +90,14 @@ impl Context {
         let literal: Literal = literal.borrow().canonical();
         match self.variables.check_literal(literal) {
             ValueInfo::NotSet => {
-                match self.q_literal(literal) {
-                    Ok(()) => {
-                        self.levels.record_literal(
-                            literal.borrow().canonical(),
-                            LiteralSource::Assumption,
-                        );
-                        Ok(())
-                    }
-                    Err(_) => Err(ContextErr::AssumptionConflict),
+                let Ok(QStatus::Qd) = self.q_literal(literal) else {
+                    return Err(ContextErr::AssumptionConflict);
                 };
+                self.note_literal(
+                    literal.borrow().canonical(),
+                    LiteralSource::Assumption,
+                    Vec::default(),
+                );
                 // self.store_literal(literal, LiteralSource::Assumption, Vec::default());
                 Ok(())
             }

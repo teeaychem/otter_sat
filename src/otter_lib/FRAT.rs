@@ -1,7 +1,7 @@
 use std::{
     borrow::Borrow,
     io::{BufWriter, Write},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 use crate::{
@@ -10,7 +10,6 @@ use crate::{
         unique_id::UniqueIdentifier,
     },
     structures::{
-        self,
         clause::Clause,
         literal::{Literal, LiteralTrait},
     },
