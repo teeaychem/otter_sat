@@ -5,6 +5,7 @@ use std::{
 };
 
 use crate::{
+    config::Config,
     context::{
         stores::{variable::VariableStore, ClauseKey},
         unique_id::UniqueIdentifier,
@@ -44,7 +45,6 @@ pub struct FRATStep {
 
 // An FRAT proof, split between whats been written to the path and what's in the buffer
 pub struct FRATProof {
-    path: PathBuf,
     buffer: Vec<FRATStep>,
 }
 
@@ -52,7 +52,6 @@ impl FRATProof {
     pub fn new() -> Self {
         FRATProof {
             // TODO: Argument path
-            path: PathBuf::from("temp.txt"),
             buffer: Vec::default(),
         }
     }
@@ -61,16 +60,15 @@ impl FRATProof {
         self.buffer.push(step)
     }
 
-    pub fn flush(&mut self) {
-        let file = std::fs::OpenOptions::new()
-            .append(true)
-            .open(&self.path)
-            .unwrap();
-        let mut writer = BufWriter::new(file);
-        for step in &self.buffer {
-            let _ = writer.write_all(step.as_bytes());
+    pub fn flush(&mut self, config: &Config) {
+        if let Some(path) = &config.io.frat_path {
+            let file = std::fs::OpenOptions::new().append(true).open(path).unwrap();
+            let mut writer = BufWriter::new(file);
+            for step in &self.buffer {
+                let _ = writer.write_all(step.as_bytes());
+            }
+            self.buffer.clear()
         }
-        self.buffer.clear()
     }
 }
 

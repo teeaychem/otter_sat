@@ -198,7 +198,7 @@ impl Context {
         let mut buffer = String::with_capacity(1024);
         let mut clause_buffer: Vec<Literal> = Vec::new();
 
-        let config_detail = config.detail;
+        let config_detail = config.io.detail;
 
         let mut the_context = None;
         let mut line_counter = 0;
@@ -237,9 +237,9 @@ impl Context {
 
                     buffer.clear();
 
-                    if config.show_stats {
+                    if config.io.show_stats {
                         println!("c Parsing {:#?}", file_path);
-                        if config.detail > 0 {
+                        if config.io.detail > 0 {
                             println!("c Expectation is to get {variable_count} variables and {clause_count} clauses");
                         }
                     }

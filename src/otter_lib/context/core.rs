@@ -63,7 +63,7 @@ impl Context {
 
         self.levels.record_literal(canonical, source);
 
-        if self.config.trace {
+        if self.config.io.frat_path.is_some() {
             // Only record…
             let step = match source {
                 // … resolution instances which led to a unit asserting clause
@@ -89,7 +89,7 @@ impl Context {
     }
 
     pub fn print_status(&self) {
-        if self.config.show_stats {
+        if self.config.io.show_stats {
             if let Some(window) = &self.window {
                 window.update_counters(&self.counters);
                 window.flush();
@@ -99,25 +99,25 @@ impl Context {
         match self.status {
             SolveStatus::FullValuation => {
                 println!("s SATISFIABLE");
-                if self.config.show_valuation {
+                if self.config.io.show_valuation {
                     println!("v {}", self.valuation_string());
                 }
             }
             SolveStatus::NoSolution => {
                 println!("s UNSATISFIABLE");
-                if self.config.show_core {
+                if self.config.io.show_core {
                     // let _ = self.display_core(clause_key);
                 }
             }
             SolveStatus::NoClauses => {
-                if self.config.detail > 0 {
+                if self.config.io.detail > 0 {
                     println!("c The formula contains no clause and so is interpreted as ⊤");
                 }
                 println!("s SATISFIABLE");
             }
             _ => {
                 if let Some(limit) = self.config.time_limit {
-                    if self.config.show_stats && self.counters.time > limit {
+                    if self.config.io.show_stats && self.counters.time > limit {
                         println!("c TIME LIMIT EXCEEDED");
                     }
                 }

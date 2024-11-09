@@ -29,7 +29,7 @@ impl Context {
             Err(_) => panic!("Preprocessing failure"),
         };
 
-        if self.config.show_stats {
+        if self.config.io.show_stats {
             if let Some(window) = &mut self.window {
                 window.draw_window(&self.config);
             }
@@ -187,8 +187,8 @@ impl Context {
                 self.counters.conflicts_in_memory = 0;
             }
 
-            if self.config.trace {
-                self.traces.frat.flush()
+            if self.config.io.frat_path.is_some() {
+                self.traces.frat.flush(&self.config)
             }
 
             if config.reduction_allowed

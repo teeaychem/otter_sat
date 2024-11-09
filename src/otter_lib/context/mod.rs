@@ -97,7 +97,7 @@ impl Context {
     }
 
     pub fn with_size_hints(variable_count: usize, clause_count: usize, config: Config) -> Self {
-        let the_window = match config.show_stats {
+        let the_window = match config.io.show_stats {
             true => Some(ContextWindow::default()),
             false => None,
         };

@@ -32,7 +32,7 @@ impl Context {
                 &self.variables,
             ))
         }
-        self.traces.frat.flush()
+        self.traces.frat.flush(&self.config)
     }
 
     pub fn frat_finalise(&mut self) {
@@ -43,7 +43,7 @@ impl Context {
                 &self.variables,
             ))
         }
-        self.traces.frat.flush()
+        self.traces.frat.flush(&self.config)
     }
 }
 

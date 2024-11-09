@@ -253,13 +253,13 @@ impl Config {
             the_config.reduction_allowed = !*value
         };
         if let Ok(Some(value)) = args.try_get_one::<bool>("core") {
-            the_config.show_core = *value
+            the_config.io.show_core = *value
         };
         if let Ok(Some(value)) = args.try_get_one::<bool>("stats") {
-            the_config.show_stats = *value;
+            the_config.io.show_stats = *value;
         };
         if let Ok(Some(value)) = args.try_get_one::<bool>("valuation") {
-            the_config.show_valuation = *value
+            the_config.io.show_valuation = *value
         };
         if let Ok(Some(value)) = args.try_get_one::<bool>("no_subsumption") {
             the_config.subsumption = !*value
@@ -283,7 +283,7 @@ impl Config {
         };
 
         if let Ok(Some(detail)) = args.try_get_one::<u8>("detail") {
-            the_config.detail = *detail
+            the_config.io.detail = *detail
         };
 
         the_config

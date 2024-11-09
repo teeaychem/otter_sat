@@ -25,17 +25,22 @@ fn main() {
         Err(e) => log::error!("{e:?}"),
     }
 
-    let _ = std::fs::File::create("temp.txt");
-
     let matches = cli().get_matches();
-    let config = Config::from_args(&matches);
+    let mut config = Config::from_args(&matches);
+
+    let frat = true;
+    if frat {
+        let frat_path = "temp.txt";
+        config.io.frat_path = Some(PathBuf::from(frat_path));
+        let _ = std::fs::File::create(frat_path);
+    }
 
     let Some(mut formula_paths) = matches.get_raw("paths") else {
         println!("c Could not find formula paths");
         std::process::exit(1);
     };
 
-    if config.detail > 0 {
+    if config.io.detail > 0 {
         println!("c Found {} formulas\n", formula_paths.len());
     }
 
@@ -63,14 +68,14 @@ fn report_on_formula(path: PathBuf, config: &Config) -> Report {
     let mut the_context = match context_from_path(path, config) {
         Ok(context) => context,
         Err(BuildErr::OopsAllTautologies) => {
-            if config.detail > 0 {
+            if config.io.detail > 0 {
                 println!("c All clauses of the formula are tautological");
             }
             println!("s SATISFIABLE");
             std::process::exit(10);
         }
         Err(BuildErr::ClauseStore(ClauseStoreErr::EmptyClause)) => {
-            if config.detail > 0 {
+            if config.io.detail > 0 {
                 println!("c The formula contains an empty clause so is interpreted as ⊥");
             }
             println!("s UNSATISFIABLE");
@@ -82,14 +87,14 @@ fn report_on_formula(path: PathBuf, config: &Config) -> Report {
         }
     };
     if the_context.clause_count() == 0 {
-        if config.detail > 0 {
+        if config.io.detail > 0 {
             println!("c The formula does not contain any clauses");
         }
         println!("s SATISFIABLE");
         std::process::exit(10);
     }
 
-    if config.trace {
+    if config.io.frat_path.is_some() {
         the_context.frat_formula()
     }
 
@@ -101,7 +106,7 @@ fn report_on_formula(path: PathBuf, config: &Config) -> Report {
         }
     };
 
-    if config.trace {
+    if config.io.frat_path.is_some() {
         the_context.frat_finalise()
     }
 

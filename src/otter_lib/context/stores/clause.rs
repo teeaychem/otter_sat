@@ -217,7 +217,7 @@ impl ClauseStore {
                         _ => self.keys.pop().unwrap().retoken()?,
                     };
 
-                    if config.trace {
+                    if config.io.frat_path.is_some() {
                         traces.frat.record(FRATStep::learnt_clause(
                             the_key,
                             &clause,
