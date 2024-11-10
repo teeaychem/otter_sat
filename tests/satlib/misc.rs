@@ -1,6 +1,6 @@
 use otter_lib::{
     config::Config,
-    io::files::{default_on_dir, formula_report},
+    io::files::{silent_formula_report, silent_on_directory},
     types::gen::Report,
 };
 
@@ -11,7 +11,7 @@ mod planning {
     use super::*;
     #[test]
     fn logistics() {
-        default_on_dir(
+        silent_on_directory(
             satlib_collection("planning").join("logistics"),
             &Config::default(),
             Report::Satisfiable,
@@ -20,7 +20,7 @@ mod planning {
 
     #[test]
     fn blocksworld() {
-        default_on_dir(
+        silent_on_directory(
             satlib_collection("planning").join("blocksworld"),
             &Config::default(),
             Report::Satisfiable,
@@ -47,7 +47,7 @@ mod graph_colouring {
             ( $name:ident,  $n:literal ) => {
                 #[test]
                 fn $name() {
-                    default_on_dir(
+                    silent_on_directory(
                         morphed_path().join(format!("SW100-8-{}", $n)),
                         &Config::default(),
                         Report::Satisfiable,
@@ -68,7 +68,7 @@ mod graph_colouring {
 
         #[test]
         fn SW100_8_p0() {
-            default_on_dir(
+            silent_on_directory(
                 morphed_path().join("SW100-8-p0"),
                 &Config::default(),
                 Report::Satisfiable,
@@ -88,7 +88,7 @@ mod graph_colouring {
             ( $name:ident,  $n:literal, $m:literal ) => {
                 #[test]
                 fn $name() {
-                    default_on_dir(
+                    silent_on_directory(
                         flat_path().join(format!("flat{}-{}", $n, $m)),
                         &Config::default(),
                         Report::Satisfiable,
@@ -110,7 +110,7 @@ mod graph_colouring {
 
 #[test]
 fn all_interval_series() {
-    let pass = default_on_dir(
+    let pass = silent_on_directory(
         satlib_collection("ais"),
         &Config::default(),
         Report::Satisfiable,
@@ -120,7 +120,7 @@ fn all_interval_series() {
 
 #[test]
 fn bounded_model_check() {
-    default_on_dir(
+    silent_on_directory(
         satlib_collection("bmc"),
         &Config::default(),
         Report::Satisfiable,
@@ -151,7 +151,7 @@ fn beijing() {
     for formula in satisfiable_formulas {
         assert_eq!(
             Report::Satisfiable,
-            formula_report(collection_path.join(formula), &Config::default())
+            silent_formula_report(collection_path.join(formula), &Config::default())
         );
         count += 1;
     }
@@ -178,7 +178,7 @@ fn quasigroup() {
     for formula in &satisfiable_formulas {
         assert_eq!(
             Report::Satisfiable,
-            formula_report(collection_path.join(formula), &Config::default())
+            silent_formula_report(collection_path.join(formula), &Config::default())
         );
         sat_count += 1;
     }
@@ -202,7 +202,7 @@ fn quasigroup() {
     for formula in &unsatisfiable_formulas {
         assert_eq!(
             Report::Unsatisfiable,
-            formula_report(collection_path.join(formula), &Config::default())
+            silent_formula_report(collection_path.join(formula), &Config::default())
         );
         unsat_count += 1;
     }

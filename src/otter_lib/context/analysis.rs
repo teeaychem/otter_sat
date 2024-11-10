@@ -95,7 +95,11 @@ impl Context {
         }
 
         for key in the_buffer.view_trail() {
-            self.clause_store.bump_activity(*key as u32, config);
+            #[allow(clippy::single_match)]
+            match key {
+                ClauseKey::Learned(index, _) => self.clause_store.bump_activity(*index, config),
+                _ => {}
+            };
         }
 
         /*

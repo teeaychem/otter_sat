@@ -16,7 +16,8 @@ fn main() {
         ..Default::default()
     };
 
-    let mut the_context: Context = Context::default_config(config);
+    let (tx, _) = crossbeam::channel::bounded(0);
+    let mut the_context: Context = Context::from_config(config, tx);
 
     // Each character in some string as a literal
     let mut variables = "let's_finds_all_models".chars().collect::<Vec<_>>();

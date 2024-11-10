@@ -1,4 +1,6 @@
-use std::{borrow::Borrow, sync::mpsc::Sender};
+use std::borrow::Borrow;
+
+use crossbeam::channel::Sender;
 
 use crate::{
     context::{stores::ClauseKey, Context, SolveStatus},
@@ -10,7 +12,7 @@ use crate::{
     FRAT::FRATStep,
 };
 
-use super::unique_id::UniqueIdentifier;
+use super::{delta::Delta, unique_id::UniqueIdentifier};
 use crate::context::unique_id::UniqueId;
 
 #[derive(Debug, Clone, Copy)]
@@ -41,7 +43,7 @@ impl Context {
         &mut self,
         clause: Vec<Literal>,
         source: ClauseSource,
-        resolution_keys: Vec<UniqueIdentifier>,
+        resolution_keys: Vec<ClauseKey>,
     ) -> Result<ClauseKey, ClauseStoreErr> {
         self.clause_store.insert_clause(
             source,
@@ -57,7 +59,7 @@ impl Context {
         &mut self,
         literal: L,
         source: LiteralSource,
-        resolution_keys: Vec<UniqueIdentifier>,
+        resolution_keys: Vec<ClauseKey>,
     ) {
         let canonical = literal.borrow().canonical();
 
@@ -81,14 +83,11 @@ impl Context {
             };
             if let Some(made_step) = step {
                 self.traces.frat.record(made_step);
-                self.traces
-                    .serial
-                    .push((literal.borrow().canonical().unique_id(), resolution_keys));
             }
         }
     }
 
-    pub fn print_status(&self, tx: Sender<String>) {
+    pub fn print_status(&self, tx: Sender<Delta>) {
         if self.config.io.show_stats {
             if let Some(window) = &self.window {
                 window.update_counters(&self.counters);
@@ -96,34 +95,35 @@ impl Context {
             }
         }
 
+        use crate::context::delta::SolveReport;
         match self.status {
             SolveStatus::FullValuation => {
-                let _ = tx.send("s SATISFIABLE".to_string());
+                let _ = tx.send(Delta::SolveReport(SolveReport::Satisfiable));
                 if self.config.io.show_valuation {
-                    let _ = tx.send(format!("v {}", self.valuation_string()));
+                    println!("{}", format!("v {}", self.valuation_string()));
                 }
             }
             SolveStatus::NoSolution => {
-                let _ = tx.send("s UNSATISFIABLE".to_string());
+                let _ = tx.send(Delta::SolveReport(SolveReport::Unsatisfiable));
                 if self.config.io.show_core {
                     // let _ = self.display_core(clause_key);
                 }
             }
             SolveStatus::NoClauses => {
                 if self.config.io.detail > 0 {
-                    let _ = tx.send(
-                        "c The formula contains no clause and so is interpreted as ⊤".to_string(),
-                    );
+                    let _ = tx.send(Delta::SolveComment(
+                        crate::context::delta::SolveComment::NoClauses,
+                    ));
                 }
-                let _ = tx.send("s SATISFIABLE".to_string());
+                let _ = tx.send(Delta::SolveReport(SolveReport::Satisfiable));
             }
             _ => {
                 if let Some(limit) = self.config.time_limit {
                     if self.config.io.show_stats && self.counters.time > limit {
-                        let _ = tx.send("c TIME LIMIT EXCEEDED".to_string());
+                        println!("c TIME LIMIT EXCEEDED");
                     }
                 }
-                let _ = tx.send("s UNKNOWN".to_string());
+                let _ = tx.send(Delta::SolveReport(SolveReport::Unkown));
             }
         }
     }

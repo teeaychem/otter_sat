@@ -107,9 +107,13 @@ impl VariableStore {
     }
 
     pub fn add_variable(&mut self, name: &str, variable: Variable) {
+        // println!("Added {}", variable.index());
         self.string_map.insert(name.to_string(), variable.id());
+        self.activity_heap.insert(variable.index(), 1.0);
+        // println!("{}", self.activity_heap.value_at(variable.index()));
         self.variables.push(variable);
         self.external_map.push(name.to_string());
+
         // self.consequence_buffer;
     }
 

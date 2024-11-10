@@ -20,9 +20,11 @@ use {
         },
         io::window::ContextWindow,
     },
+    delta::Delta,
     stores::{clause::ClauseStore, variable::VariableStore},
 };
 
+use crossbeam::channel::Sender;
 use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128Plus};
 use stores::level::LevelStore;
 use unique_id::UniqueIdentifier;
@@ -30,7 +32,7 @@ use unique_id::UniqueIdentifier;
 // pub type RngChoice = rand::rngs::mock::StepRng;
 pub type RngChoice = Xoroshiro128Plus;
 
-use std::time::Duration;
+use std::{fmt::Debug, time::Duration};
 
 pub struct Counters {
     pub conflicts: usize,
@@ -60,7 +62,6 @@ impl Default for Counters {
 
 pub struct Traces {
     // TODO: Provide functions for serealising
-    serial: Vec<(UniqueIdentifier, Vec<UniqueIdentifier>)>,
     frat: FRATProof,
 }
 
@@ -74,7 +75,7 @@ pub struct Context {
     status: SolveStatus,
 
     pub traces: Traces,
-    //
+    pub sender: Sender<Delta>, //
 }
 
 impl std::fmt::Display for SolveStatus {
@@ -93,11 +94,7 @@ impl std::fmt::Display for SolveStatus {
 }
 
 impl Context {
-    pub fn default_config(config: Config) -> Self {
-        Self::with_size_hints(2048, 32768, config)
-    }
-
-    pub fn with_size_hints(variable_count: usize, clause_count: usize, config: Config) -> Self {
+    pub fn from_config(config: Config, sender: Sender<Delta>) -> Self {
         let the_window = match config.io.show_stats {
             true => Some(ContextWindow::default()),
             false => None,
@@ -106,21 +103,22 @@ impl Context {
         Self {
             counters: Counters::default(),
             levels: LevelStore::default(),
-            clause_store: ClauseStore::with_capacity(clause_count),
-            variables: VariableStore::with_capactiy(variable_count),
+            clause_store: ClauseStore::default(),
+            variables: VariableStore::default(),
             config,
             window: the_window,
             status: SolveStatus::Initialised,
             traces: Traces {
-                serial: Vec::default(),
                 frat: FRATProof::new(),
             },
+            sender,
         }
     }
 }
 
 impl Default for Context {
     fn default() -> Self {
+        let (sender, _) = crossbeam::channel::bounded::<Delta>(0);
         Context {
             counters: Counters::default(),
             levels: LevelStore::default(),
@@ -130,9 +128,9 @@ impl Default for Context {
             window: None,
             status: SolveStatus::Initialised,
             traces: Traces {
-                serial: Vec::default(),
                 frat: FRATProof::new(),
             },
+            sender,
         }
     }
 }

@@ -186,7 +186,7 @@ impl ClauseStore {
         clause: Vec<Literal>,
         variables: &mut VariableStore,
         traces: &mut Traces,
-        resolution_keys: Vec<UniqueIdentifier>,
+        resolution_keys: Vec<ClauseKey>,
         config: &Config,
     ) -> Result<ClauseKey, ClauseStoreErr> {
         match clause.len() {
@@ -196,8 +196,6 @@ impl ClauseStore {
                 let the_key = self.new_binary_id()?;
                 self.binary
                     .push(StoredClause::from(the_key, clause, variables));
-
-                traces.serial.push((the_key.unique_id(), resolution_keys));
 
                 Ok(the_key)
             }
@@ -243,8 +241,6 @@ impl ClauseStore {
                         },
                         _ => panic!("X"),
                     };
-
-                    traces.serial.push((the_key.unique_id(), resolution_keys));
 
                     Ok(the_key)
                 }

@@ -32,7 +32,7 @@ pub struct ResolutionBuffer {
     clause_length: usize,
     asserts: Option<Literal>,
     buffer: Vec<ResolutionCell>,
-    trail: Vec<UniqueIdentifier>,
+    trail: Vec<ClauseKey>,
     used_variables: Vec<bool>,
 }
 
@@ -89,7 +89,7 @@ impl ResolutionBuffer {
         clause: &StoredClause,
         key: ClauseKey,
     ) -> Result<(), BufErr> {
-        self.trail.push(key.unique_id());
+        self.trail.push(key);
         self.merge_clause(clause)
     }
 
@@ -188,7 +188,7 @@ impl ResolutionBuffer {
                                     else {
                                         return Err(BufErr::Transfer);
                                     };
-                                    self.trail.push(new_key.unique_id());
+                                    self.trail.push(new_key);
                                 }
                                 ClauseKey::Learned(_, _) => {
                                     let Ok(_) = source_clause.subsume(literal, variables, false)
@@ -200,18 +200,18 @@ impl ResolutionBuffer {
                                     else {
                                         return Err(BufErr::Transfer);
                                     };
-                                    self.trail.push(new_key.unique_id());
+                                    self.trail.push(new_key);
                                 }
                             },
                             _ => {
                                 let Ok(_) = source_clause.subsume(literal, variables, true) else {
                                     return Err(BufErr::Subsumption);
                                 };
-                                self.trail.push(the_key.unique_id());
+                                self.trail.push(*the_key);
                             }
                         }
                     } else {
-                        self.trail.push(source_clause.key().unique_id());
+                        self.trail.push(source_clause.key());
                     }
 
                     if self.valueless_count == 1 {
@@ -259,11 +259,11 @@ impl ResolutionBuffer {
             })
     }
 
-    pub fn view_trail(&self) -> &[UniqueIdentifier] {
+    pub fn view_trail(&self) -> &[ClauseKey] {
         &self.trail
     }
 
-    pub unsafe fn take_trail(&mut self) -> Vec<UniqueIdentifier> {
+    pub unsafe fn take_trail(&mut self) -> Vec<ClauseKey> {
         std::mem::take(&mut self.trail)
     }
 }

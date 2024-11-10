@@ -1,9 +1,9 @@
 use super::*;
-use otter_lib::{config::Config, io::files::default_on_dir, types::gen::Report};
+use otter_lib::{config::Config, io::files::silent_on_directory, types::gen::Report};
 
 mod ThreeSAT {
 
-    use otter_lib::io::files::default_on_split_dir;
+    use otter_lib::io::files::silent_on_split_directory;
 
     use super::*;
     fn unform_random_path() -> PathBuf {
@@ -12,7 +12,7 @@ mod ThreeSAT {
 
     #[test]
     fn uniform_random_3_20_91() {
-        default_on_dir(
+        silent_on_directory(
             unform_random_path().join("UF20.91"),
             &Config::default(),
             Report::Satisfiable,
@@ -23,7 +23,7 @@ mod ThreeSAT {
         use super::*;
         #[test]
         fn sat() {
-            default_on_dir(
+            silent_on_directory(
                 unform_random_path().join("UF50.218.1000").join("sat"),
                 &Config::default(),
                 Report::Satisfiable,
@@ -32,7 +32,7 @@ mod ThreeSAT {
 
         #[test]
         fn unsat() {
-            default_on_dir(
+            silent_on_directory(
                 unform_random_path().join("UF50.218.1000").join("unsat"),
                 &Config::default(),
                 Report::Unsatisfiable,
@@ -43,7 +43,7 @@ mod ThreeSAT {
     #[test]
     #[ignore]
     fn uniform_random_3_225_960() {
-        default_on_split_dir(
+        silent_on_split_directory(
             unform_random_path().join("UF225.960.100"),
             &Config::default(),
         );
@@ -52,7 +52,7 @@ mod ThreeSAT {
     #[test]
     #[ignore]
     fn uniform_random_3_250_1065() {
-        default_on_split_dir(
+        silent_on_split_directory(
             unform_random_path().join("UF250.1065.100"),
             &Config::default(),
         );
@@ -64,7 +64,7 @@ mod ThreeSAT_and_backbone_minimal_subinstances {
 
     #[test]
     fn rti_k3_n100_m429() {
-        default_on_dir(
+        silent_on_directory(
             satlib_collection("backbone").join("RTI_k3_n100_m429"),
             &Config::default(),
             Report::Satisfiable,
@@ -73,7 +73,7 @@ mod ThreeSAT_and_backbone_minimal_subinstances {
 
     #[test]
     fn bms_k3_n100_m429() {
-        default_on_dir(
+        silent_on_directory(
             satlib_collection("backbone").join("BMS_k3_n100_m429"),
             &Config::default(),
             Report::Satisfiable,

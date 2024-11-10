@@ -1,3 +1,5 @@
+use crossbeam::channel::Sender;
+
 use crate::{
     config::Config,
     context::{stores::variable::QStatus, Context},
@@ -12,6 +14,8 @@ use crate::{
 };
 
 use std::{borrow::Borrow, io::BufRead, path::PathBuf};
+
+use super::delta::Delta;
 
 #[derive(Debug)]
 pub enum BuildErr {
@@ -194,6 +198,7 @@ impl Context {
         file_path: &PathBuf,
         mut file_reader: impl BufRead,
         config: Config,
+        sender: Sender<Delta>,
     ) -> Result<Self, BuildErr> {
         let mut buffer = String::with_capacity(1024);
         let mut clause_buffer: Vec<Literal> = Vec::new();
@@ -243,11 +248,7 @@ impl Context {
                             println!("c Expectation is to get {variable_count} variables and {clause_count} clauses");
                         }
                     }
-                    the_context = Some(Context::with_size_hints(
-                        variable_count,
-                        clause_count,
-                        config.clone(),
-                    ));
+                    the_context = Some(Context::from_config(config.clone(), sender.clone()));
                     break;
                 }
                 _ => {
@@ -258,7 +259,7 @@ impl Context {
 
         let mut the_context = match the_context {
             Some(context) => context,
-            None => Context::default_config(config),
+            None => Context::from_config(config, sender),
         };
 
         'formula_loop: loop {

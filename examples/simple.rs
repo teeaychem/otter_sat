@@ -20,7 +20,8 @@ fn main() {
         ..Default::default()
     };
 
-    let mut the_context: Context = Context::default_config(config);
+    let (tx, rx) = crossbeam::channel::unbounded();
+    let mut the_context: Context = Context::from_config(config, tx);
 
     let not_p_or_q = "-p q";
     let p_or_not_q = "p -q";

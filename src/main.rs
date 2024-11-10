@@ -12,17 +12,14 @@ static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
 use otter_lib::{
     config::Config,
-    context::builder::BuildErr,
+    context::{builder::BuildErr, delta::Delta},
     io::{cli::cli, files::context_from_path},
     types::{errs::ClauseStoreErr, gen::Report},
 };
 
-use std::{
-    path::{Path, PathBuf},
-    sync::mpsc::Sender,
-};
+use std::path::PathBuf;
 
-use std::sync::mpsc::channel;
+use crossbeam::channel::{unbounded, Sender};
 use std::thread;
 
 fn main() {
@@ -48,7 +45,7 @@ fn main() {
         println!("c Found {} formulas\n", formula_paths.len());
     }
 
-    let (tx, rx) = channel();
+    let (tx, rx) = unbounded::<Delta>();
 
     match formula_paths.len() {
         1 => {
@@ -73,8 +70,13 @@ fn main() {
         }
     };
     drop(tx);
-    while let Ok(msg) = rx.recv() {
-        println!("> {msg}");
+    while let Ok(delta) = rx.recv() {
+        match delta {
+            Delta::SolveReport(report) => {
+                println!("> {report}");
+            }
+            _ => {}
+        }
     }
     std::process::exit(0)
 }
@@ -94,28 +96,27 @@ fn paths(args: &ArgMatches) -> Vec<PathBuf> {
     formula_paths
 }
 
-fn report_on_formula(path: PathBuf, tx: Sender<String>, config: Config) -> Report {
+fn report_on_formula(path: PathBuf, tx: Sender<Delta>, config: Config) -> Report {
     let config_io_detail = config.io.detail;
     let config_io_frat_path = config.io.frat_path.clone();
 
-    let mut the_context = match context_from_path(path, config) {
+    use otter_lib::context::delta::SolveComment;
+    let mut the_context = match context_from_path(path, config, tx.clone()) {
         Ok(context) => context,
         Err(BuildErr::OopsAllTautologies) => {
             if config_io_detail > 0 {
-                tx.send("c All clauses of the formula are tautological\n".to_string())
+                tx.send(Delta::SolveComment(SolveComment::AllTautological))
                     .unwrap();
             }
-            tx.send("s SATISFIABLE\n".to_string()).unwrap();
+            // tx.send("s SATISFIABLE\n".to_string()).unwrap();
             std::process::exit(10);
         }
         Err(BuildErr::ClauseStore(ClauseStoreErr::EmptyClause)) => {
             if config_io_detail > 0 {
-                tx.send(
-                    "c The formula contains an empty clause so is interpreted as ⊥\n".to_string(),
-                )
-                .unwrap();
+                tx.send(Delta::SolveComment(SolveComment::FoundEmptyClause))
+                    .unwrap();
             }
-            tx.send("s UNSATISFIABLE\n".to_string()).unwrap();
+            // tx.send("s UNSATISFIABLE\n".to_string()).unwrap();
             std::process::exit(20);
         }
         Err(e) => {
@@ -125,10 +126,10 @@ fn report_on_formula(path: PathBuf, tx: Sender<String>, config: Config) -> Repor
     };
     if the_context.clause_count() == 0 {
         if config_io_detail > 0 {
-            tx.send("c The formula does not contain any clauses\n".to_string())
+            tx.send(Delta::SolveComment(SolveComment::NoClauses))
                 .unwrap();
         }
-        tx.send("s SATISFIABLE\n".to_string()).unwrap();
+        // tx.send("s SATISFIABLE\n".to_string()).unwrap();
         std::process::exit(10);
     }
 

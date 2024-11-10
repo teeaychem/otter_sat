@@ -126,7 +126,7 @@ impl FRATStep {
     pub fn learnt_clause(
         add_key: ClauseKey,
         clause: &Vec<Literal>,
-        resolution_keys: &Vec<UniqueIdentifier>,
+        resolution_keys: &Vec<ClauseKey>,
         variables: &VariableStore,
     ) -> Self {
         let mut the_string = String::from("a ");
@@ -136,7 +136,7 @@ impl FRATStep {
         if !resolution_keys.is_empty() {
             the_string.push_str(" l ");
             for antecedent in resolution_keys {
-                the_string.push_str(format!("{} ", *antecedent as u32).as_str());
+                the_string.push_str(format!("{} ", antecedent.index()).as_str());
             }
         }
 
@@ -146,7 +146,7 @@ impl FRATStep {
 
     pub fn learnt_literal<L: Borrow<impl LiteralTrait>>(
         literal: L,
-        resolution_keys: &Vec<UniqueIdentifier>,
+        resolution_keys: &Vec<ClauseKey>,
         variables: &VariableStore,
     ) -> Self {
         let mut the_string = String::from("a ");
@@ -163,7 +163,7 @@ impl FRATStep {
         if !resolution_keys.is_empty() {
             the_string.push_str(" l ");
             for antecedent in resolution_keys {
-                the_string.push_str(format!("{} ", *antecedent as u32).as_str());
+                the_string.push_str(format!("{} ", antecedent.index()).as_str());
             }
         }
 
