@@ -1,4 +1,7 @@
-use otter_lib::{config::Config, context::Context, types::gen::Report};
+use otter_lib::{
+    config::Config,
+    context::{delta::SolveReport, Context},
+};
 
 /*
 A default context is created and some sequences of variables are added.
@@ -36,7 +39,7 @@ fn main() {
             Err(_) => break,
         };
         match the_context.report() {
-            Report::Satisfiable => {}
+            SolveReport::Satisfiable => {}
             _ => break,
         };
 

@@ -1,6 +1,8 @@
-use otter_lib::{config::Config, context::Context, types::gen::Report};
+use otter_lib::{config::Config, context::Context};
 
 mod basic {
+    use otter_lib::context::delta::SolveReport;
+
     use super::*;
     #[test]
     fn one_literal() {
@@ -8,7 +10,7 @@ mod basic {
         let mut the_context = Context::from_config(Config::default(), tx);
         assert!(the_context.clause_from_string("p").is_ok());
         assert!(the_context.solve().is_ok());
-        assert_eq!(the_context.report(), Report::Satisfiable)
+        assert_eq!(the_context.report(), SolveReport::Satisfiable)
     }
 
     #[test]
@@ -20,7 +22,7 @@ mod basic {
         assert!(the_context.clause_from_string("p -q").is_ok());
         assert!(the_context.clause_from_string("-p q").is_ok());
         assert!(the_context.solve().is_ok());
-        assert!(matches!(the_context.report(), Report::Unsatisfiable))
+        assert!(matches!(the_context.report(), SolveReport::Unsatisfiable))
     }
 
     #[test]
@@ -34,7 +36,7 @@ mod basic {
 
         assert!(the_context.assume(not_p).is_ok());
         assert!(the_context.solve().is_ok());
-        assert_eq!(the_context.report(), Report::Satisfiable);
+        assert_eq!(the_context.report(), SolveReport::Satisfiable);
 
         let the_valuation = the_context.valuation_string();
         assert!(the_valuation.contains("-p"));

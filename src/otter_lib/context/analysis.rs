@@ -36,14 +36,13 @@ impl Context {
             return Ok(AnalysisResult::FundamentalConflict);
         }
 
-        let Ok(conflict_clause) = self.clause_store.get(clause_key) else {
-            panic!("x_x");
-        };
-        log::trace!(target: LOG_ANALYSIS, "Clause {conflict_clause}");
+        log::trace!(target: LOG_ANALYSIS, "Clause {clause_key}");
 
         if let config::VSIDS::Chaff = config.vsids_variant {
             self.variables.apply_VSIDS(
-                conflict_clause
+                self.clause_store
+                    .get(clause_key)
+                    .expect("missing clause")
                     .deref()
                     .iter()
                     .map(|literal| literal.index()),
@@ -58,26 +57,15 @@ impl Context {
         for (_, lit) in self.levels.current_consequences() {
             the_buffer.clear_literal(*lit);
         }
-        match the_buffer.set_inital_clause(conflict_clause, clause_key) {
-            Ok(()) => {}
-            Err(_) => return Err(AnalysisError::Buffer),
-        };
 
-        // Maybe the conflit clause was already asserting on the previous decision level…
-        if let Some(asserted_literal) = the_buffer.asserts() {
-            return Ok(AnalysisResult::MissedImplication(
-                clause_key,
-                asserted_literal,
-            ));
-        };
-        let buffer_status = the_buffer.resolve_with(
+        match the_buffer.resolve_with(
+            clause_key,
             &self.levels,
             &mut self.clause_store,
             &mut self.variables,
-            &mut self.traces,
             config,
-        );
-        match buffer_status {
+            &self.sender,
+        ) {
             Ok(BufOk::Proof) => {}
             Ok(BufOk::FirstUIP) => {}
             Ok(BufOk::Exhausted) => {
@@ -85,10 +73,14 @@ impl Context {
                     return Err(AnalysisError::FailedStoppingCriteria);
                 }
             }
+            Ok(BufOk::Missed(k, l)) => {
+                return Ok(AnalysisResult::MissedImplication(k, l));
+            }
             Err(_buffer_error) => {
                 return Err(AnalysisError::Buffer);
             }
         }
+
         if let config::VSIDS::MiniSAT = config.vsids_variant {
             self.variables
                 .apply_VSIDS(the_buffer.variables_used(), config);

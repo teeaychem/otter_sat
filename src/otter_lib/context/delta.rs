@@ -1,10 +1,15 @@
 use crate::structures::literal::Literal;
 
+use super::stores::ClauseKey;
+
 pub enum Dispatch {
     ClauseDelta(ClauseBuider),
+    ClauseStore(ClauseStoreDelta),
     SolveComment(SolveComment),
     SolveReport(SolveReport),
     Parser(Parser),
+    Resolution(ResolutionDelta),
+    Level(LevelDelta),
 }
 
 pub enum ClauseBuider {
@@ -69,4 +74,26 @@ impl std::fmt::Display for Parser {
             Parser::ContextClauses(c) => write!(f, "{c} clauses were added to the context"),
         }
     }
+}
+
+pub enum ClauseStoreDelta {
+    TransferFormula(ClauseKey, ClauseKey),
+    TransferLearned(ClauseKey, ClauseKey),
+    Deletion(ClauseKey),
+    BinaryFormula(ClauseKey, Vec<Literal>),
+    BinaryResolution(ClauseKey, Vec<Literal>),
+    Formula(ClauseKey, Vec<Literal>),
+    Learned(ClauseKey, Vec<Literal>),
+}
+
+#[derive(Debug)]
+pub enum LevelDelta {
+    FormulaAssumption(Literal),
+    ResolutionProof(Literal),
+}
+
+pub enum ResolutionDelta {
+    Start,
+    Finish,
+    Used(ClauseKey),
 }

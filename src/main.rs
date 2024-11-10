@@ -14,13 +14,19 @@ use otter_lib::{
     config::Config,
     context::{
         builder::BuildErr,
-        delta::{Dispatch, SolveReport},
+        delta::{self, ClauseStoreDelta, Dispatch, ResolutionDelta, SolveReport},
+        stores::ClauseKey,
     },
     io::{cli::cli, files::context_from_path},
+    structures::literal::{Literal, LiteralTrait},
     types::{errs::ClauseStoreErr, gen::SolveStatus},
+    FRAT,
 };
 
-use std::path::PathBuf;
+use std::{
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::thread;
@@ -37,12 +43,7 @@ fn main() {
 
     let mut config = Config::from_args(&matches);
 
-    let frat = true;
-    if frat {
-        let frat_path = "temp.txt";
-        config.io.frat_path = Some(PathBuf::from(frat_path));
-        let _ = std::fs::File::create(frat_path);
-    }
+    let frat_path = Some(PathBuf::from(&"temp.txt"));
 
     if config.io.detail > 0 {
         println!("c Found {} formulas\n", formula_paths.len());
@@ -50,7 +51,7 @@ fn main() {
 
     let (tx, rx) = unbounded::<Dispatch>();
 
-    thread::spawn(|| listener(rx));
+    thread::spawn(|| listener(rx, frat_path));
 
     let formula_count = formula_paths.len();
 
@@ -79,6 +80,7 @@ fn main() {
         }
     };
     // drop(tx);
+    loop {}
 
     match formula_count {
         0 => panic!("o_x"),
@@ -106,16 +108,45 @@ fn paths(args: &ArgMatches) -> Vec<PathBuf> {
     formula_paths
 }
 
-fn listener(rx: Receiver<Dispatch>) {
+fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>) {
+    let mut frat_transcriber = FRAT::Transcriber::new(frat_path.unwrap());
+    let mut resolution_buffer = Vec::default();
+
     while let Ok(dispatch) = rx.recv() {
         match dispatch {
             Dispatch::SolveComment(comment) => println!("c {}", comment),
             Dispatch::SolveReport(report) => println!("s {}", report.to_string().to_uppercase()),
+
+            Dispatch::Resolution(r_delta) => match r_delta {
+                ResolutionDelta::Start => {
+                    assert!(resolution_buffer.is_empty())
+                }
+                ResolutionDelta::Used(k) => resolution_buffer.push(k),
+                ResolutionDelta::Finish => {
+                    frat_transcriber.take_resolution(std::mem::take(&mut resolution_buffer))
+                }
+            },
             Dispatch::Parser(msg) => println!("c {msg}"),
-            _ => {}
+            Dispatch::Level(_) => {
+                frat_transcriber.transcripe(dispatch);
+            }
+            _ => {
+                frat_transcriber.transcripe(dispatch);
+            }
         }
+        frat_transcriber.flush()
     }
+
+    println!("rbc {}", frat_transcriber.resolution_buffer.len());
+    assert!(frat_transcriber.resolution_buffer.is_empty());
 }
+
+/*
+Temp place for FRAT things
+Need to map internal to external
+ */
+
+mod frat {}
 
 // TODO: unify the exceptions…
 fn report_on_formula(path: PathBuf, tx: Sender<Dispatch>, config: Config) -> SolveReport {

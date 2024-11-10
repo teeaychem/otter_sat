@@ -1,12 +1,14 @@
 use otter_lib::{
     config::Config,
+    context::delta::SolveReport,
     io::files::{silent_formula_report, silent_on_directory},
-    types::gen::Report,
 };
 
 use crate::satlib::*;
 
 mod planning {
+
+    use otter_lib::context::delta::SolveReport;
 
     use super::*;
     #[test]
@@ -14,7 +16,7 @@ mod planning {
         silent_on_directory(
             satlib_collection("planning").join("logistics"),
             &Config::default(),
-            Report::Satisfiable,
+            SolveReport::Satisfiable,
         );
     }
 
@@ -23,7 +25,7 @@ mod planning {
         silent_on_directory(
             satlib_collection("planning").join("blocksworld"),
             &Config::default(),
-            Report::Satisfiable,
+            SolveReport::Satisfiable,
         );
     }
 }
@@ -36,6 +38,7 @@ mod graph_colouring {
     }
 
     mod morphed {
+
         use super::*;
 
         fn morphed_path() -> PathBuf {
@@ -50,7 +53,7 @@ mod graph_colouring {
                     silent_on_directory(
                         morphed_path().join(format!("SW100-8-{}", $n)),
                         &Config::default(),
-                        Report::Satisfiable,
+                        SolveReport::Satisfiable,
                     );
                 }
             };
@@ -71,7 +74,7 @@ mod graph_colouring {
             silent_on_directory(
                 morphed_path().join("SW100-8-p0"),
                 &Config::default(),
-                Report::Satisfiable,
+                SolveReport::Satisfiable,
             );
         }
     }
@@ -91,7 +94,7 @@ mod graph_colouring {
                     silent_on_directory(
                         flat_path().join(format!("flat{}-{}", $n, $m)),
                         &Config::default(),
-                        Report::Satisfiable,
+                        SolveReport::Satisfiable,
                     );
                 }
             };
@@ -113,7 +116,7 @@ fn all_interval_series() {
     let pass = silent_on_directory(
         satlib_collection("ais"),
         &Config::default(),
-        Report::Satisfiable,
+        SolveReport::Satisfiable,
     );
     assert_eq!(pass, 4);
 }
@@ -123,7 +126,7 @@ fn bounded_model_check() {
     silent_on_directory(
         satlib_collection("bmc"),
         &Config::default(),
-        Report::Satisfiable,
+        SolveReport::Satisfiable,
     );
 }
 
@@ -150,7 +153,7 @@ fn beijing() {
     let mut count = 0;
     for formula in satisfiable_formulas {
         assert_eq!(
-            Report::Satisfiable,
+            SolveReport::Satisfiable,
             silent_formula_report(collection_path.join(formula), &Config::default())
         );
         count += 1;
@@ -177,7 +180,7 @@ fn quasigroup() {
     let mut sat_count = 0;
     for formula in &satisfiable_formulas {
         assert_eq!(
-            Report::Satisfiable,
+            SolveReport::Satisfiable,
             silent_formula_report(collection_path.join(formula), &Config::default())
         );
         sat_count += 1;
@@ -201,7 +204,7 @@ fn quasigroup() {
     let mut unsat_count = 0;
     for formula in &unsatisfiable_formulas {
         assert_eq!(
-            Report::Unsatisfiable,
+            SolveReport::Unsatisfiable,
             silent_formula_report(collection_path.join(formula), &Config::default())
         );
         unsat_count += 1;

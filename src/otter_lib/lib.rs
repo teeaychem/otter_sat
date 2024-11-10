@@ -7,9 +7,9 @@ pub mod types;
 
 mod log;
 mod procedures;
-mod structures;
+pub mod structures;
 
 mod generic;
 
 #[allow(non_snake_case)]
-mod FRAT;
+pub mod FRAT;

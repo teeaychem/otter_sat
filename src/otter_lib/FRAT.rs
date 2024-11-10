@@ -1,5 +1,6 @@
 use std::{
     borrow::Borrow,
+    collections::VecDeque,
     io::{BufWriter, Write},
     path::PathBuf,
 };
@@ -7,6 +8,7 @@ use std::{
 use crate::{
     config::Config,
     context::{
+        delta::{self, ClauseStoreDelta, Dispatch},
         stores::{variable::VariableStore, ClauseKey},
         unique_id::UniqueIdentifier,
     },
@@ -73,7 +75,7 @@ impl FRATProof {
 }
 
 impl FRATStep {
-    fn key_id(key: &ClauseKey) -> String {
+    pub fn key_id(key: &ClauseKey) -> String {
         match key {
             ClauseKey::Formula(index) => format!("f_{index}"),
             ClauseKey::Binary(index) => format!("b_{index}"),
@@ -171,17 +173,6 @@ impl FRATStep {
         FRATStep { str: the_string }
     }
 
-    // A relocation step
-    pub fn relocation(from: ClauseKey, to: ClauseKey) -> Self {
-        FRATStep {
-            str: format!(
-                "r {} {} 0\n",
-                FRATStep::key_id(&from),
-                FRATStep::key_id(&to)
-            ),
-        }
-    }
-
     pub fn finalise(key: ClauseKey, clause: &[Literal], variables: &VariableStore) -> Self {
         let mut the_string = String::from("f ");
         the_string.push_str(&FRATStep::key_id(&key));
@@ -194,5 +185,136 @@ impl FRATStep {
 
     pub fn as_bytes(&self) -> &[u8] {
         self.str.as_bytes()
+    }
+}
+
+pub struct Transcriber {
+    path: PathBuf,
+    step_buffer: Vec<String>,
+    pub resolution_buffer: VecDeque<Vec<ClauseKey>>,
+}
+
+impl Transcriber {
+    pub fn new(path: PathBuf) -> Self {
+        std::fs::File::create(&path);
+        Transcriber {
+            path,
+            resolution_buffer: VecDeque::default(),
+            step_buffer: Vec::default(),
+        }
+    }
+
+    fn key_id(key: ClauseKey) -> String {
+        match key {
+            ClauseKey::Formula(index) => format!("f_{index}"),
+            ClauseKey::Binary(index) => format!("b_{index}"),
+            ClauseKey::Learned(index, _) => format!("l_{index}"),
+        }
+    }
+
+    fn literal_id(literal: Literal) -> String {
+        format!("l_{}", literal.index())
+    }
+
+    pub fn transcripe(&mut self, dispatch: Dispatch) {
+        let mut transcription = match dispatch {
+            Dispatch::ClauseStore(store_delta) => {
+                // x
+                match store_delta {
+                    ClauseStoreDelta::Deletion(key) => Some(format!("d {}", Self::key_id(key))),
+                    ClauseStoreDelta::TransferFormula(from, to) => {
+                        /*
+                        Derive new, delete formula
+                         */
+                        let mut the_string = String::from(format!("a {} ", Self::key_id(to)));
+                        the_string.push_str("TODO TODO");
+                        the_string.push_str(" l ");
+                        the_string.push_str(
+                            format!("{:?}", self.resolution_buffer.pop_front().expect("nri_tf"))
+                                .as_str(),
+                        );
+                        the_string.push_str(format!("d {} 0\n", Self::key_id(from)).as_str());
+                        Some(the_string)
+                    }
+                    ClauseStoreDelta::TransferLearned(from, to) => {
+                        let mut the_string = String::from(format!("a {} ", Self::key_id(to)));
+                        the_string.push_str("TODO TODO");
+                        the_string.push_str(" l ");
+                        the_string.push_str(
+                            format!("{:?}", self.resolution_buffer.pop_front().expect("nri_tl"))
+                                .as_str(),
+                        );
+                        the_string.push_str(format!("d {} 0\n", Self::key_id(from)).as_str());
+                        Some(the_string)
+                    }
+
+                    ClauseStoreDelta::Learned(a, b) => {
+                        let mut the_string = String::from("a ");
+                        the_string.push_str(&b.as_string());
+                        the_string.push_str(" l ");
+                        the_string.push_str(
+                            format!("{:?}", self.resolution_buffer.pop_front().expect("nri_l"))
+                                .as_str(),
+                        );
+                        Some(the_string)
+                    }
+                    ClauseStoreDelta::BinaryFormula(a, b) => {
+                        let mut the_string = String::from("o ");
+                        the_string.push_str(&b.as_string());
+                        Some(the_string)
+                    }
+                    ClauseStoreDelta::BinaryResolution(a, b) => {
+                        let mut the_string = String::from("a ");
+                        the_string.push_str(&b.as_string());
+                        the_string.push_str(" l ");
+                        the_string.push_str(
+                            format!("{:?}", self.resolution_buffer.pop_front().expect("nri_br"))
+                                .as_str(),
+                        );
+                        Some(the_string)
+                    }
+                    _ => None,
+                }
+            }
+            Dispatch::Level(level_delta) => {
+                //
+                match level_delta {
+                    delta::LevelDelta::FormulaAssumption(literal) => {
+                        Some(format!("o {} 0", Self::literal_id(literal)))
+                    }
+                    delta::LevelDelta::ResolutionProof(literal) => {
+                        let mut the_string = String::from("a ");
+                        the_string.push_str(format!("{}", Self::literal_id(literal)).as_str());
+                        the_string.push_str(" l ");
+                        the_string.push_str(
+                            format!("{:?}", self.resolution_buffer.pop_front().expect("nri_rp"))
+                                .as_str(),
+                        );
+                        Some(the_string)
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+        if let Some(mut step) = transcription {
+            step.push_str(" 0\n");
+            self.step_buffer.push(step.to_string())
+        }
+    }
+
+    pub fn take_resolution(&mut self, buffer: Vec<ClauseKey>) {
+        self.resolution_buffer.push_back(buffer)
+    }
+
+    pub fn flush(&mut self) {
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&self.path)
+            .unwrap();
+        for step in &self.step_buffer {
+            let _ = file.write(step.as_bytes());
+        }
+        self.step_buffer.clear();
     }
 }

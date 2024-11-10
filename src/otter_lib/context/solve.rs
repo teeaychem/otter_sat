@@ -94,12 +94,6 @@ impl Context {
                             let Ok(QStatus::Qd) = self.q_literal(literal) else {
                                 return Err(StepErr::QueueProof(key));
                             };
-
-                            self.note_literal(
-                                literal.canonical(),
-                                LiteralSource::Resolution(key),
-                                Vec::default(),
-                            );
                         }
 
                         AnalysisResult::MissedImplication(key, literal) => {
@@ -190,15 +184,11 @@ impl Context {
                 self.counters.conflicts_in_memory = 0;
             }
 
-            if self.config.io.frat_path.is_some() {
-                self.traces.frat.flush(&self.config)
-            }
-
             if config.reduction_allowed
                 && ((self.counters.restarts % config.reduction_interval) == 0)
             {
                 log::debug!(target: crate::log::targets::REDUCTION, "Reduction after {} restarts", self.counters.restarts);
-                self.clause_store.reduce(config, &mut self.traces)?;
+                self.clause_store.reduce(config)?;
             }
         }
         Ok(())

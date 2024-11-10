@@ -12,7 +12,10 @@ use crate::{
     FRAT::FRATStep,
 };
 
-use super::{delta::Dispatch, unique_id::UniqueIdentifier};
+use super::{
+    delta::{Dispatch, LevelDelta},
+    unique_id::UniqueIdentifier,
+};
 use crate::context::unique_id::UniqueId;
 
 #[derive(Debug, Clone, Copy)]
@@ -49,7 +52,6 @@ impl Context {
             source,
             clause,
             &mut self.variables,
-            &mut self.traces,
             resolution_keys,
             &self.config,
         )
@@ -65,25 +67,21 @@ impl Context {
 
         self.levels.record_literal(canonical, source);
 
-        if self.config.io.frat_path.is_some() {
-            // Only record…
-            let step = match source {
-                // … resolution instances which led to a unit asserting clause
-                LiteralSource::Resolution(_) => Some(FRATStep::learnt_literal(
-                    canonical,
-                    &resolution_keys,
-                    &self.variables,
-                )),
-                // … unit clauses of the original formula reinterpreted as assumptions
-                LiteralSource::Assumption => {
-                    Some(FRATStep::original_literal(canonical, &self.variables))
-                }
-                // … and nothing else
-                _ => None,
-            };
-            if let Some(made_step) = step {
-                self.traces.frat.record(made_step);
+        // Only record…
+        match source {
+            // … resolution instances which led to a unit asserting clause
+            LiteralSource::Resolution(_) => {
+                println!("xxx");
+                self.sender
+                    .send(Dispatch::Level(LevelDelta::ResolutionProof(canonical)));
             }
+            // … unit clauses of the original formula reinterpreted as assumptions
+            LiteralSource::Assumption => {
+                self.sender
+                    .send(Dispatch::Level(LevelDelta::FormulaAssumption(canonical)));
+            }
+            // … and nothing else
+            _ => {}
         }
     }
 

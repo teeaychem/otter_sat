@@ -1,5 +1,7 @@
 use std::{borrow::Borrow, ops::Deref};
 
+use crossbeam::channel::Sender;
+
 use crate::{
     config::{Config, StoppingCriteria},
     context::stores::{clause::ClauseStore, variable::VariableStore, ClauseKey},
@@ -12,6 +14,7 @@ use crate::{
 };
 
 use super::{
+    delta::{Dispatch, ResolutionDelta},
     stores::level::LevelStore,
     unique_id::{UniqueId, UniqueIdentifier},
     Traces,
@@ -41,6 +44,7 @@ pub enum BufOk {
     FirstUIP,
     Exhausted,
     Proof,
+    Missed(ClauseKey, Literal),
 }
 
 #[derive(Debug)]
@@ -84,15 +88,6 @@ impl ResolutionBuffer {
         }
     }
 
-    pub fn set_inital_clause(
-        &mut self,
-        clause: &StoredClause,
-        key: ClauseKey,
-    ) -> Result<(), BufErr> {
-        self.trail.push(key);
-        self.merge_clause(clause)
-    }
-
     #[allow(dead_code)]
     // May be helpful to debug issues
     pub fn partial_valuation_in_use(&self) -> Vec<Literal> {
@@ -133,14 +128,26 @@ impl ResolutionBuffer {
         self.set(literal.index(), ResolutionCell::Value(None))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn resolve_with(
         &mut self,
+        conflict: ClauseKey,
         levels: &LevelStore,
         stored_clauses: &mut ClauseStore,
         variables: &mut VariableStore,
-        traces: &mut Traces,
         config: &Config,
+        sender: &Sender<Dispatch>,
     ) -> Result<BufOk, BufErr> {
+        self.merge_clause(stored_clauses.get(conflict).expect("missing clause"));
+
+        // Maybe the conflit clause was already asserting on the previous decision level…
+        if let Some(asserted_literal) = self.asserts() {
+            return Ok(BufOk::Missed(conflict, asserted_literal));
+        };
+        sender.send(Dispatch::Resolution(ResolutionDelta::Start));
+        self.trail.push(conflict);
+        sender.send(Dispatch::Resolution(ResolutionDelta::Used(conflict)));
+
         for (source, literal) in levels.current_consequences().iter().rev() {
             if let LiteralSource::Analysis(the_key)
             | LiteralSource::BCP(the_key)
@@ -175,32 +182,48 @@ impl ResolutionBuffer {
 
                         match self.clause_length {
                             0 => {}
-                            1 => return Ok(BufOk::Proof),
+                            1 => {
+                                sender.send(Dispatch::Resolution(ResolutionDelta::Finish));
+                                return Ok(BufOk::Proof);
+                            }
                             2 => match the_key {
                                 ClauseKey::Binary(_) => {}
                                 ClauseKey::Formula(_) => {
+                                    sender.send(Dispatch::Resolution(ResolutionDelta::Finish));
                                     let Ok(_) = source_clause.subsume(literal, variables, false)
                                     else {
                                         return Err(BufErr::Subsumption);
                                     };
-                                    let Ok(new_key) = stored_clauses
-                                        .transfer_to_binary(*the_key, variables, traces)
+
+                                    let Ok(new_key) =
+                                        stored_clauses.transfer_to_binary(*the_key, variables)
                                     else {
                                         return Err(BufErr::Transfer);
                                     };
                                     self.trail.push(new_key);
+
+                                    sender.send(Dispatch::Resolution(ResolutionDelta::Start));
+                                    sender
+                                        .send(Dispatch::Resolution(ResolutionDelta::Used(new_key)));
                                 }
                                 ClauseKey::Learned(_, _) => {
+                                    sender.send(Dispatch::Resolution(ResolutionDelta::Finish));
                                     let Ok(_) = source_clause.subsume(literal, variables, false)
                                     else {
                                         return Err(BufErr::Subsumption);
                                     };
-                                    let Ok(new_key) = stored_clauses
-                                        .transfer_to_binary(*the_key, variables, traces)
+
+                                    let Ok(new_key) =
+                                        stored_clauses.transfer_to_binary(*the_key, variables)
                                     else {
                                         return Err(BufErr::Transfer);
                                     };
                                     self.trail.push(new_key);
+
+                                    sender.send(Dispatch::Resolution(ResolutionDelta::Start));
+                                    sender.send(Dispatch::Resolution(ResolutionDelta::Used(
+                                        conflict,
+                                    )));
                                 }
                             },
                             _ => {
@@ -208,21 +231,29 @@ impl ResolutionBuffer {
                                     return Err(BufErr::Subsumption);
                                 };
                                 self.trail.push(*the_key);
+                                sender.send(Dispatch::Resolution(ResolutionDelta::Used(*the_key)));
                             }
                         }
                     } else {
                         self.trail.push(source_clause.key());
+                        sender.send(Dispatch::Resolution(ResolutionDelta::Used(
+                            source_clause.key(),
+                        )));
                     }
 
                     if self.valueless_count == 1 {
                         match config.stopping_criteria {
-                            StoppingCriteria::FirstUIP => return Ok(BufOk::FirstUIP),
+                            StoppingCriteria::FirstUIP => {
+                                sender.send(Dispatch::Resolution(ResolutionDelta::Finish));
+                                return Ok(BufOk::FirstUIP);
+                            }
                             StoppingCriteria::None => {}
                         }
                     };
                 }
             }
         }
+        sender.send(Dispatch::Resolution(ResolutionDelta::Finish));
         Ok(BufOk::Exhausted)
     }
 

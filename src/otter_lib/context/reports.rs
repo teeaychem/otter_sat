@@ -12,32 +12,6 @@ use crate::{
 
 use super::{delta::SolveReport, SolveStatus};
 
-// FRAT
-impl Context {
-    pub fn frat_formula(&mut self) {
-        for formula in self.clause_store.formula_clauses() {
-            self.traces.frat.record(FRATStep::original_clause(
-                formula.key(),
-                formula.deref(),
-                &self.variables,
-            ))
-        }
-        self.traces.frat.flush(&self.config)
-    }
-
-    // TODO: finalise
-    pub fn frat_finalise(&mut self) {
-        for formula in self.clause_store.all_clauses() {
-            self.traces.frat.record(FRATStep::finalise(
-                formula.key(),
-                formula.deref(),
-                &self.variables,
-            ))
-        }
-        self.traces.frat.flush(&self.config)
-    }
-}
-
 impl Context {
     pub fn report(&self) -> SolveReport {
         match self.status {

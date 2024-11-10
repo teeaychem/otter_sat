@@ -1,5 +1,5 @@
 use super::*;
-use otter_lib::{config::Config, io::files::silent_on_directory, types::gen::Report};
+use otter_lib::{config::Config, context::delta::SolveReport, io::files::silent_on_directory};
 
 mod ThreeSAT {
 
@@ -15,7 +15,7 @@ mod ThreeSAT {
         silent_on_directory(
             unform_random_path().join("UF20.91"),
             &Config::default(),
-            Report::Satisfiable,
+            SolveReport::Satisfiable,
         );
     }
 
@@ -26,7 +26,7 @@ mod ThreeSAT {
             silent_on_directory(
                 unform_random_path().join("UF50.218.1000").join("sat"),
                 &Config::default(),
-                Report::Satisfiable,
+                SolveReport::Satisfiable,
             );
         }
 
@@ -35,7 +35,7 @@ mod ThreeSAT {
             silent_on_directory(
                 unform_random_path().join("UF50.218.1000").join("unsat"),
                 &Config::default(),
-                Report::Unsatisfiable,
+                SolveReport::Unsatisfiable,
             );
         }
     }
@@ -67,7 +67,7 @@ mod ThreeSAT_and_backbone_minimal_subinstances {
         silent_on_directory(
             satlib_collection("backbone").join("RTI_k3_n100_m429"),
             &Config::default(),
-            Report::Satisfiable,
+            SolveReport::Satisfiable,
         );
     }
 
@@ -76,7 +76,7 @@ mod ThreeSAT_and_backbone_minimal_subinstances {
         silent_on_directory(
             satlib_collection("backbone").join("BMS_k3_n100_m429"),
             &Config::default(),
-            Report::Satisfiable,
+            SolveReport::Satisfiable,
         );
     }
 }

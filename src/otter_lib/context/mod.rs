@@ -103,7 +103,7 @@ impl Context {
         Self {
             counters: Counters::default(),
             levels: LevelStore::default(),
-            clause_store: ClauseStore::default(),
+            clause_store: ClauseStore::default(&sender),
             variables: VariableStore::default(),
             config,
             window: the_window,
@@ -122,7 +122,7 @@ impl Default for Context {
         Context {
             counters: Counters::default(),
             levels: LevelStore::default(),
-            clause_store: ClauseStore::default(),
+            clause_store: ClauseStore::default(&sender),
             variables: VariableStore::default(),
             config: Config::default(),
             window: None,

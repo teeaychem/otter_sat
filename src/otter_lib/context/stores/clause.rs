@@ -1,11 +1,13 @@
 use std::ops::Deref;
 
+use crossbeam::channel::Sender;
+
 use crate::{
     config::{self, ClauseActivity, Config},
     context::{
+        delta::{self, ClauseStoreDelta, Dispatch},
         stores::{activity_glue::ActivityGlue, variable::VariableStore, ClauseKey, FormulaIndex},
         unique_id::{UniqueId, UniqueIdentifier},
-        Traces,
     },
     generic::heap::IndexHeap,
     structures::{
@@ -32,6 +34,8 @@ pub struct ClauseStore {
 
     learned_activity: IndexHeap<ActivityGlue>,
     learned_increment: ClauseActivity,
+
+    sender: Sender<Dispatch>,
 }
 
 pub struct ClauseStoreCounts {
@@ -51,9 +55,8 @@ impl Default for ClauseStoreCounts {
     }
 }
 
-#[allow(clippy::derivable_impls)]
-impl Default for ClauseStore {
-    fn default() -> Self {
+impl ClauseStore {
+    pub fn default(sender: &Sender<Dispatch>) -> Self {
         ClauseStore {
             counts: ClauseStoreCounts::default(),
             keys: Vec::default(),
@@ -63,6 +66,7 @@ impl Default for ClauseStore {
             binary: Vec::default(),
             learned_activity: IndexHeap::default(),
             learned_increment: ClauseActivity::default(),
+            sender: sender.clone(),
         }
     }
 }
@@ -170,7 +174,6 @@ impl ClauseStore {
         source: ClauseSource,
         clause: Vec<Literal>,
         variables: &mut VariableStore,
-        traces: &mut Traces,
         resolution_keys: Vec<ClauseKey>,
         config: &Config,
     ) -> Result<ClauseKey, ClauseStoreErr> {
@@ -179,6 +182,24 @@ impl ClauseStore {
             1 => Err(ClauseStoreErr::UnitClause),
             2 => {
                 let the_key = self.new_binary_id()?;
+
+                match source {
+                    ClauseSource::Formula => {
+                        self.sender
+                            .send(Dispatch::ClauseStore(ClauseStoreDelta::BinaryFormula(
+                                the_key,
+                                clause.clone(),
+                            )))
+                    }
+                    ClauseSource::Resolution => {
+                        self.sender
+                            .send(Dispatch::ClauseStore(ClauseStoreDelta::BinaryResolution(
+                                the_key,
+                                clause.clone(),
+                            )))
+                    }
+                };
+
                 self.binary
                     .push(StoredClause::from(the_key, clause, variables));
 
@@ -187,6 +208,13 @@ impl ClauseStore {
             _ => match source {
                 ClauseSource::Formula => {
                     let the_key = self.new_formula_id()?;
+
+                    self.sender
+                        .send(Dispatch::ClauseStore(ClauseStoreDelta::Formula(
+                            the_key,
+                            clause.clone(),
+                        )));
+
                     self.formula
                         .push(StoredClause::from(the_key, clause, variables));
                     Ok(the_key)
@@ -200,14 +228,11 @@ impl ClauseStore {
                         _ => self.keys.pop().unwrap().retoken()?,
                     };
 
-                    if config.io.frat_path.is_some() {
-                        traces.frat.record(FRATStep::learnt_clause(
+                    self.sender
+                        .send(Dispatch::ClauseStore(ClauseStoreDelta::Learned(
                             the_key,
-                            &clause,
-                            &resolution_keys,
-                            variables,
-                        ));
-                    }
+                            clause.clone(),
+                        )));
 
                     let the_clause = StoredClause::from(the_key, clause, variables);
 
@@ -263,7 +288,6 @@ impl ClauseStore {
         &mut self,
         key: ClauseKey,
         variables: &mut VariableStore,
-        trace: &mut Traces,
     ) -> Result<ClauseKey, ClauseStoreErr> {
         match key {
             ClauseKey::Binary(_) => {
@@ -284,9 +308,12 @@ impl ClauseStore {
                 let binary_key = self.new_binary_id()?;
 
                 // TODO: May need to note the original formula
-                trace
-                    .frat
-                    .record(FRATStep::relocation(formula_key, binary_key));
+                self.sender.send(Dispatch::ClauseStore(
+                    crate::context::delta::ClauseStoreDelta::TransferFormula(
+                        formula_key,
+                        binary_key,
+                    ),
+                ));
 
                 variables.remove_watch(unsafe { copied_clause.get_unchecked(0) }, key)?;
                 variables.remove_watch(unsafe { copied_clause.get_unchecked(1) }, key)?;
@@ -299,7 +326,7 @@ impl ClauseStore {
                 Ok(binary_key)
             }
             ClauseKey::Learned(_, _) => {
-                let mut the_clause = self.remove_from_learned(key.index(), trace)?;
+                let mut the_clause = self.remove_from_learned(key.index())?;
 
                 if the_clause.len() != 2 {
                     log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
@@ -308,9 +335,12 @@ impl ClauseStore {
 
                 let binary_key = self.new_binary_id()?;
 
-                trace
-                    .frat
-                    .record(FRATStep::relocation(the_clause.key(), binary_key));
+                self.sender.send(Dispatch::ClauseStore(
+                    crate::context::delta::ClauseStoreDelta::TransferLearned(
+                        the_clause.key(),
+                        binary_key,
+                    ),
+                ));
 
                 the_clause.replace_key(binary_key);
 
@@ -332,8 +362,9 @@ impl ClauseStore {
 
     // TODO: figure some improvement…
     // For example, before dropping a clause the lbd could be recalculated…
-    pub fn reduce(&mut self, config: &Config, trace: &mut Traces) -> Result<(), ClauseStoreErr> {
+    pub fn reduce(&mut self, config: &Config) -> Result<(), ClauseStoreErr> {
         let limit = self.counts.learned as usize / 2;
+
         'reduction_loop: for _ in 0..limit {
             if let Some(index) = self.learned_activity.peek_max() {
                 let value = self.learned_activity.value_at(index);
@@ -341,12 +372,13 @@ impl ClauseStore {
                     break 'reduction_loop;
                 } else {
                     self.learned_activity.remove(index);
-                    self.remove_from_learned(index, trace)?;
+                    self.remove_from_learned(index)?;
                 }
             } else {
                 log::warn!(target: crate::log::targets::REDUCTION, "Reduction called but there were no candidates");
             }
         }
+
         log::debug!(target: crate::log::targets::REDUCTION, "Learnt clauses reduced to: {}", self.counts.learned);
         Ok(())
     }
@@ -392,11 +424,7 @@ impl ClauseStore {
     Removing from learned checks to ensure removal is ok
     As the elements are optional for reuse, take places None at the index, as would be needed anyway
      */
-    fn remove_from_learned(
-        &mut self,
-        index: usize,
-        trace: &mut Traces,
-    ) -> Result<StoredClause, ClauseStoreErr> {
+    fn remove_from_learned(&mut self, index: usize) -> Result<StoredClause, ClauseStoreErr> {
         if unsafe { self.learned.get_unchecked(index) }.is_none() {
             log::error!(target: crate::log::targets::CLAUSE_STORE, "attempt to remove something that is not there");
             Err(ClauseStoreErr::MissingLearned)
@@ -404,7 +432,12 @@ impl ClauseStore {
             // assert!(matches!(the_clause.key(), ClauseKey::LearnedLong(_, _)));
             let the_clause =
                 std::mem::take(unsafe { self.learned.get_unchecked_mut(index) }).unwrap();
-            trace.frat.record(FRATStep::deletion(index));
+
+            self.sender
+                .send(Dispatch::ClauseStore(delta::ClauseStoreDelta::Deletion(
+                    the_clause.key(),
+                )));
+
             self.learned_activity.remove(index);
             self.keys.push(the_clause.key());
             self.counts.learned -= 1;
