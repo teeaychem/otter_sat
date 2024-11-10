@@ -12,7 +12,7 @@ use crate::{
     FRAT::FRATStep,
 };
 
-use super::{delta::Delta, unique_id::UniqueIdentifier};
+use super::{delta::Dispatch, unique_id::UniqueIdentifier};
 use crate::context::unique_id::UniqueId;
 
 #[derive(Debug, Clone, Copy)]
@@ -87,7 +87,7 @@ impl Context {
         }
     }
 
-    pub fn print_status(&self, tx: Sender<Delta>) {
+    pub fn print_status(&self) {
         if self.config.io.show_stats {
             if let Some(window) = &self.window {
                 window.update_counters(&self.counters);
@@ -98,32 +98,32 @@ impl Context {
         use crate::context::delta::SolveReport;
         match self.status {
             SolveStatus::FullValuation => {
-                let _ = tx.send(Delta::SolveReport(SolveReport::Satisfiable));
-                if self.config.io.show_valuation {
-                    println!("{}", format!("v {}", self.valuation_string()));
-                }
+                let _ = self
+                    .sender
+                    .send(Dispatch::SolveReport(SolveReport::Satisfiable));
             }
             SolveStatus::NoSolution => {
-                let _ = tx.send(Delta::SolveReport(SolveReport::Unsatisfiable));
+                let _ = self
+                    .sender
+                    .send(Dispatch::SolveReport(SolveReport::Unsatisfiable));
                 if self.config.io.show_core {
                     // let _ = self.display_core(clause_key);
                 }
             }
             SolveStatus::NoClauses => {
                 if self.config.io.detail > 0 {
-                    let _ = tx.send(Delta::SolveComment(
+                    let _ = self.sender.send(Dispatch::SolveComment(
                         crate::context::delta::SolveComment::NoClauses,
                     ));
                 }
-                let _ = tx.send(Delta::SolveReport(SolveReport::Satisfiable));
+                let _ = self
+                    .sender
+                    .send(Dispatch::SolveReport(SolveReport::Satisfiable));
             }
             _ => {
-                if let Some(limit) = self.config.time_limit {
-                    if self.config.io.show_stats && self.counters.time > limit {
-                        println!("c TIME LIMIT EXCEEDED");
-                    }
-                }
-                let _ = tx.send(Delta::SolveReport(SolveReport::Unkown));
+                let _ = self
+                    .sender
+                    .send(Dispatch::SolveReport(SolveReport::Unknown));
             }
         }
     }
@@ -158,9 +158,5 @@ impl Context {
             .map(|v| v.to_string())
             .collect::<Vec<_>>()
             .join(" ")
-    }
-
-    pub fn print_valuation(&self) {
-        println!("v {:?}", self.valuation_string());
     }
 }

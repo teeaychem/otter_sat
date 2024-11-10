@@ -13,9 +13,13 @@ use crate::{
     },
 };
 
-use std::{borrow::Borrow, io::BufRead, path::PathBuf};
+use std::{
+    borrow::Borrow,
+    io::BufRead,
+    path::{Path, PathBuf},
+};
 
-use super::delta::Delta;
+use super::delta::Dispatch;
 
 #[derive(Debug)]
 pub enum BuildErr {
@@ -24,7 +28,6 @@ pub enum BuildErr {
     AssumptionDirectConflict,
     AssumptionIndirectConflict,
     Parse(ParseErr),
-    OopsAllTautologies,
     ClauseStore(ClauseStoreErr),
 }
 
@@ -43,7 +46,8 @@ impl Context {
             Some(variable) => Ok(variable),
             None => {
                 let the_id = self.variables.len() as VariableId;
-                self.variables.add_variable(name, Variable::new(the_id));
+                self.variables
+                    .add_variable(name, Variable::new(the_id), &self.config);
                 Ok(the_id)
             }
         }
@@ -195,11 +199,14 @@ impl Context {
 
     #[allow(clippy::manual_flatten, unused_labels)]
     pub fn from_dimacs_file(
-        file_path: &PathBuf,
+        file_path: &Path,
         mut file_reader: impl BufRead,
         config: Config,
-        sender: Sender<Delta>,
+        sender: Sender<Dispatch>,
     ) -> Result<Self, BuildErr> {
+        let formula_string = file_path.to_str().unwrap().to_owned();
+        sender.send(Dispatch::Parser(Parser::Processing(formula_string)));
+
         let mut buffer = String::with_capacity(1024);
         let mut clause_buffer: Vec<Literal> = Vec::new();
 
@@ -242,12 +249,11 @@ impl Context {
 
                     buffer.clear();
 
-                    if config.io.show_stats {
-                        println!("c Parsing {:#?}", file_path);
-                        if config.io.detail > 0 {
-                            println!("c Expectation is to get {variable_count} variables and {clause_count} clauses");
-                        }
-                    }
+                    sender.send(Dispatch::Parser(Parser::Expectation(
+                        variable_count,
+                        clause_count,
+                    )));
+
                     the_context = Some(Context::from_config(config.clone(), sender.clone()));
                     break;
                 }
@@ -303,22 +309,19 @@ impl Context {
             buffer.clear();
         }
 
+        use crate::context::delta::Parser;
         if config_detail > 0 {
-            let mut message = format!(
-                "c Parsing complete with {} variables and {} clauses",
+            the_context.sender.send(Dispatch::Parser(Parser::Complete(
                 the_context.variable_count(),
-                clause_counter
-            );
+                clause_counter,
+            )));
             if config_detail > 1 {
-                message.push_str(
-                    format!(" ({} added to the context)", the_context.clause_count()).as_str(),
-                );
+                the_context
+                    .sender
+                    .send(Dispatch::Parser(Parser::ContextClauses(
+                        the_context.clause_count(),
+                    )));
             }
-            println!("{message}");
-        }
-
-        if the_context.clause_count() == 0 {
-            return Err(BuildErr::OopsAllTautologies);
         }
 
         Ok(the_context)

@@ -30,14 +30,12 @@ pub struct VariableStore {
 impl Default for VariableStore {
     fn default() -> Self {
         VariableStore {
-            external_map: Vec::<String>::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
+            external_map: Vec::<String>::default(),
             score_increment: 1.0,
-            variables: Vec::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
-            consequence_q: std::collections::VecDeque::with_capacity(
-                defaults::DEFAULT_VARIABLE_COUNT,
-            ),
-            string_map: std::collections::HashMap::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
-            activity_heap: IndexHeap::new(defaults::DEFAULT_VARIABLE_COUNT),
+            variables: Vec::default(),
+            consequence_q: std::collections::VecDeque::default(),
+            string_map: std::collections::HashMap::default(),
+            activity_heap: IndexHeap::default(),
         }
     }
 }
@@ -53,23 +51,6 @@ impl std::ops::Deref for VariableStore {
 impl std::ops::DerefMut for VariableStore {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.variables
-    }
-}
-
-impl VariableStore {
-    pub fn new(variables: Vec<Variable>) -> Self {
-        VariableStore::with_capactiy(variables.len())
-    }
-
-    pub fn with_capactiy(variable_count: usize) -> Self {
-        VariableStore {
-            external_map: Vec::<String>::with_capacity(variable_count),
-            score_increment: 1.0,
-            variables: Vec::with_capacity(variable_count),
-            consequence_q: std::collections::VecDeque::with_capacity(variable_count),
-            string_map: std::collections::HashMap::with_capacity(variable_count),
-            activity_heap: IndexHeap::new(variable_count),
-        }
     }
 }
 
@@ -106,11 +87,10 @@ impl VariableStore {
         self.activity_heap.activate(index)
     }
 
-    pub fn add_variable(&mut self, name: &str, variable: Variable) {
-        // println!("Added {}", variable.index());
+    pub fn add_variable(&mut self, name: &str, variable: Variable, config: &Config) {
         self.string_map.insert(name.to_string(), variable.id());
-        self.activity_heap.insert(variable.index(), 1.0);
-        // println!("{}", self.activity_heap.value_at(variable.index()));
+        self.activity_heap
+            .insert(variable.index(), VariableActivity::default());
         self.variables.push(variable);
         self.external_map.push(name.to_string());
 
@@ -190,7 +170,6 @@ impl Context {
             .variables
             .set_value(lit.borrow().canonical(), Some(self.levels.decision_count()))
         else {
-            println!("X");
             return Err(ContextFailure::QueueConflict);
         };
 

@@ -6,21 +6,11 @@ use crate::{
         clause::Clause,
         literal::{LiteralSource, LiteralTrait},
     },
-    types::{errs::ReportError, gen::Report},
+    types::errs::ReportError,
     FRAT::FRATStep,
 };
 
-use super::SolveStatus;
-
-impl std::fmt::Display for Report {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Satisfiable => write!(f, "Satisfiable"),
-            Self::Unsatisfiable => write!(f, "Unsatisfiable"),
-            Self::Unknown => write!(f, "Unknown"),
-        }
-    }
-}
+use super::{delta::SolveReport, SolveStatus};
 
 // FRAT
 impl Context {
@@ -49,12 +39,12 @@ impl Context {
 }
 
 impl Context {
-    pub fn report(&self) -> Report {
+    pub fn report(&self) -> SolveReport {
         match self.status {
-            SolveStatus::FullValuation => Report::Satisfiable,
-            SolveStatus::NoClauses => Report::Satisfiable,
-            SolveStatus::NoSolution => Report::Unsatisfiable,
-            _ => Report::Unknown,
+            SolveStatus::FullValuation => SolveReport::Satisfiable,
+            SolveStatus::NoClauses => SolveReport::Satisfiable,
+            SolveStatus::NoSolution => SolveReport::Unsatisfiable,
+            _ => SolveReport::Unknown,
         }
     }
 

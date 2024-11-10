@@ -15,13 +15,13 @@ use crate::{
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::{list::VariableList, VariableId, BCP::BCPErr},
     },
-    types::{errs::StepErr, gen::Report},
+    types::errs::StepErr,
 };
 
-use super::stores::variable::QStatus;
+use super::{delta::SolveReport, stores::variable::QStatus};
 
 impl Context {
-    pub fn solve(&mut self) -> Result<Report, ContextFailure> {
+    pub fn solve(&mut self) -> Result<SolveReport, ContextFailure> {
         let this_total_time = std::time::Instant::now();
 
         match self.preprocess() {
@@ -41,6 +41,9 @@ impl Context {
         'solve_loop: loop {
             self.counters.time = this_total_time.elapsed();
             if time_limit.is_some_and(|limit| self.counters.time > limit) {
+                self.sender.send(super::delta::Dispatch::SolveComment(
+                    super::delta::SolveComment::TimeUp,
+                ));
                 return Ok(self.report());
             }
 

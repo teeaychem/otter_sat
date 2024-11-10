@@ -20,7 +20,7 @@ use {
         },
         io::window::ContextWindow,
     },
-    delta::Delta,
+    delta::Dispatch,
     stores::{clause::ClauseStore, variable::VariableStore},
 };
 
@@ -72,10 +72,10 @@ pub struct Context {
     pub variables: VariableStore,
     pub config: config::Config,
     window: Option<ContextWindow>,
-    status: SolveStatus,
+    pub status: SolveStatus,
 
     pub traces: Traces,
-    pub sender: Sender<Delta>, //
+    pub sender: Sender<Dispatch>, //
 }
 
 impl std::fmt::Display for SolveStatus {
@@ -94,7 +94,7 @@ impl std::fmt::Display for SolveStatus {
 }
 
 impl Context {
-    pub fn from_config(config: Config, sender: Sender<Delta>) -> Self {
+    pub fn from_config(config: Config, sender: Sender<Dispatch>) -> Self {
         let the_window = match config.io.show_stats {
             true => Some(ContextWindow::default()),
             false => None,
@@ -118,7 +118,7 @@ impl Context {
 
 impl Default for Context {
     fn default() -> Self {
-        let (sender, _) = crossbeam::channel::bounded::<Delta>(0);
+        let (sender, _) = crossbeam::channel::bounded::<Dispatch>(0);
         Context {
             counters: Counters::default(),
             levels: LevelStore::default(),

@@ -68,21 +68,6 @@ impl Default for ClauseStore {
 }
 
 impl ClauseStore {
-    pub fn with_capacity(capacity: usize) -> Self {
-        ClauseStore {
-            counts: ClauseStoreCounts::default(),
-            keys: Vec::new(),
-            formula: Vec::with_capacity(capacity),
-            learned: Vec::with_capacity(capacity),
-            learned_slots: 0,
-            binary: Vec::new(),
-            learned_activity: IndexHeap::new(capacity),
-            learned_increment: ClauseActivity::default(),
-        }
-    }
-}
-
-impl ClauseStore {
     fn new_formula_id(&mut self) -> Result<ClauseKey, ClauseStoreErr> {
         if self.counts.formula == FormulaIndex::MAX {
             return Err(ClauseStoreErr::StorageExhausted);

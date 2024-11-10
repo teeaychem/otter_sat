@@ -12,14 +12,17 @@ static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
 use otter_lib::{
     config::Config,
-    context::{builder::BuildErr, delta::Delta},
+    context::{
+        builder::BuildErr,
+        delta::{Dispatch, SolveReport},
+    },
     io::{cli::cli, files::context_from_path},
-    types::{errs::ClauseStoreErr, gen::Report},
+    types::{errs::ClauseStoreErr, gen::SolveStatus},
 };
 
 use std::path::PathBuf;
 
-use crossbeam::channel::{unbounded, Sender};
+use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::thread;
 
 fn main() {
@@ -45,40 +48,47 @@ fn main() {
         println!("c Found {} formulas\n", formula_paths.len());
     }
 
-    let (tx, rx) = unbounded::<Delta>();
+    let (tx, rx) = unbounded::<Dispatch>();
 
-    match formula_paths.len() {
+    thread::spawn(|| listener(rx));
+
+    let formula_count = formula_paths.len();
+
+    let report = match formula_count {
+        0 => panic!("no formulas"),
         1 => {
             let the_path = formula_paths.first().unwrap().clone();
-            let the_report = thread::spawn(move || report_on_formula(the_path, tx, config));
-            match the_report.join().unwrap() {
-                Report::Satisfiable => std::process::exit(10),
-                Report::Unsatisfiable => std::process::exit(20),
-                Report::Unknown => std::process::exit(30),
-            }
+            let tx = tx.clone();
+            thread::spawn(move || report_on_formula(the_path, tx, config))
+                .join()
+                .expect("o what the heck")
         }
         _ => {
             config.io.show_stats = false;
+            let mut last_report = None;
 
             for path in formula_paths {
                 let config_clone = config.clone();
                 let tx = tx.clone();
-                thread::spawn(move || {
-                    report_on_formula(path, tx, config_clone);
-                });
+                let y = thread::spawn(move || report_on_formula(path, tx, config_clone))
+                    .join()
+                    .unwrap();
+                last_report = Some(y)
             }
+            last_report.expect("bo")
         }
     };
-    drop(tx);
-    while let Ok(delta) = rx.recv() {
-        match delta {
-            Delta::SolveReport(report) => {
-                println!("> {report}");
-            }
-            _ => {}
-        }
+    // drop(tx);
+
+    match formula_count {
+        0 => panic!("o_x"),
+        1 => match report {
+            SolveReport::Satisfiable => std::process::exit(10),
+            SolveReport::Unsatisfiable => std::process::exit(20),
+            SolveReport::Unknown => std::process::exit(30),
+        },
+        _ => std::process::exit(0),
     }
-    std::process::exit(0)
 }
 
 fn paths(args: &ArgMatches) -> Vec<PathBuf> {
@@ -96,59 +106,83 @@ fn paths(args: &ArgMatches) -> Vec<PathBuf> {
     formula_paths
 }
 
-fn report_on_formula(path: PathBuf, tx: Sender<Delta>, config: Config) -> Report {
+fn listener(rx: Receiver<Dispatch>) {
+    while let Ok(dispatch) = rx.recv() {
+        match dispatch {
+            Dispatch::SolveComment(comment) => println!("c {}", comment),
+            Dispatch::SolveReport(report) => println!("s {}", report.to_string().to_uppercase()),
+            Dispatch::Parser(msg) => println!("c {msg}"),
+            _ => {}
+        }
+    }
+}
+
+// TODO: unify the exceptions…
+fn report_on_formula(path: PathBuf, tx: Sender<Dispatch>, config: Config) -> SolveReport {
     let config_io_detail = config.io.detail;
-    let config_io_frat_path = config.io.frat_path.clone();
+    // let config_io_frat_path = config.io.frat_path.clone();
 
     use otter_lib::context::delta::SolveComment;
-    let mut the_context = match context_from_path(path, config, tx.clone()) {
-        Ok(context) => context,
-        Err(BuildErr::OopsAllTautologies) => {
-            if config_io_detail > 0 {
-                tx.send(Delta::SolveComment(SolveComment::AllTautological))
-                    .unwrap();
-            }
-            // tx.send("s SATISFIABLE\n".to_string()).unwrap();
-            std::process::exit(10);
-        }
+    let (the_context, mut the_report) = match context_from_path(path, config.clone(), tx.clone()) {
+        Ok(context) => (Some(context), None),
         Err(BuildErr::ClauseStore(ClauseStoreErr::EmptyClause)) => {
             if config_io_detail > 0 {
-                tx.send(Delta::SolveComment(SolveComment::FoundEmptyClause))
-                    .unwrap();
+                let _ = tx.send(Dispatch::SolveComment(SolveComment::FoundEmptyClause));
             }
-            // tx.send("s UNSATISFIABLE\n".to_string()).unwrap();
-            std::process::exit(20);
+            (None, Some(SolveStatus::NoSolution))
         }
         Err(e) => {
             println!("c Unexpected error when building: {e:?}");
             std::process::exit(2);
         }
     };
-    if the_context.clause_count() == 0 {
-        if config_io_detail > 0 {
-            tx.send(Delta::SolveComment(SolveComment::NoClauses))
-                .unwrap();
-        }
-        // tx.send("s SATISFIABLE\n".to_string()).unwrap();
-        std::process::exit(10);
-    }
 
-    if config_io_frat_path.is_some() {
-        the_context.frat_formula()
-    }
+    // if config_io_frat_path.is_some() {
+    //     the_context.frat_formula()
+    // }
 
-    let the_report = match the_context.solve() {
-        Ok(report) => report,
-        Err(e) => {
-            println!("Context error: {e:?}");
-            std::process::exit(1);
+    if let Some(mut the_context) = the_context {
+        if the_context.clause_count() == 0 {
+            if config_io_detail > 0 {
+                let _ = tx.send(Dispatch::SolveComment(SolveComment::NoClauses));
+            }
+            the_report = Some(SolveStatus::NoClauses);
+        } else {
+            match the_context.solve() {
+                Ok(report) => {
+                    match report {
+                        SolveReport::Satisfiable => {
+                            if config.io.show_valuation {
+                                println!("v {}", the_context.valuation_string());
+                            }
+                        }
+                        SolveReport::Unsatisfiable => {
+                            if config.io.show_core {
+                                // let _ = self.display_core(clause_key);
+                            }
+                        }
+                        SolveReport::Unknown => {}
+                    }
+
+                    the_report = Some(the_context.status)
+                }
+                Err(e) => {
+                    println!("Context error: {e:?}");
+                    std::process::exit(1);
+                }
+            }
         }
     };
 
-    if config_io_frat_path.is_some() {
-        the_context.frat_finalise()
-    }
+    // if config_io_frat_path.is_some() {
+    //     the_context.frat_finalise()
+    // }
 
-    the_context.print_status(tx);
-    the_report
+    let the_status = the_report.expect("no status");
+
+    match the_status {
+        SolveStatus::FullValuation | SolveStatus::NoClauses => SolveReport::Satisfiable,
+        SolveStatus::NoSolution => SolveReport::Unsatisfiable,
+        _ => SolveReport::Unknown,
+    }
 }

@@ -6,13 +6,13 @@ use crossbeam::channel::Sender;
 use xz2::read::XzDecoder;
 
 use crate::context::builder::{BuildErr, ParseErr};
-use crate::context::delta::Delta;
-use crate::{config::Config, context::Context, types::gen::Report};
+use crate::context::delta::{Dispatch, SolveReport};
+use crate::{config::Config, context::Context};
 
 pub fn context_from_path(
     path: PathBuf,
     config: Config,
-    sender: Sender<Delta>,
+    sender: Sender<Dispatch>,
 ) -> Result<Context, BuildErr> {
     let the_path = PathBuf::from(&path);
     let file = match File::open(&the_path) {
@@ -34,7 +34,7 @@ pub fn context_from_path(
     }
 }
 
-pub fn silent_formula_report(path: PathBuf, config: &Config) -> Report {
+pub fn silent_formula_report(path: PathBuf, config: &Config) -> SolveReport {
     let (tx, rx) = crossbeam::channel::unbounded();
 
     let mut context_from_path =
@@ -44,7 +44,7 @@ pub fn silent_formula_report(path: PathBuf, config: &Config) -> Report {
     context_from_path.report()
 }
 
-pub fn silent_on_directory(collection: PathBuf, config: &Config, require: Report) -> usize {
+pub fn silent_on_directory(collection: PathBuf, config: &Config, require: SolveReport) -> usize {
     let dir_info = fs::read_dir(collection);
 
     assert!(dir_info.is_ok(), "Formulas missing");
@@ -66,6 +66,6 @@ pub fn silent_on_directory(collection: PathBuf, config: &Config, require: Report
 }
 
 pub fn silent_on_split_directory(collection: PathBuf, config: &Config) {
-    silent_on_directory(collection.join("sat"), config, Report::Satisfiable);
-    silent_on_directory(collection.join("unsat"), config, Report::Unsatisfiable);
+    silent_on_directory(collection.join("sat"), config, SolveReport::Satisfiable);
+    silent_on_directory(collection.join("unsat"), config, SolveReport::Unsatisfiable);
 }
