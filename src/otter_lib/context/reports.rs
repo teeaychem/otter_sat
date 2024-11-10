@@ -35,6 +35,7 @@ impl Context {
         self.traces.frat.flush(&self.config)
     }
 
+    // TODO: finalise
     pub fn frat_finalise(&mut self) {
         for formula in self.clause_store.all_clauses() {
             self.traces.frat.record(FRATStep::finalise(

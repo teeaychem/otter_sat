@@ -1,5 +1,6 @@
 // #![allow(unused_imports)]
 
+use clap::ArgMatches;
 #[cfg(not(target_env = "msvc"))]
 #[cfg(feature = "jemalloc")]
 use tikv_jemallocator::Jemalloc;
@@ -16,7 +17,13 @@ use otter_lib::{
     types::{errs::ClauseStoreErr, gen::Report},
 };
 
-use std::path::PathBuf;
+use std::{
+    path::{Path, PathBuf},
+    sync::mpsc::Sender,
+};
+
+use std::sync::mpsc::channel;
+use std::thread;
 
 fn main() {
     #[cfg(feature = "log")]
@@ -26,6 +33,8 @@ fn main() {
     }
 
     let matches = cli().get_matches();
+    let formula_paths = paths(&matches);
+
     let mut config = Config::from_args(&matches);
 
     let frat = true;
@@ -35,50 +44,78 @@ fn main() {
         let _ = std::fs::File::create(frat_path);
     }
 
-    let Some(mut formula_paths) = matches.get_raw("paths") else {
-        println!("c Could not find formula paths");
-        std::process::exit(1);
-    };
-
     if config.io.detail > 0 {
         println!("c Found {} formulas\n", formula_paths.len());
     }
 
+    let (tx, rx) = channel();
+
     match formula_paths.len() {
         1 => {
-            let the_path = PathBuf::from(formula_paths.next().unwrap());
-            let the_report = report_on_formula(the_path, &config);
-            match the_report {
+            let the_path = formula_paths.first().unwrap().clone();
+            let the_report = thread::spawn(move || report_on_formula(the_path, tx, config));
+            match the_report.join().unwrap() {
                 Report::Satisfiable => std::process::exit(10),
                 Report::Unsatisfiable => std::process::exit(20),
                 Report::Unknown => std::process::exit(30),
             }
         }
         _ => {
+            config.io.show_stats = false;
+
             for path in formula_paths {
-                report_on_formula(PathBuf::from(path), &config);
-                println!();
+                let config_clone = config.clone();
+                let tx = tx.clone();
+                thread::spawn(move || {
+                    report_on_formula(path, tx, config_clone);
+                });
             }
-            std::process::exit(0)
         }
+    };
+    drop(tx);
+    while let Ok(msg) = rx.recv() {
+        println!("> {msg}");
     }
+    std::process::exit(0)
 }
 
-fn report_on_formula(path: PathBuf, config: &Config) -> Report {
+fn paths(args: &ArgMatches) -> Vec<PathBuf> {
+    let formula_paths = {
+        if args.get_many::<PathBuf>("paths").is_none() {
+            println!("c Could not find formula paths");
+            std::process::exit(1);
+        } else {
+            args.get_many::<PathBuf>("paths")
+                .unwrap()
+                .cloned()
+                .collect()
+        }
+    };
+    formula_paths
+}
+
+fn report_on_formula(path: PathBuf, tx: Sender<String>, config: Config) -> Report {
+    let config_io_detail = config.io.detail;
+    let config_io_frat_path = config.io.frat_path.clone();
+
     let mut the_context = match context_from_path(path, config) {
         Ok(context) => context,
         Err(BuildErr::OopsAllTautologies) => {
-            if config.io.detail > 0 {
-                println!("c All clauses of the formula are tautological");
+            if config_io_detail > 0 {
+                tx.send("c All clauses of the formula are tautological\n".to_string())
+                    .unwrap();
             }
-            println!("s SATISFIABLE");
+            tx.send("s SATISFIABLE\n".to_string()).unwrap();
             std::process::exit(10);
         }
         Err(BuildErr::ClauseStore(ClauseStoreErr::EmptyClause)) => {
-            if config.io.detail > 0 {
-                println!("c The formula contains an empty clause so is interpreted as ⊥");
+            if config_io_detail > 0 {
+                tx.send(
+                    "c The formula contains an empty clause so is interpreted as ⊥\n".to_string(),
+                )
+                .unwrap();
             }
-            println!("s UNSATISFIABLE");
+            tx.send("s UNSATISFIABLE\n".to_string()).unwrap();
             std::process::exit(20);
         }
         Err(e) => {
@@ -87,14 +124,15 @@ fn report_on_formula(path: PathBuf, config: &Config) -> Report {
         }
     };
     if the_context.clause_count() == 0 {
-        if config.io.detail > 0 {
-            println!("c The formula does not contain any clauses");
+        if config_io_detail > 0 {
+            tx.send("c The formula does not contain any clauses\n".to_string())
+                .unwrap();
         }
-        println!("s SATISFIABLE");
+        tx.send("s SATISFIABLE\n".to_string()).unwrap();
         std::process::exit(10);
     }
 
-    if config.io.frat_path.is_some() {
+    if config_io_frat_path.is_some() {
         the_context.frat_formula()
     }
 
@@ -106,10 +144,10 @@ fn report_on_formula(path: PathBuf, config: &Config) -> Report {
         }
     };
 
-    if config.io.frat_path.is_some() {
+    if config_io_frat_path.is_some() {
         the_context.frat_finalise()
     }
 
-    the_context.print_status();
+    the_context.print_status(tx);
     the_report
 }

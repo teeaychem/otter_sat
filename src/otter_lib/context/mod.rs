@@ -1,6 +1,7 @@
 mod analysis;
 pub mod builder;
 pub mod core;
+pub mod delta;
 mod preprocessing;
 pub mod reports;
 mod resolution_buffer;

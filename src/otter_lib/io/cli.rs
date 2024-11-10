@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::{value_parser, Arg, ArgMatches, Command};
 
 use crate::config::{self, ClauseActivity, Config, StoppingCriteria, VariableActivity, VSIDS};
@@ -209,6 +211,7 @@ Default: {}", config::defaults::DETAILS)))
             .required(false)
             .trailing_var_arg(true)
             .num_args(0..)
+            .value_parser(value_parser!(PathBuf))
             .help("The DIMACS form CNF files to parse."))
 }
 

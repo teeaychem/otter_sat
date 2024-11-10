@@ -170,6 +170,9 @@ impl ResolutionBuffer {
                           + And, missed implications are checked prior to conflicts
                          */
 
+                        // TODO: FRAT here, is more complex.
+                        // Really, want to cut the trail as a proof of the subsumed clause, and then start again with the clause as the only part
+
                         match self.clause_length {
                             0 => {}
                             1 => return Ok(BufOk::Proof),

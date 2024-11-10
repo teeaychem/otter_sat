@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, sync::mpsc::Sender};
 
 use crate::{
     context::{stores::ClauseKey, Context, SolveStatus},
@@ -88,7 +88,7 @@ impl Context {
         }
     }
 
-    pub fn print_status(&self) {
+    pub fn print_status(&self, tx: Sender<String>) {
         if self.config.io.show_stats {
             if let Some(window) = &self.window {
                 window.update_counters(&self.counters);
@@ -98,30 +98,32 @@ impl Context {
 
         match self.status {
             SolveStatus::FullValuation => {
-                println!("s SATISFIABLE");
+                let _ = tx.send("s SATISFIABLE".to_string());
                 if self.config.io.show_valuation {
-                    println!("v {}", self.valuation_string());
+                    let _ = tx.send(format!("v {}", self.valuation_string()));
                 }
             }
             SolveStatus::NoSolution => {
-                println!("s UNSATISFIABLE");
+                let _ = tx.send("s UNSATISFIABLE".to_string());
                 if self.config.io.show_core {
                     // let _ = self.display_core(clause_key);
                 }
             }
             SolveStatus::NoClauses => {
                 if self.config.io.detail > 0 {
-                    println!("c The formula contains no clause and so is interpreted as ⊤");
+                    let _ = tx.send(
+                        "c The formula contains no clause and so is interpreted as ⊤".to_string(),
+                    );
                 }
-                println!("s SATISFIABLE");
+                let _ = tx.send("s SATISFIABLE".to_string());
             }
             _ => {
                 if let Some(limit) = self.config.time_limit {
                     if self.config.io.show_stats && self.counters.time > limit {
-                        println!("c TIME LIMIT EXCEEDED");
+                        let _ = tx.send("c TIME LIMIT EXCEEDED".to_string());
                     }
                 }
-                println!("s UNKNOWN");
+                let _ = tx.send("s UNKNOWN".to_string());
             }
         }
     }

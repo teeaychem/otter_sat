@@ -7,7 +7,7 @@ use xz2::read::XzDecoder;
 use crate::context::builder::{BuildErr, ParseErr};
 use crate::{config::Config, context::Context, types::gen::Report};
 
-pub fn context_from_path(path: PathBuf, config: &Config) -> Result<Context, BuildErr> {
+pub fn context_from_path(path: PathBuf, config: Config) -> Result<Context, BuildErr> {
     let the_path = PathBuf::from(&path);
     let file = match File::open(&the_path) {
         Err(_) => return Err(BuildErr::Parse(ParseErr::NoFile)),
@@ -25,14 +25,14 @@ pub fn context_from_path(path: PathBuf, config: &Config) -> Result<Context, Buil
     }
 }
 
-pub fn formula_report(path: PathBuf, config: &Config) -> Report {
+pub fn formula_report(path: PathBuf, config: Config) -> Report {
     let mut context_from_path = context_from_path(path, config).expect("Context build failure");
 
     assert!(context_from_path.solve().is_ok());
     context_from_path.report()
 }
 
-pub fn default_on_dir(collection: PathBuf, config: &Config, require: Report) -> usize {
+pub fn default_on_dir(collection: PathBuf, config: Config, require: Report) -> usize {
     let dir_info = fs::read_dir(collection);
 
     assert!(dir_info.is_ok(), "Formulas missing");
@@ -45,7 +45,7 @@ pub fn default_on_dir(collection: PathBuf, config: &Config, require: Report) -> 
             .extension()
             .is_some_and(|extension| extension == "xz")
         {
-            let report = formula_report(test.path(), config);
+            let report = formula_report(test.path(), config.clone());
             assert_eq!(require, report);
             count += 1;
         }
@@ -53,7 +53,7 @@ pub fn default_on_dir(collection: PathBuf, config: &Config, require: Report) -> 
     count
 }
 
-pub fn default_on_split_dir(collection: PathBuf, config: &Config) {
-    default_on_dir(collection.join("sat"), config, Report::Satisfiable);
+pub fn default_on_split_dir(collection: PathBuf, config: Config) {
+    default_on_dir(collection.join("sat"), config.clone(), Report::Satisfiable);
     default_on_dir(collection.join("unsat"), config, Report::Unsatisfiable);
 }
