@@ -188,14 +188,18 @@ impl ClauseStore {
                 match source {
                     ClauseSource::Formula => {
                         self.sender
-                            .send(Dispatch::ClauseStore(delta::ClauseStore::BinaryFormula(
+                            .send(Dispatch::ClauseDB(delta::ClauseStore::BinaryFormula(
                                 the_key,
                                 clause.clone(),
                             )))
                     }
-                    ClauseSource::Resolution => self.sender.send(Dispatch::ClauseStore(
-                        delta::ClauseStore::BinaryResolution(the_key, clause.clone()),
-                    )),
+                    ClauseSource::Resolution => {
+                        self.sender
+                            .send(Dispatch::ClauseDB(delta::ClauseStore::BinaryResolution(
+                                the_key,
+                                clause.clone(),
+                            )))
+                    }
                 };
 
                 self.binary
@@ -208,7 +212,7 @@ impl ClauseStore {
                     let the_key = self.new_formula_id()?;
 
                     self.sender
-                        .send(Dispatch::ClauseStore(delta::ClauseStore::Formula(
+                        .send(Dispatch::ClauseDB(delta::ClauseStore::Formula(
                             the_key,
                             clause.clone(),
                         )));
@@ -227,7 +231,7 @@ impl ClauseStore {
                     };
 
                     self.sender
-                        .send(Dispatch::ClauseStore(delta::ClauseStore::Learned(
+                        .send(Dispatch::ClauseDB(delta::ClauseStore::Learned(
                             the_key,
                             clause.clone(),
                         )));
@@ -306,7 +310,7 @@ impl ClauseStore {
                 let binary_key = self.new_binary_id()?;
 
                 // TODO: May need to note the original formula
-                self.sender.send(Dispatch::ClauseStore(
+                self.sender.send(Dispatch::ClauseDB(
                     dispatch::delta::ClauseStore::TransferFormula(formula_key, binary_key),
                 ));
 
@@ -330,7 +334,7 @@ impl ClauseStore {
 
                 let binary_key = self.new_binary_id()?;
 
-                self.sender.send(Dispatch::ClauseStore(
+                self.sender.send(Dispatch::ClauseDB(
                     dispatch::delta::ClauseStore::TransferLearned(the_clause.key(), binary_key),
                 ));
 
@@ -425,9 +429,10 @@ impl ClauseStore {
             let the_clause =
                 std::mem::take(unsafe { self.learned.get_unchecked_mut(index) }).unwrap();
 
-            self.sender.send(Dispatch::ClauseStore(
-                dispatch::delta::ClauseStore::Deletion(the_clause.key()),
-            ));
+            self.sender
+                .send(Dispatch::ClauseDB(dispatch::delta::ClauseStore::Deletion(
+                    the_clause.key(),
+                )));
 
             self.learned_activity.remove(index);
             self.keys.push(the_clause.key());

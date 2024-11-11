@@ -1,5 +1,7 @@
 use std::borrow::Borrow;
 
+use crossbeam::channel::Sender;
+
 use crate::{
     config::{
         defaults::{self},
@@ -9,6 +11,10 @@ use crate::{
         core::ContextFailure,
         stores::{ClauseKey, LevelIndex},
         Context,
+    },
+    dispatch::{
+        delta::{self},
+        Dispatch,
     },
     generic::heap::IndexHeap,
     structures::{
@@ -25,20 +31,21 @@ pub struct VariableStore {
     consequence_q: std::collections::VecDeque<(Literal, LevelIndex)>,
     string_map: std::collections::HashMap<String, VariableId>,
     activity_heap: IndexHeap<VariableActivity>,
+    tx: Sender<Dispatch>,
 }
 
-impl Default for VariableStore {
-    fn default() -> Self {
-        VariableStore {
-            external_map: Vec::<String>::default(),
-            score_increment: 1.0,
-            variables: Vec::default(),
-            consequence_q: std::collections::VecDeque::default(),
-            string_map: std::collections::HashMap::default(),
-            activity_heap: IndexHeap::default(),
-        }
-    }
-}
+// impl Default for VariableStore {
+//     fn default() -> Self {
+//         VariableStore {
+//             external_map: Vec::<String>::default(),
+//             score_increment: 1.0,
+//             variables: Vec::default(),
+//             consequence_q: std::collections::VecDeque::default(),
+//             string_map: std::collections::HashMap::default(),
+//             activity_heap: IndexHeap::default(),
+//         }
+//     }
+// }
 
 impl std::ops::Deref for VariableStore {
     type Target = [Variable];
@@ -51,6 +58,20 @@ impl std::ops::Deref for VariableStore {
 impl std::ops::DerefMut for VariableStore {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.variables
+    }
+}
+
+impl VariableStore {
+    pub fn new(tx: Sender<Dispatch>) -> Self {
+        VariableStore {
+            external_map: Vec::<String>::default(),
+            score_increment: 1.0,
+            variables: Vec::default(),
+            consequence_q: std::collections::VecDeque::default(),
+            string_map: std::collections::HashMap::default(),
+            activity_heap: IndexHeap::default(),
+            tx,
+        }
     }
 }
 
@@ -88,13 +109,14 @@ impl VariableStore {
     }
 
     pub fn add_variable(&mut self, name: &str, variable: Variable, config: &Config) {
+        let delta = delta::Variable::Internalised(name.to_string(), variable.id());
+        self.tx.send(Dispatch::VariableDB(delta));
+
         self.string_map.insert(name.to_string(), variable.id());
         self.activity_heap
             .insert(variable.index(), VariableActivity::default());
         self.variables.push(variable);
         self.external_map.push(name.to_string());
-
-        // self.consequence_buffer;
     }
 
     pub fn get_consequence(&mut self) -> Option<(Literal, LevelIndex)> {

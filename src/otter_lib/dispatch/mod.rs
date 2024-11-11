@@ -4,10 +4,11 @@ use crate::context::stores::ClauseKey;
 
 pub enum Dispatch {
     // δ
-    ClauseStore(delta::ClauseStore),
+    ClauseDB(delta::ClauseStore),
     Level(delta::Level),
     Parser(delta::Parser),
     Resolution(delta::Resolution),
+    VariableDB(delta::Variable),
     // misc
     SolveComment(SolveComment),
     SolveReport(SolveReport),
@@ -65,6 +66,10 @@ impl std::fmt::Display for delta::Parser {
 
 pub mod delta {
     use super::*;
+
+    pub enum Variable {
+        Internalised(String, u32),
+    }
 
     pub enum ClauseBuider {
         Start,
