@@ -2,15 +2,15 @@ use std::ops::Deref;
 
 use crate::{
     context::{stores::ClauseKey, Context},
+    dispatch::SolveReport,
     structures::{
         clause::Clause,
         literal::{LiteralSource, LiteralTrait},
     },
     types::errs::ReportError,
-    FRAT::FRATStep,
 };
 
-use super::{delta::SolveReport, SolveStatus};
+use super::SolveStatus;
 
 impl Context {
     pub fn report(&self) -> SolveReport {

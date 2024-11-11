@@ -1,7 +1,6 @@
 mod analysis;
 pub mod builder;
 pub mod core;
-pub mod delta;
 mod preprocessing;
 pub mod reports;
 mod resolution_buffer;
@@ -9,7 +8,7 @@ pub mod solve;
 pub mod stores;
 pub mod unique_id;
 
-use crate::{types::gen::SolveStatus, FRAT::FRATProof};
+use crate::{dispatch::Dispatch, types::gen::SolveStatus};
 
 use {
     crate::{
@@ -20,14 +19,12 @@ use {
         },
         io::window::ContextWindow,
     },
-    delta::Dispatch,
     stores::{clause::ClauseStore, variable::VariableStore},
 };
 
 use crossbeam::channel::Sender;
 use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128Plus};
 use stores::level::LevelStore;
-use unique_id::UniqueIdentifier;
 
 // pub type RngChoice = rand::rngs::mock::StepRng;
 pub type RngChoice = Xoroshiro128Plus;
@@ -60,11 +57,6 @@ impl Default for Counters {
     }
 }
 
-pub struct Traces {
-    // TODO: Provide functions for serealising
-    frat: FRATProof,
-}
-
 pub struct Context {
     counters: Counters,
     pub levels: LevelStore,
@@ -74,7 +66,6 @@ pub struct Context {
     window: Option<ContextWindow>,
     pub status: SolveStatus,
 
-    pub traces: Traces,
     pub sender: Sender<Dispatch>, //
 }
 
@@ -108,9 +99,6 @@ impl Context {
             config,
             window: the_window,
             status: SolveStatus::Initialised,
-            traces: Traces {
-                frat: FRATProof::new(),
-            },
             sender,
         }
     }
@@ -127,9 +115,6 @@ impl Default for Context {
             config: Config::default(),
             window: None,
             status: SolveStatus::Initialised,
-            traces: Traces {
-                frat: FRATProof::new(),
-            },
             sender,
         }
     }

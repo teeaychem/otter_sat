@@ -3,6 +3,11 @@ use crossbeam::channel::Sender;
 use crate::{
     config::Config,
     context::{stores::variable::QStatus, Context},
+    dispatch::{
+        self,
+        delta::{self},
+        Dispatch,
+    },
     structures::{
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::{list::VariableList, Variable, VariableId},
@@ -18,8 +23,6 @@ use std::{
     io::BufRead,
     path::{Path, PathBuf},
 };
-
-use super::delta::Dispatch;
 
 #[derive(Debug)]
 pub enum BuildErr {
@@ -205,7 +208,7 @@ impl Context {
         sender: Sender<Dispatch>,
     ) -> Result<Self, BuildErr> {
         let formula_string = file_path.to_str().unwrap().to_owned();
-        sender.send(Dispatch::Parser(Parser::Processing(formula_string)));
+        sender.send(Dispatch::Parser(delta::Parser::Processing(formula_string)));
 
         let mut buffer = String::with_capacity(1024);
         let mut clause_buffer: Vec<Literal> = Vec::new();
@@ -249,7 +252,7 @@ impl Context {
 
                     buffer.clear();
 
-                    sender.send(Dispatch::Parser(Parser::Expectation(
+                    sender.send(Dispatch::Parser(delta::Parser::Expectation(
                         variable_count,
                         clause_count,
                     )));
@@ -309,16 +312,17 @@ impl Context {
             buffer.clear();
         }
 
-        use crate::context::delta::Parser;
         if config_detail > 0 {
-            the_context.sender.send(Dispatch::Parser(Parser::Complete(
-                the_context.variable_count(),
-                clause_counter,
-            )));
+            the_context
+                .sender
+                .send(dispatch::Dispatch::Parser(delta::Parser::Complete(
+                    the_context.variable_count(),
+                    clause_counter,
+                )));
             if config_detail > 1 {
                 the_context
                     .sender
-                    .send(Dispatch::Parser(Parser::ContextClauses(
+                    .send(Dispatch::Parser(delta::Parser::ContextClauses(
                         the_context.clause_count(),
                     )));
             }

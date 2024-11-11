@@ -6,7 +6,7 @@ use crossbeam::channel::Sender;
 use xz2::read::XzDecoder;
 
 use crate::context::builder::{BuildErr, ParseErr};
-use crate::context::delta::{Dispatch, SolveReport};
+use crate::dispatch::{Dispatch, SolveReport};
 use crate::{config::Config, context::Context};
 
 pub fn context_from_path(

@@ -5,20 +5,18 @@ use crossbeam::channel::Sender;
 use crate::{
     config::{Config, StoppingCriteria},
     context::stores::{clause::ClauseStore, variable::VariableStore, ClauseKey},
+    dispatch::{
+        delta::{self},
+        Dispatch,
+    },
     structures::{
         clause::stored::StoredClause,
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::{list::VariableList, VariableId},
     },
-    FRAT::FRATStep,
 };
 
-use super::{
-    delta::{Dispatch, ResolutionDelta},
-    stores::level::LevelStore,
-    unique_id::{UniqueId, UniqueIdentifier},
-    Traces,
-};
+use super::stores::level::LevelStore;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum ResolutionCell {
@@ -37,6 +35,7 @@ pub struct ResolutionBuffer {
     buffer: Vec<ResolutionCell>,
     trail: Vec<ClauseKey>,
     used_variables: Vec<bool>,
+    tx: Sender<Dispatch>,
 }
 
 #[derive(Debug)]
@@ -73,7 +72,7 @@ impl ResolutionBuffer {
             .for_each(|index| *index = false);
     }
 
-    pub fn from_variable_store(variables: &impl VariableList) -> Self {
+    pub fn from_variable_store(variables: &impl VariableList, tx: Sender<Dispatch>) -> Self {
         ResolutionBuffer {
             valueless_count: 0,
             clause_length: 0,
@@ -85,6 +84,7 @@ impl ResolutionBuffer {
                 .collect(),
             trail: vec![],
             used_variables: vec![false; variables.slice().len()],
+            tx,
         }
     }
 
@@ -136,7 +136,6 @@ impl ResolutionBuffer {
         stored_clauses: &mut ClauseStore,
         variables: &mut VariableStore,
         config: &Config,
-        sender: &Sender<Dispatch>,
     ) -> Result<BufOk, BufErr> {
         self.merge_clause(stored_clauses.get(conflict).expect("missing clause"));
 
@@ -144,9 +143,11 @@ impl ResolutionBuffer {
         if let Some(asserted_literal) = self.asserts() {
             return Ok(BufOk::Missed(conflict, asserted_literal));
         };
-        sender.send(Dispatch::Resolution(ResolutionDelta::Start));
+        let _ = self.tx.send(Dispatch::Resolution(delta::Resolution::Start));
         self.trail.push(conflict);
-        sender.send(Dispatch::Resolution(ResolutionDelta::Used(conflict)));
+        let _ = self
+            .tx
+            .send(Dispatch::Resolution(delta::Resolution::Used(conflict)));
 
         for (source, literal) in levels.current_consequences().iter().rev() {
             if let LiteralSource::Analysis(the_key)
@@ -183,13 +184,15 @@ impl ResolutionBuffer {
                         match self.clause_length {
                             0 => {}
                             1 => {
-                                sender.send(Dispatch::Resolution(ResolutionDelta::Finish));
+                                self.tx
+                                    .send(Dispatch::Resolution(delta::Resolution::Finish));
                                 return Ok(BufOk::Proof);
                             }
                             2 => match the_key {
                                 ClauseKey::Binary(_) => {}
                                 ClauseKey::Formula(_) => {
-                                    sender.send(Dispatch::Resolution(ResolutionDelta::Finish));
+                                    self.tx
+                                        .send(Dispatch::Resolution(delta::Resolution::Finish));
                                     let Ok(_) = source_clause.subsume(literal, variables, false)
                                     else {
                                         return Err(BufErr::Subsumption);
@@ -202,12 +205,14 @@ impl ResolutionBuffer {
                                     };
                                     self.trail.push(new_key);
 
-                                    sender.send(Dispatch::Resolution(ResolutionDelta::Start));
-                                    sender
-                                        .send(Dispatch::Resolution(ResolutionDelta::Used(new_key)));
+                                    self.tx.send(Dispatch::Resolution(delta::Resolution::Start));
+                                    self.tx.send(Dispatch::Resolution(delta::Resolution::Used(
+                                        new_key,
+                                    )));
                                 }
                                 ClauseKey::Learned(_, _) => {
-                                    sender.send(Dispatch::Resolution(ResolutionDelta::Finish));
+                                    self.tx
+                                        .send(Dispatch::Resolution(delta::Resolution::Finish));
                                     let Ok(_) = source_clause.subsume(literal, variables, false)
                                     else {
                                         return Err(BufErr::Subsumption);
@@ -220,8 +225,8 @@ impl ResolutionBuffer {
                                     };
                                     self.trail.push(new_key);
 
-                                    sender.send(Dispatch::Resolution(ResolutionDelta::Start));
-                                    sender.send(Dispatch::Resolution(ResolutionDelta::Used(
+                                    self.tx.send(Dispatch::Resolution(delta::Resolution::Start));
+                                    self.tx.send(Dispatch::Resolution(delta::Resolution::Used(
                                         conflict,
                                     )));
                                 }
@@ -231,12 +236,13 @@ impl ResolutionBuffer {
                                     return Err(BufErr::Subsumption);
                                 };
                                 self.trail.push(*the_key);
-                                sender.send(Dispatch::Resolution(ResolutionDelta::Used(*the_key)));
+                                self.tx
+                                    .send(Dispatch::Resolution(delta::Resolution::Used(*the_key)));
                             }
                         }
                     } else {
                         self.trail.push(source_clause.key());
-                        sender.send(Dispatch::Resolution(ResolutionDelta::Used(
+                        self.tx.send(Dispatch::Resolution(delta::Resolution::Used(
                             source_clause.key(),
                         )));
                     }
@@ -244,7 +250,8 @@ impl ResolutionBuffer {
                     if self.valueless_count == 1 {
                         match config.stopping_criteria {
                             StoppingCriteria::FirstUIP => {
-                                sender.send(Dispatch::Resolution(ResolutionDelta::Finish));
+                                self.tx
+                                    .send(Dispatch::Resolution(delta::Resolution::Finish));
                                 return Ok(BufOk::FirstUIP);
                             }
                             StoppingCriteria::None => {}
@@ -253,7 +260,8 @@ impl ResolutionBuffer {
                 }
             }
         }
-        sender.send(Dispatch::Resolution(ResolutionDelta::Finish));
+        self.tx
+            .send(Dispatch::Resolution(delta::Resolution::Finish));
         Ok(BufOk::Exhausted)
     }
 

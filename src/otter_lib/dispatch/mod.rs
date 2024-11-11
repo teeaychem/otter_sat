@@ -1,22 +1,16 @@
 use crate::structures::literal::Literal;
 
-use super::stores::ClauseKey;
+use crate::context::stores::ClauseKey;
 
 pub enum Dispatch {
-    ClauseDelta(ClauseBuider),
-    ClauseStore(ClauseStoreDelta),
+    // δ
+    ClauseStore(delta::ClauseStore),
+    Level(delta::Level),
+    Parser(delta::Parser),
+    Resolution(delta::Resolution),
+    // misc
     SolveComment(SolveComment),
     SolveReport(SolveReport),
-    Parser(Parser),
-    Resolution(ResolutionDelta),
-    Level(LevelDelta),
-}
-
-pub enum ClauseBuider {
-    Start,
-    Index(u32),
-    Literal(Literal),
-    End,
 }
 
 pub enum SolveComment {
@@ -54,14 +48,7 @@ impl std::fmt::Display for SolveReport {
     }
 }
 
-pub enum Parser {
-    Processing(String),
-    Expectation(usize, usize),
-    Complete(usize, usize),
-    ContextClauses(usize),
-}
-
-impl std::fmt::Display for Parser {
+impl std::fmt::Display for delta::Parser {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Processing(formula) => write!(f, "Parsing \"{formula}\""),
@@ -71,29 +58,47 @@ impl std::fmt::Display for Parser {
             Self::Complete(v, c) => {
                 write!(f, "Parsing complete with {v} variables and {c} clauses")
             }
-            Parser::ContextClauses(c) => write!(f, "{c} clauses were added to the context"),
+            delta::Parser::ContextClauses(c) => write!(f, "{c} clauses were added to the context"),
         }
     }
 }
 
-pub enum ClauseStoreDelta {
-    TransferFormula(ClauseKey, ClauseKey),
-    TransferLearned(ClauseKey, ClauseKey),
-    Deletion(ClauseKey),
-    BinaryFormula(ClauseKey, Vec<Literal>),
-    BinaryResolution(ClauseKey, Vec<Literal>),
-    Formula(ClauseKey, Vec<Literal>),
-    Learned(ClauseKey, Vec<Literal>),
-}
+pub mod delta {
+    use super::*;
 
-#[derive(Debug)]
-pub enum LevelDelta {
-    FormulaAssumption(Literal),
-    ResolutionProof(Literal),
-}
+    pub enum ClauseBuider {
+        Start,
+        Index(u32),
+        Literal(Literal),
+        End,
+    }
 
-pub enum ResolutionDelta {
-    Start,
-    Finish,
-    Used(ClauseKey),
+    pub enum ClauseStore {
+        TransferFormula(ClauseKey, ClauseKey),
+        TransferLearned(ClauseKey, ClauseKey),
+        Deletion(ClauseKey),
+        BinaryFormula(ClauseKey, Vec<Literal>),
+        BinaryResolution(ClauseKey, Vec<Literal>),
+        Formula(ClauseKey, Vec<Literal>),
+        Learned(ClauseKey, Vec<Literal>),
+    }
+
+    pub enum Parser {
+        Processing(String),
+        Expectation(usize, usize),
+        Complete(usize, usize),
+        ContextClauses(usize),
+    }
+
+    pub enum Resolution {
+        Start,
+        Finish,
+        Used(ClauseKey),
+    }
+
+    #[derive(Debug)]
+    pub enum Level {
+        FormulaAssumption(Literal),
+        ResolutionProof(Literal),
+    }
 }

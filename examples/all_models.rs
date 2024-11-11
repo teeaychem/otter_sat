@@ -1,7 +1,4 @@
-use otter_lib::{
-    config::Config,
-    context::{delta::SolveReport, Context},
-};
+use otter_lib::{config::Config, context::Context, dispatch::SolveReport};
 
 /*
 A default context is created and some sequences of variables are added.

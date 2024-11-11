@@ -1,7 +1,6 @@
-use otter_lib::{config::Config, context::Context};
+use otter_lib::{config::Config, context::Context, dispatch::SolveReport};
 
 mod basic {
-    use otter_lib::context::delta::SolveReport;
 
     use super::*;
     #[test]

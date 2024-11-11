@@ -51,7 +51,8 @@ impl Context {
         }
 
         // this could be made persistent, but tying it to the solve may require a cell and lots of unsafe
-        let mut the_buffer = ResolutionBuffer::from_variable_store(&self.variables);
+        let mut the_buffer =
+            ResolutionBuffer::from_variable_store(&self.variables, self.sender.clone());
 
         the_buffer.clear_literal(self.levels.current_choice());
         for (_, lit) in self.levels.current_consequences() {
@@ -64,7 +65,6 @@ impl Context {
             &mut self.clause_store,
             &mut self.variables,
             config,
-            &self.sender,
         ) {
             Ok(BufOk::Proof) => {}
             Ok(BufOk::FirstUIP) => {}

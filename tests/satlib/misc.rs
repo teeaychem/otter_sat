@@ -1,6 +1,6 @@
 use otter_lib::{
     config::Config,
-    context::delta::SolveReport,
+    dispatch::SolveReport,
     io::files::{silent_formula_report, silent_on_directory},
 };
 
@@ -8,9 +8,8 @@ use crate::satlib::*;
 
 mod planning {
 
-    use otter_lib::context::delta::SolveReport;
-
     use super::*;
+
     #[test]
     fn logistics() {
         silent_on_directory(

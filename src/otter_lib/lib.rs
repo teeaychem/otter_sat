@@ -13,3 +13,5 @@ mod generic;
 
 #[allow(non_snake_case)]
 pub mod FRAT;
+
+pub mod dispatch;

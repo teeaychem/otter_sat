@@ -1,5 +1,5 @@
 use super::*;
-use otter_lib::{config::Config, context::delta::SolveReport, io::files::silent_on_directory};
+use otter_lib::{config::Config, dispatch::SolveReport, io::files::silent_on_directory};
 
 mod ThreeSAT {
 

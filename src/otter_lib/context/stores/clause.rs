@@ -4,10 +4,13 @@ use crossbeam::channel::Sender;
 
 use crate::{
     config::{self, ClauseActivity, Config},
-    context::{
-        delta::{self, ClauseStoreDelta, Dispatch},
-        stores::{activity_glue::ActivityGlue, variable::VariableStore, ClauseKey, FormulaIndex},
-        unique_id::{UniqueId, UniqueIdentifier},
+    context::stores::{
+        activity_glue::ActivityGlue, variable::VariableStore, ClauseKey, FormulaIndex,
+    },
+    dispatch::{
+        self,
+        delta::{self},
+        Dispatch,
     },
     generic::heap::IndexHeap,
     structures::{
@@ -18,7 +21,6 @@ use crate::{
         clause::{ClauseSource, WatchElement},
         errs::ClauseStoreErr,
     },
-    FRAT::FRATStep,
 };
 
 pub struct ClauseStore {
@@ -186,18 +188,14 @@ impl ClauseStore {
                 match source {
                     ClauseSource::Formula => {
                         self.sender
-                            .send(Dispatch::ClauseStore(ClauseStoreDelta::BinaryFormula(
+                            .send(Dispatch::ClauseStore(delta::ClauseStore::BinaryFormula(
                                 the_key,
                                 clause.clone(),
                             )))
                     }
-                    ClauseSource::Resolution => {
-                        self.sender
-                            .send(Dispatch::ClauseStore(ClauseStoreDelta::BinaryResolution(
-                                the_key,
-                                clause.clone(),
-                            )))
-                    }
+                    ClauseSource::Resolution => self.sender.send(Dispatch::ClauseStore(
+                        delta::ClauseStore::BinaryResolution(the_key, clause.clone()),
+                    )),
                 };
 
                 self.binary
@@ -210,7 +208,7 @@ impl ClauseStore {
                     let the_key = self.new_formula_id()?;
 
                     self.sender
-                        .send(Dispatch::ClauseStore(ClauseStoreDelta::Formula(
+                        .send(Dispatch::ClauseStore(delta::ClauseStore::Formula(
                             the_key,
                             clause.clone(),
                         )));
@@ -229,7 +227,7 @@ impl ClauseStore {
                     };
 
                     self.sender
-                        .send(Dispatch::ClauseStore(ClauseStoreDelta::Learned(
+                        .send(Dispatch::ClauseStore(delta::ClauseStore::Learned(
                             the_key,
                             clause.clone(),
                         )));
@@ -309,10 +307,7 @@ impl ClauseStore {
 
                 // TODO: May need to note the original formula
                 self.sender.send(Dispatch::ClauseStore(
-                    crate::context::delta::ClauseStoreDelta::TransferFormula(
-                        formula_key,
-                        binary_key,
-                    ),
+                    dispatch::delta::ClauseStore::TransferFormula(formula_key, binary_key),
                 ));
 
                 variables.remove_watch(unsafe { copied_clause.get_unchecked(0) }, key)?;
@@ -336,10 +331,7 @@ impl ClauseStore {
                 let binary_key = self.new_binary_id()?;
 
                 self.sender.send(Dispatch::ClauseStore(
-                    crate::context::delta::ClauseStoreDelta::TransferLearned(
-                        the_clause.key(),
-                        binary_key,
-                    ),
+                    dispatch::delta::ClauseStore::TransferLearned(the_clause.key(), binary_key),
                 ));
 
                 the_clause.replace_key(binary_key);
@@ -433,10 +425,9 @@ impl ClauseStore {
             let the_clause =
                 std::mem::take(unsafe { self.learned.get_unchecked_mut(index) }).unwrap();
 
-            self.sender
-                .send(Dispatch::ClauseStore(delta::ClauseStoreDelta::Deletion(
-                    the_clause.key(),
-                )));
+            self.sender.send(Dispatch::ClauseStore(
+                dispatch::delta::ClauseStore::Deletion(the_clause.key()),
+            ));
 
             self.learned_activity.remove(index);
             self.keys.push(the_clause.key());

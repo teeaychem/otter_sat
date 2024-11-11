@@ -12,21 +12,17 @@ static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
 use otter_lib::{
     config::Config,
-    context::{
-        builder::BuildErr,
-        delta::{self, ClauseStoreDelta, Dispatch, ResolutionDelta, SolveReport},
-        stores::ClauseKey,
+    context::builder::BuildErr,
+    dispatch::{
+        delta::{self},
+        Dispatch, SolveReport,
     },
     io::{cli::cli, files::context_from_path},
-    structures::literal::{Literal, LiteralTrait},
     types::{errs::ClauseStoreErr, gen::SolveStatus},
     FRAT,
 };
 
-use std::{
-    io::Write,
-    path::{Path, PathBuf},
-};
+use std::path::PathBuf;
 
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::thread;
@@ -51,7 +47,7 @@ fn main() {
 
     let (tx, rx) = unbounded::<Dispatch>();
 
-    thread::spawn(|| listener(rx, frat_path));
+    let listener_handle = thread::spawn(|| listener(rx, frat_path));
 
     let formula_count = formula_paths.len();
 
@@ -79,8 +75,10 @@ fn main() {
             last_report.expect("bo")
         }
     };
-    // drop(tx);
-    loop {}
+
+    drop(tx);
+    println!("c Finalising FRAT proof…");
+    let _ = listener_handle.join();
 
     match formula_count {
         0 => panic!("o_x"),
@@ -108,7 +106,7 @@ fn paths(args: &ArgMatches) -> Vec<PathBuf> {
     formula_paths
 }
 
-fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>) {
+fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>) -> Result<(), ()> {
     let mut frat_transcriber = FRAT::Transcriber::new(frat_path.unwrap());
     let mut resolution_buffer = Vec::default();
 
@@ -118,11 +116,11 @@ fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>) {
             Dispatch::SolveReport(report) => println!("s {}", report.to_string().to_uppercase()),
 
             Dispatch::Resolution(r_delta) => match r_delta {
-                ResolutionDelta::Start => {
+                delta::Resolution::Start => {
                     assert!(resolution_buffer.is_empty())
                 }
-                ResolutionDelta::Used(k) => resolution_buffer.push(k),
-                ResolutionDelta::Finish => {
+                delta::Resolution::Used(k) => resolution_buffer.push(k),
+                delta::Resolution::Finish => {
                     frat_transcriber.take_resolution(std::mem::take(&mut resolution_buffer))
                 }
             },
@@ -134,26 +132,20 @@ fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>) {
                 frat_transcriber.transcripe(dispatch);
             }
         }
-        frat_transcriber.flush()
+        frat_transcriber.flush();
     }
 
-    println!("rbc {}", frat_transcriber.resolution_buffer.len());
+    println!("c FRAT proof finalised");
     assert!(frat_transcriber.resolution_buffer.is_empty());
+    Ok(())
 }
-
-/*
-Temp place for FRAT things
-Need to map internal to external
- */
-
-mod frat {}
 
 // TODO: unify the exceptions…
 fn report_on_formula(path: PathBuf, tx: Sender<Dispatch>, config: Config) -> SolveReport {
     let config_io_detail = config.io.detail;
     // let config_io_frat_path = config.io.frat_path.clone();
 
-    use otter_lib::context::delta::SolveComment;
+    use otter_lib::dispatch::SolveComment;
     let (the_context, mut the_report) = match context_from_path(path, config.clone(), tx.clone()) {
         Ok(context) => (Some(context), None),
         Err(BuildErr::ClauseStore(ClauseStoreErr::EmptyClause)) => {
@@ -163,7 +155,7 @@ fn report_on_formula(path: PathBuf, tx: Sender<Dispatch>, config: Config) -> Sol
             (None, Some(SolveStatus::NoSolution))
         }
         Err(e) => {
-            println!("c Unexpected error when building: {e:?}");
+            println!("c Error when building: {e:?}");
             std::process::exit(2);
         }
     };

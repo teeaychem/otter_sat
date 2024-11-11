@@ -1,22 +1,18 @@
 use std::borrow::Borrow;
 
-use crossbeam::channel::Sender;
-
 use crate::{
     context::{stores::ClauseKey, Context, SolveStatus},
+    dispatch::{
+        self,
+        delta::{self},
+        Dispatch,
+    },
     structures::{
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::list::VariableList,
     },
     types::{clause::ClauseSource, errs::ClauseStoreErr},
-    FRAT::FRATStep,
 };
-
-use super::{
-    delta::{Dispatch, LevelDelta},
-    unique_id::UniqueIdentifier,
-};
-use crate::context::unique_id::UniqueId;
 
 #[derive(Debug, Clone, Copy)]
 pub enum StepInfo {
@@ -71,14 +67,13 @@ impl Context {
         match source {
             // … resolution instances which led to a unit asserting clause
             LiteralSource::Resolution(_) => {
-                println!("xxx");
                 self.sender
-                    .send(Dispatch::Level(LevelDelta::ResolutionProof(canonical)));
+                    .send(Dispatch::Level(delta::Level::ResolutionProof(canonical)));
             }
             // … unit clauses of the original formula reinterpreted as assumptions
             LiteralSource::Assumption => {
                 self.sender
-                    .send(Dispatch::Level(LevelDelta::FormulaAssumption(canonical)));
+                    .send(Dispatch::Level(delta::Level::FormulaAssumption(canonical)));
             }
             // … and nothing else
             _ => {}
@@ -93,35 +88,34 @@ impl Context {
             }
         }
 
-        use crate::context::delta::SolveReport;
         match self.status {
             SolveStatus::FullValuation => {
                 let _ = self
                     .sender
-                    .send(Dispatch::SolveReport(SolveReport::Satisfiable));
+                    .send(Dispatch::SolveReport(dispatch::SolveReport::Satisfiable));
             }
             SolveStatus::NoSolution => {
                 let _ = self
                     .sender
-                    .send(Dispatch::SolveReport(SolveReport::Unsatisfiable));
+                    .send(Dispatch::SolveReport(dispatch::SolveReport::Unsatisfiable));
                 if self.config.io.show_core {
                     // let _ = self.display_core(clause_key);
                 }
             }
             SolveStatus::NoClauses => {
                 if self.config.io.detail > 0 {
-                    let _ = self.sender.send(Dispatch::SolveComment(
-                        crate::context::delta::SolveComment::NoClauses,
-                    ));
+                    let _ = self
+                        .sender
+                        .send(Dispatch::SolveComment(dispatch::SolveComment::NoClauses));
                 }
                 let _ = self
                     .sender
-                    .send(Dispatch::SolveReport(SolveReport::Satisfiable));
+                    .send(Dispatch::SolveReport(dispatch::SolveReport::Satisfiable));
             }
             _ => {
                 let _ = self
                     .sender
-                    .send(Dispatch::SolveReport(SolveReport::Unknown));
+                    .send(Dispatch::SolveReport(dispatch::SolveReport::Unknown));
             }
         }
     }

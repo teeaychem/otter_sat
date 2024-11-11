@@ -1,6 +1,6 @@
 use otter_lib::{
     config::Config,
-    context::delta::SolveReport,
+    dispatch::SolveReport,
     io::files::{silent_formula_report, silent_on_directory},
 };
 

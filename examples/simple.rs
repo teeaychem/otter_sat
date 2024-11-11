@@ -1,7 +1,4 @@
-use otter_lib::{
-    config::Config,
-    context::{delta::SolveReport, Context},
-};
+use otter_lib::{config::Config, context::Context, dispatch::SolveReport};
 
 fn value_of(variable: &str, context: &Context) -> Option<bool> {
     let mut the_value = None;
@@ -23,7 +20,7 @@ fn main() {
         ..Default::default()
     };
 
-    let (tx, rx) = crossbeam::channel::unbounded();
+    let (tx, _rx) = crossbeam::channel::unbounded();
     let mut the_context: Context = Context::from_config(config, tx);
 
     let not_p_or_q = "-p q";
