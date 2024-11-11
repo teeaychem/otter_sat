@@ -1,5 +1,6 @@
 use std::ops::Deref;
 
+use log::log;
 use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
@@ -10,7 +11,13 @@ use crate::{
         stores::LevelIndex,
         Context, SolveStatus,
     },
-    dispatch::{self, SolveReport},
+    dispatch::{
+        self,
+        comment::{self},
+        delta,
+        report::{self},
+        Dispatch,
+    },
     structures::{
         clause::Clause,
         literal::{Literal, LiteralSource, LiteralTrait},
@@ -22,7 +29,7 @@ use crate::{
 use super::stores::variable::QStatus;
 
 impl Context {
-    pub fn solve(&mut self) -> Result<SolveReport, ContextFailure> {
+    pub fn solve(&mut self) -> Result<report::Solve, ContextFailure> {
         let this_total_time = std::time::Instant::now();
 
         match self.preprocess() {
@@ -42,9 +49,8 @@ impl Context {
         'solve_loop: loop {
             self.counters.time = this_total_time.elapsed();
             if time_limit.is_some_and(|limit| self.counters.time > limit) {
-                self.sender.send(dispatch::Dispatch::SolveComment(
-                    dispatch::SolveComment::TimeUp,
-                ));
+                let comment = comment::Solve::TimeUp;
+                self.tx.send(Dispatch::SolveComment(comment));
                 return Ok(self.report());
             }
 
@@ -64,11 +70,22 @@ impl Context {
 
     pub fn step(&mut self, config: &Config) -> Result<StepInfo, errs::Step> {
         self.counters.iterations += 1;
+        log::trace!("Step {}", self.counters.iterations);
 
         'search: while let Some((literal, _)) = self.variables.get_consequence() {
             match self.BCP(literal) {
                 Ok(()) => {}
                 Err(BCPErr::Conflict(key)) => {
+                    //
+                    if !self.levels.decision_made() {
+                        self.status = SolveStatus::NoSolution;
+
+                        let report = delta::Variable::Falsum(literal);
+                        self.tx.send(Dispatch::VariableDB(report));
+
+                        return Ok(StepInfo::Conflict);
+                    }
+
                     let Ok(analysis_result) = self.conflict_analysis(key, config) else {
                         log::error!(target: crate::log::targets::STEP, "Conflict analysis failed.");
                         return Err(errs::Step::AnalysisFailure);
@@ -76,14 +93,9 @@ impl Context {
 
                     match analysis_result {
                         AnalysisResult::FundamentalConflict => {
+                            panic!("Impossible");
+                            // Analysis is only called when some decision has been made, for now
                             self.status = SolveStatus::NoSolution;
-
-                            return Ok(StepInfo::Conflict);
-                        }
-
-                        AnalysisResult::QueueConflict => {
-                            self.status = SolveStatus::NoSolution;
-
                             return Ok(StepInfo::Conflict);
                         }
 
@@ -210,6 +222,7 @@ impl Context {
                         }
                     }
                 };
+                log::trace!("Choice {choice_literal}");
                 self.levels.make_choice(choice_literal);
                 let Ok(QStatus::Qd) = self.q_literal(choice_literal) else {
                     return Err(errs::Step::ChoiceFailure);

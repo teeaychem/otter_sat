@@ -5,6 +5,10 @@ use crate::{
         stores::ClauseKey,
         Context,
     },
+    dispatch::{
+        report::{self},
+        Dispatch,
+    },
     structures::{
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::list::VariableList,
@@ -21,7 +25,6 @@ pub enum AnalysisResult {
     MissedImplication(ClauseKey, Literal),
     Proof(ClauseKey, Literal),
     FundamentalConflict,
-    QueueConflict,
     AssertingClause(ClauseKey, Literal),
 }
 
@@ -34,10 +37,8 @@ impl Context {
         clause_key: ClauseKey,
         config: &Config,
     ) -> Result<AnalysisResult, errs::Analysis> {
-        log::trace!(target: LOG_ANALYSIS, "Analysis of {clause_key} at level {}", self.levels.decision_made());
-        if !self.levels.decision_made() {
-            return Ok(AnalysisResult::FundamentalConflict);
-        }
+        log::trace!(target: LOG_ANALYSIS, "Analysis of {clause_key} at level {}", self.levels.decision_count());
+        let the_clause = self.clause_store.get(clause_key);
 
         log::trace!(target: LOG_ANALYSIS, "Clause {clause_key}");
 
@@ -55,7 +56,7 @@ impl Context {
 
         // this could be made persistent, but tying it to the solve may require a cell and lots of unsafe
         let mut the_buffer =
-            ResolutionBuffer::from_variable_store(&self.variables, self.sender.clone());
+            ResolutionBuffer::from_variable_store(&self.variables, self.tx.clone());
 
         the_buffer.clear_literal(self.levels.current_choice());
         for (_, lit) in self.levels.current_consequences() {

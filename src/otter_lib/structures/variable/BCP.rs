@@ -58,7 +58,7 @@ impl Context {
                         }
                     },
                     Some(value) if check.polarity() != value => {
-                        log::trace!(target: LOG_PROPAGATION, "Inspecting consequence of {clause_key} {literal} failed.");
+                        log::trace!(target: LOG_PROPAGATION, "Consequence of {clause_key} and {literal} is contradiction.");
                         return Err(BCPErr::Conflict(*clause_key));
                     }
                     Some(_) => {

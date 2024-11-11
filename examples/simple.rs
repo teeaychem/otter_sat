@@ -1,4 +1,8 @@
-use otter_lib::{config::Config, context::Context, dispatch::SolveReport};
+use otter_lib::{
+    config::Config,
+    context::Context,
+    dispatch::report::{self},
+};
 
 fn value_of(variable: &str, context: &Context) -> Option<bool> {
     let mut the_value = None;
@@ -104,7 +108,7 @@ The valuation is now:
     );
 
     assert_eq!(value_of("q", &the_context), Some(true));
-    assert_eq!(the_context.report(), SolveReport::Satisfiable);
+    assert_eq!(the_context.report(), report::Solve::Satisfiable);
 
     let an_error = the_context.clause_from_string("-p -q");
     assert!(an_error.is_err());
@@ -113,5 +117,5 @@ The valuation is now:
 
     assert!(the_context.solve().is_ok());
 
-    assert_eq!(the_context.report(), SolveReport::Satisfiable);
+    assert_eq!(the_context.report(), report::Solve::Satisfiable);
 }

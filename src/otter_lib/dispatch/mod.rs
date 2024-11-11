@@ -4,24 +4,19 @@ use crate::context::stores::ClauseKey;
 
 pub enum Dispatch {
     // δ
-    ClauseDB(delta::ClauseStore),
+    ClauseDB(delta::ClauseDB),
     Level(delta::Level),
     Parser(delta::Parser),
     Resolution(delta::Resolution),
     VariableDB(delta::Variable),
     // misc
-    SolveComment(SolveComment),
-    SolveReport(SolveReport),
+    SolveComment(comment::Solve),
+    SolveReport(report::Solve),
+    ClauseDBReport(report::ClauseDB),
+    VariableDBReport(report::VariableDB),
 }
 
-pub enum SolveComment {
-    AllTautological,
-    FoundEmptyClause,
-    NoClauses, // "c The formula contains no clause and so is interpreted as ⊤
-    TimeUp,
-}
-
-impl std::fmt::Display for SolveComment {
+impl std::fmt::Display for comment::Solve {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::AllTautological => write!(f, "All clauses of the formula are tautological"),
@@ -32,14 +27,84 @@ impl std::fmt::Display for SolveComment {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum SolveReport {
-    Satisfiable,
-    Unsatisfiable,
-    Unknown,
+pub mod report {
+    use super::*;
+
+    #[derive(PartialEq, Eq, Clone, Copy, Debug)]
+    pub enum Solve {
+        Satisfiable,
+        Unsatisfiable,
+        Unknown,
+    }
+
+    #[derive(PartialEq, Eq, Clone, Debug)]
+    pub enum ClauseDB {
+        Active(ClauseKey, Vec<Literal>),
+    }
+
+    #[derive(PartialEq, Eq, Clone, Debug)]
+    pub enum VariableDB {
+        Active(Literal),
+    }
 }
 
-impl std::fmt::Display for SolveReport {
+pub mod delta {
+    use super::*;
+
+    pub enum Variable {
+        Internalised(String, u32),
+        Falsum(Literal),
+    }
+
+    pub enum ClauseBuider {
+        Start,
+        Index(u32),
+        Literal(Literal),
+        End,
+    }
+
+    pub enum ClauseDB {
+        TransferFormulaBinary(ClauseKey, ClauseKey, Vec<Literal>),
+        TransferLearnedBinary(ClauseKey, ClauseKey, Vec<Literal>),
+        Deletion(ClauseKey),
+        BinaryFormula(ClauseKey, Vec<Literal>),
+        BinaryResolution(ClauseKey, Vec<Literal>),
+        Formula(ClauseKey, Vec<Literal>),
+        Learned(ClauseKey, Vec<Literal>),
+    }
+
+    pub enum Parser {
+        Processing(String),
+        Expected(usize, usize),
+        Complete(usize, usize),
+        ContextClauses(usize),
+    }
+
+    pub enum Resolution {
+        Start,
+        Finish,
+        Used(ClauseKey),
+    }
+
+    #[derive(Debug)]
+    pub enum Level {
+        Assumption(Literal),
+        ResolutionProof(Literal),
+        BCP(Literal),
+        Pure(Literal),
+    }
+}
+
+pub mod comment {
+    pub enum Solve {
+        AllTautological,
+        FoundEmptyClause,
+        NoClauses, // "c The formula contains no clause and so is interpreted as ⊤
+        TimeUp,
+    }
+}
+
+impl std::fmt::Display for report::Solve {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Satisfiable => write!(f, "Satisfiable"),
@@ -53,57 +118,9 @@ impl std::fmt::Display for delta::Parser {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Processing(formula) => write!(f, "Parsing \"{formula}\""),
-            Self::Expectation(v, c) => {
-                write!(f, "Expectation is to get {v} variables and {c} clauses")
-            }
-            Self::Complete(v, c) => {
-                write!(f, "Parsing complete with {v} variables and {c} clauses")
-            }
-            delta::Parser::ContextClauses(c) => write!(f, "{c} clauses were added to the context"),
+            Self::Expected(v, c) => write!(f, "Expected:     {v} variables and {c} clauses"),
+            Self::Complete(v, c) => write!(f, "Parse result: {v} variables and {c} clauses"),
+            Self::ContextClauses(c) => write!(f, "{c} clauses added to the context"),
         }
-    }
-}
-
-pub mod delta {
-    use super::*;
-
-    pub enum Variable {
-        Internalised(String, u32),
-    }
-
-    pub enum ClauseBuider {
-        Start,
-        Index(u32),
-        Literal(Literal),
-        End,
-    }
-
-    pub enum ClauseStore {
-        TransferFormulaBinary(ClauseKey, ClauseKey, Vec<Literal>),
-        TransferLearnedBinary(ClauseKey, ClauseKey, Vec<Literal>),
-        Deletion(ClauseKey),
-        BinaryFormula(ClauseKey, Vec<Literal>),
-        BinaryResolution(ClauseKey, Vec<Literal>),
-        Formula(ClauseKey, Vec<Literal>),
-        Learned(ClauseKey, Vec<Literal>),
-    }
-
-    pub enum Parser {
-        Processing(String),
-        Expectation(usize, usize),
-        Complete(usize, usize),
-        ContextClauses(usize),
-    }
-
-    pub enum Resolution {
-        Start,
-        Finish,
-        Used(ClauseKey),
-    }
-
-    #[derive(Debug)]
-    pub enum Level {
-        FormulaAssumption(Literal),
-        ResolutionProof(Literal),
     }
 }

@@ -3,6 +3,10 @@ use crate::{
         level::{DecisionLevel, KnowledgeLevel, LevelStore},
         LevelIndex,
     },
+    dispatch::{
+        delta::{self},
+        Dispatch,
+    },
     structures::literal::{Literal, LiteralSource},
 };
 
@@ -20,16 +24,30 @@ impl LevelStore {
     pub(crate) fn record_literal(&mut self, literal: Literal, source: LiteralSource) {
         match source {
             LiteralSource::Choice => {}
-            LiteralSource::Assumption => self.knowledge.record_literal(literal),
-            LiteralSource::Pure => self.knowledge.record_literal(literal),
+            LiteralSource::Assumption => {
+                let delta = delta::Level::Assumption(literal);
+                self.tx.send(Dispatch::Level(delta));
+                self.knowledge.record_literal(literal)
+            }
+            LiteralSource::Pure => {
+                let delta = delta::Level::Pure(literal);
+                self.tx.send(Dispatch::Level(delta));
+                self.knowledge.record_literal(literal)
+            }
             LiteralSource::BCP(_) => match self.levels.len() {
-                0 => self.knowledge.record_literal(literal),
+                0 => {
+                    let delta = delta::Level::BCP(literal);
+                    self.tx.send(Dispatch::Level(delta));
+                    self.knowledge.record_literal(literal)
+                }
                 _ => self.top_mut().record_consequence(literal, source),
             },
-            LiteralSource::Resolution(_) => match self.levels.len() {
-                0 => self.knowledge.record_literal(literal),
-                _ => self.top_mut().record_consequence(literal, source),
-            },
+            LiteralSource::Resolution(_) => {
+                // Resoluion implies deduction via (known) clauses
+                let delta = delta::Level::ResolutionProof(literal);
+                self.tx.send(Dispatch::Level(delta));
+                self.knowledge.record_literal(literal)
+            }
             LiteralSource::Analysis(_) => match self.levels.len() {
                 0 => self.knowledge.record_literal(literal),
                 _ => self.top_mut().record_consequence(literal, source),

@@ -4,7 +4,9 @@ use crate::{
     context::{stores::ClauseKey, Context, SolveStatus},
     dispatch::{
         self,
+        comment::{self},
         delta::{self},
+        report::{self},
         Dispatch,
     },
     structures::{
@@ -60,24 +62,8 @@ impl Context {
         resolution_keys: Vec<ClauseKey>,
     ) {
         let canonical = literal.borrow().canonical();
-
+        log::trace!("Noted {}", canonical);
         self.levels.record_literal(canonical, source);
-
-        // Only record…
-        match source {
-            // … resolution instances which led to a unit asserting clause
-            LiteralSource::Resolution(_) => {
-                self.sender
-                    .send(Dispatch::Level(delta::Level::ResolutionProof(canonical)));
-            }
-            // … unit clauses of the original formula reinterpreted as assumptions
-            LiteralSource::Assumption => {
-                self.sender
-                    .send(Dispatch::Level(delta::Level::FormulaAssumption(canonical)));
-            }
-            // … and nothing else
-            _ => {}
-        }
     }
 
     pub fn print_status(&self) {
@@ -91,13 +77,12 @@ impl Context {
         match self.status {
             SolveStatus::FullValuation => {
                 let _ = self
-                    .sender
-                    .send(Dispatch::SolveReport(dispatch::SolveReport::Satisfiable));
+                    .tx
+                    .send(Dispatch::SolveReport(report::Solve::Satisfiable));
             }
             SolveStatus::NoSolution => {
-                let _ = self
-                    .sender
-                    .send(Dispatch::SolveReport(dispatch::SolveReport::Unsatisfiable));
+                let report = report::Solve::Unsatisfiable;
+                let _ = self.tx.send(Dispatch::SolveReport(report));
                 if self.config.io.show_core {
                     // let _ = self.display_core(clause_key);
                 }
@@ -105,17 +90,15 @@ impl Context {
             SolveStatus::NoClauses => {
                 if self.config.io.detail > 0 {
                     let _ = self
-                        .sender
-                        .send(Dispatch::SolveComment(dispatch::SolveComment::NoClauses));
+                        .tx
+                        .send(Dispatch::SolveComment(comment::Solve::NoClauses));
                 }
                 let _ = self
-                    .sender
-                    .send(Dispatch::SolveReport(dispatch::SolveReport::Satisfiable));
+                    .tx
+                    .send(Dispatch::SolveReport(report::Solve::Satisfiable));
             }
             _ => {
-                let _ = self
-                    .sender
-                    .send(Dispatch::SolveReport(dispatch::SolveReport::Unknown));
+                let _ = self.tx.send(Dispatch::SolveReport(report::Solve::Unknown));
             }
         }
     }
@@ -150,5 +133,18 @@ impl Context {
             .map(|v| v.to_string())
             .collect::<Vec<_>>()
             .join(" ")
+    }
+
+    pub fn report_active(&self) {
+        for clause in self.clause_store.all_clauses() {
+            if clause.is_active() {
+                let report = report::ClauseDB::Active(clause.key(), clause.to_vec());
+                self.tx.send(Dispatch::ClauseDBReport(report));
+            }
+        }
+        for literal in self.levels.proven_literals() {
+            let report = report::VariableDB::Active(*literal);
+            self.tx.send(Dispatch::VariableDBReport(report));
+        }
     }
 }

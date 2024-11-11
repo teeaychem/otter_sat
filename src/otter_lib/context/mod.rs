@@ -66,7 +66,7 @@ pub struct Context {
     window: Option<ContextWindow>,
     pub status: SolveStatus,
 
-    pub sender: Sender<Dispatch>, //
+    pub tx: Sender<Dispatch>, //
 }
 
 impl std::fmt::Display for SolveStatus {
@@ -93,13 +93,13 @@ impl Context {
 
         Self {
             counters: Counters::default(),
-            levels: LevelStore::default(),
+            levels: LevelStore::new(sender.clone()),
             clause_store: ClauseDB::default(&sender),
             variables: VariableStore::new(sender.clone()),
             config,
             window: the_window,
             status: SolveStatus::Initialised,
-            sender,
+            tx: sender,
         }
     }
 }
@@ -109,13 +109,13 @@ impl Default for Context {
         let (sender, _) = crossbeam::channel::bounded::<Dispatch>(0);
         Context {
             counters: Counters::default(),
-            levels: LevelStore::default(),
+            levels: LevelStore::new(sender.clone()),
             clause_store: ClauseDB::default(&sender),
             variables: VariableStore::new(sender.clone()),
             config: Config::default(),
             window: None,
             status: SolveStatus::Initialised,
-            sender,
+            tx: sender,
         }
     }
 }

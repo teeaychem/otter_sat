@@ -10,6 +10,7 @@ use crate::{
     dispatch::{
         self,
         delta::{self},
+        report::{self},
         Dispatch,
     },
     generic::heap::IndexHeap,
@@ -103,10 +104,6 @@ impl ClauseDB {
 }
 
 impl ClauseDB {
-    pub fn formula_clauses(&self) -> &[StoredClause] {
-        &self.formula
-    }
-
     pub fn get_carefully(&self, key: ClauseKey) -> Option<&StoredClause> {
         match key {
             ClauseKey::Formula(index) => self.formula.get(index as usize),
@@ -170,7 +167,9 @@ impl ClauseDB {
             },
         }
     }
+}
 
+impl ClauseDB {
     pub fn insert_clause(
         &mut self,
         source: ClauseSource,
@@ -187,13 +186,12 @@ impl ClauseDB {
 
                 match source {
                     ClauseSource::Formula => {
-                        let the_delta = delta::ClauseStore::BinaryFormula(the_key, clause.clone());
-                        self.tx.send(Dispatch::ClauseDB(the_delta))
+                        let delta = delta::ClauseDB::BinaryFormula(the_key, clause.clone());
+                        self.tx.send(Dispatch::ClauseDB(delta))
                     }
                     ClauseSource::Resolution => {
-                        let the_delta =
-                            delta::ClauseStore::BinaryResolution(the_key, clause.clone());
-                        self.tx.send(Dispatch::ClauseDB(the_delta))
+                        let delta = delta::ClauseDB::BinaryResolution(the_key, clause.clone());
+                        self.tx.send(Dispatch::ClauseDB(delta))
                     }
                 };
 
@@ -206,8 +204,8 @@ impl ClauseDB {
                 ClauseSource::Formula => {
                     let the_key = self.new_formula_id()?;
 
-                    let the_delta = delta::ClauseStore::Formula(the_key, clause.clone());
-                    self.tx.send(Dispatch::ClauseDB(the_delta));
+                    let delta = delta::ClauseDB::Formula(the_key, clause.clone());
+                    self.tx.send(Dispatch::ClauseDB(delta));
 
                     self.formula
                         .push(StoredClause::from(the_key, clause, variables));
@@ -222,8 +220,8 @@ impl ClauseDB {
                         _ => self.keys.pop().unwrap().retoken()?,
                     };
 
-                    let the_delta = delta::ClauseStore::Learned(the_key, clause.clone());
-                    self.tx.send(Dispatch::ClauseDB(the_delta));
+                    let delta = delta::ClauseDB::Learned(the_key, clause.clone());
+                    self.tx.send(Dispatch::ClauseDB(delta));
 
                     let the_clause = StoredClause::from(the_key, clause, variables);
 
@@ -247,20 +245,6 @@ impl ClauseDB {
                 }
             },
         }
-    }
-
-    pub fn clause_count(&self) -> usize {
-        (self.counts.formula + self.counts.learned + self.counts.binary) as usize
-    }
-
-    pub fn all_clauses(&self) -> impl Iterator<Item = &StoredClause> + '_ {
-        self.formula.iter().chain(
-            self.binary.iter().chain(
-                self.learned
-                    .iter()
-                    .flat_map(|maybe_clause| maybe_clause.as_ref()),
-            ),
-        )
     }
 
     /*
@@ -300,7 +284,7 @@ impl ClauseDB {
 
                 // TODO: May need to note the original formula
                 self.tx.send(Dispatch::ClauseDB(
-                    dispatch::delta::ClauseStore::TransferFormulaBinary(
+                    dispatch::delta::ClauseDB::TransferFormulaBinary(
                         formula_key,
                         binary_key,
                         copied_clause.clone(),
@@ -328,7 +312,7 @@ impl ClauseDB {
                 let binary_key = self.new_binary_id()?;
 
                 self.tx.send(Dispatch::ClauseDB(
-                    dispatch::delta::ClauseStore::TransferLearnedBinary(
+                    dispatch::delta::ClauseDB::TransferLearnedBinary(
                         the_clause.key(),
                         binary_key,
                         the_clause.to_vec(),
@@ -352,7 +336,9 @@ impl ClauseDB {
             }
         }
     }
+}
 
+impl ClauseDB {
     // TODO: figure some improvement…
     // For example, before dropping a clause the lbd could be recalculated…
     pub fn reduce(&mut self, config: &Config) -> Result<(), errs::ClauseDB> {
@@ -374,31 +360,6 @@ impl ClauseDB {
 
         log::debug!(target: crate::log::targets::REDUCTION, "Learnt clauses reduced to: {}", self.counts.learned);
         Ok(())
-    }
-
-    pub fn bump_activity(&mut self, index: FormulaIndex, config: &Config) {
-        let bump_activity = |s: &ActivityGlue| ActivityGlue {
-            activity: s.activity + config::defaults::CLAUSE_BUMP,
-            lbd: s.lbd,
-        };
-
-        let activity = self.learned_activity.value_at(index as usize).activity;
-        if activity + self.learned_increment > ClauseActivity::MAX {
-            let factor = 1.0 / activity;
-            let decay_activity = |s: &ActivityGlue| ActivityGlue {
-                activity: s.activity * factor,
-                lbd: s.lbd,
-            };
-            self.learned_activity.apply_to_all(decay_activity);
-            self.learned_increment *= factor
-        }
-
-        self.learned_activity
-            .apply_to_index(index as usize, bump_activity);
-
-        let decay = config.clause_decay * 1e-3;
-        let factor = 1.0 / (1.0 - decay);
-        self.learned_increment *= factor
     }
 
     // pub fn source(&self, key: ClauseKey) -> &[ClauseKey] {
@@ -427,7 +388,7 @@ impl ClauseDB {
                 std::mem::take(unsafe { self.learned.get_unchecked_mut(index) }).unwrap();
 
             self.tx
-                .send(Dispatch::ClauseDB(dispatch::delta::ClauseStore::Deletion(
+                .send(Dispatch::ClauseDB(dispatch::delta::ClauseDB::Deletion(
                     the_clause.key(),
                 )));
 
@@ -436,5 +397,50 @@ impl ClauseDB {
             self.counts.learned -= 1;
             Ok(the_clause)
         }
+    }
+}
+
+impl ClauseDB {
+    pub fn bump_activity(&mut self, index: FormulaIndex, config: &Config) {
+        let bump_activity = |s: &ActivityGlue| ActivityGlue {
+            activity: s.activity + config::defaults::CLAUSE_BUMP,
+            lbd: s.lbd,
+        };
+
+        let activity = self.learned_activity.value_at(index as usize).activity;
+        if activity + self.learned_increment > ClauseActivity::MAX {
+            let factor = 1.0 / activity;
+            let decay_activity = |s: &ActivityGlue| ActivityGlue {
+                activity: s.activity * factor,
+                lbd: s.lbd,
+            };
+            self.learned_activity.apply_to_all(decay_activity);
+            self.learned_increment *= factor
+        }
+
+        self.learned_activity
+            .apply_to_index(index as usize, bump_activity);
+
+        let decay = config.clause_decay * 1e-3;
+        let factor = 1.0 / (1.0 - decay);
+        self.learned_increment *= factor
+    }
+
+    pub fn formula_clauses(&self) -> &[StoredClause] {
+        &self.formula
+    }
+
+    pub fn clause_count(&self) -> usize {
+        (self.counts.formula + self.counts.learned + self.counts.binary) as usize
+    }
+
+    pub fn all_clauses(&self) -> impl Iterator<Item = &StoredClause> + '_ {
+        self.formula.iter().chain(
+            self.binary.iter().chain(
+                self.learned
+                    .iter()
+                    .flat_map(|maybe_clause| maybe_clause.as_ref()),
+            ),
+        )
     }
 }

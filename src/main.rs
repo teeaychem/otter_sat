@@ -13,8 +13,10 @@ use otter_lib::{
     config::Config,
     context::builder::BuildErr,
     dispatch::{
+        comment::{self},
         delta::{self},
-        Dispatch, SolveReport,
+        report::{self},
+        Dispatch,
     },
     io::{cli::cli, files::context_from_path},
     types::{
@@ -85,9 +87,9 @@ fn main() {
     match formula_count {
         0 => panic!("o_x"),
         1 => match report {
-            SolveReport::Satisfiable => std::process::exit(10),
-            SolveReport::Unsatisfiable => std::process::exit(20),
-            SolveReport::Unknown => std::process::exit(30),
+            report::Solve::Satisfiable => std::process::exit(10),
+            report::Solve::Unsatisfiable => std::process::exit(20),
+            report::Solve::Unknown => std::process::exit(30),
         },
         _ => std::process::exit(0),
     }
@@ -139,15 +141,14 @@ fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>) -> Result<(), ()
 }
 
 // TODO: unify the exceptions…
-fn report_on_formula(path: PathBuf, tx: Sender<Dispatch>, config: Config) -> SolveReport {
+fn report_on_formula(path: PathBuf, tx: Sender<Dispatch>, config: Config) -> report::Solve {
     let config_io_detail = config.io.detail;
 
-    use otter_lib::dispatch::SolveComment;
     let (the_context, mut the_report) = match context_from_path(path, config.clone(), tx.clone()) {
         Ok(context) => (Some(context), None),
         Err(BuildErr::ClauseStore(errs::ClauseDB::EmptyClause)) => {
             if config_io_detail > 0 {
-                let _ = tx.send(Dispatch::SolveComment(SolveComment::FoundEmptyClause));
+                let _ = tx.send(Dispatch::SolveComment(comment::Solve::FoundEmptyClause));
             }
             (None, Some(SolveStatus::NoSolution))
         }
@@ -160,24 +161,25 @@ fn report_on_formula(path: PathBuf, tx: Sender<Dispatch>, config: Config) -> Sol
     if let Some(mut the_context) = the_context {
         if the_context.clause_count() == 0 {
             if config_io_detail > 0 {
-                let _ = tx.send(Dispatch::SolveComment(SolveComment::NoClauses));
+                let _ = tx.send(Dispatch::SolveComment(comment::Solve::NoClauses));
             }
             the_report = Some(SolveStatus::NoClauses);
         } else {
             match the_context.solve() {
                 Ok(report) => {
+                    the_context.report_active();
                     match report {
-                        SolveReport::Satisfiable => {
+                        report::Solve::Satisfiable => {
                             if config.io.show_valuation {
                                 println!("v {}", the_context.valuation_string());
                             }
                         }
-                        SolveReport::Unsatisfiable => {
+                        report::Solve::Unsatisfiable => {
                             if config.io.show_core {
                                 // let _ = self.display_core(clause_key);
                             }
                         }
-                        SolveReport::Unknown => {}
+                        report::Solve::Unknown => {}
                     }
 
                     the_report = Some(the_context.status)
@@ -193,8 +195,8 @@ fn report_on_formula(path: PathBuf, tx: Sender<Dispatch>, config: Config) -> Sol
     let the_status = the_report.expect("no status");
 
     match the_status {
-        SolveStatus::FullValuation | SolveStatus::NoClauses => SolveReport::Satisfiable,
-        SolveStatus::NoSolution => SolveReport::Unsatisfiable,
-        _ => SolveReport::Unknown,
+        SolveStatus::FullValuation | SolveStatus::NoClauses => report::Solve::Satisfiable,
+        SolveStatus::NoSolution => report::Solve::Unsatisfiable,
+        _ => report::Solve::Unknown,
     }
 }

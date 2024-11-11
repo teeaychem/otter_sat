@@ -258,7 +258,7 @@ impl Context {
 
                     buffer.clear();
 
-                    sender.send(Dispatch::Parser(delta::Parser::Expectation(
+                    sender.send(Dispatch::Parser(delta::Parser::Expected(
                         variable_count,
                         clause_count,
                     )));
@@ -320,14 +320,14 @@ impl Context {
 
         if config_detail > 0 {
             the_context
-                .sender
+                .tx
                 .send(dispatch::Dispatch::Parser(delta::Parser::Complete(
                     the_context.variable_count(),
                     clause_counter,
                 )));
             if config_detail > 1 {
                 the_context
-                    .sender
+                    .tx
                     .send(Dispatch::Parser(delta::Parser::ContextClauses(
                         the_context.clause_count(),
                     )));

@@ -40,6 +40,10 @@ impl StoredClause {
         self.key = key
     }
 
+    pub fn is_active(&self) -> bool {
+        self.active
+    }
+
     pub fn activate(&mut self) {
         self.active = true
     }

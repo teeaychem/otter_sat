@@ -8,7 +8,7 @@ impl std::fmt::Display for ClauseKey {
         match self {
             Self::Formula(key) => write!(f, "Formula({key})"),
             Self::Learned(key, token) => write!(f, "Learned({key}, {token})"),
-            Self::Binary(key) => write!(f, "Learned({key})"),
+            Self::Binary(key) => write!(f, "Binary({key})"),
         }
     }
 }

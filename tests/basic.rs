@@ -1,4 +1,8 @@
-use otter_lib::{config::Config, context::Context, dispatch::SolveReport};
+use otter_lib::{
+    config::Config,
+    context::Context,
+    dispatch::report::{self},
+};
 
 mod basic {
 
@@ -9,7 +13,7 @@ mod basic {
         let mut the_context = Context::from_config(Config::default(), tx);
         assert!(the_context.clause_from_string("p").is_ok());
         assert!(the_context.solve().is_ok());
-        assert_eq!(the_context.report(), SolveReport::Satisfiable)
+        assert_eq!(the_context.report(), report::Solve::Satisfiable)
     }
 
     #[test]
@@ -21,7 +25,7 @@ mod basic {
         assert!(the_context.clause_from_string("p -q").is_ok());
         assert!(the_context.clause_from_string("-p q").is_ok());
         assert!(the_context.solve().is_ok());
-        assert!(matches!(the_context.report(), SolveReport::Unsatisfiable))
+        assert!(matches!(the_context.report(), report::Solve::Unsatisfiable))
     }
 
     #[test]
@@ -35,7 +39,7 @@ mod basic {
 
         assert!(the_context.assume(not_p).is_ok());
         assert!(the_context.solve().is_ok());
-        assert_eq!(the_context.report(), SolveReport::Satisfiable);
+        assert_eq!(the_context.report(), report::Solve::Satisfiable);
 
         let the_valuation = the_context.valuation_string();
         assert!(the_valuation.contains("-p"));

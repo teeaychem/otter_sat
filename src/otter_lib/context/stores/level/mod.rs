@@ -1,7 +1,10 @@
 pub mod store;
 
+use crossbeam::channel::Sender;
+
 use crate::{
     context::stores::LevelIndex,
+    dispatch::Dispatch,
     structures::literal::{Literal, LiteralSource, LiteralTrait},
 };
 
@@ -27,14 +30,15 @@ For now, this works ok.
 pub struct LevelStore {
     knowledge: KnowledgeLevel,
     levels: Vec<DecisionLevel>,
+    tx: Sender<Dispatch>,
 }
 
-#[allow(clippy::derivable_impls)]
-impl Default for LevelStore {
-    fn default() -> Self {
+impl LevelStore {
+    pub fn new(tx: Sender<Dispatch>) -> Self {
         LevelStore {
             knowledge: KnowledgeLevel::default(),
             levels: Vec::default(),
+            tx,
         }
     }
 }

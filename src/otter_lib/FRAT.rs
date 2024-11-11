@@ -1,3 +1,5 @@
+#![allow(clippy::useless_format)]
+
 use std::{
     borrow::Borrow,
     collections::VecDeque,
@@ -16,7 +18,7 @@ use crate::{
     },
     structures::{
         clause::Clause,
-        literal::{Literal, LiteralTrait},
+        literal::{self, Literal, LiteralTrait},
     },
 };
 
@@ -72,16 +74,16 @@ impl Transcriber {
         }
     }
 
-    fn key_id(key: ClauseKey) -> String {
-        match key {
-            ClauseKey::Formula(index) => format!("10{index}"),
-            ClauseKey::Binary(index) => format!("20{index}"),
-            ClauseKey::Learned(index, _) => format!("30{index}"),
-        }
+    fn literal_id(literal: Literal) -> String {
+        format!("10{}", literal.index())
     }
 
-    fn literal_id(literal: Literal) -> String {
-        format!("l_{}", literal.index())
+    fn key_id(key: ClauseKey) -> String {
+        match key {
+            ClauseKey::Formula(index) => format!("20{index}"),
+            ClauseKey::Binary(index) => format!("30{index}"),
+            ClauseKey::Learned(index, _) => format!("40{index}"),
+        }
     }
 
     fn resolution_buffer_ids(buffer: Vec<ClauseKey>) -> String {
@@ -97,20 +99,25 @@ impl Transcriber {
     fn externalised_clause(&self, clause: Vec<Literal>) -> String {
         let mut the_string = String::default();
         for literal in clause {
-            match &self.variable_map[literal.index()] {
-                Some(ext) => match literal.polarity() {
-                    true => the_string.push_str(format!("{ext} ").as_str()),
-                    false => the_string.push_str(format!("-{ext} ").as_str()),
-                },
-                None => panic!("Missing external string for {literal}"),
-            }
+            the_string.push_str(format!("{} ", self.externalised_literal(literal)).as_str());
         }
         the_string.pop();
         the_string
     }
 
+    fn externalised_literal(&self, literal: Literal) -> String {
+        match &self.variable_map[literal.index()] {
+            Some(ext) => match literal.polarity() {
+                true => format!("{ext}"),
+                false => format!("-{ext}"),
+            },
+            None => panic!("Missing external string for {literal}"),
+        }
+    }
+
     pub fn transcripe(&mut self, dispatch: Dispatch) {
         let mut transcription = match dispatch {
+            //
             Dispatch::VariableDB(v_delta) => match v_delta {
                 delta::Variable::Internalised(name, id) => {
                     let mut required = id as usize - self.variable_map.len();
@@ -122,29 +129,42 @@ impl Transcriber {
                     assert_eq!(self.variable_map[id as usize], Some(name_clone));
                     None
                 }
+                delta::Variable::Falsum(literal) => {
+                    let mut the_string = String::new();
+                    the_string.push_str("a 1 0\n");
+                    the_string.push_str("f 1");
+                    Some(the_string)
+                }
             },
+
             Dispatch::ClauseDB(store_delta) => {
                 // x
                 match store_delta {
-                    delta::ClauseStore::Deletion(key) => Some(format!("d {}", Self::key_id(key))),
+                    delta::ClauseDB::Deletion(key) => Some(format!("d {}", Self::key_id(key))),
 
-                    delta::ClauseStore::TransferFormulaBinary(from, to, clause) => {
+                    delta::ClauseDB::Formula(key, clause) => {
+                        let mut the_string = format!("o {} ", Self::key_id(key));
+                        the_string.push_str(&self.externalised_clause(clause));
+                        Some(the_string)
+                    }
+
+                    delta::ClauseDB::TransferFormulaBinary(from, to, clause) => {
                         /*
                         Derive new, delete formula
                          */
                         let mut the_string = format!("a {} ", Self::key_id(to));
                         the_string.push_str(&self.externalised_clause(clause));
-                        the_string.push_str(" l ");
+                        the_string.push_str(" 0 l ");
                         the_string.push_str(&Self::resolution_buffer_ids(
                             self.resolution_buffer.pop_front().expect("nri_tf"),
                         ));
                         the_string.push_str(format!("d {} 0\n", Self::key_id(from)).as_str());
                         Some(the_string)
                     }
-                    delta::ClauseStore::TransferLearnedBinary(from, to, clause) => {
+                    delta::ClauseDB::TransferLearnedBinary(from, to, clause) => {
                         let mut the_string = format!("a {} ", Self::key_id(to));
                         the_string.push_str(&self.externalised_clause(clause));
-                        the_string.push_str(" l ");
+                        the_string.push_str(" 0 l ");
                         the_string.push_str(&Self::resolution_buffer_ids(
                             self.resolution_buffer.pop_front().expect("nri_tl"),
                         ));
@@ -152,52 +172,87 @@ impl Transcriber {
                         Some(the_string)
                     }
 
-                    delta::ClauseStore::Learned(key, clause) => {
-                        let mut the_string = String::from("a ");
+                    delta::ClauseDB::Learned(key, clause) => {
+                        let mut the_string = format!("a {} ", Self::key_id(key));
                         the_string.push_str(&self.externalised_clause(clause));
-                        the_string.push_str(" l ");
+                        the_string.push_str(" 0 l ");
                         the_string.push_str(&Self::resolution_buffer_ids(
                             self.resolution_buffer.pop_front().expect("nri_l"),
                         ));
                         Some(the_string)
                     }
-                    delta::ClauseStore::BinaryFormula(key, clause) => {
-                        let mut the_string = String::from("o ");
+                    delta::ClauseDB::BinaryFormula(key, clause) => {
+                        let mut the_string = format!("o {} ", Self::key_id(key));
                         the_string.push_str(&self.externalised_clause(clause));
                         Some(the_string)
                     }
-                    delta::ClauseStore::BinaryResolution(key, clause) => {
-                        let mut the_string = String::from("a ");
+                    delta::ClauseDB::BinaryResolution(key, clause) => {
+                        let mut the_string = format!("a {} ", Self::key_id(key));
                         the_string.push_str(&self.externalised_clause(clause));
-                        the_string.push_str(" l ");
+                        the_string.push_str(" 0 l ");
                         the_string.push_str(&Self::resolution_buffer_ids(
                             self.resolution_buffer.pop_front().expect("nri_br"),
                         ));
                         Some(the_string)
                     }
-                    _ => None,
                 }
             }
             Dispatch::Level(level_delta) => {
                 //
                 match level_delta {
-                    delta::Level::FormulaAssumption(literal) => {
-                        Some(format!("o {} 0", Self::literal_id(literal)))
-                    }
+                    delta::Level::Assumption(literal) => Some(format!(
+                        "o {} {}",
+                        Self::literal_id(literal),
+                        self.externalised_literal(literal)
+                    )),
                     delta::Level::ResolutionProof(literal) => {
-                        // TODO: Fix literal
-                        let mut the_string =
-                            format!("a {} {} ", Self::literal_id(literal), literal);
-                        the_string.push_str(" l ");
+                        let mut the_string = format!(
+                            "a {} {}",
+                            Self::literal_id(literal),
+                            self.externalised_literal(literal)
+                        );
+                        the_string.push_str(" 0 l ");
                         the_string.push_str(&Self::resolution_buffer_ids(
                             self.resolution_buffer.pop_front().expect("nri_rp"),
                         ));
                         Some(the_string)
                     }
-                    _ => None,
+                    delta::Level::Pure(literal) => Some(format!(
+                        "o {} {}",
+                        Self::literal_id(literal),
+                        self.externalised_literal(literal)
+                    )),
+                    delta::Level::BCP(literal) => Some(format!(
+                        "a {} {}",
+                        Self::literal_id(literal),
+                        self.externalised_literal(literal)
+                    )),
                 }
             }
-            _ => None,
+
+            Dispatch::ClauseDBReport(report) => match report {
+                dispatch::report::ClauseDB::Active(key, clause) => {
+                    let mut the_string = format!("f {} ", Self::key_id(key));
+                    the_string.push_str(&self.externalised_clause(clause));
+                    Some(the_string)
+                }
+            },
+
+            Dispatch::VariableDBReport(report) => match report {
+                dispatch::report::VariableDB::Active(literal) => {
+                    let mut the_string = format!(
+                        "f {} {}",
+                        Self::literal_id(literal),
+                        self.externalised_literal(literal)
+                    );
+                    Some(the_string)
+                }
+            },
+
+            Dispatch::Parser(_) => None,
+            Dispatch::Resolution(_) => None,
+            Dispatch::SolveComment(_) => None,
+            Dispatch::SolveReport(_) => None,
         };
         if let Some(mut step) = transcription {
             step.push_str(" 0\n");

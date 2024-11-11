@@ -143,11 +143,12 @@ impl ResolutionBuffer {
         if let Some(asserted_literal) = self.asserts() {
             return Ok(BufOk::Missed(conflict, asserted_literal));
         };
-        let _ = self.tx.send(Dispatch::Resolution(delta::Resolution::Start));
+        self.tx.send(Dispatch::Resolution(delta::Resolution::Start));
+
+        let delta = delta::Resolution::Used(conflict);
+        self.tx.send(Dispatch::Resolution(delta));
+
         self.trail.push(conflict);
-        let _ = self
-            .tx
-            .send(Dispatch::Resolution(delta::Resolution::Used(conflict)));
 
         for (source, literal) in levels.current_consequences().iter().rev() {
             if let LiteralSource::Analysis(the_key)
@@ -184,12 +185,16 @@ impl ResolutionBuffer {
                         match self.clause_length {
                             0 => {}
                             1 => {
+                                let delta = delta::Resolution::Used(source_clause.key());
+                                self.tx.send(Dispatch::Resolution(delta));
                                 self.tx
                                     .send(Dispatch::Resolution(delta::Resolution::Finish));
                                 return Ok(BufOk::Proof);
                             }
                             2 => match the_key {
-                                ClauseKey::Binary(_) => {}
+                                ClauseKey::Binary(_) => {
+                                    panic!("todo");
+                                }
                                 ClauseKey::Formula(_) => {
                                     self.tx
                                         .send(Dispatch::Resolution(delta::Resolution::Finish));
@@ -242,9 +247,8 @@ impl ResolutionBuffer {
                         }
                     } else {
                         self.trail.push(source_clause.key());
-                        self.tx.send(Dispatch::Resolution(delta::Resolution::Used(
-                            source_clause.key(),
-                        )));
+                        let delta = delta::Resolution::Used(source_clause.key());
+                        self.tx.send(Dispatch::Resolution(delta));
                     }
 
                     if self.valueless_count == 1 {
@@ -260,8 +264,8 @@ impl ResolutionBuffer {
                 }
             }
         }
-        self.tx
-            .send(Dispatch::Resolution(delta::Resolution::Finish));
+        let delta = delta::Resolution::Finish;
+        self.tx.send(Dispatch::Resolution(delta));
         Ok(BufOk::Exhausted)
     }
 

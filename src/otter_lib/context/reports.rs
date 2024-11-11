@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use crate::{
     context::{stores::ClauseKey, Context},
-    dispatch::SolveReport,
+    dispatch::report::{self},
     structures::{
         clause::Clause,
         literal::{LiteralSource, LiteralTrait},
@@ -13,12 +13,12 @@ use crate::{
 use super::SolveStatus;
 
 impl Context {
-    pub fn report(&self) -> SolveReport {
+    pub fn report(&self) -> report::Solve {
         match self.status {
-            SolveStatus::FullValuation => SolveReport::Satisfiable,
-            SolveStatus::NoClauses => SolveReport::Satisfiable,
-            SolveStatus::NoSolution => SolveReport::Unsatisfiable,
-            _ => SolveReport::Unknown,
+            SolveStatus::FullValuation => report::Solve::Satisfiable,
+            SolveStatus::NoClauses => report::Solve::Satisfiable,
+            SolveStatus::NoSolution => report::Solve::Unsatisfiable,
+            _ => report::Solve::Unknown,
         }
     }
 
