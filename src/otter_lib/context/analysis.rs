@@ -9,7 +9,10 @@ use crate::{
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::list::VariableList,
     },
-    types::{clause::ClauseSource, errs::AnalysisError},
+    types::{
+        clause::ClauseSource,
+        errs::{self},
+    },
 };
 
 use std::ops::Deref;
@@ -30,7 +33,7 @@ impl Context {
         &mut self,
         clause_key: ClauseKey,
         config: &Config,
-    ) -> Result<AnalysisResult, AnalysisError> {
+    ) -> Result<AnalysisResult, errs::Analysis> {
         log::trace!(target: LOG_ANALYSIS, "Analysis of {clause_key} at level {}", self.levels.decision_made());
         if !self.levels.decision_made() {
             return Ok(AnalysisResult::FundamentalConflict);
@@ -70,14 +73,14 @@ impl Context {
             Ok(BufOk::FirstUIP) => {}
             Ok(BufOk::Exhausted) => {
                 if config.stopping_criteria == StoppingCriteria::FirstUIP {
-                    return Err(AnalysisError::FailedStoppingCriteria);
+                    return Err(errs::Analysis::FailedStoppingCriteria);
                 }
             }
             Ok(BufOk::Missed(k, l)) => {
                 return Ok(AnalysisResult::MissedImplication(k, l));
             }
             Err(_buffer_error) => {
-                return Err(AnalysisError::Buffer);
+                return Err(errs::Analysis::Buffer);
             }
         }
 
@@ -113,13 +116,13 @@ impl Context {
         let the_literal = match asserted_literal {
             None => {
                 log::error!(target: crate::log::targets::ANALYSIS, "Failed to resolve to an asserting clause");
-                return Err(AnalysisError::NoAssertion);
+                return Err(errs::Analysis::NoAssertion);
             }
             Some(literal) => literal,
         };
 
         match resolved_clause.len() {
-            0 => Err(AnalysisError::EmptyResolution),
+            0 => Err(errs::Analysis::EmptyResolution),
             1 => {
                 self.note_literal(the_literal, LiteralSource::Resolution(clause_key), unsafe {
                     the_buffer.take_trail()
@@ -133,7 +136,7 @@ impl Context {
                         the_buffer.take_trail()
                     })
                 else {
-                    return Err(AnalysisError::ResolutionNotStored);
+                    return Err(errs::Analysis::ResolutionNotStored);
                 };
 
                 Ok(AnalysisResult::AssertingClause(clause_key, the_literal))

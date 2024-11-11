@@ -1,6 +1,5 @@
 // #![allow(unused_imports)]
 
-use clap::ArgMatches;
 #[cfg(not(target_env = "msvc"))]
 #[cfg(feature = "jemalloc")]
 use tikv_jemallocator::Jemalloc;
@@ -18,7 +17,10 @@ use otter_lib::{
         Dispatch, SolveReport,
     },
     io::{cli::cli, files::context_from_path},
-    types::{errs::ClauseStoreErr, gen::SolveStatus},
+    types::{
+        errs::{self},
+        gen::SolveStatus,
+    },
     FRAT,
 };
 
@@ -91,17 +93,13 @@ fn main() {
     }
 }
 
-fn paths(args: &ArgMatches) -> Vec<PathBuf> {
-    let formula_paths = {
-        if args.get_many::<PathBuf>("paths").is_none() {
+fn paths(args: &clap::ArgMatches) -> Vec<PathBuf> {
+    let formula_paths = match args.get_many::<PathBuf>("paths") {
+        None => {
             println!("c Could not find formula paths");
             std::process::exit(1);
-        } else {
-            args.get_many::<PathBuf>("paths")
-                .unwrap()
-                .cloned()
-                .collect()
         }
+        Some(paths) => paths.cloned().collect(),
     };
     formula_paths
 }
@@ -143,12 +141,11 @@ fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>) -> Result<(), ()
 // TODO: unify the exceptions…
 fn report_on_formula(path: PathBuf, tx: Sender<Dispatch>, config: Config) -> SolveReport {
     let config_io_detail = config.io.detail;
-    // let config_io_frat_path = config.io.frat_path.clone();
 
     use otter_lib::dispatch::SolveComment;
     let (the_context, mut the_report) = match context_from_path(path, config.clone(), tx.clone()) {
         Ok(context) => (Some(context), None),
-        Err(BuildErr::ClauseStore(ClauseStoreErr::EmptyClause)) => {
+        Err(BuildErr::ClauseStore(errs::ClauseDB::EmptyClause)) => {
             if config_io_detail > 0 {
                 let _ = tx.send(Dispatch::SolveComment(SolveComment::FoundEmptyClause));
             }
@@ -159,10 +156,6 @@ fn report_on_formula(path: PathBuf, tx: Sender<Dispatch>, config: Config) -> Sol
             std::process::exit(2);
         }
     };
-
-    // if config_io_frat_path.is_some() {
-    //     the_context.frat_formula()
-    // }
 
     if let Some(mut the_context) = the_context {
         if the_context.clause_count() == 0 {
@@ -196,10 +189,6 @@ fn report_on_formula(path: PathBuf, tx: Sender<Dispatch>, config: Config) -> Sol
             }
         }
     };
-
-    // if config_io_frat_path.is_some() {
-    //     the_context.frat_finalise()
-    // }
 
     let the_status = the_report.expect("no status");
 

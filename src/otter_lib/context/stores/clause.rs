@@ -19,12 +19,12 @@ use crate::{
     },
     types::{
         clause::{ClauseSource, WatchElement},
-        errs::ClauseStoreErr,
+        errs::{self},
     },
 };
 
-pub struct ClauseStore {
-    counts: ClauseStoreCounts,
+pub struct ClauseDB {
+    counts: ClauseDBCounts,
     keys: Vec<ClauseKey>,
     formula: Vec<StoredClause>,
 
@@ -37,19 +37,19 @@ pub struct ClauseStore {
     learned_activity: IndexHeap<ActivityGlue>,
     learned_increment: ClauseActivity,
 
-    sender: Sender<Dispatch>,
+    tx: Sender<Dispatch>,
 }
 
-pub struct ClauseStoreCounts {
+pub struct ClauseDBCounts {
     formula: FormulaIndex,
     binary: FormulaIndex,
     learned: FormulaIndex,
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for ClauseStoreCounts {
+impl Default for ClauseDBCounts {
     fn default() -> Self {
-        ClauseStoreCounts {
+        ClauseDBCounts {
             formula: 0,
             binary: 0,
             learned: 0,
@@ -57,10 +57,10 @@ impl Default for ClauseStoreCounts {
     }
 }
 
-impl ClauseStore {
+impl ClauseDB {
     pub fn default(sender: &Sender<Dispatch>) -> Self {
-        ClauseStore {
-            counts: ClauseStoreCounts::default(),
+        ClauseDB {
+            counts: ClauseDBCounts::default(),
             keys: Vec::default(),
             formula: Vec::default(),
             learned: Vec::default(),
@@ -68,33 +68,33 @@ impl ClauseStore {
             binary: Vec::default(),
             learned_activity: IndexHeap::default(),
             learned_increment: ClauseActivity::default(),
-            sender: sender.clone(),
+            tx: sender.clone(),
         }
     }
 }
 
-impl ClauseStore {
-    fn new_formula_id(&mut self) -> Result<ClauseKey, ClauseStoreErr> {
+impl ClauseDB {
+    fn new_formula_id(&mut self) -> Result<ClauseKey, errs::ClauseDB> {
         if self.counts.formula == FormulaIndex::MAX {
-            return Err(ClauseStoreErr::StorageExhausted);
+            return Err(errs::ClauseDB::StorageExhausted);
         }
         let key = ClauseKey::Formula(self.counts.formula);
         self.counts.formula += 1;
         Ok(key)
     }
 
-    fn new_binary_id(&mut self) -> Result<ClauseKey, ClauseStoreErr> {
+    fn new_binary_id(&mut self) -> Result<ClauseKey, errs::ClauseDB> {
         if self.counts.binary == FormulaIndex::MAX {
-            return Err(ClauseStoreErr::StorageExhausted);
+            return Err(errs::ClauseDB::StorageExhausted);
         }
         let key = ClauseKey::Binary(self.counts.binary);
         self.counts.binary += 1;
         Ok(key)
     }
 
-    fn new_learned_id(&mut self) -> Result<ClauseKey, ClauseStoreErr> {
+    fn new_learned_id(&mut self) -> Result<ClauseKey, errs::ClauseDB> {
         if self.learned_slots == FormulaIndex::MAX {
-            return Err(ClauseStoreErr::StorageExhausted);
+            return Err(errs::ClauseDB::StorageExhausted);
         }
         let key = ClauseKey::Learned(self.learned_slots, 0);
         self.learned_slots += 1;
@@ -102,7 +102,7 @@ impl ClauseStore {
     }
 }
 
-impl ClauseStore {
+impl ClauseDB {
     pub fn formula_clauses(&self) -> &[StoredClause] {
         &self.formula
     }
@@ -121,7 +121,7 @@ impl ClauseStore {
         }
     }
 
-    pub fn get(&self, key: ClauseKey) -> Result<&StoredClause, ClauseStoreErr> {
+    pub fn get(&self, key: ClauseKey) -> Result<&StoredClause, errs::ClauseDB> {
         match key {
             ClauseKey::Formula(index) => unsafe { Ok(self.formula.get_unchecked(index as usize)) },
             ClauseKey::Binary(index) => unsafe { Ok(self.binary.get_unchecked(index as usize)) },
@@ -129,9 +129,9 @@ impl ClauseStore {
                 match self.learned.get_unchecked(index as usize) {
                     Some(clause) => match clause.key() {
                         ClauseKey::Learned(_, clause_token) if clause_token == token => Ok(clause),
-                        _ => Err(ClauseStoreErr::InvalidKeyToken),
+                        _ => Err(errs::ClauseDB::InvalidKeyToken),
                     },
-                    None => Err(ClauseStoreErr::InvalidKeyIndex),
+                    None => Err(errs::ClauseDB::InvalidKeyIndex),
                 }
             },
         }
@@ -151,7 +151,7 @@ impl ClauseStore {
         }
     }
 
-    pub fn get_mut(&mut self, key: ClauseKey) -> Result<&mut StoredClause, ClauseStoreErr> {
+    pub fn get_mut(&mut self, key: ClauseKey) -> Result<&mut StoredClause, errs::ClauseDB> {
         match key {
             ClauseKey::Formula(index) => unsafe {
                 Ok(self.formula.get_unchecked_mut(index as usize))
@@ -163,9 +163,9 @@ impl ClauseStore {
                 match self.learned.get_unchecked_mut(index as usize) {
                     Some(clause) => match clause.key() {
                         ClauseKey::Learned(_, clause_token) if clause_token == token => Ok(clause),
-                        _ => Err(ClauseStoreErr::InvalidKeyToken),
+                        _ => Err(errs::ClauseDB::InvalidKeyToken),
                     },
-                    None => Err(ClauseStoreErr::InvalidKeyIndex),
+                    None => Err(errs::ClauseDB::InvalidKeyIndex),
                 }
             },
         }
@@ -178,27 +178,22 @@ impl ClauseStore {
         variables: &mut VariableStore,
         resolution_keys: Vec<ClauseKey>,
         config: &Config,
-    ) -> Result<ClauseKey, ClauseStoreErr> {
+    ) -> Result<ClauseKey, errs::ClauseDB> {
         match clause.len() {
-            0 => Err(ClauseStoreErr::EmptyClause),
-            1 => Err(ClauseStoreErr::UnitClause),
+            0 => Err(errs::ClauseDB::EmptyClause),
+            1 => Err(errs::ClauseDB::UnitClause),
             2 => {
                 let the_key = self.new_binary_id()?;
 
                 match source {
                     ClauseSource::Formula => {
-                        self.sender
-                            .send(Dispatch::ClauseDB(delta::ClauseStore::BinaryFormula(
-                                the_key,
-                                clause.clone(),
-                            )))
+                        let the_delta = delta::ClauseStore::BinaryFormula(the_key, clause.clone());
+                        self.tx.send(Dispatch::ClauseDB(the_delta))
                     }
                     ClauseSource::Resolution => {
-                        self.sender
-                            .send(Dispatch::ClauseDB(delta::ClauseStore::BinaryResolution(
-                                the_key,
-                                clause.clone(),
-                            )))
+                        let the_delta =
+                            delta::ClauseStore::BinaryResolution(the_key, clause.clone());
+                        self.tx.send(Dispatch::ClauseDB(the_delta))
                     }
                 };
 
@@ -211,11 +206,8 @@ impl ClauseStore {
                 ClauseSource::Formula => {
                     let the_key = self.new_formula_id()?;
 
-                    self.sender
-                        .send(Dispatch::ClauseDB(delta::ClauseStore::Formula(
-                            the_key,
-                            clause.clone(),
-                        )));
+                    let the_delta = delta::ClauseStore::Formula(the_key, clause.clone());
+                    self.tx.send(Dispatch::ClauseDB(the_delta));
 
                     self.formula
                         .push(StoredClause::from(the_key, clause, variables));
@@ -230,11 +222,8 @@ impl ClauseStore {
                         _ => self.keys.pop().unwrap().retoken()?,
                     };
 
-                    self.sender
-                        .send(Dispatch::ClauseDB(delta::ClauseStore::Learned(
-                            the_key,
-                            clause.clone(),
-                        )));
+                    let the_delta = delta::ClauseStore::Learned(the_key, clause.clone());
+                    self.tx.send(Dispatch::ClauseDB(the_delta));
 
                     let the_clause = StoredClause::from(the_key, clause, variables);
 
@@ -290,11 +279,11 @@ impl ClauseStore {
         &mut self,
         key: ClauseKey,
         variables: &mut VariableStore,
-    ) -> Result<ClauseKey, ClauseStoreErr> {
+    ) -> Result<ClauseKey, errs::ClauseDB> {
         match key {
             ClauseKey::Binary(_) => {
                 log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
-                Err(ClauseStoreErr::TransferBinary)
+                Err(errs::ClauseDB::TransferBinary)
             }
             ClauseKey::Formula(index) => {
                 let formula_clause = &mut self.formula[index as usize];
@@ -303,15 +292,19 @@ impl ClauseStore {
 
                 if copied_clause.len() != 2 {
                     log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
-                    return Err(ClauseStoreErr::TransferBinary);
+                    return Err(errs::ClauseDB::TransferBinary);
                 }
 
                 let formula_key = formula_clause.key();
                 let binary_key = self.new_binary_id()?;
 
                 // TODO: May need to note the original formula
-                self.sender.send(Dispatch::ClauseDB(
-                    dispatch::delta::ClauseStore::TransferFormula(formula_key, binary_key),
+                self.tx.send(Dispatch::ClauseDB(
+                    dispatch::delta::ClauseStore::TransferFormulaBinary(
+                        formula_key,
+                        binary_key,
+                        copied_clause.clone(),
+                    ),
                 ));
 
                 variables.remove_watch(unsafe { copied_clause.get_unchecked(0) }, key)?;
@@ -329,13 +322,17 @@ impl ClauseStore {
 
                 if the_clause.len() != 2 {
                     log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
-                    return Err(ClauseStoreErr::TransferBinary);
+                    return Err(errs::ClauseDB::TransferBinary);
                 }
 
                 let binary_key = self.new_binary_id()?;
 
-                self.sender.send(Dispatch::ClauseDB(
-                    dispatch::delta::ClauseStore::TransferLearned(the_clause.key(), binary_key),
+                self.tx.send(Dispatch::ClauseDB(
+                    dispatch::delta::ClauseStore::TransferLearnedBinary(
+                        the_clause.key(),
+                        binary_key,
+                        the_clause.to_vec(),
+                    ),
                 ));
 
                 the_clause.replace_key(binary_key);
@@ -358,7 +355,7 @@ impl ClauseStore {
 
     // TODO: figure some improvement…
     // For example, before dropping a clause the lbd could be recalculated…
-    pub fn reduce(&mut self, config: &Config) -> Result<(), ClauseStoreErr> {
+    pub fn reduce(&mut self, config: &Config) -> Result<(), errs::ClauseDB> {
         let limit = self.counts.learned as usize / 2;
 
         'reduction_loop: for _ in 0..limit {
@@ -415,21 +412,21 @@ impl ClauseStore {
     // }
 }
 
-impl ClauseStore {
+impl ClauseDB {
     /*
     Removing from learned checks to ensure removal is ok
     As the elements are optional for reuse, take places None at the index, as would be needed anyway
      */
-    fn remove_from_learned(&mut self, index: usize) -> Result<StoredClause, ClauseStoreErr> {
+    fn remove_from_learned(&mut self, index: usize) -> Result<StoredClause, errs::ClauseDB> {
         if unsafe { self.learned.get_unchecked(index) }.is_none() {
             log::error!(target: crate::log::targets::CLAUSE_STORE, "attempt to remove something that is not there");
-            Err(ClauseStoreErr::MissingLearned)
+            Err(errs::ClauseDB::MissingLearned)
         } else {
             // assert!(matches!(the_clause.key(), ClauseKey::LearnedLong(_, _)));
             let the_clause =
                 std::mem::take(unsafe { self.learned.get_unchecked_mut(index) }).unwrap();
 
-            self.sender
+            self.tx
                 .send(Dispatch::ClauseDB(dispatch::delta::ClauseStore::Deletion(
                     the_clause.key(),
                 )));

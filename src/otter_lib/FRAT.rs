@@ -128,12 +128,12 @@ impl Transcriber {
                 match store_delta {
                     delta::ClauseStore::Deletion(key) => Some(format!("d {}", Self::key_id(key))),
 
-                    delta::ClauseStore::TransferFormula(from, to) => {
+                    delta::ClauseStore::TransferFormulaBinary(from, to, clause) => {
                         /*
                         Derive new, delete formula
                          */
                         let mut the_string = format!("a {} ", Self::key_id(to));
-                        the_string.push_str("TODO TODO");
+                        the_string.push_str(&self.externalised_clause(clause));
                         the_string.push_str(" l ");
                         the_string.push_str(&Self::resolution_buffer_ids(
                             self.resolution_buffer.pop_front().expect("nri_tf"),
@@ -141,9 +141,9 @@ impl Transcriber {
                         the_string.push_str(format!("d {} 0\n", Self::key_id(from)).as_str());
                         Some(the_string)
                     }
-                    delta::ClauseStore::TransferLearned(from, to) => {
+                    delta::ClauseStore::TransferLearnedBinary(from, to, clause) => {
                         let mut the_string = format!("a {} ", Self::key_id(to));
-                        the_string.push_str("TODO TODO");
+                        the_string.push_str(&self.externalised_clause(clause));
                         the_string.push_str(" l ");
                         the_string.push_str(&Self::resolution_buffer_ids(
                             self.resolution_buffer.pop_front().expect("nri_tl"),

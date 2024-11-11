@@ -4,7 +4,7 @@ use crossbeam::channel::Sender;
 
 use crate::{
     config::{Config, StoppingCriteria},
-    context::stores::{clause::ClauseStore, variable::VariableStore, ClauseKey},
+    context::stores::{clause::ClauseDB, variable::VariableStore, ClauseKey},
     dispatch::{
         delta::{self},
         Dispatch,
@@ -133,7 +133,7 @@ impl ResolutionBuffer {
         &mut self,
         conflict: ClauseKey,
         levels: &LevelStore,
-        stored_clauses: &mut ClauseStore,
+        stored_clauses: &mut ClauseDB,
         variables: &mut VariableStore,
         config: &Config,
     ) -> Result<BufOk, BufErr> {

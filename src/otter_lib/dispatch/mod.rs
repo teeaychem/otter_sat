@@ -79,8 +79,8 @@ pub mod delta {
     }
 
     pub enum ClauseStore {
-        TransferFormula(ClauseKey, ClauseKey),
-        TransferLearned(ClauseKey, ClauseKey),
+        TransferFormulaBinary(ClauseKey, ClauseKey, Vec<Literal>),
+        TransferLearnedBinary(ClauseKey, ClauseKey, Vec<Literal>),
         Deletion(ClauseKey),
         BinaryFormula(ClauseKey, Vec<Literal>),
         BinaryResolution(ClauseKey, Vec<Literal>),

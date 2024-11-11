@@ -16,7 +16,7 @@ use crate::{
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::{list::VariableList, VariableId, BCP::BCPErr},
     },
-    types::errs::StepErr,
+    types::errs::{self},
 };
 
 use super::stores::variable::QStatus;
@@ -54,15 +54,15 @@ impl Context {
                 Ok(StepInfo::ChoicesExhausted) => break 'solve_loop Ok(self.report()),
                 Ok(StepInfo::Conflict) => break 'solve_loop Ok(self.report()),
 
-                Err(StepErr::Backfall) => panic!("Backjumping failed"),
-                Err(StepErr::AnalysisFailure) => panic!("Analysis failed"),
-                Err(StepErr::ChoiceFailure) => panic!("Choice failure"),
+                Err(errs::Step::Backfall) => panic!("Backjumping failed"),
+                Err(errs::Step::AnalysisFailure) => panic!("Analysis failed"),
+                Err(errs::Step::ChoiceFailure) => panic!("Choice failure"),
                 Err(e) => panic!("{e:?}"),
             }
         }
     }
 
-    pub fn step(&mut self, config: &Config) -> Result<StepInfo, StepErr> {
+    pub fn step(&mut self, config: &Config) -> Result<StepInfo, errs::Step> {
         self.counters.iterations += 1;
 
         'search: while let Some((literal, _)) = self.variables.get_consequence() {
@@ -71,7 +71,7 @@ impl Context {
                 Err(BCPErr::Conflict(key)) => {
                     let Ok(analysis_result) = self.conflict_analysis(key, config) else {
                         log::error!(target: crate::log::targets::STEP, "Conflict analysis failed.");
-                        return Err(StepErr::AnalysisFailure);
+                        return Err(errs::Step::AnalysisFailure);
                     };
 
                     match analysis_result {
@@ -93,7 +93,7 @@ impl Context {
                             self.backjump(0);
 
                             let Ok(QStatus::Qd) = self.q_literal(literal) else {
-                                return Err(StepErr::QueueProof(key));
+                                return Err(errs::Step::QueueProof(key));
                             };
                         }
 
@@ -105,12 +105,12 @@ impl Context {
                             };
 
                             match self.backjump_level(the_clause.deref()) {
-                                None => return Err(StepErr::Backfall),
+                                None => return Err(errs::Step::Backfall),
                                 Some(index) => self.backjump(index),
                             }
 
                             let Ok(QStatus::Qd) = self.q_literal(literal) else {
-                                return Err(StepErr::QueueConflict(key));
+                                return Err(errs::Step::QueueConflict(key));
                             };
                             self.note_literal(
                                 literal.canonical(),
@@ -130,7 +130,7 @@ impl Context {
                             };
 
                             match self.backjump_level(the_clause.deref()) {
-                                None => return Err(StepErr::Backfall),
+                                None => return Err(errs::Step::Backfall),
                                 Some(index) => self.backjump(index),
                             }
 
@@ -142,7 +142,7 @@ impl Context {
                                         Vec::default(),
                                     );
                                 }
-                                Err(_) => return Err(StepErr::QueueConflict(key)),
+                                Err(_) => return Err(errs::Step::QueueConflict(key)),
                             }
 
                             self.conflict_ceremony(config)?;
@@ -150,7 +150,7 @@ impl Context {
                         }
                     }
                 }
-                Err(BCPErr::CorruptWatch) => return Err(StepErr::BCPFailure),
+                Err(BCPErr::CorruptWatch) => return Err(errs::Step::BCPFailure),
             }
         }
 
@@ -165,7 +165,7 @@ impl Context {
 }
 
 impl Context {
-    fn conflict_ceremony(&mut self, config: &Config) -> Result<(), StepErr> {
+    fn conflict_ceremony(&mut self, config: &Config) -> Result<(), errs::Step> {
         self.counters.conflicts += 1;
         self.counters.conflicts_in_memory += 1;
 
@@ -195,7 +195,7 @@ impl Context {
         Ok(())
     }
 
-    fn make_choice(&mut self, config: &Config) -> Result<StepInfo, StepErr> {
+    fn make_choice(&mut self, config: &Config) -> Result<StepInfo, errs::Step> {
         match self.get_unassigned(config) {
             Some(choice_index) => {
                 self.counters.decisions += 1;
@@ -212,7 +212,7 @@ impl Context {
                 };
                 self.levels.make_choice(choice_literal);
                 let Ok(QStatus::Qd) = self.q_literal(choice_literal) else {
-                    return Err(StepErr::ChoiceFailure);
+                    return Err(errs::Step::ChoiceFailure);
                 };
 
                 self.status = SolveStatus::ChoiceMade;

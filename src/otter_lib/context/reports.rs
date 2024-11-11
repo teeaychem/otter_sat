@@ -7,7 +7,7 @@ use crate::{
         clause::Clause,
         literal::{LiteralSource, LiteralTrait},
     },
-    types::errs::ReportError,
+    types::errs::{self},
 };
 
 use super::SolveStatus;

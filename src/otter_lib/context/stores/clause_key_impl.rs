@@ -1,6 +1,6 @@
 use crate::{
     context::stores::{ClauseKey, FormulaToken},
-    types::errs::ClauseStoreErr,
+    types::errs::ClauseDB,
 };
 
 impl std::fmt::Display for ClauseKey {
@@ -22,19 +22,19 @@ impl ClauseKey {
         }
     }
 
-    pub fn retoken(&self) -> Result<Self, ClauseStoreErr> {
+    pub fn retoken(&self) -> Result<Self, ClauseDB> {
         match self {
             Self::Formula(_) => {
                 log::error!(target: crate::log::targets::CLAUSE_STORE, "Formula keys have a unique token");
-                Err(ClauseStoreErr::InvalidKeyToken)
+                Err(ClauseDB::InvalidKeyToken)
             }
             Self::Binary(_) => {
                 log::error!(target: crate::log::targets::CLAUSE_STORE, "Binary keys have a unique token");
-                Err(ClauseStoreErr::InvalidKeyToken)
+                Err(ClauseDB::InvalidKeyToken)
             }
             Self::Learned(index, token) => {
                 if *token == FormulaToken::MAX {
-                    return Err(ClauseStoreErr::StorageExhausted);
+                    return Err(ClauseDB::StorageExhausted);
                 }
                 Ok(ClauseKey::Learned(*index, token + 1))
             }

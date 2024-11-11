@@ -21,7 +21,10 @@ use crate::{
         literal::{Literal, LiteralTrait},
         variable::{list::VariableList, Variable, VariableId},
     },
-    types::{clause::WatchElement, errs::WatchError},
+    types::{
+        clause::WatchElement,
+        errs::{self},
+    },
 };
 
 pub struct VariableStore {
@@ -90,7 +93,7 @@ impl VariableStore {
         &mut self,
         literal: L,
         key: ClauseKey,
-    ) -> Result<(), WatchError> {
+    ) -> Result<(), errs::Watch> {
         self.variables
             .get_unsafe(literal.borrow().index())
             .watch_removed(key, literal.borrow().polarity())

@@ -19,7 +19,7 @@ use {
         },
         io::window::ContextWindow,
     },
-    stores::{clause::ClauseStore, variable::VariableStore},
+    stores::{clause::ClauseDB, variable::VariableStore},
 };
 
 use crossbeam::channel::Sender;
@@ -60,7 +60,7 @@ impl Default for Counters {
 pub struct Context {
     counters: Counters,
     pub levels: LevelStore,
-    pub clause_store: ClauseStore,
+    pub clause_store: ClauseDB,
     pub variables: VariableStore,
     pub config: config::Config,
     window: Option<ContextWindow>,
@@ -94,7 +94,7 @@ impl Context {
         Self {
             counters: Counters::default(),
             levels: LevelStore::default(),
-            clause_store: ClauseStore::default(&sender),
+            clause_store: ClauseDB::default(&sender),
             variables: VariableStore::new(sender.clone()),
             config,
             window: the_window,
@@ -110,7 +110,7 @@ impl Default for Context {
         Context {
             counters: Counters::default(),
             levels: LevelStore::default(),
-            clause_store: ClauseStore::default(&sender),
+            clause_store: ClauseDB::default(&sender),
             variables: VariableStore::new(sender.clone()),
             config: Config::default(),
             window: None,

@@ -11,7 +11,7 @@ use crate::{
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::list::VariableList,
     },
-    types::{clause::ClauseSource, errs::ClauseStoreErr},
+    types::{clause::ClauseSource, errs::ClauseDB},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -43,7 +43,7 @@ impl Context {
         clause: Vec<Literal>,
         source: ClauseSource,
         resolution_keys: Vec<ClauseKey>,
-    ) -> Result<ClauseKey, ClauseStoreErr> {
+    ) -> Result<ClauseKey, ClauseDB> {
         self.clause_store.insert_clause(
             source,
             clause,

@@ -14,7 +14,7 @@ use crate::{
     },
     types::{
         clause::ClauseSource,
-        errs::{ClauseStoreErr, ContextErr},
+        errs::{self},
     },
 };
 
@@ -31,7 +31,7 @@ pub enum BuildErr {
     AssumptionDirectConflict,
     AssumptionIndirectConflict,
     Parse(ParseErr),
-    ClauseStore(ClauseStoreErr),
+    ClauseStore(errs::ClauseDB),
 }
 
 #[derive(Debug)]
@@ -75,9 +75,12 @@ impl Context {
 
     // Aka. soft assumption
     // This will hold until a restart happens
-    pub fn believe<L: Borrow<impl LiteralTrait>>(&mut self, literal: L) -> Result<(), ContextErr> {
+    pub fn believe<L: Borrow<impl LiteralTrait>>(
+        &mut self,
+        literal: L,
+    ) -> Result<(), errs::Context> {
         if self.levels.decision_made() {
-            return Err(ContextErr::AssumptionAfterChoice);
+            return Err(errs::Context::AssumptionAfterChoice);
         }
         match self.q_literal(literal.borrow().canonical()) {
             Ok(_) => {
@@ -88,21 +91,24 @@ impl Context {
                 );
                 Ok(())
             }
-            Err(_) => Err(ContextErr::AssumptionConflict),
+            Err(_) => Err(errs::Context::AssumptionConflict),
         }
     }
 
     #[allow(unused_must_use)] // ???
-    pub fn assume<L: Borrow<impl LiteralTrait>>(&mut self, literal: L) -> Result<(), ContextErr> {
+    pub fn assume<L: Borrow<impl LiteralTrait>>(
+        &mut self,
+        literal: L,
+    ) -> Result<(), errs::Context> {
         if self.levels.decision_made() {
-            return Err(ContextErr::AssumptionAfterChoice);
+            return Err(errs::Context::AssumptionAfterChoice);
         }
         use crate::structures::variable::list::ValueInfo;
         let literal: Literal = literal.borrow().canonical();
         match self.variables.check_literal(literal) {
             ValueInfo::NotSet => {
                 let Ok(QStatus::Qd) = self.q_literal(literal) else {
-                    return Err(ContextErr::AssumptionConflict);
+                    return Err(errs::Context::AssumptionConflict);
                 };
                 self.note_literal(
                     literal.borrow().canonical(),
@@ -116,7 +122,7 @@ impl Context {
                 // Must be at zero for an assumption, so there's nothing to do
                 Ok(())
             }
-            ValueInfo::Conflict => Err(ContextErr::AssumptionConflict),
+            ValueInfo::Conflict => Err(errs::Context::AssumptionConflict),
         }
     }
 }
@@ -142,7 +148,7 @@ impl Context {
 impl Context {
     pub fn store_preprocessed_clause(&mut self, clause: Vec<Literal>) -> Result<(), BuildErr> {
         match clause.len() {
-            0 => Err(BuildErr::ClauseStore(ClauseStoreErr::EmptyClause)),
+            0 => Err(BuildErr::ClauseStore(errs::ClauseDB::EmptyClause)),
             1 => {
                 let literal = unsafe { *clause.get_unchecked(0) };
                 match self.assume(literal) {
