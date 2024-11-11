@@ -64,9 +64,8 @@ pub mod delta {
     }
 
     pub enum ClauseDB {
-        TransferFormulaBinary(ClauseKey, ClauseKey, Vec<Literal>),
-        TransferLearnedBinary(ClauseKey, ClauseKey, Vec<Literal>),
-        Deletion(ClauseKey),
+        TransferBinary(ClauseKey, ClauseKey, Vec<Literal>),
+        Deletion(ClauseKey, Vec<Literal>),
         BinaryFormula(ClauseKey, Vec<Literal>),
         BinaryResolution(ClauseKey, Vec<Literal>),
         Formula(ClauseKey, Vec<Literal>),
@@ -74,7 +73,7 @@ pub mod delta {
     }
 
     pub enum Parser {
-        Processing(String),
+        Load(String),
         Expected(usize, usize),
         Complete(usize, usize),
         ContextClauses(usize),
@@ -84,6 +83,7 @@ pub mod delta {
         Start,
         Finish,
         Used(ClauseKey),
+        Subsumed(ClauseKey, Literal),
     }
 
     #[derive(Debug)]
@@ -117,10 +117,10 @@ impl std::fmt::Display for report::Solve {
 impl std::fmt::Display for delta::Parser {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Processing(formula) => write!(f, "Parsing \"{formula}\""),
+            Self::Load(formula) => write!(f, "Parsing \"{formula}\""),
             Self::Expected(v, c) => write!(f, "Expected:     {v} variables and {c} clauses"),
             Self::Complete(v, c) => write!(f, "Parse result: {v} variables and {c} clauses"),
-            Self::ContextClauses(c) => write!(f, "{c} clauses added to the context"),
+            Self::ContextClauses(c) => write!(f, "{c} clauses are in the context"),
         }
     }
 }

@@ -1,4 +1,5 @@
 use crossbeam::channel::Sender;
+use xz2::read::XzDecoder;
 
 use crate::{
     config::Config,
@@ -20,7 +21,8 @@ use crate::{
 
 use std::{
     borrow::Borrow,
-    io::BufRead,
+    fs::File,
+    io::{BufRead, BufReader},
     path::{Path, PathBuf},
 };
 
@@ -207,21 +209,27 @@ impl Context {
     }
 
     #[allow(clippy::manual_flatten, unused_labels)]
-    pub fn from_dimacs_file(
-        file_path: &Path,
-        mut file_reader: impl BufRead,
-        config: Config,
-        sender: Sender<Dispatch>,
-    ) -> Result<Self, BuildErr> {
-        let formula_string = file_path.to_str().unwrap().to_owned();
-        sender.send(Dispatch::Parser(delta::Parser::Processing(formula_string)));
+    pub fn load_dimacs_file(&mut self, file_path: PathBuf) -> Result<(), BuildErr> {
+        //
+        let f_string = file_path.to_str().unwrap().to_owned();
+        let delta = delta::Parser::Load(f_string);
+        self.tx.send(Dispatch::Parser(delta));
+
+        let file = match File::open(&file_path) {
+            Err(_) => return Err(BuildErr::Parse(ParseErr::NoFile)),
+            Ok(f) => f,
+        };
+        let mut file_reader: Box<dyn BufRead> = match &file_path.extension() {
+            None => Box::new(BufReader::new(&file)),
+            Some(extension) if *extension == "xz" => {
+                Box::new(BufReader::new(XzDecoder::new(&file)))
+            }
+            Some(_) => Box::new(BufReader::new(&file)),
+        };
 
         let mut buffer = String::with_capacity(1024);
         let mut clause_buffer: Vec<Literal> = Vec::new();
 
-        let config_detail = config.io.detail;
-
-        let mut the_context = None;
         let mut line_counter = 0;
         let mut clause_counter = 0;
 
@@ -258,12 +266,10 @@ impl Context {
 
                     buffer.clear();
 
-                    sender.send(Dispatch::Parser(delta::Parser::Expected(
+                    self.tx.send(Dispatch::Parser(delta::Parser::Expected(
                         variable_count,
                         clause_count,
                     )));
-
-                    the_context = Some(Context::from_config(config.clone(), sender.clone()));
                     break;
                 }
                 _ => {
@@ -271,11 +277,6 @@ impl Context {
                 }
             }
         }
-
-        let mut the_context = match the_context {
-            Some(context) => context,
-            None => Context::from_config(config, sender),
-        };
 
         'formula_loop: loop {
             match file_reader.read_line(&mut buffer) {
@@ -294,7 +295,7 @@ impl Context {
                         match item {
                             "0" => {
                                 let the_clause = clause_buffer.clone();
-                                match the_context.store_preprocessed_clause(the_clause) {
+                                match self.store_preprocessed_clause(the_clause) {
                                     Ok(_) => clause_counter += 1,
                                     Err(e) => return Err(e),
                                 }
@@ -302,7 +303,7 @@ impl Context {
                                 clause_buffer.clear();
                             }
                             _ => {
-                                let the_literal = match the_context.literal_from_string(item) {
+                                let the_literal = match self.literal_from_string(item) {
                                     Ok(literal) => literal,
                                     Err(e) => return Err(BuildErr::Parse(e)),
                                 };
@@ -318,22 +319,16 @@ impl Context {
             buffer.clear();
         }
 
-        if config_detail > 0 {
-            the_context
-                .tx
-                .send(dispatch::Dispatch::Parser(delta::Parser::Complete(
-                    the_context.variable_count(),
-                    clause_counter,
-                )));
-            if config_detail > 1 {
-                the_context
-                    .tx
-                    .send(Dispatch::Parser(delta::Parser::ContextClauses(
-                        the_context.clause_count(),
-                    )));
-            }
-        }
+        self.tx
+            .send(dispatch::Dispatch::Parser(delta::Parser::Complete(
+                self.variable_count(),
+                clause_counter,
+            )));
 
-        Ok(the_context)
+        self.tx.send(Dispatch::Parser(delta::Parser::ContextClauses(
+            self.clause_count(),
+        )));
+
+        Ok(())
     }
 }

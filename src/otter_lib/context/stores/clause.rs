@@ -248,16 +248,8 @@ impl ClauseDB {
     }
 
     /*
-    Cases:
-    - Formula
-      A new binary clause is created, and all occurrences of the formula clause in watch lists are removed
+    To keep things simple a formula clause is ignored while a learnt clause is deleted
 
-    - Learned
-      Removes a long clause and then:
-      - Replaces the key with a new binary key
-      - Updates notifies literals of the new watch
-      - Adds the clause to the binary vec
-        This order is mostly dictated by the borrow checker
     */
     pub fn transfer_to_binary(
         &mut self,
@@ -269,70 +261,55 @@ impl ClauseDB {
                 log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
                 Err(errs::ClauseDB::TransferBinary)
             }
-            ClauseKey::Formula(index) => {
-                let formula_clause = &mut self.formula[index as usize];
-                formula_clause.deactivate();
-                let copied_clause = formula_clause.deref().to_vec();
+            ClauseKey::Formula(index) | // => {
+            //     let formula_clause = self.get_mut(key)?;
+            //     formula_clause.deactivate();
+            //     let copied_clause = formula_clause.deref().to_vec();
+
+            //     if copied_clause.len() != 2 {
+            //         log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
+            //         return Err(errs::ClauseDB::TransferBinary);
+            //     }
+
+            //     let b_key = self.new_binary_id()?;
+
+            //     let delta = delta::ClauseDB::TransferBinary(key, b_key, copied_clause.clone());
+            //     self.tx.send(Dispatch::ClauseDB(delta));
+
+            //     variables.remove_watch(unsafe { copied_clause.get_unchecked(0) }, key)?;
+            //     variables.remove_watch(unsafe { copied_clause.get_unchecked(1) }, key)?;
+
+            //     let binary_clause = StoredClause::from(b_key, copied_clause, variables);
+
+            //     self.binary.push(binary_clause);
+            //     Ok(b_key)
+            // }
+            ClauseKey::Learned(index, _) => {
+                let the_clause = self.get_mut(key)?;
+                the_clause.deactivate();
+                let copied_clause = the_clause.to_vec();
 
                 if copied_clause.len() != 2 {
                     log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
                     return Err(errs::ClauseDB::TransferBinary);
                 }
 
-                let formula_key = formula_clause.key();
-                let binary_key = self.new_binary_id()?;
+                let b_key = self.new_binary_id()?;
 
-                // TODO: May need to note the original formula
-                self.tx.send(Dispatch::ClauseDB(
-                    dispatch::delta::ClauseDB::TransferFormulaBinary(
-                        formula_key,
-                        binary_key,
-                        copied_clause.clone(),
-                    ),
-                ));
+                let delta = delta::ClauseDB::TransferBinary(key, b_key, copied_clause.clone());
+                self.tx.send(Dispatch::ClauseDB(delta));
 
                 variables.remove_watch(unsafe { copied_clause.get_unchecked(0) }, key)?;
                 variables.remove_watch(unsafe { copied_clause.get_unchecked(1) }, key)?;
 
-                // as a new clause is created there's no need to add watches as in the learnt case
-
-                let binary_clause = StoredClause::from(binary_key, copied_clause, variables);
+                let binary_clause = StoredClause::from(b_key, copied_clause, variables);
 
                 self.binary.push(binary_clause);
-                Ok(binary_key)
-            }
-            ClauseKey::Learned(_, _) => {
-                let mut the_clause = self.remove_from_learned(key.index())?;
+                self.counts.learned += 1; // removing decrements the coun
 
-                if the_clause.len() != 2 {
-                    log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
-                    return Err(errs::ClauseDB::TransferBinary);
-                }
+                self.remove_from_learned(key.index())?;
 
-                let binary_key = self.new_binary_id()?;
-
-                self.tx.send(Dispatch::ClauseDB(
-                    dispatch::delta::ClauseDB::TransferLearnedBinary(
-                        the_clause.key(),
-                        binary_key,
-                        the_clause.to_vec(),
-                    ),
-                ));
-
-                the_clause.replace_key(binary_key);
-
-                let watch_a = unsafe { the_clause.get_unchecked(0) };
-                let watch_b = unsafe { the_clause.get_unchecked(1) };
-
-                variables.remove_watch(watch_a, key)?;
-                variables.remove_watch(watch_b, key)?;
-                variables.add_watch(watch_a, WatchElement::Binary(*watch_b, binary_key));
-                variables.add_watch(watch_b, WatchElement::Binary(*watch_a, binary_key));
-
-                self.binary.push(the_clause);
-                self.counts.learned += 1; // removing decrements the count
-
-                Ok(binary_key)
+                Ok(b_key)
             }
         }
     }
@@ -378,7 +355,7 @@ impl ClauseDB {
     Removing from learned checks to ensure removal is ok
     As the elements are optional for reuse, take places None at the index, as would be needed anyway
      */
-    fn remove_from_learned(&mut self, index: usize) -> Result<StoredClause, errs::ClauseDB> {
+    fn remove_from_learned(&mut self, index: usize) -> Result<(), errs::ClauseDB> {
         if unsafe { self.learned.get_unchecked(index) }.is_none() {
             log::error!(target: crate::log::targets::CLAUSE_STORE, "attempt to remove something that is not there");
             Err(errs::ClauseDB::MissingLearned)
@@ -387,15 +364,15 @@ impl ClauseDB {
             let the_clause =
                 std::mem::take(unsafe { self.learned.get_unchecked_mut(index) }).unwrap();
 
-            self.tx
-                .send(Dispatch::ClauseDB(dispatch::delta::ClauseDB::Deletion(
-                    the_clause.key(),
-                )));
+            self.tx.send(Dispatch::ClauseDB(delta::ClauseDB::Deletion(
+                the_clause.key(),
+                the_clause.to_vec(),
+            )));
 
             self.learned_activity.remove(index);
             self.keys.push(the_clause.key());
             self.counts.learned -= 1;
-            Ok(the_clause)
+            Ok(())
         }
     }
 }

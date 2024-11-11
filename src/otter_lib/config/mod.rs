@@ -40,7 +40,7 @@ pub struct ConfigIO {
     pub show_core: bool,
     pub show_stats: bool,
     pub show_valuation: bool,
-    pub frat_path: Option<PathBuf>,
+    pub frat: bool,
 }
 
 impl Default for ConfigIO {
@@ -50,7 +50,7 @@ impl Default for ConfigIO {
             show_core: false,
             show_stats: false,
             show_valuation: false,
-            frat_path: None,
+            frat: true,
         }
     }
 }

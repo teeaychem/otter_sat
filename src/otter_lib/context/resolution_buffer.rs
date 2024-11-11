@@ -240,6 +240,11 @@ impl ResolutionBuffer {
                                 let Ok(_) = source_clause.subsume(literal, variables, true) else {
                                     return Err(BufErr::Subsumption);
                                 };
+                                self.tx
+                                    .send(Dispatch::Resolution(delta::Resolution::Subsumed(
+                                        *the_key, *literal,
+                                    )));
+
                                 self.trail.push(*the_key);
                                 self.tx
                                     .send(Dispatch::Resolution(delta::Resolution::Used(*the_key)));

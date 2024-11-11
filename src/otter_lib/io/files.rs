@@ -1,5 +1,5 @@
 use std::fs::{self, File};
-use std::io::BufReader;
+use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
 use crossbeam::channel::Sender;
@@ -23,18 +23,11 @@ pub fn context_from_path(
         Ok(f) => f,
     };
     let unique_config = config.clone();
-    match &the_path.extension() {
-        None => Context::from_dimacs_file(&the_path, BufReader::new(&file), unique_config, sender),
-        Some(extension) if *extension == "xz" => Context::from_dimacs_file(
-            &the_path,
-            BufReader::new(XzDecoder::new(&file)),
-            unique_config,
-            sender,
-        ),
-        Some(_) => {
-            Context::from_dimacs_file(&the_path, BufReader::new(&file), unique_config, sender)
-        }
-    }
+    let mut the_context = Context::from_config(unique_config, sender.clone());
+
+    the_context.load_dimacs_file(the_path);
+
+    Ok(the_context)
 }
 
 pub fn silent_formula_report(path: PathBuf, config: &Config) -> report::Solve {

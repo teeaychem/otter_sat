@@ -140,7 +140,11 @@ impl Transcriber {
             Dispatch::ClauseDB(store_delta) => {
                 // x
                 match store_delta {
-                    delta::ClauseDB::Deletion(key) => Some(format!("d {}", Self::key_id(key))),
+                    delta::ClauseDB::Deletion(key, clause) => {
+                        let mut the_string = format!("d {} ", Self::key_id(key));
+                        the_string.push_str(&self.externalised_clause(clause));
+                        Some(the_string)
+                    }
 
                     delta::ClauseDB::Formula(key, clause) => {
                         let mut the_string = format!("o {} ", Self::key_id(key));
@@ -148,26 +152,15 @@ impl Transcriber {
                         Some(the_string)
                     }
 
-                    delta::ClauseDB::TransferFormulaBinary(from, to, clause) => {
+                    delta::ClauseDB::TransferBinary(from, to, clause) => {
                         /*
                         Derive new, delete formula
                          */
                         let mut the_string = format!("a {} ", Self::key_id(to));
                         the_string.push_str(&self.externalised_clause(clause));
                         the_string.push_str(" 0 l ");
-                        the_string.push_str(&Self::resolution_buffer_ids(
-                            self.resolution_buffer.pop_front().expect("nri_tf"),
-                        ));
-                        the_string.push_str(format!("d {} 0\n", Self::key_id(from)).as_str());
-                        Some(the_string)
-                    }
-                    delta::ClauseDB::TransferLearnedBinary(from, to, clause) => {
-                        let mut the_string = format!("a {} ", Self::key_id(to));
-                        the_string.push_str(&self.externalised_clause(clause));
-                        the_string.push_str(" 0 l ");
-                        the_string.push_str(&Self::resolution_buffer_ids(
-                            self.resolution_buffer.pop_front().expect("nri_tl"),
-                        ));
+                        let resolution_steps = self.resolution_buffer.pop_front().expect("nri");
+                        the_string.push_str(&Self::resolution_buffer_ids(resolution_steps));
                         the_string.push_str(format!("d {} 0\n", Self::key_id(from)).as_str());
                         Some(the_string)
                     }
@@ -250,7 +243,7 @@ impl Transcriber {
             },
 
             Dispatch::Parser(_) => None,
-            Dispatch::Resolution(_) => None,
+            Dispatch::Resolution(delta) => None,
             Dispatch::SolveComment(_) => None,
             Dispatch::SolveReport(_) => None,
         };

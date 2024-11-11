@@ -11,24 +11,20 @@ static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
 use otter_lib::{
     config::Config,
-    context::builder::BuildErr,
+    context::{builder::BuildErr, Context},
     dispatch::{
-        comment::{self},
         delta::{self},
         report::{self},
         Dispatch,
     },
-    io::{cli::cli, files::context_from_path},
-    types::{
-        errs::{self},
-        gen::SolveStatus,
-    },
+    io::cli::cli,
+    types::errs::{self},
     FRAT,
 };
 
 use std::path::PathBuf;
 
-use crossbeam::channel::{unbounded, Receiver, Sender};
+use crossbeam::channel::{unbounded, Receiver};
 use std::thread;
 
 fn main() {
@@ -43,56 +39,91 @@ fn main() {
 
     let mut config = Config::from_args(&matches);
 
-    let frat_path = Some(PathBuf::from(&"temp.txt"));
-
     if config.io.detail > 0 {
-        println!("c Found {} formulas\n", formula_paths.len());
+        println!("c Parsing {} files\n", formula_paths.len());
     }
 
     let (tx, rx) = unbounded::<Dispatch>();
 
+    let the_path = formula_paths.first().unwrap().clone();
+    let frat_file = format!("{}.frat", the_path.file_name().unwrap().to_str().unwrap());
+    let mut frat_path = std::env::current_dir().unwrap();
+    frat_path.push("frat");
+    frat_path.push(frat_file);
+
+    println!("{:?}", frat_path);
+
+    // std::process::exit(2);
+    // frat_path.push_str(".frat");
+    let frat_path = Some(PathBuf::from(&frat_path));
     let listener_handle = thread::spawn(|| listener(rx, frat_path));
 
-    let formula_count = formula_paths.len();
+    /*
+    The context is in a block as:
+    - When the block closes the transmitter for the reciever is dropped
+    - Unify different ways to get sat/unsat
+    At least for now…
+     */
+    let report = 'report: {
+        let unique_config = config.clone();
+        let mut the_context = Context::from_config(unique_config, tx);
 
-    let report = match formula_count {
-        0 => panic!("no formulas"),
-        1 => {
-            let the_path = formula_paths.first().unwrap().clone();
-            let tx = tx.clone();
-            thread::spawn(move || report_on_formula(the_path, tx, config))
-                .join()
-                .expect("o what the heck")
+        for path in formula_paths {
+            println!("{path:?}");
+            match the_context.load_dimacs_file(path) {
+                Ok(()) => {}
+                Err(BuildErr::ClauseStore(errs::ClauseDB::EmptyClause)) => {
+                    println!("s UNSATISFIABLE");
+                    std::process::exit(20);
+                }
+                Err(e) => {
+                    println!("c Error loading DIMACS: {e:?}")
+                }
+            };
         }
-        _ => {
-            config.io.show_stats = false;
-            let mut last_report = None;
 
-            for path in formula_paths {
-                let config_clone = config.clone();
-                let tx = tx.clone();
-                let y = thread::spawn(move || report_on_formula(path, tx, config_clone))
-                    .join()
-                    .unwrap();
-                last_report = Some(y)
+        if the_context.clause_count() == 0 {
+            break 'report report::Solve::Satisfiable;
+        }
+
+        let the_report = match the_context.solve() {
+            Ok(r) => r,
+            Err(e) => {
+                println!("Context error: {e:?}");
+                std::process::exit(1);
             }
-            last_report.expect("bo")
+        };
+
+        match the_report {
+            report::Solve::Unsatisfiable => {
+                if config.io.show_core {
+                    // let _ = self.display_core(clause_key);
+                }
+                the_context.report_active();
+            }
+            report::Solve::Satisfiable => {
+                if config.io.show_valuation {
+                    println!("v {}", the_context.valuation_string());
+                }
+            }
+            _ => {}
         }
+        the_report
     };
 
-    drop(tx);
-    println!("c Finalising FRAT proof…");
-    let _ = listener_handle.join();
+    match report {
+        report::Solve::Satisfiable => {
+            // println!("v {}", the_context.valuation_string());
+            std::process::exit(10)
+        }
+        report::Solve::Unsatisfiable => {
+            println!("c Finalising FRAT proof…");
 
-    match formula_count {
-        0 => panic!("o_x"),
-        1 => match report {
-            report::Solve::Satisfiable => std::process::exit(10),
-            report::Solve::Unsatisfiable => std::process::exit(20),
-            report::Solve::Unknown => std::process::exit(30),
-        },
-        _ => std::process::exit(0),
-    }
+            let _ = listener_handle.join();
+            std::process::exit(20)
+        }
+        report::Solve::Unknown => std::process::exit(30),
+    };
 }
 
 fn paths(args: &clap::ArgMatches) -> Vec<PathBuf> {
@@ -111,7 +142,7 @@ fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>) -> Result<(), ()
     let mut resolution_buffer = Vec::default();
 
     while let Ok(dispatch) = rx.recv() {
-        match dispatch {
+        match &dispatch {
             Dispatch::SolveComment(comment) => println!("c {}", comment),
             Dispatch::SolveReport(report) => println!("s {}", report.to_string().to_uppercase()),
 
@@ -119,9 +150,12 @@ fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>) -> Result<(), ()
                 delta::Resolution::Start => {
                     assert!(resolution_buffer.is_empty())
                 }
-                delta::Resolution::Used(k) => resolution_buffer.push(k),
+                delta::Resolution::Used(k) => resolution_buffer.push(*k),
                 delta::Resolution::Finish => {
                     frat_transcriber.take_resolution(std::mem::take(&mut resolution_buffer))
+                }
+                delta::Resolution::Subsumed(_, _) => {
+                    // TODO: Someday… maybe…
                 }
             },
             Dispatch::Parser(msg) => println!("c {msg}"),
@@ -140,63 +174,8 @@ fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>) -> Result<(), ()
     Ok(())
 }
 
-// TODO: unify the exceptions…
-fn report_on_formula(path: PathBuf, tx: Sender<Dispatch>, config: Config) -> report::Solve {
-    let config_io_detail = config.io.detail;
-
-    let (the_context, mut the_report) = match context_from_path(path, config.clone(), tx.clone()) {
-        Ok(context) => (Some(context), None),
-        Err(BuildErr::ClauseStore(errs::ClauseDB::EmptyClause)) => {
-            if config_io_detail > 0 {
-                let _ = tx.send(Dispatch::SolveComment(comment::Solve::FoundEmptyClause));
-            }
-            (None, Some(SolveStatus::NoSolution))
-        }
-        Err(e) => {
-            println!("c Error when building: {e:?}");
-            std::process::exit(2);
-        }
-    };
-
-    if let Some(mut the_context) = the_context {
-        if the_context.clause_count() == 0 {
-            if config_io_detail > 0 {
-                let _ = tx.send(Dispatch::SolveComment(comment::Solve::NoClauses));
-            }
-            the_report = Some(SolveStatus::NoClauses);
-        } else {
-            match the_context.solve() {
-                Ok(report) => {
-                    the_context.report_active();
-                    match report {
-                        report::Solve::Satisfiable => {
-                            if config.io.show_valuation {
-                                println!("v {}", the_context.valuation_string());
-                            }
-                        }
-                        report::Solve::Unsatisfiable => {
-                            if config.io.show_core {
-                                // let _ = self.display_core(clause_key);
-                            }
-                        }
-                        report::Solve::Unknown => {}
-                    }
-
-                    the_report = Some(the_context.status)
-                }
-                Err(e) => {
-                    println!("Context error: {e:?}");
-                    std::process::exit(1);
-                }
-            }
-        }
-    };
-
-    let the_status = the_report.expect("no status");
-
-    match the_status {
-        SolveStatus::FullValuation | SolveStatus::NoClauses => report::Solve::Satisfiable,
-        SolveStatus::NoSolution => report::Solve::Unsatisfiable,
-        _ => report::Solve::Unknown,
-    }
-}
+//     match the_status {
+//         SolveStatus::FullValuation | SolveStatus::NoClauses => report::Solve::Satisfiable,
+//         SolveStatus::NoSolution => report::Solve::Unsatisfiable,
+//         _ => report::Solve::Unknown,
+//     }
