@@ -63,7 +63,6 @@ pub struct Context {
     pub clause_store: ClauseDB,
     pub variables: VariableStore,
     pub config: config::Config,
-    window: Option<ContextWindow>,
     pub status: SolveStatus,
 
     pub tx: Sender<Dispatch>, //
@@ -86,18 +85,12 @@ impl std::fmt::Display for SolveStatus {
 
 impl Context {
     pub fn from_config(config: Config, sender: Sender<Dispatch>) -> Self {
-        let the_window = match config.io.show_stats {
-            true => Some(ContextWindow::default()),
-            false => None,
-        };
-
         Self {
             counters: Counters::default(),
             levels: LevelStore::new(sender.clone()),
             clause_store: ClauseDB::default(&sender),
             variables: VariableStore::new(sender.clone()),
             config,
-            window: the_window,
             status: SolveStatus::Initialised,
             tx: sender,
         }
@@ -113,7 +106,6 @@ impl Default for Context {
             clause_store: ClauseDB::default(&sender),
             variables: VariableStore::new(sender.clone()),
             config: Config::default(),
-            window: None,
             status: SolveStatus::Initialised,
             tx: sender,
         }

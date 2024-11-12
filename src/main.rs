@@ -10,14 +10,15 @@ use tikv_jemallocator::Jemalloc;
 static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
 use otter_lib::{
-    config::Config,
+    config::{Config, ConfigIO},
     context::{builder::BuildErr, Context},
     dispatch::{
         delta::{self},
         report::{self},
+        stat::{self},
         Dispatch,
     },
-    io::cli::cli,
+    io::{cli::cli, window::ContextWindow},
     types::errs::{self},
     FRAT,
 };
@@ -38,8 +39,9 @@ fn main() {
     let formula_paths = paths(&matches);
 
     let mut config = Config::from_args(&matches);
+    let io_config = ConfigIO::from_args(&matches);
 
-    if config.io.detail > 0 {
+    if io_config.detail > 0 {
         println!("c Parsing {} files\n", formula_paths.len());
     }
 
@@ -48,15 +50,13 @@ fn main() {
     let the_path = formula_paths.first().unwrap().clone();
     let frat_file = format!("{}.frat", the_path.file_name().unwrap().to_str().unwrap());
     let mut frat_path = std::env::current_dir().unwrap();
-    frat_path.push("frat");
     frat_path.push(frat_file);
-
-    println!("{:?}", frat_path);
 
     // std::process::exit(2);
     // frat_path.push_str(".frat");
     let frat_path = Some(PathBuf::from(&frat_path));
-    let listener_handle = thread::spawn(|| listener(rx, frat_path));
+    let config_clone = config.clone();
+    let listener_handle = thread::spawn(|| listener(rx, frat_path, config_clone));
 
     /*
     The context is in a block as:
@@ -65,8 +65,7 @@ fn main() {
     At least for now…
      */
     let report = 'report: {
-        let unique_config = config.clone();
-        let mut the_context = Context::from_config(unique_config, tx);
+        let mut the_context = Context::from_config(config, tx);
 
         for path in formula_paths {
             println!("{path:?}");
@@ -96,13 +95,13 @@ fn main() {
 
         match the_report {
             report::Solve::Unsatisfiable => {
-                if config.io.show_core {
+                if io_config.show_core {
                     // let _ = self.display_core(clause_key);
                 }
                 the_context.report_active();
             }
             report::Solve::Satisfiable => {
-                if config.io.show_valuation {
+                if io_config.show_valuation {
                     println!("v {}", the_context.valuation_string());
                 }
             }
@@ -112,13 +111,9 @@ fn main() {
     };
 
     match report {
-        report::Solve::Satisfiable => {
-            // println!("v {}", the_context.valuation_string());
-            std::process::exit(10)
-        }
+        report::Solve::Satisfiable => std::process::exit(10),
         report::Solve::Unsatisfiable => {
             println!("c Finalising FRAT proof…");
-
             let _ = listener_handle.join();
             std::process::exit(20)
         }
@@ -137,13 +132,20 @@ fn paths(args: &clap::ArgMatches) -> Vec<PathBuf> {
     formula_paths
 }
 
-fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>) -> Result<(), ()> {
+fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>, config: Config) -> Result<(), ()> {
     let mut frat_transcriber = FRAT::Transcriber::new(frat_path.unwrap());
     let mut resolution_buffer = Vec::default();
 
+    let mut window = ContextWindow::default();
+    window.draw_window(&config);
+    // window.location.
+
     while let Ok(dispatch) = rx.recv() {
         match &dispatch {
-            Dispatch::SolveComment(comment) => println!("c {}", comment),
+            Dispatch::SolveComment(comment) => {
+                window.location.1 -= 1;
+                println!("c {}", comment)
+            }
             Dispatch::SolveReport(report) => println!("s {}", report.to_string().to_uppercase()),
 
             Dispatch::Resolution(r_delta) => match r_delta {
@@ -158,7 +160,27 @@ fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>) -> Result<(), ()
                     // TODO: Someday… maybe…
                 }
             },
-            Dispatch::Parser(msg) => println!("c {msg}"),
+            Dispatch::Parser(msg) => {
+                window.location.1 -= 1;
+                println!("c {msg}")
+            }
+            Dispatch::Stats(stat) => {
+                use otter_lib::io::window::WindowItem;
+                match stat {
+                    stat::Count::ICD(i, c, d) => {
+                        window.update_item(WindowItem::Iterations, i);
+                        window.update_item(WindowItem::Decisions, d);
+                        window.update_item(WindowItem::Conflicts, c);
+                        window.update_item(WindowItem::Ratio, *c as f64 / *i as f64);
+                        window.flush();
+                    }
+
+                    stat::Count::Time(t) => {
+                        window.update_item(WindowItem::Time, format!("{:.2?}", t))
+                    }
+                }
+            }
+
             Dispatch::Level(_) => {
                 frat_transcriber.transcripe(dispatch);
             }
@@ -173,9 +195,3 @@ fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>) -> Result<(), ()
     assert!(frat_transcriber.resolution_buffer.is_empty());
     Ok(())
 }
-
-//     match the_status {
-//         SolveStatus::FullValuation | SolveStatus::NoClauses => report::Solve::Satisfiable,
-//         SolveStatus::NoSolution => report::Solve::Unsatisfiable,
-//         _ => report::Solve::Unknown,
-//     }

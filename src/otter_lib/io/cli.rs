@@ -2,7 +2,9 @@ use std::path::PathBuf;
 
 use clap::{value_parser, Arg, ArgMatches, Command};
 
-use crate::config::{self, ClauseActivity, Config, StoppingCriteria, VariableActivity, VSIDS};
+use crate::config::{
+    self, ClauseActivity, Config, ConfigIO, StoppingCriteria, VariableActivity, VSIDS,
+};
 
 pub fn cli() -> Command {
     Command::new("otter_sat")
@@ -255,15 +257,6 @@ impl Config {
         if let Ok(Some(value)) = args.try_get_one::<bool>("no_reduction") {
             the_config.reduction_allowed = !*value
         };
-        if let Ok(Some(value)) = args.try_get_one::<bool>("core") {
-            the_config.io.show_core = *value
-        };
-        if let Ok(Some(value)) = args.try_get_one::<bool>("stats") {
-            the_config.io.show_stats = *value;
-        };
-        if let Ok(Some(value)) = args.try_get_one::<bool>("valuation") {
-            the_config.io.show_valuation = *value
-        };
         if let Ok(Some(value)) = args.try_get_one::<bool>("no_subsumption") {
             the_config.subsumption = !*value
         };
@@ -285,10 +278,27 @@ impl Config {
             the_config.reduction_allowed = false;
         };
 
-        if let Ok(Some(detail)) = args.try_get_one::<u8>("detail") {
-            the_config.io.detail = *detail
+        the_config
+    }
+}
+
+impl ConfigIO {
+    pub fn from_args(args: &ArgMatches) -> Self {
+        let mut the_config = ConfigIO::default();
+
+        if let Ok(Some(value)) = args.try_get_one::<bool>("core") {
+            the_config.show_core = *value
+        };
+        if let Ok(Some(value)) = args.try_get_one::<bool>("stats") {
+            the_config.show_stats = *value;
+        };
+        if let Ok(Some(value)) = args.try_get_one::<bool>("valuation") {
+            the_config.show_valuation = *value
         };
 
+        if let Ok(Some(detail)) = args.try_get_one::<u8>("detail") {
+            the_config.detail = *detail
+        };
         the_config
     }
 }

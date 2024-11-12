@@ -37,12 +37,6 @@ impl Context {
             Err(_) => panic!("Preprocessing failure"),
         };
 
-        if self.config.io.show_stats {
-            if let Some(window) = &mut self.window {
-                window.draw_window(&self.config);
-            }
-        }
-
         let config_clone = self.config.clone();
         let time_limit = config_clone.time_limit;
 
@@ -186,9 +180,15 @@ impl Context {
             == 0
         {
             self.counters.luby.next();
-            if let Some(window) = &self.window {
-                window.update_counters(&self.counters);
-                window.flush();
+            {
+                use dispatch::stat::Count;
+                self.tx.send(Dispatch::Stats(Count::ICD(
+                    self.counters.iterations,
+                    self.counters.conflicts,
+                    self.counters.decisions,
+                )));
+                self.tx
+                    .send(Dispatch::Stats(Count::Time(self.counters.time)));
             }
 
             if config.restarts_allowed {

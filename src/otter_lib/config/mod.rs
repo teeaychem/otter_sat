@@ -30,8 +30,6 @@ pub struct Config {
     pub time_limit: Option<std::time::Duration>,
     pub vsids_variant: VSIDS,
     pub reduction_interval: usize,
-
-    pub io: ConfigIO,
 }
 
 #[derive(Debug, Clone)]
@@ -75,7 +73,6 @@ impl Default for Config {
             time_limit: None,
             vsids_variant: VSIDS_VARIANT,
             reduction_interval: REDUCTION_INTERVAL,
-            io: ConfigIO::default(),
         }
     }
 }

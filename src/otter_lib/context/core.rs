@@ -67,12 +67,12 @@ impl Context {
     }
 
     pub fn print_status(&self) {
-        if self.config.io.show_stats {
-            if let Some(window) = &self.window {
-                window.update_counters(&self.counters);
-                window.flush();
-            }
-        }
+        // if self.config.io.show_stats {
+        //     if let Some(window) = &self.window {
+        //         window.update_counters(&self.counters);
+        //         window.flush();
+        //     }
+        // }
 
         match self.status {
             SolveStatus::FullValuation => {
@@ -83,19 +83,10 @@ impl Context {
             SolveStatus::NoSolution => {
                 let report = report::Solve::Unsatisfiable;
                 let _ = self.tx.send(Dispatch::SolveReport(report));
-                if self.config.io.show_core {
-                    // let _ = self.display_core(clause_key);
-                }
             }
             SolveStatus::NoClauses => {
-                if self.config.io.detail > 0 {
-                    let _ = self
-                        .tx
-                        .send(Dispatch::SolveComment(comment::Solve::NoClauses));
-                }
-                let _ = self
-                    .tx
-                    .send(Dispatch::SolveReport(report::Solve::Satisfiable));
+                self.tx
+                    .send(Dispatch::SolveComment(comment::Solve::NoClauses));
             }
             _ => {
                 let _ = self.tx.send(Dispatch::SolveReport(report::Solve::Unknown));

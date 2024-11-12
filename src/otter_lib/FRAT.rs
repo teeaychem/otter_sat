@@ -246,6 +246,7 @@ impl Transcriber {
             Dispatch::Resolution(delta) => None,
             Dispatch::SolveComment(_) => None,
             Dispatch::SolveReport(_) => None,
+            Dispatch::Stats(_) => None,
         };
         if let Some(mut step) = transcription {
             step.push_str(" 0\n");

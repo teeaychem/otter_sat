@@ -14,6 +14,8 @@ pub enum Dispatch {
     SolveReport(report::Solve),
     ClauseDBReport(report::ClauseDB),
     VariableDBReport(report::VariableDB),
+    // stats
+    Stats(stat::Count),
 }
 
 impl std::fmt::Display for comment::Solve {
@@ -24,6 +26,16 @@ impl std::fmt::Display for comment::Solve {
             Self::NoClauses => write!(f, "The formula does not contain any clauses"),
             Self::TimeUp => write!(f, "Time limit exceeded"),
         }
+    }
+}
+
+pub mod stat {
+    use std::time::Duration;
+
+    use super::*;
+    pub enum Count {
+        ICD(usize, usize, usize),
+        Time(Duration),
     }
 }
 
