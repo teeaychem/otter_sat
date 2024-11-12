@@ -261,30 +261,7 @@ impl ClauseDB {
                 log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
                 Err(errs::ClauseDB::TransferBinary)
             }
-            ClauseKey::Formula(index) | // => {
-            //     let formula_clause = self.get_mut(key)?;
-            //     formula_clause.deactivate();
-            //     let copied_clause = formula_clause.deref().to_vec();
-
-            //     if copied_clause.len() != 2 {
-            //         log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
-            //         return Err(errs::ClauseDB::TransferBinary);
-            //     }
-
-            //     let b_key = self.new_binary_id()?;
-
-            //     let delta = delta::ClauseDB::TransferBinary(key, b_key, copied_clause.clone());
-            //     self.tx.send(Dispatch::ClauseDB(delta));
-
-            //     variables.remove_watch(unsafe { copied_clause.get_unchecked(0) }, key)?;
-            //     variables.remove_watch(unsafe { copied_clause.get_unchecked(1) }, key)?;
-
-            //     let binary_clause = StoredClause::from(b_key, copied_clause, variables);
-
-            //     self.binary.push(binary_clause);
-            //     Ok(b_key)
-            // }
-            ClauseKey::Learned(index, _) => {
+            ClauseKey::Formula(index) | ClauseKey::Learned(index, _) => {
                 let the_clause = self.get_mut(key)?;
                 the_clause.deactivate();
                 let copied_clause = the_clause.to_vec();
@@ -305,9 +282,11 @@ impl ClauseDB {
                 let binary_clause = StoredClause::from(b_key, copied_clause, variables);
 
                 self.binary.push(binary_clause);
-                self.counts.learned += 1; // removing decrements the coun
 
-                self.remove_from_learned(key.index())?;
+                if matches!(key, ClauseKey::Learned(_, _)) {
+                    self.remove_from_learned(key.index())?;
+                    self.counts.learned += 1; // removing decrements the coun
+                }
 
                 Ok(b_key)
             }

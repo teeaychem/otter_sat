@@ -64,7 +64,6 @@ pub struct Context {
     pub variables: VariableStore,
     pub config: config::Config,
     pub status: SolveStatus,
-
     pub tx: Sender<Dispatch>, //
 }
 
@@ -84,30 +83,30 @@ impl std::fmt::Display for SolveStatus {
 }
 
 impl Context {
-    pub fn from_config(config: Config, sender: Sender<Dispatch>) -> Self {
+    pub fn from_config(config: Config, tx: Sender<Dispatch>) -> Self {
         Self {
             counters: Counters::default(),
-            levels: LevelStore::new(sender.clone()),
-            clause_store: ClauseDB::default(&sender),
-            variables: VariableStore::new(sender.clone()),
+            levels: LevelStore::new(tx.clone()),
+            clause_store: ClauseDB::default(&tx),
+            variables: VariableStore::new(tx.clone()),
             config,
             status: SolveStatus::Initialised,
-            tx: sender,
+            tx,
         }
     }
 }
 
 impl Default for Context {
     fn default() -> Self {
-        let (sender, _) = crossbeam::channel::bounded::<Dispatch>(0);
+        let (tx, _) = crossbeam::channel::bounded::<Dispatch>(0);
         Context {
             counters: Counters::default(),
-            levels: LevelStore::new(sender.clone()),
-            clause_store: ClauseDB::default(&sender),
-            variables: VariableStore::new(sender.clone()),
+            levels: LevelStore::new(tx.clone()),
+            clause_store: ClauseDB::default(&tx),
+            variables: VariableStore::new(tx.clone()),
             config: Config::default(),
             status: SolveStatus::Initialised,
-            tx: sender,
+            tx,
         }
     }
 }
