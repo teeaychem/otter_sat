@@ -10,7 +10,12 @@ use tikv_jemallocator::Jemalloc;
 static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
 use otter_lib::{
-    config::{Config, ConfigIO},
+    cli::{
+        config::ConfigIO,
+        parse::{self, config_io},
+        window::ContextWindow,
+    },
+    config::Config,
     context::{builder::BuildErr, Context},
     dispatch::{
         delta::{self},
@@ -18,7 +23,6 @@ use otter_lib::{
         stat::{self},
         Dispatch,
     },
-    io::{cli::cli, window::ContextWindow},
     types::errs::{self},
     FRAT,
 };
@@ -35,28 +39,36 @@ fn main() {
         Err(e) => log::error!("{e:?}"),
     }
 
-    let matches = cli().get_matches();
-    let formula_paths = paths(&matches);
+    let matches = parse::cli::cli().get_matches();
 
     let mut config = Config::from_args(&matches);
-    let io_config = ConfigIO::from_args(&matches);
+    let config_io = ConfigIO::from_args(&matches);
 
-    if io_config.detail > 0 {
-        println!("c Parsing {} files\n", formula_paths.len());
+    if config_io.detail > 0 {
+        println!("c Parsing {} files\n", config_io.files.len());
     }
+
+    #[allow(clippy::collapsible_if)]
+    if config_io.frat {
+        if config.subsumption {
+            if config_io.detail > 0 {
+                println!("c Subsumption is disabled for FRAT proofs");
+            }
+            config.subsumption = false;
+        }
+    }
+
+    dbg!(&config_io);
 
     let (tx, rx) = unbounded::<Dispatch>();
 
-    let the_path = formula_paths.first().unwrap().clone();
-    let frat_file = format!("{}.frat", the_path.file_name().unwrap().to_str().unwrap());
-    let mut frat_path = std::env::current_dir().unwrap();
-    frat_path.push(frat_file);
-
     // std::process::exit(2);
     // frat_path.push_str(".frat");
-    let frat_path = Some(PathBuf::from(&frat_path));
-    let config_clone = config.clone();
-    let listener_handle = thread::spawn(|| listener(rx, frat_path, config_clone));
+    let listener_handle = {
+        let config = config.clone();
+        let config_io = config_io.clone();
+        thread::spawn(|| listener(rx, config, config_io))
+    };
 
     /*
     The context is in a block as:
@@ -67,7 +79,7 @@ fn main() {
     let report = 'report: {
         let mut the_context = Context::from_config(config, tx);
 
-        for path in formula_paths {
+        for path in config_io.files {
             println!("{path:?}");
             match the_context.load_dimacs_file(path) {
                 Ok(()) => {}
@@ -95,13 +107,13 @@ fn main() {
 
         match the_report {
             report::Solve::Unsatisfiable => {
-                if io_config.show_core {
+                if config_io.show_core {
                     // let _ = self.display_core(clause_key);
                 }
                 the_context.report_active();
             }
             report::Solve::Satisfiable => {
-                if io_config.show_valuation {
+                if config_io.show_valuation {
                     println!("v {}", the_context.valuation_string());
                 }
             }
@@ -121,20 +133,8 @@ fn main() {
     };
 }
 
-fn paths(args: &clap::ArgMatches) -> Vec<PathBuf> {
-    let formula_paths = match args.get_many::<PathBuf>("paths") {
-        None => {
-            println!("c Could not find formula paths");
-            std::process::exit(1);
-        }
-        Some(paths) => paths.cloned().collect(),
-    };
-    formula_paths
-}
-
-fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>, config: Config) -> Result<(), ()> {
-    let mut frat_transcriber = FRAT::Transcriber::new(frat_path.unwrap());
-    let mut resolution_buffer = Vec::default();
+fn listener(rx: Receiver<Dispatch>, config: Config, config_io: ConfigIO) -> Result<(), ()> {
+    let mut frat_writer = crate::FRAT::build_frat_writer(&config_io.frat_path);
 
     let mut window = ContextWindow::default();
     window.draw_window(&config);
@@ -147,25 +147,12 @@ fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>, config: Config) 
                 println!("c {}", comment)
             }
             Dispatch::SolveReport(report) => println!("s {}", report.to_string().to_uppercase()),
-
-            Dispatch::Resolution(r_delta) => match r_delta {
-                delta::Resolution::Start => {
-                    assert!(resolution_buffer.is_empty())
-                }
-                delta::Resolution::Used(k) => resolution_buffer.push(*k),
-                delta::Resolution::Finish => {
-                    frat_transcriber.take_resolution(std::mem::take(&mut resolution_buffer))
-                }
-                delta::Resolution::Subsumed(_, _) => {
-                    // TODO: Someday… maybe…
-                }
-            },
             Dispatch::Parser(msg) => {
                 window.location.1 -= 1;
                 println!("c {msg}")
             }
             Dispatch::Stats(stat) => {
-                use otter_lib::io::window::WindowItem;
+                use otter_lib::cli::window::WindowItem;
                 match stat {
                     stat::Count::ICD(i, c, d) => {
                         window.update_item(WindowItem::Iterations, i);
@@ -180,18 +167,17 @@ fn listener(rx: Receiver<Dispatch>, frat_path: Option<PathBuf>, config: Config) 
                     }
                 }
             }
-
-            Dispatch::Level(_) => {
-                frat_transcriber.transcripe(dispatch);
-            }
-            _ => {
-                frat_transcriber.transcripe(dispatch);
+            Dispatch::Resolution(_)
+            | Dispatch::VariableDB(_)
+            | Dispatch::VariableDBReport(_)
+            | Dispatch::ClauseDB(_)
+            | Dispatch::ClauseDBReport(_)
+            | Dispatch::Level(_) => {
+                frat_writer(dispatch);
             }
         }
-        frat_transcriber.flush();
     }
 
     println!("c FRAT proof finalised");
-    assert!(frat_transcriber.resolution_buffer.is_empty());
     Ok(())
 }

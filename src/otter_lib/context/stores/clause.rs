@@ -182,29 +182,26 @@ impl ClauseDB {
             0 => Err(errs::ClauseDB::EmptyClause),
             1 => Err(errs::ClauseDB::UnitClause),
             2 => {
-                let the_key = self.new_binary_id()?;
+                let key = self.new_binary_id()?;
 
-                match source {
-                    ClauseSource::Formula => {
-                        let delta = delta::ClauseDB::BinaryFormula(the_key, clause.clone());
-                        self.tx.send(Dispatch::ClauseDB(delta))
-                    }
-                    ClauseSource::Resolution => {
-                        let delta = delta::ClauseDB::BinaryResolution(the_key, clause.clone());
-                        self.tx.send(Dispatch::ClauseDB(delta))
+                let delta = {
+                    let clone = clause.clone();
+                    match source {
+                        ClauseSource::Formula => delta::ClauseDB::BinaryOriginal(key, clone),
+                        ClauseSource::Resolution => delta::ClauseDB::BinaryResolution(key, clone),
                     }
                 };
+                self.tx.send(Dispatch::ClauseDB(delta));
 
-                self.binary
-                    .push(StoredClause::from(the_key, clause, variables));
+                self.binary.push(StoredClause::from(key, clause, variables));
 
-                Ok(the_key)
+                Ok(key)
             }
             _ => match source {
                 ClauseSource::Formula => {
                     let the_key = self.new_formula_id()?;
 
-                    let delta = delta::ClauseDB::Formula(the_key, clause.clone());
+                    let delta = delta::ClauseDB::Original(the_key, clause.clone());
                     self.tx.send(Dispatch::ClauseDB(delta));
 
                     self.formula
@@ -249,7 +246,6 @@ impl ClauseDB {
 
     /*
     To keep things simple a formula clause is ignored while a learnt clause is deleted
-
     */
     pub fn transfer_to_binary(
         &mut self,

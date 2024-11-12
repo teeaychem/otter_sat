@@ -15,3 +15,5 @@ mod generic;
 pub mod FRAT;
 
 pub mod dispatch;
+
+pub mod cli;

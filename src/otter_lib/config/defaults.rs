@@ -18,7 +18,3 @@ pub const VSIDS_VARIANT: config::VSIDS = config::VSIDS::MiniSAT;
 pub const DEFAULT_VARIABLE_COUNT: usize = 1024;
 
 pub const RNG_SEED: u64 = 0;
-
-pub const DETAILS: u8 = 0;
-
-pub const TRACE: bool = false;

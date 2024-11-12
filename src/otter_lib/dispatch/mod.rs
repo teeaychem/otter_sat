@@ -78,9 +78,9 @@ pub mod delta {
     pub enum ClauseDB {
         TransferBinary(ClauseKey, ClauseKey, Vec<Literal>),
         Deletion(ClauseKey, Vec<Literal>),
-        BinaryFormula(ClauseKey, Vec<Literal>),
+        BinaryOriginal(ClauseKey, Vec<Literal>),
         BinaryResolution(ClauseKey, Vec<Literal>),
-        Formula(ClauseKey, Vec<Literal>),
+        Original(ClauseKey, Vec<Literal>),
         Learned(ClauseKey, Vec<Literal>),
     }
 

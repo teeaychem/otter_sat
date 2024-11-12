@@ -11,13 +11,10 @@ pub mod unique_id;
 use crate::{dispatch::Dispatch, types::gen::SolveStatus};
 
 use {
-    crate::{
-        config::{
-            self,
-            defaults::{self},
-            Config,
-        },
-        io::window::ContextWindow,
+    crate::config::{
+        self,
+        defaults::{self},
+        Config,
     },
     stores::{clause::ClauseDB, variable::VariableStore},
 };

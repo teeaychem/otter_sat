@@ -2,14 +2,19 @@ use std::path::PathBuf;
 
 use clap::{value_parser, Arg, ArgMatches, Command};
 
-use crate::config::{
-    self, ClauseActivity, Config, ConfigIO, StoppingCriteria, VariableActivity, VSIDS,
-};
+use crate::config::{self, ClauseActivity, Config, StoppingCriteria, VariableActivity, VSIDS};
 
 pub fn cli() -> Command {
     Command::new("otter_sat")
         .about("Determines whether a formula is satisfiable or unsatisfialbe")
         .version("pup (it's still growing)")
+
+        .arg(Arg::new("paths")
+            .required(false)
+            .trailing_var_arg(true)
+            .num_args(0..)
+            .value_parser(value_parser!(PathBuf))
+            .help("The DIMACS form CNF files to parse (as a single formula)."))
 
         .arg(Arg::new("core")
             .short('c')
@@ -44,7 +49,7 @@ Default: {}
 Works the same as variable activity, but applied to clauses.
 If reductions are allowed then clauses are removed from low to high activity.", config::defaults::CLAUSE_DECAY_FACTOR)))
 
-        .arg(Arg::new("reduction-interval")
+        .arg(Arg::new("reduction_interval")
             .long("reduction-interval")
             .value_parser(value_parser!(usize))
             .required(false)
@@ -102,22 +107,6 @@ For example, p ∨ r subsumes p ∨ q ∨ r."))
             .num_args(0)
             .help("Perform some pre-processing before a solve.
 For the moment this is limited to settling all atoms which occur with a unique polarity."))
-
-        .arg(Arg::new("stats")
-            .short('s')
-            .long("stats")
-            .value_parser(value_parser!(bool))
-            .required(false)
-            .num_args(0)
-            .help("Display stats during a solve."))
-
-        .arg(Arg::new("valuation")
-            .short('v')
-            .long("valuation")
-            .value_parser(value_parser!(bool))
-            .required(false)
-            .num_args(0)
-            .help("Display valuation on completion."))
 
         .arg(Arg::new("glue_strength")
             .long("glue")
@@ -199,6 +188,8 @@ Default: {}", config::defaults::POLARITY_LEAN)))
             .help("Time limit for the solve in seconds.
 Default: No limit"))
 
+        // CLI specific arguments
+
         .arg(Arg::new("detail")
             .long("detail")
             .short('d')
@@ -207,100 +198,39 @@ Default: No limit"))
             .required(false)
             .num_args(1)
             .help(format!("The level to which details are communicated during a solve.
-Default: {}", config::defaults::DETAILS)))
+Default: {}", crate::cli::config::DETAILS)))
 
-        .arg(Arg::new("paths")
+    .arg(Arg::new("stats")
+            .short('s')
+            .long("stats")
+            .value_parser(value_parser!(bool))
             .required(false)
-            .trailing_var_arg(true)
-            .num_args(0..)
+            .num_args(0)
+            .help("Display stats during a solve."))
+
+        .arg(Arg::new("valuation")
+            .short('v')
+            .long("valuation")
+            .value_parser(value_parser!(bool))
+            .required(false)
+            .num_args(0)
+            .help("Display valuation on completion."))
+
+
+        .arg(Arg::new("FRAT")
+            .long("FRAT")
+            .value_parser(value_parser!(bool))
+            .required(false)
+            .num_args(0)
+            .help("Write an FRAT proof."))
+
+        .arg(Arg::new("FRAT_path")
+            .long("FRAT-path")
+            .value_name("PATH")
             .value_parser(value_parser!(PathBuf))
-            .help("The DIMACS form CNF files to parse."))
-}
-
-impl Config {
-    pub fn from_args(args: &ArgMatches) -> Self {
-        let mut the_config = Config::default();
-
-        if let Ok(Some(strength)) = args.try_get_one::<config::GlueStrength>("glue_strength") {
-            the_config.glue_strength = *strength
-        };
-
-        if let Ok(Some(decay)) = args.try_get_one::<config::VariableActivity>("variable_decay") {
-            the_config.variable_decay = *decay
-        };
-        if let Ok(Some(decay)) = args.try_get_one::<config::ClauseActivity>("clause_decay") {
-            the_config.clause_decay = *decay
-        };
-
-        if let Ok(Some(interval)) = args.try_get_one::<usize>("reduction-interval") {
-            the_config.reduction_interval = *interval
-        };
-
-        if let Ok(Some(u)) = args.try_get_one::<config::LubyConstant>("luby") {
-            the_config.luby_constant = *u
-        };
-        if let Ok(Some(lean)) = args.try_get_one::<config::PolarityLean>("polarity_lean") {
-            the_config.polarity_lean = *lean
-        };
-        if let Ok(Some(frequency)) =
-            args.try_get_one::<config::RandomChoiceFrequency>("random_choice_frequency")
-        {
-            the_config.random_choice_frequency = *frequency
-        };
-
-        if let Ok(Some(value)) = args.try_get_one::<bool>("preprocessing") {
-            the_config.preprocessing = *value
-        };
-        if let Ok(Some(value)) = args.try_get_one::<bool>("no_restarts") {
-            the_config.restarts_allowed = !*value
-        };
-        if let Ok(Some(value)) = args.try_get_one::<bool>("no_reduction") {
-            the_config.reduction_allowed = !*value
-        };
-        if let Ok(Some(value)) = args.try_get_one::<bool>("no_subsumption") {
-            the_config.subsumption = !*value
-        };
-
-        if let Ok(Some(secs)) = args.try_get_one::<u64>("time_limit") {
-            the_config.time_limit = Some(std::time::Duration::from_secs(*secs))
-        };
-
-        if let Ok(Some(criteria)) = args.try_get_one::<StoppingCriteria>("stopping_criteria") {
-            the_config.stopping_criteria = *criteria
-        };
-
-        if let Ok(Some(variant)) = args.try_get_one::<VSIDS>("VSIDS_variant") {
-            the_config.vsids_variant = *variant
-        };
-
-        if let Ok(Some(true)) = args.try_get_one::<bool>("elephant") {
-            the_config.restarts_allowed = false;
-            the_config.reduction_allowed = false;
-        };
-
-        the_config
-    }
-}
-
-impl ConfigIO {
-    pub fn from_args(args: &ArgMatches) -> Self {
-        let mut the_config = ConfigIO::default();
-
-        if let Ok(Some(value)) = args.try_get_one::<bool>("core") {
-            the_config.show_core = *value
-        };
-        if let Ok(Some(value)) = args.try_get_one::<bool>("stats") {
-            the_config.show_stats = *value;
-        };
-        if let Ok(Some(value)) = args.try_get_one::<bool>("valuation") {
-            the_config.show_valuation = *value
-        };
-
-        if let Ok(Some(detail)) = args.try_get_one::<u8>("detail") {
-            the_config.detail = *detail
-        };
-        the_config
-    }
+            .required(false)
+            .num_args(1)
+            .help("The path to write an FRAT proof."))
 }
 
 fn vsids_parser(arg: &str) -> Result<VSIDS, std::io::Error> {

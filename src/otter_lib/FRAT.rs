@@ -54,21 +54,20 @@ pub struct Transcriber {
     path: PathBuf,
     file: File,
     step_buffer: Vec<String>,
-    pub resolution_buffer: VecDeque<Vec<ClauseKey>>,
+    pub resolution_buffer: Vec<ClauseKey>,
+    pub resolution_queue: VecDeque<Vec<ClauseKey>>,
     variable_map: Vec<Option<String>>,
 }
 
 impl Transcriber {
-    pub fn new(path: PathBuf) -> Self {
-        std::fs::File::create(&path);
-        let mut file = std::fs::OpenOptions::new()
-            .append(true)
-            .open(&path)
-            .unwrap();
+    pub fn new(path: &PathBuf) -> Self {
+        std::fs::File::create(path);
+        let mut file = std::fs::OpenOptions::new().append(true).open(path).unwrap();
         Transcriber {
-            path,
+            path: path.clone(),
             file,
-            resolution_buffer: VecDeque::default(),
+            resolution_buffer: Vec::default(),
+            resolution_queue: VecDeque::default(),
             step_buffer: Vec::default(),
             variable_map: Vec::default(),
         }
@@ -115,7 +114,7 @@ impl Transcriber {
         }
     }
 
-    pub fn transcripe(&mut self, dispatch: Dispatch) {
+    pub fn transcribe(&mut self, dispatch: Dispatch) {
         let mut transcription = match dispatch {
             //
             Dispatch::VariableDB(v_delta) => match v_delta {
@@ -146,7 +145,7 @@ impl Transcriber {
                         Some(the_string)
                     }
 
-                    delta::ClauseDB::Formula(key, clause) => {
+                    delta::ClauseDB::Original(key, clause) => {
                         let mut the_string = format!("o {} ", Self::key_id(key));
                         the_string.push_str(&self.externalised_clause(clause));
                         Some(the_string)
@@ -159,7 +158,7 @@ impl Transcriber {
                         let mut the_string = format!("a {} ", Self::key_id(to));
                         the_string.push_str(&self.externalised_clause(clause));
                         the_string.push_str(" 0 l ");
-                        let resolution_steps = self.resolution_buffer.pop_front().expect("nri");
+                        let resolution_steps = self.resolution_queue.pop_front().expect("nri");
                         the_string.push_str(&Self::resolution_buffer_ids(resolution_steps));
                         the_string.push_str(format!("d {} 0\n", Self::key_id(from)).as_str());
                         Some(the_string)
@@ -170,11 +169,11 @@ impl Transcriber {
                         the_string.push_str(&self.externalised_clause(clause));
                         the_string.push_str(" 0 l ");
                         the_string.push_str(&Self::resolution_buffer_ids(
-                            self.resolution_buffer.pop_front().expect("nri_l"),
+                            self.resolution_queue.pop_front().expect("nri_l"),
                         ));
                         Some(the_string)
                     }
-                    delta::ClauseDB::BinaryFormula(key, clause) => {
+                    delta::ClauseDB::BinaryOriginal(key, clause) => {
                         let mut the_string = format!("o {} ", Self::key_id(key));
                         the_string.push_str(&self.externalised_clause(clause));
                         Some(the_string)
@@ -184,7 +183,7 @@ impl Transcriber {
                         the_string.push_str(&self.externalised_clause(clause));
                         the_string.push_str(" 0 l ");
                         the_string.push_str(&Self::resolution_buffer_ids(
-                            self.resolution_buffer.pop_front().expect("nri_br"),
+                            self.resolution_queue.pop_front().expect("nri_br"),
                         ));
                         Some(the_string)
                     }
@@ -206,7 +205,7 @@ impl Transcriber {
                         );
                         the_string.push_str(" 0 l ");
                         the_string.push_str(&Self::resolution_buffer_ids(
-                            self.resolution_buffer.pop_front().expect("nri_rp"),
+                            self.resolution_queue.pop_front().expect("nri_rp"),
                         ));
                         Some(the_string)
                     }
@@ -242,8 +241,27 @@ impl Transcriber {
                 }
             },
 
+            Dispatch::Resolution(delta) => {
+                match delta {
+                    delta::Resolution::Start => {
+                        assert!(self.resolution_buffer.is_empty());
+                    }
+                    delta::Resolution::Finish => {
+                        self.resolution_queue
+                            .push_back(std::mem::take(&mut self.resolution_buffer));
+                    }
+                    delta::Resolution::Used(k) => {
+                        self.resolution_buffer.push(k);
+                    }
+                    delta::Resolution::Subsumed(_, _) => {
+                        // TODO: Someday… maybe…
+                    }
+                }
+                None
+            }
+
             Dispatch::Parser(_) => None,
-            Dispatch::Resolution(delta) => None,
+
             Dispatch::SolveComment(_) => None,
             Dispatch::SolveReport(_) => None,
             Dispatch::Stats(_) => None,
@@ -255,7 +273,7 @@ impl Transcriber {
     }
 
     pub fn take_resolution(&mut self, buffer: Vec<ClauseKey>) {
-        self.resolution_buffer.push_back(buffer)
+        self.resolution_queue.push_back(buffer)
     }
 
     pub fn flush(&mut self) {
@@ -263,5 +281,24 @@ impl Transcriber {
             let _ = self.file.write(step.as_bytes());
         }
         self.step_buffer.clear();
+    }
+}
+
+/// If given a path the writer transcribes dispatches to the path as an FRAT proof.
+/// Otherwise, then writer does nothing
+pub fn build_frat_writer(frat_path: &Option<PathBuf>) -> Box<dyn FnMut(Dispatch)> {
+    match frat_path {
+        None => {
+            let hand = |_: Dispatch| {};
+            Box::new(hand)
+        }
+        Some(path) => {
+            let mut transcriber = Transcriber::new(path);
+            let handler = move |dispatch: Dispatch| {
+                transcriber.transcribe(dispatch);
+                transcriber.flush()
+            };
+            Box::new(handler)
+        }
     }
 }

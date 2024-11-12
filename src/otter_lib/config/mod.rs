@@ -1,7 +1,5 @@
 use std::path::PathBuf;
 
-use defaults::DETAILS;
-
 pub mod defaults;
 
 pub type VariableActivity = f64;
@@ -30,27 +28,6 @@ pub struct Config {
     pub time_limit: Option<std::time::Duration>,
     pub vsids_variant: VSIDS,
     pub reduction_interval: usize,
-}
-
-#[derive(Debug, Clone)]
-pub struct ConfigIO {
-    pub detail: u8,
-    pub show_core: bool,
-    pub show_stats: bool,
-    pub show_valuation: bool,
-    pub frat: bool,
-}
-
-impl Default for ConfigIO {
-    fn default() -> Self {
-        ConfigIO {
-            detail: DETAILS,
-            show_core: false,
-            show_stats: false,
-            show_valuation: false,
-            frat: true,
-        }
-    }
 }
 
 impl Default for Config {
