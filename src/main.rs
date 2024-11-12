@@ -12,24 +12,20 @@ static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 use otter_lib::{
     cli::{
         config::ConfigIO,
-        parse::{self, config_io},
-        window::ContextWindow,
+        parse::{self},
     },
     config::Config,
     context::{builder::BuildErr, Context},
     dispatch::{
-        delta::{self},
         report::{self},
-        stat::{self},
         Dispatch,
     },
     types::errs::{self},
-    FRAT,
 };
 
-use std::path::PathBuf;
+use std::fs;
 
-use crossbeam::channel::{unbounded, Receiver};
+use crossbeam::channel::unbounded;
 use std::thread;
 
 fn main() {
@@ -58,16 +54,12 @@ fn main() {
         }
     }
 
-    dbg!(&config_io);
-
     let (tx, rx) = unbounded::<Dispatch>();
 
-    // std::process::exit(2);
-    // frat_path.push_str(".frat");
     let listener_handle = {
         let config = config.clone();
         let config_io = config_io.clone();
-        thread::spawn(|| listener(rx, config, config_io))
+        thread::spawn(|| otter_lib::io::listener::general_receiver(rx, config, config_io))
     };
 
     /*
@@ -123,61 +115,19 @@ fn main() {
     };
 
     match report {
-        report::Solve::Satisfiable => std::process::exit(10),
+        report::Solve::Satisfiable => {
+            if let Some(path) = config_io.frat_path {
+                let _ = fs::remove_file(path);
+            }
+            std::process::exit(10)
+        }
         report::Solve::Unsatisfiable => {
-            println!("c Finalising FRAT proof…");
-            let _ = listener_handle.join();
+            if config_io.frat_path.is_some() {
+                println!("c Finalising FRAT proof…");
+                let _ = listener_handle.join();
+            }
             std::process::exit(20)
         }
         report::Solve::Unknown => std::process::exit(30),
     };
-}
-
-fn listener(rx: Receiver<Dispatch>, config: Config, config_io: ConfigIO) -> Result<(), ()> {
-    let mut frat_writer = crate::FRAT::build_frat_writer(&config_io.frat_path);
-
-    let mut window = ContextWindow::default();
-    window.draw_window(&config);
-    // window.location.
-
-    while let Ok(dispatch) = rx.recv() {
-        match &dispatch {
-            Dispatch::SolveComment(comment) => {
-                window.location.1 -= 1;
-                println!("c {}", comment)
-            }
-            Dispatch::SolveReport(report) => println!("s {}", report.to_string().to_uppercase()),
-            Dispatch::Parser(msg) => {
-                window.location.1 -= 1;
-                println!("c {msg}")
-            }
-            Dispatch::Stats(stat) => {
-                use otter_lib::cli::window::WindowItem;
-                match stat {
-                    stat::Count::ICD(i, c, d) => {
-                        window.update_item(WindowItem::Iterations, i);
-                        window.update_item(WindowItem::Decisions, d);
-                        window.update_item(WindowItem::Conflicts, c);
-                        window.update_item(WindowItem::Ratio, *c as f64 / *i as f64);
-                        window.flush();
-                    }
-
-                    stat::Count::Time(t) => {
-                        window.update_item(WindowItem::Time, format!("{:.2?}", t))
-                    }
-                }
-            }
-            Dispatch::Resolution(_)
-            | Dispatch::VariableDB(_)
-            | Dispatch::VariableDBReport(_)
-            | Dispatch::ClauseDB(_)
-            | Dispatch::ClauseDBReport(_)
-            | Dispatch::Level(_) => {
-                frat_writer(dispatch);
-            }
-        }
-    }
-
-    println!("c FRAT proof finalised");
-    Ok(())
 }
