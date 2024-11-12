@@ -1,5 +1,6 @@
 use std::ops::Deref;
 
+use log::log;
 use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
@@ -10,15 +11,25 @@ use crate::{
         stores::LevelIndex,
         Context, SolveStatus,
     },
+    dispatch::{
+        self,
+        comment::{self},
+        delta,
+        report::{self},
+        Dispatch,
+    },
     structures::{
+        clause::Clause,
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::{list::VariableList, VariableId, BCP::BCPErr},
     },
-    types::{errs::StepErr, gen::Report},
+    types::errs::{self},
 };
 
+use super::stores::variable::QStatus;
+
 impl Context {
-    pub fn solve(&mut self) -> Result<Report, ContextFailure> {
+    pub fn solve(&mut self) -> Result<report::Solve, ContextFailure> {
         let this_total_time = std::time::Instant::now();
 
         match self.preprocess() {
@@ -26,18 +37,14 @@ impl Context {
             Err(_) => panic!("Preprocessing failure"),
         };
 
-        if self.config.show_stats {
-            if let Some(window) = &mut self.window {
-                window.draw_window(&self.config);
-            }
-        }
-
         let config_clone = self.config.clone();
         let time_limit = config_clone.time_limit;
 
         'solve_loop: loop {
             self.counters.time = this_total_time.elapsed();
             if time_limit.is_some_and(|limit| self.counters.time > limit) {
+                let comment = comment::Solve::TimeUp;
+                self.tx.send(Dispatch::SolveComment(comment));
                 return Ok(self.report());
             }
 
@@ -45,83 +52,103 @@ impl Context {
                 Ok(StepInfo::One) => continue 'solve_loop,
                 Ok(StepInfo::ChoiceMade) => continue 'solve_loop,
                 Ok(StepInfo::ChoicesExhausted) => break 'solve_loop Ok(self.report()),
-                Ok(StepInfo::Conflict(_)) => break 'solve_loop Ok(self.report()),
+                Ok(StepInfo::Conflict) => break 'solve_loop Ok(self.report()),
 
-                Err(StepErr::Backfall) => panic!("Backjumping failed"),
-                Err(StepErr::AnalysisFailure) => panic!("Analysis failed"),
-                Err(StepErr::ChoiceFailure) => panic!("Choice failure"),
+                Err(errs::Step::Backfall) => panic!("Backjumping failed"),
+                Err(errs::Step::AnalysisFailure) => panic!("Analysis failed"),
+                Err(errs::Step::ChoiceFailure) => panic!("Choice failure"),
                 Err(e) => panic!("{e:?}"),
             }
         }
     }
 
-    pub fn step(&mut self, config: &Config) -> Result<StepInfo, StepErr> {
+    pub fn step(&mut self, config: &Config) -> Result<StepInfo, errs::Step> {
         self.counters.iterations += 1;
+        log::trace!("Step {}", self.counters.iterations);
 
-        'search: while let Some((literal, _source, _)) = self.variables.get_consequence() {
+        'search: while let Some((literal, _)) = self.variables.get_consequence() {
             match self.BCP(literal) {
                 Ok(()) => {}
                 Err(BCPErr::Conflict(key)) => {
+                    //
+                    if !self.levels.decision_made() {
+                        self.status = SolveStatus::NoSolution;
+
+                        let report = delta::Variable::Falsum(literal);
+                        self.tx.send(Dispatch::VariableDB(report));
+
+                        return Ok(StepInfo::Conflict);
+                    }
+
                     let Ok(analysis_result) = self.conflict_analysis(key, config) else {
                         log::error!(target: crate::log::targets::STEP, "Conflict analysis failed.");
-                        return Err(StepErr::AnalysisFailure);
+                        return Err(errs::Step::AnalysisFailure);
                     };
 
                     match analysis_result {
-                        AnalysisResult::FundamentalConflict(key) => {
-                            self.status = SolveStatus::NoSolution(key);
-
-                            return Ok(StepInfo::Conflict(key));
-                        }
-
-                        AnalysisResult::QueueConflict(key) => {
-                            self.status = SolveStatus::NoSolution(key);
-
-                            return Ok(StepInfo::Conflict(key));
+                        AnalysisResult::FundamentalConflict => {
+                            panic!("Impossible");
+                            // Analysis is only called when some decision has been made, for now
+                            self.status = SolveStatus::NoSolution;
+                            return Ok(StepInfo::Conflict);
                         }
 
                         AnalysisResult::Proof(key, literal) => {
-                            self.status = SolveStatus::Proof(key);
+                            self.status = SolveStatus::Proof;
 
                             self.backjump(0);
 
-                            match self.q_literal(literal, LiteralSource::Resolution(key)) {
-                                Ok(()) => {}
-                                Err(_) => return Err(StepErr::QueueProof(key)),
-                            }
+                            let Ok(QStatus::Qd) = self.q_literal(literal) else {
+                                return Err(errs::Step::QueueProof(key));
+                            };
                         }
 
                         AnalysisResult::MissedImplication(key, literal) => {
-                            self.status = SolveStatus::MissedImplication(key);
+                            self.status = SolveStatus::MissedImplication;
 
-                            let the_clause = self.clause_store.get(key)?;
+                            let Ok(the_clause) = self.clause_store.get(key) else {
+                                panic!("mi");
+                            };
 
                             match self.backjump_level(the_clause.deref()) {
-                                None => return Err(StepErr::Backfall),
+                                None => return Err(errs::Step::Backfall),
                                 Some(index) => self.backjump(index),
                             }
 
-                            match self.q_literal(literal, LiteralSource::Missed(key)) {
-                                Ok(()) => {}
-                                Err(_) => return Err(StepErr::QueueConflict(key)),
+                            let Ok(QStatus::Qd) = self.q_literal(literal) else {
+                                return Err(errs::Step::QueueConflict(key));
                             };
+                            self.note_literal(
+                                literal.canonical(),
+                                LiteralSource::Missed(key),
+                                Vec::default(),
+                            );
 
                             continue 'search;
                         }
 
                         AnalysisResult::AssertingClause(key, literal) => {
-                            self.status = SolveStatus::AssertingClause(key);
+                            self.status = SolveStatus::AssertingClause;
 
-                            let the_clause = self.clause_store.get(key)?;
+                            let Ok(the_clause) = self.clause_store.get(key) else {
+                                println!("{key:?}");
+                                panic!("here, asserting")
+                            };
 
                             match self.backjump_level(the_clause.deref()) {
-                                None => return Err(StepErr::Backfall),
+                                None => return Err(errs::Step::Backfall),
                                 Some(index) => self.backjump(index),
                             }
 
-                            match self.q_literal(literal, LiteralSource::Analysis(key)) {
-                                Ok(()) => {}
-                                Err(_) => return Err(StepErr::QueueConflict(key)),
+                            match self.q_literal(literal) {
+                                Ok(QStatus::Qd) => {
+                                    self.note_literal(
+                                        literal.canonical(),
+                                        LiteralSource::Analysis(key),
+                                        Vec::default(),
+                                    );
+                                }
+                                Err(_) => return Err(errs::Step::QueueConflict(key)),
                             }
 
                             self.conflict_ceremony(config)?;
@@ -129,7 +156,7 @@ impl Context {
                         }
                     }
                 }
-                Err(BCPErr::CorruptWatch) => return Err(StepErr::BCPFailure),
+                Err(BCPErr::CorruptWatch) => return Err(errs::Step::BCPFailure),
             }
         }
 
@@ -144,7 +171,7 @@ impl Context {
 }
 
 impl Context {
-    fn conflict_ceremony(&mut self, config: &Config) -> Result<(), StepErr> {
+    fn conflict_ceremony(&mut self, config: &Config) -> Result<(), errs::Step> {
         self.counters.conflicts += 1;
         self.counters.conflicts_in_memory += 1;
 
@@ -153,9 +180,15 @@ impl Context {
             == 0
         {
             self.counters.luby.next();
-            if let Some(window) = &self.window {
-                window.update_counters(&self.counters);
-                window.flush();
+            {
+                use dispatch::stat::Count;
+                self.tx.send(Dispatch::Stats(Count::ICD(
+                    self.counters.iterations,
+                    self.counters.conflicts,
+                    self.counters.decisions,
+                )));
+                self.tx
+                    .send(Dispatch::Stats(Count::Time(self.counters.time)));
             }
 
             if config.restarts_allowed {
@@ -174,16 +207,11 @@ impl Context {
         Ok(())
     }
 
-    fn make_choice(&mut self, config: &Config) -> Result<StepInfo, StepErr> {
+    fn make_choice(&mut self, config: &Config) -> Result<StepInfo, errs::Step> {
         match self.get_unassigned(config) {
             Some(choice_index) => {
                 self.counters.decisions += 1;
-                self.levels.get_fresh();
 
-                log::trace!(target: crate::log::targets::STEP,
-                    "Choice of {choice_index} at level {}",
-                    self.levels.top().index(),
-                );
                 let choice_literal = {
                     let choice_id = choice_index as VariableId;
                     match self.variables.get_unsafe(choice_index).previous_value() {
@@ -194,9 +222,10 @@ impl Context {
                         }
                     }
                 };
-                match self.q_literal(choice_literal, LiteralSource::Choice) {
-                    Ok(()) => {}
-                    Err(_) => return Err(StepErr::ChoiceFailure),
+                log::trace!("Choice {choice_literal}");
+                self.levels.make_choice(choice_literal);
+                let Ok(QStatus::Qd) = self.q_literal(choice_literal) else {
+                    return Err(errs::Step::ChoiceFailure);
                 };
 
                 self.status = SolveStatus::ChoiceMade;
@@ -234,14 +263,15 @@ impl Context {
     }
 
     fn backjump(&mut self, to: LevelIndex) {
-        log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.top().index(), to);
+        // log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.index(), to);
 
-        for _ in 0..(self.levels.top().index() - to) {
-            let the_level = self.levels.pop().expect("lost level");
-            log::trace!(target: crate::log::targets::BACKJUMP, "To clear: {:?}", the_level.literals().collect::<Vec<_>>());
-            for literal in the_level.literals() {
+        for _ in 0..(self.levels.decision_count() - to) {
+            self.variables
+                .retract_valuation(self.levels.current_choice().index());
+            for literal in self.levels.current_consequences().iter().map(|(_, l)| *l) {
                 self.variables.retract_valuation(literal.index());
             }
+            self.levels.forget_current_choice();
         }
         self.variables.clear_consequences(to);
     }

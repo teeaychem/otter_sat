@@ -1,7 +1,7 @@
 use crate::{
     context::stores::{ClauseKey, LevelIndex},
     structures::variable::{Variable, VariableId},
-    types::errs::WatchError,
+    types::errs::{self},
 };
 
 use std::cell::UnsafeCell;
@@ -54,7 +54,7 @@ impl Variable {
     If guarantee that key appears once then this could break early
     As this shuffles the list any heuristics on traversal order are affected
      */
-    pub fn watch_removed(&self, key: ClauseKey, polarity: bool) -> Result<(), WatchError> {
+    pub fn watch_removed(&self, key: ClauseKey, polarity: bool) -> Result<(), errs::Watch> {
         unsafe {
             match key {
                 ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
@@ -66,7 +66,7 @@ impl Variable {
                     let mut limit = list.len();
                     while index < limit {
                         let WatchElement::Clause(list_key) = list.get_unchecked(index) else {
-                            return Err(WatchError::BinaryInLong);
+                            return Err(errs::Watch::BinaryInLong);
                         };
 
                         if *list_key == key {
@@ -78,7 +78,7 @@ impl Variable {
                     }
                     Ok(())
                 }
-                ClauseKey::Binary(_) => Err(WatchError::BinaryInLong),
+                ClauseKey::Binary(_) => Err(errs::Watch::BinaryInLong),
             }
         }
     }

@@ -20,19 +20,22 @@ impl Default for ActivityGlue {
 }
 
 // `Revered` as max heap
+use std::cmp::Ordering;
 impl PartialOrd for ActivityGlue {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         let lbd_comparison = match self.lbd.cmp(&other.lbd) {
-            std::cmp::Ordering::Less => std::cmp::Ordering::Greater,
-            std::cmp::Ordering::Greater => std::cmp::Ordering::Less,
-            std::cmp::Ordering::Equal => match self.activity.partial_cmp(&other.activity) {
-                None => std::cmp::Ordering::Equal, // TODO: consider
-                Some(comparison) => match comparison {
-                    std::cmp::Ordering::Less => std::cmp::Ordering::Greater,
-                    std::cmp::Ordering::Greater => std::cmp::Ordering::Less,
-                    std::cmp::Ordering::Equal => std::cmp::Ordering::Equal,
-                },
-            },
+            Ordering::Less => Ordering::Less,
+            Ordering::Greater => Ordering::Greater,
+            Ordering::Equal => {
+                match self.activity.partial_cmp(&other.activity) {
+                    None => Ordering::Equal, // TODO: consider
+                    Some(comparison) => match comparison {
+                        Ordering::Less => Ordering::Greater,
+                        Ordering::Greater => Ordering::Less,
+                        Ordering::Equal => Ordering::Equal,
+                    },
+                }
+            }
         };
         Some(lbd_comparison)
     }

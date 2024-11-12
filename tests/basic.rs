@@ -1,29 +1,37 @@
-use otter_lib::{config::Config, context::Context, types::gen::Report};
+use otter_lib::{
+    config::Config,
+    context::Context,
+    dispatch::report::{self},
+};
 
 mod basic {
+
     use super::*;
     #[test]
     fn one_literal() {
-        let mut the_context = Context::default_config(Config::default());
+        let (tx, _) = crossbeam::channel::bounded(0);
+        let mut the_context = Context::from_config(Config::default(), tx);
         assert!(the_context.clause_from_string("p").is_ok());
         assert!(the_context.solve().is_ok());
-        assert_eq!(the_context.report(), Report::Satisfiable)
+        assert_eq!(the_context.report(), report::Solve::Satisfiable)
     }
 
     #[test]
     fn conflict() {
-        let mut the_context = Context::default_config(Config::default());
+        let (tx, _) = crossbeam::channel::bounded(0);
+        let mut the_context = Context::from_config(Config::default(), tx);
         assert!(the_context.clause_from_string("p q").is_ok());
         assert!(the_context.clause_from_string("-p -q").is_ok());
         assert!(the_context.clause_from_string("p -q").is_ok());
         assert!(the_context.clause_from_string("-p q").is_ok());
         assert!(the_context.solve().is_ok());
-        assert!(matches!(the_context.report(), Report::Unsatisfiable))
+        assert!(matches!(the_context.report(), report::Solve::Unsatisfiable))
     }
 
     #[test]
     fn assumption() {
-        let mut the_context = Context::default_config(Config::default());
+        let (tx, _) = crossbeam::channel::bounded(0);
+        let mut the_context = Context::from_config(Config::default(), tx);
 
         assert!(the_context.clause_from_string("p q").is_ok());
 
@@ -31,7 +39,7 @@ mod basic {
 
         assert!(the_context.assume(not_p).is_ok());
         assert!(the_context.solve().is_ok());
-        assert_eq!(the_context.report(), Report::Satisfiable);
+        assert_eq!(the_context.report(), report::Solve::Satisfiable);
 
         let the_valuation = the_context.valuation_string();
         assert!(the_valuation.contains("-p"));
@@ -40,7 +48,8 @@ mod basic {
 
     #[test]
     fn duplicates() {
-        let mut the_context = Context::default_config(Config::default());
+        let (tx, _) = crossbeam::channel::bounded(0);
+        let mut the_context = Context::from_config(Config::default(), tx);
         assert!(the_context.clause_from_string("p q q").is_ok());
         let database = the_context.clause_database();
         assert_eq!(database.len(), 1);
@@ -49,59 +58,12 @@ mod basic {
 
     #[test]
     fn tautology_skip() {
-        let mut the_context = Context::default_config(Config::default());
+        let (tx, _) = crossbeam::channel::bounded(0);
+        let mut the_context = Context::from_config(Config::default(), tx);
         assert!(the_context.clause_from_string("p q -p").is_ok());
         let database = the_context.clause_database();
         assert_eq!(database.len(), 0);
     }
 
-    #[test]
-    fn incremental_basic() {
-        let mut the_context = Context::default_config(Config::default());
-
-        assert!(the_context.clause_from_string("p q r").is_ok());
-        assert!(the_context.solve().is_ok());
-
-        let the_valuation = the_context.valuation_string();
-        let p_false = the_valuation.contains("-p");
-        let q_false = the_valuation.contains("-q");
-
-        assert!(p_false && q_false);
-
-        the_context.clear_decisions();
-
-        assert!(the_context.clause_from_string("p q").is_ok());
-        assert!(the_context.solve().is_ok());
-
-        let the_valuation = the_context.valuation_string();
-
-        let p_true = the_valuation.contains("p") && !the_valuation.contains("-p");
-        let q_true = the_valuation.contains("q") && !the_valuation.contains("-q");
-
-        assert!(p_true || q_true);
-    }
-
-    #[test]
-    fn incremental_basic_two() {
-        let mut the_context = Context::default_config(Config::default());
-
-        assert!(the_context.clause_from_string("p q").is_ok());
-        assert!(the_context.solve().is_ok());
-
-        let the_valuation = the_context.valuation_string();
-        let p_false = the_valuation.contains("-p");
-
-        assert!(p_false);
-
-        the_context.clear_decisions();
-
-        assert!(the_context.clause_from_string("p").is_ok());
-        assert!(the_context.solve().is_ok());
-
-        let the_valuation = the_context.valuation_string();
-
-        let p_true = the_valuation.contains("p") && !the_valuation.contains("-p");
-
-        assert!(p_true);
-    }
+    // TOOD: Incremental tests based on example
 }

@@ -4,7 +4,7 @@ mod literal_struct;
 
 use crate::{context::stores::ClauseKey, structures::variable::VariableId};
 
-pub type Literal = LiteralEye;
+pub type Literal = LiteralStruct;
 
 #[derive(Clone, Copy, Debug)]
 pub struct LiteralStruct {
@@ -12,6 +12,7 @@ pub struct LiteralStruct {
     polarity: bool,
 }
 
+// #[repr(transparent)]
 #[derive(Clone, Copy, Debug)]
 pub struct LiteralEye(isize);
 

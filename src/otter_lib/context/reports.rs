@@ -2,152 +2,143 @@ use std::ops::Deref;
 
 use crate::{
     context::{stores::ClauseKey, Context},
+    dispatch::report::{self},
     structures::{
         clause::Clause,
         literal::{LiteralSource, LiteralTrait},
     },
-    types::{errs::ReportError, gen::Report},
+    types::errs::{self},
 };
 
 use super::SolveStatus;
 
-impl std::fmt::Display for Report {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Satisfiable => write!(f, "Satisfiable"),
-            Self::Unsatisfiable => write!(f, "Unsatisfiable"),
-            Self::Unknown => write!(f, "Unknown"),
-        }
-    }
-}
-
 impl Context {
-    pub fn report(&self) -> Report {
+    pub fn report(&self) -> report::Solve {
         match self.status {
-            SolveStatus::FullValuation => Report::Satisfiable,
-            SolveStatus::NoClauses => Report::Satisfiable,
-            SolveStatus::NoSolution(_) => Report::Unsatisfiable,
-            _ => Report::Unknown,
+            SolveStatus::FullValuation => report::Solve::Satisfiable,
+            SolveStatus::NoClauses => report::Solve::Satisfiable,
+            SolveStatus::NoSolution => report::Solve::Unsatisfiable,
+            _ => report::Solve::Unknown,
         }
     }
 
-    #[allow(clippy::single_match)]
-    /// An unsatisfiable core
-    pub fn get_unsat_core(&self, conflict_key: ClauseKey) -> Result<Vec<ClauseKey>, ReportError> {
-        let Report::Unsatisfiable = self.report() else {
-            return Err(ReportError::UnsatCoreUnavailable);
-        };
+    //     #[allow(clippy::single_match)]
+    //     /// An unsatisfiable core
+    //     pub fn get_unsat_core(&self, conflict_key: ClauseKey) -> Result<Vec<ClauseKey>, ReportError> {
+    //         let Report::Unsatisfiable = self.report() else {
+    //             return Err(ReportError::UnsatCoreUnavailable);
+    //         };
 
-        println!("c An unsatisfiable core of the formula:\n",);
+    //         println!("c An unsatisfiable core of the formula:\n",);
 
-        /*
-        Given the conflict clause, collect the following:
+    //         /*
+    //         Given the conflict clause, collect the following:
 
-        - The formula clauses used to resolve the conflict clause
-        - The formula clauses used to establish any literal whose negation appears in some considered clause
+    //         - The formula clauses used to resolve the conflict clause
+    //         - The formula clauses used to establish any literal whose negation appears in some considered clause
 
-        The core_q queues clause keys for inspection
-        The seen literal set helps to avoid checking the same literal twice
-        Likewise, the key set helps to avoid checking the same key twice
-         */
+    //         The core_q queues clause keys for inspection
+    //         The seen literal set helps to avoid checking the same literal twice
+    //         Likewise, the key set helps to avoid checking the same key twice
+    //          */
+    //         let mut core_q = std::collections::VecDeque::<ClauseKey>::new();
+    //         let mut seen_literal_set = std::collections::BTreeSet::new();
+    //         let mut key_set = std::collections::BTreeSet::new();
+    //         let mut core_keys = std::collections::BTreeSet::new();
 
-        let mut core_q = std::collections::VecDeque::<ClauseKey>::new();
-        let mut seen_literal_set = std::collections::BTreeSet::new();
-        let mut key_set = std::collections::BTreeSet::new();
-        let mut core_keys = std::collections::BTreeSet::new();
+    //         // for short arguments
+    //         let observations = self.levels.get(0).observations();
 
-        // for short arguments
-        let observations = self.levels.get(0).observations();
+    //         // start with the conflict, then loop
+    //         core_q.push_back(conflict_key);
 
-        // start with the conflict, then loop
-        core_q.push_back(conflict_key);
+    //         /*
+    //         key set ensures processing only happens on a fresh key
 
-        /*
-        key set ensures processing only happens on a fresh key
+    //         if the key is for a formula, then clause is recorded and the literals of the clause are checked against the observed literals
+    //         otherwise, the clauses used when resolving the learnt clause are added
 
-        if the key is for a formula, then clause is recorded and the literals of the clause are checked against the observed literals
-        otherwise, the clauses used when resolving the learnt clause are added
+    //          when checking literals, if the negation of the literal has been observed at level 0 then it was relevant to the conflict
+    //          so, if the literal was obtained either by resolution or directly from some clause, then that clause or the clauses used for resolution are added to the q
+    //          this skips assumed literals
+    //          */
+    //         while let Some(key) = core_q.pop_front() {
+    //             if key_set.insert(key) {
+    //                 match key {
+    //                     ClauseKey::Formula(_) => {
+    //                         let clause = self.clause_store.get(key)?;
 
-         when checking literals, if the negation of the literal has been observed at level 0 then it was relevant to the conflict
-         so, if the literal was obtained either by resolution or directly from some clause, then that clause or the clauses used for resolution are added to the q
-         this skips assumed literals
-         */
-        while let Some(key) = core_q.pop_front() {
-            if key_set.insert(key) {
-                match key {
-                    ClauseKey::Formula(_) => {
-                        let clause = self.clause_store.get(key)?;
+    //                         core_keys.insert(key);
 
-                        core_keys.insert(key);
+    //                         for literal in clause.deref() {
+    //                             if seen_literal_set.insert(*literal) {
+    //                                 let found = observations.iter().find(|(_, observed_literal)| {
+    //                                     literal == &observed_literal.negate()
+    //                                 });
+    //                                 if let Some((src, _)) = found {
+    //                                     match src {
+    //                                         LiteralSource::Resolution(_) => {
+    //                                             let proof = &self
+    //                                                 .proofs
+    //                                                 .iter()
+    //                                                 .find(|(proven_literal, _)| {
+    //                                                     literal == &proven_literal.negate()
+    //                                                 })
+    //                                                 .expect("no proof of resolved literal");
+    //                                             for key in &proof.1 {
+    //                                                 core_q.push_back(*key);
+    //                                             }
+    //                                         }
+    //                                         LiteralSource::Analysis(clause_key)
+    //                                         | LiteralSource::BCP(clause_key)
+    //                                         | LiteralSource::Missed(clause_key) => {
+    //                                             core_q.push_back(*clause_key)
+    //                                         }
 
-                        for literal in clause.deref() {
-                            if seen_literal_set.insert(*literal) {
-                                let found = observations.iter().find(|(_, observed_literal)| {
-                                    literal == &observed_literal.negate()
-                                });
-                                if let Some((src, _)) = found {
-                                    match src {
-                                        LiteralSource::Resolution(_) => {
-                                            let proof = &self
-                                                .proofs
-                                                .iter()
-                                                .find(|(proven_literal, _)| {
-                                                    literal == &proven_literal.negate()
-                                                })
-                                                .expect("no proof of resolved literal");
-                                            for key in &proof.1 {
-                                                core_q.push_back(*key);
-                                            }
-                                        }
-                                        LiteralSource::Analysis(clause_key)
-                                        | LiteralSource::BCP(clause_key)
-                                        | LiteralSource::Missed(clause_key) => {
-                                            core_q.push_back(*clause_key)
-                                        }
+    //                                         LiteralSource::Choice
+    //                                         | LiteralSource::Pure
+    //                                         | LiteralSource::Assumption => {}
+    //                                     }
+    //                                 }
+    //                             }
+    //                         }
+    //                     }
+    //                     ClauseKey::Binary(_) | ClauseKey::Learned(_, _) => {
+    //                         let source = self.clause_store.source(key);
+    //                         for source_key in source {
+    //                             core_q.push_back(*source_key);
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
 
-                                        LiteralSource::Choice
-                                        | LiteralSource::Pure
-                                        | LiteralSource::Assumption => {}
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    ClauseKey::Binary(_) | ClauseKey::Learned(_, _) => {
-                        let source = self.clause_store.source(key);
-                        for source_key in source {
-                            core_q.push_back(*source_key);
-                        }
-                    }
-                }
-            }
-        }
+    //         Ok(core_keys.into_iter().collect())
+    //     }
 
-        Ok(core_keys.into_iter().collect())
-    }
-
-    pub fn display_core(&self, conflict_key: ClauseKey) -> Result<(), ReportError> {
-        let the_core = self.get_unsat_core(conflict_key)?;
-        for key in the_core {
-            let clause = self.clause_store.get(key)?;
-            println!("{}", clause.as_dimacs(&self.variables));
-        }
-        Ok(())
-    }
+    //     pub fn display_core(&self, conflict_key: ClauseKey) -> Result<(), ReportError> {
+    //         let the_core = self.get_unsat_core(conflict_key)?;
+    //         for key in the_core {
+    //             let clause = self.clause_store.get(key)?;
+    //             println!("{}", clause.as_dimacs(&self.variables));
+    //         }
+    //         Ok(())
+    //     }
 }
 
 impl Context {
     pub fn clause_database(&self) -> Vec<String> {
         self.clause_store
             .all_clauses()
-            .map(|clause| clause.as_dimacs(&self.variables))
+            .map(|clause| clause.as_dimacs(&self.variables, true))
             .collect::<Vec<_>>()
     }
 
     pub fn proven_literal_database(&self) -> Vec<String> {
-        self.proofs
+        self.levels
+            .proven_literals()
             .iter()
-            .map(|(literal, _)| format!("{} 0", self.variables.external_name(literal.index())))
+            .map(|literal| format!("{} 0", self.variables.external_name(literal.index())))
             .collect::<Vec<_>>()
     }
 }

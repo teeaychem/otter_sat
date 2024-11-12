@@ -126,6 +126,9 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
     }
 
     // todo: tidy
+    // and decide what to do with defaults
+    // at the moment, heap expands to requirement with defaults
+    // which may want to be adjusted
     pub fn insert(&mut self, index: usize, value: V) -> bool {
         if self.heap.is_empty() {
             let required = (index - self.heap.len()) + 1;

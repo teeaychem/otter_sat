@@ -10,13 +10,23 @@ use tikv_jemallocator::Jemalloc;
 static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
 use otter_lib::{
+    cli::{
+        config::ConfigIO,
+        parse::{self},
+    },
     config::Config,
-    context::builder::BuildErr,
-    io::{cli::cli, files::context_from_path},
-    types::{errs::ClauseStoreErr, gen::Report},
+    context::{builder::BuildErr, Context},
+    dispatch::{
+        report::{self},
+        Dispatch,
+    },
+    types::errs::{self},
 };
 
-use std::path::PathBuf;
+use std::fs;
+
+use crossbeam::channel::unbounded;
+use std::thread;
 
 fn main() {
     #[cfg(feature = "log")]
@@ -25,75 +35,99 @@ fn main() {
         Err(e) => log::error!("{e:?}"),
     }
 
-    let matches = cli().get_matches();
-    let config = Config::from_args(&matches);
+    let matches = parse::cli::cli().get_matches();
 
-    let Some(mut formula_paths) = matches.get_raw("paths") else {
-        println!("c Could not find formula paths");
-        std::process::exit(1);
-    };
+    let mut config = Config::from_args(&matches);
+    let config_io = ConfigIO::from_args(&matches);
 
-    if config.detail > 0 {
-        println!("c Found {} formulas\n", formula_paths.len());
+    if config_io.detail > 0 {
+        println!("c Parsing {} files\n", config_io.files.len());
     }
 
-    match formula_paths.len() {
-        1 => {
-            let the_path = PathBuf::from(formula_paths.next().unwrap());
-            let the_report = report_on_formula(the_path, &config);
-            match the_report {
-                Report::Satisfiable => std::process::exit(10),
-                Report::Unsatisfiable => std::process::exit(20),
-                Report::Unknown => std::process::exit(30),
+    #[allow(clippy::collapsible_if)]
+    if config_io.frat {
+        if config.subsumption {
+            if config_io.detail > 0 {
+                println!("c Subsumption is disabled for FRAT proofs");
             }
-        }
-        _ => {
-            for path in formula_paths {
-                report_on_formula(PathBuf::from(path), &config);
-                println!();
-            }
-            std::process::exit(0)
+            config.subsumption = false;
         }
     }
-}
 
-fn report_on_formula(path: PathBuf, config: &Config) -> Report {
-    let mut the_context = match context_from_path(path, config) {
-        Ok(context) => context,
-        Err(BuildErr::OopsAllTautologies) => {
-            if config.detail > 0 {
-                println!("c All clauses of the formula are tautological");
-            }
-            println!("s SATISFIABLE");
-            std::process::exit(10);
-        }
-        Err(BuildErr::ClauseStore(ClauseStoreErr::EmptyClause)) => {
-            if config.detail > 0 {
-                println!("c The formula contains an empty clause so is interpreted as ⊥");
-            }
-            println!("s UNSATISFIABLE");
-            std::process::exit(20);
-        }
-        Err(e) => {
-            println!("c Unexpected error when building: {e:?}");
-            std::process::exit(2);
-        }
-    };
-    if the_context.clause_count() == 0 {
-        if config.detail > 0 {
-            println!("c The formula does not contain any clauses");
-        }
-        println!("s SATISFIABLE");
-        std::process::exit(10);
-    }
+    let (tx, rx) = unbounded::<Dispatch>();
 
-    let the_report = match the_context.solve() {
-        Ok(report) => report,
-        Err(e) => {
-            println!("Context error: {e:?}");
-            std::process::exit(1);
-        }
+    let listener_handle = {
+        let config = config.clone();
+        let config_io = config_io.clone();
+        thread::spawn(|| otter_lib::io::listener::general_receiver(rx, config, config_io))
     };
-    the_context.print_status();
-    the_report
+
+    /*
+    The context is in a block as:
+    - When the block closes the transmitter for the reciever is dropped
+    - Unify different ways to get sat/unsat
+    At least for now…
+     */
+    let report = 'report: {
+        let mut the_context = Context::from_config(config, tx);
+
+        for path in config_io.files {
+            println!("{path:?}");
+            match the_context.load_dimacs_file(path) {
+                Ok(()) => {}
+                Err(BuildErr::ClauseStore(errs::ClauseDB::EmptyClause)) => {
+                    println!("s UNSATISFIABLE");
+                    std::process::exit(20);
+                }
+                Err(e) => {
+                    println!("c Error loading DIMACS: {e:?}")
+                }
+            };
+        }
+
+        if the_context.clause_count() == 0 {
+            break 'report report::Solve::Satisfiable;
+        }
+
+        let the_report = match the_context.solve() {
+            Ok(r) => r,
+            Err(e) => {
+                println!("Context error: {e:?}");
+                std::process::exit(1);
+            }
+        };
+
+        match the_report {
+            report::Solve::Unsatisfiable => {
+                if config_io.show_core {
+                    // let _ = self.display_core(clause_key);
+                }
+                the_context.report_active();
+            }
+            report::Solve::Satisfiable => {
+                if config_io.show_valuation {
+                    println!("v {}", the_context.valuation_string());
+                }
+            }
+            _ => {}
+        }
+        the_report
+    };
+
+    match report {
+        report::Solve::Satisfiable => {
+            if let Some(path) = config_io.frat_path {
+                let _ = fs::remove_file(path);
+            }
+            std::process::exit(10)
+        }
+        report::Solve::Unsatisfiable => {
+            if config_io.frat_path.is_some() {
+                println!("c Finalising FRAT proof…");
+                let _ = listener_handle.join();
+            }
+            std::process::exit(20)
+        }
+        report::Solve::Unknown => std::process::exit(30),
+    };
 }

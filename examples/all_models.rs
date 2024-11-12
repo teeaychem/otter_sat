@@ -1,4 +1,8 @@
-use otter_lib::{config::Config, context::Context, types::gen::Report};
+use otter_lib::{
+    config::Config,
+    context::Context,
+    dispatch::report::{self},
+};
 
 /*
 A default context is created and some sequences of variables are added.
@@ -16,7 +20,8 @@ fn main() {
         ..Default::default()
     };
 
-    let mut the_context: Context = Context::default_config(config);
+    let (tx, _) = crossbeam::channel::bounded(0);
+    let mut the_context: Context = Context::from_config(config, tx);
 
     // Each character in some string as a literal
     let mut variables = "let's_finds_all_models".chars().collect::<Vec<_>>();
@@ -35,7 +40,7 @@ fn main() {
             Err(_) => break,
         };
         match the_context.report() {
-            Report::Satisfiable => {}
+            report::Solve::Satisfiable => {}
             _ => break,
         };
 

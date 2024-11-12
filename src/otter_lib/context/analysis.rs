@@ -5,11 +5,18 @@ use crate::{
         stores::ClauseKey,
         Context,
     },
+    dispatch::{
+        report::{self},
+        Dispatch,
+    },
     structures::{
-        literal::{Literal, LiteralTrait},
+        literal::{Literal, LiteralSource, LiteralTrait},
         variable::list::VariableList,
     },
-    types::{clause::ClauseSource, errs::AnalysisError},
+    types::{
+        clause::ClauseSource,
+        errs::{self},
+    },
 };
 
 use std::ops::Deref;
@@ -17,11 +24,11 @@ use std::ops::Deref;
 pub enum AnalysisResult {
     MissedImplication(ClauseKey, Literal),
     Proof(ClauseKey, Literal),
-    FundamentalConflict(ClauseKey),
-    QueueConflict(ClauseKey),
+    FundamentalConflict,
     AssertingClause(ClauseKey, Literal),
 }
 
+#[allow(unused_imports)]
 use crate::log::targets::ANALYSIS as LOG_ANALYSIS;
 
 impl Context {
@@ -29,17 +36,17 @@ impl Context {
         &mut self,
         clause_key: ClauseKey,
         config: &Config,
-    ) -> Result<AnalysisResult, AnalysisError> {
-        log::trace!(target: LOG_ANALYSIS, "Analysis called on {clause_key} at level {}", self.levels.index());
-        if self.levels.index() == 0 {
-            return Ok(AnalysisResult::FundamentalConflict(clause_key));
-        }
-        let conflict_clause = self.clause_store.get(clause_key)?;
-        // log::trace!(target: LOG_ANALYSIS, "Clause {conflict_clause}");
+    ) -> Result<AnalysisResult, errs::Analysis> {
+        log::trace!(target: LOG_ANALYSIS, "Analysis of {clause_key} at level {}", self.levels.decision_count());
+        let the_clause = self.clause_store.get(clause_key);
+
+        log::trace!(target: LOG_ANALYSIS, "Clause {clause_key}");
 
         if let config::VSIDS::Chaff = config.vsids_variant {
             self.variables.apply_VSIDS(
-                conflict_clause
+                self.clause_store
+                    .get(clause_key)
+                    .expect("missing clause")
                     .deref()
                     .iter()
                     .map(|literal| literal.index()),
@@ -48,87 +55,92 @@ impl Context {
         }
 
         // this could be made persistent, but tying it to the solve may require a cell and lots of unsafe
-        let mut the_buffer = ResolutionBuffer::from_variable_store(&self.variables);
+        let mut the_buffer =
+            ResolutionBuffer::from_variable_store(&self.variables, self.tx.clone());
 
-        the_buffer.clear_literals(self.levels.top().literals());
-        match the_buffer.set_inital_clause(conflict_clause, clause_key) {
-            Ok(()) => {}
-            Err(_) => return Err(AnalysisError::Buffer),
+        the_buffer.clear_literal(self.levels.current_choice());
+        for (_, lit) in self.levels.current_consequences() {
+            the_buffer.clear_literal(*lit);
+        }
+
+        match the_buffer.resolve_with(
+            clause_key,
+            &self.levels,
+            &mut self.clause_store,
+            &mut self.variables,
+            config,
+        ) {
+            Ok(BufOk::Proof) => {}
+            Ok(BufOk::FirstUIP) => {}
+            Ok(BufOk::Exhausted) => {
+                if config.stopping_criteria == StoppingCriteria::FirstUIP {
+                    return Err(errs::Analysis::FailedStoppingCriteria);
+                }
+            }
+            Ok(BufOk::Missed(k, l)) => {
+                return Ok(AnalysisResult::MissedImplication(k, l));
+            }
+            Err(_buffer_error) => {
+                return Err(errs::Analysis::Buffer);
+            }
+        }
+
+        if let config::VSIDS::MiniSAT = config.vsids_variant {
+            self.variables
+                .apply_VSIDS(the_buffer.variables_used(), config);
+        }
+
+        for key in the_buffer.view_trail() {
+            #[allow(clippy::single_match)]
+            match key {
+                ClauseKey::Learned(index, _) => self.clause_store.bump_activity(*index, config),
+                _ => {}
+            };
+        }
+
+        /*
+        TODO: Alternative?
+        Strengthening iterates through all the proven literals.
+        This is skipped for a literal whose proof is to be noted
+        This is also skipped for binary clauses, as if the other literal is proven the assertion will also be added as a proof, regardless
+         */
+        if the_buffer.clause_legnth() > 2 {
+            the_buffer.strengthen_given(self.levels.proven_literals().iter());
+        }
+
+        let (asserted_literal, mut resolved_clause) = the_buffer.to_assertion_clause();
+        // TODO: Revise this, maybe, as it means the watch is in the last place looked…
+        if let Some(assertion) = asserted_literal {
+            resolved_clause.push(assertion);
+        }
+
+        let the_literal = match asserted_literal {
+            None => {
+                log::error!(target: crate::log::targets::ANALYSIS, "Failed to resolve to an asserting clause");
+                return Err(errs::Analysis::NoAssertion);
+            }
+            Some(literal) => literal,
         };
 
-        if let Some(asserted_literal) = the_buffer.asserts() {
-            Ok(AnalysisResult::MissedImplication(
-                clause_key,
-                asserted_literal,
-            ))
-        } else {
-            let buffer_status = the_buffer.resolve_with(
-                self.levels.top(),
-                &mut self.clause_store,
-                &mut self.variables,
-                config,
-            );
-            match buffer_status {
-                Ok(BufOk::Proof) => {}
-                Ok(BufOk::FirstUIP) => {}
-                Ok(BufOk::Exhausted) => {
-                    if config.stopping_criteria == StoppingCriteria::FirstUIP {
-                        return Err(AnalysisError::FailedStoppingCriteria);
-                    }
-                }
-                Err(_buffer_error) => {
-                    return Err(AnalysisError::Buffer);
-                }
-            }
-            if let config::VSIDS::MiniSAT = config.vsids_variant {
-                self.variables
-                    .apply_VSIDS(the_buffer.variables_used(), config);
-            }
+        match resolved_clause.len() {
+            0 => Err(errs::Analysis::EmptyResolution),
+            1 => {
+                self.note_literal(the_literal, LiteralSource::Resolution(clause_key), unsafe {
+                    the_buffer.take_trail()
+                });
 
-            for key in the_buffer.trail() {
-                self.clause_store.bump_activity(*key, config);
+                Ok(AnalysisResult::Proof(clause_key, the_literal))
             }
+            _ => {
+                let Ok(clause_key) =
+                    self.store_clause(resolved_clause, ClauseSource::Resolution, unsafe {
+                        the_buffer.take_trail()
+                    })
+                else {
+                    return Err(errs::Analysis::ResolutionNotStored);
+                };
 
-            /*
-            TODO: Alternative?
-            Strengthening iterates through all the proven literals.
-            This is skipped for a literal whose proof is to be noted
-            This is also skipped for binary clauses, as if the other literal is proven the assertion will also be added as a proof, regardless
-             */
-            if the_buffer.clause_legnth() > 2 {
-                the_buffer.strengthen_given(self.proven_literals());
-            }
-
-            let (asserted_literal, mut resolved_clause) = the_buffer.to_assertion_clause();
-            if let Some(assertion) = asserted_literal {
-                resolved_clause.push(assertion);
-            }
-
-            let the_literal = match asserted_literal {
-                None => {
-                    log::error!(target: crate::log::targets::ANALYSIS, "Failed to resolve to an asserting clause");
-                    return Err(AnalysisError::NoAssertion);
-                }
-                Some(literal) => literal,
-            };
-
-            match resolved_clause.len() {
-                0 => Err(AnalysisError::EmptyResolution),
-                1 => {
-                    self.proofs.push((the_literal, the_buffer.trail().to_vec()));
-                    Ok(AnalysisResult::Proof(clause_key, the_literal))
-                }
-                _ => {
-                    let Ok(clause_key) = self.store_clause(
-                        resolved_clause,
-                        Vec::default(),
-                        ClauseSource::Resolution,
-                        Some(the_buffer.trail().to_vec()),
-                    ) else {
-                        return Err(AnalysisError::ResolutionNotStored);
-                    };
-                    Ok(AnalysisResult::AssertingClause(clause_key, the_literal))
-                }
+                Ok(AnalysisResult::AssertingClause(clause_key, the_literal))
             }
         }
     }

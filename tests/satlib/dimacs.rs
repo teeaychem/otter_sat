@@ -1,7 +1,7 @@
 use otter_lib::{
     config::Config,
-    io::files::{default_on_dir, formula_report},
-    types::gen::Report,
+    dispatch::report::{self},
+    io::files::{silent_formula_report, silent_on_directory},
 };
 
 use super::*;
@@ -29,16 +29,16 @@ fn aim() {
 
             if formula_name.contains("yes") {
                 assert_eq!(
-                    Report::Satisfiable,
-                    formula_report(formula.path(), &Config::default())
+                    report::Solve::Satisfiable,
+                    silent_formula_report(formula.path(), &Config::default())
                 );
                 satisfiable += 1;
             }
 
             if formula_name.contains("no") {
                 assert_eq!(
-                    Report::Unsatisfiable,
-                    formula_report(formula.path(), &Config::default())
+                    report::Solve::Unsatisfiable,
+                    silent_formula_report(formula.path(), &Config::default())
                 );
                 unsatisfiable += 1;
             }
@@ -49,7 +49,7 @@ fn aim() {
 }
 
 mod cfa {
-    use otter_lib::io::files::default_on_dir;
+    use otter_lib::io::files::silent_on_directory;
 
     use super::*;
 
@@ -59,7 +59,11 @@ mod cfa {
 
     #[test]
     fn bf() {
-        default_on_dir(cfa_path("BF"), &Config::default(), Report::Unsatisfiable);
+        silent_on_directory(
+            cfa_path("BF"),
+            &Config::default(),
+            report::Solve::Unsatisfiable,
+        );
     }
 
     #[test]
@@ -74,8 +78,8 @@ mod cfa {
         let mut unsat_count = 0;
         for formula in unsatisfiable {
             assert_eq!(
-                Report::Unsatisfiable,
-                formula_report(cfa_path("SSA").join(formula), &Config::default())
+                report::Solve::Unsatisfiable,
+                silent_formula_report(cfa_path("SSA").join(formula), &Config::default())
             );
             unsat_count += 1;
         }
@@ -90,8 +94,8 @@ mod cfa {
         let mut sat_count = 0;
         for formula in satisfiable {
             assert_eq!(
-                Report::Satisfiable,
-                formula_report(cfa_path("SSA").join(formula), &Config::default())
+                report::Solve::Satisfiable,
+                silent_formula_report(cfa_path("SSA").join(formula), &Config::default())
             );
             sat_count += 1;
         }
@@ -101,10 +105,10 @@ mod cfa {
 
 #[test]
 fn dubois() {
-    default_on_dir(
+    silent_on_directory(
         dimacs_path().join("DUBOIS"),
         &Config::default(),
-        Report::Unsatisfiable,
+        report::Solve::Unsatisfiable,
     );
 }
 
@@ -115,8 +119,8 @@ mod graph_colouring {
     #[ignore = "expensive"]
     fn one_two_five_one_seven() {
         assert_eq!(
-            Report::Satisfiable,
-            formula_report(
+            report::Solve::Satisfiable,
+            silent_formula_report(
                 dimacs_path().join("GCP").join("g125.17.cnf.xz"),
                 &Config::default()
             )
@@ -127,8 +131,8 @@ mod graph_colouring {
     #[ignore = "expensive"]
     fn one_two_five_one_eight() {
         assert_eq!(
-            Report::Satisfiable,
-            formula_report(
+            report::Solve::Satisfiable,
+            silent_formula_report(
                 dimacs_path().join("GCP").join("g125.18.cnf.xz"),
                 &Config::default()
             )
@@ -139,8 +143,8 @@ mod graph_colouring {
     #[ignore = "expensive"]
     fn two_five_zero_one_five() {
         assert_eq!(
-            Report::Satisfiable,
-            formula_report(
+            report::Solve::Satisfiable,
+            silent_formula_report(
                 dimacs_path().join("GCP").join("g250.15.cnf.xz"),
                 &Config::default()
             )
@@ -151,8 +155,8 @@ mod graph_colouring {
     #[ignore = "expensive"]
     fn two_five_zero_two_nine() {
         assert_eq!(
-            Report::Satisfiable,
-            formula_report(
+            report::Solve::Satisfiable,
+            silent_formula_report(
                 dimacs_path().join("GCP").join("g250.29.cnf.xz"),
                 &Config::default()
             )
@@ -162,19 +166,19 @@ mod graph_colouring {
 
 #[test]
 fn hanoi() {
-    default_on_dir(
+    silent_on_directory(
         dimacs_path().join("HANOI"),
         &Config::default(),
-        Report::Satisfiable,
+        report::Solve::Satisfiable,
     );
 }
 
 #[test]
 fn inductive_inference() {
-    default_on_dir(
+    silent_on_directory(
         dimacs_path().join("II"),
         &Config::default(),
-        Report::Satisfiable,
+        report::Solve::Satisfiable,
     );
 }
 
@@ -225,14 +229,14 @@ fn jnh() {
 
             if satisfiable.contains(&file.as_str()) {
                 assert_eq!(
-                    Report::Satisfiable,
-                    formula_report(formula.path(), &Config::default())
+                    report::Solve::Satisfiable,
+                    silent_formula_report(formula.path(), &Config::default())
                 );
                 sat_count += 1;
             } else {
                 assert_eq!(
-                    Report::Unsatisfiable,
-                    formula_report(formula.path(), &Config::default())
+                    report::Solve::Unsatisfiable,
+                    silent_formula_report(formula.path(), &Config::default())
                 );
                 unsat_count += 1;
             }
@@ -245,10 +249,10 @@ fn jnh() {
 #[test]
 #[ignore = "expensive"]
 fn lran() {
-    default_on_dir(
+    silent_on_directory(
         dimacs_path().join("LRAN"),
         &Config::default(),
-        Report::Satisfiable,
+        report::Solve::Satisfiable,
     );
 }
 
@@ -265,8 +269,8 @@ mod partiy {
         let mut ok_count = 0;
         for formula in &formulas {
             assert_eq!(
-                Report::Satisfiable,
-                formula_report(
+                report::Solve::Satisfiable,
+                silent_formula_report(
                     dimacs_path().join("PARITY").join(formula),
                     &Config::default()
                 )
@@ -286,8 +290,8 @@ mod partiy {
         let mut ok_count = 0;
         for formula in &formulas {
             assert_eq!(
-                Report::Satisfiable,
-                formula_report(
+                report::Solve::Satisfiable,
+                silent_formula_report(
                     dimacs_path().join("PARITY").join(formula),
                     &Config::default()
                 )
@@ -308,8 +312,8 @@ mod partiy {
         let mut ok_count = 0;
         for formula in &formulas {
             assert_eq!(
-                Report::Satisfiable,
-                formula_report(
+                report::Solve::Satisfiable,
+                silent_formula_report(
                     dimacs_path().join("PARITY").join(formula),
                     &Config::default()
                 )
@@ -330,8 +334,8 @@ mod phole {
         let mut ok_count = 0;
         for formula in formulas {
             assert_eq!(
-                Report::Unsatisfiable,
-                formula_report(
+                report::Solve::Unsatisfiable,
+                silent_formula_report(
                     dimacs_path().join("PHOLE").join(formula),
                     &Config::default()
                 )
@@ -349,8 +353,8 @@ mod phole {
         let mut ok_count = 0;
         for formula in formulas {
             assert_eq!(
-                Report::Unsatisfiable,
-                formula_report(
+                report::Solve::Unsatisfiable,
+                silent_formula_report(
                     dimacs_path().join("PHOLE").join(formula),
                     &Config::default()
                 )
@@ -363,9 +367,9 @@ mod phole {
 
 #[test]
 fn pret() {
-    default_on_dir(
+    silent_on_directory(
         dimacs_path().join("PRET"),
         &Config::default(),
-        Report::Unsatisfiable,
+        report::Solve::Unsatisfiable,
     );
 }

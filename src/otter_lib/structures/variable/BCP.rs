@@ -1,7 +1,10 @@
 use std::borrow::Borrow;
 
 use crate::{
-    context::{stores::ClauseKey, Context},
+    context::{
+        stores::{variable::QStatus, ClauseKey},
+        Context,
+    },
     structures::{
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::list::VariableList,
@@ -41,15 +44,21 @@ impl Context {
                 };
 
                 match self.variables.value_of(*check) {
-                    None => match self.q_literal(*check, LiteralSource::BCP(*clause_key)) {
-                        Ok(()) => {}
+                    None => match self.q_literal(*check) {
+                        Ok(QStatus::Qd) => {
+                            self.note_literal(
+                                check.canonical(),
+                                LiteralSource::BCP(*clause_key),
+                                Vec::default(),
+                            );
+                        }
                         Err(_key) => {
                             log::trace!(target: LOG_PROPAGATION, "Queueing consequence of {clause_key} {literal} failed.");
                             return Err(BCPErr::Conflict(*clause_key));
                         }
                     },
                     Some(value) if check.polarity() != value => {
-                        log::trace!(target: LOG_PROPAGATION, "Inspecting consequence of {clause_key} {literal} failed.");
+                        log::trace!(target: LOG_PROPAGATION, "Consequence of {clause_key} and {literal} is contradiction.");
                         return Err(BCPErr::Conflict(*clause_key));
                     }
                     Some(_) => {
@@ -81,6 +90,10 @@ impl Context {
                     return Err(BCPErr::CorruptWatch);
                 };
 
+                /*
+                TODO: From the FRAT paper neither MiniSAT nor CaDiCaL store clause identifiers
+                So, there may be some way to avoid this… unless there's a NULLPTR check or something…
+                 */
                 let clause = match self.clause_store.get_carefully_mut(*clause_key) {
                     Some(stored_clause) => stored_clause,
                     None => {
@@ -110,13 +123,15 @@ impl Context {
                                 return Err(BCPErr::Conflict(*clause_key));
                             }
                             None => {
-                                match self.q_literal(the_watch, LiteralSource::BCP(*clause_key)) {
-                                    Ok(()) => {}
-                                    Err(_) => {
-                                        log::trace!(target: LOG_PROPAGATION, "Queuing consequence of {clause_key} {literal} failed.");
-                                        return Err(BCPErr::Conflict(*clause_key));
-                                    }
+                                let Ok(QStatus::Qd) = self.q_literal(the_watch) else {
+                                    log::trace!(target: LOG_PROPAGATION, "Queuing consequence of {clause_key} {literal} failed.");
+                                    return Err(BCPErr::Conflict(*clause_key));
                                 };
+                                self.note_literal(
+                                    the_watch.canonical(),
+                                    LiteralSource::BCP(*clause_key),
+                                    Vec::default(),
+                                );
                             }
                             Some(_) => {}
                         }

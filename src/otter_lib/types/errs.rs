@@ -1,31 +1,45 @@
 use crate::context::stores::ClauseKey;
 
+/*
+Names of the error enums --- for the most part --- overlap with their corresponding enums
+
+So, intended use is to namespace errors via the module.
+
+For example:
+- use errs::{self}
+- …
+- err::<TYPE>
+
+
+ */
+
 #[derive(Debug, Clone, Copy)]
-pub enum ContextErr {
+pub enum Context {
     AssumptionAfterChoice, // Aka. an assumption not made on level zero
     AssumptionConflict, // An attempt to make an assumption which conflicts with some proven literal
+    AssumptionSet,      // Somehow checking the literal returned that the literal was set.
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum StepErr {
+pub enum Step {
     QueueConflict(ClauseKey), // Failed to queue a literal asserted by a conflict
     QueueProof(ClauseKey),    // Failed to queue a proven literal
     Backfall,                 // Faile to backjump
     AnalysisFailure,          // Analysis failed for some reason
     ChoiceFailure,            // Choice failed for some reason
     BCPFailure,               // BCP failed for some reason
-    ClauseStore(ClauseStoreErr), // The error from an interaction with the clause store
+    ClauseStore(ClauseDB),    // The error from an interaction with the clause store
 }
 
 // Cast a clause store error as a step error
-impl From<ClauseStoreErr> for StepErr {
-    fn from(value: ClauseStoreErr) -> Self {
-        StepErr::ClauseStore(value)
+impl From<ClauseDB> for Step {
+    fn from(value: ClauseDB) -> Self {
+        Step::ClauseStore(value)
     }
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum ClauseStoreErr {
+pub enum ClauseDB {
     TransferBinary,   // Attempt to transfer a binary clause
     TransferWatch,    // There was some issue with watches when transfering a clause
     MissingLearned,   // A learnt cluase is missing
@@ -37,18 +51,18 @@ pub enum ClauseStoreErr {
 }
 
 // Ignore the reason for failing to transfer a clause
-impl From<WatchError> for ClauseStoreErr {
-    fn from(_: WatchError) -> Self {
-        ClauseStoreErr::TransferWatch
+impl From<Watch> for ClauseDB {
+    fn from(_: Watch) -> Self {
+        ClauseDB::TransferWatch
     }
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum WatchError {
+pub enum Watch {
     BinaryInLong, // Found a binary clause in a long watch list
 }
 
-pub enum AnalysisError {
+pub enum Analysis {
     ResolutionNotStored,    // For some reason the resolved clause was not stored
     EmptyResolution,        // Somehow resolution resolved to an empty clause
     NoAssertion,            // Resolution failed to terminate with an asserting clause
@@ -58,20 +72,20 @@ pub enum AnalysisError {
 }
 
 // Ignore the reason for failing to retreive a clause
-impl From<ClauseStoreErr> for AnalysisError {
-    fn from(_: ClauseStoreErr) -> Self {
-        AnalysisError::ClauseStore
+impl From<ClauseDB> for Analysis {
+    fn from(_: ClauseDB) -> Self {
+        Analysis::ClauseStore
     }
 }
 
-pub enum ReportError {
+pub enum Report {
     StoreFailure, // Failure to retreive a clause from the store for any reason
     UnsatCoreUnavailable,
 }
 
 // Ignore the reason for failing to retreive a clause
-impl From<ClauseStoreErr> for ReportError {
-    fn from(_: ClauseStoreErr) -> Self {
-        ReportError::StoreFailure
+impl From<ClauseDB> for Report {
+    fn from(_: ClauseDB) -> Self {
+        Report::StoreFailure
     }
 }

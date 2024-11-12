@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 pub mod defaults;
 
 pub type VariableActivity = f64;
@@ -21,15 +23,11 @@ pub struct Config {
     pub random_choice_frequency: RandomChoiceFrequency,
     pub reduction_allowed: bool,
     pub restarts_allowed: bool,
-    pub show_core: bool,
-    pub show_stats: bool,
-    pub show_valuation: bool,
     pub stopping_criteria: StoppingCriteria,
     pub subsumption: bool,
     pub time_limit: Option<std::time::Duration>,
     pub vsids_variant: VSIDS,
     pub reduction_interval: usize,
-    pub detail: u8,
 }
 
 impl Default for Config {
@@ -47,15 +45,11 @@ impl Default for Config {
             random_choice_frequency: RANDOM_CHOICE_FREQUENCY,
             reduction_allowed: true,
             restarts_allowed: true,
-            show_core: false,
-            show_stats: false,
-            show_valuation: false,
             stopping_criteria: STOPPING_CRITERIA,
             subsumption: true,
             time_limit: None,
             vsids_variant: VSIDS_VARIANT,
             reduction_interval: REDUCTION_INTERVAL,
-            detail: DETAILS,
         }
     }
 }

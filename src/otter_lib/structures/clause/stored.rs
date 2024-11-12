@@ -14,21 +14,16 @@ use std::{borrow::Borrow, ops::Deref};
 pub struct StoredClause {
     key: ClauseKey,
     clause: Vec<Literal>,
-    subsumed_literals: Vec<Literal>,
+    active: bool,
     last: usize,
 }
 
 impl StoredClause {
-    pub fn from(
-        key: ClauseKey,
-        clause: Vec<Literal>,
-        subsumed: Vec<Literal>,
-        variables: &mut VariableStore,
-    ) -> Self {
+    pub fn from(key: ClauseKey, clause: Vec<Literal>, variables: &mut VariableStore) -> Self {
         let mut stored_clause = Self {
             key,
             clause,
-            subsumed_literals: subsumed,
+            active: true,
             last: 0,
         };
 
@@ -45,13 +40,25 @@ impl StoredClause {
         self.key = key
     }
 
-    pub fn original_clause(&self) -> Vec<Literal> {
-        let mut original = self.clause.clone();
-        for hidden in &self.subsumed_literals {
-            original.push(*hidden)
-        }
-        original
+    pub fn is_active(&self) -> bool {
+        self.active
     }
+
+    pub fn activate(&mut self) {
+        self.active = true
+    }
+
+    pub fn deactivate(&mut self) {
+        self.active = false
+    }
+
+    // pub fn original_clause(&self) -> Vec<Literal> {
+    //     let mut original = self.clause.clone();
+    //     // for hidden in &self.subsumed_literals {
+    //     //     original.push(*hidden)
+    //     // }
+    //     original
+    // }
 }
 
 // Watches
@@ -217,6 +224,10 @@ impl StoredClause {
     (This is what was implemented when this note was written…)
 
     For the moment subsumption does not allow subsumption to a unit clause
+
+    TODO: FRAT adjustments
+    At the moment learnt clauses are modified in place.
+    For FRAT it's not clear whether id overwriting is ok.
      */
     pub fn subsume<L: Borrow<Literal>>(
         &mut self,
@@ -248,7 +259,7 @@ impl StoredClause {
         }
 
         let removed = self.clause.swap_remove(position);
-        self.subsumed_literals.push(removed);
+        // self.subsumed_literals.push(removed);
 
         match variables.remove_watch(removed, self.key) {
             Ok(()) => {}

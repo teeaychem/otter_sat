@@ -6,7 +6,7 @@ use crate::{config::Config, context::Counters};
 use crossterm::{cursor, terminal, QueueableCommand};
 
 pub struct ContextWindow {
-    location: (u16, u16),
+    pub location: (u16, u16),
     column: u16,
 }
 
@@ -60,7 +60,6 @@ impl ContextWindow {
     }
 
     pub fn update_counters(&self, counters: &Counters) {
-        self.update_item(WindowItem::Iterations, counters.iterations);
         self.update_item(WindowItem::Iterations, counters.iterations);
         self.update_item(WindowItem::Decisions, counters.decisions);
         self.update_item(WindowItem::Conflicts, counters.conflicts);

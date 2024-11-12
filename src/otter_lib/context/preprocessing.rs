@@ -6,9 +6,9 @@ use crate::{
     },
 };
 
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, ops::Deref};
 
-use super::core::ContextFailure;
+use super::{core::ContextFailure, stores::variable::QStatus};
 
 /// General order for pairs related to booleans is 0 is false, 1 is true
 pub fn pure_choices<'l>(
@@ -50,11 +50,18 @@ impl Context {
     }
 
     pub fn set_pure(&mut self) -> Result<(), ContextFailure> {
-        let (f, t) = crate::context::preprocessing::pure_choices(self.clause_store.all_clauses());
+        let (f, t) = crate::context::preprocessing::pure_choices(
+            self.clause_store.all_clauses().map(|sc| sc.deref()),
+        );
 
         for v_id in f.into_iter().chain(t) {
             let the_literal = Literal::new(v_id, false);
-            self.q_literal(the_literal, LiteralSource::Pure)?
+            match self.q_literal(the_literal) {
+                Ok(QStatus::Qd) => {
+                    self.note_literal(the_literal.canonical(), LiteralSource::Pure, Vec::default());
+                }
+                Err(e) => return Err(e),
+            }
         }
         Ok(())
     }

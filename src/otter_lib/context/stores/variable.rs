@@ -1,5 +1,7 @@
 use std::borrow::Borrow;
 
+use crossbeam::channel::Sender;
+
 use crate::{
     config::{
         defaults::{self},
@@ -10,37 +12,43 @@ use crate::{
         stores::{ClauseKey, LevelIndex},
         Context,
     },
+    dispatch::{
+        delta::{self},
+        Dispatch,
+    },
     generic::heap::IndexHeap,
     structures::{
-        literal::{Literal, LiteralSource, LiteralTrait},
+        literal::{Literal, LiteralTrait},
         variable::{list::VariableList, Variable, VariableId},
     },
-    types::{clause::WatchElement, errs::WatchError},
+    types::{
+        clause::WatchElement,
+        errs::{self},
+    },
 };
 
 pub struct VariableStore {
     external_map: Vec<String>,
     score_increment: VariableActivity,
     variables: Vec<Variable>,
-    consequence_q: std::collections::VecDeque<(Literal, LiteralSource, LevelIndex)>,
+    consequence_q: std::collections::VecDeque<(Literal, LevelIndex)>,
     string_map: std::collections::HashMap<String, VariableId>,
     activity_heap: IndexHeap<VariableActivity>,
+    tx: Sender<Dispatch>,
 }
 
-impl Default for VariableStore {
-    fn default() -> Self {
-        VariableStore {
-            external_map: Vec::<String>::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
-            score_increment: 1.0,
-            variables: Vec::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
-            consequence_q: std::collections::VecDeque::with_capacity(
-                defaults::DEFAULT_VARIABLE_COUNT,
-            ),
-            string_map: std::collections::HashMap::with_capacity(defaults::DEFAULT_VARIABLE_COUNT),
-            activity_heap: IndexHeap::new(defaults::DEFAULT_VARIABLE_COUNT),
-        }
-    }
-}
+// impl Default for VariableStore {
+//     fn default() -> Self {
+//         VariableStore {
+//             external_map: Vec::<String>::default(),
+//             score_increment: 1.0,
+//             variables: Vec::default(),
+//             consequence_q: std::collections::VecDeque::default(),
+//             string_map: std::collections::HashMap::default(),
+//             activity_heap: IndexHeap::default(),
+//         }
+//     }
+// }
 
 impl std::ops::Deref for VariableStore {
     type Target = [Variable];
@@ -57,18 +65,15 @@ impl std::ops::DerefMut for VariableStore {
 }
 
 impl VariableStore {
-    pub fn new(variables: Vec<Variable>) -> Self {
-        VariableStore::with_capactiy(variables.len())
-    }
-
-    pub fn with_capactiy(variable_count: usize) -> Self {
+    pub fn new(tx: Sender<Dispatch>) -> Self {
         VariableStore {
-            external_map: Vec::<String>::with_capacity(variable_count),
+            external_map: Vec::<String>::default(),
             score_increment: 1.0,
-            variables: Vec::with_capacity(variable_count),
-            consequence_q: std::collections::VecDeque::with_capacity(variable_count),
-            string_map: std::collections::HashMap::with_capacity(variable_count),
-            activity_heap: IndexHeap::new(variable_count),
+            variables: Vec::default(),
+            consequence_q: std::collections::VecDeque::default(),
+            string_map: std::collections::HashMap::default(),
+            activity_heap: IndexHeap::default(),
+            tx,
         }
     }
 }
@@ -88,7 +93,7 @@ impl VariableStore {
         &mut self,
         literal: L,
         key: ClauseKey,
-    ) -> Result<(), WatchError> {
+    ) -> Result<(), errs::Watch> {
         self.variables
             .get_unsafe(literal.borrow().index())
             .watch_removed(key, literal.borrow().polarity())
@@ -106,14 +111,18 @@ impl VariableStore {
         self.activity_heap.activate(index)
     }
 
-    pub fn add_variable(&mut self, name: &str, variable: Variable) {
+    pub fn add_variable(&mut self, name: &str, variable: Variable, config: &Config) {
+        let delta = delta::Variable::Internalised(name.to_string(), variable.id());
+        self.tx.send(Dispatch::VariableDB(delta));
+
         self.string_map.insert(name.to_string(), variable.id());
+        self.activity_heap
+            .insert(variable.index(), VariableActivity::default());
         self.variables.push(variable);
         self.external_map.push(name.to_string());
-        // self.consequence_buffer;
     }
 
-    pub fn get_consequence(&mut self) -> Option<(Literal, LiteralSource, LevelIndex)> {
+    pub fn get_consequence(&mut self) -> Option<(Literal, LevelIndex)> {
         self.consequence_q.pop_front()
     }
 
@@ -137,7 +146,7 @@ impl VariableStore {
     }
 
     pub fn clear_consequences(&mut self, to: LevelIndex) {
-        self.consequence_q.retain(|(_, _, c)| *c < to);
+        self.consequence_q.retain(|(_, c)| *c < to);
     }
 }
 
@@ -173,26 +182,27 @@ impl VariableStore {
     }
 }
 
+pub enum QStatus {
+    Qd,
+}
+
 impl Context {
     pub fn q_literal<L: Borrow<impl LiteralTrait>>(
         &mut self,
         lit: L,
-        source: LiteralSource,
-    ) -> Result<(), ContextFailure> {
-        let Ok(_) =
-            self.variables
-                .set_value(lit.borrow().canonical(), self.levels.top_mut(), source)
+    ) -> Result<QStatus, ContextFailure> {
+        let Ok(_) = self
+            .variables
+            .set_value(lit.borrow().canonical(), Some(self.levels.decision_count()))
         else {
             return Err(ContextFailure::QueueConflict);
         };
 
         // TODO: improve push back consequence
-        self.variables.consequence_q.push_back((
-            lit.borrow().canonical(),
-            source,
-            self.levels.index(),
-        ));
+        self.variables
+            .consequence_q
+            .push_back((lit.borrow().canonical(), self.levels.decision_count()));
 
-        Ok(())
+        Ok(QStatus::Qd)
     }
 }

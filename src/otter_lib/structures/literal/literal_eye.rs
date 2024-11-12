@@ -33,8 +33,8 @@ impl LiteralTrait for LiteralEye {
     }
 
     fn canonical(&self) -> super::Literal {
-        // self.as_struct()
-        *self
+        self.as_struct()
+        // *self
     }
 }
 
