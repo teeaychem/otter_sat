@@ -1,17 +1,30 @@
+use crossbeam::channel::Sender;
+use xz2::read::XzDecoder;
+
 use crate::{
     config::Config,
-    context::Context,
+    context::{stores::variable::QStatus, Context},
+    dispatch::{
+        self,
+        delta::{self},
+        Dispatch,
+    },
     structures::{
         literal::{Literal, LiteralSource, LiteralTrait},
-        variable::{Variable, VariableId},
+        variable::{list::VariableList, Variable, VariableId},
     },
     types::{
         clause::ClauseSource,
-        errs::{ClauseStoreErr, ContextErr},
+        errs::{self},
     },
 };
 
-use std::{borrow::Borrow, io::BufRead, path::PathBuf};
+use std::{
+    borrow::Borrow,
+    fs::File,
+    io::{BufRead, BufReader},
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug)]
 pub enum BuildErr {
@@ -20,8 +33,7 @@ pub enum BuildErr {
     AssumptionDirectConflict,
     AssumptionIndirectConflict,
     Parse(ParseErr),
-    OopsAllTautologies,
-    ClauseStore(ClauseStoreErr),
+    ClauseStore(errs::ClauseDB),
 }
 
 #[derive(Debug)]
@@ -39,7 +51,8 @@ impl Context {
             Some(variable) => Ok(variable),
             None => {
                 let the_id = self.variables.len() as VariableId;
-                self.variables.add_variable(name, Variable::new(the_id));
+                self.variables
+                    .add_variable(name, Variable::new(the_id), &self.config);
                 Ok(the_id)
             }
         }
@@ -64,25 +77,54 @@ impl Context {
 
     // Aka. soft assumption
     // This will hold until a restart happens
-    pub fn believe<L: Borrow<impl LiteralTrait>>(&mut self, literal: L) -> Result<(), ContextErr> {
-        if self.levels.index() != 0 {
-            return Err(ContextErr::AssumptionAfterChoice);
+    pub fn believe<L: Borrow<impl LiteralTrait>>(
+        &mut self,
+        literal: L,
+    ) -> Result<(), errs::Context> {
+        if self.levels.decision_made() {
+            return Err(errs::Context::AssumptionAfterChoice);
         }
-
-        let assumption_result = self.q_literal(literal, LiteralSource::Assumption);
-        match assumption_result {
-            Ok(_) => Ok(()),
-            Err(_) => Err(ContextErr::AssumptionConflict),
+        match self.q_literal(literal.borrow().canonical()) {
+            Ok(_) => {
+                self.note_literal(
+                    literal.borrow().canonical(),
+                    LiteralSource::Assumption,
+                    Vec::default(),
+                );
+                Ok(())
+            }
+            Err(_) => Err(errs::Context::AssumptionConflict),
         }
     }
 
-    // TODO: Type hint issue
-    pub fn assume<L: Borrow<impl LiteralTrait>>(&mut self, literal: L) -> Result<(), ContextErr> {
-        if self.believe(literal.borrow().canonical()).is_ok() {
-            self.proofs.push((literal.borrow().canonical(), vec![]));
-            Ok(())
-        } else {
-            Err(ContextErr::AssumptionConflict)
+    #[allow(unused_must_use)] // ???
+    pub fn assume<L: Borrow<impl LiteralTrait>>(
+        &mut self,
+        literal: L,
+    ) -> Result<(), errs::Context> {
+        if self.levels.decision_made() {
+            return Err(errs::Context::AssumptionAfterChoice);
+        }
+        use crate::structures::variable::list::ValueInfo;
+        let literal: Literal = literal.borrow().canonical();
+        match self.variables.check_literal(literal) {
+            ValueInfo::NotSet => {
+                let Ok(QStatus::Qd) = self.q_literal(literal) else {
+                    return Err(errs::Context::AssumptionConflict);
+                };
+                self.note_literal(
+                    literal.borrow().canonical(),
+                    LiteralSource::Assumption,
+                    Vec::default(),
+                );
+                // self.store_literal(literal, LiteralSource::Assumption, Vec::default());
+                Ok(())
+            }
+            ValueInfo::Match => {
+                // Must be at zero for an assumption, so there's nothing to do
+                Ok(())
+            }
+            ValueInfo::Conflict => Err(errs::Context::AssumptionConflict),
         }
     }
 }
@@ -108,7 +150,7 @@ impl Context {
 impl Context {
     pub fn store_preprocessed_clause(&mut self, clause: Vec<Literal>) -> Result<(), BuildErr> {
         match clause.len() {
-            0 => Err(BuildErr::ClauseStore(ClauseStoreErr::EmptyClause)),
+            0 => Err(BuildErr::ClauseStore(errs::ClauseDB::EmptyClause)),
             1 => {
                 let literal = unsafe { *clause.get_unchecked(0) };
                 match self.assume(literal) {
@@ -134,9 +176,10 @@ impl Context {
                     } else {
                         // Though, strengthen the clause if possible
                         if !self
-                            .proofs
+                            .levels
+                            .proven_literals()
                             .iter()
-                            .any(|(proven_literal, _)| &proven_literal.negate() == literal)
+                            .any(|proven_literal| &proven_literal.negate() == literal)
                         {
                             processed_clause.push(*literal)
                         } else {
@@ -155,7 +198,7 @@ impl Context {
                             return Err(BuildErr::AssumptionIndirectConflict);
                         };
                     }
-                    _ => match self.store_clause(clause, subsumed, ClauseSource::Formula, None) {
+                    _ => match self.store_clause(clause, ClauseSource::Formula, Vec::default()) {
                         Ok(_) => {}
                         Err(e) => return Err(BuildErr::ClauseStore(e)),
                     },
@@ -166,17 +209,27 @@ impl Context {
     }
 
     #[allow(clippy::manual_flatten, unused_labels)]
-    pub fn from_dimacs_file(
-        file_path: &PathBuf,
-        mut file_reader: impl BufRead,
-        config: Config,
-    ) -> Result<Self, BuildErr> {
+    pub fn load_dimacs_file(&mut self, file_path: PathBuf) -> Result<(), BuildErr> {
+        //
+        let f_string = file_path.to_str().unwrap().to_owned();
+        let delta = delta::Parser::Load(f_string);
+        self.tx.send(Dispatch::Parser(delta));
+
+        let file = match File::open(&file_path) {
+            Err(_) => return Err(BuildErr::Parse(ParseErr::NoFile)),
+            Ok(f) => f,
+        };
+        let mut file_reader: Box<dyn BufRead> = match &file_path.extension() {
+            None => Box::new(BufReader::new(&file)),
+            Some(extension) if *extension == "xz" => {
+                Box::new(BufReader::new(XzDecoder::new(&file)))
+            }
+            Some(_) => Box::new(BufReader::new(&file)),
+        };
+
         let mut buffer = String::with_capacity(1024);
         let mut clause_buffer: Vec<Literal> = Vec::new();
 
-        let config_detail = config.detail;
-
-        let mut the_context = None;
         let mut line_counter = 0;
         let mut clause_counter = 0;
 
@@ -213,17 +266,10 @@ impl Context {
 
                     buffer.clear();
 
-                    if config.show_stats {
-                        println!("c Parsing {:#?}", file_path);
-                        if config.detail > 0 {
-                            println!("c Expectation is to get {variable_count} variables and {clause_count} clauses");
-                        }
-                    }
-                    the_context = Some(Context::with_size_hints(
+                    self.tx.send(Dispatch::Parser(delta::Parser::Expected(
                         variable_count,
                         clause_count,
-                        config.clone(),
-                    ));
+                    )));
                     break;
                 }
                 _ => {
@@ -231,11 +277,6 @@ impl Context {
                 }
             }
         }
-
-        let mut the_context = match the_context {
-            Some(context) => context,
-            None => Context::default_config(config),
-        };
 
         'formula_loop: loop {
             match file_reader.read_line(&mut buffer) {
@@ -254,7 +295,7 @@ impl Context {
                         match item {
                             "0" => {
                                 let the_clause = clause_buffer.clone();
-                                match the_context.store_preprocessed_clause(the_clause) {
+                                match self.store_preprocessed_clause(the_clause) {
                                     Ok(_) => clause_counter += 1,
                                     Err(e) => return Err(e),
                                 }
@@ -262,7 +303,7 @@ impl Context {
                                 clause_buffer.clear();
                             }
                             _ => {
-                                let the_literal = match the_context.literal_from_string(item) {
+                                let the_literal = match self.literal_from_string(item) {
                                     Ok(literal) => literal,
                                     Err(e) => return Err(BuildErr::Parse(e)),
                                 };
@@ -278,24 +319,16 @@ impl Context {
             buffer.clear();
         }
 
-        if config_detail > 0 {
-            let mut message = format!(
-                "c Parsing complete with {} variables and {} clauses",
-                the_context.variable_count(),
-                clause_counter
-            );
-            if config_detail > 1 {
-                message.push_str(
-                    format!(" ({} added to the context)", the_context.clause_count()).as_str(),
-                );
-            }
-            println!("{message}");
-        }
+        self.tx
+            .send(dispatch::Dispatch::Parser(delta::Parser::Complete(
+                self.variable_count(),
+                clause_counter,
+            )));
 
-        if the_context.clause_count() == 0 {
-            return Err(BuildErr::OopsAllTautologies);
-        }
+        self.tx.send(Dispatch::Parser(delta::Parser::ContextClauses(
+            self.clause_count(),
+        )));
 
-        Ok(the_context)
+        Ok(())
     }
 }

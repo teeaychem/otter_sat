@@ -1,4 +1,8 @@
-use otter_lib::{config::Config, context::Context, types::gen::Report};
+use otter_lib::{
+    config::Config,
+    context::Context,
+    dispatch::report::{self},
+};
 
 fn value_of(variable: &str, context: &Context) -> Option<bool> {
     let mut the_value = None;
@@ -20,7 +24,8 @@ fn main() {
         ..Default::default()
     };
 
-    let mut the_context: Context = Context::default_config(config);
+    let (tx, _rx) = crossbeam::channel::unbounded();
+    let mut the_context: Context = Context::from_config(config, tx);
 
     let not_p_or_q = "-p q";
     let p_or_not_q = "p -q";
@@ -103,7 +108,7 @@ The valuation is now:
     );
 
     assert_eq!(value_of("q", &the_context), Some(true));
-    assert_eq!(the_context.report(), Report::Satisfiable);
+    assert_eq!(the_context.report(), report::Solve::Satisfiable);
 
     let an_error = the_context.clause_from_string("-p -q");
     assert!(an_error.is_err());
@@ -112,5 +117,5 @@ The valuation is now:
 
     assert!(the_context.solve().is_ok());
 
-    assert_eq!(the_context.report(), Report::Satisfiable);
+    assert_eq!(the_context.report(), report::Solve::Satisfiable);
 }

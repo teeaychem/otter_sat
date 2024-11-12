@@ -10,7 +10,7 @@ use crate::{
 pub trait Clause {
     fn as_string(&self) -> String;
 
-    fn as_dimacs(&self, variables: &VariableStore) -> String;
+    fn as_dimacs(&self, variables: &VariableStore, zero: bool) -> String;
 
     #[allow(dead_code)]
     fn asserts(&self, val: &impl VariableList) -> Option<Literal>;

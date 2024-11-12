@@ -6,29 +6,27 @@ pub mod reports;
 mod resolution_buffer;
 pub mod solve;
 pub mod stores;
+pub mod unique_id;
 
-use crate::types::gen::SolveStatus;
+use crate::{dispatch::Dispatch, types::gen::SolveStatus};
 
 use {
-    crate::{
-        config::{
-            self,
-            defaults::{self},
-            Config,
-        },
-        io::window::ContextWindow,
-        structures::literal::Literal,
+    crate::config::{
+        self,
+        defaults::{self},
+        Config,
     },
-    stores::{clause::ClauseStore, variable::VariableStore, ClauseKey},
+    stores::{clause::ClauseDB, variable::VariableStore},
 };
 
+use crossbeam::channel::Sender;
 use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128Plus};
 use stores::level::LevelStore;
 
 // pub type RngChoice = rand::rngs::mock::StepRng;
 pub type RngChoice = Xoroshiro128Plus;
 
-use std::time::Duration;
+use std::{fmt::Debug, time::Duration};
 
 pub struct Counters {
     pub conflicts: usize,
@@ -58,66 +56,54 @@ impl Default for Counters {
 
 pub struct Context {
     counters: Counters,
-    levels: LevelStore,
-    pub clause_store: ClauseStore,
+    pub levels: LevelStore,
+    pub clause_store: ClauseDB,
     pub variables: VariableStore,
     pub config: config::Config,
-    window: Option<ContextWindow>,
-    status: SolveStatus,
-
-    pub proofs: Vec<(Literal, Vec<ClauseKey>)>,
+    pub status: SolveStatus,
+    pub tx: Sender<Dispatch>, //
 }
 
 impl std::fmt::Display for SolveStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SolveStatus::Initialised => write!(f, "Initialised"),
-            SolveStatus::AssertingClause(key) => write!(f, "AssertingClause({key})"),
-            SolveStatus::MissedImplication(key) => write!(f, "MissedImplication({key})"),
-            SolveStatus::NoSolution(key) => write!(f, "NoSolution({key})"),
+            SolveStatus::AssertingClause => write!(f, "AssertingClause"),
+            SolveStatus::MissedImplication => write!(f, "MissedImplication"),
+            SolveStatus::NoSolution => write!(f, "NoSolution"),
             SolveStatus::ChoiceMade => write!(f, "ChoiceMade"),
             SolveStatus::FullValuation => write!(f, "AllAssigned"),
             SolveStatus::NoClauses => write!(f, "NoClauses"),
-            SolveStatus::Proof(key) => write!(f, "NoSolution({key})"),
+            SolveStatus::Proof => write!(f, "Proof"),
         }
     }
 }
 
 impl Context {
-    pub fn default_config(config: Config) -> Self {
-        Self::with_size_hints(2048, 32768, config)
-    }
-
-    pub fn with_size_hints(variable_count: usize, clause_count: usize, config: Config) -> Self {
-        let the_window = match config.show_stats {
-            true => Some(ContextWindow::default()),
-            false => None,
-        };
-
+    pub fn from_config(config: Config, tx: Sender<Dispatch>) -> Self {
         Self {
             counters: Counters::default(),
-            levels: LevelStore::with_capacity(variable_count),
-            clause_store: ClauseStore::with_capacity(clause_count),
-            variables: VariableStore::with_capactiy(variable_count),
+            levels: LevelStore::new(tx.clone()),
+            clause_store: ClauseDB::default(&tx),
+            variables: VariableStore::new(tx.clone()),
             config,
-            window: the_window,
             status: SolveStatus::Initialised,
-            proofs: Vec::new(),
+            tx,
         }
     }
 }
 
 impl Default for Context {
     fn default() -> Self {
+        let (tx, _) = crossbeam::channel::bounded::<Dispatch>(0);
         Context {
             counters: Counters::default(),
-            levels: LevelStore::with_capacity(1024),
-            clause_store: ClauseStore::default(),
-            variables: VariableStore::default(),
+            levels: LevelStore::new(tx.clone()),
+            clause_store: ClauseDB::default(&tx),
+            variables: VariableStore::new(tx.clone()),
             config: Config::default(),
-            window: None,
             status: SolveStatus::Initialised,
-            proofs: Vec::new(),
+            tx,
         }
     }
 }

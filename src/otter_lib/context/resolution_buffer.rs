@@ -1,14 +1,22 @@
 use std::{borrow::Borrow, ops::Deref};
 
+use crossbeam::channel::Sender;
+
 use crate::{
     config::{Config, StoppingCriteria},
-    context::stores::{clause::ClauseStore, level::Level, variable::VariableStore, ClauseKey},
+    context::stores::{clause::ClauseDB, variable::VariableStore, ClauseKey},
+    dispatch::{
+        delta::{self},
+        Dispatch,
+    },
     structures::{
         clause::stored::StoredClause,
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::{list::VariableList, VariableId},
     },
 };
+
+use super::stores::level::LevelStore;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum ResolutionCell {
@@ -27,6 +35,7 @@ pub struct ResolutionBuffer {
     buffer: Vec<ResolutionCell>,
     trail: Vec<ClauseKey>,
     used_variables: Vec<bool>,
+    tx: Sender<Dispatch>,
 }
 
 #[derive(Debug)]
@@ -34,6 +43,7 @@ pub enum BufOk {
     FirstUIP,
     Exhausted,
     Proof,
+    Missed(ClauseKey, Literal),
 }
 
 #[derive(Debug)]
@@ -62,7 +72,7 @@ impl ResolutionBuffer {
             .for_each(|index| *index = false);
     }
 
-    pub fn from_variable_store(variables: &impl VariableList) -> Self {
+    pub fn from_variable_store(variables: &impl VariableList, tx: Sender<Dispatch>) -> Self {
         ResolutionBuffer {
             valueless_count: 0,
             clause_length: 0,
@@ -74,16 +84,8 @@ impl ResolutionBuffer {
                 .collect(),
             trail: vec![],
             used_variables: vec![false; variables.slice().len()],
+            tx,
         }
-    }
-
-    pub fn set_inital_clause(
-        &mut self,
-        clause: &StoredClause,
-        key: ClauseKey,
-    ) -> Result<(), BufErr> {
-        self.trail.push(key);
-        self.merge_clause(clause)
     }
 
     #[allow(dead_code)]
@@ -122,20 +124,33 @@ impl ResolutionBuffer {
         (conflict_literal, the_clause)
     }
 
-    pub fn clear_literals(&mut self, literals: impl Iterator<Item = Literal>) {
-        for literal in literals {
-            self.set(literal.index(), ResolutionCell::Value(None))
-        }
+    pub fn clear_literal(&mut self, literal: Literal) {
+        self.set(literal.index(), ResolutionCell::Value(None))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn resolve_with(
         &mut self,
-        level: &Level,
-        stored_clauses: &mut ClauseStore,
+        conflict: ClauseKey,
+        levels: &LevelStore,
+        stored_clauses: &mut ClauseDB,
         variables: &mut VariableStore,
         config: &Config,
     ) -> Result<BufOk, BufErr> {
-        for (source, literal) in level.observations().iter().rev() {
+        self.merge_clause(stored_clauses.get(conflict).expect("missing clause"));
+
+        // Maybe the conflit clause was already asserting on the previous decision level…
+        if let Some(asserted_literal) = self.asserts() {
+            return Ok(BufOk::Missed(conflict, asserted_literal));
+        };
+        self.tx.send(Dispatch::Resolution(delta::Resolution::Start));
+
+        let delta = delta::Resolution::Used(conflict);
+        self.tx.send(Dispatch::Resolution(delta));
+
+        self.trail.push(conflict);
+
+        for (source, literal) in levels.current_consequences().iter().rev() {
             if let LiteralSource::Analysis(the_key)
             | LiteralSource::BCP(the_key)
             | LiteralSource::Resolution(the_key)
@@ -164,42 +179,98 @@ impl ResolutionBuffer {
                           + And, missed implications are checked prior to conflicts
                          */
 
+                        // TODO: FRAT here, is more complex.
+                        // Really, want to cut the trail as a proof of the subsumed clause, and then start again with the clause as the only part
+
                         match self.clause_length {
                             0 => {}
-                            1 => return Ok(BufOk::Proof),
+                            1 => {
+                                let delta = delta::Resolution::Used(source_clause.key());
+                                self.tx.send(Dispatch::Resolution(delta));
+                                self.tx
+                                    .send(Dispatch::Resolution(delta::Resolution::Finish));
+                                return Ok(BufOk::Proof);
+                            }
                             2 => match the_key {
-                                ClauseKey::Binary(_) => {}
-                                ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
+                                ClauseKey::Binary(_) => {
+                                    panic!("todo");
+                                }
+                                ClauseKey::Formula(_) => {
+                                    self.tx
+                                        .send(Dispatch::Resolution(delta::Resolution::Finish));
                                     let Ok(_) = source_clause.subsume(literal, variables, false)
                                     else {
                                         return Err(BufErr::Subsumption);
                                     };
+
                                     let Ok(new_key) =
                                         stored_clauses.transfer_to_binary(*the_key, variables)
                                     else {
                                         return Err(BufErr::Transfer);
                                     };
                                     self.trail.push(new_key);
+
+                                    self.tx.send(Dispatch::Resolution(delta::Resolution::Start));
+                                    self.tx.send(Dispatch::Resolution(delta::Resolution::Used(
+                                        new_key,
+                                    )));
+                                }
+                                ClauseKey::Learned(_, _) => {
+                                    self.tx
+                                        .send(Dispatch::Resolution(delta::Resolution::Finish));
+                                    let Ok(_) = source_clause.subsume(literal, variables, false)
+                                    else {
+                                        return Err(BufErr::Subsumption);
+                                    };
+
+                                    let Ok(new_key) =
+                                        stored_clauses.transfer_to_binary(*the_key, variables)
+                                    else {
+                                        return Err(BufErr::Transfer);
+                                    };
+                                    self.trail.push(new_key);
+
+                                    self.tx.send(Dispatch::Resolution(delta::Resolution::Start));
+                                    self.tx.send(Dispatch::Resolution(delta::Resolution::Used(
+                                        conflict,
+                                    )));
                                 }
                             },
                             _ => {
                                 let Ok(_) = source_clause.subsume(literal, variables, true) else {
                                     return Err(BufErr::Subsumption);
                                 };
+                                self.tx
+                                    .send(Dispatch::Resolution(delta::Resolution::Subsumed(
+                                        *the_key, *literal,
+                                    )));
+
                                 self.trail.push(*the_key);
+                                self.tx
+                                    .send(Dispatch::Resolution(delta::Resolution::Used(*the_key)));
                             }
                         }
+                    } else {
+                        self.trail.push(source_clause.key());
+                        let delta = delta::Resolution::Used(source_clause.key());
+                        self.tx.send(Dispatch::Resolution(delta));
                     }
 
                     if self.valueless_count == 1 {
                         match config.stopping_criteria {
-                            StoppingCriteria::FirstUIP => return Ok(BufOk::FirstUIP),
+                            StoppingCriteria::FirstUIP => {
+                                self.tx
+                                    .send(Dispatch::Resolution(delta::Resolution::Finish));
+                                return Ok(BufOk::FirstUIP);
+                            }
                             StoppingCriteria::None => {}
                         }
                     };
                 }
             }
         }
+        let delta = delta::Resolution::Finish;
+        self.tx.send(Dispatch::Resolution(delta));
         Ok(BufOk::Exhausted)
     }
 
@@ -236,8 +307,12 @@ impl ResolutionBuffer {
             })
     }
 
-    pub fn trail(&self) -> &[ClauseKey] {
+    pub fn view_trail(&self) -> &[ClauseKey] {
         &self.trail
+    }
+
+    pub unsafe fn take_trail(&mut self) -> Vec<ClauseKey> {
+        std::mem::take(&mut self.trail)
     }
 }
 

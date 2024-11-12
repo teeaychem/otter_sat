@@ -1,12 +1,24 @@
+use std::borrow::Borrow;
+
 use crate::{
     context::{stores::ClauseKey, Context, SolveStatus},
-    structures::{literal::Literal, variable::list::VariableList},
-    types::{clause::ClauseSource, errs::ClauseStoreErr},
+    dispatch::{
+        self,
+        comment::{self},
+        delta::{self},
+        report::{self},
+        Dispatch,
+    },
+    structures::{
+        literal::{Literal, LiteralSource, LiteralTrait},
+        variable::list::VariableList,
+    },
+    types::{clause::ClauseSource, errs::ClauseDB},
 };
 
 #[derive(Debug, Clone, Copy)]
 pub enum StepInfo {
-    Conflict(ClauseKey),
+    Conflict,
     ChoicesExhausted,
     ChoiceMade,
     One,
@@ -18,14 +30,6 @@ pub enum ContextFailure {
 }
 
 impl Context {
-    pub fn proven_literals(&self) -> impl Iterator<Item = &Literal> {
-        self.levels
-            .get(0)
-            .observations()
-            .iter()
-            .map(|(_, literal)| literal)
-    }
-
     pub fn variable_count(&self) -> usize {
         self.variables.len()
     }
@@ -39,54 +43,53 @@ impl Context {
     pub fn store_clause(
         &mut self,
         clause: Vec<Literal>,
-        subsumed: Vec<Literal>,
         source: ClauseSource,
-        resolution_keys: Option<Vec<ClauseKey>>,
-    ) -> Result<ClauseKey, ClauseStoreErr> {
-        let clause_key = self.clause_store.insert(
+        resolution_keys: Vec<ClauseKey>,
+    ) -> Result<ClauseKey, ClauseDB> {
+        self.clause_store.insert_clause(
             source,
             clause,
-            subsumed,
             &mut self.variables,
             resolution_keys,
-        )?;
-        Ok(clause_key)
+            &self.config,
+        )
+    }
+
+    pub fn note_literal<L: Borrow<impl LiteralTrait>>(
+        &mut self,
+        literal: L,
+        source: LiteralSource,
+        resolution_keys: Vec<ClauseKey>,
+    ) {
+        let canonical = literal.borrow().canonical();
+        log::trace!("Noted {}", canonical);
+        self.levels.record_literal(canonical, source);
     }
 
     pub fn print_status(&self) {
-        if self.config.show_stats {
-            if let Some(window) = &self.window {
-                window.update_counters(&self.counters);
-                window.flush();
-            }
-        }
+        // if self.config.io.show_stats {
+        //     if let Some(window) = &self.window {
+        //         window.update_counters(&self.counters);
+        //         window.flush();
+        //     }
+        // }
 
         match self.status {
             SolveStatus::FullValuation => {
-                println!("s SATISFIABLE");
-                if self.config.show_valuation {
-                    println!("v {}", self.valuation_string());
-                }
+                let _ = self
+                    .tx
+                    .send(Dispatch::SolveReport(report::Solve::Satisfiable));
             }
-            SolveStatus::NoSolution(clause_key) => {
-                println!("s UNSATISFIABLE");
-                if self.config.show_core {
-                    let _ = self.display_core(clause_key);
-                }
+            SolveStatus::NoSolution => {
+                let report = report::Solve::Unsatisfiable;
+                let _ = self.tx.send(Dispatch::SolveReport(report));
             }
             SolveStatus::NoClauses => {
-                if self.config.detail > 0 {
-                    println!("c The formula contains no clause and so is interpreted as ⊤");
-                }
-                println!("s SATISFIABLE");
+                self.tx
+                    .send(Dispatch::SolveComment(comment::Solve::NoClauses));
             }
             _ => {
-                if let Some(limit) = self.config.time_limit {
-                    if self.config.show_stats && self.counters.time > limit {
-                        println!("c TIME LIMIT EXCEEDED");
-                    }
-                }
-                println!("s UNKNOWN");
+                let _ = self.tx.send(Dispatch::SolveReport(report::Solve::Unknown));
             }
         }
     }
@@ -123,7 +126,16 @@ impl Context {
             .join(" ")
     }
 
-    pub fn print_valuation(&self) {
-        println!("v {:?}", self.valuation_string());
+    pub fn report_active(&self) {
+        for clause in self.clause_store.all_clauses() {
+            if clause.is_active() {
+                let report = report::ClauseDB::Active(clause.key(), clause.to_vec());
+                self.tx.send(Dispatch::ClauseDBReport(report));
+            }
+        }
+        for literal in self.levels.proven_literals() {
+            let report = report::VariableDB::Active(*literal);
+            self.tx.send(Dispatch::VariableDBReport(report));
+        }
     }
 }
