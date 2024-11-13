@@ -1,12 +1,10 @@
-mod analysis;
 pub mod builder;
 pub mod core;
-mod preprocessing;
+
 pub mod reports;
-mod resolution_buffer;
-pub mod solve;
+pub mod resolution_buffer;
+
 pub mod stores;
-pub mod unique_id;
 
 use crate::{
     config::{
@@ -34,8 +32,8 @@ pub struct Counters {
     pub iterations: usize,
     pub restarts: usize,
     pub time: Duration,
-    luby: crate::generic::luby::Luby,
-    rng: RngChoice,
+    pub luby: crate::generic::luby::Luby,
+    pub rng: RngChoice,
 }
 
 impl Default for Counters {
@@ -54,7 +52,7 @@ impl Default for Counters {
 }
 
 pub struct Context {
-    counters: Counters,
+    pub counters: Counters,
     pub levels: LevelStore,
     pub clause_db: ClauseDB,
     pub variables: VariableDB,

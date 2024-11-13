@@ -1,5 +1,5 @@
 use crate::{
-    context::Context,
+    context::{core::ContextFailure, Context},
     db::variable::QStatus,
     structures::{
         literal::{Literal, LiteralSource, LiteralTrait},
@@ -8,8 +8,6 @@ use crate::{
 };
 
 use std::{collections::BTreeSet, ops::Deref};
-
-use super::core::ContextFailure;
 
 /// General order for pairs related to booleans is 0 is false, 1 is true
 pub fn pure_choices<'l>(
@@ -51,7 +49,7 @@ impl Context {
     }
 
     pub fn set_pure(&mut self) -> Result<(), ContextFailure> {
-        let (f, t) = crate::context::preprocessing::pure_choices(
+        let (f, t) = crate::procedures::preprocessing::pure_choices(
             self.clause_db.all_clauses().map(|sc| sc.deref()),
         );
 

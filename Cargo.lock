@@ -506,6 +506,7 @@ dependencies = [
  "log4rs",
  "otter_lib",
  "tikv-jemallocator",
+ "xz2",
 ]
 
 [[package]]
@@ -516,7 +517,6 @@ dependencies = [
  "log",
  "rand",
  "rand_xoshiro",
- "xz2",
 ]
 
 [[package]]
@@ -526,6 +526,7 @@ dependencies = [
  "crossbeam",
  "glob",
  "otter_lib",
+ "xz2",
 ]
 
 [[package]]

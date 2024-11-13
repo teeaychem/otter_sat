@@ -5,9 +5,8 @@ use rand::{seq::IteratorRandom, Rng};
 use crate::{
     config::Config,
     context::{
-        analysis::AnalysisResult,
         core::{ContextFailure, StepInfo},
-        Context, SolveStatus,
+        Context,
     },
     db::{keys::DecisionIndex, variable::QStatus},
     dispatch::{
@@ -17,11 +16,15 @@ use crate::{
         report::{self},
         Dispatch,
     },
+    procedures::analysis::AnalysisResult,
     structures::{
         literal::{Literal, LiteralSource, LiteralTrait},
         variable::{list::VariableList, VariableId, BCP::BCPErr},
     },
-    types::errs::{self},
+    types::{
+        errs::{self},
+        gen::SolveStatus,
+    },
 };
 
 impl Context {

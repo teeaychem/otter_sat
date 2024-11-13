@@ -18,11 +18,18 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
 
     let listener_handle = {
         let frat_path = frat_path.clone();
-        thread::spawn(|| otter_lib::io::receivers::frat_receiver(rx, frat_path))
+        thread::spawn(|| otter_lib::dispatch::receivers::frat_receiver(rx, frat_path))
     };
 
     let mut the_context = Context::from_config(config, tx);
-    assert!(the_context.load_dimacs_file(file_path).is_ok());
+
+    match load_dimacs(&mut the_context, &file_path) {
+        Ok(()) => {}
+        Err(e) => {
+            panic!("c Error loading file: {e:?}")
+        }
+    };
+
     let _result = the_context.solve();
     the_context.report_active();
 
@@ -67,7 +74,7 @@ fn frat_dir_test(dir: String) -> usize {
     counter
 }
 
-use otter_tests::cnf_lib_subdir;
+use otter_tests::{cnf_lib_subdir, load_dimacs};
 
 #[cfg(test)]
 mod frat_tests {

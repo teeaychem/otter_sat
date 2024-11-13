@@ -1,5 +1,3 @@
-use xz2::read::XzDecoder;
-
 use crate::{
     context::Context,
     db::variable::QStatus,
@@ -18,12 +16,7 @@ use crate::{
     },
 };
 
-use std::{
-    borrow::Borrow,
-    fs::File,
-    io::{BufRead, BufReader},
-    path::PathBuf,
-};
+use std::{borrow::Borrow, io::BufRead};
 
 #[derive(Debug)]
 pub enum BuildErr {
@@ -199,23 +192,8 @@ impl Context {
     }
 
     #[allow(clippy::manual_flatten, unused_labels)]
-    pub fn load_dimacs_file(&mut self, file_path: PathBuf) -> Result<(), BuildErr> {
+    pub fn load_dimacs_file(&mut self, mut file_reader: impl BufRead) -> Result<(), BuildErr> {
         //
-        let f_string = file_path.to_str().unwrap().to_owned();
-        let delta = delta::Parser::Load(f_string);
-        self.tx.send(Dispatch::Parser(delta));
-
-        let file = match File::open(&file_path) {
-            Err(_) => return Err(BuildErr::Parse(ParseErr::NoFile)),
-            Ok(f) => f,
-        };
-        let mut file_reader: Box<dyn BufRead> = match &file_path.extension() {
-            None => Box::new(BufReader::new(&file)),
-            Some(extension) if *extension == "xz" => {
-                Box::new(BufReader::new(XzDecoder::new(&file)))
-            }
-            Some(_) => Box::new(BufReader::new(&file)),
-        };
 
         let mut buffer = String::with_capacity(1024);
         let mut clause_buffer: Vec<Literal> = Vec::new();
