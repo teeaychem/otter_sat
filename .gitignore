@@ -1,4 +1,4 @@
 **.DS_Store
 /target
 **.cnf
-/tests/frat-rs
+/otter_tests/frat-rs

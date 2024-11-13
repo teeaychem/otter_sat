@@ -15,4 +15,3 @@ log = { version = "0.4.22", features = ["max_level_trace", "release_max_level_of
 
 rand = { version = "0.8.5" }
 rand_xoshiro = "0.6.0"
-xz2 = "0.1.7"

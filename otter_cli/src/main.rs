@@ -1,5 +1,6 @@
 // #![allow(unused_imports)]
 
+use misc::load_dimacs;
 #[cfg(not(target_env = "msvc"))]
 #[cfg(feature = "jemalloc")]
 use tikv_jemallocator::Jemalloc;
@@ -18,13 +19,12 @@ use otter_lib::{
     types::errs::{self},
 };
 
-use std::fs;
-
 use crossbeam::channel::unbounded;
 use std::thread;
 
 mod config_io;
 mod listener;
+mod misc;
 mod parse;
 mod window;
 
@@ -74,8 +74,7 @@ fn main() {
         let mut the_context = Context::from_config(config, tx);
 
         for path in config_io.files {
-            println!("{path:?}");
-            match the_context.load_dimacs_file(path) {
+            match load_dimacs(&mut the_context, path) {
                 Ok(()) => {}
                 Err(BuildErr::ClauseStore(errs::ClauseDB::EmptyClause)) => {
                     println!("s UNSATISFIABLE");
@@ -119,7 +118,7 @@ fn main() {
     match report {
         report::Solve::Satisfiable => {
             if let Some(path) = config_io.frat_path {
-                let _ = fs::remove_file(path);
+                let _ = std::fs::remove_file(path);
             }
             std::process::exit(10)
         }
