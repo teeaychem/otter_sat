@@ -113,7 +113,7 @@ The valuation is now:
     let an_error = the_context.clause_from_string("-p -q");
     assert!(an_error.is_err());
 
-    the_context.clear_decisions();
+    the_context.clear_choices();
 
     assert!(the_context.solve().is_ok());
 

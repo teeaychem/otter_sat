@@ -2,10 +2,7 @@ pub mod store;
 
 use crossbeam::channel::Sender;
 
-use crate::{
-    dispatch::Dispatch,
-    structures::literal::{Literal, LiteralSource, LiteralTrait},
-};
+use crate::{dispatch::Dispatch, structures::literal::Literal, types::gen};
 
 /*
 A struct abstracting over decision levels.
@@ -26,36 +23,36 @@ The choice/consequence distinction requires some attention, though.
 For now, this works ok.
  */
 
-pub struct LevelStore {
-    knowledge: KnowledgeLevel,
-    levels: Vec<DecisionLevel>,
+pub struct LiteralDB {
+    proven: ProvenLiterals,
+    chosen: Vec<ChosenLiteral>,
     tx: Sender<Dispatch>,
 }
 
-impl LevelStore {
+impl LiteralDB {
     pub fn new(tx: Sender<Dispatch>) -> Self {
-        LevelStore {
-            knowledge: KnowledgeLevel::default(),
-            levels: Vec::default(),
+        LiteralDB {
+            proven: ProvenLiterals::default(),
+            chosen: Vec::default(),
             tx,
         }
     }
 }
 
 #[derive(Debug)]
-struct KnowledgeLevel {
+struct ProvenLiterals {
     observations: Vec<Literal>,
 }
 
 #[derive(Debug)]
-struct DecisionLevel {
+struct ChosenLiteral {
     choice: Literal,
-    consequences: Vec<(LiteralSource, Literal)>,
+    consequences: Vec<(gen::LiteralSource, Literal)>,
 }
 
 use std::borrow::Borrow;
 
-impl DecisionLevel {
+impl ChosenLiteral {
     pub fn new(literal: Literal) -> Self {
         Self {
             choice: literal,
@@ -64,24 +61,19 @@ impl DecisionLevel {
     }
 
     #[allow(dead_code)]
-    pub fn consequences(&self) -> &[(LiteralSource, Literal)] {
+    pub fn consequences(&self) -> &[(gen::LiteralSource, Literal)] {
         &self.consequences
     }
 }
 
-impl DecisionLevel {
-    fn record_consequence<L: Borrow<impl LiteralTrait>>(
-        &mut self,
-        literal: L,
-        source: LiteralSource,
-    ) {
-        self.consequences
-            .push((source, literal.borrow().canonical()))
+impl ChosenLiteral {
+    fn record_consequence<L: Borrow<Literal>>(&mut self, literal: L, source: gen::LiteralSource) {
+        self.consequences.push((source, *literal.borrow()))
     }
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for KnowledgeLevel {
+impl Default for ProvenLiterals {
     fn default() -> Self {
         Self {
             observations: Vec::default(),
@@ -89,8 +81,8 @@ impl Default for KnowledgeLevel {
     }
 }
 
-impl KnowledgeLevel {
-    pub fn record_literal<L: Borrow<impl LiteralTrait>>(&mut self, literal: L) {
-        self.observations.push(literal.borrow().canonical())
+impl ProvenLiterals {
+    pub fn record_literal<L: Borrow<Literal>>(&mut self, literal: L) {
+        self.observations.push(*literal.borrow())
     }
 }

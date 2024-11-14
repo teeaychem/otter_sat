@@ -4,16 +4,22 @@ use crossbeam::channel::Sender;
 
 use crate::{
     config::{Config, StoppingCriteria},
-    db::{clause::ClauseDB, keys::ClauseKey, literal::LevelStore, variable::VariableDB},
+    db::{
+        clause::ClauseDB,
+        keys::{ClauseKey, VariableIndex},
+        literal::LiteralDB,
+        variable::VariableDB,
+    },
     dispatch::{
         delta::{self},
         Dispatch,
     },
     structures::{
         clause::stored::StoredClause,
-        literal::{Literal, LiteralSource, LiteralTrait},
-        variable::{list::VariableList, VariableId},
+        literal::{Literal, LiteralT},
+        valuation::Valuation,
     },
+    types::gen,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -64,7 +70,7 @@ impl ResolutionBuffer {
     }
 
     #[allow(dead_code)]
-    pub fn reset_with(&mut self, variables: &impl VariableList) {
+    pub fn reset_with(&mut self, variables: &impl Valuation) {
         self.valueless_count = 0;
         self.asserts = None;
         for variable in variables.slice() {
@@ -76,7 +82,7 @@ impl ResolutionBuffer {
     }
 
     pub fn from_variable_store(
-        variables: &impl VariableList,
+        variables: &impl Valuation,
         tx: Sender<Dispatch>,
         config: &Config,
     ) -> Self {
@@ -105,7 +111,9 @@ impl ResolutionBuffer {
             .iter()
             .enumerate()
             .filter_map(|(i, v)| match v {
-                ResolutionCell::Value(Some(value)) => Some(Literal::new(i as VariableId, *value)),
+                ResolutionCell::Value(Some(value)) => {
+                    Some(Literal::new(i as VariableIndex, *value))
+                }
                 _ => None,
             })
             .collect::<Vec<_>>()
@@ -142,13 +150,13 @@ impl ResolutionBuffer {
     pub fn resolve_with(
         &mut self,
         conflict: ClauseKey,
-        levels: &LevelStore,
+        levels: &LiteralDB,
         clause_db: &mut ClauseDB,
         variables: &mut VariableDB,
     ) -> Result<BufOk, BufErr> {
         self.merge_clause(clause_db.get(conflict).expect("missing clause"));
 
-        // Maybe the conflit clause was already asserting on the previous decision level…
+        // Maybe the conflit clause was already asserting after the previous choice…
         if let Some(asserted_literal) = self.asserts() {
             return Ok(BufOk::Missed(conflict, asserted_literal));
         };
@@ -163,10 +171,10 @@ impl ResolutionBuffer {
         };
 
         'resolution_loop: for (source, literal) in levels.current_consequences().iter().rev() {
-            if let LiteralSource::Analysis(the_key)
-            | LiteralSource::BCP(the_key)
-            | LiteralSource::Resolution(the_key)
-            | LiteralSource::Missed(the_key) = source
+            if let gen::LiteralSource::Analysis(the_key)
+            | gen::LiteralSource::BCP(the_key)
+            | gen::LiteralSource::Resolution(the_key)
+            | gen::LiteralSource::Missed(the_key) = source
             {
                 let source_clause = match clause_db.get_carefully_mut(*the_key) {
                     None => {

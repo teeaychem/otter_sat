@@ -64,7 +64,7 @@ Direct Rust dependencies are:
 - [xz2](https://docs.rs/xz2/)
   xz support
 - [rand](https://docs.rs/rand/latest/rand/)
-  To help make decisions
+  To help make choices
 
 Optional dependencies are:
 - [log4rs](https://docs.rs/log4rs/latest/log4rs/)
@@ -105,7 +105,7 @@ Optional dependencies are:
           Prevent clauses from being forgotten.
 
       --no-restart
-          Prevent decisions being forgotten.
+          Prevent choices from being forgotten.
 
   -🐘, --elephant
           Remember everything.

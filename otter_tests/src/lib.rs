@@ -71,19 +71,9 @@ pub fn silent_on_directory(subdir: PathBuf, config: &Config, require: report::So
             .extension()
             .is_some_and(|extension| extension == "xz")
         {
-            let report = silent_formula_report(test.path(), config);
-            assert_eq!(require, report);
+            assert_eq!(require, silent_formula_report(test.path(), config));
             count += 1;
         }
     }
     count
-}
-
-pub fn silent_on_split_directory(collection: PathBuf, config: &Config) {
-    silent_on_directory(collection.join("sat"), config, report::Solve::Satisfiable);
-    silent_on_directory(
-        collection.join("unsat"),
-        config,
-        report::Solve::Unsatisfiable,
-    );
 }

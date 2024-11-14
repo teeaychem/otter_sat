@@ -3,8 +3,8 @@ use crate::{
     db::variable::VariableDB,
     structures::{
         clause::Clause,
-        literal::{Literal, LiteralTrait},
-        variable::list::VariableList,
+        literal::{Literal, LiteralT},
+        valuation::Valuation,
     },
 };
 
@@ -39,7 +39,7 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
     }
 
     /// Returns the literal asserted by the clause on the given valuation
-    fn asserts(&self, val: &impl VariableList) -> Option<Literal> {
+    fn asserts(&self, val: &impl Valuation) -> Option<Literal> {
         let mut the_literal = None;
         for lit in self.deref() {
             if let Some(existing_val) = val.value_of(lit) {
@@ -58,10 +58,10 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
 
     // TODO: consider a different approach to lbd
     // e.g. an approximate measure of =2, =3, >4 can be settled much more easily
-    fn lbd(&self, variables: &impl VariableList) -> GlueStrength {
+    fn lbd(&self, valuation: &impl Valuation) -> GlueStrength {
         let mut decision_levels = self
             .iter()
-            .map(|literal| variables.get_unsafe(literal.index()).decision_level())
+            .map(|literal| valuation.get_unsafe(literal.index()).choice_index())
             .collect::<Vec<_>>();
         decision_levels.sort_unstable();
         decision_levels.dedup();

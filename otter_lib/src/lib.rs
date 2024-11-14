@@ -14,4 +14,6 @@ pub mod frat;
 
 pub mod dispatch;
 
+pub mod assistants;
 pub mod db;
+pub mod misc;

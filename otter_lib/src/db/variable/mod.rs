@@ -4,16 +4,16 @@ use crossbeam::channel::Sender;
 
 use crate::{
     config::{Config, VariableActivity},
-    context::{core::ContextFailure, Context},
-    db::keys::{ClauseKey, DecisionIndex},
+    db::keys::{ClauseKey, VariableIndex},
     dispatch::{
         delta::{self},
         Dispatch,
     },
     generic::heap::IndexHeap,
     structures::{
-        literal::{Literal, LiteralTrait},
-        variable::{list::VariableList, Variable, VariableId},
+        literal::{Literal, LiteralT},
+        valuation::Valuation,
+        variable::Variable,
     },
     types::{
         clause::WatchElement,
@@ -25,24 +25,12 @@ pub struct VariableDB {
     external_map: Vec<String>,
     score_increment: VariableActivity,
     variables: Vec<Variable>,
-    consequence_q: std::collections::VecDeque<(Literal, DecisionIndex)>,
-    string_map: std::collections::HashMap<String, VariableId>,
+    string_map: std::collections::HashMap<String, VariableIndex>,
     activity_heap: IndexHeap<VariableActivity>,
+    valuation: Vec<Option<bool>>,
+    past_valuation: Vec<bool>,
     tx: Sender<Dispatch>,
 }
-
-// impl Default for VariableStore {
-//     fn default() -> Self {
-//         VariableStore {
-//             external_map: Vec::<String>::default(),
-//             score_increment: 1.0,
-//             variables: Vec::default(),
-//             consequence_q: std::collections::VecDeque::default(),
-//             string_map: std::collections::HashMap::default(),
-//             activity_heap: IndexHeap::default(),
-//         }
-//     }
-// }
 
 impl std::ops::Deref for VariableDB {
     type Target = [Variable];
@@ -64,16 +52,20 @@ impl VariableDB {
             external_map: Vec::<String>::default(),
             score_increment: 1.0,
             variables: Vec::default(),
-            consequence_q: std::collections::VecDeque::default(),
+
             string_map: std::collections::HashMap::default(),
             activity_heap: IndexHeap::default(),
+
+            valuation: Vec::default(),
+            past_valuation: Vec::default(),
+
             tx,
         }
     }
 }
 
 impl VariableDB {
-    pub fn id_of(&self, name: &str) -> Option<VariableId> {
+    pub fn id_of(&self, name: &str) -> Option<VariableIndex> {
         self.string_map.get(name).copied()
     }
 
@@ -105,19 +97,24 @@ impl VariableDB {
         self.activity_heap.activate(index)
     }
 
-    pub fn add_variable(&mut self, name: &str, variable: Variable) {
-        let delta = delta::Variable::Internalised(name.to_string(), variable.id());
+    pub fn fresh_variable(&mut self, name: &str, previous_value: bool) -> &Variable {
+        let id = self.variables.len() as VariableIndex;
+        let the_variable = Variable::new(id, previous_value);
+
+        let delta = delta::Variable::Internalised(name.to_string(), the_variable.id());
         self.tx.send(Dispatch::VariableDB(delta));
 
-        self.string_map.insert(name.to_string(), variable.id());
-        self.activity_heap
-            .insert(variable.index(), VariableActivity::default());
-        self.variables.push(variable);
+        self.string_map.insert(name.to_string(), the_variable.id());
         self.external_map.push(name.to_string());
-    }
 
-    pub fn get_consequence(&mut self) -> Option<(Literal, DecisionIndex)> {
-        self.consequence_q.pop_front()
+        self.activity_heap
+            .insert(the_variable.index(), VariableActivity::default());
+
+        self.variables.push(the_variable);
+        self.valuation.push(None);
+        self.past_valuation.push(previous_value);
+
+        self.variables.last().expect("added lines above…")
     }
 
     pub fn external_name(&self, index: usize) -> &String {
@@ -137,10 +134,6 @@ impl VariableDB {
         }
 
         self.exponent_activity(config);
-    }
-
-    pub fn clear_consequences(&mut self, to: DecisionIndex) {
-        self.consequence_q.retain(|(_, c)| *c < to);
     }
 }
 
@@ -173,30 +166,5 @@ impl VariableDB {
         self.activity_heap.apply_to_all(rescale);
         self.score_increment *= factor;
         self.activity_heap.reheap();
-    }
-}
-
-pub enum QStatus {
-    Qd,
-}
-
-impl Context {
-    pub fn q_literal<L: Borrow<impl LiteralTrait>>(
-        &mut self,
-        lit: L,
-    ) -> Result<QStatus, ContextFailure> {
-        let Ok(_) = self
-            .variables
-            .set_value(lit.borrow().canonical(), Some(self.levels.decision_count()))
-        else {
-            return Err(ContextFailure::QueueConflict);
-        };
-
-        // TODO: improve push back consequence
-        self.variables
-            .consequence_q
-            .push_back((lit.borrow().canonical(), self.levels.decision_count()));
-
-        Ok(QStatus::Qd)
     }
 }

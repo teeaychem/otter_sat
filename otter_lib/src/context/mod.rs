@@ -1,22 +1,17 @@
 pub mod builder;
+pub mod consequence_q;
 pub mod core;
 
 pub mod reports;
-pub mod resolution_buffer;
-
-pub mod stores;
 
 use crate::{
-    config::{
-        self,
-        defaults::{self},
-        Config,
-    },
-    db::{clause::ClauseDB, literal::LevelStore, variable::VariableDB},
+    config::{defaults, Config},
+    db::{clause::ClauseDB, literal::LiteralDB, variable::VariableDB},
     dispatch::Dispatch,
     types::gen::SolveStatus,
 };
 
+use consequence_q::ConsequenceQ;
 use crossbeam::channel::Sender;
 use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128Plus};
 
@@ -28,7 +23,7 @@ use std::time::Duration;
 pub struct Counters {
     pub conflicts: usize,
     pub conflicts_in_memory: usize,
-    pub decisions: usize,
+    pub choices: usize,
     pub iterations: usize,
     pub restarts: usize,
     pub time: Duration,
@@ -40,7 +35,7 @@ impl Default for Counters {
     fn default() -> Self {
         Counters {
             conflicts_in_memory: 0,
-            decisions: 0,
+            choices: 0,
             iterations: 0,
             restarts: 0,
             time: Duration::from_secs(0),
@@ -52,13 +47,17 @@ impl Default for Counters {
 }
 
 pub struct Context {
+    pub config: Config,
+
     pub counters: Counters,
-    pub levels: LevelStore,
+
     pub clause_db: ClauseDB,
-    pub variables: VariableDB,
-    pub config: config::Config,
+    pub variable_db: VariableDB,
+    pub literal_db: LiteralDB,
+
     pub status: SolveStatus,
     pub tx: Sender<Dispatch>, //
+    pub consequence_q: ConsequenceQ,
 }
 
 impl std::fmt::Display for SolveStatus {
@@ -80,12 +79,13 @@ impl Context {
     pub fn from_config(config: Config, tx: Sender<Dispatch>) -> Self {
         Self {
             counters: Counters::default(),
-            levels: LevelStore::new(tx.clone()),
+            literal_db: LiteralDB::new(tx.clone()),
             clause_db: ClauseDB::default(&tx, &config),
-            variables: VariableDB::new(tx.clone()),
+            variable_db: VariableDB::new(tx.clone()),
             config,
             status: SolveStatus::Initialised,
             tx,
+            consequence_q: ConsequenceQ::default(),
         }
     }
 }

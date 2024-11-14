@@ -1,18 +1,22 @@
+use rand::Rng;
+
 use crate::{
     context::Context,
-    db::variable::QStatus,
+    db::keys::VariableIndex,
     dispatch::{
         self,
         delta::{self},
         Dispatch,
     },
     structures::{
-        literal::{Literal, LiteralSource, LiteralTrait},
-        variable::{list::VariableList, Variable, VariableId},
+        literal::{Literal, LiteralT},
+        valuation::Valuation,
+        variable::Variable,
     },
     types::{
         clause::ClauseSource,
         errs::{self},
+        gen::{self},
     },
 };
 
@@ -38,12 +42,13 @@ pub enum ParseErr {
 }
 
 impl Context {
-    pub fn variable_from_string(&mut self, name: &str) -> Result<VariableId, ParseErr> {
-        match self.variables.id_of(name) {
+    pub fn variable_from_string(&mut self, name: &str) -> Result<VariableIndex, ParseErr> {
+        match self.variable_db.id_of(name) {
             Some(variable) => Ok(variable),
             None => {
-                let the_id = self.variables.len() as VariableId;
-                self.variables.add_variable(name, Variable::new(the_id));
+                let the_id = self.variable_db.len() as VariableIndex;
+                self.variable_db
+                    .fresh_variable(name, self.counters.rng.gen_bool(self.config.polarity_lean));
                 Ok(the_id)
             }
         }
@@ -68,16 +73,13 @@ impl Context {
 
     // Aka. soft assumption
     // This will hold until a restart happens
-    pub fn believe<L: Borrow<impl LiteralTrait>>(
-        &mut self,
-        literal: L,
-    ) -> Result<(), errs::Context> {
-        if self.levels.decision_made() {
+    pub fn believe<L: Borrow<Literal>>(&mut self, literal: L) -> Result<(), errs::Context> {
+        if self.literal_db.choice_made() {
             return Err(errs::Context::AssumptionAfterChoice);
         }
-        match self.q_literal(literal.borrow().canonical()) {
+        match self.q_literal(literal.borrow()) {
             Ok(_) => {
-                self.note_literal(literal.borrow().canonical(), LiteralSource::Assumption);
+                self.note_literal(literal.borrow(), gen::LiteralSource::Assumption);
                 Ok(())
             }
             Err(_) => Err(errs::Context::AssumptionConflict),
@@ -85,21 +87,17 @@ impl Context {
     }
 
     #[allow(unused_must_use)] // ???
-    pub fn assume<L: Borrow<impl LiteralTrait>>(
-        &mut self,
-        literal: L,
-    ) -> Result<(), errs::Context> {
-        if self.levels.decision_made() {
+    pub fn assume<L: Borrow<Literal>>(&mut self, literal: L) -> Result<(), errs::Context> {
+        if self.literal_db.choice_made() {
             return Err(errs::Context::AssumptionAfterChoice);
         }
-        use crate::structures::variable::list::ValueInfo;
-        let literal: Literal = literal.borrow().canonical();
-        match self.variables.check_literal(literal) {
+        use crate::structures::valuation::ValueInfo;
+        match self.variable_db.check_literal(literal.borrow()) {
             ValueInfo::NotSet => {
-                let Ok(QStatus::Qd) = self.q_literal(literal) else {
+                let Ok(gen::QStatus::Qd) = self.q_literal(literal.borrow()) else {
                     return Err(errs::Context::AssumptionConflict);
                 };
-                self.note_literal(literal.borrow().canonical(), LiteralSource::Assumption);
+                self.note_literal(literal.borrow(), gen::LiteralSource::Assumption);
                 // self.store_literal(literal, LiteralSource::Assumption, Vec::default());
                 Ok(())
             }
@@ -159,7 +157,7 @@ impl Context {
                     } else {
                         // Though, strengthen the clause if possible
                         if !self
-                            .levels
+                            .literal_db
                             .proven_literals()
                             .iter()
                             .any(|proven_literal| &proven_literal.negate() == literal)
@@ -177,7 +175,7 @@ impl Context {
                     0 => {} // Any empty clause before strengthening raised an error above, so this is safe to ignore
                     1 => {
                         let literal = unsafe { clause.get_unchecked(0) };
-                        let Ok(_) = self.assume(literal.canonical()) else {
+                        let Ok(_) = self.assume(literal) else {
                             return Err(BuildErr::AssumptionIndirectConflict);
                         };
                     }
@@ -289,12 +287,12 @@ impl Context {
 
         self.tx
             .send(dispatch::Dispatch::Parser(delta::Parser::Complete(
-                self.variable_count(),
+                self.variable_db.len(),
                 clause_counter,
             )));
 
         self.tx.send(Dispatch::Parser(delta::Parser::ContextClauses(
-            self.clause_count(),
+            self.clause_db.clause_count(),
         )));
 
         Ok(())

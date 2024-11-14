@@ -1,17 +1,16 @@
 use crate::{
+    assistants::resolution_buffer::{BufOk, ResolutionBuffer},
     config::{self, Config, StoppingCriteria},
-    context::{
-        resolution_buffer::{BufOk, ResolutionBuffer},
-        Context,
-    },
-    db::keys::ClauseKey,
+    context::Context,
+    db::keys::{ChoiceIndex, ClauseKey},
     structures::{
-        literal::{Literal, LiteralSource, LiteralTrait},
-        variable::list::VariableList,
+        literal::{Literal, LiteralT},
+        valuation::Valuation,
     },
     types::{
         clause::ClauseSource,
         errs::{self},
+        gen::{self},
     },
 };
 
@@ -33,10 +32,10 @@ impl Context {
         clause_key: ClauseKey,
         config: &Config,
     ) -> Result<AnalysisResult, errs::Analysis> {
-        log::trace!(target: LOG_ANALYSIS, "Analysis of {clause_key} at level {}", self.levels.decision_count());
+        log::trace!(target: LOG_ANALYSIS, "Analysis of {clause_key} at level {}", self.literal_db.choice_count());
 
         if let config::VSIDS::Chaff = config.vsids_variant {
-            self.variables.apply_VSIDS(
+            self.variable_db.apply_VSIDS(
                 self.clause_db
                     .get(clause_key)
                     .expect("missing clause")
@@ -49,18 +48,18 @@ impl Context {
 
         // this could be made persistent, but tying it to the solve may require a cell and lots of unsafe
         let mut the_buffer =
-            ResolutionBuffer::from_variable_store(&self.variables, self.tx.clone(), config);
+            ResolutionBuffer::from_variable_store(&self.variable_db, self.tx.clone(), config);
 
-        the_buffer.clear_literal(self.levels.current_choice());
-        for (_, lit) in self.levels.current_consequences() {
+        the_buffer.clear_literal(self.literal_db.current_choice());
+        for (_, lit) in self.literal_db.current_consequences() {
             the_buffer.clear_literal(*lit);
         }
 
         match the_buffer.resolve_with(
             clause_key,
-            &self.levels,
+            &self.literal_db,
             &mut self.clause_db,
-            &mut self.variables,
+            &mut self.variable_db,
         ) {
             Ok(BufOk::Proof) | Ok(BufOk::FirstUIP) => {}
             Ok(BufOk::Exhausted) => {
@@ -77,7 +76,7 @@ impl Context {
         }
 
         if let config::VSIDS::MiniSAT = config.vsids_variant {
-            self.variables
+            self.variable_db
                 .apply_VSIDS(the_buffer.variables_used(), config);
         }
 
@@ -88,7 +87,7 @@ impl Context {
         This is also skipped for binary clauses, as if the other literal is proven the assertion will also be added as a proof, regardless
          */
         if the_buffer.clause_legnth() > 2 {
-            the_buffer.strengthen_given(self.levels.proven_literals().iter());
+            the_buffer.strengthen_given(self.literal_db.proven_literals().iter());
         }
 
         let (asserted_literal, mut resolved_clause) = the_buffer.to_assertion_clause();
@@ -108,7 +107,7 @@ impl Context {
         match resolved_clause.len() {
             0 => Err(errs::Analysis::EmptyResolution),
             1 => {
-                self.note_literal(the_literal, LiteralSource::Resolution(clause_key));
+                self.note_literal(the_literal, gen::LiteralSource::Resolution(clause_key));
 
                 Ok(AnalysisResult::Proof(clause_key, the_literal))
             }
@@ -123,14 +122,14 @@ impl Context {
         }
     }
 
-    /// The second highest decision level from the given literals, or 0
+    /// The second highest choice index from the given literals, or 0
     /// Aka. The backjump level for a slice of an asserting slice of literals/clause
     // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
-    pub fn backjump_level(&self, literals: &[Literal]) -> Option<usize> {
+    pub fn backjump_level(&self, literals: &[Literal]) -> Option<ChoiceIndex> {
         let mut top_two = (None, None);
         for literal in literals {
-            let Some(dl) = self.variables.get_unsafe(literal.index()).decision_level() else {
-                log::error!(target: crate::log::targets::BACKJUMP, "No decision level for {literal}");
+            let Some(dl) = self.variable_db.get_unsafe(literal.index()).choice_index() else {
+                log::error!(target: crate::log::targets::BACKJUMP, "{literal} was not chosen");
                 return None;
             };
 

@@ -2,8 +2,8 @@ use crate::{
     db::{keys::ClauseKey, variable::VariableDB},
     structures::{
         clause::Clause,
-        literal::{Literal, LiteralTrait},
-        variable::list::VariableList,
+        literal::{Literal, LiteralT},
+        valuation::Valuation,
     },
     types::clause::{WatchElement, WatchStatus},
 };

@@ -18,6 +18,7 @@ pub enum Context {
     AssumptionAfterChoice, // Aka. an assumption not made on level zero
     AssumptionConflict, // An attempt to make an assumption which conflicts with some proven literal
     AssumptionSet,      // Somehow checking the literal returned that the literal was set.
+    QueueConflict,
 }
 
 #[derive(Debug, Clone, Copy)]

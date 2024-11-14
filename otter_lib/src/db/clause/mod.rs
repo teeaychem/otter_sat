@@ -1,10 +1,7 @@
-pub mod keys;
-
 use crossbeam::channel::Sender;
 
 use crate::{
     config::{self, ClauseActivity, Config},
-    context::stores::activity_glue::ActivityGlue,
     db::{
         keys::{ClauseKey, FormulaIndex},
         variable::VariableDB,
@@ -14,6 +11,7 @@ use crate::{
         Dispatch,
     },
     generic::heap::IndexHeap,
+    misc::activity_glue::ActivityGlue,
     structures::{
         clause::{stored::StoredClause, Clause},
         literal::Literal,
@@ -26,20 +24,18 @@ use crate::{
 
 pub struct ClauseDB {
     counts: ClauseDBCounts,
-    keys: Vec<ClauseKey>,
-    formula: Vec<StoredClause>,
 
-    learned: Vec<Option<StoredClause>>,
-
-    learned_slots: FormulaIndex,
+    empty_keys: Vec<ClauseKey>,
 
     binary: Vec<StoredClause>,
+    formula: Vec<StoredClause>,
+    learned: Vec<Option<StoredClause>>,
 
     learned_activity: IndexHeap<ActivityGlue>,
     learned_increment: ClauseActivity,
+    activity_decay: f64,
 
     tx: Sender<Dispatch>,
-    activity_decay: f64,
 }
 
 pub struct ClauseDBCounts {
@@ -63,10 +59,9 @@ impl ClauseDB {
     pub fn default(sender: &Sender<Dispatch>, config: &Config) -> Self {
         ClauseDB {
             counts: ClauseDBCounts::default(),
-            keys: Vec::default(),
+            empty_keys: Vec::default(),
             formula: Vec::default(),
             learned: Vec::default(),
-            learned_slots: 0,
             binary: Vec::default(),
             learned_activity: IndexHeap::default(),
             learned_increment: ClauseActivity::default(),
@@ -96,11 +91,10 @@ impl ClauseDB {
     }
 
     fn new_learned_id(&mut self) -> Result<ClauseKey, errs::ClauseDB> {
-        if self.learned_slots == FormulaIndex::MAX {
+        if self.learned.len() == FormulaIndex::MAX as usize {
             return Err(errs::ClauseDB::StorageExhausted);
         }
-        let key = ClauseKey::Learned(self.learned_slots, 0);
-        self.learned_slots += 1;
+        let key = ClauseKey::Learned(self.learned.len() as FormulaIndex, 0);
         Ok(key)
     }
 }
@@ -212,9 +206,9 @@ impl ClauseDB {
                     log::trace!(target: crate::log::targets::CLAUSE_DB, "Learning clause {}", clause.as_string());
                     self.counts.learned += 1;
 
-                    let the_key = match self.keys.len() {
+                    let the_key = match self.empty_keys.len() {
                         0 => self.new_learned_id()?,
-                        _ => self.keys.pop().unwrap().retoken()?,
+                        _ => self.empty_keys.pop().unwrap().retoken()?,
                     };
 
                     let delta = delta::ClauseDB::Learned(the_key, clause.clone());
@@ -281,7 +275,6 @@ impl ClauseDB {
 
                 if matches!(key, ClauseKey::Learned(_, _)) {
                     self.remove_from_learned(key.index())?;
-                    self.counts.learned += 1; // removing decrements the coun
                 }
 
                 Ok(b_key)
@@ -345,7 +338,7 @@ impl ClauseDB {
             )));
 
             self.learned_activity.remove(index);
-            self.keys.push(the_clause.key());
+            self.empty_keys.push(the_clause.key());
             self.counts.learned -= 1;
             Ok(())
         }

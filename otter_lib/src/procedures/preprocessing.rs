@@ -1,10 +1,8 @@
 use crate::{
-    context::{core::ContextFailure, Context},
-    db::variable::QStatus,
-    structures::{
-        literal::{Literal, LiteralSource, LiteralTrait},
-        variable::VariableId,
-    },
+    context::Context,
+    db::keys::VariableIndex,
+    structures::literal::{Literal, LiteralT},
+    types::{errs, gen},
 };
 
 use std::{collections::BTreeSet, ops::Deref};
@@ -12,9 +10,9 @@ use std::{collections::BTreeSet, ops::Deref};
 /// General order for pairs related to booleans is 0 is false, 1 is true
 pub fn pure_choices<'l>(
     clauses: impl Iterator<Item = &'l [Literal]>,
-) -> (Vec<VariableId>, Vec<VariableId>) {
-    let mut the_true: BTreeSet<VariableId> = BTreeSet::new();
-    let mut the_false: BTreeSet<VariableId> = BTreeSet::new();
+) -> (Vec<VariableIndex>, Vec<VariableIndex>) {
+    let mut the_true: BTreeSet<VariableIndex> = BTreeSet::new();
+    let mut the_false: BTreeSet<VariableIndex> = BTreeSet::new();
 
     clauses.for_each(|literals| {
         literals.iter().for_each(|literal| {
@@ -48,7 +46,7 @@ impl Context {
         Ok(())
     }
 
-    pub fn set_pure(&mut self) -> Result<(), ContextFailure> {
+    pub fn set_pure(&mut self) -> Result<(), errs::Context> {
         let (f, t) = crate::procedures::preprocessing::pure_choices(
             self.clause_db.all_clauses().map(|sc| sc.deref()),
         );
@@ -56,8 +54,8 @@ impl Context {
         for v_id in f.into_iter().chain(t) {
             let the_literal = Literal::new(v_id, false);
             match self.q_literal(the_literal) {
-                Ok(QStatus::Qd) => {
-                    self.note_literal(the_literal.canonical(), LiteralSource::Pure);
+                Ok(gen::QStatus::Qd) => {
+                    self.note_literal(the_literal, gen::LiteralSource::Pure);
                 }
                 Err(e) => return Err(e),
             }

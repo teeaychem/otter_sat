@@ -1,20 +1,21 @@
 use crate::{
-    db::keys::{ClauseKey, DecisionIndex},
-    structures::variable::{Variable, VariableId},
-    types::errs::{self},
+    db::keys::{ChoiceIndex, ClauseKey, VariableIndex},
+    structures::variable::Variable,
+    types::{
+        clause::WatchElement,
+        errs::{self},
+    },
 };
 
 use std::cell::UnsafeCell;
 
-use super::WatchElement;
-
 impl Variable {
-    pub fn new(id: VariableId) -> Self {
+    pub fn new(id: VariableIndex, previous_value: bool) -> Self {
         Self {
-            decision_level: UnsafeCell::new(None),
+            choice: UnsafeCell::new(None),
             id,
             value: UnsafeCell::new(None),
-            previous_value: UnsafeCell::new(None),
+            previous_value: UnsafeCell::new(previous_value),
             positive_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
             positive_occurrences_binary: UnsafeCell::new(Vec::with_capacity(512)),
             negative_occurrences: UnsafeCell::new(Vec::with_capacity(512)),
@@ -26,11 +27,11 @@ impl Variable {
         self.id as usize
     }
 
-    pub fn decision_level(&self) -> Option<DecisionIndex> {
-        unsafe { *self.decision_level.get() }
+    pub fn choice_index(&self) -> Option<ChoiceIndex> {
+        unsafe { *self.choice.get() }
     }
 
-    pub const fn id(&self) -> VariableId {
+    pub const fn id(&self) -> VariableIndex {
         self.id
     }
 
@@ -87,15 +88,31 @@ impl Variable {
         unsafe { *self.value.get() }
     }
 
-    pub fn previous_value(&self) -> Option<bool> {
+    pub fn previous_value(&self) -> bool {
         unsafe { *self.previous_value.get() }
     }
 
-    pub fn set_value(&self, polarity: Option<bool>, level: Option<DecisionIndex>) {
+    pub fn set_value(&self, polarity: Option<bool>, level: Option<ChoiceIndex>) {
         unsafe {
-            *self.previous_value.get() = *self.value.get();
+            if let Some(value) = *self.value.get() {
+                *self.previous_value.get() = value
+            };
             *self.value.get() = polarity;
-            *self.decision_level.get() = level
+            *self.choice.get() = level
+        }
+    }
+
+    pub fn occurrences_binary(&self, polarity: bool) -> *mut Vec<WatchElement> {
+        match polarity {
+            true => self.positive_occurrences_binary.get(),
+            false => self.negative_occurrences_binary.get(),
+        }
+    }
+
+    pub fn occurrences_long(&self, polarity: bool) -> *mut Vec<WatchElement> {
+        match polarity {
+            true => self.positive_occurrences.get(),
+            false => self.negative_occurrences.get(),
         }
     }
 }
