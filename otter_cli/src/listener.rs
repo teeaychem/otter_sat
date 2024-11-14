@@ -60,7 +60,7 @@ pub fn general_receiver(
                 match stat {
                     stat::Count::ICD(i, c, d) => {
                         window.update_item(WindowItem::Iterations, i);
-                        window.update_item(WindowItem::Decisions, d);
+                        window.update_item(WindowItem::Chosen, d);
                         window.update_item(WindowItem::Conflicts, c);
                         window.update_item(WindowItem::Ratio, *c as f64 / *i as f64);
                         window.flush();

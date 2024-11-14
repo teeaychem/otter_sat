@@ -74,7 +74,7 @@ Clauses with length greater than two are removed, low activity to high (and high
             .value_parser(value_parser!(bool))
             .required(false)
             .num_args(0)
-            .help("Prevent decisions being forgotten."))
+            .help("Prevent choices from being forgotten."))
 
         .arg(Arg::new("elephant")
             .long("elephant")

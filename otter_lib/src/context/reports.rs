@@ -1,10 +1,9 @@
 use crate::{
     context::Context,
     dispatch::report::{self},
-    structures::{clause::Clause, literal::LiteralTrait},
+    structures::{clause::Clause, literal::LiteralT},
+    types::gen::SolveStatus,
 };
-
-use super::SolveStatus;
 
 impl Context {
     pub fn report(&self) -> report::Solve {
@@ -124,15 +123,15 @@ impl Context {
     pub fn clause_database(&self) -> Vec<String> {
         self.clause_db
             .all_clauses()
-            .map(|clause| clause.as_dimacs(&self.variables, true))
+            .map(|clause| clause.as_dimacs(&self.variable_db, true))
             .collect::<Vec<_>>()
     }
 
     pub fn proven_literal_database(&self) -> Vec<String> {
-        self.levels
+        self.literal_db
             .proven_literals()
             .iter()
-            .map(|literal| format!("{} 0", self.variables.external_name(literal.index())))
+            .map(|literal| format!("{} 0", self.variable_db.external_name(literal.index())))
             .collect::<Vec<_>>()
     }
 }

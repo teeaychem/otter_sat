@@ -1,94 +1,99 @@
 use crate::{
-    db::literal::{DecisionLevel, LevelStore},
+    db::{
+        keys::ChoiceIndex,
+        literal::{ChosenLiteral, LiteralDB},
+    },
     dispatch::{
         delta::{self},
         Dispatch,
     },
-    structures::literal::{Literal, LiteralSource},
+    structures::literal::Literal,
+    types::gen,
 };
 
-impl LevelStore {
+impl LiteralDB {
     pub fn make_choice(&mut self, choice: Literal) {
-        self.levels.push(DecisionLevel::new(choice));
+        self.chosen.push(ChosenLiteral::new(choice));
     }
 
     /*
-    Can't assume a decision has been made…
-
-    Choices are ignored, assumptions and pure are always known
-    Everything else depends on whether a decision has been made
-         */
-    pub(crate) fn record_literal(&mut self, literal: Literal, source: LiteralSource) {
+    A recorded literal may be the consequence of a choice or `proven`.
+    In some cases this is simple to determine when the record happens.
+    For example, if a literal was an (external) assumption it is `proven`.
+    Still, in some cases it's easier to check when recording the literal.
+    So, checks are made here.
+    */
+    pub(crate) fn record_literal(&mut self, literal: Literal, source: gen::LiteralSource) {
         match source {
-            LiteralSource::Choice => {}
-            LiteralSource::Assumption => {
+            gen::LiteralSource::Choice => {}
+            gen::LiteralSource::Assumption => {
                 let delta = delta::Level::Assumption(literal);
                 self.tx.send(Dispatch::Level(delta));
-                self.knowledge.record_literal(literal)
+                self.proven.record_literal(literal)
             }
-            LiteralSource::Pure => {
+            gen::LiteralSource::Pure => {
                 let delta = delta::Level::Pure(literal);
                 self.tx.send(Dispatch::Level(delta));
-                self.knowledge.record_literal(literal)
+                self.proven.record_literal(literal)
             }
-            LiteralSource::BCP(_) => match self.levels.len() {
+            gen::LiteralSource::BCP(_) => match self.chosen.len() {
                 0 => {
                     let delta = delta::Level::BCP(literal);
                     self.tx.send(Dispatch::Level(delta));
-                    self.knowledge.record_literal(literal)
+                    self.proven.record_literal(literal)
                 }
                 _ => self.top_mut().record_consequence(literal, source),
             },
-            LiteralSource::Resolution(_) => {
+            gen::LiteralSource::Resolution(_) => {
                 // Resoluion implies deduction via (known) clauses
                 let delta = delta::Level::ResolutionProof(literal);
                 self.tx.send(Dispatch::Level(delta));
-                self.knowledge.record_literal(literal)
+                self.proven.record_literal(literal)
             }
-            LiteralSource::Analysis(_) => match self.levels.len() {
-                0 => self.knowledge.record_literal(literal),
+            gen::LiteralSource::Analysis(_) => match self.chosen.len() {
+                0 => self.proven.record_literal(literal),
                 _ => self.top_mut().record_consequence(literal, source),
             },
-            LiteralSource::Missed(_) => match self.levels.len() {
-                0 => self.knowledge.record_literal(literal),
+            gen::LiteralSource::Missed(_) => match self.chosen.len() {
+                0 => self.proven.record_literal(literal),
                 _ => self.top_mut().record_consequence(literal, source),
             },
         }
     }
 
     pub fn current_choice(&self) -> Literal {
-        unsafe { self.levels.get_unchecked(self.levels.len() - 1).choice }
+        unsafe { self.chosen.get_unchecked(self.chosen.len() - 1).choice }
     }
 
-    pub fn current_consequences(&self) -> &[(LiteralSource, Literal)] {
+    pub fn current_consequences(&self) -> &[(gen::LiteralSource, Literal)] {
         unsafe {
             &self
-                .levels
-                .get_unchecked(self.levels.len() - 1)
+                .chosen
+                .get_unchecked(self.chosen.len() - 1)
                 .consequences
         }
     }
 
     pub fn forget_current_choice(&mut self) {
-        self.levels.pop();
+        self.chosen.pop();
     }
 
     pub fn proven_literals(&self) -> &[Literal] {
-        &self.knowledge.observations
+        &self.proven.observations
     }
 
-    pub fn decision_made(&self) -> bool {
-        !self.levels.is_empty()
+    pub fn choice_made(&self) -> bool {
+        !self.chosen.is_empty()
     }
 
-    pub fn decision_count(&self) -> usize {
-        self.levels.len()
+    pub fn choice_count(&self) -> ChoiceIndex {
+        self.chosen.len() as ChoiceIndex
     }
 }
 
-impl LevelStore {
-    fn top_mut(&mut self) -> &mut DecisionLevel {
-        let level_count = self.levels.len() - 1;
-        unsafe { self.levels.get_unchecked_mut(level_count) }
+impl LiteralDB {
+    fn top_mut(&mut self) -> &mut ChosenLiteral {
+        let last_choice_index = self.chosen.len() - 1;
+        unsafe { self.chosen.get_unchecked_mut(last_choice_index) }
     }
 }

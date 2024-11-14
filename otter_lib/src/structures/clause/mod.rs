@@ -1,10 +1,10 @@
-mod literal_slice_deref_impl;
+mod literal_slice;
 pub(crate) mod stored;
 
 use crate::{
     config::GlueStrength,
     db::variable::VariableDB,
-    structures::{literal::Literal, variable::list::VariableList},
+    structures::{literal::Literal, valuation::Valuation},
 };
 
 pub trait Clause {
@@ -13,7 +13,7 @@ pub trait Clause {
     fn as_dimacs(&self, variables: &VariableDB, zero: bool) -> String;
 
     #[allow(dead_code)]
-    fn asserts(&self, val: &impl VariableList) -> Option<Literal>;
+    fn asserts(&self, val: &impl Valuation) -> Option<Literal>;
 
-    fn lbd(&self, variables: &impl VariableList) -> GlueStrength;
+    fn lbd(&self, valuation: &impl Valuation) -> GlueStrength;
 }

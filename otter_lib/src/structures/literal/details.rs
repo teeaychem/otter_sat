@@ -1,29 +1,20 @@
-use crate::structures::variable::VariableId;
+use crate::db::keys::VariableIndex;
 
-use super::{LiteralEye, LiteralStruct, LiteralTrait};
+use super::{LiteralStruct, LiteralT};
 
-impl LiteralStruct {
-    pub fn as_eye(&self) -> LiteralEye {
-        match self.polarity {
-            true => LiteralEye(self.v_id as isize),
-            false => LiteralEye(-(self.v_id as isize)),
-        }
-    }
-}
-
-impl LiteralTrait for LiteralStruct {
+impl LiteralT for LiteralStruct {
     fn negate(&self) -> Self {
         !*self
     }
 
-    fn new(variable_id: VariableId, polarity: bool) -> Self {
+    fn new(variable_id: VariableIndex, polarity: bool) -> Self {
         Self {
             v_id: variable_id,
             polarity,
         }
     }
 
-    fn v_id(&self) -> VariableId {
+    fn v_id(&self) -> VariableIndex {
         self.v_id
     }
 
@@ -36,7 +27,6 @@ impl LiteralTrait for LiteralStruct {
     }
 
     fn canonical(&self) -> super::Literal {
-        // self.as_eye()
         *self
     }
 }

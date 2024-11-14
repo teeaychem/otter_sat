@@ -9,7 +9,7 @@ use crate::{
         delta::{self},
         Dispatch,
     },
-    structures::literal::{Literal, LiteralTrait},
+    structures::literal::{Literal, LiteralT},
 };
 
 /*

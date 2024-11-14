@@ -1,6 +1,7 @@
 use crate::{db::keys::ClauseKey, structures::literal::Literal};
 
 pub mod receivers;
+pub mod transmitters;
 
 pub enum Dispatch {
     // δ

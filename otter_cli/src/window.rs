@@ -14,7 +14,7 @@ pub struct ContextWindow {
 pub enum WindowItem {
     Iterations,
     Conflicts,
-    Decisions,
+    Chosen,
     Ratio,
     Time,
 }
@@ -37,7 +37,7 @@ impl ContextWindow {
             WindowItem::Iterations => bottom - 5,
             WindowItem::Conflicts => bottom - 4,
             WindowItem::Ratio => bottom - 3,
-            WindowItem::Decisions => bottom - 2,
+            WindowItem::Chosen => bottom - 2,
             WindowItem::Time => bottom - 1,
         };
         (self.column, the_row)
@@ -76,7 +76,7 @@ impl ContextWindow {
         println!("c ITERATIONS");
         println!("c CONFLCITS");
         println!("c C/I RATIO");
-        println!("c DECISIONS");
+        println!("c CHOICES");
         println!("c TIME");
 
         self.update_position();

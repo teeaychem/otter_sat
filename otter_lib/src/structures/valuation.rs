@@ -1,6 +1,9 @@
-use crate::structures::{
-    literal::{Literal, LiteralTrait},
-    variable::Variable,
+use crate::{
+    db::keys::ChoiceIndex,
+    structures::{
+        literal::{Literal, LiteralT},
+        variable::Variable,
+    },
 };
 
 use std::{borrow::Borrow, ops::DerefMut};
@@ -12,7 +15,7 @@ pub enum ValueInfo {
     Conflict,
 }
 
-pub trait VariableList {
+pub trait Valuation {
     #[allow(dead_code)]
     fn as_internal_string(&self) -> String;
 
@@ -21,12 +24,12 @@ pub trait VariableList {
     fn value_of<L: Borrow<Literal>>(&self, literal: L) -> Option<bool>;
 
     #[allow(dead_code)]
-    fn check_literal<L: Borrow<impl LiteralTrait>>(&self, literal: L) -> ValueInfo;
+    fn check_literal<L: Borrow<Literal>>(&self, literal: L) -> ValueInfo;
 
-    fn set_value<L: Borrow<impl LiteralTrait>>(
+    fn set_value<L: Borrow<Literal>>(
         &self,
         literal: L,
-        decision_level: Option<usize>,
+        choice: Option<ChoiceIndex>,
     ) -> Result<ValueInfo, ValueInfo>;
 
     fn slice(&self) -> &[Variable];
@@ -34,7 +37,7 @@ pub trait VariableList {
     fn get_unsafe(&self, index: usize) -> &Variable;
 }
 
-impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
+impl<T: ?Sized + DerefMut<Target = [Variable]>> Valuation for T {
     fn as_internal_string(&self) -> String {
         let mut the_string = String::new();
         for variable in self.iter() {
@@ -60,7 +63,7 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
         unsafe { self.get_unchecked(literal.borrow().index()).value() }
     }
 
-    fn check_literal<L: Borrow<impl LiteralTrait>>(&self, literal: L) -> ValueInfo {
+    fn check_literal<L: Borrow<Literal>>(&self, literal: L) -> ValueInfo {
         let maybe_value = unsafe { self.get_unchecked(literal.borrow().index()) };
         match maybe_value.value() {
             Some(already_set) if already_set == literal.borrow().polarity() => ValueInfo::Match,
@@ -70,10 +73,10 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
     }
 
     // On okay reports the status of the variable *before* any actions happened
-    fn set_value<L: Borrow<impl LiteralTrait>>(
+    fn set_value<L: Borrow<Literal>>(
         &self,
         literal: L,
-        decision_level: Option<usize>,
+        choice: Option<ChoiceIndex>,
     ) -> Result<ValueInfo, ValueInfo> {
         // TODO: Fix
         // log::trace!(target: crate::log::targets::VALUATION, "Set: {}", literal.borrow());
@@ -82,7 +85,7 @@ impl<T: ?Sized + DerefMut<Target = [Variable]>> VariableList for T {
             Some(value) if value != literal.borrow().polarity() => Err(ValueInfo::Conflict),
             Some(_value) => Ok(ValueInfo::Match),
             None => {
-                variable.set_value(Some(literal.borrow().polarity()), decision_level);
+                variable.set_value(Some(literal.borrow().polarity()), choice);
 
                 Ok(ValueInfo::NotSet)
             }
