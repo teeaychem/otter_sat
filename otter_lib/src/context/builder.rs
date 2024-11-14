@@ -2,7 +2,6 @@ use rand::Rng;
 
 use crate::{
     context::Context,
-    db::keys::VariableIndex,
     dispatch::{
         self,
         delta::{self},
@@ -10,12 +9,11 @@ use crate::{
     },
     structures::{
         literal::{Literal, LiteralT},
-        valuation::Valuation,
         variable::Variable,
     },
     types::{
         clause::ClauseSource,
-        errs::{self},
+        err::{self},
         gen::{self},
     },
 };
@@ -29,7 +27,7 @@ pub enum BuildErr {
     AssumptionDirectConflict,
     AssumptionIndirectConflict,
     Parse(ParseErr),
-    ClauseStore(errs::ClauseDB),
+    ClauseStore(err::ClauseDB),
 }
 
 #[derive(Debug)]
@@ -42,11 +40,11 @@ pub enum ParseErr {
 }
 
 impl Context {
-    pub fn variable_from_string(&mut self, name: &str) -> Result<VariableIndex, ParseErr> {
-        match self.variable_db.id_of(name) {
+    pub fn variable_from_string(&mut self, name: &str) -> Result<Variable, ParseErr> {
+        match self.variable_db.internal_representation(name) {
             Some(variable) => Ok(variable),
             None => {
-                let the_id = self.variable_db.len() as VariableIndex;
+                let the_id = self.variable_db.count() as Variable;
                 self.variable_db
                     .fresh_variable(name, self.counters.rng.gen_bool(self.config.polarity_lean));
                 Ok(the_id)
@@ -73,39 +71,38 @@ impl Context {
 
     // Aka. soft assumption
     // This will hold until a restart happens
-    pub fn believe<L: Borrow<Literal>>(&mut self, literal: L) -> Result<(), errs::Context> {
+    pub fn believe<L: Borrow<Literal>>(&mut self, literal: L) -> Result<(), err::Context> {
         if self.literal_db.choice_made() {
-            return Err(errs::Context::AssumptionAfterChoice);
+            return Err(err::Context::AssumptionAfterChoice);
         }
         match self.q_literal(literal.borrow()) {
             Ok(_) => {
                 self.note_literal(literal.borrow(), gen::LiteralSource::Assumption);
                 Ok(())
             }
-            Err(_) => Err(errs::Context::AssumptionConflict),
+            Err(_) => Err(err::Context::AssumptionConflict),
         }
     }
 
     #[allow(unused_must_use)] // ???
-    pub fn assume<L: Borrow<Literal>>(&mut self, literal: L) -> Result<(), errs::Context> {
+    pub fn assume<L: Borrow<Literal>>(&mut self, literal: L) -> Result<(), err::Context> {
         if self.literal_db.choice_made() {
-            return Err(errs::Context::AssumptionAfterChoice);
+            return Err(err::Context::AssumptionAfterChoice);
         }
-        use crate::structures::valuation::ValueInfo;
-        match self.variable_db.check_literal(literal.borrow()) {
-            ValueInfo::NotSet => {
+        match self.variable_db.value_of(literal.borrow().var()) {
+            None => {
                 let Ok(gen::QStatus::Qd) = self.q_literal(literal.borrow()) else {
-                    return Err(errs::Context::AssumptionConflict);
+                    return Err(err::Context::AssumptionConflict);
                 };
                 self.note_literal(literal.borrow(), gen::LiteralSource::Assumption);
                 // self.store_literal(literal, LiteralSource::Assumption, Vec::default());
                 Ok(())
             }
-            ValueInfo::Match => {
+            Some(v) if v == literal.borrow().polarity() => {
                 // Must be at zero for an assumption, so there's nothing to do
                 Ok(())
             }
-            ValueInfo::Conflict => Err(errs::Context::AssumptionConflict),
+            Some(_) => Err(err::Context::AssumptionConflict),
         }
     }
 }
@@ -131,7 +128,7 @@ impl Context {
 impl Context {
     pub fn store_preprocessed_clause(&mut self, clause: Vec<Literal>) -> Result<(), BuildErr> {
         match clause.len() {
-            0 => Err(BuildErr::ClauseStore(errs::ClauseDB::EmptyClause)),
+            0 => Err(BuildErr::ClauseStore(err::ClauseDB::EmptyClause)),
             1 => {
                 let literal = unsafe { *clause.get_unchecked(0) };
                 match self.assume(literal) {
@@ -144,9 +141,8 @@ impl Context {
                 let mut subsumed = vec![];
 
                 for literal in &clause {
-                    if let Some(processed_literal) = processed_clause
-                        .iter()
-                        .find(|l| l.index() == literal.index())
+                    if let Some(processed_literal) =
+                        processed_clause.iter().find(|l| l.var() == literal.var())
                     {
                         if processed_literal.polarity() != literal.polarity() {
                             // Skip tautologies
@@ -287,7 +283,7 @@ impl Context {
 
         self.tx
             .send(dispatch::Dispatch::Parser(delta::Parser::Complete(
-                self.variable_db.len(),
+                self.variable_db.count(),
                 clause_counter,
             )));
 

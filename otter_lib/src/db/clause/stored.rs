@@ -3,7 +3,6 @@ use crate::{
     structures::{
         clause::Clause,
         literal::{Literal, LiteralT},
-        valuation::Valuation,
     },
     types::clause::{WatchElement, WatchStatus},
 };
@@ -32,33 +31,17 @@ impl StoredClause {
         stored_clause
     }
 
-    pub const fn key(&self) -> ClauseKey {
+    pub(super) const fn key(&self) -> ClauseKey {
         self.key
     }
 
-    pub fn replace_key(&mut self, key: ClauseKey) {
-        self.key = key
-    }
-
-    pub fn is_active(&self) -> bool {
+    pub(super) fn is_active(&self) -> bool {
         self.active
     }
 
-    pub fn activate(&mut self) {
-        self.active = true
-    }
-
-    pub fn deactivate(&mut self) {
+    pub(super) fn deactivate(&mut self) {
         self.active = false
     }
-
-    // pub fn original_clause(&self) -> Vec<Literal> {
-    //     let mut original = self.clause.clone();
-    //     // for hidden in &self.subsumed_literals {
-    //     //     original.push(*hidden)
-    //     // }
-    //     original
-    // }
 }
 
 // Watches
@@ -74,7 +57,7 @@ impl StoredClause {
             }
 
             let literal = self.clause[index];
-            let literal_value = variables.value_of(literal);
+            let literal_value = variables.value_of(literal.var());
             match literal_value {
                 None => break index,
                 Some(value) if value == literal.polarity() => break index,
@@ -87,7 +70,7 @@ impl StoredClause {
         self.last = 1;
         for index in 1..clause_length {
             let index_literal = unsafe { self.clause.get_unchecked(index) };
-            let index_value = variables.value_of(*index_literal);
+            let index_value = variables.value_of(index_literal.var());
             match index_value {
                 None => {
                     self.last = index;
@@ -108,15 +91,15 @@ impl StoredClause {
     fn note_watch<L: Borrow<Literal>>(&self, literal: L, variables: &mut VariableDB) {
         let literal = literal.borrow();
         match self.key {
-            ClauseKey::Binary(_) => {
-                let check_literal = if self.clause[0].v_id() == literal.v_id() {
-                    self.clause[1]
+            ClauseKey::Binary(_) => unsafe {
+                let check_literal = if self.clause[0].var() == literal.var() {
+                    *self.clause.get_unchecked(1)
                 } else {
-                    self.clause[0]
+                    *self.clause.get_unchecked(0)
                 };
 
                 variables.add_watch(literal, WatchElement::Binary(check_literal, self.key()));
-            }
+            },
             ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
                 variables.add_watch(literal, WatchElement::Clause(self.key()));
             }
@@ -137,7 +120,7 @@ impl StoredClause {
          */
         // assert!(self.clause.len() > 2);
 
-        if unsafe { self.clause.get_unchecked(0).v_id() == literal.borrow().v_id() } {
+        if unsafe { self.clause.get_unchecked(0).var() == literal.borrow().var() } {
             self.clause.swap(0, self.last)
         }
         /*
@@ -147,7 +130,7 @@ impl StoredClause {
 
         for i in (self.last + 1)..self.clause.len() {
             let last_literal = unsafe { self.clause.get_unchecked(i) };
-            match variables.value_of(*last_literal) {
+            match variables.value_of(last_literal.var()) {
                 None => {
                     self.last = i;
                     self.note_watch(*last_literal, variables);
@@ -164,7 +147,7 @@ impl StoredClause {
 
         for i in 1..self.last {
             let last_literal = unsafe { self.clause.get_unchecked(i) };
-            match variables.value_of(*last_literal) {
+            match variables.value_of(last_literal.var()) {
                 None => {
                     self.last = i;
                     self.note_watch(*last_literal, variables);
@@ -229,10 +212,10 @@ impl StoredClause {
     At the moment learnt clauses are modified in place.
     For FRAT it's not clear whether id overwriting is ok.
      */
-    pub fn subsume<L: Borrow<Literal>>(
+    pub fn subsume(
         &mut self,
-        literal: L,
-        variables: &mut VariableDB,
+        literal: impl Borrow<Literal>,
+        variable_db: &mut VariableDB,
         fix_watch: bool,
     ) -> Result<usize, SubsumptionError> {
         if self.clause.len() < 3 {
@@ -259,9 +242,8 @@ impl StoredClause {
         }
 
         let removed = self.clause.swap_remove(position);
-        // self.subsumed_literals.push(removed);
 
-        match variables.remove_watch(removed, self.key) {
+        match variable_db.remove_watch(removed, self.key) {
             Ok(()) => {}
             Err(_) => return Err(SubsumptionError::WatchError),
         };
@@ -271,7 +253,7 @@ impl StoredClause {
             self.last = 1;
             for index in 1..clause_length {
                 let index_literal = unsafe { self.clause.get_unchecked(index) };
-                let index_value = variables.value_of(*index_literal);
+                let index_value = variable_db.value_of(index_literal.var());
                 match index_value {
                     None => {
                         self.last = index;
@@ -284,7 +266,7 @@ impl StoredClause {
                     Some(_) => {}
                 }
             }
-            self.note_watch(self.clause[self.last], variables);
+            self.note_watch(self.clause[self.last], variable_db);
         }
         Ok(self.clause.len())
     }

@@ -3,9 +3,8 @@ use std::borrow::Borrow;
 use crate::{
     context::Context,
     db::keys::ChoiceIndex,
-    structures::literal::Literal,
-    structures::valuation::Valuation,
-    types::{errs, gen},
+    structures::literal::{Literal, LiteralT},
+    types::{err, gen},
 };
 
 pub type ConsequenceQ = std::collections::VecDeque<(Literal, ChoiceIndex)>;
@@ -22,12 +21,13 @@ impl Context {
     pub fn q_literal<L: Borrow<Literal>>(
         &mut self,
         literal: L,
-    ) -> Result<gen::QStatus, errs::Context> {
-        let Ok(_) = self
-            .variable_db
-            .set_value(literal.borrow(), Some(self.literal_db.choice_count()))
-        else {
-            return Err(errs::Context::QueueConflict);
+    ) -> Result<gen::QStatus, err::Context> {
+        let Ok(_) = self.variable_db.set_value(
+            literal.borrow().var(),
+            literal.borrow().polarity(),
+            Some(self.literal_db.choice_count()),
+        ) else {
+            return Err(err::Context::QueueConflict);
         };
 
         // TODO: improve push back consequence

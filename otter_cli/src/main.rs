@@ -16,7 +16,7 @@ use otter_lib::{
         report::{self},
         Dispatch,
     },
-    types::errs::{self},
+    types::err::{self},
 };
 
 use crossbeam::channel::unbounded;
@@ -76,7 +76,7 @@ fn main() {
         for path in config_io.files {
             match load_dimacs(&mut the_context, path) {
                 Ok(()) => {}
-                Err(BuildErr::ClauseStore(errs::ClauseDB::EmptyClause)) => {
+                Err(BuildErr::ClauseStore(err::ClauseDB::EmptyClause)) => {
                     println!("s UNSATISFIABLE");
                     std::process::exit(20);
                 }

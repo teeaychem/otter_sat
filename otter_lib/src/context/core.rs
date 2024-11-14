@@ -7,22 +7,18 @@ use crate::{
         report::{self},
         Dispatch,
     },
-    structures::{literal::Literal, valuation::Valuation},
-    types::{clause::ClauseSource, errs::ClauseDB, gen},
+    structures::{literal::Literal, variable::Variable},
+    types::{clause::ClauseSource, err, gen},
 };
 
 impl Context {
-    pub fn variable_count(&self) -> usize {
-        self.variable_db.len()
-    }
-
     /// Stores a clause with an automatically generated id.
     /// In order to use the clause the watch literals of the struct must be initialised.
     pub fn store_clause(
         &mut self,
         clause: Vec<Literal>,
         source: ClauseSource,
-    ) -> Result<ClauseKey, ClauseDB> {
+    ) -> Result<ClauseKey, err::ClauseDB> {
         self.clause_db
             .insert_clause(source, clause, &mut self.variable_db)
     }
@@ -34,12 +30,22 @@ impl Context {
 
     pub fn valuation_string(&self) -> String {
         self.variable_db
-            .slice()
+            .valuation()
             .iter()
-            .filter_map(|v| match v.value() {
-                None => None,
-                Some(true) => Some(format!(" {}", self.variable_db.external_name(v.index()))),
-                Some(false) => Some(format!("-{}", self.variable_db.external_name(v.index()))),
+            .enumerate()
+            .filter_map(|(i, v)| {
+                let idx = i as Variable;
+                match v {
+                    None => None,
+                    Some(true) => Some(format!(
+                        " {}",
+                        self.variable_db.external_representation(idx)
+                    )),
+                    Some(false) => Some(format!(
+                        "-{}",
+                        self.variable_db.external_representation(idx)
+                    )),
+                }
             })
             .collect::<Vec<_>>()
             .join(" ")
@@ -48,10 +54,10 @@ impl Context {
     pub fn internal_valuation_string(&self) -> String {
         let mut v = self
             .variable_db
-            .slice()
+            .valuation()
             .iter()
             .enumerate()
-            .filter_map(|(i, v)| match v.value() {
+            .filter_map(|(i, v)| match v {
                 None => None,
                 Some(true) => Some(i as isize),
                 Some(false) => Some(-(i as isize)),
@@ -65,12 +71,8 @@ impl Context {
     }
 
     pub fn report_active(&self) {
-        for clause in self.clause_db.all_clauses() {
-            if clause.is_active() {
-                let report = report::ClauseDB::Active(clause.key(), clause.to_vec());
-                self.tx.send(Dispatch::ClauseDBReport(report));
-            }
-        }
+        self.clause_db.report_active();
+
         for literal in self.literal_db.proven_literals() {
             let report = report::VariableDB::Active(*literal);
             self.tx.send(Dispatch::VariableDBReport(report));

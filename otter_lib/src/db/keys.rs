@@ -1,6 +1,4 @@
-use crate::types::errs;
-
-pub type VariableIndex = u32;
+use crate::types::err;
 
 pub type ChoiceIndex = u32;
 
@@ -23,19 +21,19 @@ impl ClauseKey {
         }
     }
 
-    pub fn retoken(&self) -> Result<Self, errs::ClauseDB> {
+    pub fn retoken(&self) -> Result<Self, err::ClauseDB> {
         match self {
             Self::Formula(_) => {
                 log::error!(target: crate::log::targets::CLAUSE_DB, "Formula keys have a unique token");
-                Err(errs::ClauseDB::InvalidKeyToken)
+                Err(err::ClauseDB::InvalidKeyToken)
             }
             Self::Binary(_) => {
                 log::error!(target: crate::log::targets::CLAUSE_DB, "Binary keys have a unique token");
-                Err(errs::ClauseDB::InvalidKeyToken)
+                Err(err::ClauseDB::InvalidKeyToken)
             }
             Self::Learned(index, token) => {
                 if *token == FormulaToken::MAX {
-                    return Err(errs::ClauseDB::StorageExhausted);
+                    return Err(err::ClauseDB::StorageExhausted);
                 }
                 Ok(ClauseKey::Learned(*index, token + 1))
             }

@@ -1,24 +1,27 @@
 use crate::{
     context::Context,
-    db::keys::VariableIndex,
-    structures::literal::{Literal, LiteralT},
-    types::{errs, gen},
+    structures::{
+        clause::Clause,
+        literal::{Literal, LiteralT},
+        variable::Variable,
+    },
+    types::{err, gen},
 };
 
-use std::{collections::BTreeSet, ops::Deref};
+use std::collections::BTreeSet;
 
 /// General order for pairs related to booleans is 0 is false, 1 is true
 pub fn pure_choices<'l>(
     clauses: impl Iterator<Item = &'l [Literal]>,
-) -> (Vec<VariableIndex>, Vec<VariableIndex>) {
-    let mut the_true: BTreeSet<VariableIndex> = BTreeSet::new();
-    let mut the_false: BTreeSet<VariableIndex> = BTreeSet::new();
+) -> (Vec<Variable>, Vec<Variable>) {
+    let mut the_true: BTreeSet<Variable> = BTreeSet::new();
+    let mut the_false: BTreeSet<Variable> = BTreeSet::new();
 
     clauses.for_each(|literals| {
         literals.iter().for_each(|literal| {
             match literal.polarity() {
-                true => the_true.insert(literal.v_id()),
-                false => the_false.insert(literal.v_id()),
+                true => the_true.insert(literal.var()),
+                false => the_false.insert(literal.var()),
             };
         });
     });
@@ -46,9 +49,9 @@ impl Context {
         Ok(())
     }
 
-    pub fn set_pure(&mut self) -> Result<(), errs::Context> {
+    pub fn set_pure(&mut self) -> Result<(), err::Context> {
         let (f, t) = crate::procedures::preprocessing::pure_choices(
-            self.clause_db.all_clauses().map(|sc| sc.deref()),
+            self.clause_db.all_clauses().map(|sc| sc.literals()),
         );
 
         for v_id in f.into_iter().chain(t) {

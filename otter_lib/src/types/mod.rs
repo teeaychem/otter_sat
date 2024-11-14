@@ -1,3 +1,3 @@
 pub mod clause;
-pub mod errs;
+pub mod err;
 pub mod gen;

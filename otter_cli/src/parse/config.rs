@@ -9,11 +9,11 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
         the_config.glue_strength = *strength
     };
 
-    if let Ok(Some(decay)) = args.try_get_one::<config::VariableActivity>("variable_decay") {
+    if let Ok(Some(decay)) = args.try_get_one::<config::Activity>("variable_decay") {
         the_config.variable_decay = *decay
     };
 
-    if let Ok(Some(decay)) = args.try_get_one::<config::ClauseActivity>("clause_decay") {
+    if let Ok(Some(decay)) = args.try_get_one::<config::Activity>("clause_decay") {
         the_config.clause_decay = *decay
     };
 

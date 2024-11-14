@@ -4,17 +4,15 @@ use crate::{
     context::Context,
     db::keys::{ChoiceIndex, ClauseKey},
     structures::{
+        clause::Clause,
         literal::{Literal, LiteralT},
-        valuation::Valuation,
     },
     types::{
         clause::ClauseSource,
-        errs::{self},
+        err::{self},
         gen::{self},
     },
 };
-
-use std::ops::Deref;
 
 pub enum AnalysisResult {
     MissedImplication(ClauseKey, Literal),
@@ -29,34 +27,33 @@ use crate::log::targets::ANALYSIS as LOG_ANALYSIS;
 impl Context {
     pub fn conflict_analysis(
         &mut self,
-        clause_key: ClauseKey,
+        key: ClauseKey,
         config: &Config,
-    ) -> Result<AnalysisResult, errs::Analysis> {
-        log::trace!(target: LOG_ANALYSIS, "Analysis of {clause_key} at level {}", self.literal_db.choice_count());
+    ) -> Result<AnalysisResult, err::Analysis> {
+        log::trace!(target: LOG_ANALYSIS, "Analysis of {key} at level {}", self.literal_db.choice_count());
 
         if let config::VSIDS::Chaff = config.vsids_variant {
             self.variable_db.apply_VSIDS(
                 self.clause_db
-                    .get(clause_key)
+                    .get(key)
                     .expect("missing clause")
-                    .deref()
+                    .literals()
                     .iter()
-                    .map(|literal| literal.index()),
+                    .map(|literal| literal.var()),
                 config,
             );
         }
 
-        // this could be made persistent, but tying it to the solve may require a cell and lots of unsafe
         let mut the_buffer =
             ResolutionBuffer::from_variable_store(&self.variable_db, self.tx.clone(), config);
 
-        the_buffer.clear_literal(self.literal_db.current_choice());
-        for (_, lit) in self.literal_db.current_consequences() {
+        the_buffer.clear_literal(self.literal_db.last_choice());
+        for (_, lit) in self.literal_db.last_consequences() {
             the_buffer.clear_literal(*lit);
         }
 
         match the_buffer.resolve_with(
-            clause_key,
+            key,
             &self.literal_db,
             &mut self.clause_db,
             &mut self.variable_db,
@@ -64,14 +61,14 @@ impl Context {
             Ok(BufOk::Proof) | Ok(BufOk::FirstUIP) => {}
             Ok(BufOk::Exhausted) => {
                 if config.stopping_criteria == StoppingCriteria::FirstUIP {
-                    return Err(errs::Analysis::FailedStoppingCriteria);
+                    return Err(err::Analysis::FailedStoppingCriteria);
                 }
             }
             Ok(BufOk::Missed(k, l)) => {
                 return Ok(AnalysisResult::MissedImplication(k, l));
             }
             Err(_buffer_error) => {
-                return Err(errs::Analysis::Buffer);
+                return Err(err::Analysis::Buffer);
             }
         }
 
@@ -99,25 +96,24 @@ impl Context {
         let the_literal = match asserted_literal {
             None => {
                 log::error!(target: crate::log::targets::ANALYSIS, "Failed to resolve to an asserting clause");
-                return Err(errs::Analysis::NoAssertion);
+                return Err(err::Analysis::NoAssertion);
             }
             Some(literal) => literal,
         };
 
         match resolved_clause.len() {
-            0 => Err(errs::Analysis::EmptyResolution),
+            0 => Err(err::Analysis::EmptyResolution),
             1 => {
-                self.note_literal(the_literal, gen::LiteralSource::Resolution(clause_key));
+                self.note_literal(the_literal, gen::LiteralSource::Resolution(key));
 
-                Ok(AnalysisResult::Proof(clause_key, the_literal))
+                Ok(AnalysisResult::Proof(key, the_literal))
             }
             _ => {
-                let Ok(clause_key) = self.store_clause(resolved_clause, ClauseSource::Resolution)
-                else {
-                    return Err(errs::Analysis::ResolutionNotStored);
+                let Ok(key) = self.store_clause(resolved_clause, ClauseSource::Resolution) else {
+                    return Err(err::Analysis::ResolutionNotStored);
                 };
 
-                Ok(AnalysisResult::AssertingClause(clause_key, the_literal))
+                Ok(AnalysisResult::AssertingClause(key, the_literal))
             }
         }
     }
@@ -128,7 +124,7 @@ impl Context {
     pub fn backjump_level(&self, literals: &[Literal]) -> Option<ChoiceIndex> {
         let mut top_two = (None, None);
         for literal in literals {
-            let Some(dl) = self.variable_db.get_unsafe(literal.index()).choice_index() else {
+            let Some(dl) = self.variable_db.choice_index_of(literal.var()) else {
                 log::error!(target: crate::log::targets::BACKJUMP, "{literal} was not chosen");
                 return None;
             };

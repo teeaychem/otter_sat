@@ -36,3 +36,9 @@ pub enum LiteralSource {
     Missed(ClauseKey),
     Assumption,
 }
+
+pub enum Value {
+    NotSet,
+    Match,
+    Conflict,
+}

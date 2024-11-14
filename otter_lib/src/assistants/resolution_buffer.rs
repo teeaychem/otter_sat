@@ -1,23 +1,18 @@
-use std::{borrow::Borrow, ops::Deref};
+use std::borrow::Borrow;
 
 use crossbeam::channel::Sender;
 
 use crate::{
     config::{Config, StoppingCriteria},
-    db::{
-        clause::ClauseDB,
-        keys::{ClauseKey, VariableIndex},
-        literal::LiteralDB,
-        variable::VariableDB,
-    },
+    db::{clause::ClauseDB, keys::ClauseKey, literal::LiteralDB, variable::VariableDB},
     dispatch::{
         delta::{self},
         Dispatch,
     },
     structures::{
-        clause::stored::StoredClause,
+        clause::Clause,
         literal::{Literal, LiteralT},
-        valuation::Valuation,
+        variable::Variable,
     },
     types::gen,
 };
@@ -37,7 +32,7 @@ pub struct ResolutionBuffer {
     clause_length: usize,
     asserts: Option<Literal>,
     buffer: Vec<ResolutionCell>,
-    used_variables: Vec<bool>,
+    used: Vec<bool>,
     tx: Sender<Dispatch>,
     config: BufferConfig,
 }
@@ -69,20 +64,8 @@ impl ResolutionBuffer {
         self.clause_length
     }
 
-    #[allow(dead_code)]
-    pub fn reset_with(&mut self, variables: &impl Valuation) {
-        self.valueless_count = 0;
-        self.asserts = None;
-        for variable in variables.slice() {
-            self.set(variable.index(), ResolutionCell::Value(variable.value()))
-        }
-        self.used_variables
-            .iter_mut()
-            .for_each(|index| *index = false);
-    }
-
     pub fn from_variable_store(
-        variables: &impl Valuation,
+        variable_db: &VariableDB,
         tx: Sender<Dispatch>,
         config: &Config,
     ) -> Self {
@@ -90,12 +73,12 @@ impl ResolutionBuffer {
             valueless_count: 0,
             clause_length: 0,
             asserts: None,
-            buffer: variables
-                .slice()
+            buffer: variable_db
+                .valuation()
                 .iter()
-                .map(|variable| ResolutionCell::Value(variable.value()))
+                .map(|v| ResolutionCell::Value(*v))
                 .collect(),
-            used_variables: vec![false; variables.slice().len()],
+            used: vec![false; variable_db.count()],
             tx,
             config: BufferConfig {
                 subsumption: config.subsumption,
@@ -111,9 +94,7 @@ impl ResolutionBuffer {
             .iter()
             .enumerate()
             .filter_map(|(i, v)| match v {
-                ResolutionCell::Value(Some(value)) => {
-                    Some(Literal::new(i as VariableIndex, *value))
-                }
+                ResolutionCell::Value(Some(value)) => Some(Literal::new(i as Variable, *value)),
                 _ => None,
             })
             .collect::<Vec<_>>()
@@ -143,7 +124,7 @@ impl ResolutionBuffer {
     }
 
     pub fn clear_literal(&mut self, literal: Literal) {
-        self.set(literal.index(), ResolutionCell::Value(None))
+        self.set(literal.var(), ResolutionCell::Value(None))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -170,18 +151,18 @@ impl ResolutionBuffer {
             clause_db.bump_activity(index)
         };
 
-        'resolution_loop: for (source, literal) in levels.current_consequences().iter().rev() {
+        'resolution_loop: for (source, literal) in levels.last_consequences().iter().rev() {
             if let gen::LiteralSource::Analysis(the_key)
             | gen::LiteralSource::BCP(the_key)
             | gen::LiteralSource::Resolution(the_key)
             | gen::LiteralSource::Missed(the_key) = source
             {
-                let source_clause = match clause_db.get_carefully_mut(*the_key) {
-                    None => {
+                let source_clause = match clause_db.get(*the_key) {
+                    Err(_) => {
                         log::error!(target: crate::log::targets::RESOLUTION, "Failed to find resolution clause {the_key:?}");
                         return Err(BufErr::MissingClause);
                     }
-                    Some(clause) => clause,
+                    Ok(clause) => clause,
                 };
 
                 let resolution_result = self.resolve_clause(source_clause, literal);
@@ -190,12 +171,9 @@ impl ResolutionBuffer {
                     continue 'resolution_loop;
                 }
 
-                for involved_literal in source_clause.deref().deref() {
-                    self.used_variables[involved_literal.index()] = true;
-                }
-
-                if self.config.subsumption && self.clause_length < source_clause.len() {
+                if self.config.subsumption && self.clause_length < source_clause.literals().len() {
                     /*
+                    TODO: Move
                     If the resolved clause is binary then subsumption transfers the clause to the store for binary clauses
                     This is safe to do as:
                     - After backjumping all the observations at the current level will be forgotten
@@ -206,64 +184,30 @@ impl ResolutionBuffer {
                     match self.clause_length {
                         0 => {}
                         1 => {
-                            let delta = delta::Resolution::Used(source_clause.key());
+                            let delta = delta::Resolution::Used(*the_key);
                             self.tx.send(Dispatch::Resolution(delta));
                             self.tx
                                 .send(Dispatch::Resolution(delta::Resolution::Finish));
                             return Ok(BufOk::Proof);
                         }
-                        2 => match the_key {
+                        _ => match the_key {
                             ClauseKey::Binary(_) => {
-                                panic!("todo");
+                                todo!("a formula is found which triggers this…");
                             }
-                            ClauseKey::Formula(_) => {
+                            ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
                                 self.tx
                                     .send(Dispatch::Resolution(delta::Resolution::Finish));
-                                let Ok(_) = source_clause.subsume(literal, variables, false) else {
-                                    return Err(BufErr::Subsumption);
-                                };
 
-                                let Ok(new_key) = clause_db.transfer_to_binary(*the_key, variables)
-                                else {
-                                    return Err(BufErr::Transfer);
-                                };
+                                let new_key = clause_db.subsume(*the_key, *literal, variables)?;
 
                                 self.tx.send(Dispatch::Resolution(delta::Resolution::Start));
                                 self.tx
                                     .send(Dispatch::Resolution(delta::Resolution::Used(new_key)));
                             }
-                            ClauseKey::Learned(_, _) => {
-                                self.tx
-                                    .send(Dispatch::Resolution(delta::Resolution::Finish));
-                                let Ok(_) = source_clause.subsume(literal, variables, false) else {
-                                    return Err(BufErr::Subsumption);
-                                };
-
-                                let Ok(_) = clause_db.transfer_to_binary(*the_key, variables)
-                                else {
-                                    return Err(BufErr::Transfer);
-                                };
-
-                                self.tx.send(Dispatch::Resolution(delta::Resolution::Start));
-                                self.tx
-                                    .send(Dispatch::Resolution(delta::Resolution::Used(conflict)));
-                            }
                         },
-                        _ => {
-                            let Ok(_) = source_clause.subsume(literal, variables, true) else {
-                                return Err(BufErr::Subsumption);
-                            };
-                            self.tx
-                                .send(Dispatch::Resolution(delta::Resolution::Subsumed(
-                                    *the_key, *literal,
-                                )));
-
-                            self.tx
-                                .send(Dispatch::Resolution(delta::Resolution::Used(*the_key)));
-                        }
                     }
                 } else {
-                    let delta = delta::Resolution::Used(source_clause.key());
+                    let delta = delta::Resolution::Used(*the_key);
                     self.tx.send(Dispatch::Resolution(delta));
                 }
 
@@ -292,12 +236,12 @@ impl ResolutionBuffer {
     /// Remove literals which conflict with those at level zero from the clause
     pub fn strengthen_given<'l>(&mut self, literals: impl Iterator<Item = &'l Literal>) {
         for literal in literals {
-            match unsafe { *self.buffer.get_unchecked(literal.index()) } {
+            match unsafe { *self.buffer.get_unchecked(literal.var() as usize) } {
                 ResolutionCell::NoneLiteral(_) | ResolutionCell::ConflictLiteral(_) => {
                     if let Some(length_minus_one) = self.clause_length.checked_sub(1) {
                         self.clause_length = length_minus_one;
                     }
-                    self.set(literal.index(), ResolutionCell::Strengthened)
+                    self.set(literal.var(), ResolutionCell::Strengthened)
                 }
                 _ => {}
             }
@@ -312,12 +256,12 @@ impl ResolutionBuffer {
         }
     }
 
-    pub fn variables_used(&self) -> impl Iterator<Item = usize> + '_ {
-        self.used_variables
+    pub fn variables_used(&self) -> impl Iterator<Item = Variable> + '_ {
+        self.used
             .iter()
             .enumerate()
             .filter_map(|(index, used)| match used {
-                true => Some(index),
+                true => Some(index as Variable),
                 false => None,
             })
     }
@@ -325,27 +269,29 @@ impl ResolutionBuffer {
 
 impl ResolutionBuffer {
     /// Merge a clause into the buffer
-    fn merge_clause(&mut self, clause: &StoredClause) -> Result<(), BufErr> {
-        for literal in clause.deref() {
-            match self.buffer.get(literal.index()).expect("lost literal") {
-                ResolutionCell::ConflictLiteral(_) | ResolutionCell::NoneLiteral(_) => {}
-                ResolutionCell::Pivot => {}
+    fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), BufErr> {
+        for literal in clause.literals() {
+            match unsafe { self.buffer.get_unchecked(literal.var() as usize) } {
+                ResolutionCell::ConflictLiteral(_)
+                | ResolutionCell::NoneLiteral(_)
+                | ResolutionCell::Pivot => {}
                 ResolutionCell::Value(maybe) => match maybe {
                     None => {
+                        unsafe { *self.used.get_unchecked_mut(literal.var() as usize) = true };
                         self.clause_length += 1;
                         self.valueless_count += 1;
-                        self.set(literal.index(), ResolutionCell::NoneLiteral(*literal));
+                        self.set(literal.var(), ResolutionCell::NoneLiteral(*literal));
                         if self.asserts.is_none() {
                             self.asserts = Some(*literal);
                         }
                     }
                     Some(value) if *value != literal.polarity() => {
+                        unsafe { *self.used.get_unchecked_mut(literal.var() as usize) = true };
                         self.clause_length += 1;
-                        self.set(literal.index(), ResolutionCell::ConflictLiteral(*literal))
+                        self.set(literal.var(), ResolutionCell::ConflictLiteral(*literal));
                     }
                     Some(_) => {
-                        log::error!(target: crate::log::targets::RESOLUTION, "Resolution to a satisfied clause");
-
+                        log::error!(target: crate::log::targets::RESOLUTION, "resolution to a satisfied clause");
                         return Err(BufErr::SatisfiedResolution);
                     }
                 },
@@ -357,16 +303,16 @@ impl ResolutionBuffer {
 
     fn resolve_clause<L: Borrow<Literal>>(
         &mut self,
-        clause: &StoredClause,
+        clause: &impl Clause,
         using: L,
     ) -> Result<(), BufErr> {
         let using = using.borrow();
-        let contents = unsafe { *self.buffer.get_unchecked(using.index()) };
+        let contents = unsafe { *self.buffer.get_unchecked(using.var() as usize) };
         match contents {
             ResolutionCell::NoneLiteral(literal) if using == &literal.negate() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
-                self.set(using.index(), ResolutionCell::Pivot);
+                self.set(using.var(), ResolutionCell::Pivot);
                 self.valueless_count -= 1;
 
                 Ok(())
@@ -374,7 +320,7 @@ impl ResolutionBuffer {
             ResolutionCell::ConflictLiteral(literal) if using == &literal.negate() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
-                self.set(using.index(), ResolutionCell::Pivot);
+                self.set(using.var(), ResolutionCell::Pivot);
 
                 Ok(())
             }
@@ -385,7 +331,7 @@ impl ResolutionBuffer {
         }
     }
 
-    fn set(&mut self, index: usize, to: ResolutionCell) {
-        *unsafe { self.buffer.get_unchecked_mut(index) } = to
+    fn set(&mut self, index: Variable, to: ResolutionCell) {
+        *unsafe { self.buffer.get_unchecked_mut(index as usize) } = to
     }
 }
