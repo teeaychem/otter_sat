@@ -1,11 +1,9 @@
-use std::ops::Deref;
-
 use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
     config::Config,
     context::Context,
-    db::keys::{ChoiceIndex, VariableIndex},
+    db::keys::ChoiceIndex,
     dispatch::{
         self,
         comment::{self},
@@ -15,17 +13,18 @@ use crate::{
     },
     procedures::{analysis::AnalysisResult, bcp::BCPErr},
     structures::{
+        clause::Clause,
         literal::{Literal, LiteralT},
-        valuation::Valuation,
+        variable::Variable,
     },
     types::{
-        errs::{self},
+        err::{self},
         gen::{self},
     },
 };
 
 impl Context {
-    pub fn solve(&mut self) -> Result<report::Solve, errs::Context> {
+    pub fn solve(&mut self) -> Result<report::Solve, err::Context> {
         let this_total_time = std::time::Instant::now();
 
         match self.preprocess() {
@@ -50,15 +49,15 @@ impl Context {
                 Ok(gen::Step::ChoicesExhausted) => break 'solve_loop Ok(self.report()),
                 Ok(gen::Step::Conflict) => break 'solve_loop Ok(self.report()),
 
-                Err(errs::Step::Backfall) => panic!("Backjumping failed"),
-                Err(errs::Step::AnalysisFailure) => panic!("Analysis failed"),
-                Err(errs::Step::ChoiceFailure) => panic!("Choice failure"),
+                Err(err::Step::Backfall) => panic!("Backjumping failed"),
+                Err(err::Step::AnalysisFailure) => panic!("Analysis failed"),
+                Err(err::Step::ChoiceFailure) => panic!("Choice failure"),
                 Err(e) => panic!("{e:?}"),
             }
         }
     }
 
-    pub fn step(&mut self, config: &Config) -> Result<gen::Step, errs::Step> {
+    pub fn step(&mut self, config: &Config) -> Result<gen::Step, err::Step> {
         self.counters.iterations += 1;
         log::trace!("Step {}", self.counters.iterations);
 
@@ -78,7 +77,7 @@ impl Context {
 
                     let Ok(analysis_result) = self.conflict_analysis(key, config) else {
                         log::error!(target: crate::log::targets::STEP, "Conflict analysis failed.");
-                        return Err(errs::Step::AnalysisFailure);
+                        return Err(err::Step::AnalysisFailure);
                     };
 
                     match analysis_result {
@@ -94,7 +93,7 @@ impl Context {
                             self.backjump(0);
 
                             let Ok(gen::QStatus::Qd) = self.q_literal(literal) else {
-                                return Err(errs::Step::QueueProof(key));
+                                return Err(err::Step::QueueProof(key));
                             };
                         }
 
@@ -105,13 +104,13 @@ impl Context {
                                 panic!("mi");
                             };
 
-                            match self.backjump_level(the_clause.deref()) {
-                                None => return Err(errs::Step::Backfall),
+                            match self.backjump_level(the_clause.literals()) {
+                                None => return Err(err::Step::Backfall),
                                 Some(index) => self.backjump(index),
                             }
 
                             let Ok(gen::QStatus::Qd) = self.q_literal(literal) else {
-                                return Err(errs::Step::QueueConflict(key));
+                                return Err(err::Step::QueueConflict(key));
                             };
                             self.note_literal(literal, gen::LiteralSource::Missed(key));
 
@@ -126,8 +125,8 @@ impl Context {
                                 panic!("here, asserting")
                             };
 
-                            match self.backjump_level(the_clause.deref()) {
-                                None => return Err(errs::Step::Backfall),
+                            match self.backjump_level(the_clause.literals()) {
+                                None => return Err(err::Step::Backfall),
                                 Some(index) => self.backjump(index),
                             }
 
@@ -135,7 +134,7 @@ impl Context {
                                 Ok(gen::QStatus::Qd) => {
                                     self.note_literal(literal, gen::LiteralSource::Analysis(key));
                                 }
-                                Err(_) => return Err(errs::Step::QueueConflict(key)),
+                                Err(_) => return Err(err::Step::QueueConflict(key)),
                             }
 
                             self.conflict_ceremony(config)?;
@@ -143,7 +142,7 @@ impl Context {
                         }
                     }
                 }
-                Err(BCPErr::CorruptWatch) => return Err(errs::Step::BCPFailure),
+                Err(BCPErr::CorruptWatch) => return Err(err::Step::BCPFailure),
             }
         }
 
@@ -158,7 +157,7 @@ impl Context {
 }
 
 impl Context {
-    fn conflict_ceremony(&mut self, config: &Config) -> Result<(), errs::Step> {
+    fn conflict_ceremony(&mut self, config: &Config) -> Result<(), err::Step> {
         self.counters.conflicts += 1;
         self.counters.conflicts_in_memory += 1;
 
@@ -188,26 +187,25 @@ impl Context {
                 && ((self.counters.restarts % config.reduction_interval) == 0)
             {
                 log::debug!(target: crate::log::targets::REDUCTION, "Reduction after {} restarts", self.counters.restarts);
-                self.clause_db.reduce(config)?;
+                self.clause_db.reduce()?;
             }
         }
         Ok(())
     }
 
-    fn make_choice(&mut self, config: &Config) -> Result<gen::Step, errs::Step> {
+    fn make_choice(&mut self, config: &Config) -> Result<gen::Step, err::Step> {
         match self.get_unassigned(config) {
-            Some(choice_index) => {
+            Some(choice_id) => {
                 self.counters.choices += 1;
 
                 let choice_literal = {
-                    let choice_id = choice_index as VariableIndex;
-                    let previous_value = self.variable_db.get_unsafe(choice_index).previous_value();
+                    let previous_value = self.variable_db.previous_value_of(choice_id);
                     Literal::new(choice_id, previous_value)
                 };
                 log::trace!("Choice {choice_literal}");
                 self.literal_db.make_choice(choice_literal);
                 let Ok(gen::QStatus::Qd) = self.q_literal(choice_literal) else {
-                    return Err(errs::Step::ChoiceFailure);
+                    return Err(err::Step::ChoiceFailure);
                 };
 
                 self.status = gen::SolveStatus::ChoiceMade;
@@ -220,25 +218,33 @@ impl Context {
         }
     }
 
-    fn get_unassigned(&mut self, config: &Config) -> Option<usize> {
+    fn get_unassigned(&mut self, config: &Config) -> Option<ChoiceIndex> {
         match self.counters.rng.gen_bool(config.random_choice_frequency) {
             true => self
                 .variable_db
+                .valuation()
                 .iter()
-                .filter(|variable| variable.value().is_none())
-                .choose(&mut self.counters.rng)
-                .map(|variable| variable.index()),
+                .enumerate()
+                .filter_map(|(i, v)| match v {
+                    None => Some(i as ChoiceIndex),
+                    _ => None,
+                })
+                .choose(&mut self.counters.rng),
             false => {
                 while let Some(index) = self.variable_db.heap_pop_most_active() {
-                    let the_variable = self.variable_db.get_unsafe(index);
-                    if self.variable_db.value_at(the_variable.index()).is_none() {
-                        return Some(the_variable.index());
+                    // let the_variable = self.variable_db.get_unsafe(index);
+                    if self.variable_db.value_of(index as Variable).is_none() {
+                        return Some(index);
                     }
                 }
                 self.variable_db
+                    .valuation()
                     .iter()
-                    .filter(|variable| variable.value().is_none())
-                    .map(|variable| variable.index())
+                    .enumerate()
+                    .filter_map(|(i, v)| match v {
+                        None => Some(i as Variable),
+                        _ => None,
+                    })
                     .next()
             }
         }
@@ -249,16 +255,11 @@ impl Context {
 
         for _ in 0..(self.literal_db.choice_count() - to) {
             self.variable_db
-                .retract_valuation(self.literal_db.current_choice().index());
-            for literal in self
-                .literal_db
-                .current_consequences()
-                .iter()
-                .map(|(_, l)| *l)
-            {
-                self.variable_db.retract_valuation(literal.index());
+                .drop_value(self.literal_db.last_choice().var());
+            for (_, literal) in self.literal_db.last_consequences() {
+                self.variable_db.drop_value(literal.var());
             }
-            self.literal_db.forget_current_choice();
+            self.literal_db.forget_last_choice();
         }
         self.clear_consequences(to);
     }

@@ -129,7 +129,7 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
     // and decide what to do with defaults
     // at the moment, heap expands to requirement with defaults
     // which may want to be adjusted
-    pub fn insert(&mut self, index: usize, value: V) -> bool {
+    pub fn add(&mut self, index: usize, value: V) -> bool {
         if self.heap.is_empty() {
             let required = (index - self.heap.len()) + 1;
             self.map.append(&mut vec![None; required]);
@@ -277,11 +277,11 @@ mod tests {
     #[test]
     fn heap_simple() {
         let mut test_heap = IndexHeap::new(0);
-        test_heap.insert(6, 10);
-        test_heap.insert(5, 20);
-        test_heap.insert(4, 30);
-        test_heap.insert(1, 60);
-        test_heap.insert(0, 70);
+        test_heap.add(6, 10);
+        test_heap.add(5, 20);
+        test_heap.add(4, 30);
+        test_heap.add(1, 60);
+        test_heap.add(0, 70);
 
         assert_eq!(test_heap.pop_max().unwrap(), 0);
         assert_eq!(test_heap.pop_max().unwrap(), 1);
@@ -293,10 +293,10 @@ mod tests {
     #[test]
     fn heap_update() {
         let mut test_heap = IndexHeap::new(7);
-        test_heap.insert(6, 10);
-        test_heap.insert(4, 30);
-        test_heap.insert(1, 60);
-        test_heap.insert(0, 70);
+        test_heap.add(6, 10);
+        test_heap.add(4, 30);
+        test_heap.add(1, 60);
+        test_heap.add(0, 70);
 
         test_heap.values[0] = 0;
         test_heap.values[1] = 1;
@@ -317,8 +317,8 @@ mod tests {
     #[test]
     fn heap_sparse() {
         let mut test_heap = IndexHeap::new(0);
-        test_heap.insert(600, 10);
-        test_heap.insert(0, 70);
+        test_heap.add(600, 10);
+        test_heap.add(0, 70);
 
         assert_eq!(test_heap.values.len(), 601);
         assert_eq!(test_heap.values[5], i32::default());
@@ -330,17 +330,17 @@ mod tests {
     #[test]
     fn heap_remove() {
         let mut test_heap = IndexHeap::new(0);
-        test_heap.insert(6, 6);
-        test_heap.insert(5, 5);
-        test_heap.insert(4, 4);
-        test_heap.insert(1, 1);
-        test_heap.insert(0, 0);
+        test_heap.add(6, 6);
+        test_heap.add(5, 5);
+        test_heap.add(4, 4);
+        test_heap.add(1, 1);
+        test_heap.add(0, 0);
 
         assert!(test_heap.remove(4));
         assert!(!test_heap.remove(4));
         assert!(test_heap.remove(6));
-        assert!(test_heap.insert(4, 10));
-        assert!(!test_heap.insert(4, 0));
+        assert!(test_heap.add(4, 10));
+        assert!(!test_heap.add(4, 0));
 
         assert_eq!(test_heap.pop_max().unwrap(), 4);
         assert_eq!(test_heap.pop_max().unwrap(), 5);

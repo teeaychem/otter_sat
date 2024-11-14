@@ -1,4 +1,4 @@
-use crate::db::keys::VariableIndex;
+use crate::structures::variable::Variable;
 
 use super::{LiteralStruct, LiteralT};
 
@@ -7,23 +7,19 @@ impl LiteralT for LiteralStruct {
         !*self
     }
 
-    fn new(variable_id: VariableIndex, polarity: bool) -> Self {
+    fn new(variable_id: Variable, polarity: bool) -> Self {
         Self {
             v_id: variable_id,
             polarity,
         }
     }
 
-    fn v_id(&self) -> VariableIndex {
+    fn var(&self) -> Variable {
         self.v_id
     }
 
     fn polarity(&self) -> bool {
         self.polarity
-    }
-
-    fn index(&self) -> usize {
-        self.v_id as usize
     }
 
     fn canonical(&self) -> super::Literal {

@@ -4,7 +4,6 @@ use crate::{
     structures::{
         clause::Clause,
         literal::{Literal, LiteralT},
-        valuation::Valuation,
     },
 };
 
@@ -24,8 +23,8 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
         let mut the_string = String::new();
         for literal in self.deref() {
             let the_represenetation = match literal.polarity() {
-                true => format!("{} ", variables.external_name(literal.index())),
-                false => format!("-{} ", variables.external_name(literal.index())),
+                true => format!("{} ", variables.external_representation(literal.var())),
+                false => format!("-{} ", variables.external_representation(literal.var())),
             };
             the_string.push_str(the_represenetation.as_str());
         }
@@ -39,10 +38,10 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
     }
 
     /// Returns the literal asserted by the clause on the given valuation
-    fn asserts(&self, val: &impl Valuation) -> Option<Literal> {
+    fn asserts(&self, val: &VariableDB) -> Option<Literal> {
         let mut the_literal = None;
         for lit in self.deref() {
-            if let Some(existing_val) = val.value_of(lit) {
+            if let Some(existing_val) = val.value_of(lit.var()) {
                 match existing_val == lit.polarity() {
                     true => return None,
                     false => continue,
@@ -58,13 +57,17 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
 
     // TODO: consider a different approach to lbd
     // e.g. an approximate measure of =2, =3, >4 can be settled much more easily
-    fn lbd(&self, valuation: &impl Valuation) -> GlueStrength {
+    fn lbd(&self, variable_db: &VariableDB) -> GlueStrength {
         let mut decision_levels = self
             .iter()
-            .map(|literal| valuation.get_unsafe(literal.index()).choice_index())
+            .map(|literal| variable_db.choice_index_of(literal.var()))
             .collect::<Vec<_>>();
         decision_levels.sort_unstable();
         decision_levels.dedup();
         decision_levels.len() as GlueStrength
+    }
+
+    fn literals(&self) -> &[Literal] {
+        self
     }
 }

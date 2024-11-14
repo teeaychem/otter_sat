@@ -1,7 +1,6 @@
 pub mod defaults;
 
-pub type VariableActivity = f64;
-pub type ClauseActivity = f64;
+pub type Activity = f64;
 pub type DecayFrequency = u8;
 pub type GlueStrength = u8;
 pub type LubyConstant = crate::generic::luby::LubyType;
@@ -10,10 +9,10 @@ pub type RandomChoiceFrequency = f64;
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    pub activity_conflict: VariableActivity,
-    pub activity_max: VariableActivity,
-    pub variable_decay: VariableActivity,
-    pub clause_decay: ClauseActivity,
+    pub activity_conflict: Activity,
+    pub activity_max: Activity,
+    pub variable_decay: Activity,
+    pub clause_decay: Activity,
     pub glue_strength: GlueStrength,
     pub luby_constant: LubyConstant,
     pub polarity_lean: PolarityLean,
@@ -30,24 +29,26 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
-        use defaults::*;
+        use defaults::{self};
+
         Config {
-            activity_conflict: VARIABLE_BUMP,
-            activity_max: (2.0 as VariableActivity).powi(512), // 1e150
-            variable_decay: VARIABLE_DECAY_FACTOR,
-            clause_decay: CLAUSE_DECAY_FACTOR,
-            glue_strength: GLUE_STRENGTH,
-            luby_constant: LUBY_U,
-            polarity_lean: POLARITY_LEAN,
+            activity_conflict: defaults::VARIABLE_BUMP,
+            activity_max: (2.0 as Activity).powi(512),
+            // activity_max: 1e150,
+            variable_decay: defaults::VARIABLE_DECAY_FACTOR,
+            clause_decay: defaults::CLAUSE_DECAY_FACTOR,
+            glue_strength: defaults::GLUE_STRENGTH,
+            luby_constant: defaults::LUBY_U,
+            polarity_lean: defaults::POLARITY_LEAN,
             preprocessing: false,
-            random_choice_frequency: RANDOM_CHOICE_FREQUENCY,
+            random_choice_frequency: defaults::RANDOM_CHOICE_FREQUENCY,
             reduction_allowed: true,
             restarts_allowed: true,
-            stopping_criteria: STOPPING_CRITERIA,
+            stopping_criteria: defaults::STOPPING_CRITERIA,
             subsumption: true,
             time_limit: None,
-            vsids_variant: VSIDS_VARIANT,
-            reduction_interval: REDUCTION_INTERVAL,
+            vsids_variant: defaults::VSIDS_VARIANT,
+            reduction_interval: defaults::REDUCTION_INTERVAL,
         }
     }
 }

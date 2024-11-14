@@ -1,8 +1,16 @@
-pub mod store;
+pub mod details;
 
 use crossbeam::channel::Sender;
 
-use crate::{dispatch::Dispatch, structures::literal::Literal, types::gen};
+use crate::{
+    db::keys::ChoiceIndex,
+    dispatch::{
+        delta::{self},
+        Dispatch,
+    },
+    structures::literal::Literal,
+    types::gen,
+};
 
 /*
 A struct abstracting over decision levels.
@@ -25,18 +33,8 @@ For now, this works ok.
 
 pub struct LiteralDB {
     proven: ProvenLiterals,
-    chosen: Vec<ChosenLiteral>,
+    choice_stack: Vec<ChosenLiteral>,
     tx: Sender<Dispatch>,
-}
-
-impl LiteralDB {
-    pub fn new(tx: Sender<Dispatch>) -> Self {
-        LiteralDB {
-            proven: ProvenLiterals::default(),
-            chosen: Vec::default(),
-            tx,
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -50,39 +48,96 @@ struct ChosenLiteral {
     consequences: Vec<(gen::LiteralSource, Literal)>,
 }
 
-use std::borrow::Borrow;
-
-impl ChosenLiteral {
-    pub fn new(literal: Literal) -> Self {
-        Self {
-            choice: literal,
-            consequences: vec![],
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn consequences(&self) -> &[(gen::LiteralSource, Literal)] {
-        &self.consequences
-    }
-}
-
-impl ChosenLiteral {
-    fn record_consequence<L: Borrow<Literal>>(&mut self, literal: L, source: gen::LiteralSource) {
-        self.consequences.push((source, *literal.borrow()))
-    }
-}
-
-#[allow(clippy::derivable_impls)]
-impl Default for ProvenLiterals {
-    fn default() -> Self {
-        Self {
-            observations: Vec::default(),
+impl LiteralDB {
+    pub fn new(tx: Sender<Dispatch>) -> Self {
+        LiteralDB {
+            proven: ProvenLiterals::default(),
+            choice_stack: Vec::default(),
+            tx,
         }
     }
 }
 
-impl ProvenLiterals {
-    pub fn record_literal<L: Borrow<Literal>>(&mut self, literal: L) {
-        self.observations.push(*literal.borrow())
+impl LiteralDB {
+    pub fn make_choice(&mut self, choice: Literal) {
+        self.choice_stack.push(ChosenLiteral::new(choice));
+    }
+
+    /*
+    A recorded literal may be the consequence of a choice or `proven`.
+    In some cases this is simple to determine when the record happens.
+    For example, if a literal was an (external) assumption it is `proven`.
+    Still, in some cases it's easier to check when recording the literal.
+    So, checks are made here.
+    */
+    pub fn record_literal(&mut self, literal: Literal, source: gen::LiteralSource) {
+        match source {
+            gen::LiteralSource::Choice => {}
+            gen::LiteralSource::Assumption => {
+                let delta = delta::Level::Assumption(literal);
+                self.tx.send(Dispatch::Level(delta));
+                self.proven.record_literal(literal)
+            }
+            gen::LiteralSource::Pure => {
+                let delta = delta::Level::Pure(literal);
+                self.tx.send(Dispatch::Level(delta));
+                self.proven.record_literal(literal)
+            }
+            gen::LiteralSource::BCP(_) => match self.choice_stack.len() {
+                0 => {
+                    let delta = delta::Level::BCP(literal);
+                    self.tx.send(Dispatch::Level(delta));
+                    self.proven.record_literal(literal)
+                }
+                _ => self.top_mut().record_consequence(literal, source),
+            },
+            gen::LiteralSource::Resolution(_) => {
+                // Resoluion implies deduction via (known) clauses
+                let delta = delta::Level::ResolutionProof(literal);
+                self.tx.send(Dispatch::Level(delta));
+                self.proven.record_literal(literal)
+            }
+            gen::LiteralSource::Analysis(_) => match self.choice_stack.len() {
+                0 => self.proven.record_literal(literal),
+                _ => self.top_mut().record_consequence(literal, source),
+            },
+            gen::LiteralSource::Missed(_) => match self.choice_stack.len() {
+                0 => self.proven.record_literal(literal),
+                _ => self.top_mut().record_consequence(literal, source),
+            },
+        }
+    }
+
+    pub fn last_choice(&self) -> Literal {
+        unsafe {
+            self.choice_stack
+                .get_unchecked(self.choice_stack.len() - 1)
+                .choice
+        }
+    }
+
+    pub fn last_consequences(&self) -> &[(gen::LiteralSource, Literal)] {
+        unsafe {
+            &self
+                .choice_stack
+                .get_unchecked(self.choice_stack.len() - 1)
+                .consequences
+        }
+    }
+
+    pub fn forget_last_choice(&mut self) {
+        self.choice_stack.pop();
+    }
+
+    pub fn proven_literals(&self) -> &[Literal] {
+        &self.proven.observations
+    }
+
+    pub fn choice_made(&self) -> bool {
+        !self.choice_stack.is_empty()
+    }
+
+    pub fn choice_count(&self) -> ChoiceIndex {
+        self.choice_stack.len() as ChoiceIndex
     }
 }

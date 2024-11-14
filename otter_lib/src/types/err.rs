@@ -4,7 +4,7 @@ Names of the error enums --- for the most part --- overlap with their correspond
 So, intended use is to namespace errors via the module.
 
 For example:
-- use errs::{self}
+- use err::{self}
 - …
 - err::<TYPE>
 

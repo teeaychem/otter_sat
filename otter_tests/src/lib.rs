@@ -8,7 +8,7 @@ use otter_lib::{
     config::Config,
     context::{builder::BuildErr, Context},
     dispatch::report,
-    types::errs,
+    types::err,
 };
 use xz2::read::XzDecoder;
 
@@ -46,7 +46,7 @@ pub fn silent_formula_report(path: PathBuf, config: &Config) -> report::Solve {
     let mut the_context = Context::from_config(config.clone(), tx.clone());
     match load_dimacs(&mut the_context, &path) {
         Ok(()) => {}
-        Err(BuildErr::ClauseStore(errs::ClauseDB::EmptyClause)) => {
+        Err(BuildErr::ClauseStore(err::ClauseDB::EmptyClause)) => {
             return report::Solve::Unsatisfiable;
         }
         Err(e) => {

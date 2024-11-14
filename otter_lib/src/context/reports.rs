@@ -131,7 +131,12 @@ impl Context {
         self.literal_db
             .proven_literals()
             .iter()
-            .map(|literal| format!("{} 0", self.variable_db.external_name(literal.index())))
+            .map(|literal| {
+                format!(
+                    "{} 0",
+                    self.variable_db.external_representation(literal.var())
+                )
+            })
             .collect::<Vec<_>>()
     }
 }

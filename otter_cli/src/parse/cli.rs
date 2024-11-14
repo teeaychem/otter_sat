@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{value_parser, Arg, Command};
 
-use otter_lib::config::{self, ClauseActivity, StoppingCriteria, VariableActivity, VSIDS};
+use otter_lib::config::{self, Activity, StoppingCriteria, VSIDS};
 
 pub fn cli() -> Command {
     Command::new("otter_sat")
@@ -26,7 +26,7 @@ pub fn cli() -> Command {
 
         .arg(Arg::new("variable_decay")
             .long("variable-decay")
-            .value_parser(value_parser!(VariableActivity))
+            .value_parser(value_parser!(Activity))
             .required(false)
             .num_args(1)
             .help("The decay to use for variable activity.")
@@ -39,7 +39,7 @@ For example, at decay of 3 at each conflict the activity of a variable decays to
 
         .arg(Arg::new("clause_decay")
             .long("clause-decay")
-            .value_parser(value_parser!(ClauseActivity))
+            .value_parser(value_parser!(Activity))
             .required(false)
             .num_args(1)
             .help("The decay to use for clause activity.")

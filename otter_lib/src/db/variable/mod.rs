@@ -1,170 +1,150 @@
-use std::borrow::Borrow;
+mod internal;
+mod watch_db;
 
 use crossbeam::channel::Sender;
+use watch_db::WatchDB;
 
 use crate::{
-    config::{Config, VariableActivity},
-    db::keys::{ClauseKey, VariableIndex},
+    config::{Activity, Config},
+    db::keys::ChoiceIndex,
     dispatch::{
         delta::{self},
         Dispatch,
     },
     generic::heap::IndexHeap,
-    structures::{
-        literal::{Literal, LiteralT},
-        valuation::Valuation,
-        variable::Variable,
-    },
-    types::{
-        clause::WatchElement,
-        errs::{self},
-    },
+    structures::variable::Variable,
+    types::gen::{self},
 };
 
 pub struct VariableDB {
+    score_increment: Activity,
+
+    watch_dbs: Vec<WatchDB>,
+
+    internal_map: std::collections::HashMap<String, Variable>,
     external_map: Vec<String>,
-    score_increment: VariableActivity,
-    variables: Vec<Variable>,
-    string_map: std::collections::HashMap<String, VariableIndex>,
-    activity_heap: IndexHeap<VariableActivity>,
+
+    activity_heap: IndexHeap<Activity>,
+
     valuation: Vec<Option<bool>>,
-    past_valuation: Vec<bool>,
+    previous_valuation: Vec<bool>,
+    choice_indicies: Vec<Option<ChoiceIndex>>,
+
     tx: Sender<Dispatch>,
-}
-
-impl std::ops::Deref for VariableDB {
-    type Target = [Variable];
-
-    fn deref(&self) -> &Self::Target {
-        &self.variables
-    }
-}
-
-impl std::ops::DerefMut for VariableDB {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.variables
-    }
 }
 
 impl VariableDB {
     pub fn new(tx: Sender<Dispatch>) -> Self {
         VariableDB {
             external_map: Vec::<String>::default(),
-            score_increment: 1.0,
-            variables: Vec::default(),
+            internal_map: std::collections::HashMap::default(),
 
-            string_map: std::collections::HashMap::default(),
+            watch_dbs: Vec::default(),
+
+            score_increment: 1.0,
             activity_heap: IndexHeap::default(),
 
             valuation: Vec::default(),
-            past_valuation: Vec::default(),
+            previous_valuation: Vec::default(),
+            choice_indicies: Vec::default(),
 
             tx,
         }
     }
+
+    // TODO: Maybe something more robust to internal revision
+    pub fn count(&self) -> usize {
+        self.valuation.len()
+    }
+
+    pub fn valuation(&self) -> &[Option<bool>] {
+        &self.valuation
+    }
 }
 
 impl VariableDB {
-    pub fn id_of(&self, name: &str) -> Option<VariableIndex> {
-        self.string_map.get(name).copied()
+    pub fn internal_representation(&self, name: &str) -> Option<Variable> {
+        self.internal_map.get(name).copied()
     }
 
-    pub fn add_watch<L: Borrow<Literal>>(&mut self, literal: L, element: WatchElement) {
-        self.variables
-            .get_unsafe(literal.borrow().index())
-            .watch_added(element, literal.borrow().polarity());
+    pub fn external_representation(&self, index: Variable) -> &String {
+        &self.external_map[index as usize]
     }
 
-    pub fn remove_watch<L: Borrow<Literal>>(
-        &mut self,
-        literal: L,
-        key: ClauseKey,
-    ) -> Result<(), errs::Watch> {
-        self.variables
-            .get_unsafe(literal.borrow().index())
-            .watch_removed(key, literal.borrow().polarity())
-    }
+    pub fn fresh_variable(&mut self, name: &str, previous_value: bool) -> Variable {
+        let id = self.watch_dbs.len() as Variable;
 
-    pub fn heap_pop_most_active(&mut self) -> Option<usize> {
-        self.activity_heap.pop_max()
-    }
-
-    pub fn retract_valuation(&mut self, index: usize) {
-        log::trace!(target: crate::log::targets::VALUATION, "Cleared: {index}");
-        unsafe {
-            self.get_unchecked_mut(index).set_value(None, None);
-        }
-        self.activity_heap.activate(index)
-    }
-
-    pub fn fresh_variable(&mut self, name: &str, previous_value: bool) -> &Variable {
-        let id = self.variables.len() as VariableIndex;
-        let the_variable = Variable::new(id, previous_value);
-
-        let delta = delta::Variable::Internalised(name.to_string(), the_variable.id());
-        self.tx.send(Dispatch::VariableDB(delta));
-
-        self.string_map.insert(name.to_string(), the_variable.id());
+        self.internal_map.insert(name.to_string(), id);
         self.external_map.push(name.to_string());
 
-        self.activity_heap
-            .insert(the_variable.index(), VariableActivity::default());
+        self.activity_heap.add(id as usize, Activity::default());
 
-        self.variables.push(the_variable);
+        self.watch_dbs.push(WatchDB::new());
         self.valuation.push(None);
-        self.past_valuation.push(previous_value);
+        self.previous_valuation.push(previous_value);
+        self.choice_indicies.push(None);
 
-        self.variables.last().expect("added lines above…")
+        let delta = delta::Variable::Internalised(name.to_string(), id);
+        self.tx.send(Dispatch::VariableDB(delta));
+
+        id
+    }
+}
+
+impl VariableDB {
+    pub fn value_of(&self, v_idx: Variable) -> Option<bool> {
+        unsafe { *self.valuation.get_unchecked(v_idx as usize) }
     }
 
-    pub fn external_name(&self, index: usize) -> &String {
-        &self.external_map[index]
+    pub fn previous_value_of(&self, v_idx: Variable) -> bool {
+        unsafe { *self.previous_valuation.get_unchecked(v_idx as usize) }
     }
 
-    #[inline]
+    pub fn choice_index_of(&self, v_idx: Variable) -> Option<ChoiceIndex> {
+        unsafe { *self.choice_indicies.get_unchecked(v_idx as usize) }
+    }
+
+    pub fn set_value(
+        &mut self,
+        v_idx: Variable,
+        polarity: bool,
+        level: Option<ChoiceIndex>,
+    ) -> Result<gen::Value, gen::Value> {
+        match self.value_of(v_idx) {
+            None => unsafe {
+                *self.valuation.get_unchecked_mut(v_idx as usize) = Some(polarity);
+                *self.choice_indicies.get_unchecked_mut(v_idx as usize) = level;
+                Ok(gen::Value::NotSet)
+            },
+            Some(v) if v == polarity => Ok(gen::Value::Match),
+            Some(_) => Err(gen::Value::Conflict),
+        }
+    }
+
+    pub fn drop_value(&mut self, index: Variable) {
+        log::trace!(target: crate::log::targets::VALUATION, "Cleared: {index}");
+        self.clear_value(index);
+        self.activity_heap.activate(index as usize)
+    }
+}
+
+impl VariableDB {
     #[allow(non_snake_case)]
     /// Bumps the activities of each variable in 'variables'
     /// If given a hint to the max activity the rescore check is performed once on the hint
-    pub fn apply_VSIDS<V: Iterator<Item = usize>>(&mut self, variables: V, config: &Config) {
-        for index in variables {
-            if self.activity_of(index) + config.activity_conflict > config.activity_max {
+    pub fn apply_VSIDS<V: Iterator<Item = Variable>>(&mut self, variables: V, config: &Config) {
+        for variable in variables {
+            if self.activity_of(variable as usize) + config.activity_conflict > config.activity_max
+            {
                 self.rescore_activity()
             }
-            self.bump_activity(index);
+            self.bump_activity(variable as usize);
         }
 
         self.exponent_activity(config);
     }
-}
 
-impl VariableDB {
-    fn activity_of(&self, index: usize) -> VariableActivity {
-        *self.activity_heap.value_at(index)
-    }
-
-    fn bump_activity(&mut self, index: usize) {
-        self.activity_heap
-            .update_one(index, self.activity_of(index) + self.score_increment)
-    }
-
-    fn exponent_activity(&mut self, config: &Config) {
-        let decay = config.variable_decay * 1e-3;
-        let factor = 1.0 / (1.0 - decay);
-        self.score_increment *= factor
-    }
-
-    fn activity_max(&self) -> Option<VariableActivity> {
-        self.activity_heap.peek_max_value().copied()
-    }
-
-    fn rescore_activity(&mut self) {
-        let heap_max = self.activity_max().unwrap_or(VariableActivity::MIN);
-        let rescale = VariableActivity::max(heap_max, self.score_increment);
-
-        let factor = 1.0 / rescale;
-        let rescale = |v: &VariableActivity| v * factor;
-        self.activity_heap.apply_to_all(rescale);
-        self.score_increment *= factor;
-        self.activity_heap.reheap();
+    pub fn heap_pop_most_active(&mut self) -> Option<Variable> {
+        self.activity_heap.pop_max().map(|idx| idx as Variable)
     }
 }

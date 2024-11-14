@@ -64,7 +64,7 @@ impl Transcriber {
     }
 
     fn literal_id(literal: Literal) -> String {
-        format!("10{}", literal.index())
+        format!("10{}", literal.var())
     }
 
     fn key_id(key: ClauseKey) -> String {
@@ -95,7 +95,7 @@ impl Transcriber {
     }
 
     fn externalised_literal(&self, literal: Literal) -> String {
-        match &self.variable_map[literal.index()] {
+        match &self.variable_map[literal.var() as usize] {
             Some(ext) => match literal.polarity() {
                 true => format!("{ext}"),
                 false => format!("-{ext}"),

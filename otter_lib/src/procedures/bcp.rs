@@ -2,11 +2,8 @@ use std::borrow::Borrow;
 
 use crate::{
     context::Context,
-    db::keys::ClauseKey,
-    structures::{
-        literal::{Literal, LiteralT},
-        valuation::Valuation,
-    },
+    db::{clause::ClauseKind, keys::ClauseKey},
+    structures::literal::{Literal, LiteralT},
     types::{
         clause::{WatchElement, WatchStatus},
         gen,
@@ -28,10 +25,11 @@ impl Context {
     /// However, this will never be the case
     pub unsafe fn bcp<L: Borrow<Literal>>(&mut self, literal: L) -> Result<(), BCPErr> {
         let literal = literal.borrow();
-        let binary_list = &mut *self
-            .variable_db
-            .get_unsafe(literal.index())
-            .occurrences_binary(!literal.polarity());
+        let binary_list = &mut *self.variable_db.watch_list(
+            literal.var(),
+            ClauseKind::Binary,
+            !literal.polarity(),
+        );
 
         for element in binary_list {
             let WatchElement::Binary(check, clause_key) = element else {
@@ -39,7 +37,7 @@ impl Context {
                 return Err(BCPErr::CorruptWatch);
             };
 
-            match self.variable_db.value_of(*check) {
+            match self.variable_db.value_of(check.var()) {
                 None => match self.q_literal(*check) {
                     Ok(gen::QStatus::Qd) => {
                         self.note_literal(check.canonical(), gen::LiteralSource::BCP(*clause_key));
@@ -60,10 +58,10 @@ impl Context {
             }
         }
 
-        let list = &mut *self
-            .variable_db
-            .get_unsafe(literal.index())
-            .occurrences_long(!literal.polarity());
+        let list =
+            &mut *self
+                .variable_db
+                .watch_list(literal.var(), ClauseKind::Long, !literal.polarity());
 
         let mut index = 0;
         let mut length = list.len();
@@ -76,7 +74,7 @@ impl Context {
 
             /*
             TODO: From the FRAT paper neither MiniSAT nor CaDiCaL store clause identifiers
-            So, there may be some way to avoid this… unless there's a NULLPTR check or something…
+            So, there may be some way to avoid this… unless there's a NULLPTR check or…
              */
             let clause = match self.clause_db.get_carefully_mut(*clause_key) {
                 Some(stored_clause) => stored_clause,
@@ -100,7 +98,7 @@ impl Context {
                 Err(()) => {
                     let the_watch = *clause.get_unchecked(0);
                     // assert_ne!(the_watch.index(), literal.index());
-                    let watch_value = self.variable_db.value_of(the_watch);
+                    let watch_value = self.variable_db.value_of(the_watch.var());
                     match watch_value {
                         Some(value) if the_watch.polarity() != value => {
                             log::trace!(target: LOG_PROPAGATION, "Inspecting consequence of {clause_key} {literal} failed.");
