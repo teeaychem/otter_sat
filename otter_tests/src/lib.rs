@@ -4,15 +4,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use otter_lib::{
-    config::Config,
-    context::{builder::BuildErr, Context},
-    dispatch::report,
-    types::err,
-};
+use otter_lib::{config::Config, context::Context, dispatch::report, types::err};
 use xz2::read::XzDecoder;
 
-pub fn load_dimacs(context: &mut Context, path: &PathBuf) -> Result<(), BuildErr> {
+pub fn load_dimacs(context: &mut Context, path: &PathBuf) -> Result<(), err::Build> {
     let file = match File::open(path) {
         Err(_) => panic!("Could not load {path:?}"),
         Ok(f) => f,
@@ -46,7 +41,7 @@ pub fn silent_formula_report(path: PathBuf, config: &Config) -> report::Solve {
     let mut the_context = Context::from_config(config.clone(), tx.clone());
     match load_dimacs(&mut the_context, &path) {
         Ok(()) => {}
-        Err(BuildErr::ClauseStore(err::ClauseDB::EmptyClause)) => {
+        Err(err::Build::ClauseStore(err::ClauseDB::EmptyClause)) => {
             return report::Solve::Unsatisfiable;
         }
         Err(e) => {

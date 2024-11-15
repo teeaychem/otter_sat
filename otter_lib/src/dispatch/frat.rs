@@ -44,8 +44,8 @@ pub struct Transcriber {
     path: PathBuf,
     file: File,
     step_buffer: Vec<String>,
-    pub resolution_buffer: Vec<ClauseKey>,
-    pub resolution_queue: VecDeque<Vec<ClauseKey>>,
+    resolution_buffer: Vec<ClauseKey>,
+    resolution_queue: VecDeque<Vec<ClauseKey>>,
     variable_map: Vec<Option<String>>,
 }
 
@@ -60,47 +60,6 @@ impl Transcriber {
             resolution_queue: VecDeque::default(),
             step_buffer: Vec::default(),
             variable_map: Vec::default(),
-        }
-    }
-
-    fn literal_id(literal: Literal) -> String {
-        format!("10{}", literal.var())
-    }
-
-    fn key_id(key: ClauseKey) -> String {
-        match key {
-            ClauseKey::Formula(index) => format!("20{index}"),
-            ClauseKey::Binary(index) => format!("30{index}"),
-            ClauseKey::Learned(index, _) => format!("40{index}"),
-        }
-    }
-
-    fn resolution_buffer_ids(buffer: Vec<ClauseKey>) -> String {
-        let mut the_string = String::default();
-        for key in buffer {
-            the_string.push_str(Self::key_id(key).as_str());
-            the_string.push(' ');
-        }
-        the_string.pop();
-        the_string
-    }
-
-    fn externalised_clause(&self, clause: Vec<Literal>) -> String {
-        let mut the_string = String::default();
-        for literal in clause {
-            the_string.push_str(format!("{} ", self.externalised_literal(literal)).as_str());
-        }
-        the_string.pop();
-        the_string
-    }
-
-    fn externalised_literal(&self, literal: Literal) -> String {
-        match &self.variable_map[literal.var() as usize] {
-            Some(ext) => match literal.polarity() {
-                true => format!("{ext}"),
-                false => format!("-{ext}"),
-            },
-            None => panic!("Missing external string for {literal}"),
         }
     }
 
@@ -222,7 +181,7 @@ impl Transcriber {
 
             Dispatch::VariableDBReport(report) => match report {
                 dispatch::report::VariableDB::Active(literal) => {
-                    let mut the_string = format!(
+                    let the_string = format!(
                         "f {} {}",
                         Self::literal_id(literal),
                         self.externalised_literal(literal)
@@ -233,10 +192,10 @@ impl Transcriber {
 
             Dispatch::Resolution(delta) => {
                 match delta {
-                    delta::Resolution::Start => {
+                    delta::Resolution::Begin => {
                         assert!(self.resolution_buffer.is_empty());
                     }
-                    delta::Resolution::Finish => {
+                    delta::Resolution::End => {
                         self.resolution_queue
                             .push_back(std::mem::take(&mut self.resolution_buffer));
                     }
@@ -262,14 +221,53 @@ impl Transcriber {
         }
     }
 
-    pub fn take_resolution(&mut self, buffer: Vec<ClauseKey>) {
-        self.resolution_queue.push_back(buffer)
-    }
-
     pub fn flush(&mut self) {
         for step in &self.step_buffer {
             let _ = self.file.write(step.as_bytes());
         }
         self.step_buffer.clear();
+    }
+}
+
+impl Transcriber {
+    fn literal_id(literal: Literal) -> String {
+        format!("10{}", literal.var())
+    }
+
+    fn key_id(key: ClauseKey) -> String {
+        match key {
+            ClauseKey::Formula(index) => format!("20{index}"),
+            ClauseKey::Binary(index) => format!("30{index}"),
+            ClauseKey::Learned(index, _) => format!("40{index}"),
+        }
+    }
+
+    fn resolution_buffer_ids(buffer: Vec<ClauseKey>) -> String {
+        let mut the_string = String::default();
+        for key in buffer {
+            the_string.push_str(Self::key_id(key).as_str());
+            the_string.push(' ');
+        }
+        the_string.pop();
+        the_string
+    }
+
+    fn externalised_clause(&self, clause: Vec<Literal>) -> String {
+        let mut the_string = String::default();
+        for literal in clause {
+            the_string.push_str(format!("{} ", self.externalised_literal(literal)).as_str());
+        }
+        the_string.pop();
+        the_string
+    }
+
+    fn externalised_literal(&self, literal: Literal) -> String {
+        match &self.variable_map[literal.var() as usize] {
+            Some(ext) => match literal.polarity() {
+                true => format!("{ext}"),
+                false => format!("-{ext}"),
+            },
+            None => panic!("Missing external string for {literal}"),
+        }
     }
 }

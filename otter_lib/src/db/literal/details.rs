@@ -22,14 +22,14 @@ impl ChosenLiteral {
     }
 
     #[allow(dead_code)]
-    pub fn consequences(&self) -> &[(gen::LiteralSource, Literal)] {
+    pub fn consequences(&self) -> &[(gen::src::Literal, Literal)] {
         &self.consequences
     }
 
-    pub(super) fn record_consequence<L: Borrow<Literal>>(
+    pub(super) fn record_consequence(
         &mut self,
-        literal: L,
-        source: gen::LiteralSource,
+        literal: impl Borrow<Literal>,
+        source: gen::src::Literal,
     ) {
         self.consequences.push((source, *literal.borrow()))
     }
@@ -45,7 +45,7 @@ impl Default for super::ProvenLiterals {
 }
 
 impl super::ProvenLiterals {
-    pub fn record_literal<L: Borrow<Literal>>(&mut self, literal: L) {
+    pub fn record_literal(&mut self, literal: impl Borrow<Literal>) {
         self.observations.push(*literal.borrow())
     }
 }

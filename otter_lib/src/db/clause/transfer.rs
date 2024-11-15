@@ -1,7 +1,11 @@
 use crate::{
     db::{keys::ClauseKey, variable::VariableDB},
-    dispatch::{delta, Dispatch},
-    types::err,
+    dispatch::{
+        delta::{self},
+        Dispatch,
+    },
+    misc::log::targets::{self},
+    types::err::{self},
 };
 
 use super::{stored::StoredClause, ClauseDB};
@@ -14,7 +18,7 @@ impl ClauseDB {
     ) -> Result<ClauseKey, err::ClauseDB> {
         match key {
             ClauseKey::Binary(_) => {
-                log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
+                log::error!(target: targets::TRANSFER, "Attempt to transfer binary");
                 Err(err::ClauseDB::TransferBinary)
             }
             ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
@@ -23,7 +27,7 @@ impl ClauseDB {
                 let copied_clause = the_clause.to_vec();
 
                 if copied_clause.len() != 2 {
-                    log::error!(target: crate::log::targets::TRANSFER, "Attempt to transfer binary");
+                    log::error!(target: targets::TRANSFER, "Attempt to transfer binary");
                     return Err(err::ClauseDB::TransferBinary);
                 }
 
@@ -32,8 +36,10 @@ impl ClauseDB {
                 let delta = delta::ClauseDB::TransferBinary(key, b_key, copied_clause.clone());
                 self.tx.send(Dispatch::ClauseDB(delta));
 
-                variables.remove_watch(unsafe { copied_clause.get_unchecked(0) }, key)?;
-                variables.remove_watch(unsafe { copied_clause.get_unchecked(1) }, key)?;
+                unsafe {
+                    variables.remove_watch(copied_clause.get_unchecked(0), key)?;
+                    variables.remove_watch(copied_clause.get_unchecked(1), key)?;
+                }
 
                 let binary_clause = StoredClause::from(b_key, copied_clause, variables);
 

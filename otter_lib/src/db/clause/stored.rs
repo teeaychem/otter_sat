@@ -1,10 +1,14 @@
 use crate::{
-    db::{keys::ClauseKey, variable::VariableDB},
+    db::{
+        keys::ClauseKey,
+        variable::{watch_db::WatchElement, VariableDB},
+    },
+    misc::log::targets::{self},
     structures::{
         clause::Clause,
         literal::{Literal, LiteralT},
     },
-    types::clause::{WatchElement, WatchStatus},
+    types::gen::{self},
 };
 
 use std::{borrow::Borrow, ops::Deref};
@@ -56,7 +60,7 @@ impl StoredClause {
                 break index;
             }
 
-            let literal = self.clause[index];
+            let literal = unsafe { self.clause.get_unchecked(index) };
             let literal_value = variables.value_of(literal.var());
             match literal_value {
                 None => break index,
@@ -84,15 +88,17 @@ impl StoredClause {
             }
         }
 
-        self.note_watch(self.clause[0], variables);
-        self.note_watch(self.clause[self.last], variables);
+        unsafe {
+            self.note_watch(self.clause.get_unchecked(0), variables);
+            self.note_watch(self.clause.get_unchecked(self.last), variables);
+        }
     }
 
-    fn note_watch<L: Borrow<Literal>>(&self, literal: L, variables: &mut VariableDB) {
+    fn note_watch(&self, literal: impl Borrow<Literal>, variables: &mut VariableDB) {
         let literal = literal.borrow();
         match self.key {
             ClauseKey::Binary(_) => unsafe {
-                let check_literal = if self.clause[0].var() == literal.var() {
+                let check_literal = if self.clause.get_unchecked(0).var() == literal.var() {
                     *self.clause.get_unchecked(1)
                 } else {
                     *self.clause.get_unchecked(0)
@@ -101,18 +107,18 @@ impl StoredClause {
                 variables.add_watch(literal, WatchElement::Binary(check_literal, self.key()));
             },
             ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
-                variables.add_watch(literal, WatchElement::Clause(self.key()));
+                unsafe { variables.add_watch(literal, WatchElement::Clause(self.key())) };
             }
         }
     }
 
     #[inline(always)]
     #[allow(clippy::result_unit_err)]
-    pub fn update_watch<L: Borrow<Literal>>(
+    pub fn update_watch(
         &mut self,
-        literal: L,
+        literal: impl Borrow<Literal>,
         variables: &mut VariableDB,
-    ) -> Result<WatchStatus, ()> {
+    ) -> Result<gen::Watch, ()> {
         /*
         This will, logic issues aside, only be called on long formulas
         And, given how often it is called, checks to ensure there are no logic issues aren't worthwhile
@@ -124,68 +130,33 @@ impl StoredClause {
             self.clause.swap(0, self.last)
         }
         /*
-        The two for loops avoid the need to check whether the search pointer is equal to where the last search pointer stopped each time it's incremented
-        Naive tests suggest there isn't a significant difference…
+        This could be split into two `for` loops around the current last index.
+        This would avoid the need to check whether the search pointer is equal to where the last search pointer stopped.
+        Still, it seems the single loop is easier to handle for the compiler.
          */
-
-        for i in (self.last + 1)..self.clause.len() {
-            let last_literal = unsafe { self.clause.get_unchecked(i) };
+        let last_cache = self.last;
+        let clause_length = self.clause.len();
+        loop {
+            self.last += 1;
+            if self.last == clause_length {
+                self.last = 1 // skip 0
+            }
+            if self.last == last_cache {
+                return Err(());
+            }
+            let last_literal = unsafe { self.clause.get_unchecked(self.last) };
             match variables.value_of(last_literal.var()) {
                 None => {
-                    self.last = i;
                     self.note_watch(*last_literal, variables);
-                    return Ok(WatchStatus::None);
+                    return Ok(gen::Watch::None);
                 }
                 Some(value) if value == last_literal.polarity() => {
-                    self.last = i;
                     self.note_watch(*last_literal, variables);
-                    return Ok(WatchStatus::Witness);
+                    return Ok(gen::Watch::Witness);
                 }
                 Some(_) => {}
             }
         }
-
-        for i in 1..self.last {
-            let last_literal = unsafe { self.clause.get_unchecked(i) };
-            match variables.value_of(last_literal.var()) {
-                None => {
-                    self.last = i;
-                    self.note_watch(*last_literal, variables);
-                    return Ok(WatchStatus::None);
-                }
-                Some(value) if value == last_literal.polarity() => {
-                    self.last = i;
-                    self.note_watch(*last_literal, variables);
-                    return Ok(WatchStatus::Witness);
-                }
-                Some(_) => {}
-            }
-        }
-
-        // let last_cache = self.last;
-        // let clause_length = self.clause.len();
-        // loop {
-        //     self.last += 1;
-        //     if self.last == clause_length {
-        //         self.last = 1 // skip 0
-        //     }
-        //     if self.last == last_cache {
-        //         return Err(());
-        //     }
-        //     let last_literal = unsafe { self.clause.get_unchecked(self.last) };
-        //     match variables.value_of(last_literal.index()) {
-        //         None => {
-        //             self.note_watch(*last_literal, variables);
-        //             return Ok(WatchStatus::None);
-        //         }
-        //         Some(value) if value == last_literal.polarity() => {
-        //             self.note_watch(*last_literal, variables);
-        //             return Ok(WatchStatus::Witness);
-        //         }
-        //         Some(_) => {}
-        //     }
-        // }
-        Err(())
     }
 }
 
@@ -219,7 +190,7 @@ impl StoredClause {
         fix_watch: bool,
     ) -> Result<usize, SubsumptionError> {
         if self.clause.len() < 3 {
-            log::error!(target: crate::log::targets::SUBSUMPTION, "Subsumption attempted on non-long clause");
+            log::error!(target: targets::SUBSUMPTION, "Subsumption attempted on non-long clause");
             return Err(SubsumptionError::ShortClause);
         }
         let mut position = {
@@ -229,7 +200,7 @@ impl StoredClause {
                 .position(|clause_literal| clause_literal == literal.borrow());
             match search {
                 None => {
-                    log::error!(target: crate::log::targets::SUBSUMPTION, "Pivot not found for subsumption");
+                    log::error!(target: targets::SUBSUMPTION, "Pivot not found for subsumption");
                     return Err(SubsumptionError::NoPivot);
                 }
                 Some(p) => p,
@@ -243,7 +214,7 @@ impl StoredClause {
 
         let removed = self.clause.swap_remove(position);
 
-        match variable_db.remove_watch(removed, self.key) {
+        match unsafe { variable_db.remove_watch(removed, self.key) } {
             Ok(()) => {}
             Err(_) => return Err(SubsumptionError::WatchError),
         };
@@ -255,15 +226,11 @@ impl StoredClause {
                 let index_literal = unsafe { self.clause.get_unchecked(index) };
                 let index_value = variable_db.value_of(index_literal.var());
                 match index_value {
-                    None => {
+                    Some(value) if value != index_literal.polarity() => {}
+                    _ => {
                         self.last = index;
                         break;
                     }
-                    Some(value) if value == index_literal.polarity() => {
-                        self.last = index;
-                        break;
-                    }
-                    Some(_) => {}
                 }
             }
             self.note_watch(self.clause[self.last], variable_db);

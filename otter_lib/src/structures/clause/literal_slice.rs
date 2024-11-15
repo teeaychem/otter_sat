@@ -70,4 +70,8 @@ impl<T: Deref<Target = [Literal]>> Clause for T {
     fn literals(&self) -> &[Literal] {
         self
     }
+
+    fn variables(&self) -> impl Iterator<Item = crate::structures::variable::Variable> {
+        self.iter().map(|literal| literal.var())
+    }
 }

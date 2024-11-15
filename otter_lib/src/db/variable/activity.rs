@@ -5,6 +5,27 @@ use crate::{
 };
 
 impl VariableDB {
+    #[allow(non_snake_case)]
+    /// Bumps the activities of each variable in 'variables'
+    /// If given a hint to the max activity the rescore check is performed once on the hint
+    pub fn apply_VSIDS<V: Iterator<Item = Variable>>(&mut self, variables: V, config: &Config) {
+        for variable in variables {
+            if self.activity_of(variable as usize) + config.activity_conflict > config.activity_max
+            {
+                self.rescore_activity()
+            }
+            self.bump_activity(variable as usize);
+        }
+
+        self.exponent_activity(config);
+    }
+
+    pub fn heap_pop_most_active(&mut self) -> Option<Variable> {
+        self.activity_heap.pop_max().map(|idx| idx as Variable)
+    }
+}
+
+impl VariableDB {
     pub(super) fn activity_of(&self, index: usize) -> Activity {
         *self.activity_heap.value_at(index)
     }
@@ -33,19 +54,5 @@ impl VariableDB {
         self.activity_heap.apply_to_all(rescale);
         self.score_increment *= factor;
         self.activity_heap.reheap();
-    }
-}
-
-impl VariableDB {
-    pub(super) fn clear_value(&mut self, v_idx: Variable) {
-        if let Some(present) = self.value_of(v_idx) {
-            unsafe {
-                *self.previous_valuation.get_unchecked_mut(v_idx as usize) = present;
-            }
-        }
-        unsafe {
-            *self.valuation.get_unchecked_mut(v_idx as usize) = None;
-            *self.choice_indicies.get_unchecked_mut(v_idx as usize) = None;
-        }
     }
 }

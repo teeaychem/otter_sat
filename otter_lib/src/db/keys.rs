@@ -1,7 +1,9 @@
-use crate::types::err;
+use crate::{
+    misc::log::targets::{self},
+    types::err::{self},
+};
 
 pub type ChoiceIndex = u32;
-
 pub type FormulaIndex = u32;
 pub type FormulaToken = u16;
 
@@ -24,11 +26,11 @@ impl ClauseKey {
     pub fn retoken(&self) -> Result<Self, err::ClauseDB> {
         match self {
             Self::Formula(_) => {
-                log::error!(target: crate::log::targets::CLAUSE_DB, "Formula keys have a unique token");
+                log::error!(target: targets::CLAUSE_DB, "Formula keys have a unique token");
                 Err(err::ClauseDB::InvalidKeyToken)
             }
             Self::Binary(_) => {
-                log::error!(target: crate::log::targets::CLAUSE_DB, "Binary keys have a unique token");
+                log::error!(target: targets::CLAUSE_DB, "Binary keys have a unique token");
                 Err(err::ClauseDB::InvalidKeyToken)
             }
             Self::Learned(index, token) => {

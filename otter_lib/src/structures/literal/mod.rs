@@ -6,7 +6,7 @@ pub type Literal = LiteralStruct;
 
 #[derive(Clone, Copy, Debug)]
 pub struct LiteralStruct {
-    v_id: Variable,
+    variable: Variable,
     polarity: bool,
 }
 

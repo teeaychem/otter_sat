@@ -2,6 +2,8 @@ mod literal_slice;
 
 use crate::{config::GlueStrength, db::variable::VariableDB, structures::literal::Literal};
 
+use super::variable::Variable;
+
 pub trait Clause {
     fn as_string(&self) -> String;
 
@@ -13,4 +15,6 @@ pub trait Clause {
     fn lbd(&self, variable_db: &VariableDB) -> GlueStrength;
 
     fn literals(&self) -> &[Literal];
+
+    fn variables(&self) -> impl Iterator<Item = Variable>;
 }

@@ -1,17 +1,18 @@
 use crate::{
-    db::{clause::ClauseKind, keys::ClauseKey},
+    db::{clause::ClauseKind, keys::ClauseKey, variable::VariableDB},
     structures::{
         literal::{Literal, LiteralT},
         variable::Variable,
     },
-    types::{
-        clause::WatchElement,
-        err::{self},
-    },
+    types::err::{self},
 };
 use std::{borrow::Borrow, cell::UnsafeCell};
 
-use super::VariableDB;
+#[derive(Debug)]
+pub enum WatchElement {
+    Binary(Literal, ClauseKey),
+    Clause(ClauseKey),
+}
 
 pub(super) struct WatchDB {
     positive_binary: UnsafeCell<Vec<WatchElement>>,
@@ -30,52 +31,48 @@ impl WatchDB {
         }
     }
 
-    fn watch_added(&self, element: WatchElement, polarity: bool) {
-        unsafe {
-            match element {
-                WatchElement::Binary(_, _) => match polarity {
-                    true => (*self.positive_binary.get()).push(element),
-                    false => (*self.negative_binary.get()).push(element),
-                },
-                WatchElement::Clause(_) => match polarity {
-                    true => (*self.positive_long.get()).push(element),
-                    false => (*self.negative_long.get()).push(element),
-                },
-            }
+    unsafe fn watch_added(&self, element: WatchElement, polarity: bool) {
+        match element {
+            WatchElement::Binary(_, _) => match polarity {
+                true => (*self.positive_binary.get()).push(element),
+                false => (*self.negative_binary.get()).push(element),
+            },
+            WatchElement::Clause(_) => match polarity {
+                true => (*self.positive_long.get()).push(element),
+                false => (*self.negative_long.get()).push(element),
+            },
         }
     }
 
     /*
     Swap remove on keys
-    If guarantee that key appears once then this could break early
+    If there's a guarantee keys appear at most once, then this could break early
     As this shuffles the list any heuristics on traversal order are affected
      */
-    fn watch_removed(&self, key: ClauseKey, polarity: bool) -> Result<(), err::Watch> {
-        unsafe {
-            match key {
-                ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
-                    let list = match polarity {
-                        true => &mut *self.positive_long.get(),
-                        false => &mut *self.negative_long.get(),
+    unsafe fn watch_removed(&self, key: ClauseKey, polarity: bool) -> Result<(), err::Watch> {
+        match key {
+            ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
+                let list = match polarity {
+                    true => &mut *self.positive_long.get(),
+                    false => &mut *self.negative_long.get(),
+                };
+                let mut index = 0;
+                let mut limit = list.len();
+                while index < limit {
+                    let WatchElement::Clause(list_key) = list.get_unchecked(index) else {
+                        return Err(err::Watch::BinaryInLong);
                     };
-                    let mut index = 0;
-                    let mut limit = list.len();
-                    while index < limit {
-                        let WatchElement::Clause(list_key) = list.get_unchecked(index) else {
-                            return Err(err::Watch::BinaryInLong);
-                        };
 
-                        if *list_key == key {
-                            list.swap_remove(index);
-                            limit -= 1;
-                        } else {
-                            index += 1;
-                        }
+                    if *list_key == key {
+                        list.swap_remove(index);
+                        limit -= 1;
+                    } else {
+                        index += 1;
                     }
-                    Ok(())
                 }
-                ClauseKey::Binary(_) => Err(err::Watch::BinaryInLong),
+                Ok(())
             }
+            ClauseKey::Binary(_) => Err(err::Watch::BinaryInLong),
         }
     }
 
@@ -95,17 +92,15 @@ impl WatchDB {
 }
 
 impl VariableDB {
-    pub fn add_watch<L: Borrow<Literal>>(&mut self, literal: L, element: WatchElement) {
-        unsafe {
-            self.watch_dbs
-                .get_unchecked(literal.borrow().var() as usize)
-                .watch_added(element, literal.borrow().polarity())
-        };
+    pub unsafe fn add_watch(&mut self, literal: impl Borrow<Literal>, element: WatchElement) {
+        self.watch_dbs
+            .get_unchecked(literal.borrow().var() as usize)
+            .watch_added(element, literal.borrow().polarity());
     }
 
-    pub fn remove_watch<L: Borrow<Literal>>(
+    pub unsafe fn remove_watch(
         &mut self,
-        literal: L,
+        literal: impl Borrow<Literal>,
         key: ClauseKey,
     ) -> Result<(), err::Watch> {
         unsafe {

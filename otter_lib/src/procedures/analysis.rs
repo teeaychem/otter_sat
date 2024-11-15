@@ -1,51 +1,29 @@
 use crate::{
-    assistants::resolution_buffer::{BufOk, ResolutionBuffer},
-    config::{self, Config, StoppingCriteria},
+    config::{self, StoppingCriteria},
     context::Context,
-    db::keys::{ChoiceIndex, ClauseKey},
-    structures::{
-        clause::Clause,
-        literal::{Literal, LiteralT},
-    },
+    db::keys::ClauseKey,
+    misc::log::targets::{self},
+    structures::clause::Clause,
+    transient::resolution_buffer::ResolutionBuffer,
     types::{
-        clause::ClauseSource,
         err::{self},
         gen::{self},
     },
 };
 
-pub enum AnalysisResult {
-    MissedImplication(ClauseKey, Literal),
-    Proof(ClauseKey, Literal),
-    FundamentalConflict,
-    AssertingClause(ClauseKey, Literal),
-}
-
 #[allow(unused_imports)]
-use crate::log::targets::ANALYSIS as LOG_ANALYSIS;
 
 impl Context {
-    pub fn conflict_analysis(
-        &mut self,
-        key: ClauseKey,
-        config: &Config,
-    ) -> Result<AnalysisResult, err::Analysis> {
-        log::trace!(target: LOG_ANALYSIS, "Analysis of {key} at level {}", self.literal_db.choice_count());
+    pub fn conflict_analysis(&mut self, key: ClauseKey) -> Result<gen::Analysis, err::Analysis> {
+        log::trace!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.choice_count());
 
-        if let config::VSIDS::Chaff = config.vsids_variant {
-            self.variable_db.apply_VSIDS(
-                self.clause_db
-                    .get(key)
-                    .expect("missing clause")
-                    .literals()
-                    .iter()
-                    .map(|literal| literal.var()),
-                config,
-            );
+        if let config::VSIDS::Chaff = self.config.vsids_variant {
+            self.variable_db
+                .apply_VSIDS(self.clause_db.get(key)?.variables(), &self.config);
         }
 
         let mut the_buffer =
-            ResolutionBuffer::from_variable_store(&self.variable_db, self.tx.clone(), config);
+            ResolutionBuffer::from_variable_store(&self.variable_db, self.tx.clone(), &self.config);
 
         the_buffer.clear_literal(self.literal_db.last_choice());
         for (_, lit) in self.literal_db.last_consequences() {
@@ -58,23 +36,24 @@ impl Context {
             &mut self.clause_db,
             &mut self.variable_db,
         ) {
-            Ok(BufOk::Proof) | Ok(BufOk::FirstUIP) => {}
-            Ok(BufOk::Exhausted) => {
-                if config.stopping_criteria == StoppingCriteria::FirstUIP {
+            Ok(gen::RBuf::Proof) | Ok(gen::RBuf::FirstUIP) => {}
+            Ok(gen::RBuf::Exhausted) => {
+                if self.config.stopping_criteria == StoppingCriteria::FirstUIP {
+                    log::error!(target: targets::ANALYSIS, "Wrong stopping criteria.");
                     return Err(err::Analysis::FailedStoppingCriteria);
                 }
             }
-            Ok(BufOk::Missed(k, l)) => {
-                return Ok(AnalysisResult::MissedImplication(k, l));
+            Ok(gen::RBuf::Missed(k, l)) => {
+                return Ok(gen::Analysis::MissedImplication(k, l));
             }
             Err(_buffer_error) => {
                 return Err(err::Analysis::Buffer);
             }
         }
 
-        if let config::VSIDS::MiniSAT = config.vsids_variant {
+        if let config::VSIDS::MiniSAT = self.config.vsids_variant {
             self.variable_db
-                .apply_VSIDS(the_buffer.variables_used(), config);
+                .apply_VSIDS(the_buffer.variables_used(), &self.config);
         }
 
         /*
@@ -95,7 +74,7 @@ impl Context {
 
         let the_literal = match asserted_literal {
             None => {
-                log::error!(target: crate::log::targets::ANALYSIS, "Failed to resolve to an asserting clause");
+                log::error!(target: targets::ANALYSIS, "Failed to resolve to an asserting clause");
                 return Err(err::Analysis::NoAssertion);
             }
             Some(literal) => literal,
@@ -103,47 +82,11 @@ impl Context {
 
         match resolved_clause.len() {
             0 => Err(err::Analysis::EmptyResolution),
-            1 => {
-                self.note_literal(the_literal, gen::LiteralSource::Resolution(key));
-
-                Ok(AnalysisResult::Proof(key, the_literal))
-            }
+            1 => Ok(gen::Analysis::Proof(key, the_literal)),
             _ => {
-                let Ok(key) = self.store_clause(resolved_clause, ClauseSource::Resolution) else {
-                    return Err(err::Analysis::ResolutionNotStored);
-                };
-
-                Ok(AnalysisResult::AssertingClause(key, the_literal))
+                let key = self.store_clause(resolved_clause, gen::src::Clause::Resolution)?;
+                Ok(gen::Analysis::AssertingClause(key, the_literal))
             }
-        }
-    }
-
-    /// The second highest choice index from the given literals, or 0
-    /// Aka. The backjump level for a slice of an asserting slice of literals/clause
-    // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
-    pub fn backjump_level(&self, literals: &[Literal]) -> Option<ChoiceIndex> {
-        let mut top_two = (None, None);
-        for literal in literals {
-            let Some(dl) = self.variable_db.choice_index_of(literal.var()) else {
-                log::error!(target: crate::log::targets::BACKJUMP, "{literal} was not chosen");
-                return None;
-            };
-
-            match top_two {
-                (_, None) => top_two.1 = Some(dl),
-                (_, Some(the_top)) if dl > the_top => {
-                    top_two.0 = top_two.1;
-                    top_two.1 = Some(dl);
-                }
-                (None, _) => top_two.0 = Some(dl),
-                (Some(second_to_top), _) if dl > second_to_top => top_two.0 = Some(dl),
-                _ => {}
-            }
-        }
-
-        match top_two {
-            (None, _) => Some(0),
-            (Some(second_to_top), _) => Some(second_to_top),
         }
     }
 }
