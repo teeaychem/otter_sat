@@ -31,7 +31,7 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     };
 
     let _result = the_context.solve();
-    the_context.report_active();
+    the_context.dispatch_active();
 
     drop(the_context);
 

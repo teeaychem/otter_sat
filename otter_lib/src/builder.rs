@@ -12,7 +12,6 @@ use crate::{
         variable::Variable,
     },
     types::{
-        clause::ClauseSource,
         err::{self},
         gen::{self},
     },
@@ -20,27 +19,8 @@ use crate::{
 
 use std::{borrow::Borrow, io::BufRead};
 
-#[derive(Debug)]
-pub enum BuildErr {
-    UnitClauseConflict,
-    AssumptionConflict,
-    AssumptionDirectConflict,
-    AssumptionIndirectConflict,
-    Parse(ParseErr),
-    ClauseStore(err::ClauseDB),
-}
-
-#[derive(Debug)]
-pub enum ParseErr {
-    ProblemSpecification,
-    Line(usize),
-    MisplacedProblem(usize),
-    NoVariable,
-    NoFile,
-}
-
 impl Context {
-    pub fn variable_from_string(&mut self, name: &str) -> Result<Variable, ParseErr> {
+    pub fn variable_from_string(&mut self, name: &str) -> Result<Variable, err::Parse> {
         match self.variable_db.internal_representation(name) {
             Some(variable) => Ok(variable),
             None => {
@@ -52,10 +32,10 @@ impl Context {
         }
     }
 
-    pub fn literal_from_string(&mut self, string: &str) -> Result<Literal, ParseErr> {
+    pub fn literal_from_string(&mut self, string: &str) -> Result<Literal, err::Parse> {
         let trimmed_string = string.trim();
         if trimmed_string.is_empty() || trimmed_string == "-" {
-            return Err(ParseErr::NoVariable);
+            return Err(err::Parse::NoVariable);
         };
 
         let polarity = !trimmed_string.starts_with('-');
@@ -71,13 +51,13 @@ impl Context {
 
     // Aka. soft assumption
     // This will hold until a restart happens
-    pub fn believe<L: Borrow<Literal>>(&mut self, literal: L) -> Result<(), err::Context> {
+    pub fn believe(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::Context> {
         if self.literal_db.choice_made() {
             return Err(err::Context::AssumptionAfterChoice);
         }
         match self.q_literal(literal.borrow()) {
             Ok(_) => {
-                self.note_literal(literal.borrow(), gen::LiteralSource::Assumption);
+                self.note_literal(literal.borrow(), gen::src::Literal::Assumption);
                 Ok(())
             }
             Err(_) => Err(err::Context::AssumptionConflict),
@@ -85,17 +65,17 @@ impl Context {
     }
 
     #[allow(unused_must_use)] // ???
-    pub fn assume<L: Borrow<Literal>>(&mut self, literal: L) -> Result<(), err::Context> {
+    pub fn assume(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::Context> {
         if self.literal_db.choice_made() {
             return Err(err::Context::AssumptionAfterChoice);
         }
         match self.variable_db.value_of(literal.borrow().var()) {
             None => {
-                let Ok(gen::QStatus::Qd) = self.q_literal(literal.borrow()) else {
+                let Ok(gen::Queue::Qd) = self.q_literal(literal.borrow()) else {
                     return Err(err::Context::AssumptionConflict);
                 };
-                self.note_literal(literal.borrow(), gen::LiteralSource::Assumption);
-                // self.store_literal(literal, LiteralSource::Assumption, Vec::default());
+                self.note_literal(literal.borrow(), gen::src::Literal::Assumption);
+                // self.store_literal(literal, src::Literal::Assumption, Vec::default());
                 Ok(())
             }
             Some(v) if v == literal.borrow().polarity() => {
@@ -108,13 +88,13 @@ impl Context {
 }
 
 impl Context {
-    pub fn clause_from_string(&mut self, string: &str) -> Result<(), BuildErr> {
+    pub fn clause_from_string(&mut self, string: &str) -> Result<(), err::Build> {
         let string_lterals = string.split_whitespace();
         let mut the_clause = vec![];
         for string_literal in string_lterals {
             let the_literal = match self.literal_from_string(string_literal) {
                 Ok(literal) => literal,
-                Err(e) => return Err(BuildErr::Parse(e)),
+                Err(e) => return Err(err::Build::Parse(e)),
             };
             if !the_clause.iter().any(|l| *l == the_literal) {
                 the_clause.push(the_literal);
@@ -126,14 +106,14 @@ impl Context {
 }
 
 impl Context {
-    pub fn store_preprocessed_clause(&mut self, clause: Vec<Literal>) -> Result<(), BuildErr> {
+    pub fn store_preprocessed_clause(&mut self, clause: Vec<Literal>) -> Result<(), err::Build> {
         match clause.len() {
-            0 => Err(BuildErr::ClauseStore(err::ClauseDB::EmptyClause)),
+            0 => Err(err::Build::ClauseStore(err::ClauseDB::EmptyClause)),
             1 => {
                 let literal = unsafe { *clause.get_unchecked(0) };
                 match self.assume(literal) {
                     Ok(_) => Ok(()),
-                    Err(_e) => Err(BuildErr::AssumptionIndirectConflict),
+                    Err(_e) => Err(err::Build::AssumptionIndirectConflict),
                 }
             }
             _ => {
@@ -172,12 +152,12 @@ impl Context {
                     1 => {
                         let literal = unsafe { clause.get_unchecked(0) };
                         let Ok(_) = self.assume(literal) else {
-                            return Err(BuildErr::AssumptionIndirectConflict);
+                            return Err(err::Build::AssumptionIndirectConflict);
                         };
                     }
-                    _ => match self.store_clause(clause, ClauseSource::Formula) {
+                    _ => match self.store_clause(clause, gen::src::Clause::Formula) {
                         Ok(_) => {}
-                        Err(e) => return Err(BuildErr::ClauseStore(e)),
+                        Err(e) => return Err(err::Build::ClauseStore(e)),
                     },
                 }
                 Ok(())
@@ -186,7 +166,7 @@ impl Context {
     }
 
     #[allow(clippy::manual_flatten, unused_labels)]
-    pub fn load_dimacs_file(&mut self, mut file_reader: impl BufRead) -> Result<(), BuildErr> {
+    pub fn load_dimacs_file(&mut self, mut file_reader: impl BufRead) -> Result<(), err::Build> {
         //
 
         let mut buffer = String::with_capacity(1024);
@@ -200,7 +180,7 @@ impl Context {
             match file_reader.read_line(&mut buffer) {
                 Ok(0) => break,
                 Ok(_) => line_counter += 1,
-                Err(_) => return Err(BuildErr::Parse(ParseErr::Line(line_counter))),
+                Err(_) => return Err(err::Build::Parse(err::Parse::Line(line_counter))),
             }
 
             match buffer.chars().next() {
@@ -211,17 +191,21 @@ impl Context {
                 Some('p') => {
                     let mut problem_details = buffer.split_whitespace();
                     let variable_count: usize = match problem_details.nth(2) {
-                        None => return Err(BuildErr::Parse(ParseErr::ProblemSpecification)),
+                        None => return Err(err::Build::Parse(err::Parse::ProblemSpecification)),
                         Some(string) => match string.parse() {
-                            Err(_) => return Err(BuildErr::Parse(ParseErr::ProblemSpecification)),
+                            Err(_) => {
+                                return Err(err::Build::Parse(err::Parse::ProblemSpecification))
+                            }
                             Ok(count) => count,
                         },
                     };
 
                     let clause_count: usize = match problem_details.next() {
-                        None => return Err(BuildErr::Parse(ParseErr::ProblemSpecification)),
+                        None => return Err(err::Build::Parse(err::Parse::ProblemSpecification)),
                         Some(string) => match string.parse() {
-                            Err(_) => return Err(BuildErr::Parse(ParseErr::ProblemSpecification)),
+                            Err(_) => {
+                                return Err(err::Build::Parse(err::Parse::ProblemSpecification))
+                            }
                             Ok(count) => count,
                         },
                     };
@@ -244,13 +228,17 @@ impl Context {
             match file_reader.read_line(&mut buffer) {
                 Ok(0) => break,
                 Ok(_) => line_counter += 1,
-                Err(_) => return Err(BuildErr::Parse(ParseErr::Line(line_counter))),
+                Err(_) => return Err(err::Build::Parse(err::Parse::Line(line_counter))),
             }
 
             match buffer.chars().next() {
                 Some('%') => break 'formula_loop,
                 Some('c') => {}
-                Some('p') => return Err(BuildErr::Parse(ParseErr::MisplacedProblem(line_counter))),
+                Some('p') => {
+                    return Err(err::Build::Parse(err::Parse::MisplacedProblem(
+                        line_counter,
+                    )))
+                }
                 _ => {
                     let split_buf = buffer.split_whitespace();
                     for item in split_buf {
@@ -267,7 +255,7 @@ impl Context {
                             _ => {
                                 let the_literal = match self.literal_from_string(item) {
                                     Ok(literal) => literal,
-                                    Err(e) => return Err(BuildErr::Parse(e)),
+                                    Err(e) => return Err(err::Build::Parse(e)),
                                 };
                                 if !clause_buffer.iter().any(|l| *l == the_literal) {
                                     clause_buffer.push(the_literal);

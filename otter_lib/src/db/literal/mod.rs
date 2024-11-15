@@ -9,7 +9,7 @@ use crate::{
         Dispatch,
     },
     structures::literal::Literal,
-    types::gen,
+    types::gen::{self},
 };
 
 /*
@@ -45,7 +45,7 @@ struct ProvenLiterals {
 #[derive(Debug)]
 struct ChosenLiteral {
     choice: Literal,
-    consequences: Vec<(gen::LiteralSource, Literal)>,
+    consequences: Vec<(gen::src::Literal, Literal)>,
 }
 
 impl LiteralDB {
@@ -59,7 +59,7 @@ impl LiteralDB {
 }
 
 impl LiteralDB {
-    pub fn make_choice(&mut self, choice: Literal) {
+    pub fn note_choice(&mut self, choice: Literal) {
         self.choice_stack.push(ChosenLiteral::new(choice));
     }
 
@@ -70,20 +70,20 @@ impl LiteralDB {
     Still, in some cases it's easier to check when recording the literal.
     So, checks are made here.
     */
-    pub fn record_literal(&mut self, literal: Literal, source: gen::LiteralSource) {
+    pub fn record_literal(&mut self, literal: Literal, source: gen::src::Literal) {
         match source {
-            gen::LiteralSource::Choice => {}
-            gen::LiteralSource::Assumption => {
+            gen::src::Literal::Choice => {}
+            gen::src::Literal::Assumption => {
                 let delta = delta::Level::Assumption(literal);
                 self.tx.send(Dispatch::Level(delta));
                 self.proven.record_literal(literal)
             }
-            gen::LiteralSource::Pure => {
+            gen::src::Literal::Pure => {
                 let delta = delta::Level::Pure(literal);
                 self.tx.send(Dispatch::Level(delta));
                 self.proven.record_literal(literal)
             }
-            gen::LiteralSource::BCP(_) => match self.choice_stack.len() {
+            gen::src::Literal::BCP(_) => match self.choice_stack.len() {
                 0 => {
                     let delta = delta::Level::BCP(literal);
                     self.tx.send(Dispatch::Level(delta));
@@ -91,17 +91,17 @@ impl LiteralDB {
                 }
                 _ => self.top_mut().record_consequence(literal, source),
             },
-            gen::LiteralSource::Resolution(_) => {
+            gen::src::Literal::Resolution(_) => {
                 // Resoluion implies deduction via (known) clauses
                 let delta = delta::Level::ResolutionProof(literal);
                 self.tx.send(Dispatch::Level(delta));
                 self.proven.record_literal(literal)
             }
-            gen::LiteralSource::Analysis(_) => match self.choice_stack.len() {
+            gen::src::Literal::Forced(_) => match self.choice_stack.len() {
                 0 => self.proven.record_literal(literal),
                 _ => self.top_mut().record_consequence(literal, source),
             },
-            gen::LiteralSource::Missed(_) => match self.choice_stack.len() {
+            gen::src::Literal::Missed(_) => match self.choice_stack.len() {
                 0 => self.proven.record_literal(literal),
                 _ => self.top_mut().record_consequence(literal, source),
             },
@@ -116,7 +116,7 @@ impl LiteralDB {
         }
     }
 
-    pub fn last_consequences(&self) -> &[(gen::LiteralSource, Literal)] {
+    pub fn last_consequences(&self) -> &[(gen::src::Literal, Literal)] {
         unsafe {
             &self
                 .choice_stack

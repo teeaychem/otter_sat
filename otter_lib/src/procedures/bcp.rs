@@ -2,20 +2,14 @@ use std::borrow::Borrow;
 
 use crate::{
     context::Context,
-    db::{clause::ClauseKind, keys::ClauseKey},
+    db::{clause::ClauseKind, variable::watch_db::WatchElement},
+    misc::log::targets::{self},
     structures::literal::{Literal, LiteralT},
     types::{
-        clause::{WatchElement, WatchStatus},
-        gen,
+        err::{self},
+        gen::{self},
     },
 };
-
-use crate::log::targets::PROPAGATION as LOG_PROPAGATION;
-
-pub enum BCPErr {
-    Conflict(ClauseKey),
-    CorruptWatch,
-}
 
 impl Context {
     /// # Safety
@@ -23,7 +17,7 @@ impl Context {
     /// Mutable access to distinct literals.
     /// Work through two lists, which *from the perspective of the compiler* could contain the same literal.
     /// However, this will never be the case
-    pub unsafe fn bcp<L: Borrow<Literal>>(&mut self, literal: L) -> Result<(), BCPErr> {
+    pub unsafe fn bcp(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::BCP> {
         let literal = literal.borrow();
         let binary_list = &mut *self.variable_db.watch_list(
             literal.var(),
@@ -33,26 +27,26 @@ impl Context {
 
         for element in binary_list {
             let WatchElement::Binary(check, clause_key) = element else {
-                log::error!(target: LOG_PROPAGATION, "Long clause found in binary watch list.");
-                return Err(BCPErr::CorruptWatch);
+                log::error!(target: targets::PROPAGATION, "Long clause found in binary watch list.");
+                return Err(err::BCP::CorruptWatch);
             };
 
             match self.variable_db.value_of(check.var()) {
                 None => match self.q_literal(*check) {
-                    Ok(gen::QStatus::Qd) => {
-                        self.note_literal(check.canonical(), gen::LiteralSource::BCP(*clause_key));
+                    Ok(gen::Queue::Qd) => {
+                        self.note_literal(check.canonical(), gen::src::Literal::BCP(*clause_key));
                     }
                     Err(_key) => {
-                        log::trace!(target: LOG_PROPAGATION, "Queueing consequence of {clause_key} {literal} failed.");
-                        return Err(BCPErr::Conflict(*clause_key));
+                        log::trace!(target: targets::PROPAGATION, "Queueing consequence of {clause_key} {literal} failed.");
+                        return Err(err::BCP::Conflict(*clause_key));
                     }
                 },
                 Some(value) if check.polarity() != value => {
-                    log::trace!(target: LOG_PROPAGATION, "Consequence of {clause_key} and {literal} is contradiction.");
-                    return Err(BCPErr::Conflict(*clause_key));
+                    log::trace!(target: targets::PROPAGATION, "Consequence of {clause_key} and {literal} is contradiction.");
+                    return Err(err::BCP::Conflict(*clause_key));
                 }
                 Some(_) => {
-                    log::trace!(target: LOG_PROPAGATION, "Missed implication of {clause_key} {literal}.");
+                    log::trace!(target: targets::PROPAGATION, "Missed implication of {clause_key} {literal}.");
                     // a missed implication, as this is binary
                 }
             }
@@ -68,8 +62,8 @@ impl Context {
 
         'long_loop: while index < length {
             let WatchElement::Clause(clause_key) = list.get_unchecked(index) else {
-                log::error!(target: LOG_PROPAGATION, "Binary clause found in long watch list.");
-                return Err(BCPErr::CorruptWatch);
+                log::error!(target: targets::PROPAGATION, "Binary clause found in long watch list.");
+                return Err(err::BCP::CorruptWatch);
             };
 
             /*
@@ -86,14 +80,14 @@ impl Context {
             };
 
             match clause.update_watch(literal, &mut self.variable_db) {
-                Ok(WatchStatus::Witness) | Ok(WatchStatus::None) => {
+                Ok(gen::Watch::Witness) | Ok(gen::Watch::None) => {
                     list.swap_remove(index);
                     length -= 1;
                     continue 'long_loop;
                 }
-                Ok(WatchStatus::Conflict) => {
-                    log::error!(target: LOG_PROPAGATION, "Conflict from updating watch during propagation.");
-                    return Err(BCPErr::CorruptWatch);
+                Ok(gen::Watch::Conflict) => {
+                    log::error!(target: targets::PROPAGATION, "Conflict from updating watch during propagation.");
+                    return Err(err::BCP::CorruptWatch);
                 }
                 Err(()) => {
                     let the_watch = *clause.get_unchecked(0);
@@ -101,17 +95,17 @@ impl Context {
                     let watch_value = self.variable_db.value_of(the_watch.var());
                     match watch_value {
                         Some(value) if the_watch.polarity() != value => {
-                            log::trace!(target: LOG_PROPAGATION, "Inspecting consequence of {clause_key} {literal} failed.");
-                            return Err(BCPErr::Conflict(*clause_key));
+                            log::trace!(target: targets::PROPAGATION, "Inspecting consequence of {clause_key} {literal} failed.");
+                            return Err(err::BCP::Conflict(*clause_key));
                         }
                         None => {
-                            let Ok(gen::QStatus::Qd) = self.q_literal(the_watch) else {
-                                log::trace!(target: LOG_PROPAGATION, "Queuing consequence of {clause_key} {literal} failed.");
-                                return Err(BCPErr::Conflict(*clause_key));
+                            let Ok(gen::Queue::Qd) = self.q_literal(the_watch) else {
+                                log::trace!(target: targets::PROPAGATION, "Queuing consequence of {clause_key} {literal} failed.");
+                                return Err(err::BCP::Conflict(*clause_key));
                             };
                             self.note_literal(
                                 the_watch.canonical(),
-                                gen::LiteralSource::BCP(*clause_key),
+                                gen::src::Literal::BCP(*clause_key),
                             );
                         }
                         Some(_) => {}

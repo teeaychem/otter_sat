@@ -7,15 +7,12 @@ impl LiteralT for LiteralStruct {
         !*self
     }
 
-    fn new(variable_id: Variable, polarity: bool) -> Self {
-        Self {
-            v_id: variable_id,
-            polarity,
-        }
+    fn new(variable: Variable, polarity: bool) -> Self {
+        Self { variable, polarity }
     }
 
     fn var(&self) -> Variable {
-        self.v_id
+        self.variable
     }
 
     fn polarity(&self) -> bool {
@@ -36,7 +33,7 @@ impl PartialOrd for LiteralStruct {
 /// Literals are ordered by id and polarity on a tie with false < true.
 impl Ord for LiteralStruct {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        if self.v_id == other.v_id {
+        if self.variable == other.variable {
             if self.polarity == other.polarity {
                 std::cmp::Ordering::Equal
             } else if self.polarity {
@@ -45,14 +42,14 @@ impl Ord for LiteralStruct {
                 std::cmp::Ordering::Less
             }
         } else {
-            self.v_id.cmp(&other.v_id)
+            self.variable.cmp(&other.variable)
         }
     }
 }
 
 impl PartialEq for LiteralStruct {
     fn eq(&self, other: &Self) -> bool {
-        self.v_id == other.v_id && self.polarity == other.polarity
+        self.variable == other.variable && self.polarity == other.polarity
     }
 }
 
@@ -61,8 +58,8 @@ impl Eq for LiteralStruct {}
 impl std::fmt::Display for LiteralStruct {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.polarity {
-            true => write!(f, "{}", self.v_id),
-            false => write!(f, "-{}", self.v_id),
+            true => write!(f, "{}", self.variable),
+            false => write!(f, "-{}", self.variable),
         }
     }
 }
@@ -72,7 +69,7 @@ impl std::ops::Not for LiteralStruct {
 
     fn not(self) -> Self::Output {
         Self {
-            v_id: self.v_id,
+            variable: self.variable,
             polarity: !self.polarity,
         }
     }

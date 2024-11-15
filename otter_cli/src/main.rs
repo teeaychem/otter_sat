@@ -11,7 +11,7 @@ use tikv_jemallocator::Jemalloc;
 static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
 use otter_lib::{
-    context::{builder::BuildErr, Context},
+    context::Context,
     dispatch::{
         report::{self},
         Dispatch,
@@ -76,7 +76,7 @@ fn main() {
         for path in config_io.files {
             match load_dimacs(&mut the_context, path) {
                 Ok(()) => {}
-                Err(BuildErr::ClauseStore(err::ClauseDB::EmptyClause)) => {
+                Err(err::Build::ClauseStore(err::ClauseDB::EmptyClause)) => {
                     println!("s UNSATISFIABLE");
                     std::process::exit(20);
                 }
@@ -103,7 +103,7 @@ fn main() {
                 if config_io.show_core {
                     // let _ = self.display_core(clause_key);
                 }
-                the_context.report_active();
+                the_context.dispatch_active();
             }
             report::Solve::Satisfiable => {
                 if config_io.show_valuation {

@@ -9,16 +9,20 @@ use crate::{
         delta::{self},
         Dispatch,
     },
+    misc::log::targets::{self},
     structures::{
         clause::Clause,
         literal::{Literal, LiteralT},
         variable::Variable,
     },
-    types::gen,
+    types::{
+        err::{self},
+        gen::{self},
+    },
 };
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum ResolutionCell {
+#[derive(Clone, Copy)]
+enum Cell {
     Value(Option<bool>),
     NoneLiteral(Literal),
     ConflictLiteral(Literal),
@@ -26,37 +30,19 @@ enum ResolutionCell {
     Pivot,
 }
 
-#[derive(Debug)]
 pub struct ResolutionBuffer {
     valueless_count: usize,
     clause_length: usize,
     asserts: Option<Literal>,
-    buffer: Vec<ResolutionCell>,
+    buffer: Vec<Cell>,
     used: Vec<bool>,
     tx: Sender<Dispatch>,
     config: BufferConfig,
 }
 
-#[derive(Debug)]
 struct BufferConfig {
     subsumption: bool,
     stopping: StoppingCriteria,
-}
-
-#[derive(Debug)]
-pub enum BufOk {
-    FirstUIP,
-    Exhausted,
-    Proof,
-    Missed(ClauseKey, Literal),
-}
-
-#[derive(Debug)]
-pub enum BufErr {
-    MissingClause,
-    Subsumption,
-    SatisfiedResolution,
-    Transfer,
 }
 
 impl ResolutionBuffer {
@@ -69,17 +55,22 @@ impl ResolutionBuffer {
         tx: Sender<Dispatch>,
         config: &Config,
     ) -> Self {
+        let valuation_copy = variable_db
+            .valuation()
+            .iter()
+            .map(|v| Cell::Value(*v))
+            .collect();
+
         ResolutionBuffer {
             valueless_count: 0,
             clause_length: 0,
             asserts: None,
-            buffer: variable_db
-                .valuation()
-                .iter()
-                .map(|v| ResolutionCell::Value(*v))
-                .collect(),
+
+            buffer: valuation_copy,
+
             used: vec![false; variable_db.count()],
             tx,
+
             config: BufferConfig {
                 subsumption: config.subsumption,
                 stopping: config.stopping_criteria,
@@ -94,7 +85,7 @@ impl ResolutionBuffer {
             .iter()
             .enumerate()
             .filter_map(|(i, v)| match v {
-                ResolutionCell::Value(Some(value)) => Some(Literal::new(i as Variable, *value)),
+                Cell::Value(Some(value)) => Some(Literal::new(i as Variable, *value)),
                 _ => None,
             })
             .collect::<Vec<_>>()
@@ -106,10 +97,9 @@ impl ResolutionBuffer {
         let mut conflict_literal = None;
         for item in &self.buffer {
             match item {
-                ResolutionCell::Strengthened | ResolutionCell::Value(_) | ResolutionCell::Pivot => {
-                }
-                ResolutionCell::ConflictLiteral(literal) => the_clause.push(*literal),
-                ResolutionCell::NoneLiteral(literal) => {
+                Cell::Strengthened | Cell::Value(_) | Cell::Pivot => {}
+                Cell::ConflictLiteral(literal) => the_clause.push(*literal),
+                Cell::NoneLiteral(literal) => {
                     if self.valueless_count == 1 {
                         conflict_literal = Some(*literal)
                     } else {
@@ -124,24 +114,23 @@ impl ResolutionBuffer {
     }
 
     pub fn clear_literal(&mut self, literal: Literal) {
-        self.set(literal.var(), ResolutionCell::Value(None))
+        self.set(literal.var(), Cell::Value(None))
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn resolve_with(
         &mut self,
         conflict: ClauseKey,
         levels: &LiteralDB,
         clause_db: &mut ClauseDB,
         variables: &mut VariableDB,
-    ) -> Result<BufOk, BufErr> {
+    ) -> Result<gen::RBuf, err::RBuf> {
         self.merge_clause(clause_db.get(conflict).expect("missing clause"));
 
         // Maybe the conflit clause was already asserting after the previous choice…
         if let Some(asserted_literal) = self.asserts() {
-            return Ok(BufOk::Missed(conflict, asserted_literal));
+            return Ok(gen::RBuf::Missed(conflict, asserted_literal));
         };
-        self.tx.send(Dispatch::Resolution(delta::Resolution::Start));
+        self.tx.send(Dispatch::Resolution(delta::Resolution::Begin));
 
         let delta = delta::Resolution::Used(conflict);
         self.tx.send(Dispatch::Resolution(delta));
@@ -152,15 +141,15 @@ impl ResolutionBuffer {
         };
 
         'resolution_loop: for (source, literal) in levels.last_consequences().iter().rev() {
-            if let gen::LiteralSource::Analysis(the_key)
-            | gen::LiteralSource::BCP(the_key)
-            | gen::LiteralSource::Resolution(the_key)
-            | gen::LiteralSource::Missed(the_key) = source
+            if let gen::src::Literal::Forced(the_key)
+            | gen::src::Literal::BCP(the_key)
+            | gen::src::Literal::Resolution(the_key)
+            | gen::src::Literal::Missed(the_key) = source
             {
                 let source_clause = match clause_db.get(*the_key) {
                     Err(_) => {
-                        log::error!(target: crate::log::targets::RESOLUTION, "Failed to find resolution clause {the_key:?}");
-                        return Err(BufErr::MissingClause);
+                        log::error!(target: targets::RESOLUTION, "Lost resolution clause {the_key:?}");
+                        return Err(err::RBuf::LostClause);
                     }
                     Ok(clause) => clause,
                 };
@@ -172,35 +161,24 @@ impl ResolutionBuffer {
                 }
 
                 if self.config.subsumption && self.clause_length < source_clause.literals().len() {
-                    /*
-                    TODO: Move
-                    If the resolved clause is binary then subsumption transfers the clause to the store for binary clauses
-                    This is safe to do as:
-                    - After backjumping all the observations at the current level will be forgotten
-                    - The clause does not appear in the observations of any previous stage
-                      + As, if the clause appeared in some previous stage then use of the clause would be a missed implication
-                      + And, missed implications are checked prior to conflicts
-                     */
                     match self.clause_length {
                         0 => {}
                         1 => {
                             let delta = delta::Resolution::Used(*the_key);
                             self.tx.send(Dispatch::Resolution(delta));
-                            self.tx
-                                .send(Dispatch::Resolution(delta::Resolution::Finish));
-                            return Ok(BufOk::Proof);
+                            self.tx.send(Dispatch::Resolution(delta::Resolution::End));
+                            return Ok(gen::RBuf::Proof);
                         }
                         _ => match the_key {
                             ClauseKey::Binary(_) => {
                                 todo!("a formula is found which triggers this…");
                             }
                             ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
-                                self.tx
-                                    .send(Dispatch::Resolution(delta::Resolution::Finish));
+                                self.tx.send(Dispatch::Resolution(delta::Resolution::End));
 
                                 let new_key = clause_db.subsume(*the_key, *literal, variables)?;
 
-                                self.tx.send(Dispatch::Resolution(delta::Resolution::Start));
+                                self.tx.send(Dispatch::Resolution(delta::Resolution::Begin));
                                 self.tx
                                     .send(Dispatch::Resolution(delta::Resolution::Used(new_key)));
                             }
@@ -211,7 +189,6 @@ impl ResolutionBuffer {
                     self.tx.send(Dispatch::Resolution(delta));
                 }
 
-                // bump clause activity
                 if let ClauseKey::Learned(index, _) = the_key {
                     clause_db.bump_activity(*index)
                 };
@@ -219,40 +196,31 @@ impl ResolutionBuffer {
                 if self.valueless_count == 1 {
                     match self.config.stopping {
                         StoppingCriteria::FirstUIP => {
-                            self.tx
-                                .send(Dispatch::Resolution(delta::Resolution::Finish));
-                            return Ok(BufOk::FirstUIP);
+                            self.tx.send(Dispatch::Resolution(delta::Resolution::End));
+                            return Ok(gen::RBuf::FirstUIP);
                         }
                         StoppingCriteria::None => {}
                     };
                 }
             }
         }
-        let delta = delta::Resolution::Finish;
+        let delta = delta::Resolution::End;
         self.tx.send(Dispatch::Resolution(delta));
-        Ok(BufOk::Exhausted)
+        Ok(gen::RBuf::Exhausted)
     }
 
     /// Remove literals which conflict with those at level zero from the clause
     pub fn strengthen_given<'l>(&mut self, literals: impl Iterator<Item = &'l Literal>) {
         for literal in literals {
             match unsafe { *self.buffer.get_unchecked(literal.var() as usize) } {
-                ResolutionCell::NoneLiteral(_) | ResolutionCell::ConflictLiteral(_) => {
+                Cell::NoneLiteral(_) | Cell::ConflictLiteral(_) => {
                     if let Some(length_minus_one) = self.clause_length.checked_sub(1) {
                         self.clause_length = length_minus_one;
                     }
-                    self.set(literal.var(), ResolutionCell::Strengthened)
+                    self.set(literal.var(), Cell::Strengthened)
                 }
                 _ => {}
             }
-        }
-    }
-
-    pub fn asserts(&self) -> Option<Literal> {
-        if self.valueless_count == 1 {
-            self.asserts
-        } else {
-            None
         }
     }
 
@@ -269,18 +237,16 @@ impl ResolutionBuffer {
 
 impl ResolutionBuffer {
     /// Merge a clause into the buffer
-    fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), BufErr> {
+    fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), err::RBuf> {
         for literal in clause.literals() {
             match unsafe { self.buffer.get_unchecked(literal.var() as usize) } {
-                ResolutionCell::ConflictLiteral(_)
-                | ResolutionCell::NoneLiteral(_)
-                | ResolutionCell::Pivot => {}
-                ResolutionCell::Value(maybe) => match maybe {
+                Cell::ConflictLiteral(_) | Cell::NoneLiteral(_) | Cell::Pivot => {}
+                Cell::Value(maybe) => match maybe {
                     None => {
                         unsafe { *self.used.get_unchecked_mut(literal.var() as usize) = true };
                         self.clause_length += 1;
                         self.valueless_count += 1;
-                        self.set(literal.var(), ResolutionCell::NoneLiteral(*literal));
+                        self.set(literal.var(), Cell::NoneLiteral(*literal));
                         if self.asserts.is_none() {
                             self.asserts = Some(*literal);
                         }
@@ -288,50 +254,58 @@ impl ResolutionBuffer {
                     Some(value) if *value != literal.polarity() => {
                         unsafe { *self.used.get_unchecked_mut(literal.var() as usize) = true };
                         self.clause_length += 1;
-                        self.set(literal.var(), ResolutionCell::ConflictLiteral(*literal));
+                        self.set(literal.var(), Cell::ConflictLiteral(*literal));
                     }
                     Some(_) => {
-                        log::error!(target: crate::log::targets::RESOLUTION, "resolution to a satisfied clause");
-                        return Err(BufErr::SatisfiedResolution);
+                        log::error!(target: targets::RESOLUTION, "Satisfied clause");
+                        return Err(err::RBuf::SatisfiedResolution);
                     }
                 },
-                ResolutionCell::Strengthened => {}
+                Cell::Strengthened => {}
             }
         }
         Ok(())
     }
 
-    fn resolve_clause<L: Borrow<Literal>>(
+    fn resolve_clause(
         &mut self,
         clause: &impl Clause,
-        using: L,
-    ) -> Result<(), BufErr> {
+        using: impl Borrow<Literal>,
+    ) -> Result<(), err::RBuf> {
         let using = using.borrow();
         let contents = unsafe { *self.buffer.get_unchecked(using.var() as usize) };
         match contents {
-            ResolutionCell::NoneLiteral(literal) if using == &literal.negate() => {
+            Cell::NoneLiteral(literal) if using == &literal.negate() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
-                self.set(using.var(), ResolutionCell::Pivot);
+                self.set(using.var(), Cell::Pivot);
                 self.valueless_count -= 1;
 
                 Ok(())
             }
-            ResolutionCell::ConflictLiteral(literal) if using == &literal.negate() => {
+            Cell::ConflictLiteral(literal) if using == &literal.negate() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
-                self.set(using.var(), ResolutionCell::Pivot);
+                self.set(using.var(), Cell::Pivot);
 
                 Ok(())
             }
             _ => {
                 // Skip over any clauses which are not involved in the current resolution trail
-                Err(BufErr::MissingClause)
+                Err(err::RBuf::LostClause)
             }
         }
     }
 
-    fn set(&mut self, index: Variable, to: ResolutionCell) {
+    fn set(&mut self, index: Variable, to: Cell) {
         *unsafe { self.buffer.get_unchecked_mut(index as usize) } = to
+    }
+
+    fn asserts(&self) -> Option<Literal> {
+        if self.valueless_count == 1 {
+            self.asserts
+        } else {
+            None
+        }
     }
 }

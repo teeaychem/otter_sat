@@ -6,7 +6,7 @@ pub const VARIABLE_DECAY_FACTOR: config::Activity = 50.0;
 pub const CLAUSE_BUMP: config::Activity = 1.0;
 pub const CLAUSE_DECAY_FACTOR: config::Activity = 20.0;
 
-pub const REDUCTION_INTERVAL: usize = 2; // 5 * 10_usize.pow(2);
+pub const REDUCTION_INTERVAL: usize = 2;
 
 pub const GLUE_STRENGTH: config::GlueStrength = 2;
 pub const LUBY_U: config::LubyConstant = 128;

@@ -5,7 +5,7 @@ A basic struct two allow ordering on both clause activity and glue strength
 It is unlikely this has much positive impact, but here it is…
  */
 
-pub struct ActivityGlue {
+pub(super) struct ActivityGlue {
     pub activity: Activity,
     pub lbd: GlueStrength,
 }

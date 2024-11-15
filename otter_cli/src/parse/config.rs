@@ -22,7 +22,7 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
     };
 
     if let Ok(Some(u)) = args.try_get_one::<config::LubyConstant>("luby") {
-        the_config.luby_constant = *u
+        the_config.luby_u = *u
     };
 
     if let Ok(Some(lean)) = args.try_get_one::<config::PolarityLean>("polarity_lean") {
@@ -40,11 +40,11 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
     };
 
     if let Ok(Some(value)) = args.try_get_one::<bool>("no_restarts") {
-        the_config.restarts_allowed = !*value
+        the_config.restarts_ok = !*value
     };
 
     if let Ok(Some(value)) = args.try_get_one::<bool>("no_reduction") {
-        the_config.reduction_allowed = !*value
+        the_config.reductions_ok = !*value
     };
 
     if let Ok(Some(value)) = args.try_get_one::<bool>("no_subsumption") {
@@ -64,8 +64,8 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
     };
 
     if let Ok(Some(true)) = args.try_get_one::<bool>("elephant") {
-        the_config.restarts_allowed = false;
-        the_config.reduction_allowed = false;
+        the_config.restarts_ok = false;
+        the_config.reductions_ok = false;
     };
 
     the_config

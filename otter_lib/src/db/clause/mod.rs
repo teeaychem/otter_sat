@@ -1,12 +1,13 @@
+mod activity_glue;
 mod stored;
 mod transfer;
 
 use crossbeam::channel::Sender;
-use stored::StoredClause;
 
 use crate::{
     config::{self, Activity, Config, GlueStrength},
     db::{
+        clause::{activity_glue::ActivityGlue, stored::StoredClause},
         keys::{ClauseKey, FormulaIndex},
         variable::VariableDB,
     },
@@ -15,11 +16,11 @@ use crate::{
         report, Dispatch,
     },
     generic::heap::IndexHeap,
-    misc::activity_glue::ActivityGlue,
+    misc::log::targets::{self},
     structures::{clause::Clause, literal::Literal},
     types::{
-        clause::ClauseSource,
         err::{self},
+        gen::{self},
     },
 };
 
@@ -181,7 +182,7 @@ impl ClauseDB {
 impl ClauseDB {
     pub fn insert_clause(
         &mut self,
-        source: ClauseSource,
+        source: gen::src::Clause,
         clause: Vec<Literal>,
         variables: &mut VariableDB,
     ) -> Result<ClauseKey, err::ClauseDB> {
@@ -194,8 +195,10 @@ impl ClauseDB {
                 let delta = {
                     let clone = clause.clone();
                     match source {
-                        ClauseSource::Formula => delta::ClauseDB::BinaryOriginal(key, clone),
-                        ClauseSource::Resolution => delta::ClauseDB::BinaryResolution(key, clone),
+                        gen::src::Clause::Formula => delta::ClauseDB::BinaryOriginal(key, clone),
+                        gen::src::Clause::Resolution => {
+                            delta::ClauseDB::BinaryResolution(key, clone)
+                        }
                     }
                 };
                 self.tx.send(Dispatch::ClauseDB(delta));
@@ -205,7 +208,7 @@ impl ClauseDB {
                 Ok(key)
             }
             _ => match source {
-                ClauseSource::Formula => {
+                gen::src::Clause::Formula => {
                     let the_key = self.new_formula_id()?;
 
                     let delta = delta::ClauseDB::Original(the_key, clause.clone());
@@ -215,8 +218,8 @@ impl ClauseDB {
                         .push(StoredClause::from(the_key, clause, variables));
                     Ok(the_key)
                 }
-                ClauseSource::Resolution => {
-                    log::trace!(target: crate::log::targets::CLAUSE_DB, "Learning clause {}", clause.as_string());
+                gen::src::Clause::Resolution => {
+                    log::trace!(target: targets::CLAUSE_DB, "Learning clause {}", clause.as_string());
                     self.counts.learned += 1;
 
                     let the_key = match self.empty_keys.len() {
@@ -270,11 +273,11 @@ impl ClauseDB {
                     self.remove_from_learned(index)?;
                 }
             } else {
-                log::warn!(target: crate::log::targets::REDUCTION, "Reduction called but there were no candidates");
+                log::warn!(target: targets::REDUCTION, "Reduction called but there were no candidates");
             }
         }
 
-        log::debug!(target: crate::log::targets::REDUCTION, "Learnt clauses reduced to: {}", self.counts.learned);
+        log::debug!(target: targets::REDUCTION, "Learnt clauses reduced to: {}", self.counts.learned);
         Ok(())
     }
 
@@ -294,7 +297,7 @@ impl ClauseDB {
      */
     fn remove_from_learned(&mut self, index: usize) -> Result<(), err::ClauseDB> {
         if unsafe { self.learned.get_unchecked(index) }.is_none() {
-            log::error!(target: crate::log::targets::CLAUSE_DB, "attempt to remove something that is not there");
+            log::error!(target: targets::CLAUSE_DB, "attempt to remove something that is not there");
             Err(err::ClauseDB::MissingLearned)
         } else {
             // assert!(matches!(the_clause.key(), ClauseKey::LearnedLong(_, _)));
@@ -355,7 +358,7 @@ impl ClauseDB {
         )
     }
 
-    pub fn report_active(&self) {
+    pub fn dispatch_active(&self) {
         for clause in &self.binary {
             let report = report::ClauseDB::Active(clause.key(), clause.to_vec());
             self.tx.send(Dispatch::ClauseDBReport(report));
@@ -373,30 +376,36 @@ impl ClauseDB {
     }
 }
 
-use crate::assistants::resolution_buffer::BufErr;
-
 impl ClauseDB {
+    /*
+    If the resolved clause is binary then subsumption transfers the clause to the store for binary clauses
+    This is safe to do as:
+    - After backjumping all the observations at the current level will be forgotten
+    - The clause does not appear in the observations of any previous stage
+      + As, if the clause appeared in some previous stage then use of the clause would be a missed implication
+      + And, missed implications are checked prior to conflicts
+     */
     pub fn subsume(
         &mut self,
         key: ClauseKey,
         literal: Literal,
         variable_db: &mut VariableDB,
-    ) -> Result<ClauseKey, BufErr> {
+    ) -> Result<ClauseKey, err::RBuf> {
         let the_clause = self.get_carefully_mut(key).unwrap();
         match the_clause.len() {
             0..=2 => panic!("impossible"),
             3 => {
                 let Ok(_) = the_clause.subsume(literal, variable_db, false) else {
-                    return Err(BufErr::Subsumption);
+                    return Err(err::RBuf::Subsumption);
                 };
                 let Ok(new_key) = self.transfer_to_binary(key, variable_db) else {
-                    return Err(BufErr::Transfer);
+                    return Err(err::RBuf::Transfer);
                 };
                 Ok(new_key)
             }
             _ => {
                 let Ok(_) = the_clause.subsume(literal, variable_db, true) else {
-                    return Err(BufErr::Subsumption);
+                    return Err(err::RBuf::Subsumption);
                 };
                 // TODO: Dispatches for subsumption…
                 // let delta = delta::Resolution::Subsumed(key, literal);

@@ -1,11 +1,15 @@
 use crate::{
     context::Context,
+    misc::log::targets::{self},
     structures::{
         clause::Clause,
         literal::{Literal, LiteralT},
         variable::Variable,
     },
-    types::{err, gen},
+    types::{
+        err::{self},
+        gen::{self},
+    },
 };
 
 use std::collections::BTreeSet;
@@ -31,25 +35,21 @@ pub fn pure_choices<'l>(
     (pure_false, pure_true)
 }
 
-pub enum PreFailure {
-    PureFailure,
-}
-
 impl Context {
-    pub fn preprocess(&mut self) -> Result<(), PreFailure> {
+    pub fn preprocess(&mut self) -> Result<(), err::Preprocessing> {
         if self.config.preprocessing {
             match self.set_pure() {
                 Ok(()) => {}
                 Err(_) => {
-                    log::error!(target: crate::log::targets::PREPROCESSING, "Failed to set pure literals");
-                    return Err(PreFailure::PureFailure);
+                    log::error!(target: targets::PREPROCESSING, "Failed to set pure literals");
+                    return Err(err::Preprocessing::Pure);
                 }
             };
         }
         Ok(())
     }
 
-    pub fn set_pure(&mut self) -> Result<(), err::Context> {
+    pub fn set_pure(&mut self) -> Result<(), err::Queue> {
         let (f, t) = crate::procedures::preprocessing::pure_choices(
             self.clause_db.all_clauses().map(|sc| sc.literals()),
         );
@@ -57,8 +57,8 @@ impl Context {
         for v_id in f.into_iter().chain(t) {
             let the_literal = Literal::new(v_id, false);
             match self.q_literal(the_literal) {
-                Ok(gen::QStatus::Qd) => {
-                    self.note_literal(the_literal, gen::LiteralSource::Pure);
+                Ok(gen::Queue::Qd) => {
+                    self.note_literal(the_literal, gen::src::Literal::Pure);
                 }
                 Err(e) => return Err(e),
             }

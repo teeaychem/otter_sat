@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crossbeam::channel::Receiver;
 
-use crate::{dispatch::Dispatch, frat};
+use crate::dispatch::{frat, Dispatch};
 
 /// Passes dispatches on some channel to a writer for the given FRAT path until the channel closes.
 pub fn frat_receiver(rx: Receiver<Dispatch>, frat_path: PathBuf) {

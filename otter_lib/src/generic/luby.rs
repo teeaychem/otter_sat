@@ -2,7 +2,7 @@
 // https://gitlab.com/chaotic-evil/luby
 // https://doc.rust-lang.org/rust-by-example/trait/iter.html
 
-pub type LubyType = u32;
+pub type LubyType = usize;
 
 pub struct Luby {
     curr: LubyType,

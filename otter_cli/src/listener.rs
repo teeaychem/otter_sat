@@ -7,10 +7,10 @@ use crate::{config_io::ConfigIO, window::ContextWindow};
 use otter_lib::{
     config::Config,
     dispatch::{
+        frat::{self},
         stat::{self},
         Dispatch,
     },
-    frat,
 };
 
 /// If given a path the writer transcribes dispatches to the path as an FRAT proof.

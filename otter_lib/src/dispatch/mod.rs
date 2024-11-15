@@ -1,5 +1,6 @@
-use crate::{db::keys::ClauseKey, structures::literal::Literal};
+use crate::{context::Context, db::keys::ClauseKey, structures::literal::Literal};
 
+pub mod frat;
 pub mod receivers;
 pub mod transmitters;
 
@@ -40,7 +41,6 @@ pub mod stat {
 }
 
 pub mod report {
-
     use super::*;
 
     #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -93,8 +93,8 @@ pub mod delta {
     }
 
     pub enum Resolution {
-        Start,
-        Finish,
+        Begin,
+        End,
         Used(ClauseKey),
         Subsumed(ClauseKey, Literal),
     }
@@ -134,6 +134,17 @@ impl std::fmt::Display for delta::Parser {
             Self::Expected(v, c) => write!(f, "Expected:     {v} variables and {c} clauses"),
             Self::Complete(v, c) => write!(f, "Parse result: {v} variables and {c} clauses"),
             Self::ContextClauses(c) => write!(f, "{c} clauses are in the context"),
+        }
+    }
+}
+
+impl Context {
+    pub fn dispatch_active(&self) {
+        self.clause_db.dispatch_active();
+
+        for literal in self.literal_db.proven_literals() {
+            let report = report::VariableDB::Active(*literal);
+            self.tx.send(Dispatch::VariableDBReport(report));
         }
     }
 }

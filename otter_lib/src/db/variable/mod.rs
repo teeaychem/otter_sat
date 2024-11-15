@@ -1,17 +1,19 @@
-mod internal;
-mod watch_db;
+mod activity;
+mod valuation;
+pub mod watch_db;
 
 use crossbeam::channel::Sender;
-use watch_db::WatchDB;
 
 use crate::{
-    config::{Activity, Config},
+    config::Activity,
     db::keys::ChoiceIndex,
+    db::variable::watch_db::WatchDB,
     dispatch::{
         delta::{self},
         Dispatch,
     },
     generic::heap::IndexHeap,
+    misc::log::targets::{self},
     structures::variable::Variable,
     types::gen::{self},
 };
@@ -92,14 +94,6 @@ impl VariableDB {
 }
 
 impl VariableDB {
-    pub fn value_of(&self, v_idx: Variable) -> Option<bool> {
-        unsafe { *self.valuation.get_unchecked(v_idx as usize) }
-    }
-
-    pub fn previous_value_of(&self, v_idx: Variable) -> bool {
-        unsafe { *self.previous_valuation.get_unchecked(v_idx as usize) }
-    }
-
     pub fn choice_index_of(&self, v_idx: Variable) -> Option<ChoiceIndex> {
         unsafe { *self.choice_indicies.get_unchecked(v_idx as usize) }
     }
@@ -122,29 +116,8 @@ impl VariableDB {
     }
 
     pub fn drop_value(&mut self, index: Variable) {
-        log::trace!(target: crate::log::targets::VALUATION, "Cleared: {index}");
+        log::trace!(target: targets::VALUATION, "Cleared: {index}");
         self.clear_value(index);
         self.activity_heap.activate(index as usize)
-    }
-}
-
-impl VariableDB {
-    #[allow(non_snake_case)]
-    /// Bumps the activities of each variable in 'variables'
-    /// If given a hint to the max activity the rescore check is performed once on the hint
-    pub fn apply_VSIDS<V: Iterator<Item = Variable>>(&mut self, variables: V, config: &Config) {
-        for variable in variables {
-            if self.activity_of(variable as usize) + config.activity_conflict > config.activity_max
-            {
-                self.rescore_activity()
-            }
-            self.bump_activity(variable as usize);
-        }
-
-        self.exponent_activity(config);
-    }
-
-    pub fn heap_pop_most_active(&mut self) -> Option<Variable> {
-        self.activity_heap.pop_max().map(|idx| idx as Variable)
     }
 }

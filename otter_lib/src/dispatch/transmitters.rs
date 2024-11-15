@@ -1,20 +1,23 @@
-use crate::{context::Context, dispatch::Dispatch, types::gen::SolveStatus};
+use crate::{context::Context, dispatch::Dispatch, types::gen::Solve};
 
-use super::{comment, report};
+use super::{
+    comment::{self},
+    report::{self},
+};
 
 impl Context {
     pub fn print_status(&self) {
         match self.status {
-            SolveStatus::FullValuation => {
+            Solve::FullValuation => {
                 let _ = self
                     .tx
                     .send(Dispatch::SolveReport(report::Solve::Satisfiable));
             }
-            SolveStatus::NoSolution => {
+            Solve::NoSolution => {
                 let report = report::Solve::Unsatisfiable;
                 let _ = self.tx.send(Dispatch::SolveReport(report));
             }
-            SolveStatus::NoClauses => {
+            Solve::NoClauses => {
                 self.tx
                     .send(Dispatch::SolveComment(comment::Solve::NoClauses));
             }
