@@ -9,4 +9,5 @@ pub mod targets {
     pub const RESOLUTION: &str = "resolution";
     pub const SUBSUMPTION: &str = "subsumption";
     pub const TRANSFER: &str = "transfer";
+    pub const QUEUE: &str = "queue";
 }

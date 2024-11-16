@@ -170,7 +170,7 @@ impl Context {
         //
 
         let mut buffer = String::with_capacity(1024);
-        let mut clause_buffer: Vec<Literal> = Vec::new();
+        let mut clause_buffer: Vec<Literal> = Vec::default();
 
         let mut line_counter = 0;
         let mut clause_counter = 0;
@@ -230,7 +230,6 @@ impl Context {
                 Ok(_) => line_counter += 1,
                 Err(_) => return Err(err::Build::Parse(err::Parse::Line(line_counter))),
             }
-
             match buffer.chars().next() {
                 Some('%') => break 'formula_loop,
                 Some('c') => {}

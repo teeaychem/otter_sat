@@ -79,13 +79,14 @@ impl LiteralDB {
                 self.proven.record_literal(literal)
             }
             gen::src::Literal::Pure => {
+                println!("PURE {literal}");
                 let delta = delta::Level::Pure(literal);
                 self.tx.send(Dispatch::Level(delta));
                 self.proven.record_literal(literal)
             }
             gen::src::Literal::BCP(_) => match self.choice_stack.len() {
                 0 => {
-                    let delta = delta::Level::BCP(literal);
+                    let delta = delta::Level::Proof(literal);
                     self.tx.send(Dispatch::Level(delta));
                     self.proven.record_literal(literal)
                 }
@@ -97,12 +98,21 @@ impl LiteralDB {
                 self.tx.send(Dispatch::Level(delta));
                 self.proven.record_literal(literal)
             }
-            gen::src::Literal::Forced(_) => match self.choice_stack.len() {
-                0 => self.proven.record_literal(literal),
+            gen::src::Literal::Forced(key) => match self.choice_stack.len() {
+                0 => {
+                    let delta = delta::Level::Forced(key, literal);
+                    self.tx.send(Dispatch::Level(delta));
+                    self.proven.record_literal(literal)
+                }
                 _ => self.top_mut().record_consequence(literal, source),
             },
-            gen::src::Literal::Missed(_) => match self.choice_stack.len() {
-                0 => self.proven.record_literal(literal),
+            gen::src::Literal::Missed(key) => match self.choice_stack.len() {
+                0 => {
+                    // TODO: Make unique o generalise forcing
+                    let delta = delta::Level::Forced(key, literal);
+                    self.tx.send(Dispatch::Level(delta));
+                    self.proven.record_literal(literal)
+                }
                 _ => self.top_mut().record_consequence(literal, source),
             },
         }

@@ -52,7 +52,6 @@ impl Context {
 
                     self.note_literal(literal, gen::src::Literal::Resolution(key));
                     self.q_literal(literal)?;
-                    // self.note_literal(literal, gen::src::Literal::BCP(key));
                     continue 'solve_loop;
                 }
                 gen::Expansion::AssertingClause(key, literal) => {
@@ -80,6 +79,7 @@ impl Context {
                 }
             }
         }
+        self.tx.send(Dispatch::Finish);
         Ok(self.report())
     }
 
@@ -95,7 +95,7 @@ impl Context {
                     if !self.literal_db.choice_made() {
                         self.status = gen::Solve::NoSolution;
 
-                        let delta = delta::Variable::Falsum(literal);
+                        let delta = delta::Variable::Unsatisfiable(key);
                         self.tx.send(Dispatch::VariableDB(delta));
 
                         return Ok(gen::Expansion::Conflict);
