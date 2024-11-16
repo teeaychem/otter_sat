@@ -1,10 +1,10 @@
 mod details;
 
-use crate::structures::variable::Variable;
+use crate::{db::variable::VariableDB, structures::variable::Variable};
 
 pub type Literal = LiteralStruct;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Hash)]
 pub struct LiteralStruct {
     variable: Variable,
     polarity: bool,
@@ -20,4 +20,6 @@ pub trait LiteralT {
     fn polarity(&self) -> bool;
 
     fn canonical(&self) -> Literal;
+
+    fn external_representation(&self, variable_db: &VariableDB) -> String;
 }

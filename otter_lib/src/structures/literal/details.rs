@@ -1,4 +1,4 @@
-use crate::structures::variable::Variable;
+use crate::{db::variable::VariableDB, structures::variable::Variable};
 
 use super::{LiteralStruct, LiteralT};
 
@@ -21,6 +21,15 @@ impl LiteralT for LiteralStruct {
 
     fn canonical(&self) -> super::Literal {
         *self
+    }
+
+    fn external_representation(&self, variable_db: &VariableDB) -> String {
+        let mut the_string = String::new();
+        if !self.polarity {
+            the_string.push('-');
+        }
+        the_string.push_str(variable_db.external_representation(self.variable).as_str());
+        the_string
     }
 }
 

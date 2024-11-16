@@ -13,6 +13,6 @@ mod generic;
 
 pub mod dispatch;
 
-mod db;
+pub mod db;
 mod misc;
 mod transient;

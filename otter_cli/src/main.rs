@@ -1,6 +1,5 @@
 // #![allow(unused_imports)]
 
-use misc::load_dimacs;
 #[cfg(not(target_env = "msvc"))]
 #[cfg(feature = "jemalloc")]
 use tikv_jemallocator::Jemalloc;
@@ -16,19 +15,25 @@ use otter_lib::{
         report::{self},
         Dispatch,
     },
+    structures::clause::Clause,
     types::err::{self},
 };
 
 use crossbeam::channel::unbounded;
-use std::thread;
+use std::{
+    sync::{Arc, Mutex},
+    thread,
+};
 
 mod config_io;
-mod listener;
 mod misc;
 mod parse;
+mod records;
 mod window;
 
 use config_io::ConfigIO;
+
+use crate::{misc::load_dimacs, records::core::CoreDB};
 
 fn main() {
     #[cfg(feature = "log")]
@@ -56,23 +61,23 @@ fn main() {
         }
     }
 
+    let core_db_ptr = match config_io.show_core {
+        true => Some(Arc::new(Mutex::new(CoreDB::default()))),
+        false => None,
+    };
+
     let (tx, rx) = unbounded::<Dispatch>();
 
     let listener_handle = {
         let config = config.clone();
         let config_io = config_io.clone();
-        thread::spawn(|| listener::general_receiver(rx, config, config_io))
+        let core_db_ptr_clone = core_db_ptr.clone();
+        thread::spawn(|| records::general_recorder(rx, config, config_io, core_db_ptr_clone))
     };
 
-    /*
-    The context is in a block as:
-    - When the block closes the transmitter for the reciever is dropped
-    - Unify different ways to get sat/unsat
-    At least for now…
-     */
+    // As the context holds a transmitter it'll need to be dropped explicitly
+    let mut the_context = Context::from_config(config, tx);
     let report = 'report: {
-        let mut the_context = Context::from_config(config, tx);
-
         for path in config_io.files {
             match load_dimacs(&mut the_context, path) {
                 Ok(()) => {}
@@ -119,16 +124,36 @@ fn main() {
         report::Solve::Satisfiable => {
             if let Some(path) = config_io.frat_path {
                 let _ = std::fs::remove_file(path);
+                let _ = listener_handle.join();
             }
+            drop(the_context);
+            println!("s SATISFIABLE");
             std::process::exit(10)
         }
         report::Solve::Unsatisfiable => {
             if config_io.frat_path.is_some() {
                 println!("c Finalising FRAT proof…");
-                let _ = listener_handle.join();
             }
+
+            let _ = listener_handle.join();
+
+            if config_io.show_core {
+                let the_core_db = core_db_ptr.expect("core_db should be present…");
+                let the_core_db = the_core_db.lock().unwrap();
+                let core_keys = the_core_db.core_clauses().unwrap();
+                for core_clause in core_keys {
+                    println!("{}", core_clause.as_dimacs(&the_context.variable_db, true));
+                }
+            }
+
+            drop(the_context);
+            println!("s UNSATISFIABLE");
             std::process::exit(20)
         }
-        report::Solve::Unknown => std::process::exit(30),
+        report::Solve::Unknown => {
+            drop(the_context);
+            println!("s UNKNOWN");
+            std::process::exit(30)
+        }
     };
 }

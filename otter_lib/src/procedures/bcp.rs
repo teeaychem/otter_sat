@@ -3,6 +3,10 @@ use std::borrow::Borrow;
 use crate::{
     context::Context,
     db::{clause::ClauseKind, variable::watch_db::WatchElement},
+    dispatch::{
+        delta::{self},
+        Dispatch,
+    },
     misc::log::targets::{self},
     structures::literal::{Literal, LiteralT},
     types::{
@@ -34,15 +38,18 @@ impl Context {
             match self.variable_db.value_of(check.var()) {
                 None => match self.q_literal(*check) {
                     Ok(gen::Queue::Qd) => {
+                        let delta = delta::BCP::Instance(*literal, *clause_key, *check);
+                        self.tx.send(Dispatch::BCP(delta));
                         self.note_literal(check.canonical(), gen::src::Literal::BCP(*clause_key));
                     }
                     Err(_key) => {
-                        log::trace!(target: targets::PROPAGATION, "Queueing consequence of {clause_key} {literal} failed.");
                         return Err(err::BCP::Conflict(*clause_key));
                     }
                 },
                 Some(value) if check.polarity() != value => {
                     log::trace!(target: targets::PROPAGATION, "Consequence of {clause_key} and {literal} is contradiction.");
+                    let delta = delta::BCP::Conflict(*literal, *clause_key);
+                    self.tx.send(Dispatch::BCP(delta));
                     return Err(err::BCP::Conflict(*clause_key));
                 }
                 Some(_) => {
@@ -95,14 +102,16 @@ impl Context {
                     let watch_value = self.variable_db.value_of(the_watch.var());
                     match watch_value {
                         Some(value) if the_watch.polarity() != value => {
-                            log::trace!(target: targets::PROPAGATION, "Inspecting consequence of {clause_key} {literal} failed.");
+                            let delta = delta::BCP::Conflict(*literal, *clause_key);
+                            self.tx.send(Dispatch::BCP(delta));
                             return Err(err::BCP::Conflict(*clause_key));
                         }
                         None => {
                             let Ok(gen::Queue::Qd) = self.q_literal(the_watch) else {
-                                log::trace!(target: targets::PROPAGATION, "Queuing consequence of {clause_key} {literal} failed.");
                                 return Err(err::BCP::Conflict(*clause_key));
                             };
+                            let delta = delta::BCP::Instance(*literal, *clause_key, the_watch);
+                            self.tx.send(Dispatch::BCP(delta));
                             self.note_literal(
                                 the_watch.canonical(),
                                 gen::src::Literal::BCP(*clause_key),

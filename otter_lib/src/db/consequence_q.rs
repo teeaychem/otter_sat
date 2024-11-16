@@ -3,6 +3,7 @@ use std::borrow::Borrow;
 use crate::{
     context::Context,
     db::keys::ChoiceIndex,
+    misc::log::targets::{self},
     structures::literal::{Literal, LiteralT},
     types::{
         err::{self},
@@ -27,6 +28,7 @@ impl Context {
             literal.borrow().polarity(),
             Some(self.literal_db.choice_count()),
         ) else {
+            log::trace!(target: targets::QUEUE, "Queueing {} failed.", literal.borrow());
             return Err(err::Queue::Conflict);
         };
 

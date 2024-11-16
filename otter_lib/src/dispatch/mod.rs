@@ -4,6 +4,7 @@ pub mod frat;
 pub mod receivers;
 pub mod transmitters;
 
+#[derive(Clone)]
 pub enum Dispatch {
     // δ
     ClauseDB(delta::ClauseDB),
@@ -11,11 +12,13 @@ pub enum Dispatch {
     Parser(delta::Parser),
     Resolution(delta::Resolution),
     VariableDB(delta::Variable),
+    BCP(delta::BCP),
     // misc
     SolveComment(comment::Solve),
     SolveReport(report::Solve),
     ClauseDBReport(report::ClauseDB),
     VariableDBReport(report::VariableDB),
+    Finish,
     // stats
     Stats(stat::Count),
 }
@@ -34,6 +37,7 @@ impl std::fmt::Display for comment::Solve {
 pub mod stat {
     use std::time::Duration;
 
+    #[derive(Clone)]
     pub enum Count {
         ICD(usize, usize, usize),
         Time(Duration),
@@ -64,11 +68,19 @@ pub mod report {
 pub mod delta {
     use super::*;
 
-    pub enum Variable {
-        Internalised(String, u32),
-        Falsum(Literal),
+    #[derive(Clone)]
+    pub enum BCP {
+        Instance(Literal, ClauseKey, Literal), // Literal (left) + ClauseKey -> Literal (right)
+        Conflict(Literal, ClauseKey),          // Literal + ClauseKey -> falsum
     }
 
+    #[derive(Clone)]
+    pub enum Variable {
+        Internalised(String, u32),
+        Unsatisfiable(ClauseKey),
+    }
+
+    #[derive(Clone)]
     pub enum ClauseBuider {
         Start,
         Index(u32),
@@ -76,6 +88,7 @@ pub mod delta {
         End,
     }
 
+    #[derive(Clone)]
     pub enum ClauseDB {
         TransferBinary(ClauseKey, ClauseKey, Vec<Literal>),
         Deletion(ClauseKey, Vec<Literal>),
@@ -85,6 +98,7 @@ pub mod delta {
         Learned(ClauseKey, Vec<Literal>),
     }
 
+    #[derive(Clone)]
     pub enum Parser {
         Load(String),
         Expected(usize, usize),
@@ -92,6 +106,7 @@ pub mod delta {
         ContextClauses(usize),
     }
 
+    #[derive(Clone)]
     pub enum Resolution {
         Begin,
         End,
@@ -99,16 +114,19 @@ pub mod delta {
         Subsumed(ClauseKey, Literal),
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     pub enum Level {
         Assumption(Literal),
         ResolutionProof(Literal),
-        BCP(Literal),
+        Proof(Literal),
+        Forced(ClauseKey, Literal),
         Pure(Literal),
     }
 }
 
 pub mod comment {
+
+    #[derive(Clone)]
     pub enum Solve {
         AllTautological,
         FoundEmptyClause,
