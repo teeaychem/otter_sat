@@ -26,7 +26,9 @@ pub fn general_recorder(
     the_graph_ptr: Option<Arc<Mutex<records::core::CoreDB>>>,
 ) -> Result<(), ()> {
     let mut window = ContextWindow::default();
-    window.draw_window(&config);
+    if config_io.show_stats {
+        window.draw_window(&config);
+    }
 
     let mut windower = records::window::window_writer(&mut window);
     let mut frat_writer = records::frat::build_frat_writer(config_io.frat_path.clone());
@@ -51,8 +53,9 @@ pub fn general_recorder(
             | Dispatch::Level(_) => {}
             Dispatch::Finish => break,
         }
-
-        windower(&dispatch);
+        if config_io.show_stats {
+            windower(&dispatch);
+        }
         frat_writer(&dispatch);
         grapher(&dispatch);
     }

@@ -5,6 +5,7 @@ A basic struct two allow ordering on both clause activity and glue strength
 It is unlikely this has much positive impact, but here it is…
  */
 
+#[derive(Debug)]
 pub(super) struct ActivityGlue {
     pub activity: Activity,
     pub lbd: GlueStrength,
@@ -13,7 +14,7 @@ pub(super) struct ActivityGlue {
 impl Default for ActivityGlue {
     fn default() -> Self {
         ActivityGlue {
-            activity: 0.0,
+            activity: 1.0,
             lbd: 0,
         }
     }

@@ -6,6 +6,13 @@ members = [
    "otter_tests",
 ]
 
+[profile.log]
+codegen-units = 1
+debug = true
+inherits = "dev"
+lto = true
+
+
 [profile.profiling]
 codegen-units = 1
 debug = true

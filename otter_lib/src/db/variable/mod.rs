@@ -79,7 +79,8 @@ impl VariableDB {
         self.internal_map.insert(name.to_string(), id);
         self.external_map.push(name.to_string());
 
-        self.activity_heap.add(id as usize, Activity::default());
+        self.activity_heap.add(id as usize, 1.0);
+        // self.activity_heap.activate(id as usize);
 
         self.watch_dbs.push(WatchDB::new());
         self.valuation.push(None);
@@ -118,6 +119,6 @@ impl VariableDB {
     pub fn drop_value(&mut self, index: Variable) {
         log::trace!(target: targets::VALUATION, "Cleared: {index}");
         self.clear_value(index);
-        self.activity_heap.activate(index as usize)
+        self.activity_heap.activate(index as usize);
     }
 }
