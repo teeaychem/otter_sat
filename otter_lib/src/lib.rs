@@ -1,4 +1,5 @@
 #![allow(unused_must_use)]
+#![allow(clippy::single_match)]
 // #![allow(unused_imports)]
 
 pub mod builder;

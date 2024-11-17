@@ -1,3 +1,5 @@
+use std::hash::{Hash, Hasher};
+
 use crate::{db::variable::VariableDB, structures::variable::Variable};
 
 use super::{LiteralStruct, LiteralT};
@@ -59,6 +61,13 @@ impl Ord for LiteralStruct {
 impl PartialEq for LiteralStruct {
     fn eq(&self, other: &Self) -> bool {
         self.variable == other.variable && self.polarity == other.polarity
+    }
+}
+
+impl Hash for LiteralStruct {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.variable.hash(state);
+        self.polarity.hash(state);
     }
 }
 

@@ -4,7 +4,7 @@ use crate::{db::variable::VariableDB, structures::variable::Variable};
 
 pub type Literal = LiteralStruct;
 
-#[derive(Clone, Copy, Debug, Hash)]
+#[derive(Clone, Copy, Debug)]
 pub struct LiteralStruct {
     variable: Variable,
     polarity: bool,

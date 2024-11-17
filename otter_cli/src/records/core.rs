@@ -125,6 +125,8 @@ impl CoreDB {
   This, while also allowing for the core database to be optional within the context of whatever calls this.
   Simplest, then, seems to be passing in the core database as it would be found in the context…
 */
+#[allow(clippy::single_match)]
+#[allow(clippy::collapsible_match)]
 pub fn core_db_builder<'g>(
     core_db_ptr: &'g Option<Arc<Mutex<CoreDB>>>,
 ) -> Box<dyn FnMut(&Dispatch) + 'g> {

@@ -110,6 +110,7 @@ impl Context {
                             let Ok(gen::Queue::Qd) = self.q_literal(the_watch) else {
                                 return Err(err::BCP::Conflict(*clause_key));
                             };
+
                             let delta = delta::BCP::Instance(*literal, *clause_key, the_watch);
                             self.tx.send(Dispatch::BCP(delta));
                             self.note_literal(

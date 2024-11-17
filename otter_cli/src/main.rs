@@ -37,10 +37,7 @@ use crate::{misc::load_dimacs, records::core::CoreDB};
 
 fn main() {
     #[cfg(feature = "log")]
-    match log4rs::init_file("config/log4rs.yaml", Default::default()) {
-        Ok(()) => log::trace!("log find loaded"),
-        Err(e) => log::error!("{e:?}"),
-    }
+    env_logger::init();
 
     let matches = parse::cli::cli().get_matches();
 

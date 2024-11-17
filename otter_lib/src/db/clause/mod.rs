@@ -233,16 +233,19 @@ impl ClauseDB {
                     let the_clause = StoredClause::from(the_key, clause, variables);
 
                     let value = ActivityGlue {
-                        activity: Activity::default(),
+                        activity: 1.0,
                         lbd: the_clause.lbd(variables),
                     };
 
-                    self.activity_heap.add(the_key.index(), value);
                     match the_key {
                         ClauseKey::Learned(_, 0) => {
+                            self.activity_heap.add(the_key.index(), value);
+                            self.activity_heap.activate(the_key.index());
                             self.learned.push(Some(the_clause));
                         }
                         ClauseKey::Learned(_, _) => unsafe {
+                            self.activity_heap.revalue(the_key.index(), value);
+                            self.activity_heap.activate(the_key.index());
                             *self.learned.get_unchecked_mut(the_key.index()) = Some(the_clause);
                         },
                         _ => panic!("X"),
@@ -261,15 +264,21 @@ impl ClauseDB {
     // TODO: figure some improvement…
     // For example, before dropping a clause the lbd could be recalculated…
     pub fn reduce(&mut self) -> Result<(), err::ClauseDB> {
-        let limit = self.learned.len() as usize / 2;
+        let count = self.learned.len();
+        let limit = count / 2;
+
+        // log::debug!(target: targets::REDUCTION, "Learnt A: {count}");
+        // log::debug!(target: targets::REDUCTION, "Learnt B: {}", self.counts.learned);
+        // log::debug!(target: targets::REDUCTION, "Learnt C: {}", self.learned.len() - self.empty_keys.len());
+        // log::debug!(target: targets::REDUCTION, "Learnt D: {}", self.activity_heap.limit);
 
         'reduction_loop: for _ in 0..limit {
             if let Some(index) = self.activity_heap.peek_max() {
                 let value = self.activity_heap.value_at(index);
+                log::debug!(target: targets::REDUCTION, "Took: {:?}", value);
                 if value.lbd <= self.glue_strength {
                     break 'reduction_loop;
                 } else {
-                    self.activity_heap.remove(index);
                     self.remove_from_learned(index)?;
                 }
             } else {
@@ -277,19 +286,9 @@ impl ClauseDB {
             }
         }
 
-        log::debug!(target: targets::REDUCTION, "Learnt clauses reduced to: {}", self.counts.learned);
+        log::debug!(target: targets::REDUCTION, "Learnt clauses reduced from {count} to: {}", self.counts.learned);
         Ok(())
     }
-
-    // pub fn source(&self, key: ClauseKey) -> &[ClauseKey] {
-    //     match key {
-    //         ClauseKey::Formula(_) => &[],
-    //         ClauseKey::Binary(index) => &self.binary_graph[index as usize],
-    //         ClauseKey::Learned(index, token) => {
-    //             &self.resolution_graph[index as usize][token as usize]
-    //         }
-    //     }
-    // }
 
     /*
     Removing from learned checks to ensure removal is ok
@@ -311,6 +310,7 @@ impl ClauseDB {
 
             self.activity_heap.remove(index);
             self.empty_keys.push(the_clause.key());
+            self.activity_heap.remove(index);
             self.counts.learned -= 1;
             Ok(())
         }
@@ -333,16 +333,13 @@ impl ClauseDB {
             self.activity_increment *= factor
         }
 
-        self.activity_heap
-            .apply_to_index(index as usize, bump_activity);
+        let index = index as usize;
+        self.activity_heap.apply_to_index(index, bump_activity);
+        self.activity_heap.heapify_if_active(index);
 
         let factor = 1.0 / (1.0 - self.activity_decay);
         self.activity_increment *= factor
     }
-
-    // pub fn formula_clauses(&self) -> &[impl Clause] {
-    //     &self.formula
-    // }
 
     pub fn clause_count(&self) -> usize {
         (self.counts.formula + self.counts.learned + self.counts.binary) as usize
