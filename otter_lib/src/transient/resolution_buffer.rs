@@ -6,7 +6,7 @@ use crate::{
     config::{Config, StoppingCriteria},
     db::{clause::ClauseDB, keys::ClauseKey, literal::LiteralDB, variable::VariableDB},
     dispatch::{
-        delta::{self},
+        library::delta::{self},
         Dispatch,
     },
     misc::log::targets::{self},
@@ -130,10 +130,13 @@ impl ResolutionBuffer {
         if let Some(asserted_literal) = self.asserts() {
             return Ok(gen::RBuf::Missed(conflict, asserted_literal));
         };
-        self.tx.send(Dispatch::Resolution(delta::Resolution::Begin));
+        self.tx.send(Dispatch::Delta(delta::Delta::Resolution(
+            delta::Resolution::Begin,
+        )));
 
         let delta = delta::Resolution::Used(conflict);
-        self.tx.send(Dispatch::Resolution(delta));
+        self.tx
+            .send(Dispatch::Delta(delta::Delta::Resolution(delta)));
 
         // bump clause activity
         if let ClauseKey::Learned(index, _) = conflict {
@@ -165,8 +168,11 @@ impl ResolutionBuffer {
                         0 => {}
                         1 => {
                             let delta = delta::Resolution::Used(*the_key);
-                            self.tx.send(Dispatch::Resolution(delta));
-                            self.tx.send(Dispatch::Resolution(delta::Resolution::End));
+                            self.tx
+                                .send(Dispatch::Delta(delta::Delta::Resolution(delta)));
+                            self.tx.send(Dispatch::Delta(delta::Delta::Resolution(
+                                delta::Resolution::End,
+                            )));
                             return Ok(gen::RBuf::Proof);
                         }
                         _ => match the_key {
@@ -174,19 +180,25 @@ impl ResolutionBuffer {
                                 todo!("a formula is found which triggers this…");
                             }
                             ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
-                                self.tx.send(Dispatch::Resolution(delta::Resolution::End));
+                                self.tx.send(Dispatch::Delta(delta::Delta::Resolution(
+                                    delta::Resolution::End,
+                                )));
 
                                 let new_key = clause_db.subsume(*the_key, *literal, variables)?;
 
-                                self.tx.send(Dispatch::Resolution(delta::Resolution::Begin));
-                                self.tx
-                                    .send(Dispatch::Resolution(delta::Resolution::Used(new_key)));
+                                self.tx.send(Dispatch::Delta(delta::Delta::Resolution(
+                                    delta::Resolution::Begin,
+                                )));
+                                self.tx.send(Dispatch::Delta(delta::Delta::Resolution(
+                                    delta::Resolution::Used(new_key),
+                                )));
                             }
                         },
                     }
                 } else {
                     let delta = delta::Resolution::Used(*the_key);
-                    self.tx.send(Dispatch::Resolution(delta));
+                    self.tx
+                        .send(Dispatch::Delta(delta::Delta::Resolution(delta)));
                 }
 
                 if let ClauseKey::Learned(index, _) = the_key {
@@ -196,7 +208,9 @@ impl ResolutionBuffer {
                 if self.valueless_count == 1 {
                     match self.config.stopping {
                         StoppingCriteria::FirstUIP => {
-                            self.tx.send(Dispatch::Resolution(delta::Resolution::End));
+                            self.tx.send(Dispatch::Delta(delta::Delta::Resolution(
+                                delta::Resolution::End,
+                            )));
                             return Ok(gen::RBuf::FirstUIP);
                         }
                         StoppingCriteria::None => {}
@@ -205,7 +219,8 @@ impl ResolutionBuffer {
             }
         }
         let delta = delta::Resolution::End;
-        self.tx.send(Dispatch::Resolution(delta));
+        self.tx
+            .send(Dispatch::Delta(delta::Delta::Resolution(delta)));
         Ok(gen::RBuf::Exhausted)
     }
 

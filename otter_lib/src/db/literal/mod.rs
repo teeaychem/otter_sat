@@ -5,7 +5,7 @@ use crossbeam::channel::Sender;
 use crate::{
     db::keys::ChoiceIndex,
     dispatch::{
-        delta::{self},
+        library::delta::{self},
         Dispatch,
     },
     structures::literal::Literal,
@@ -75,19 +75,19 @@ impl LiteralDB {
             gen::src::Literal::Choice => {}
             gen::src::Literal::Assumption => {
                 let delta = delta::Level::Assumption(literal);
-                self.tx.send(Dispatch::Level(delta));
+                self.tx.send(Dispatch::Delta(delta::Delta::Level(delta)));
                 self.proven.record_literal(literal)
             }
             gen::src::Literal::Pure => {
                 println!("PURE {literal}");
                 let delta = delta::Level::Pure(literal);
-                self.tx.send(Dispatch::Level(delta));
+                self.tx.send(Dispatch::Delta(delta::Delta::Level(delta)));
                 self.proven.record_literal(literal)
             }
             gen::src::Literal::BCP(_) => match self.choice_stack.len() {
                 0 => {
                     let delta = delta::Level::Proof(literal);
-                    self.tx.send(Dispatch::Level(delta));
+                    self.tx.send(Dispatch::Delta(delta::Delta::Level(delta)));
                     self.proven.record_literal(literal)
                 }
                 _ => self.top_mut().record_consequence(literal, source),
@@ -95,13 +95,13 @@ impl LiteralDB {
             gen::src::Literal::Resolution(_) => {
                 // Resoluion implies deduction via (known) clauses
                 let delta = delta::Level::ResolutionProof(literal);
-                self.tx.send(Dispatch::Level(delta));
+                self.tx.send(Dispatch::Delta(delta::Delta::Level(delta)));
                 self.proven.record_literal(literal)
             }
             gen::src::Literal::Forced(key) => match self.choice_stack.len() {
                 0 => {
                     let delta = delta::Level::Forced(key, literal);
-                    self.tx.send(Dispatch::Level(delta));
+                    self.tx.send(Dispatch::Delta(delta::Delta::Level(delta)));
                     self.proven.record_literal(literal)
                 }
                 _ => self.top_mut().record_consequence(literal, source),
@@ -110,7 +110,7 @@ impl LiteralDB {
                 0 => {
                     // TODO: Make unique o generalise forcing
                     let delta = delta::Level::Forced(key, literal);
-                    self.tx.send(Dispatch::Level(delta));
+                    self.tx.send(Dispatch::Delta(delta::Delta::Level(delta)));
                     self.proven.record_literal(literal)
                 }
                 _ => self.top_mut().record_consequence(literal, source),

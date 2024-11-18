@@ -9,6 +9,7 @@ use crossbeam::channel::Receiver;
 use crate::{
     config_io::ConfigIO,
     records::{self},
+    report::{self},
     window::ContextWindow,
 };
 
@@ -19,6 +20,7 @@ fn hand() -> Box<dyn FnMut(&Dispatch)> {
 }
 
 #[allow(clippy::result_unit_err)]
+#[allow(clippy::single_match)]
 pub fn general_recorder(
     rx: Receiver<Dispatch>,
     config: Config,
@@ -38,20 +40,22 @@ pub fn general_recorder(
         false => hand(),
     };
 
-    while let Ok(dispatch) = rx.recv() {
+    'reception: while let Ok(dispatch) = rx.recv() {
         match &dispatch {
-            Dispatch::SolveComment(_) => {}
-            Dispatch::SolveReport(report) => println!("s {}", report.to_string().to_uppercase()),
-            Dispatch::Parser(_) => {}
+            Dispatch::Comment(_) => {}
+            Dispatch::Delta(_) => {}
             Dispatch::Stats(_) => {}
-            Dispatch::BCP(_)
-            | Dispatch::Resolution(_)
-            | Dispatch::VariableDB(_)
-            | Dispatch::VariableDBReport(_)
-            | Dispatch::ClauseDB(_)
-            | Dispatch::ClauseDBReport(_)
-            | Dispatch::Level(_) => {}
-            Dispatch::Finish => break,
+            Dispatch::Report(the_report) => {
+                //
+                match the_report {
+                    report::Report::Solve(report) => {
+                        println!("s {}", report.to_string().to_uppercase())
+                    }
+
+                    report::Report::Finish => break 'reception,
+                    _ => {}
+                }
+            }
         }
         if config_io.show_stats {
             windower(&dispatch);

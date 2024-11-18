@@ -1,6 +1,6 @@
 use otter_lib::{
     config::Config,
-    dispatch::report::{self},
+    dispatch::library::report::{self},
 };
 
 use otter_tests::{cnf_lib_subdir, silent_on_directory};

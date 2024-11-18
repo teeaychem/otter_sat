@@ -5,8 +5,8 @@ use std::{borrow::Borrow, collections::VecDeque, fs::File, io::Write, path::Path
 use crate::{
     db::keys::ClauseKey,
     dispatch::{
-        self,
-        delta::{self},
+        library::delta::{self, Delta},
+        library::report::{self, Report},
         Dispatch,
     },
     structures::literal::{Literal, LiteralT},
@@ -69,155 +69,168 @@ impl Transcriber {
 
     pub fn transcribe(&mut self, dispatch: &Dispatch) {
         let transcription = match dispatch {
-            //
-            Dispatch::VariableDB(v_delta) => match v_delta {
-                delta::Variable::Internalised(name, id) => {
-                    let required = *id as usize - self.variable_map.len();
-                    for _ in 0..required {
-                        self.variable_map.push(None);
-                    }
-                    // let name_clone = name.clone();
-                    self.variable_map.push(Some(name.clone()));
-                    // assert_eq!(self.variable_map[*id as usize], Some(name_clone));
-                    None
-                }
-                delta::Variable::Unsatisfiable(_) => {
-                    let mut the_string = String::from("a 1 0\n");
-                    the_string.push_str("f 1");
-                    Some(the_string)
-                }
-            },
+            Dispatch::Delta(the_delta) => {
+                match the_delta {
+                    //
+                    Delta::VariableDB(v_delta) => match v_delta {
+                        delta::Variable::Internalised(name, id) => {
+                            let required = *id as usize - self.variable_map.len();
+                            for _ in 0..required {
+                                self.variable_map.push(None);
+                            }
+                            // let name_clone = name.clone();
+                            self.variable_map.push(Some(name.clone()));
+                            // assert_eq!(self.variable_map[*id as usize], Some(name_clone));
+                            None
+                        }
+                        delta::Variable::Unsatisfiable(_) => {
+                            let mut the_string = String::from("a 1 0\n");
+                            the_string.push_str("f 1");
+                            Some(the_string)
+                        }
+                    },
 
-            Dispatch::ClauseDB(store_delta) => {
+                    Delta::ClauseDB(store_delta) => {
+                        //
+                        match store_delta {
+                            delta::ClauseDB::Deletion(key, clause) => {
+                                let mut the_string = format!("d {} ", Self::key_id(key));
+                                the_string.push_str(&self.externalised_clause(clause));
+                                Some(the_string)
+                            }
+
+                            delta::ClauseDB::Original(key, clause) => {
+                                let mut the_string = format!("o {} ", Self::key_id(key));
+                                the_string.push_str(&self.externalised_clause(clause));
+                                Some(the_string)
+                            }
+
+                            delta::ClauseDB::TransferBinary(from, to, clause) => {
+                                // Derive new, delete formula
+                                let mut the_string = format!("a {} ", Self::key_id(to));
+                                the_string.push_str(&self.externalised_clause(clause));
+                                the_string.push_str(" 0 l ");
+                                let resolution_steps =
+                                    self.resolution_queue.pop_front().expect("nri");
+                                the_string.push_str(&Self::resolution_buffer_ids(resolution_steps));
+                                the_string
+                                    .push_str(format!("d {} 0\n", Self::key_id(from)).as_str());
+                                Some(the_string)
+                            }
+
+                            delta::ClauseDB::Learned(key, clause) => {
+                                let mut the_string = format!("a {} ", Self::key_id(key));
+                                the_string.push_str(&self.externalised_clause(clause));
+                                the_string.push_str(" 0 l ");
+                                the_string.push_str(&Self::resolution_buffer_ids(
+                                    self.resolution_queue.pop_front().expect("nri_l"),
+                                ));
+                                Some(the_string)
+                            }
+                            delta::ClauseDB::BinaryOriginal(key, clause) => {
+                                let mut the_string = format!("o {} ", Self::key_id(key));
+                                the_string.push_str(&self.externalised_clause(clause));
+                                Some(the_string)
+                            }
+                            delta::ClauseDB::BinaryResolution(key, clause) => {
+                                let mut the_string = format!("a {} ", Self::key_id(key));
+                                the_string.push_str(&self.externalised_clause(clause));
+                                the_string.push_str(" 0 l ");
+                                the_string.push_str(&Self::resolution_buffer_ids(
+                                    self.resolution_queue.pop_front().expect("nri_br"),
+                                ));
+                                Some(the_string)
+                            }
+                        }
+                    }
+
+                    Delta::Level(level_delta) => {
+                        //
+                        match level_delta {
+                            delta::Level::Assumption(literal) => Some(format!(
+                                "o {} {}",
+                                Self::literal_id(literal),
+                                self.externalised_literal(literal)
+                            )),
+                            delta::Level::ResolutionProof(literal) => {
+                                let mut the_string = format!(
+                                    "a {} {}",
+                                    Self::literal_id(literal),
+                                    self.externalised_literal(literal)
+                                );
+                                the_string.push_str(" 0 l ");
+                                the_string.push_str(&Self::resolution_buffer_ids(
+                                    self.resolution_queue.pop_front().expect("nri_rp"),
+                                ));
+                                Some(the_string)
+                            }
+                            delta::Level::Pure(literal) => Some(format!(
+                                "o {} {}",
+                                Self::literal_id(literal),
+                                self.externalised_literal(literal)
+                            )),
+                            delta::Level::Proof(literal) => Some(format!(
+                                "a {} {}",
+                                Self::literal_id(literal),
+                                self.externalised_literal(literal)
+                            )),
+                            delta::Level::Forced(_, _) => None,
+                        }
+                    }
+
+                    Delta::Resolution(delta) => {
+                        match delta {
+                            delta::Resolution::Begin => {
+                                assert!(self.resolution_buffer.is_empty());
+                            }
+                            delta::Resolution::End => {
+                                self.resolution_queue
+                                    .push_back(std::mem::take(&mut self.resolution_buffer));
+                            }
+                            delta::Resolution::Used(k) => {
+                                self.resolution_buffer.push(*k);
+                            }
+                            delta::Resolution::Subsumed(_, _) => {
+                                // TODO: Someday… maybe…
+                            }
+                        }
+                        None
+                    }
+
+                    Delta::BCP(_) => None,
+                }
+            }
+
+            Dispatch::Report(the_report) => {
                 //
-                match store_delta {
-                    delta::ClauseDB::Deletion(key, clause) => {
-                        let mut the_string = format!("d {} ", Self::key_id(key));
-                        the_string.push_str(&self.externalised_clause(clause));
-                        Some(the_string)
+                match the_report {
+                    Report::ClauseDB(report) => {
+                        //
+                        match report {
+                            report::ClauseDB::Active(key, clause) => {
+                                let mut the_string = format!("f {} ", Self::key_id(key));
+                                the_string.push_str(&self.externalised_clause(clause));
+                                Some(the_string)
+                            }
+                        }
                     }
 
-                    delta::ClauseDB::Original(key, clause) => {
-                        let mut the_string = format!("o {} ", Self::key_id(key));
-                        the_string.push_str(&self.externalised_clause(clause));
-                        Some(the_string)
-                    }
-
-                    delta::ClauseDB::TransferBinary(from, to, clause) => {
-                        // Derive new, delete formula
-                        let mut the_string = format!("a {} ", Self::key_id(to));
-                        the_string.push_str(&self.externalised_clause(clause));
-                        the_string.push_str(" 0 l ");
-                        let resolution_steps = self.resolution_queue.pop_front().expect("nri");
-                        the_string.push_str(&Self::resolution_buffer_ids(resolution_steps));
-                        the_string.push_str(format!("d {} 0\n", Self::key_id(from)).as_str());
-                        Some(the_string)
-                    }
-
-                    delta::ClauseDB::Learned(key, clause) => {
-                        let mut the_string = format!("a {} ", Self::key_id(key));
-                        the_string.push_str(&self.externalised_clause(clause));
-                        the_string.push_str(" 0 l ");
-                        the_string.push_str(&Self::resolution_buffer_ids(
-                            self.resolution_queue.pop_front().expect("nri_l"),
-                        ));
-                        Some(the_string)
-                    }
-                    delta::ClauseDB::BinaryOriginal(key, clause) => {
-                        let mut the_string = format!("o {} ", Self::key_id(key));
-                        the_string.push_str(&self.externalised_clause(clause));
-                        Some(the_string)
-                    }
-                    delta::ClauseDB::BinaryResolution(key, clause) => {
-                        let mut the_string = format!("a {} ", Self::key_id(key));
-                        the_string.push_str(&self.externalised_clause(clause));
-                        the_string.push_str(" 0 l ");
-                        the_string.push_str(&Self::resolution_buffer_ids(
-                            self.resolution_queue.pop_front().expect("nri_br"),
-                        ));
-                        Some(the_string)
-                    }
-                }
-            }
-            Dispatch::Level(level_delta) => {
-                //
-                match level_delta {
-                    delta::Level::Assumption(literal) => Some(format!(
-                        "o {} {}",
-                        Self::literal_id(literal),
-                        self.externalised_literal(literal)
-                    )),
-                    delta::Level::ResolutionProof(literal) => {
-                        let mut the_string = format!(
-                            "a {} {}",
-                            Self::literal_id(literal),
-                            self.externalised_literal(literal)
-                        );
-                        the_string.push_str(" 0 l ");
-                        the_string.push_str(&Self::resolution_buffer_ids(
-                            self.resolution_queue.pop_front().expect("nri_rp"),
-                        ));
-                        Some(the_string)
-                    }
-                    delta::Level::Pure(literal) => Some(format!(
-                        "o {} {}",
-                        Self::literal_id(literal),
-                        self.externalised_literal(literal)
-                    )),
-                    delta::Level::Proof(literal) => Some(format!(
-                        "a {} {}",
-                        Self::literal_id(literal),
-                        self.externalised_literal(literal)
-                    )),
-                    delta::Level::Forced(_, _) => None,
+                    Report::VariableDB(report) => match report {
+                        report::VariableDB::Active(literal) => {
+                            let the_string = format!(
+                                "f {} {}",
+                                Self::literal_id(literal),
+                                self.externalised_literal(literal)
+                            );
+                            Some(the_string)
+                        }
+                    },
+                    Report::Parser(_) | Report::Finish | Report::Solve(_) => None,
                 }
             }
 
-            Dispatch::ClauseDBReport(report) => match report {
-                dispatch::report::ClauseDB::Active(key, clause) => {
-                    let mut the_string = format!("f {} ", Self::key_id(key));
-                    the_string.push_str(&self.externalised_clause(clause));
-                    Some(the_string)
-                }
-            },
-
-            Dispatch::VariableDBReport(report) => match report {
-                dispatch::report::VariableDB::Active(literal) => {
-                    let the_string = format!(
-                        "f {} {}",
-                        Self::literal_id(literal),
-                        self.externalised_literal(literal)
-                    );
-                    Some(the_string)
-                }
-            },
-
-            Dispatch::Resolution(delta) => {
-                match delta {
-                    delta::Resolution::Begin => {
-                        assert!(self.resolution_buffer.is_empty());
-                    }
-                    delta::Resolution::End => {
-                        self.resolution_queue
-                            .push_back(std::mem::take(&mut self.resolution_buffer));
-                    }
-                    delta::Resolution::Used(k) => {
-                        self.resolution_buffer.push(*k);
-                    }
-                    delta::Resolution::Subsumed(_, _) => {
-                        // TODO: Someday… maybe…
-                    }
-                }
-                None
-            }
-
-            Dispatch::Parser(_) => None,
-
-            Dispatch::SolveComment(_) => None,
-            Dispatch::SolveReport(_) => None,
+            Dispatch::Comment(_) => None,
             Dispatch::Stats(_) => None,
-            Dispatch::Finish => None,
-            Dispatch::BCP(_) => None,
         };
         if let Some(mut step) = transcription {
             step.push_str(" 0\n");

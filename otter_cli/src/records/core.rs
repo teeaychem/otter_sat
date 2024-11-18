@@ -6,7 +6,7 @@ use std::{
 use otter_lib::{
     db::keys::ClauseKey,
     dispatch::{
-        delta::{self},
+        library::delta::{self, Delta},
         Dispatch,
     },
     structures::{
@@ -133,75 +133,85 @@ pub fn core_db_builder<'g>(
     let mut the_core_db = core_db_ptr.as_ref().unwrap().lock().unwrap();
     let handler = move |dispatch: &Dispatch| {
         match dispatch {
-            Dispatch::Resolution(delta) => {
-                //
-                match delta {
-                    delta::Resolution::Begin => {
+            Dispatch::Delta(the_delta) => {
+                match the_delta {
+                    Delta::Resolution(delta) => {
                         //
-                        assert!(the_core_db.resolution_buffer.is_empty())
+                        match delta {
+                            delta::Resolution::Begin => {
+                                //
+                                assert!(the_core_db.resolution_buffer.is_empty())
+                            }
+                            delta::Resolution::End => {
+                                let the_clause = std::mem::take(&mut the_core_db.resolution_buffer);
+                                the_core_db.resolution_q.push_back(the_clause)
+                            }
+                            delta::Resolution::Used(k) => the_core_db.resolution_buffer.push(*k),
+                            delta::Resolution::Subsumed(_, _) => {
+                                // TODO: maybe
+                            }
+                        }
                     }
-                    delta::Resolution::End => {
-                        let the_clause = std::mem::take(&mut the_core_db.resolution_buffer);
-                        the_core_db.resolution_q.push_back(the_clause)
+
+                    Delta::ClauseDB(delta) => match delta {
+                        delta::ClauseDB::BinaryResolution(key, _)
+                        | delta::ClauseDB::TransferBinary(_, key, _)
+                        | delta::ClauseDB::Learned(key, _) => {
+                            let the_sources = the_core_db.resolution_q.pop_front();
+                            the_core_db
+                                .clause_map
+                                .insert(*key, the_sources.expect("q miss"));
+                        }
+                        delta::ClauseDB::Original(key, clause) => {
+                            the_core_db.original_map.insert(*key, clause.clone());
+                        }
+                        delta::ClauseDB::BinaryOriginal(key, clause) => {
+                            the_core_db.original_map.insert(*key, clause.clone());
+                        }
+                        delta::ClauseDB::Deletion(_, _) => {}
+                    },
+
+                    Delta::Level(delta) => {
+                        //
+                        match delta {
+                            delta::Level::Assumption(_) | delta::Level::Pure(_) => {}
+                            delta::Level::ResolutionProof(literal) => {
+                                let the_sources = the_core_db.resolution_q.pop_front();
+                                the_core_db
+                                    .literal_map
+                                    .insert(*literal, the_sources.expect("q miss"));
+                            }
+                            delta::Level::Proof(_) => {
+                                let Some((_, clause, to)) = the_core_db.bcp_buffer.take() else {
+                                    panic!("empty bcp buffer");
+                                };
+                                the_core_db.literal_map.insert(to, vec![clause]);
+                            }
+                            delta::Level::Forced(key, literal) => {
+                                the_core_db.literal_map.insert(*literal, vec![*key]);
+                            }
+                        }
                     }
-                    delta::Resolution::Used(k) => the_core_db.resolution_buffer.push(*k),
-                    delta::Resolution::Subsumed(_, _) => {
-                        // TODO: maybe
+
+                    Delta::VariableDB(delta) => {
+                        //
+                        match delta {
+                            delta::Variable::Unsatisfiable(key) => {
+                                the_core_db.conflict = Some(*key)
+                            }
+                            _ => {}
+                        }
                     }
-                }
-            }
-            Dispatch::ClauseDB(delta) => match delta {
-                delta::ClauseDB::BinaryResolution(key, _)
-                | delta::ClauseDB::TransferBinary(_, key, _)
-                | delta::ClauseDB::Learned(key, _) => {
-                    let the_sources = the_core_db.resolution_q.pop_front();
-                    the_core_db
-                        .clause_map
-                        .insert(*key, the_sources.expect("q miss"));
-                }
-                delta::ClauseDB::Original(key, clause) => {
-                    the_core_db.original_map.insert(*key, clause.clone());
-                }
-                delta::ClauseDB::BinaryOriginal(key, clause) => {
-                    the_core_db.original_map.insert(*key, clause.clone());
-                }
-                delta::ClauseDB::Deletion(_, _) => {}
-            },
-            Dispatch::Level(delta) => {
-                //
-                match delta {
-                    delta::Level::Assumption(_) | delta::Level::Pure(_) => {}
-                    delta::Level::ResolutionProof(literal) => {
-                        let the_sources = the_core_db.resolution_q.pop_front();
-                        the_core_db
-                            .literal_map
-                            .insert(*literal, the_sources.expect("q miss"));
+
+                    Delta::BCP(delta) => {
+                        //
+                        match delta {
+                            delta::BCP::Instance { from, to } => {
+                                the_core_db.bcp_buffer = Some((from.0, from.1, *to));
+                            }
+                            delta::BCP::Conflict(_, _) => {}
+                        }
                     }
-                    delta::Level::Proof(_) => {
-                        let Some((_, clause, to)) = the_core_db.bcp_buffer.take() else {
-                            panic!("empty bcp buffer");
-                        };
-                        the_core_db.literal_map.insert(to, vec![clause]);
-                    }
-                    delta::Level::Forced(key, literal) => {
-                        the_core_db.literal_map.insert(*literal, vec![*key]);
-                    }
-                }
-            }
-            Dispatch::VariableDB(delta) => {
-                //
-                match delta {
-                    delta::Variable::Unsatisfiable(key) => the_core_db.conflict = Some(*key),
-                    _ => {}
-                }
-            }
-            Dispatch::BCP(delta) => {
-                //
-                match delta {
-                    delta::BCP::Instance(from, using, to) => {
-                        the_core_db.bcp_buffer = Some((*from, *using, *to));
-                    }
-                    delta::BCP::Conflict(_, _) => {}
                 }
             }
             _ => {}

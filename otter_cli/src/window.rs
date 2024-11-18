@@ -8,6 +8,8 @@ use crossterm::{cursor, terminal, QueueableCommand};
 pub struct ContextWindow {
     pub location: (u16, u16),
     column: u16,
+    pub iterations: usize,
+    pub confclits: usize,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -26,6 +28,8 @@ impl Default for ContextWindow {
         ContextWindow {
             location,
             column: 14,
+            iterations: 0,
+            confclits: 0,
         }
     }
 }

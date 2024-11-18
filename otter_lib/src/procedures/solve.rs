@@ -4,10 +4,10 @@ use crate::{
     context::Context,
     db::keys::ChoiceIndex,
     dispatch::{
-        self,
-        comment::{self},
-        delta::{self},
-        report::{self},
+        library::comment::{self, Comment},
+        library::delta::{self, Delta},
+        library::report::{self, Report},
+        library::stat::Stat,
         Dispatch,
     },
     misc::log::targets::{self},
@@ -40,7 +40,8 @@ impl Context {
 
             self.counters.time = this_total_time.elapsed();
             if time_limit.is_some_and(|limit| self.counters.time > limit) {
-                self.tx.send(Dispatch::SolveComment(comment::Solve::TimeUp));
+                self.tx
+                    .send(Dispatch::Comment(Comment::Solve(comment::Solve::TimeUp)));
                 return Ok(self.report());
             }
 
@@ -79,7 +80,7 @@ impl Context {
                 }
             }
         }
-        self.tx.send(Dispatch::Finish);
+        self.tx.send(Dispatch::Report(Report::Finish));
         Ok(self.report())
     }
 
@@ -96,7 +97,7 @@ impl Context {
                         self.status = gen::Solve::NoSolution;
 
                         let delta = delta::Variable::Unsatisfiable(key);
-                        self.tx.send(Dispatch::VariableDB(delta));
+                        self.tx.send(Dispatch::Delta(Delta::VariableDB(delta)));
 
                         return Ok(gen::Expansion::Conflict);
                     }
@@ -144,14 +145,15 @@ impl Context {
         if self.counters.conflicts_in_memory % (config.luby_u * self.counters.luby.current()) == 0 {
             self.counters.luby.next();
 
-            self.tx.send(Dispatch::Stats(dispatch::stat::Count::ICD(
-                self.counters.iterations,
-                self.counters.conflicts,
-                self.counters.choices,
-            )));
-            self.tx.send(Dispatch::Stats(dispatch::stat::Count::Time(
-                self.counters.time,
-            )));
+            self.tx
+                .send(Dispatch::Stats(Stat::Iterations(self.counters.iterations)));
+            self.tx
+                .send(Dispatch::Stats(Stat::Chosen(self.counters.choices)));
+            self.tx
+                .send(Dispatch::Stats(Stat::Conflicts(self.counters.conflicts)));
+
+            self.tx
+                .send(Dispatch::Stats(Stat::Time(self.counters.time)));
 
             if config.restarts_ok {
                 self.backjump(0);

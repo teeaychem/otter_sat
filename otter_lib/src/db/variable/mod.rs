@@ -9,7 +9,7 @@ use crate::{
     db::keys::ChoiceIndex,
     db::variable::watch_db::WatchDB,
     dispatch::{
-        delta::{self},
+        library::delta::{self},
         Dispatch,
     },
     generic::heap::IndexHeap,
@@ -88,7 +88,8 @@ impl VariableDB {
         self.choice_indicies.push(None);
 
         let delta = delta::Variable::Internalised(name.to_string(), id);
-        self.tx.send(Dispatch::VariableDB(delta));
+        self.tx
+            .send(Dispatch::Delta(delta::Delta::VariableDB(delta)));
 
         id
     }

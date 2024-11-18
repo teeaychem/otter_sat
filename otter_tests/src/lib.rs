@@ -4,7 +4,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use otter_lib::{config::Config, context::Context, dispatch::report, types::err};
+use otter_lib::{
+    config::Config,
+    context::Context,
+    dispatch::library::report::{self},
+    types::err,
+};
 use xz2::read::XzDecoder;
 
 pub fn load_dimacs(context: &mut Context, path: &PathBuf) -> Result<(), err::Build> {
