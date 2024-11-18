@@ -3,8 +3,7 @@ use rand::Rng;
 use crate::{
     context::Context,
     dispatch::{
-        self,
-        delta::{self},
+        library::report::{self, Report},
         Dispatch,
     },
     structures::{
@@ -212,10 +211,8 @@ impl Context {
 
                     buffer.clear();
 
-                    self.tx.send(Dispatch::Parser(delta::Parser::Expected(
-                        variable_count,
-                        clause_count,
-                    )));
+                    let the_report = report::Parser::Expected(variable_count, clause_count);
+                    self.tx.send(Dispatch::Report(Report::Parser(the_report)));
                     break;
                 }
                 _ => {
@@ -268,15 +265,14 @@ impl Context {
             buffer.clear();
         }
 
-        self.tx
-            .send(dispatch::Dispatch::Parser(delta::Parser::Complete(
-                self.variable_db.count(),
-                clause_counter,
-            )));
+        let report_complete = report::Parser::Complete(self.variable_db.count(), clause_counter);
+        let report_clauses = report::Parser::ContextClauses(self.clause_db.clause_count());
 
-        self.tx.send(Dispatch::Parser(delta::Parser::ContextClauses(
-            self.clause_db.clause_count(),
-        )));
+        self.tx
+            .send(Dispatch::Report(Report::Parser(report_complete)));
+
+        self.tx
+            .send(Dispatch::Report(Report::Parser(report_clauses)));
 
         Ok(())
     }

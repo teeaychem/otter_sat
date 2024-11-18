@@ -1,7 +1,7 @@
 use crate::{
     db::{keys::ClauseKey, variable::VariableDB},
     dispatch::{
-        delta::{self},
+        library::delta::{self, Delta},
         Dispatch,
     },
     misc::log::targets::{self},
@@ -34,7 +34,7 @@ impl ClauseDB {
                 let b_key = self.new_binary_id()?;
 
                 let delta = delta::ClauseDB::TransferBinary(key, b_key, copied_clause.clone());
-                self.tx.send(Dispatch::ClauseDB(delta));
+                self.tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
 
                 unsafe {
                     variables.remove_watch(copied_clause.get_unchecked(0), key)?;

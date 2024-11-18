@@ -4,7 +4,7 @@ use crate::{
     context::Context,
     db::{clause::ClauseKind, variable::watch_db::WatchElement},
     dispatch::{
-        delta::{self},
+        library::delta::{self, Delta},
         Dispatch,
     },
     misc::log::targets::{self},
@@ -38,8 +38,11 @@ impl Context {
             match self.variable_db.value_of(check.var()) {
                 None => match self.q_literal(*check) {
                     Ok(gen::Queue::Qd) => {
-                        let delta = delta::BCP::Instance(*literal, *clause_key, *check);
-                        self.tx.send(Dispatch::BCP(delta));
+                        let delta = delta::BCP::Instance {
+                            from: (*literal, *clause_key),
+                            to: *check,
+                        };
+                        self.tx.send(Dispatch::Delta(Delta::BCP(delta)));
                         self.note_literal(check.canonical(), gen::src::Literal::BCP(*clause_key));
                     }
                     Err(_key) => {
@@ -49,7 +52,7 @@ impl Context {
                 Some(value) if check.polarity() != value => {
                     log::trace!(target: targets::PROPAGATION, "Consequence of {clause_key} and {literal} is contradiction.");
                     let delta = delta::BCP::Conflict(*literal, *clause_key);
-                    self.tx.send(Dispatch::BCP(delta));
+                    self.tx.send(Dispatch::Delta(Delta::BCP(delta)));
                     return Err(err::BCP::Conflict(*clause_key));
                 }
                 Some(_) => {
@@ -103,7 +106,7 @@ impl Context {
                     match watch_value {
                         Some(value) if the_watch.polarity() != value => {
                             let delta = delta::BCP::Conflict(*literal, *clause_key);
-                            self.tx.send(Dispatch::BCP(delta));
+                            self.tx.send(Dispatch::Delta(Delta::BCP(delta)));
                             return Err(err::BCP::Conflict(*clause_key));
                         }
                         None => {
@@ -111,8 +114,11 @@ impl Context {
                                 return Err(err::BCP::Conflict(*clause_key));
                             };
 
-                            let delta = delta::BCP::Instance(*literal, *clause_key, the_watch);
-                            self.tx.send(Dispatch::BCP(delta));
+                            let delta = delta::BCP::Instance {
+                                from: (*literal, *clause_key),
+                                to: the_watch,
+                            };
+                            self.tx.send(Dispatch::Delta(Delta::BCP(delta)));
                             self.note_literal(
                                 the_watch.canonical(),
                                 gen::src::Literal::BCP(*clause_key),

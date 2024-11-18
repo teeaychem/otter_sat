@@ -5,7 +5,7 @@ use crate::{
     },
     db::{clause::ClauseDB, consequence_q::ConsequenceQ, literal::LiteralDB, variable::VariableDB},
     dispatch::{
-        report::{self},
+        library::report::{self},
         Dispatch,
     },
     structures::{clause::Clause, literal::LiteralT},

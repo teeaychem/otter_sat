@@ -12,8 +12,9 @@ use crate::{
         variable::VariableDB,
     },
     dispatch::{
-        delta::{self},
-        report, Dispatch,
+        library::delta::{self, Delta},
+        library::report::{self, Report},
+        Dispatch,
     },
     generic::heap::IndexHeap,
     misc::log::targets::{self},
@@ -201,7 +202,7 @@ impl ClauseDB {
                         }
                     }
                 };
-                self.tx.send(Dispatch::ClauseDB(delta));
+                self.tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
 
                 self.binary.push(StoredClause::from(key, clause, variables));
 
@@ -212,7 +213,7 @@ impl ClauseDB {
                     let the_key = self.new_formula_id()?;
 
                     let delta = delta::ClauseDB::Original(the_key, clause.clone());
-                    self.tx.send(Dispatch::ClauseDB(delta));
+                    self.tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
 
                     self.formula
                         .push(StoredClause::from(the_key, clause, variables));
@@ -228,7 +229,7 @@ impl ClauseDB {
                     };
 
                     let delta = delta::ClauseDB::Learned(the_key, clause.clone());
-                    self.tx.send(Dispatch::ClauseDB(delta));
+                    self.tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
 
                     let the_clause = StoredClause::from(the_key, clause, variables);
 
@@ -303,10 +304,11 @@ impl ClauseDB {
             let the_clause =
                 std::mem::take(unsafe { self.learned.get_unchecked_mut(index) }).unwrap();
 
-            self.tx.send(Dispatch::ClauseDB(delta::ClauseDB::Deletion(
-                the_clause.key(),
-                the_clause.to_vec(),
-            )));
+            self.tx
+                .send(Dispatch::Delta(Delta::ClauseDB(delta::ClauseDB::Deletion(
+                    the_clause.key(),
+                    the_clause.to_vec(),
+                ))));
 
             self.activity_heap.remove(index);
             self.empty_keys.push(the_clause.key());
@@ -358,16 +360,16 @@ impl ClauseDB {
     pub fn dispatch_active(&self) {
         for clause in &self.binary {
             let report = report::ClauseDB::Active(clause.key(), clause.to_vec());
-            self.tx.send(Dispatch::ClauseDBReport(report));
+            self.tx.send(Dispatch::Report(Report::ClauseDB(report)));
         }
         for clause in &self.formula {
             let report = report::ClauseDB::Active(clause.key(), clause.to_vec());
-            self.tx.send(Dispatch::ClauseDBReport(report));
+            self.tx.send(Dispatch::Report(Report::ClauseDB(report)));
         }
         for clause in self.learned.iter().flatten() {
             if clause.is_active() {
                 let report = report::ClauseDB::Active(clause.key(), clause.to_vec());
-                self.tx.send(Dispatch::ClauseDBReport(report));
+                self.tx.send(Dispatch::Report(Report::ClauseDB(report)));
             }
         }
     }

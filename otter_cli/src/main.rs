@@ -12,7 +12,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 use otter_lib::{
     context::Context,
     dispatch::{
-        report::{self},
+        library::report::{self},
         Dispatch,
     },
     structures::clause::Clause,

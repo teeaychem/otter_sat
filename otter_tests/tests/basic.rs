@@ -1,7 +1,7 @@
 use otter_lib::{
     config::Config,
     context::Context,
-    dispatch::report::{self},
+    dispatch::library::report::{self},
 };
 
 mod basic {
