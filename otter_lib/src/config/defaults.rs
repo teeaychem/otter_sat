@@ -18,3 +18,5 @@ pub const VSIDS_VARIANT: config::VSIDS = config::VSIDS::MiniSAT;
 pub const DEFAULT_VARIABLE_COUNT: usize = 1024;
 
 pub const RNG_SEED: u64 = 0;
+
+pub const INTER_REDUCTION_INTERVAL: usize = 50_000;

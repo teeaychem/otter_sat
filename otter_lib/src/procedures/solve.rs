@@ -63,6 +63,7 @@ impl Context {
                     let index = self.backjump_level(the_clause.literals())?;
                     self.backjump(index);
 
+                    self.clause_db.note_use(key);
                     self.note_literal(literal, gen::src::Literal::Forced(key));
                     self.q_literal(literal)?;
 
@@ -158,6 +159,7 @@ impl Context {
 
             if config.restarts_ok {
                 self.backjump(0);
+                self.clause_db.reset_heap();
                 self.counters.restarts += 1;
                 self.counters.conflicts_in_memory = 0;
             }
@@ -167,6 +169,13 @@ impl Context {
                 log::debug!(target: targets::REDUCTION, "Reduction after {} restarts", self.counters.restarts);
                 self.clause_db.reduce()?;
             }
+        }
+        let config = &self.config;
+        if config.reductions_ok
+            && ((self.counters.conflicts % crate::config::defaults::INTER_REDUCTION_INTERVAL) == 0)
+        {
+            log::debug!(target: targets::REDUCTION, "Reduction after {} conflicts", self.counters.conflicts_in_memory);
+            self.clause_db.reduce()?;
         }
         Ok(())
     }
