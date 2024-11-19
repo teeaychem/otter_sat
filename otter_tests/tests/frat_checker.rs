@@ -21,7 +21,7 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
         thread::spawn(|| otter_lib::dispatch::receivers::frat_receiver(rx, frat_path))
     };
 
-    let mut the_context = Context::from_config(config, tx);
+    let mut the_context = Context::from_config(config, Some(tx));
 
     match load_dimacs(&mut the_context, &file_path) {
         Ok(()) => {}

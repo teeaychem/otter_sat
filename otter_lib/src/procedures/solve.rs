@@ -40,8 +40,9 @@ impl Context {
 
             self.counters.time = this_total_time.elapsed();
             if time_limit.is_some_and(|limit| self.counters.time > limit) {
-                self.tx
-                    .send(Dispatch::Comment(Comment::Solve(comment::Solve::TimeUp)));
+                if let Some(tx) = &self.tx {
+                    tx.send(Dispatch::Comment(Comment::Solve(comment::Solve::TimeUp)));
+                }
                 return Ok(self.report());
             }
 
@@ -80,7 +81,9 @@ impl Context {
                 }
             }
         }
-        self.tx.send(Dispatch::Report(Report::Finish));
+        if let Some(tx) = &self.tx {
+            tx.send(Dispatch::Report(Report::Finish));
+        }
         Ok(self.report())
     }
 
@@ -96,8 +99,10 @@ impl Context {
                     if !self.literal_db.choice_made() {
                         self.status = gen::Solve::NoSolution;
 
-                        let delta = delta::Variable::Unsatisfiable(key);
-                        self.tx.send(Dispatch::Delta(Delta::VariableDB(delta)));
+                        if let Some(tx) = &self.tx {
+                            let delta = delta::VariableDB::Unsatisfiable(key);
+                            tx.send(Dispatch::Delta(Delta::VariableDB(delta)));
+                        }
 
                         return Ok(gen::Expansion::Conflict);
                     }
@@ -144,16 +149,12 @@ impl Context {
 
         if self.counters.conflicts_in_memory % (config.luby_u * self.counters.luby.current()) == 0 {
             self.counters.luby.next();
-
-            self.tx
-                .send(Dispatch::Stats(Stat::Iterations(self.counters.iterations)));
-            self.tx
-                .send(Dispatch::Stats(Stat::Chosen(self.counters.choices)));
-            self.tx
-                .send(Dispatch::Stats(Stat::Conflicts(self.counters.conflicts)));
-
-            self.tx
-                .send(Dispatch::Stats(Stat::Time(self.counters.time)));
+            if let Some(tx) = &self.tx {
+                tx.send(Dispatch::Stats(Stat::Iterations(self.counters.iterations)));
+                tx.send(Dispatch::Stats(Stat::Chosen(self.counters.choices)));
+                tx.send(Dispatch::Stats(Stat::Conflicts(self.counters.conflicts)));
+                tx.send(Dispatch::Stats(Stat::Time(self.counters.time)));
+            }
 
             if config.restarts_ok {
                 self.backjump(0);

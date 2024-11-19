@@ -34,7 +34,7 @@ For now, this works ok.
 pub struct LiteralDB {
     proven: ProvenLiterals,
     choice_stack: Vec<ChosenLiteral>,
-    tx: Sender<Dispatch>,
+    tx: Option<Sender<Dispatch>>,
 }
 
 #[derive(Debug)]
@@ -49,7 +49,7 @@ struct ChosenLiteral {
 }
 
 impl LiteralDB {
-    pub fn new(tx: Sender<Dispatch>) -> Self {
+    pub fn new(tx: Option<Sender<Dispatch>>) -> Self {
         LiteralDB {
             proven: ProvenLiterals::default(),
             choice_stack: Vec::default(),
@@ -74,34 +74,43 @@ impl LiteralDB {
         match source {
             gen::src::Literal::Choice => {}
             gen::src::Literal::Assumption => {
-                let delta = delta::Level::Assumption(literal);
-                self.tx.send(Dispatch::Delta(delta::Delta::Level(delta)));
+                if let Some(tx) = &self.tx {
+                    let delta = delta::LiteralDB::Assumption(literal);
+                    tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                }
                 self.proven.record_literal(literal)
             }
             gen::src::Literal::Pure => {
-                println!("PURE {literal}");
-                let delta = delta::Level::Pure(literal);
-                self.tx.send(Dispatch::Delta(delta::Delta::Level(delta)));
+                if let Some(tx) = &self.tx {
+                    let delta = delta::LiteralDB::Pure(literal);
+                    tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                }
                 self.proven.record_literal(literal)
             }
             gen::src::Literal::BCP(_) => match self.choice_stack.len() {
                 0 => {
-                    let delta = delta::Level::Proof(literal);
-                    self.tx.send(Dispatch::Delta(delta::Delta::Level(delta)));
+                    if let Some(tx) = &self.tx {
+                        let delta = delta::LiteralDB::Proof(literal);
+                        tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                    }
                     self.proven.record_literal(literal)
                 }
                 _ => self.top_mut().record_consequence(literal, source),
             },
             gen::src::Literal::Resolution(_) => {
                 // Resoluion implies deduction via (known) clauses
-                let delta = delta::Level::ResolutionProof(literal);
-                self.tx.send(Dispatch::Delta(delta::Delta::Level(delta)));
+                if let Some(tx) = &self.tx {
+                    let delta = delta::LiteralDB::ResolutionProof(literal);
+                    tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                }
                 self.proven.record_literal(literal)
             }
             gen::src::Literal::Forced(key) => match self.choice_stack.len() {
                 0 => {
-                    let delta = delta::Level::Forced(key, literal);
-                    self.tx.send(Dispatch::Delta(delta::Delta::Level(delta)));
+                    if let Some(tx) = &self.tx {
+                        let delta = delta::LiteralDB::Forced(key, literal);
+                        tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                    }
                     self.proven.record_literal(literal)
                 }
                 _ => self.top_mut().record_consequence(literal, source),
@@ -109,8 +118,10 @@ impl LiteralDB {
             gen::src::Literal::Missed(key) => match self.choice_stack.len() {
                 0 => {
                     // TODO: Make unique o generalise forcing
-                    let delta = delta::Level::Forced(key, literal);
-                    self.tx.send(Dispatch::Delta(delta::Delta::Level(delta)));
+                    if let Some(tx) = &self.tx {
+                        let delta = delta::LiteralDB::Forced(key, literal);
+                        tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                    }
                     self.proven.record_literal(literal)
                 }
                 _ => self.top_mut().record_consequence(literal, source),

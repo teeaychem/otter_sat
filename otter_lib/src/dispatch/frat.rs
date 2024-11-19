@@ -73,7 +73,7 @@ impl Transcriber {
                 match the_delta {
                     //
                     Delta::VariableDB(v_delta) => match v_delta {
-                        delta::Variable::Internalised(name, id) => {
+                        delta::VariableDB::Internalised(name, id) => {
                             let required = *id as usize - self.variable_map.len();
                             for _ in 0..required {
                                 self.variable_map.push(None);
@@ -83,7 +83,7 @@ impl Transcriber {
                             // assert_eq!(self.variable_map[*id as usize], Some(name_clone));
                             None
                         }
-                        delta::Variable::Unsatisfiable(_) => {
+                        delta::VariableDB::Unsatisfiable(_) => {
                             let mut the_string = String::from("a 1 0\n");
                             the_string.push_str("f 1");
                             Some(the_string)
@@ -144,15 +144,15 @@ impl Transcriber {
                         }
                     }
 
-                    Delta::Level(level_delta) => {
+                    Delta::LiteralDB(level_delta) => {
                         //
                         match level_delta {
-                            delta::Level::Assumption(literal) => Some(format!(
+                            delta::LiteralDB::Assumption(literal) => Some(format!(
                                 "o {} {}",
                                 Self::literal_id(literal),
                                 self.externalised_literal(literal)
                             )),
-                            delta::Level::ResolutionProof(literal) => {
+                            delta::LiteralDB::ResolutionProof(literal) => {
                                 let mut the_string = format!(
                                     "a {} {}",
                                     Self::literal_id(literal),
@@ -164,17 +164,17 @@ impl Transcriber {
                                 ));
                                 Some(the_string)
                             }
-                            delta::Level::Pure(literal) => Some(format!(
+                            delta::LiteralDB::Pure(literal) => Some(format!(
                                 "o {} {}",
                                 Self::literal_id(literal),
                                 self.externalised_literal(literal)
                             )),
-                            delta::Level::Proof(literal) => Some(format!(
+                            delta::LiteralDB::Proof(literal) => Some(format!(
                                 "a {} {}",
                                 Self::literal_id(literal),
                                 self.externalised_literal(literal)
                             )),
-                            delta::Level::Forced(_, _) => None,
+                            delta::LiteralDB::Forced(_, _) => None,
                         }
                     }
 

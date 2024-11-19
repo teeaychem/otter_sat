@@ -32,11 +32,11 @@ pub struct VariableDB {
     previous_valuation: Vec<bool>,
     choice_indicies: Vec<Option<ChoiceIndex>>,
 
-    tx: Sender<Dispatch>,
+    tx: Option<Sender<Dispatch>>,
 }
 
 impl VariableDB {
-    pub fn new(tx: Sender<Dispatch>) -> Self {
+    pub fn new(tx: Option<Sender<Dispatch>>) -> Self {
         VariableDB {
             external_map: Vec::<String>::default(),
             internal_map: std::collections::HashMap::default(),
@@ -87,9 +87,10 @@ impl VariableDB {
         self.previous_valuation.push(previous_value);
         self.choice_indicies.push(None);
 
-        let delta = delta::Variable::Internalised(name.to_string(), id);
-        self.tx
-            .send(Dispatch::Delta(delta::Delta::VariableDB(delta)));
+        if let Some(tx) = &self.tx {
+            let delta = delta::VariableDB::Internalised(name.to_string(), id);
+            tx.send(Dispatch::Delta(delta::Delta::VariableDB(delta)));
+        }
 
         id
     }

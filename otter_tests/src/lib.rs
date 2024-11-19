@@ -41,9 +41,7 @@ pub fn cnf_lib_subdir(dirs: Vec<&str>) -> PathBuf {
 }
 
 pub fn silent_formula_report(path: PathBuf, config: &Config) -> report::Solve {
-    let (tx, _) = crossbeam::channel::bounded(0);
-
-    let mut the_context = Context::from_config(config.clone(), tx.clone());
+    let mut the_context = Context::from_config(config.clone(), None);
     match load_dimacs(&mut the_context, &path) {
         Ok(()) => {}
         Err(err::Build::ClauseStore(err::ClauseDB::EmptyClause)) => {

@@ -171,23 +171,23 @@ pub fn core_db_builder<'g>(
                         delta::ClauseDB::Deletion(_, _) => {}
                     },
 
-                    Delta::Level(delta) => {
+                    Delta::LiteralDB(delta) => {
                         //
                         match delta {
-                            delta::Level::Assumption(_) | delta::Level::Pure(_) => {}
-                            delta::Level::ResolutionProof(literal) => {
+                            delta::LiteralDB::Assumption(_) | delta::LiteralDB::Pure(_) => {}
+                            delta::LiteralDB::ResolutionProof(literal) => {
                                 let the_sources = the_core_db.resolution_q.pop_front();
                                 the_core_db
                                     .literal_map
                                     .insert(*literal, the_sources.expect("q miss"));
                             }
-                            delta::Level::Proof(_) => {
+                            delta::LiteralDB::Proof(_) => {
                                 let Some((_, clause, to)) = the_core_db.bcp_buffer.take() else {
                                     panic!("empty bcp buffer");
                                 };
                                 the_core_db.literal_map.insert(to, vec![clause]);
                             }
-                            delta::Level::Forced(key, literal) => {
+                            delta::LiteralDB::Forced(key, literal) => {
                                 the_core_db.literal_map.insert(*literal, vec![*key]);
                             }
                         }
@@ -196,7 +196,7 @@ pub fn core_db_builder<'g>(
                     Delta::VariableDB(delta) => {
                         //
                         match delta {
-                            delta::Variable::Unsatisfiable(key) => {
+                            delta::VariableDB::Unsatisfiable(key) => {
                                 the_core_db.conflict = Some(*key)
                             }
                             _ => {}
@@ -206,8 +206,8 @@ pub fn core_db_builder<'g>(
                     Delta::BCP(delta) => {
                         //
                         match delta {
-                            delta::BCP::Instance { from, to } => {
-                                the_core_db.bcp_buffer = Some((from.0, from.1, *to));
+                            delta::BCP::Instance { from, via, to } => {
+                                the_core_db.bcp_buffer = Some((*from, *via, *to));
                             }
                             delta::BCP::Conflict(_, _) => {}
                         }

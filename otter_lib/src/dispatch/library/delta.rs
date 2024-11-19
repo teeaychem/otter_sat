@@ -3,25 +3,20 @@ use crate::{db::keys::ClauseKey, structures::literal::Literal};
 #[derive(Clone)]
 pub enum Delta {
     ClauseDB(self::ClauseDB),
-    Level(self::Level),
+    LiteralDB(self::LiteralDB),
     Resolution(self::Resolution),
-    VariableDB(self::Variable),
+    VariableDB(self::VariableDB),
     BCP(self::BCP),
 }
 
 #[derive(Clone)]
 pub enum BCP {
     Instance {
-        from: (Literal, ClauseKey),
+        from: Literal,
+        via: ClauseKey,
         to: Literal,
     },
     Conflict(Literal, ClauseKey), // Literal + ClauseKey -> falsum
-}
-
-#[derive(Clone)]
-pub enum Variable {
-    Internalised(String, u32),
-    Unsatisfiable(ClauseKey),
 }
 
 #[derive(Clone)]
@@ -42,6 +37,15 @@ pub enum ClauseDB {
     Learned(ClauseKey, Vec<Literal>),
 }
 
+#[derive(Debug, Clone)]
+pub enum LiteralDB {
+    Assumption(Literal),
+    ResolutionProof(Literal),
+    Proof(Literal),
+    Forced(ClauseKey, Literal),
+    Pure(Literal),
+}
+
 #[derive(Clone)]
 pub enum Resolution {
     Begin,
@@ -50,11 +54,8 @@ pub enum Resolution {
     Subsumed(ClauseKey, Literal),
 }
 
-#[derive(Debug, Clone)]
-pub enum Level {
-    Assumption(Literal),
-    ResolutionProof(Literal),
-    Proof(Literal),
-    Forced(ClauseKey, Literal),
-    Pure(Literal),
+#[derive(Clone)]
+pub enum VariableDB {
+    Internalised(String, u32),
+    Unsatisfiable(ClauseKey),
 }
