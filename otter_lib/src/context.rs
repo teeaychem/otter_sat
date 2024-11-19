@@ -56,7 +56,7 @@ pub struct Context {
     pub literal_db: LiteralDB,
 
     pub status: Solve,
-    pub tx: Sender<Dispatch>, //
+    pub tx: Option<Sender<Dispatch>>, //
     pub consequence_q: ConsequenceQ,
 }
 
@@ -75,11 +75,11 @@ impl std::fmt::Display for Solve {
 }
 
 impl Context {
-    pub fn from_config(config: Config, tx: Sender<Dispatch>) -> Self {
+    pub fn from_config(config: Config, tx: Option<Sender<Dispatch>>) -> Self {
         Self {
             counters: Counters::default(),
             literal_db: LiteralDB::new(tx.clone()),
-            clause_db: ClauseDB::default(&tx, &config),
+            clause_db: ClauseDB::default(tx.clone(), &config),
             variable_db: VariableDB::new(tx.clone()),
             config,
             status: Solve::Initialised,

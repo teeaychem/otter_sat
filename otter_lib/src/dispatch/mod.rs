@@ -3,7 +3,8 @@ use crate::context::Context;
 pub mod frat;
 pub mod library;
 pub mod receivers;
-pub mod transmitters;
+
+use library::report::{self, Report};
 
 #[derive(Clone)]
 pub enum Dispatch {
@@ -15,14 +16,13 @@ pub enum Dispatch {
 
 impl Context {
     pub fn dispatch_active(&self) {
-        self.clause_db.dispatch_active();
+        if let Some(tx) = &self.tx {
+            self.clause_db.dispatch_active();
 
-        for literal in self.literal_db.proven_literals() {
-            let report = library::report::VariableDB::Active(*literal);
-            self.tx
-                .send(Dispatch::Report(library::report::Report::VariableDB(
-                    report,
-                )));
+            for literal in self.literal_db.proven_literals() {
+                let report = report::VariableDB::Active(*literal);
+                tx.send(Dispatch::Report(Report::VariableDB(report)));
+            }
         }
     }
 }

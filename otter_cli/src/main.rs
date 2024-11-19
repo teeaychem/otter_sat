@@ -1,4 +1,6 @@
 // #![allow(unused_imports)]
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::collapsible_else_if)]
 
 #[cfg(not(target_env = "msvc"))]
 #[cfg(feature = "jemalloc")]
@@ -10,6 +12,7 @@ use tikv_jemallocator::Jemalloc;
 static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
 use otter_lib::{
+    config::Config,
     context::Context,
     dispatch::{
         library::report::{self},
@@ -42,38 +45,33 @@ fn main() {
     let matches = parse::cli::cli().get_matches();
 
     let mut config = parse::config::config_from_args(&matches);
-    let config_io = ConfigIO::from_args(&matches);
+    let mut config_io = ConfigIO::from_args(&matches);
 
-    if config_io.detail > 0 {
-        println!("c Parsing {} files\n", config_io.files.len());
-    }
+    config_preprocessing(&mut config, &mut config_io);
 
-    #[allow(clippy::collapsible_if)]
-    if config_io.frat {
-        if config.subsumption {
-            if config_io.detail > 0 {
-                println!("c Subsumption is disabled for FRAT proofs");
+    let core_db_ptr = if config_io.show_core {
+        Some(Arc::new(Mutex::new(CoreDB::default())))
+    } else {
+        None
+    };
+
+    let (transmitter, receiver) =
+        match config_io.show_core || config_io.show_stats || config_io.frat {
+            true => {
+                let (tx, rx) = unbounded::<Dispatch>();
+                let config = config.clone();
+                let config_io = config_io.clone();
+                let core_db_ptr_clone = core_db_ptr.clone();
+                let rx = thread::spawn(|| {
+                    records::general_recorder(rx, config, config_io, core_db_ptr_clone)
+                });
+                (Some(tx), Some(rx))
             }
-            config.subsumption = false;
-        }
-    }
-
-    let core_db_ptr = match config_io.show_core {
-        true => Some(Arc::new(Mutex::new(CoreDB::default()))),
-        false => None,
-    };
-
-    let (tx, rx) = unbounded::<Dispatch>();
-
-    let listener_handle = {
-        let config = config.clone();
-        let config_io = config_io.clone();
-        let core_db_ptr_clone = core_db_ptr.clone();
-        thread::spawn(|| records::general_recorder(rx, config, config_io, core_db_ptr_clone))
-    };
+            false => (None, None),
+        };
 
     // As the context holds a transmitter it'll need to be dropped explicitly
-    let mut the_context = Context::from_config(config, tx);
+    let mut the_context = Context::from_config(config, transmitter);
     let report = 'report: {
         for path in config_io.files {
             match load_dimacs(&mut the_context, path) {
@@ -121,8 +119,11 @@ fn main() {
         report::Solve::Satisfiable => {
             if let Some(path) = config_io.frat_path {
                 let _ = std::fs::remove_file(path);
-                let _ = listener_handle.join();
             }
+            if let Some(handle) = receiver {
+                let _ = handle.join();
+            }
+
             drop(the_context);
             println!("s SATISFIABLE");
             std::process::exit(10)
@@ -132,7 +133,9 @@ fn main() {
                 println!("c Finalising FRAT proof…");
             }
 
-            let _ = listener_handle.join();
+            if let Some(handle) = receiver {
+                let _ = handle.join();
+            }
 
             if config_io.show_core {
                 let the_core_db = core_db_ptr.expect("core_db should be present…");
@@ -153,4 +156,19 @@ fn main() {
             std::process::exit(30)
         }
     };
+}
+
+fn config_preprocessing(config: &mut Config, config_io: &mut ConfigIO) {
+    if config_io.detail > 0 {
+        println!("c Parsing {} files\n", config_io.files.len());
+    }
+
+    if config_io.frat {
+        if config.subsumption {
+            if config_io.detail > 1 {
+                println!("c Subsumption is disabled for FRAT proofs");
+            }
+            config.subsumption = false;
+        }
+    }
 }

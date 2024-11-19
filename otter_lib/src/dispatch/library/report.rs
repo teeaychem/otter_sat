@@ -25,7 +25,7 @@ pub enum ClauseDB {
 pub enum Parser {
     Load(String),
     Expected(usize, usize),
-    Complete(usize, usize),
+    Counts(usize, usize),
     ContextClauses(usize),
 }
 
@@ -49,7 +49,7 @@ impl std::fmt::Display for self::Parser {
         match self {
             Self::Load(formula) => write!(f, "Parsing \"{formula}\""),
             Self::Expected(v, c) => write!(f, "Expected:     {v} variables and {c} clauses"),
-            Self::Complete(v, c) => write!(f, "Parse result: {v} variables and {c} clauses"),
+            Self::Counts(v, c) => write!(f, "Parse result: {v} variables and {c} clauses"),
             Self::ContextClauses(c) => write!(f, "{c} clauses are in the context"),
         }
     }

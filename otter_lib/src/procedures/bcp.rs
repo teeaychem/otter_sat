@@ -38,11 +38,14 @@ impl Context {
             match self.variable_db.value_of(check.var()) {
                 None => match self.q_literal(*check) {
                     Ok(gen::Queue::Qd) => {
-                        let delta = delta::BCP::Instance {
-                            from: (*literal, *clause_key),
-                            to: *check,
-                        };
-                        self.tx.send(Dispatch::Delta(Delta::BCP(delta)));
+                        if let Some(tx) = &self.tx {
+                            let delta = delta::BCP::Instance {
+                                from: *literal,
+                                via: *clause_key,
+                                to: *check,
+                            };
+                            tx.send(Dispatch::Delta(Delta::BCP(delta)));
+                        }
                         self.note_literal(check.canonical(), gen::src::Literal::BCP(*clause_key));
                     }
                     Err(_key) => {
@@ -51,8 +54,10 @@ impl Context {
                 },
                 Some(value) if check.polarity() != value => {
                     log::trace!(target: targets::PROPAGATION, "Consequence of {clause_key} and {literal} is contradiction.");
-                    let delta = delta::BCP::Conflict(*literal, *clause_key);
-                    self.tx.send(Dispatch::Delta(Delta::BCP(delta)));
+                    if let Some(tx) = &self.tx {
+                        let delta = delta::BCP::Conflict(*literal, *clause_key);
+                        tx.send(Dispatch::Delta(Delta::BCP(delta)));
+                    }
                     return Err(err::BCP::Conflict(*clause_key));
                 }
                 Some(_) => {
@@ -105,8 +110,10 @@ impl Context {
                     let watch_value = self.variable_db.value_of(the_watch.var());
                     match watch_value {
                         Some(value) if the_watch.polarity() != value => {
-                            let delta = delta::BCP::Conflict(*literal, *clause_key);
-                            self.tx.send(Dispatch::Delta(Delta::BCP(delta)));
+                            if let Some(tx) = &self.tx {
+                                let delta = delta::BCP::Conflict(*literal, *clause_key);
+                                tx.send(Dispatch::Delta(Delta::BCP(delta)));
+                            }
                             return Err(err::BCP::Conflict(*clause_key));
                         }
                         None => {
@@ -114,11 +121,14 @@ impl Context {
                                 return Err(err::BCP::Conflict(*clause_key));
                             };
 
-                            let delta = delta::BCP::Instance {
-                                from: (*literal, *clause_key),
-                                to: the_watch,
-                            };
-                            self.tx.send(Dispatch::Delta(Delta::BCP(delta)));
+                            if let Some(tx) = &self.tx {
+                                let delta = delta::BCP::Instance {
+                                    from: *literal,
+                                    via: *clause_key,
+                                    to: the_watch,
+                                };
+                                tx.send(Dispatch::Delta(Delta::BCP(delta)));
+                            }
                             self.note_literal(
                                 the_watch.canonical(),
                                 gen::src::Literal::BCP(*clause_key),
