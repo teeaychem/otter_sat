@@ -1,9 +1,9 @@
 use std::fmt::Display;
 use std::io::{stdout, Write};
 
-use otter_lib::config::Config;
+use otter_lib::config::context::Config;
 
-use crossterm::{cursor, terminal, QueueableCommand};
+use termion::{cursor::DetectCursorPos, raw::IntoRawMode};
 
 pub struct ContextWindow {
     pub location: (u16, u16),
@@ -23,7 +23,8 @@ pub enum WindowItem {
 
 impl Default for ContextWindow {
     fn default() -> Self {
-        let location = cursor::position().expect("Unable to display stats");
+        let mut stdout = std::io::stdout().into_raw_mode().unwrap();
+        let location = stdout.cursor_pos().unwrap();
 
         ContextWindow {
             location,
@@ -47,41 +48,45 @@ impl ContextWindow {
         (self.column, the_row)
     }
 
+    #[allow(unused_must_use)]
     pub fn update_item(&self, item: WindowItem, output: impl Display) {
         let mut stdout = stdout();
         let (x, y) = self.get_offset(item);
 
-        stdout.queue(cursor::SavePosition).unwrap();
-        stdout.queue(cursor::MoveTo(x, y)).unwrap();
-        stdout
-            .queue(terminal::Clear(terminal::ClearType::UntilNewLine))
-            .unwrap();
-        match item {
-            WindowItem::Ratio => stdout.write_all(format!("{output:.4}").as_bytes()).unwrap(),
-            _ => stdout.write_all(format!("{output}").as_bytes()).unwrap(),
-        }
-        stdout.queue(cursor::RestorePosition).unwrap();
-    }
+        write!(
+            stdout,
+            "{}{}",
+            termion::cursor::Goto(x, y),
+            termion::clear::UntilNewline
+        );
 
-    pub fn flush(&self) {
-        stdout().flush().unwrap();
+        match item {
+            WindowItem::Ratio => writeln!(stdout, "{output:.4}"),
+            _ => writeln!(stdout, "{output}"),
+        };
+
+        write!(stdout, "{}", termion::cursor::Goto(0, self.location.1));
     }
 
     pub fn update_position(&mut self) {
-        self.location = cursor::position().expect("Unable to display stats");
+        // self.location = cursor::position().expect("Unable to display stats");
+        let mut stdout = std::io::stdout().into_raw_mode().unwrap();
+        self.location = stdout.cursor_pos().unwrap();
     }
 
+    #[allow(unused_must_use)]
     pub fn draw_window(&mut self, config: &Config) {
-        println!("c 🦦");
-        println!("c CHOICE POLARITY LEAN {}", config.polarity_lean);
+        let mut stdout = stdout();
+        writeln!(stdout, "c 🦦");
+        writeln!(stdout, "c CHOICE POLARITY LEAN {}", config.polarity_lean);
         if let Some(limit) = config.time_limit {
-            println!("c TIME LIMIT: {:.2?}", limit);
+            writeln!(stdout, "c TIME LIMIT: {:.2?}", limit);
         }
-        println!("c ITERATIONS");
-        println!("c CONFLCITS");
-        println!("c C/I RATIO");
-        println!("c CHOICES");
-        println!("c TIME");
+        writeln!(stdout, "c ITERATIONS");
+        writeln!(stdout, "c CONFLCITS");
+        writeln!(stdout, "c C/I RATIO");
+        writeln!(stdout, "c CHOICES");
+        writeln!(stdout, "c TIME");
 
         self.update_position();
     }

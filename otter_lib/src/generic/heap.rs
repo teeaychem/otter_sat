@@ -4,7 +4,7 @@ pub struct IndexHeap<V: PartialOrd + Default> {
     values: Vec<V>,
     position_in_heap: Vec<Option<usize>>,
     heap: Vec<usize>,
-    pub limit: usize,
+    limit: usize,
 }
 use std::cmp::Ordering;
 
@@ -121,11 +121,6 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
 
     pub fn value_at(&self, index: usize) -> &V {
         unsafe { self.values.get_unchecked(index) }
-    }
-
-    pub fn update_one(&mut self, index: usize, value: V) {
-        self.revalue(index, value);
-        self.heapify_if_active(index);
     }
 
     pub fn apply_to_index(&mut self, index: usize, f: impl Fn(&V) -> V) {

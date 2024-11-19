@@ -37,7 +37,7 @@ pub fn pure_choices<'l>(
 
 impl Context {
     pub fn preprocess(&mut self) -> Result<(), err::Preprocessing> {
-        if self.config.preprocessing {
+        if self.config.enabled.preprocessing {
             match self.set_pure() {
                 Ok(()) => {}
                 Err(_) => {

@@ -1,5 +1,5 @@
 use otter_lib::{
-    config::Config,
+    config::context::Config,
     dispatch::library::report::{self},
 };
 

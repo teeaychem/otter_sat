@@ -2,11 +2,13 @@ use std::path::PathBuf;
 
 use clap::{value_parser, Arg, Command};
 
-use otter_lib::config::{self, Activity, StoppingCriteria, VSIDS};
+use otter_lib::config::{Activity, StoppingCriteria, VSIDS};
 
 pub fn cli() -> Command {
     Command::new("otter_sat")
-        .about("Determines whether a formula is satisfiable or unsatisfialbe")
+        .about("Determines whether a formula is satisfiable or unsatisfialbe.
+
+")
         .version("pup (it's still growing)")
 
         .arg(Arg::new("paths")
@@ -30,12 +32,11 @@ pub fn cli() -> Command {
             .required(false)
             .num_args(1)
             .help("The decay to use for variable activity.")
-            .help(format!("The decay to use for variable activity.
-Default: {}
+            .help("The decay to use for variable activity.
 
 After a conflict any future variables will be bumped with activity (proportional to) 1 / (1 - decay^-3).
 Viewed otherwise, the activity of all variables is decayed by 1 - decay^-3 each conflict.
-For example, at decay of 3 at each conflict the activity of a variable decays to 0.875 of it's previous activity.", config::defaults::VARIABLE_DECAY_FACTOR)))
+For example, at decay of 3 at each conflict the activity of a variable decays to 0.875 of it's previous activity."))
 
         .arg(Arg::new("clause_decay")
             .long("clause-decay")
@@ -43,11 +44,10 @@ For example, at decay of 3 at each conflict the activity of a variable decays to
             .required(false)
             .num_args(1)
             .help("The decay to use for clause activity.")
-            .help(format!("The decay to use for clause activity.
-Default: {}
+            .help("The decay to use for clause activity.
 
 Works the same as variable activity, but applied to clauses.
-If reductions are allowed then clauses are removed from low to high activity.", config::defaults::CLAUSE_DECAY_FACTOR)))
+If reductions are allowed then clauses are removed from low to high activity."))
 
         .arg(Arg::new("reduction_interval")
             .long("reduction-interval")
@@ -55,12 +55,11 @@ If reductions are allowed then clauses are removed from low to high activity.", 
             .required(false)
             .num_args(1)
             .help("The interval to perform reductions, relative to conflicts.")
-            .help(format!("The interval to perform reductions, relative to conflicts.
-Default: {}
+            .help("The interval to perform reductions, relative to conflicts.
 
 After interval number of conflicts the clause database is reduced.
 Clauses of length two are never removed.
-Clauses with length greater than two are removed, low activity to high (and high lbd to low on activity ties).", config::defaults::REDUCTION_INTERVAL)))
+Clauses with length greater than two are removed, low activity to high (and high lbd to low on activity ties)."))
 
         .arg(Arg::new("no_reduction")
             .long("no-reduction")
@@ -115,8 +114,7 @@ For the moment this is limited to settling all atoms which occur with a unique p
             .value_parser(value_parser!(usize))
             .required(false)
             .num_args(1)
-            .help(format!("Required minimum (inintial) lbd to retain a clause during a reduction.
-Default: {}", config::defaults::GLUE_STRENGTH)))
+            .help("Required minimum (inintial) lbd to retain a clause during a reduction."))
 
         .arg(Arg::new("stopping_criteria")
             .long("stopping-criteria")
@@ -125,13 +123,11 @@ Default: {}", config::defaults::GLUE_STRENGTH)))
             .value_parser(clap::builder::ValueParser::new(stopping_criteria_parser))
             .required(false)
             .num_args(1)
-            .help(format!("Resolution stopping criteria.
-Default: {}", config::defaults::STOPPING_CRITERIA))
-            .long_help(format!("The stopping criteria to use during resolution.
-Default: {}
+            .help("Resolution stopping criteria.")
+            .long_help("The stopping criteria to use during resolution.
 
   - FirstUIP: Resolve until the first unique implication point
-  - None    : Resolve on each clause used to derive the conflict", config::defaults::STOPPING_CRITERIA)))
+  - None    : Resolve on each clause used to derive the conflict"))
 
         .arg(Arg::new("VSIDS_variant")
             .value_name("VARIANT")
@@ -140,13 +136,11 @@ Default: {}
             .value_parser(clap::builder::ValueParser::new(vsids_parser))
             .required(false)
             .num_args(1)
-            .help(format!("Which VSIDS variant to use.
-Default: {}", config::defaults::VSIDS_VARIANT))
-            .long_help(format!("Which VSIDS variant to use.
-Default: {}
+            .help("Which VSIDS variant to use.")
+            .long_help("Which VSIDS variant to use.
 
   - MiniSAT: Bump the activity of all variables in the a learnt clause.
-  - Chaff  : Bump the activity involved when using resolution to learn a clause.", config::defaults::VSIDS_VARIANT)))
+  - Chaff  : Bump the activity involved when using resolution to learn a clause."))
 
         .arg(Arg::new("luby")
             .long("luby")
@@ -155,8 +149,7 @@ Default: {}
             .value_parser(value_parser!(usize))
             .required(false)
             .num_args(1)
-            .help(format!("The 'u' value to use for the luby calculation when restarts are permitted.
-Default: {}", config::defaults::LUBY_U)))
+            .help("The 'u' value to use for the luby calculation when restarts are permitted."))
 
         .arg(Arg::new("random_choice_frequency")
             .long("random-choice-frequency")
@@ -165,8 +158,7 @@ Default: {}", config::defaults::LUBY_U)))
             .value_parser(value_parser!(f64))
             .required(false)
             .num_args(1)
-            .help(format!("The chance of making a random choice (as opposed to using most VSIDS activity).
-Default: {}", config::defaults::RANDOM_CHOICE_FREQUENCY)))
+            .help("The chance of making a random choice (as opposed to using most VSIDS activity)."))
 
         .arg(Arg::new("polarity_lean")
             .long("polarity-lean")
@@ -175,8 +167,7 @@ Default: {}", config::defaults::RANDOM_CHOICE_FREQUENCY)))
             .value_parser(value_parser!(f64))
             .required(false)
             .num_args(1)
-            .help(format!("The chance of choosing assigning positive polarity to a variant when making a choice.
-Default: {}", config::defaults::POLARITY_LEAN)))
+            .help("The chance of choosing assigning positive polarity to a variant when making a choice."))
 
         .arg(Arg::new("time_limit")
             .long("time-limit")

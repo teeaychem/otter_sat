@@ -32,13 +32,12 @@ impl Context {
 
         self.preprocess()?;
 
-        let time_limit = self.config.time_limit;
-
         'solve_loop: loop {
             self.counters.iterations += 1;
             log::trace!("Iteration {}", self.counters.iterations);
 
             self.counters.time = this_total_time.elapsed();
+            let time_limit = self.config.time_limit;
             if time_limit.is_some_and(|limit| self.counters.time > limit) {
                 if let Some(tx) = &self.tx {
                     tx.send(Dispatch::Comment(Comment::Solve(comment::Solve::TimeUp)));
@@ -67,7 +66,24 @@ impl Context {
                     self.note_literal(literal, gen::src::Literal::Forced(key));
                     self.q_literal(literal)?;
 
-                    self.conflict_ceremony()?;
+                    self.counters.conflicts += 1;
+                    self.counters.conflicts_in_memory += 1;
+
+                    if self.scheduled_luby_interrupt() {
+                        self.counters.luby.next();
+                        self.conflict_dispatch();
+
+                        if self.config.enabled.restart {
+                            self.restart()
+                        };
+
+                        if self.scheduled_luby_reduction() {
+                            self.clause_db.reduce();
+                        }
+                    } else if self.scheduled_reduction() {
+                        self.clause_db.reduce()?;
+                    }
+
                     continue 'solve_loop;
                 }
 
@@ -142,42 +158,38 @@ impl Context {
         Ok(gen::Expansion::Exhausted)
     }
 
-    // The config is (re)borrowed to shorten conditions
-    pub fn conflict_ceremony(&mut self) -> Result<(), err::Context> {
-        let config = &self.config;
-        self.counters.conflicts += 1;
-        self.counters.conflicts_in_memory += 1;
-
-        if self.counters.conflicts_in_memory % (config.luby_u * self.counters.luby.current()) == 0 {
-            self.counters.luby.next();
-            if let Some(tx) = &self.tx {
-                tx.send(Dispatch::Stats(Stat::Iterations(self.counters.iterations)));
-                tx.send(Dispatch::Stats(Stat::Chosen(self.counters.choices)));
-                tx.send(Dispatch::Stats(Stat::Conflicts(self.counters.conflicts)));
-                tx.send(Dispatch::Stats(Stat::Time(self.counters.time)));
-            }
-
-            if config.restarts_ok {
-                self.backjump(0);
-                self.clause_db.reset_heap();
-                self.counters.restarts += 1;
-                self.counters.conflicts_in_memory = 0;
-            }
-
-            let config = &self.config;
-            if config.reductions_ok && ((self.counters.restarts % config.reduction_interval) == 0) {
-                log::debug!(target: targets::REDUCTION, "Reduction after {} restarts", self.counters.restarts);
-                self.clause_db.reduce()?;
-            }
+    pub fn conflict_dispatch(&self) {
+        if let Some(tx) = &self.tx {
+            tx.send(Dispatch::Stats(Stat::Iterations(self.counters.iterations)));
+            tx.send(Dispatch::Stats(Stat::Chosen(self.counters.choices)));
+            tx.send(Dispatch::Stats(Stat::Conflicts(self.counters.conflicts)));
+            tx.send(Dispatch::Stats(Stat::Time(self.counters.time)));
         }
-        let config = &self.config;
-        if config.reductions_ok
-            && ((self.counters.conflicts % crate::config::defaults::INTER_REDUCTION_INTERVAL) == 0)
-        {
-            log::debug!(target: targets::REDUCTION, "Reduction after {} conflicts", self.counters.conflicts_in_memory);
-            self.clause_db.reduce()?;
-        }
-        Ok(())
+    }
+
+    pub fn restart(&mut self) {
+        self.backjump(0);
+        self.clause_db.reset_heap();
+        self.counters.restarts += 1;
+        self.counters.conflicts_in_memory = 0;
+    }
+
+    #[inline(always)]
+    pub fn scheduled_luby_interrupt(&self) -> bool {
+        self.counters.conflicts_in_memory
+            % (self.config.luby_u * self.counters.luby.current()) as usize
+            == 0
+    }
+
+    #[inline(always)]
+    pub fn scheduled_reduction(&self) -> bool {
+        self.config.enabled.reduction
+            && ((self.counters.conflicts % self.config.reduction_interval) == 0)
+    }
+
+    pub fn scheduled_luby_reduction(&self) -> bool {
+        self.config.enabled.reduction
+            && ((self.counters.restarts % self.config.luby_reduction_interval) == 0)
     }
 
     pub fn make_choice(&mut self) -> Result<gen::Choice, err::Queue> {

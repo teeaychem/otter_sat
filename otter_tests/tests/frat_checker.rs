@@ -7,7 +7,7 @@ use std::{
 const FRAT_RS_PATH: &str = "./frat-rs";
 
 use crossbeam::channel::unbounded;
-use otter_lib::{config::Config, context::Context, dispatch::Dispatch};
+use otter_lib::{config::context::Config, context::Context, dispatch::Dispatch};
 
 fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     let mut frat_path_string = file_path.clone().to_str().unwrap().to_owned();
@@ -61,10 +61,9 @@ fn frat_dir_test(dir: String) -> usize {
     let mut counter = 0;
     for entry in glob::glob(format!("{dir}/*.xz").as_str()).expect("bad glob") {
         let formula = entry.unwrap();
-        let config = Config {
-            subsumption: false,
-            ..Default::default()
-        };
+        let mut config = Config::default();
+        config.enabled.subsumption = false;
+
         if frat_verify(formula, config) {
             counter += 1
         } else {
@@ -85,17 +84,13 @@ mod frat_tests {
     fn frat_setup_check() {
         let file_path = cnf_lib_subdir(vec!["frat", "tt.cnf"]);
 
-        let config = Config {
-            subsumption: false,
-            ..Default::default()
-        };
+        let mut config = Config::default();
+        config.enabled.subsumption = false;
 
         assert!(frat_verify(file_path.clone(), config));
 
-        let config = Config {
-            subsumption: true,
-            ..Default::default()
-        };
+        let mut config = Config::default();
+        config.enabled.subsumption = true;
 
         assert!(
             !frat_verify(file_path, config),
@@ -153,19 +148,15 @@ mod frat_tests {
             #[test]
             #[ignore = "slower than other quasigroup tests"]
             fn qg3() {
-                let config = Config {
-                    subsumption: false,
-                    ..Default::default()
-                };
+                let mut config = Config::default();
+                config.enabled.subsumption = false;
                 assert!(frat_verify(quasigroup_dir().join("qg3-09.cnf.xz"), config));
             }
 
             #[test]
             fn qg4() {
-                let config = Config {
-                    subsumption: false,
-                    ..Default::default()
-                };
+                let mut config = Config::default();
+                config.enabled.subsumption = false;
                 assert!(frat_verify(quasigroup_dir().join("qg4-08.cnf.xz"), config));
             }
 
@@ -173,10 +164,8 @@ mod frat_tests {
             #[test]
             #[ignore = "slower than other quasigroup tests"]
             fn qg5() {
-                let config = Config {
-                    subsumption: false,
-                    ..Default::default()
-                };
+                let mut config = Config::default();
+                config.enabled.subsumption = false;
                 assert!(frat_verify(quasigroup_dir().join("qg5-09.cnf.xz"), config.clone()));
                 assert!(frat_verify(quasigroup_dir().join("qg5-10.cnf.xz"), config.clone()));
                 assert!(frat_verify(quasigroup_dir().join("qg5-12.cnf.xz"), config.clone()));
@@ -186,10 +175,8 @@ mod frat_tests {
             #[rustfmt::skip]
             #[test]
             fn qg6() {
-                let config = Config {
-                    subsumption: false,
-                    ..Default::default()
-                };
+                let mut config = Config::default();
+                config.enabled.subsumption = false;
                 assert!(frat_verify(quasigroup_dir().join("qg6-10.cnf.xz"), config.clone()));
                 assert!(frat_verify(quasigroup_dir().join("qg6-11.cnf.xz"), config.clone()));
                 assert!(frat_verify(quasigroup_dir().join("qg6-12.cnf.xz"), config.clone()));
@@ -198,10 +185,8 @@ mod frat_tests {
             #[rustfmt::skip]
             #[test]
             fn qg7() {
-                let config = Config {
-                    subsumption: false,
-                    ..Default::default()
-                };
+                let mut config = Config::default();
+                config.enabled.subsumption = false;
                 assert!(frat_verify(quasigroup_dir().join("qg7-10.cnf.xz"), config.clone()));
                 assert!(frat_verify(quasigroup_dir().join("qg7-11.cnf.xz"), config.clone()));
                 assert!(frat_verify(quasigroup_dir().join("qg7-12.cnf.xz"), config.clone()));
@@ -231,10 +216,8 @@ mod frat_tests {
                 fn bf() {
                     let bf_dir = circuit_dir().join("BF");
 
-                    let config = Config {
-                        subsumption: false,
-                        ..Default::default()
-                    };
+                    let mut config = Config::default();
+                    config.enabled.subsumption = false;
 
                     assert!(frat_verify(bf_dir.join("bf0432-007.cnf.xz"), config.clone()));
                     assert!(frat_verify(bf_dir.join("bf1355-075.cnf.xz"), config.clone()));
@@ -247,10 +230,8 @@ mod frat_tests {
                 fn ssa() {
                     let ssa_dir = circuit_dir().join("SSA");
 
-                    let config = Config {
-                        subsumption: false,
-                        ..Default::default()
-                    };
+                    let mut config = Config::default();
+                    config.enabled.subsumption = false;
 
                     assert!(frat_verify(ssa_dir.join("ssa0432-003.cnf.xz"), config.clone()));
                     assert!(frat_verify(ssa_dir.join("ssa2670-130.cnf.xz"), config.clone()));
@@ -266,28 +247,29 @@ mod frat_tests {
                     dimacs_dir().join("PHOLE")
                 }
 
-                #[rustfmt::skip]
                 #[test]
                 fn hole678() {
-                    let config = Config { subsumption: false, ..Default::default() };
-                    assert!(frat_verify(phole_dir().join("hole6.cnf.xz"), config.clone()));
-                    assert!(frat_verify(phole_dir().join("hole7.cnf.xz"), config.clone()));
-                    assert!(frat_verify(phole_dir().join("hole8.cnf.xz"), config.clone()));
+                    let mut config = Config::default();
+                    config.enabled.subsumption = false;
+                    let files = ["hole6.cnf.xz", "hole7.cnf.xz", "hole8.cnf.xz"];
+                    for file in files {
+                        assert!(frat_verify(phole_dir().join(file), config.clone()));
+                    }
                 }
 
-                #[rustfmt::skip]
                 #[test]
                 #[ignore = "expensive unsat"]
                 fn hole9() {
-                    let config = Config { subsumption: false, ..Default::default() };
+                    let mut config = Config::default();
+                    config.enabled.subsumption = false;
                     assert!(frat_verify(phole_dir().join("hole9.cnf.xz"), config));
                 }
 
-                #[rustfmt::skip]
                 #[test]
                 #[ignore = "expensive unsat"]
                 fn hole10() {
-                    let config = Config { subsumption: false, ..Default::default() };
+                    let mut config = Config::default();
+                    config.enabled.subsumption = false;
                     assert!(frat_verify(phole_dir().join("hole10.cnf.xz"), config));
                 }
             }

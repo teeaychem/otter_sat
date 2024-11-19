@@ -1,10 +1,12 @@
 use otter_lib::{
-    config::Config,
+    config::context::Config,
     context::Context,
     dispatch::library::report::{self},
 };
 
 mod basic {
+
+    use otter_lib::structures::clause::Clause;
 
     use super::*;
     #[test]
@@ -47,17 +49,18 @@ mod basic {
     fn duplicates() {
         let mut the_context = Context::from_config(Config::default(), None);
         assert!(the_context.clause_from_string("p q q").is_ok());
-        let database = the_context.clause_database();
+        let database = the_context.clause_db.all_clauses().collect::<Vec<_>>();
         assert_eq!(database.len(), 1);
-        assert_eq!(database.first().unwrap(), "p q 0");
+        let the_clause_dimacs = database[0].as_dimacs(&the_context.variable_db, true);
+        assert_eq!(the_clause_dimacs, "p q 0");
     }
 
     #[test]
     fn tautology_skip() {
         let mut the_context = Context::from_config(Config::default(), None);
         assert!(the_context.clause_from_string("p q -p").is_ok());
-        let database = the_context.clause_database();
-        assert_eq!(database.len(), 0);
+        let mut clause_iter = the_context.clause_db.all_clauses();
+        assert!(clause_iter.next().is_none());
     }
 
     // TOOD: Incremental tests based on example

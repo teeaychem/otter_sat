@@ -5,15 +5,17 @@ mod transfer;
 use crossbeam::channel::Sender;
 
 use crate::{
-    config::{self, Activity, Config, GlueStrength},
+    config::{context::Config, dbs::ClauseDBConfig},
     db::{
         clause::{activity_glue::ActivityGlue, stored::StoredClause},
         keys::{ClauseKey, FormulaIndex},
         variable::VariableDB,
     },
     dispatch::{
-        library::delta::{self, Delta},
-        library::report::{self, Report},
+        library::{
+            delta::{self, Delta},
+            report::{self, Report},
+        },
         Dispatch,
     },
     generic::heap::IndexHeap,
@@ -40,12 +42,9 @@ pub struct ClauseDB {
     learned: Vec<Option<StoredClause>>,
 
     activity_heap: IndexHeap<ActivityGlue>,
-    activity_increment: Activity,
-    activity_decay: Activity,
-    max_activity: Activity,
-    glue_strength: GlueStrength,
 
     tx: Option<Sender<Dispatch>>,
+    config: ClauseDBConfig,
 }
 
 pub struct ClauseDBCounts {
@@ -66,7 +65,7 @@ impl Default for ClauseDBCounts {
 }
 
 impl ClauseDB {
-    pub fn default(sender: Option<Sender<Dispatch>>, config: &Config) -> Self {
+    pub fn new(config: &Config, sender: Option<Sender<Dispatch>>) -> Self {
         ClauseDB {
             counts: ClauseDBCounts::default(),
             empty_keys: Vec::default(),
@@ -76,10 +75,7 @@ impl ClauseDB {
             binary: Vec::default(),
 
             activity_heap: IndexHeap::default(),
-            activity_increment: Activity::default(),
-            activity_decay: config.clause_decay * 1e-3,
-            max_activity: config.activity_max,
-            glue_strength: config.glue_strength,
+            config: config.clause_db.clone(),
 
             tx: sender,
         }
@@ -263,16 +259,12 @@ impl ClauseDB {
                         lbd: the_clause.lbd(variables),
                     };
 
+                    self.activity_heap.add(the_key.index(), value);
+                    self.activity_heap.activate(the_key.index());
                     match the_key {
-                        ClauseKey::Learned(_, 0) => {
-                            self.activity_heap.add(the_key.index(), value);
-                            self.activity_heap.activate(the_key.index());
-                            self.learned.push(Some(the_clause));
-                        }
+                        ClauseKey::Learned(_, 0) => self.learned.push(Some(the_clause)),
                         ClauseKey::Learned(_, _) => unsafe {
-                            self.activity_heap.revalue(the_key.index(), value);
-                            self.activity_heap.activate(the_key.index());
-                            *self.learned.get_unchecked_mut(the_key.index()) = Some(the_clause);
+                            *self.learned.get_unchecked_mut(the_key.index()) = Some(the_clause)
                         },
                         _ => panic!("X"),
                     };
@@ -302,7 +294,7 @@ impl ClauseDB {
             if let Some(index) = self.activity_heap.peek_max() {
                 let value = self.activity_heap.value_at(index);
                 log::debug!(target: targets::REDUCTION, "Took: {:?}", value);
-                if value.lbd <= self.glue_strength {
+                if value.lbd <= self.config.glue_strength {
                     break 'reduction_loop;
                 } else {
                     self.remove_from_learned(index)?;
@@ -342,28 +334,28 @@ impl ClauseDB {
     }
 
     pub fn bump_activity(&mut self, index: FormulaIndex) {
+        if let Some(max) = self.activity_heap.peek_max_value() {
+            if max.activity + self.config.activity_increment > self.config.max_activity {
+                let factor = 1.0 / max.activity;
+                let decay_activity = |s: &ActivityGlue| ActivityGlue {
+                    activity: s.activity * factor,
+                    lbd: s.lbd,
+                };
+                self.activity_heap.apply_to_all(decay_activity);
+                self.config.activity_increment *= factor
+            }
+        }
+
         let bump_activity = |s: &ActivityGlue| ActivityGlue {
-            activity: s.activity + config::defaults::CLAUSE_BUMP,
+            activity: s.activity + self.config.activity_increment,
             lbd: s.lbd,
         };
-
-        let activity = self.activity_heap.value_at(index as usize).activity;
-        if activity + self.activity_increment > self.max_activity {
-            let factor = 1.0 / activity;
-            let decay_activity = |s: &ActivityGlue| ActivityGlue {
-                activity: s.activity * factor,
-                lbd: s.lbd,
-            };
-            self.activity_heap.apply_to_all(decay_activity);
-            self.activity_increment *= factor
-        }
 
         let index = index as usize;
         self.activity_heap.apply_to_index(index, bump_activity);
         self.activity_heap.heapify_if_active(index);
 
-        let factor = 1.0 / (1.0 - self.activity_decay);
-        self.activity_increment *= factor
+        self.config.activity_increment *= 1.0 / (1.0 - self.config.activity_decay);
     }
 
     pub fn clause_count(&self) -> usize {
