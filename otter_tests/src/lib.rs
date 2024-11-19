@@ -5,7 +5,7 @@ use std::{
 };
 
 use otter_lib::{
-    config::Config,
+    config::context::Config,
     context::Context,
     dispatch::library::report::{self},
     types::err,

@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use crossbeam::channel::Sender;
 
 use crate::{
-    config::{Config, StoppingCriteria},
+    config::{context::Config, StoppingCriteria},
     db::{clause::ClauseDB, keys::ClauseKey, literal::LiteralDB, variable::VariableDB},
     dispatch::{
         library::delta::{self},
@@ -72,7 +72,7 @@ impl ResolutionBuffer {
             tx,
 
             config: BufferConfig {
-                subsumption: config.subsumption,
+                subsumption: config.enabled.subsumption,
                 stopping: config.stopping_criteria,
             },
         }

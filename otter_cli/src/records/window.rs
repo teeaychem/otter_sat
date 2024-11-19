@@ -28,7 +28,7 @@ pub fn window_writer<'w>(window: &'w mut ContextWindow) -> Box<dyn FnMut(&Dispat
                     println!("s {}", report.to_string().to_uppercase())
                 }
 
-                report::Report::Finish => window.flush(),
+                report::Report::Finish => {}
                 _ => {}
             }
         }
@@ -55,7 +55,6 @@ pub fn window_writer<'w>(window: &'w mut ContextWindow) -> Box<dyn FnMut(&Dispat
 
             let ratio = window.confclits as f64 / window.iterations as f64;
             window.update_item(WindowItem::Ratio, ratio);
-            window.flush();
         }
         Dispatch::Delta(_) => {}
     };

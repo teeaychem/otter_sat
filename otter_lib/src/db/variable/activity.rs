@@ -1,23 +1,18 @@
-use crate::{
-    config::{Activity, Config},
-    db::variable::VariableDB,
-    structures::variable::Variable,
-};
+use crate::{config::Activity, db::variable::VariableDB, structures::variable::Variable};
 
 impl VariableDB {
     #[allow(non_snake_case)]
     /// Bumps the activities of each variable in 'variables'
     /// If given a hint to the max activity the rescore check is performed once on the hint
-    pub fn apply_VSIDS<V: Iterator<Item = Variable>>(&mut self, variables: V, config: &Config) {
+    pub fn apply_VSIDS<V: Iterator<Item = Variable>>(&mut self, variables: V) {
         for variable in variables {
-            if self.activity_of(variable as usize) + config.activity_conflict > config.activity_max
-            {
+            if self.activity_of(variable as usize) + self.config.bump > self.config.bump_max {
                 self.rescore_activity()
             }
             self.bump_activity(variable as usize);
         }
 
-        self.exponent_activity(config);
+        self.exponent_activity();
     }
 
     pub fn heap_pop_most_active(&mut self) -> Option<Variable> {
@@ -32,13 +27,13 @@ impl VariableDB {
 
     pub(super) fn bump_activity(&mut self, index: usize) {
         self.activity_heap
-            .update_one(index, self.activity_of(index) + self.score_increment)
+            .revalue(index, self.activity_of(index) + self.config.bump);
+        self.activity_heap.heapify_if_active(index);
     }
 
-    pub(super) fn exponent_activity(&mut self, config: &Config) {
-        let decay = config.variable_decay * 1e-3;
-        let factor = 1.0 / (1.0 - decay);
-        self.score_increment *= factor
+    pub(super) fn exponent_activity(&mut self) {
+        let factor = 1.0 / (1.0 - self.config.bump_decay);
+        self.config.bump *= factor
     }
 
     pub(super) fn activity_max(&self) -> Option<Activity> {
@@ -47,12 +42,12 @@ impl VariableDB {
 
     pub(super) fn rescore_activity(&mut self) {
         let heap_max = self.activity_max().unwrap_or(Activity::MIN);
-        let rescale = Activity::max(heap_max, self.score_increment);
+        let rescale = Activity::max(heap_max, self.config.bump);
 
         let factor = 1.0 / rescale;
         let rescale = |v: &Activity| v * factor;
         self.activity_heap.apply_to_all(rescale);
-        self.score_increment *= factor;
+        self.config.bump *= factor;
         self.activity_heap.reheap();
     }
 }

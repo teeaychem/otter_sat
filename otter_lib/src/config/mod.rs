@@ -1,61 +1,29 @@
-pub mod defaults;
+//! Configuration for a context.
 
+pub mod context;
+pub mod dbs;
+pub mod misc;
+
+/// Representation used for clause and variable activity
 pub type Activity = f64;
-pub type DecayFrequency = u8;
+
+/// Glue / literal block distance
 pub type GlueStrength = u8;
-pub type LubyConstant = crate::generic::luby::LubyType;
+
+/// Representation used for generating the luby sequence
+pub type LubyRepresentation = u32;
+
+/// Precision
 pub type PolarityLean = f64;
 pub type RandomChoiceFrequency = f64;
 
-#[derive(Debug, Clone)]
-pub struct Config {
-    pub activity_conflict: Activity,
-    pub activity_max: Activity,
-    pub variable_decay: Activity,
-    pub clause_decay: Activity,
-    pub glue_strength: GlueStrength,
-    pub luby_u: LubyConstant,
-    pub polarity_lean: PolarityLean,
-    pub preprocessing: bool,
-    pub random_choice_frequency: RandomChoiceFrequency,
-    pub reductions_ok: bool,
-    pub restarts_ok: bool,
-    pub stopping_criteria: StoppingCriteria,
-    pub subsumption: bool,
-    pub time_limit: Option<std::time::Duration>,
-    pub vsids_variant: VSIDS,
-    pub reduction_interval: usize,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        use defaults::{self};
-
-        Config {
-            activity_conflict: defaults::VARIABLE_BUMP,
-            activity_max: (2.0 as Activity).powi(512),
-            // activity_max: 1e150,
-            variable_decay: defaults::VARIABLE_DECAY_FACTOR,
-            clause_decay: defaults::CLAUSE_DECAY_FACTOR,
-            glue_strength: defaults::GLUE_STRENGTH,
-            luby_u: defaults::LUBY_U,
-            polarity_lean: defaults::POLARITY_LEAN,
-            preprocessing: false,
-            random_choice_frequency: defaults::RANDOM_CHOICE_FREQUENCY,
-            reductions_ok: true,
-            restarts_ok: true,
-            stopping_criteria: defaults::STOPPING_CRITERIA,
-            subsumption: true,
-            time_limit: None,
-            vsids_variant: defaults::VSIDS_VARIANT,
-            reduction_interval: defaults::REDUCTION_INTERVAL,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Variant stopping criterias to use during resolution-based analysis.
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum StoppingCriteria {
+    /// Stop at the first unique implication point.
+    /// In other words, apply resolution until the clause obtained by resolution is asserting on the current valuation without the last choice made, and any consequences of that choice.
     FirstUIP,
+    /// Apply resolution to each clause in the sequence of clauses.
     None,
 }
 
@@ -68,10 +36,13 @@ impl std::fmt::Display for StoppingCriteria {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+/// Variant way to apply VSIDS (variable state independent decay sum) during during resolution-based analysis.
+#[derive(Clone, Copy)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum VSIDS {
+    /// When learning a clause by applying resolution to a sequence of clauses every variable occurring in the learnt clause is bumped.
     Chaff,
+    /// When learning a clause by applying resolution to a sequence of clauses every variable occurring in some clause used during resolution (including the learnt clause) is bumped.
     MiniSAT,
 }
 

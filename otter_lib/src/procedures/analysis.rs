@@ -19,7 +19,7 @@ impl Context {
 
         if let config::VSIDS::Chaff = self.config.vsids_variant {
             self.variable_db
-                .apply_VSIDS(self.clause_db.get(key)?.variables(), &self.config);
+                .apply_VSIDS(self.clause_db.get(key)?.variables());
         }
 
         let mut the_buffer =
@@ -52,8 +52,7 @@ impl Context {
         }
 
         if let config::VSIDS::MiniSAT = self.config.vsids_variant {
-            self.variable_db
-                .apply_VSIDS(the_buffer.variables_used(), &self.config);
+            self.variable_db.apply_VSIDS(the_buffer.variables_used());
         }
 
         /*

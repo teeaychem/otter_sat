@@ -13,7 +13,7 @@ use crate::{
     window::ContextWindow,
 };
 
-use otter_lib::{config::Config, dispatch::Dispatch};
+use otter_lib::{config::context::Config, dispatch::Dispatch};
 
 fn hand() -> Box<dyn FnMut(&Dispatch)> {
     Box::new(|_dispatch: &Dispatch| {})

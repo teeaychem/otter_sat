@@ -5,9 +5,8 @@ pub mod watch_db;
 use crossbeam::channel::Sender;
 
 use crate::{
-    config::Activity,
-    db::keys::ChoiceIndex,
-    db::variable::watch_db::WatchDB,
+    config::{context::Config, dbs::VariableDBConfig, Activity},
+    db::{keys::ChoiceIndex, variable::watch_db::WatchDB},
     dispatch::{
         library::delta::{self},
         Dispatch,
@@ -19,8 +18,6 @@ use crate::{
 };
 
 pub struct VariableDB {
-    score_increment: Activity,
-
     watch_dbs: Vec<WatchDB>,
 
     internal_map: std::collections::HashMap<String, Variable>,
@@ -33,17 +30,17 @@ pub struct VariableDB {
     choice_indicies: Vec<Option<ChoiceIndex>>,
 
     tx: Option<Sender<Dispatch>>,
+    config: VariableDBConfig,
 }
 
 impl VariableDB {
-    pub fn new(tx: Option<Sender<Dispatch>>) -> Self {
+    pub fn new(config: &Config, tx: Option<Sender<Dispatch>>) -> Self {
         VariableDB {
             external_map: Vec::<String>::default(),
             internal_map: std::collections::HashMap::default(),
 
             watch_dbs: Vec::default(),
 
-            score_increment: 1.0,
             activity_heap: IndexHeap::default(),
 
             valuation: Vec::default(),
@@ -51,6 +48,7 @@ impl VariableDB {
             choice_indicies: Vec::default(),
 
             tx,
+            config: config.variable_db.clone(),
         }
     }
 
