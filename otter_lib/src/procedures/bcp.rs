@@ -110,6 +110,7 @@ impl Context {
                     let watch_value = self.variable_db.value_of(the_watch.var());
                     match watch_value {
                         Some(value) if the_watch.polarity() != value => {
+                            self.clause_db.note_use(*clause_key);
                             if let Some(tx) = &self.tx {
                                 let delta = delta::BCP::Conflict(*literal, *clause_key);
                                 tx.send(Dispatch::Delta(Delta::BCP(delta)));
@@ -117,6 +118,7 @@ impl Context {
                             return Err(err::BCP::Conflict(*clause_key));
                         }
                         None => {
+                            self.clause_db.note_use(*clause_key);
                             let Ok(gen::Queue::Qd) = self.q_literal(the_watch) else {
                                 return Err(err::BCP::Conflict(*clause_key));
                             };

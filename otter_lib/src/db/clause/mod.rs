@@ -181,6 +181,24 @@ impl ClauseDB {
 }
 
 impl ClauseDB {
+    pub fn note_use(&mut self, key: ClauseKey) {
+        match key {
+            ClauseKey::Learned(index, _) => {
+                self.activity_heap.remove(index as usize);
+            }
+            ClauseKey::Formula(_) | ClauseKey::Binary(_) => {}
+        }
+    }
+
+    pub fn reset_heap(&mut self) {
+        for (index, slot) in self.learned.iter().enumerate() {
+            if slot.is_some() {
+                self.activity_heap.activate(index);
+            }
+        }
+        self.activity_heap.reheap();
+    }
+
     pub fn insert_clause(
         &mut self,
         source: gen::src::Clause,
@@ -318,7 +336,6 @@ impl ClauseDB {
 
             self.activity_heap.remove(index);
             self.empty_keys.push(the_clause.key());
-            self.activity_heap.remove(index);
             self.counts.learned -= 1;
             Ok(())
         }
