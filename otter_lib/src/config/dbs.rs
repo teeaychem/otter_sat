@@ -1,42 +1,51 @@
+//! Configuration for clause and variable databases.
+
 use super::{Activity, GlueStrength};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ClauseDBConfig {
-    pub activity_increment: Activity,
-    pub activity_decay: Activity,
-    pub max_activity: Activity,
-    pub glue_strength: GlueStrength,
+    /// The activity with which the next variable bumped will be bumped by, dynamically adjusted.
+    pub bump: Activity,
+
+    /// The decay to the activity of a variable each conflict.
+    pub decay: Activity,
+
+    /// The maximum activity any variable may have before the activity of all variables is compressed.
+    pub max_bump: Activity,
+
+    /// Any clauses with lbd within the lbd bound (lbd ≤ bound) will not be removed from the clause database.
+    pub lbd_bound: GlueStrength,
 }
 
 impl Default for ClauseDBConfig {
     fn default() -> Self {
         ClauseDBConfig {
-            activity_increment: 1.0,
-            activity_decay: 50.0 * 1e-3,
-            max_activity: (2.0 as Activity).powi(512),
-            glue_strength: 2,
+            bump: 1.0,
+            decay: 50.0 * 1e-3,
+            max_bump: (2.0 as Activity).powi(512),
+            lbd_bound: 2,
         }
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VariableDBConfig {
     /// The amount with which to bump a variable by when applying VSIDS.
     pub bump: Activity,
 
     /// After a conflict increase the variable bump by a value (proportional to) 1 / (1 - `FACTOR`^-3)
-    pub bump_decay: Activity,
+    pub decay: Activity,
 
     /// The maximum value to which the activity a variable can rise before rescoring the activity of all variables.
-    pub bump_max: Activity,
+    pub max_bump: Activity,
 }
 
 impl Default for VariableDBConfig {
     fn default() -> Self {
         VariableDBConfig {
             bump: 1.0,
-            bump_decay: 50.0 * 1e-3,
-            bump_max: (2.0 as Activity).powi(512), // activity_max: 1e150,
+            decay: 50.0 * 1e-3,
+            max_bump: (2.0 as Activity).powi(512), // activity_max: 1e150,
         }
     }
 }

@@ -5,7 +5,7 @@ use crate::{
     },
     misc::log::targets::{self},
     structures::{
-        clause::Clause,
+        clause::{Clause, ClauseT},
         literal::{Literal, LiteralT},
     },
     types::gen::{self},
@@ -16,13 +16,13 @@ use std::{borrow::Borrow, ops::Deref};
 #[derive(Debug)]
 pub struct StoredClause {
     key: ClauseKey,
-    clause: Vec<Literal>,
+    clause: Clause,
     active: bool,
     last: usize,
 }
 
 impl StoredClause {
-    pub fn from(key: ClauseKey, clause: Vec<Literal>, variables: &mut VariableDB) -> Self {
+    pub fn from(key: ClauseKey, clause: Clause, variables: &mut VariableDB) -> Self {
         let mut stored_clause = Self {
             key,
             clause,

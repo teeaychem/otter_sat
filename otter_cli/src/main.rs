@@ -18,7 +18,7 @@ use otter_lib::{
         library::report::{self},
         Dispatch,
     },
-    structures::clause::Clause,
+    structures::clause::ClauseT,
     types::err::{self},
 };
 
@@ -46,6 +46,8 @@ fn main() {
 
     let mut config = parse::config::config_from_args(&matches);
     let mut config_io = ConfigIO::from_args(&matches);
+
+    // dbg!(&config);
 
     config_preprocessing(&mut config, &mut config_io);
 

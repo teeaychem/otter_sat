@@ -6,19 +6,19 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
     let mut the_config = Config::default();
 
     if let Ok(Some(strength)) = args.try_get_one::<config::GlueStrength>("glue_strength") {
-        the_config.clause_db.glue_strength = *strength
+        the_config.clause_db.lbd_bound = *strength
     };
 
     if let Ok(Some(decay)) = args.try_get_one::<config::Activity>("variable_decay") {
-        the_config.variable_db.bump_decay = decay * 1e-3
+        the_config.variable_db.decay = decay * 1e-3
     };
 
     if let Ok(Some(decay)) = args.try_get_one::<config::Activity>("clause_decay") {
-        the_config.clause_db.activity_decay = *decay * 1e-3
+        the_config.clause_db.decay = *decay * 1e-3
     };
 
-    if let Ok(Some(interval)) = args.try_get_one::<usize>("reduction_interval") {
-        the_config.luby_reduction_interval = *interval
+    if let Ok(Some(interval)) = args.try_get_one::<Option<u32>>("reduction_interval") {
+        the_config.reduction_scheduler.luby = *interval
     };
 
     if let Ok(Some(u)) = args.try_get_one::<config::LubyRepresentation>("luby") {
@@ -43,8 +43,9 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
         the_config.enabled.restart = !*value
     };
 
-    if let Ok(Some(value)) = args.try_get_one::<bool>("no_reduction") {
-        the_config.enabled.reduction = !*value
+    if let Ok(Some(true)) = args.try_get_one::<bool>("no_reduction") {
+        the_config.reduction_scheduler.luby = None;
+        the_config.reduction_scheduler.conflict = None;
     };
 
     if let Ok(Some(value)) = args.try_get_one::<bool>("no_subsumption") {
@@ -65,7 +66,8 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
 
     if let Ok(Some(true)) = args.try_get_one::<bool>("elephant") {
         the_config.enabled.restart = false;
-        the_config.enabled.reduction = false;
+        the_config.reduction_scheduler.luby = None;
+        the_config.reduction_scheduler.conflict = None;
     };
 
     the_config

@@ -1,5 +1,7 @@
 pub mod details;
 
+use std::borrow::Borrow;
+
 use crossbeam::channel::Sender;
 
 use crate::{
@@ -70,19 +72,19 @@ impl LiteralDB {
     Still, in some cases it's easier to check when recording the literal.
     So, checks are made here.
     */
-    pub fn record_literal(&mut self, literal: Literal, source: gen::src::Literal) {
+    pub fn record_literal(&mut self, literal: impl Borrow<Literal>, source: gen::src::Literal) {
         match source {
             gen::src::Literal::Choice => {}
             gen::src::Literal::Assumption => {
                 if let Some(tx) = &self.tx {
-                    let delta = delta::LiteralDB::Assumption(literal);
+                    let delta = delta::LiteralDB::Assumption(literal.borrow().to_owned());
                     tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                 }
                 self.proven.record_literal(literal)
             }
             gen::src::Literal::Pure => {
                 if let Some(tx) = &self.tx {
-                    let delta = delta::LiteralDB::Pure(literal);
+                    let delta = delta::LiteralDB::Pure(literal.borrow().to_owned());
                     tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                 }
                 self.proven.record_literal(literal)
@@ -90,7 +92,7 @@ impl LiteralDB {
             gen::src::Literal::BCP(_) => match self.choice_stack.len() {
                 0 => {
                     if let Some(tx) = &self.tx {
-                        let delta = delta::LiteralDB::Proof(literal);
+                        let delta = delta::LiteralDB::Proof(literal.borrow().to_owned());
                         tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                     }
                     self.proven.record_literal(literal)
@@ -100,7 +102,7 @@ impl LiteralDB {
             gen::src::Literal::Resolution(_) => {
                 // Resoluion implies deduction via (known) clauses
                 if let Some(tx) = &self.tx {
-                    let delta = delta::LiteralDB::ResolutionProof(literal);
+                    let delta = delta::LiteralDB::ResolutionProof(literal.borrow().to_owned());
                     tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                 }
                 self.proven.record_literal(literal)
@@ -108,7 +110,7 @@ impl LiteralDB {
             gen::src::Literal::Forced(key) => match self.choice_stack.len() {
                 0 => {
                     if let Some(tx) = &self.tx {
-                        let delta = delta::LiteralDB::Forced(key, literal);
+                        let delta = delta::LiteralDB::Forced(key, literal.borrow().to_owned());
                         tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                     }
                     self.proven.record_literal(literal)
@@ -119,7 +121,7 @@ impl LiteralDB {
                 0 => {
                     // TODO: Make unique o generalise forcing
                     if let Some(tx) = &self.tx {
-                        let delta = delta::LiteralDB::Forced(key, literal);
+                        let delta = delta::LiteralDB::Forced(key, literal.borrow().to_owned());
                         tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                     }
                     self.proven.record_literal(literal)

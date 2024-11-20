@@ -2,7 +2,6 @@ use crate::context::Context;
 
 pub mod frat;
 pub mod library;
-pub mod receivers;
 
 use library::report::{self, Report};
 
@@ -20,8 +19,8 @@ impl Context {
             self.clause_db.dispatch_active();
 
             for literal in self.literal_db.proven_literals() {
-                let report = report::VariableDB::Active(*literal);
-                tx.send(Dispatch::Report(Report::VariableDB(report)));
+                let report = report::LiteralDB::Active(*literal);
+                tx.send(Dispatch::Report(Report::LiteralDB(report)));
             }
         }
     }

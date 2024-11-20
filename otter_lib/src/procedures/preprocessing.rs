@@ -2,7 +2,7 @@ use crate::{
     context::Context,
     misc::log::targets::{self},
     structures::{
-        clause::Clause,
+        clause::ClauseT,
         literal::{Literal, LiteralT},
         variable::Variable,
     },
@@ -58,7 +58,8 @@ impl Context {
             let the_literal = Literal::new(v_id, false);
             match self.q_literal(the_literal) {
                 Ok(gen::Queue::Qd) => {
-                    self.note_literal(the_literal, gen::src::Literal::Pure);
+                    self.literal_db
+                        .record_literal(the_literal, gen::src::Literal::Pure);
                 }
                 Err(e) => return Err(e),
             }

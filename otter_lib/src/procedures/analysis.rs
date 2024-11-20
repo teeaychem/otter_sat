@@ -3,7 +3,7 @@ use crate::{
     context::Context,
     db::keys::ClauseKey,
     misc::log::targets::{self},
-    structures::clause::Clause,
+    structures::clause::ClauseT,
     transient::resolution_buffer::ResolutionBuffer,
     types::{
         err::{self},
@@ -83,7 +83,12 @@ impl Context {
             0 => Err(err::Analysis::EmptyResolution),
             1 => Ok(gen::Analysis::Proof(key, the_literal)),
             _ => {
-                let key = self.store_clause(resolved_clause, gen::src::Clause::Resolution)?;
+                let key = self.clause_db.store(
+                    resolved_clause,
+                    gen::src::Clause::Resolution,
+                    &mut self.variable_db,
+                )?;
+
                 Ok(gen::Analysis::AssertingClause(key, the_literal))
             }
         }

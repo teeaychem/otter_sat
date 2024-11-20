@@ -4,7 +4,9 @@ use crate::{config::GlueStrength, db::variable::VariableDB, structures::literal:
 
 use super::variable::Variable;
 
-pub trait Clause {
+pub type Clause = Vec<Literal>;
+
+pub trait ClauseT {
     fn as_string(&self) -> String;
 
     fn as_dimacs(&self, variables: &VariableDB, zero: bool) -> String;

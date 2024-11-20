@@ -11,7 +11,7 @@ use crate::{
     },
     misc::log::targets::{self},
     structures::{
-        clause::Clause,
+        clause::{Clause, ClauseT},
         literal::{Literal, LiteralT},
         variable::Variable,
     },
@@ -92,7 +92,7 @@ impl ResolutionBuffer {
     }
 
     /// Returns the possible assertion and clause of the buffer as a pair
-    pub fn to_assertion_clause(&self) -> (Option<Literal>, Vec<Literal>) {
+    pub fn to_assertion_clause(&self) -> (Option<Literal>, Clause) {
         let mut the_clause = vec![];
         let mut conflict_literal = None;
         for item in &self.buffer {
@@ -257,7 +257,7 @@ impl ResolutionBuffer {
 
 impl ResolutionBuffer {
     /// Merge a clause into the buffer
-    fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), err::RBuf> {
+    fn merge_clause(&mut self, clause: &impl ClauseT) -> Result<(), err::RBuf> {
         for literal in clause.literals() {
             match unsafe { self.buffer.get_unchecked(literal.var() as usize) } {
                 Cell::ConflictLiteral(_) | Cell::NoneLiteral(_) | Cell::Pivot => {}
@@ -289,7 +289,7 @@ impl ResolutionBuffer {
 
     fn resolve_clause(
         &mut self,
-        clause: &impl Clause,
+        clause: &impl ClauseT,
         using: impl Borrow<Literal>,
     ) -> Result<(), err::RBuf> {
         let using = using.borrow();

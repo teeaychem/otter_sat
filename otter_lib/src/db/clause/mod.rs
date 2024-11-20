@@ -20,7 +20,10 @@ use crate::{
     },
     generic::heap::IndexHeap,
     misc::log::targets::{self},
-    structures::{clause::Clause, literal::Literal},
+    structures::{
+        clause::{Clause, ClauseT},
+        literal::Literal,
+    },
     types::{
         err::{self},
         gen::{self},
@@ -125,7 +128,7 @@ impl ClauseDB {
     //     }
     // }
 
-    pub fn get(&self, key: ClauseKey) -> Result<&impl Clause, err::ClauseDB> {
+    pub fn get(&self, key: ClauseKey) -> Result<&impl ClauseT, err::ClauseDB> {
         match key {
             ClauseKey::Formula(index) => unsafe { Ok(self.formula.get_unchecked(index as usize)) },
             ClauseKey::Binary(index) => unsafe { Ok(self.binary.get_unchecked(index as usize)) },
@@ -195,10 +198,12 @@ impl ClauseDB {
         self.activity_heap.reheap();
     }
 
-    pub fn insert_clause(
+    /// Stores a clause with an automatically generated id.
+    /// In order to use the clause the watch literals of the struct must be initialised.
+    pub fn store(
         &mut self,
+        clause: Clause,
         source: gen::src::Clause,
-        clause: Vec<Literal>,
         variables: &mut VariableDB,
     ) -> Result<ClauseKey, err::ClauseDB> {
         match clause.len() {
@@ -248,7 +253,7 @@ impl ClauseDB {
                     };
 
                     if let Some(tx) = &self.tx {
-                        let delta = delta::ClauseDB::Learned(the_key, clause.clone());
+                        let delta = delta::ClauseDB::Resolution(the_key, clause.clone());
                         tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
                     }
 
@@ -294,7 +299,7 @@ impl ClauseDB {
             if let Some(index) = self.activity_heap.peek_max() {
                 let value = self.activity_heap.value_at(index);
                 log::debug!(target: targets::REDUCTION, "Took: {:?}", value);
-                if value.lbd <= self.config.glue_strength {
+                if value.lbd <= self.config.lbd_bound {
                     break 'reduction_loop;
                 } else {
                     self.remove_from_learned(index)?;
@@ -335,19 +340,19 @@ impl ClauseDB {
 
     pub fn bump_activity(&mut self, index: FormulaIndex) {
         if let Some(max) = self.activity_heap.peek_max_value() {
-            if max.activity + self.config.activity_increment > self.config.max_activity {
+            if max.activity + self.config.bump > self.config.max_bump {
                 let factor = 1.0 / max.activity;
                 let decay_activity = |s: &ActivityGlue| ActivityGlue {
                     activity: s.activity * factor,
                     lbd: s.lbd,
                 };
                 self.activity_heap.apply_to_all(decay_activity);
-                self.config.activity_increment *= factor
+                self.config.bump *= factor
             }
         }
 
         let bump_activity = |s: &ActivityGlue| ActivityGlue {
-            activity: s.activity + self.config.activity_increment,
+            activity: s.activity + self.config.bump,
             lbd: s.lbd,
         };
 
@@ -355,14 +360,14 @@ impl ClauseDB {
         self.activity_heap.apply_to_index(index, bump_activity);
         self.activity_heap.heapify_if_active(index);
 
-        self.config.activity_increment *= 1.0 / (1.0 - self.config.activity_decay);
+        self.config.bump *= 1.0 / (1.0 - self.config.decay);
     }
 
     pub fn clause_count(&self) -> usize {
         (self.counts.formula + self.counts.learned + self.counts.binary) as usize
     }
 
-    pub fn all_clauses(&self) -> impl Iterator<Item = &impl Clause> + '_ {
+    pub fn all_clauses(&self) -> impl Iterator<Item = &impl ClauseT> + '_ {
         self.formula.iter().chain(
             self.binary.iter().chain(
                 self.learned

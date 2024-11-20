@@ -1,4 +1,7 @@
-use crate::{db::keys::ClauseKey, structures::literal::Literal};
+use crate::{
+    db::keys::ClauseKey,
+    structures::{clause::Clause, literal::Literal, variable::Variable},
+};
 
 #[derive(Clone)]
 pub enum Delta {
@@ -29,12 +32,12 @@ pub enum ClauseBuider {
 
 #[derive(Clone)]
 pub enum ClauseDB {
-    TransferBinary(ClauseKey, ClauseKey, Vec<Literal>),
-    Deletion(ClauseKey, Vec<Literal>),
-    BinaryOriginal(ClauseKey, Vec<Literal>),
-    BinaryResolution(ClauseKey, Vec<Literal>),
-    Original(ClauseKey, Vec<Literal>),
-    Learned(ClauseKey, Vec<Literal>),
+    TransferBinary(ClauseKey, ClauseKey, Clause),
+    Deletion(ClauseKey, Clause),
+    BinaryOriginal(ClauseKey, Clause),
+    BinaryResolution(ClauseKey, Clause),
+    Original(ClauseKey, Clause),
+    Resolution(ClauseKey, Clause),
 }
 
 #[derive(Debug, Clone)]
@@ -56,6 +59,6 @@ pub enum Resolution {
 
 #[derive(Clone)]
 pub enum VariableDB {
-    Internalised(String, u32),
+    Internalised(Variable, String),
     Unsatisfiable(ClauseKey),
 }

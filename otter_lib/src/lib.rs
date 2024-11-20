@@ -13,13 +13,16 @@
 //! Dispatches
 //! - FRAT
 //! - Unsatisfiable core
+//!
+//! Private items are documented.
 
+#![allow(mixed_script_confusables)]
 #![allow(unused_must_use)]
 #![allow(clippy::single_match)]
 #![allow(clippy::collapsible_else_if)]
 // #![allow(unused_imports)]
 
-pub mod builder;
+mod builder;
 pub mod config;
 pub mod context;
 pub mod structures;

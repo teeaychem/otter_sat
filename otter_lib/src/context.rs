@@ -5,14 +5,12 @@ use crate::{
         library::report::{self},
         Dispatch,
     },
-    misc::random::MinimalPCG32,
+    generic::minimal_pcg::MinimalPCG32,
     types::gen::Solve,
 };
 
 use crossbeam::channel::Sender;
 use rand::SeedableRng;
-
-// pub type RngChoice = rand::rngs::mock::StepRng;
 
 use std::time::Duration;
 

@@ -10,7 +10,7 @@ use otter_lib::{
         Dispatch,
     },
     structures::{
-        clause::Clause,
+        clause::{Clause, ClauseT},
         literal::{Literal, LiteralT},
     },
 };
@@ -32,7 +32,7 @@ use otter_lib::{
 #[derive(Default, Debug)]
 pub struct CoreDB {
     pub conflict: Option<ClauseKey>,
-    original_map: HashMap<ClauseKey, Vec<Literal>>,
+    original_map: HashMap<ClauseKey, Clause>,
     resolution_buffer: Vec<ClauseKey>,
     resolution_q: VecDeque<Vec<ClauseKey>>,
     bcp_buffer: Option<(Literal, ClauseKey, Literal)>,
@@ -41,7 +41,7 @@ pub struct CoreDB {
 }
 
 impl CoreDB {
-    pub fn core_clauses(&self) -> Result<Vec<Vec<Literal>>, ()> {
+    pub fn core_clauses(&self) -> Result<Vec<Clause>, ()> {
         let mut core_q = std::collections::VecDeque::<ClauseKey>::new();
         let mut key_set = std::collections::BTreeSet::new();
         let mut literal_set: BTreeSet<Literal> = std::collections::BTreeSet::new();
@@ -156,7 +156,7 @@ pub fn core_db_builder<'g>(
                     Delta::ClauseDB(delta) => match delta {
                         delta::ClauseDB::BinaryResolution(key, _)
                         | delta::ClauseDB::TransferBinary(_, key, _)
-                        | delta::ClauseDB::Learned(key, _) => {
+                        | delta::ClauseDB::Resolution(key, _) => {
                             let the_sources = the_core_db.resolution_q.pop_front();
                             the_core_db
                                 .clause_map

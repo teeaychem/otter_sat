@@ -12,7 +12,7 @@ use crate::{
     },
     misc::log::targets::{self},
     structures::{
-        clause::Clause,
+        clause::ClauseT,
         literal::{Literal, LiteralT},
         variable::Variable,
     },
@@ -51,7 +51,8 @@ impl Context {
 
                     self.backjump(0);
 
-                    self.note_literal(literal, gen::src::Literal::Resolution(key));
+                    self.literal_db
+                        .record_literal(literal, gen::src::Literal::Resolution(key));
                     self.q_literal(literal)?;
                     continue 'solve_loop;
                 }
@@ -63,7 +64,8 @@ impl Context {
                     self.backjump(index);
 
                     self.clause_db.note_use(key);
-                    self.note_literal(literal, gen::src::Literal::Forced(key));
+                    self.literal_db
+                        .record_literal(literal, gen::src::Literal::Forced(key));
                     self.q_literal(literal)?;
 
                     self.counters.conflicts += 1;
@@ -80,7 +82,7 @@ impl Context {
                         if self.scheduled_luby_reduction() {
                             self.clause_db.reduce();
                         }
-                    } else if self.scheduled_reduction() {
+                    } else if self.scheduled_conflict_reduction() {
                         self.clause_db.reduce()?;
                     }
 
@@ -139,7 +141,8 @@ impl Context {
                             self.backjump(index);
 
                             self.q_literal(literal)?;
-                            self.note_literal(literal, gen::src::Literal::Missed(key));
+                            self.literal_db
+                                .record_literal(literal, gen::src::Literal::Missed(key));
 
                             continue 'expansion;
                         }
@@ -182,14 +185,20 @@ impl Context {
     }
 
     #[inline(always)]
-    pub fn scheduled_reduction(&self) -> bool {
-        self.config.enabled.reduction
-            && ((self.counters.conflicts % self.config.reduction_interval) == 0)
+    pub fn scheduled_conflict_reduction(&self) -> bool {
+        if let Some(interval) = self.config.reduction_scheduler.conflict {
+            (self.counters.conflicts % (interval as usize)) == 0
+        } else {
+            false
+        }
     }
 
     pub fn scheduled_luby_reduction(&self) -> bool {
-        self.config.enabled.reduction
-            && ((self.counters.restarts % self.config.luby_reduction_interval) == 0)
+        if let Some(interval) = self.config.reduction_scheduler.luby {
+            (self.counters.restarts % (interval as usize)) == 0
+        } else {
+            false
+        }
     }
 
     pub fn make_choice(&mut self) -> Result<gen::Choice, err::Queue> {
@@ -215,7 +224,7 @@ impl Context {
         }
     }
 
-    pub fn get_unassigned(&mut self) -> Option<ChoiceIndex> {
+    pub fn get_unassigned(&mut self) -> Option<Variable> {
         match self
             .counters
             .rng
@@ -227,7 +236,7 @@ impl Context {
                 .iter()
                 .enumerate()
                 .filter_map(|(i, v)| match v {
-                    None => Some(i as ChoiceIndex),
+                    None => Some(i as Variable),
                     _ => None,
                 })
                 .choose(&mut self.counters.rng),

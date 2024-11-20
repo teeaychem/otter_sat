@@ -1,17 +1,19 @@
+//! Configuration for a context.
+
 use switches::AbalableThings;
 
 use super::{
     dbs::{ClauseDBConfig, VariableDBConfig},
-    LubyRepresentation, PolarityLean, RandomChoiceFrequency, StoppingCriteria, VSIDS,
+    LubyRepresentation, PolarityLean, RandomChoiceFrequency, ReductionScheduler, StoppingCriteria,
+    VSIDS,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Config {
     /// The `u` value to multiply the luby sequence by when determining whether to perform a restart.
     pub luby_u: LubyRepresentation,
-    pub luby_reduction_interval: usize,
 
-    /// The chance of choosing assigning positive polarity to a variant when making a choice.
+    /// The probability of assigning positive polarity to a variable when freely choosing a variable.
     pub polarity_lean: PolarityLean,
 
     /// Preprocessing configuration
@@ -19,12 +21,15 @@ pub struct Config {
 
     /// Which stopping criteria to use during resolution based analysis
     pub stopping_criteria: StoppingCriteria,
+
+    /// The time limit for a solve.
     pub time_limit: Option<std::time::Duration>,
 
     /// Which VSIDS variant to use during resolution based analysis
     pub vsids_variant: VSIDS,
 
-    pub reduction_interval: usize,
+    /// Reduction schedules
+    pub reduction_scheduler: ReductionScheduler,
 
     pub enabled: AbalableThings,
     pub clause_db: ClauseDBConfig,
@@ -35,7 +40,6 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             luby_u: 128,
-            luby_reduction_interval: 2,
 
             polarity_lean: 0.0,
 
@@ -43,10 +47,13 @@ impl Default for Config {
 
             stopping_criteria: StoppingCriteria::FirstUIP,
 
+            reduction_scheduler: ReductionScheduler {
+                luby: Some(2),
+                conflict: Some(50_000),
+            },
+
             time_limit: None,
             vsids_variant: VSIDS::MiniSAT,
-
-            reduction_interval: 50_000,
 
             enabled: AbalableThings::default(),
             clause_db: ClauseDBConfig::default(),
@@ -58,10 +65,9 @@ pub mod switches {
     //! Boolean valued context configurations
     //! When set to true things related to the identifier are enabled.
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub struct AbalableThings {
         pub preprocessing: bool,
-        pub reduction: bool,
         pub restart: bool,
         pub subsumption: bool,
     }
@@ -70,7 +76,6 @@ pub mod switches {
         fn default() -> Self {
             AbalableThings {
                 preprocessing: false,
-                reduction: true,
                 restart: true,
                 subsumption: true,
             }

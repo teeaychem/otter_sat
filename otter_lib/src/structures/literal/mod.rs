@@ -2,10 +2,8 @@ mod details;
 
 use crate::{db::variable::VariableDB, structures::variable::Variable};
 
-pub type Literal = LiteralStruct;
-
 #[derive(Clone, Copy, Debug)]
-pub struct LiteralStruct {
+pub struct Literal {
     variable: Variable,
     polarity: bool,
 }

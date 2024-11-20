@@ -7,6 +7,7 @@ use crate::{
         Dispatch,
     },
     structures::{
+        clause::Clause,
         literal::{Literal, LiteralT},
         variable::Variable,
     },
@@ -18,6 +19,7 @@ use crate::{
 
 use std::{borrow::Borrow, io::BufRead};
 
+/// Methods for building the context.
 impl Context {
     pub fn variable_from_string(&mut self, name: &str) -> Result<Variable, err::Parse> {
         match self.variable_db.internal_representation(name) {
@@ -48,46 +50,7 @@ impl Context {
         Ok(Literal::new(the_variable, polarity))
     }
 
-    // Aka. soft assumption
-    // This will hold until a restart happens
-    pub fn believe(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::Context> {
-        if self.literal_db.choice_made() {
-            return Err(err::Context::AssumptionAfterChoice);
-        }
-        match self.q_literal(literal.borrow()) {
-            Ok(_) => {
-                self.note_literal(literal.borrow(), gen::src::Literal::Assumption);
-                Ok(())
-            }
-            Err(_) => Err(err::Context::AssumptionConflict),
-        }
-    }
-
-    #[allow(unused_must_use)] // ???
-    pub fn assume(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::Context> {
-        if self.literal_db.choice_made() {
-            return Err(err::Context::AssumptionAfterChoice);
-        }
-        match self.variable_db.value_of(literal.borrow().var()) {
-            None => {
-                let Ok(gen::Queue::Qd) = self.q_literal(literal.borrow()) else {
-                    return Err(err::Context::AssumptionConflict);
-                };
-                self.note_literal(literal.borrow(), gen::src::Literal::Assumption);
-                // self.store_literal(literal, src::Literal::Assumption, Vec::default());
-                Ok(())
-            }
-            Some(v) if v == literal.borrow().polarity() => {
-                // Must be at zero for an assumption, so there's nothing to do
-                Ok(())
-            }
-            Some(_) => Err(err::Context::AssumptionConflict),
-        }
-    }
-}
-
-impl Context {
-    pub fn clause_from_string(&mut self, string: &str) -> Result<(), err::Build> {
+    pub fn clause_from_string(&mut self, string: &str) -> Result<Clause, err::Build> {
         let string_lterals = string.split_whitespace();
         let mut the_clause = vec![];
         for string_literal in string_lterals {
@@ -99,13 +62,17 @@ impl Context {
                 the_clause.push(the_literal);
             }
         }
-
-        self.store_preprocessed_clause(the_clause)
+        Ok(the_clause)
     }
-}
 
-impl Context {
-    pub fn store_preprocessed_clause(&mut self, clause: Vec<Literal>) -> Result<(), err::Build> {
+    /// The internal representation of clauses.
+    ///
+    /// - Empty clauses are rejected as these are equivalent to falsum, and so unsatisfiable.
+    /// - Unit clause (a literal) literal database.
+    /// - Clauses with two or more literals go to the clause database.
+    ///
+    /// This handles the variations.
+    pub fn store_clause(&mut self, clause: Clause) -> Result<(), err::Build> {
         match clause.len() {
             0 => Err(err::Build::ClauseStore(err::ClauseDB::EmptyClause)),
             1 => {
@@ -116,7 +83,7 @@ impl Context {
                 }
             }
             _ => {
-                let mut processed_clause: Vec<Literal> = vec![];
+                let mut processed_clause: Clause = vec![];
                 let mut subsumed = vec![];
 
                 for literal in &clause {
@@ -154,7 +121,11 @@ impl Context {
                             return Err(err::Build::AssumptionIndirectConflict);
                         };
                     }
-                    _ => match self.store_clause(clause, gen::src::Clause::Formula) {
+                    _ => match self.clause_db.store(
+                        clause,
+                        gen::src::Clause::Formula,
+                        &mut self.variable_db,
+                    ) {
                         Ok(_) => {}
                         Err(e) => return Err(err::Build::ClauseStore(e)),
                     },
@@ -163,13 +134,56 @@ impl Context {
             }
         }
     }
+}
 
+impl Context {
+    // Aka. soft assumption
+    // This will hold until a restart happens
+    pub fn believe(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::Context> {
+        if self.literal_db.choice_made() {
+            return Err(err::Context::AssumptionAfterChoice);
+        }
+        match self.q_literal(literal.borrow()) {
+            Ok(_) => {
+                self.literal_db
+                    .record_literal(literal, gen::src::Literal::Assumption);
+                Ok(())
+            }
+            Err(_) => Err(err::Context::AssumptionConflict),
+        }
+    }
+
+    #[allow(unused_must_use)] // ???
+    pub fn assume(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::Context> {
+        if self.literal_db.choice_made() {
+            return Err(err::Context::AssumptionAfterChoice);
+        }
+        match self.variable_db.value_of(literal.borrow().var()) {
+            None => {
+                let Ok(gen::Queue::Qd) = self.q_literal(literal.borrow()) else {
+                    return Err(err::Context::AssumptionConflict);
+                };
+                self.literal_db
+                    .record_literal(literal.borrow(), gen::src::Literal::Assumption);
+                // self.store_literal(literal, src::Literal::Assumption, Vec::default());
+                Ok(())
+            }
+            Some(v) if v == literal.borrow().polarity() => {
+                // Must be at zero for an assumption, so there's nothing to do
+                Ok(())
+            }
+            Some(_) => Err(err::Context::AssumptionConflict),
+        }
+    }
+}
+
+impl Context {
     #[allow(clippy::manual_flatten, unused_labels)]
-    pub fn load_dimacs_file(&mut self, mut file_reader: impl BufRead) -> Result<(), err::Build> {
+    pub fn read_dimacs(&mut self, mut file_reader: impl BufRead) -> Result<(), err::Build> {
         //
 
         let mut buffer = String::with_capacity(1024);
-        let mut clause_buffer: Vec<Literal> = Vec::default();
+        let mut clause_buffer: Clause = Vec::default();
 
         let mut line_counter = 0;
         let mut clause_counter = 0;
@@ -243,7 +257,7 @@ impl Context {
                         match item {
                             "0" => {
                                 let the_clause = clause_buffer.clone();
-                                match self.store_preprocessed_clause(the_clause) {
+                                match self.store_clause(the_clause) {
                                     Ok(_) => clause_counter += 1,
                                     Err(e) => return Err(e),
                                 }
