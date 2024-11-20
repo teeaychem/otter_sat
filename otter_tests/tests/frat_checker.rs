@@ -18,7 +18,7 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
 
     let listener_handle = {
         let frat_path = frat_path.clone();
-        thread::spawn(|| otter_lib::dispatch::receivers::frat_receiver(rx, frat_path))
+        thread::spawn(|| otter_lib::dispatch::frat::frat_receiver(rx, frat_path))
     };
 
     let mut the_context = Context::from_config(config, Some(tx));

@@ -1,4 +1,10 @@
-//! Configuration for a context.
+//! Configuration details.
+//!
+//! Primary configuration is context.
+//! All configuration for a context are contained within context.
+//! Some structures clone parts of the configuration.
+//! Databases.
+//!
 
 pub mod context;
 pub mod dbs;
@@ -13,14 +19,28 @@ pub type GlueStrength = u8;
 /// Representation used for generating the luby sequence
 pub type LubyRepresentation = u32;
 
-/// Precision
+/// Representation for the probability of choosing `true`
 pub type PolarityLean = f64;
+
+/// Representation for the probability of making a random choice
 pub type RandomChoiceFrequency = f64;
 
+/// Scheduler for reductions.
+/// If two scheduled reductions coincide, only one reduction takes place.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct ReductionScheduler {
+    /// Reuce the clause database every `luby` times a luby interrupt happens.
+    pub luby: Option<u32>,
+
+    /// Reuce the clause database every `conflict` conflicts.
+    pub conflict: Option<u32>,
+}
+
 /// Variant stopping criterias to use during resolution-based analysis.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum StoppingCriteria {
     /// Stop at the first unique implication point.
+    ///
     /// In other words, apply resolution until the clause obtained by resolution is asserting on the current valuation without the last choice made, and any consequences of that choice.
     FirstUIP,
     /// Apply resolution to each clause in the sequence of clauses.
@@ -37,7 +57,7 @@ impl std::fmt::Display for StoppingCriteria {
 }
 
 /// Variant way to apply VSIDS (variable state independent decay sum) during during resolution-based analysis.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum VSIDS {
     /// When learning a clause by applying resolution to a sequence of clauses every variable occurring in the learnt clause is bumped.

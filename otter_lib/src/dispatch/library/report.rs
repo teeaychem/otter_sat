@@ -1,11 +1,14 @@
-use crate::{db::keys::ClauseKey, structures::literal::Literal};
+use crate::{
+    db::keys::ClauseKey,
+    structures::{clause::Clause, literal::Literal},
+};
 
 #[derive(Clone)]
 pub enum Report {
     Solve(self::Solve),
     ClauseDB(self::ClauseDB),
     Parser(self::Parser),
-    VariableDB(self::VariableDB),
+    LiteralDB(self::LiteralDB),
     Finish,
 }
 
@@ -18,7 +21,7 @@ pub enum Solve {
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ClauseDB {
-    Active(ClauseKey, Vec<Literal>),
+    Active(ClauseKey, Clause),
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -30,7 +33,7 @@ pub enum Parser {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub enum VariableDB {
+pub enum LiteralDB {
     Active(Literal),
 }
 

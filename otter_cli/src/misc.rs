@@ -14,13 +14,13 @@ pub fn load_dimacs(context: &mut Context, path: PathBuf) -> Result<(), err::Buil
 
     match &path.extension() {
         None => {
-            context.load_dimacs_file(BufReader::new(&file))?;
+            context.read_dimacs(BufReader::new(&file))?;
         }
         Some(extension) if *extension == "xz" => {
-            context.load_dimacs_file(BufReader::new(XzDecoder::new(&file)))?;
+            context.read_dimacs(BufReader::new(XzDecoder::new(&file)))?;
         }
         Some(_) => {
-            context.load_dimacs_file(BufReader::new(&file))?;
+            context.read_dimacs(BufReader::new(&file))?;
         }
     };
     Ok(())

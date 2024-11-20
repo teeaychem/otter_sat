@@ -2,14 +2,14 @@ use crate::{
     config::GlueStrength,
     db::variable::VariableDB,
     structures::{
-        clause::Clause,
+        clause::ClauseT,
         literal::{Literal, LiteralT},
     },
 };
 
 use std::ops::Deref;
 
-impl<T: Deref<Target = [Literal]>> Clause for T {
+impl<T: Deref<Target = [Literal]>> ClauseT for T {
     fn as_string(&self) -> String {
         let mut the_string = String::default();
         for literal in self.deref() {

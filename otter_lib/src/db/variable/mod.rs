@@ -72,12 +72,12 @@ impl VariableDB {
     }
 
     pub fn fresh_variable(&mut self, name: &str, previous_value: bool) -> Variable {
-        let id = self.watch_dbs.len() as Variable;
+        let the_variable = self.watch_dbs.len() as Variable;
 
-        self.internal_map.insert(name.to_string(), id);
+        self.internal_map.insert(name.to_string(), the_variable);
         self.external_map.push(name.to_string());
 
-        self.activity_heap.add(id as usize, 1.0);
+        self.activity_heap.add(the_variable as usize, 1.0);
         // self.activity_heap.activate(id as usize);
 
         self.watch_dbs.push(WatchDB::new());
@@ -86,11 +86,11 @@ impl VariableDB {
         self.choice_indicies.push(None);
 
         if let Some(tx) = &self.tx {
-            let delta = delta::VariableDB::Internalised(name.to_string(), id);
+            let delta = delta::VariableDB::Internalised(the_variable, name.to_string());
             tx.send(Dispatch::Delta(delta::Delta::VariableDB(delta)));
         }
 
-        id
+        the_variable
     }
 }
 

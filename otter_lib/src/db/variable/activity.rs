@@ -6,7 +6,7 @@ impl VariableDB {
     /// If given a hint to the max activity the rescore check is performed once on the hint
     pub fn apply_VSIDS<V: Iterator<Item = Variable>>(&mut self, variables: V) {
         for variable in variables {
-            if self.activity_of(variable as usize) + self.config.bump > self.config.bump_max {
+            if self.activity_of(variable as usize) + self.config.bump > self.config.max_bump {
                 self.rescore_activity()
             }
             self.bump_activity(variable as usize);
@@ -32,7 +32,7 @@ impl VariableDB {
     }
 
     pub(super) fn exponent_activity(&mut self) {
-        let factor = 1.0 / (1.0 - self.config.bump_decay);
+        let factor = 1.0 / (1.0 - self.config.decay);
         self.config.bump *= factor
     }
 
