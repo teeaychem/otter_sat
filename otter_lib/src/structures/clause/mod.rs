@@ -2,7 +2,7 @@ mod literal_slice;
 
 use crate::{config::GlueStrength, db::variable::VariableDB, structures::literal::Literal};
 
-use super::variable::Variable;
+use super::{valuation::Valuation, variable::Variable};
 
 pub type Clause = Vec<Literal>;
 
@@ -12,7 +12,7 @@ pub trait ClauseT {
     fn as_dimacs(&self, variables: &VariableDB, zero: bool) -> String;
 
     #[allow(dead_code)]
-    fn asserts(&self, val: &VariableDB) -> Option<Literal>;
+    fn asserts(&self, val: &impl Valuation) -> Option<Literal>;
 
     fn lbd(&self, variable_db: &VariableDB) -> GlueStrength;
 

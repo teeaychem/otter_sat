@@ -12,7 +12,7 @@ use tikv_jemallocator::Jemalloc;
 static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
 use otter_lib::{
-    config::context::Config,
+    config::Config,
     context::Context,
     dispatch::{
         library::report::{self},
@@ -166,11 +166,11 @@ fn config_preprocessing(config: &mut Config, config_io: &mut ConfigIO) {
     }
 
     if config_io.frat {
-        if config.enabled.subsumption {
+        if config.switch.subsumption {
             if config_io.detail > 1 {
                 println!("c Subsumption is disabled for FRAT proofs");
             }
-            config.enabled.subsumption = false;
+            config.switch.subsumption = false;
         }
     }
 }

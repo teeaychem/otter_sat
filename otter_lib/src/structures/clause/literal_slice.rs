@@ -4,6 +4,7 @@ use crate::{
     structures::{
         clause::ClauseT,
         literal::{Literal, LiteralT},
+        valuation::Valuation,
     },
 };
 
@@ -38,10 +39,10 @@ impl<T: Deref<Target = [Literal]>> ClauseT for T {
     }
 
     /// Returns the literal asserted by the clause on the given valuation
-    fn asserts(&self, val: &VariableDB) -> Option<Literal> {
+    fn asserts(&self, val: &impl Valuation) -> Option<Literal> {
         let mut the_literal = None;
         for lit in self.deref() {
-            if let Some(existing_val) = val.value_of(lit.var()) {
+            if let Some(existing_val) = unsafe { val.value_of(lit.var()) } {
                 match existing_val == lit.polarity() {
                     true => return None,
                     false => continue,

@@ -1,9 +1,15 @@
+//! Resolution buffer.
+//!
+//! A cell for each variable.
+//! Valution.
+//!
+
 use std::borrow::Borrow;
 
 use crossbeam::channel::Sender;
 
 use crate::{
-    config::{context::Config, StoppingCriteria},
+    config::{Config, StoppingCriteria},
     db::{clause::ClauseDB, keys::ClauseKey, literal::LiteralDB, variable::VariableDB},
     dispatch::{
         library::delta::{self},
@@ -13,6 +19,7 @@ use crate::{
     structures::{
         clause::{Clause, ClauseT},
         literal::{Literal, LiteralT},
+        valuation::Valuation,
         variable::Variable,
     },
     types::{
@@ -21,15 +28,22 @@ use crate::{
     },
 };
 
+/// Cells of a resolution buffer.
 #[derive(Clone, Copy)]
-enum Cell {
+pub enum Cell {
+    /// Initial valuation
     Value(Option<bool>),
-    NoneLiteral(Literal),
-    ConflictLiteral(Literal),
+    /// The variable was not valued.
+    None(Literal),
+    /// The variable had a conflicting value.
+    Conflict(Literal),
+    /// The variable was part of resolution but was already proven.
     Strengthened,
+    /// The variable was used as a pivot when reading a clause into the buffer.
     Pivot,
 }
 
+/// A buffer for use when applying resolution to a sequence of clauses.
 pub struct ResolutionBuffer {
     valueless_count: usize,
     clause_length: usize,
@@ -40,8 +54,11 @@ pub struct ResolutionBuffer {
     config: BufferConfig,
 }
 
-struct BufferConfig {
+/// Configuration for a resolution buffer.
+pub struct BufferConfig {
+    /// Whether check for and initiate subsumption.
     subsumption: bool,
+    /// The stopping criteria to use during resolution.
     stopping: StoppingCriteria,
 }
 
@@ -55,11 +72,7 @@ impl ResolutionBuffer {
         tx: Option<Sender<Dispatch>>,
         config: &Config,
     ) -> Self {
-        let valuation_copy = variable_db
-            .valuation()
-            .iter()
-            .map(|v| Cell::Value(*v))
-            .collect();
+        let valuation_copy = variable_db.valuation().values().map(Cell::Value).collect();
 
         ResolutionBuffer {
             valueless_count: 0,
@@ -72,7 +85,7 @@ impl ResolutionBuffer {
             tx,
 
             config: BufferConfig {
-                subsumption: config.enabled.subsumption,
+                subsumption: config.switch.subsumption,
                 stopping: config.stopping_criteria,
             },
         }
@@ -98,8 +111,8 @@ impl ResolutionBuffer {
         for item in &self.buffer {
             match item {
                 Cell::Strengthened | Cell::Value(_) | Cell::Pivot => {}
-                Cell::ConflictLiteral(literal) => the_clause.push(*literal),
-                Cell::NoneLiteral(literal) => {
+                Cell::Conflict(literal) => the_clause.push(*literal),
+                Cell::None(literal) => {
                     if self.valueless_count == 1 {
                         conflict_literal = Some(*literal)
                     } else {
@@ -233,7 +246,7 @@ impl ResolutionBuffer {
     pub fn strengthen_given<'l>(&mut self, literals: impl Iterator<Item = &'l Literal>) {
         for literal in literals {
             match unsafe { *self.buffer.get_unchecked(literal.var() as usize) } {
-                Cell::NoneLiteral(_) | Cell::ConflictLiteral(_) => {
+                Cell::None(_) | Cell::Conflict(_) => {
                     if let Some(length_minus_one) = self.clause_length.checked_sub(1) {
                         self.clause_length = length_minus_one;
                     }
@@ -260,13 +273,13 @@ impl ResolutionBuffer {
     fn merge_clause(&mut self, clause: &impl ClauseT) -> Result<(), err::RBuf> {
         for literal in clause.literals() {
             match unsafe { self.buffer.get_unchecked(literal.var() as usize) } {
-                Cell::ConflictLiteral(_) | Cell::NoneLiteral(_) | Cell::Pivot => {}
+                Cell::Conflict(_) | Cell::None(_) | Cell::Pivot => {}
                 Cell::Value(maybe) => match maybe {
                     None => {
                         unsafe { *self.used.get_unchecked_mut(literal.var() as usize) = true };
                         self.clause_length += 1;
                         self.valueless_count += 1;
-                        self.set(literal.var(), Cell::NoneLiteral(*literal));
+                        self.set(literal.var(), Cell::None(*literal));
                         if self.asserts.is_none() {
                             self.asserts = Some(*literal);
                         }
@@ -274,7 +287,7 @@ impl ResolutionBuffer {
                     Some(value) if *value != literal.polarity() => {
                         unsafe { *self.used.get_unchecked_mut(literal.var() as usize) = true };
                         self.clause_length += 1;
-                        self.set(literal.var(), Cell::ConflictLiteral(*literal));
+                        self.set(literal.var(), Cell::Conflict(*literal));
                     }
                     Some(_) => {
                         log::error!(target: targets::RESOLUTION, "Satisfied clause");
@@ -295,7 +308,7 @@ impl ResolutionBuffer {
         let using = using.borrow();
         let contents = unsafe { *self.buffer.get_unchecked(using.var() as usize) };
         match contents {
-            Cell::NoneLiteral(literal) if using == &literal.negate() => {
+            Cell::None(literal) if using == &literal.negate() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
                 self.set(using.var(), Cell::Pivot);
@@ -303,7 +316,7 @@ impl ResolutionBuffer {
 
                 Ok(())
             }
-            Cell::ConflictLiteral(literal) if using == &literal.negate() => {
+            Cell::Conflict(literal) if using == &literal.negate() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
                 self.set(using.var(), Cell::Pivot);

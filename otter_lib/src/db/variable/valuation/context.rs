@@ -1,11 +1,13 @@
-use crate::{context::Context, structures::variable::Variable};
+use crate::{
+    context::Context,
+    structures::{valuation::Valuation, variable::Variable},
+};
 
 impl Context {
     pub fn valuation_string(&self) -> String {
         self.variable_db
             .valuation()
-            .iter()
-            .enumerate()
+            .vv_pairs()
             .filter_map(|(i, v)| {
                 let idx = i as Variable;
                 match v {
@@ -28,8 +30,7 @@ impl Context {
         let mut v = self
             .variable_db
             .valuation()
-            .iter()
-            .enumerate()
+            .vv_pairs()
             .filter_map(|(i, v)| match v {
                 None => None,
                 Some(true) => Some(i as isize),

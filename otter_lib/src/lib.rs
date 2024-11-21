@@ -22,18 +22,21 @@
 #![allow(clippy::collapsible_else_if)]
 // #![allow(unused_imports)]
 
+#[doc(hidden)]
 mod builder;
+#[doc(hidden)]
+mod procedures;
+
 pub mod config;
 pub mod context;
 pub mod structures;
 pub mod types;
-
-mod procedures;
 
 pub mod generic;
 
 pub mod dispatch;
 
 pub mod db;
+
 mod misc;
-mod transient;
+pub mod transient;

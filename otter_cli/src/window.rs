@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::io::{stdout, Write};
 
-use otter_lib::config::context::Config;
+use otter_lib::config::Config;
 
 use termion::{cursor::DetectCursorPos, raw::IntoRawMode};
 
