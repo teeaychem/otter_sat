@@ -7,7 +7,7 @@ use crate::{
         Dispatch,
     },
     structures::{
-        clause::Clause,
+        clause::{Clause, ClauseT},
         literal::{Literal, LiteralT},
         variable::Variable,
     },
@@ -22,7 +22,7 @@ use std::{borrow::Borrow, io::BufRead};
 /// Methods for building the context.
 impl Context {
     pub fn variable_from_string(&mut self, name: &str) -> Result<Variable, err::Parse> {
-        match self.variable_db.internal_representation(name) {
+        match self.variable_db.variable_representation(name) {
             Some(variable) => Ok(variable),
             None => {
                 let the_id = self.variable_db.count() as Variable;
@@ -79,12 +79,11 @@ impl Context {
                 let literal = unsafe { *clause.get_unchecked(0) };
                 match self.assume(literal) {
                     Ok(_) => Ok(()),
-                    Err(_e) => Err(err::Build::AssumptionIndirectConflict),
+                    Err(_e) => Err(err::Build::Conflict),
                 }
             }
             _ => {
                 let mut processed_clause: Clause = vec![];
-                let mut subsumed = vec![];
 
                 for literal in &clause {
                     if let Some(processed_literal) =
@@ -105,8 +104,6 @@ impl Context {
                             .any(|proven_literal| &proven_literal.negate() == literal)
                         {
                             processed_clause.push(*literal)
-                        } else {
-                            subsumed.push(*literal)
                         }
                     }
                 }
@@ -114,23 +111,23 @@ impl Context {
                 let clause = processed_clause;
 
                 match clause.len() {
-                    0 => {} // Any empty clause before strengthening raised an error above, so this is safe to ignore
+                    0 => Err(err::Build::Conflict), // Any empty clause before strengthening raised an error above, so this is safe to ignore
                     1 => {
                         let literal = unsafe { clause.get_unchecked(0) };
-                        let Ok(_) = self.assume(literal) else {
-                            return Err(err::Build::AssumptionIndirectConflict);
-                        };
+                        match self.assume(literal) {
+                            Ok(_) => Ok(()),
+                            Err(e) => Err(err::Build::Conflict),
+                        }
                     }
                     _ => match self.clause_db.store(
                         clause,
-                        gen::src::Clause::Formula,
+                        gen::src::Clause::Original,
                         &mut self.variable_db,
                     ) {
-                        Ok(_) => {}
-                        Err(e) => return Err(err::Build::ClauseStore(e)),
+                        Ok(_) => Ok(()),
+                        Err(e) => Err(err::Build::ClauseStore(e)),
                     },
                 }
-                Ok(())
             }
         }
     }
@@ -246,11 +243,11 @@ impl Context {
             match buffer.chars().next() {
                 Some('%') => break 'formula_loop,
                 Some('c') => {}
-                Some('p') => {
-                    return Err(err::Build::Parse(err::Parse::MisplacedProblem(
-                        line_counter,
-                    )))
-                }
+                // Some('p') => {
+                //     return Err(err::Build::Parse(err::Parse::MisplacedProblem(
+                //         line_counter,
+                //     )))
+                // }
                 _ => {
                     let split_buf = buffer.split_whitespace();
                     for item in split_buf {
@@ -288,7 +285,6 @@ impl Context {
             tx.send(Dispatch::Report(Report::Parser(counts)));
             tx.send(Dispatch::Report(Report::Parser(report_clauses)));
         }
-
         Ok(())
     }
 }

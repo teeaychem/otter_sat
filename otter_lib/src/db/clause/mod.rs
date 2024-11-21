@@ -215,7 +215,7 @@ impl ClauseDB {
                 if let Some(tx) = &self.tx {
                     let delta = {
                         match source {
-                            gen::src::Clause::Formula => {
+                            gen::src::Clause::Original => {
                                 delta::ClauseDB::BinaryOriginal(key, clause.clone())
                             }
                             gen::src::Clause::Resolution => {
@@ -231,7 +231,7 @@ impl ClauseDB {
                 Ok(key)
             }
             _ => match source {
-                gen::src::Clause::Formula => {
+                gen::src::Clause::Original => {
                     let the_key = self.new_formula_id()?;
 
                     if let Some(tx) = &self.tx {

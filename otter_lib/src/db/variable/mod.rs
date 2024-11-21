@@ -66,7 +66,7 @@ impl VariableDB {
 }
 
 impl VariableDB {
-    pub fn internal_representation(&self, name: &str) -> Option<Variable> {
+    pub fn variable_representation(&self, name: &str) -> Option<Variable> {
         self.internal_map.get(name).copied()
     }
 
