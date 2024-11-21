@@ -6,11 +6,12 @@
 //! Databases.
 //!
 use dbs::{ClauseDBConfig, VariableDBConfig};
-use misc::switches::Switches;
 
 pub mod dbs;
+#[doc(hidden)]
 pub mod misc;
 
+/// The primary configuration structure.
 #[derive(Clone, Debug)]
 pub struct Config {
     /// The `u` value to multiply the luby sequence by when determining whether to perform a restart.
@@ -85,7 +86,8 @@ pub type PolarityLean = f64;
 /// Representation for the probability of making a random choice
 pub type RandomChoiceFrequency = f64;
 
-/// Scheduler for reductions.
+/// Schedulers.
+///
 /// If two scheduled reductions coincide, only one reduction takes place.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Scheduler {
@@ -131,6 +133,35 @@ impl std::fmt::Display for VSIDS {
         match self {
             Self::Chaff => write!(f, "Chaff"),
             Self::MiniSAT => write!(f, "MiniSAT"),
+        }
+    }
+}
+
+/// Boolean valued context configurations
+///
+/// When set to true things related to the identifier are enabled.
+#[derive(Clone, Debug)]
+pub struct Switches {
+    /// Default to th last set value of a variable when choosing  a value for the variable, otherwise choice with specified probability.
+    pub phase_saving: bool,
+
+    /// Enable preprocessing of 𝐅.
+    pub preprocessing: bool,
+
+    /// Permit (scheduled) restarts.
+    pub restart: bool,
+
+    /// Permit subsumption of formulas.
+    pub subsumption: bool,
+}
+
+impl Default for Switches {
+    fn default() -> Self {
+        Switches {
+            phase_saving: true,
+            preprocessing: false,
+            restart: true,
+            subsumption: true,
         }
     }
 }
