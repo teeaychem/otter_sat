@@ -5,7 +5,7 @@ pub mod watch_db;
 use crossbeam::channel::Sender;
 
 use crate::{
-    config::{context::Config, dbs::VariableDBConfig, Activity},
+    config::{dbs::VariableDBConfig, Activity, Config},
     db::{keys::ChoiceIndex, variable::watch_db::WatchDB},
     dispatch::{
         library::delta::{self},
@@ -13,7 +13,10 @@ use crate::{
     },
     generic::heap::IndexHeap,
     misc::log::targets::{self},
-    structures::variable::Variable,
+    structures::{
+        valuation::{Valuation, ValuationV},
+        variable::Variable,
+    },
     types::gen::{self},
 };
 
@@ -25,7 +28,7 @@ pub struct VariableDB {
 
     activity_heap: IndexHeap<Activity>,
 
-    valuation: Vec<Option<bool>>,
+    valuation: ValuationV,
     previous_valuation: Vec<bool>,
     choice_indicies: Vec<Option<ChoiceIndex>>,
 
@@ -57,7 +60,7 @@ impl VariableDB {
         self.valuation.len()
     }
 
-    pub fn valuation(&self) -> &[Option<bool>] {
+    pub fn valuation(&self) -> &impl Valuation {
         &self.valuation
     }
 }

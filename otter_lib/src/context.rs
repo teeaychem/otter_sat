@@ -1,5 +1,7 @@
+//! The context of a solve.
+
 use crate::{
-    config::context::Config,
+    config::Config,
     db::{clause::ClauseDB, consequence_q::ConsequenceQ, literal::LiteralDB, variable::VariableDB},
     dispatch::{
         library::report::{self},
@@ -16,7 +18,7 @@ use std::time::Duration;
 
 pub struct Counters {
     pub conflicts: usize,
-    pub conflicts_in_memory: usize,
+    pub fresh_conflicts: u32,
     pub choices: usize,
     pub iterations: usize,
     pub restarts: usize,
@@ -28,7 +30,7 @@ pub struct Counters {
 impl Default for Counters {
     fn default() -> Self {
         Counters {
-            conflicts_in_memory: 0,
+            fresh_conflicts: 0,
             choices: 0,
             iterations: 0,
             restarts: 0,

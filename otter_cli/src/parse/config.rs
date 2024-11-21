@@ -1,6 +1,6 @@
 use clap::ArgMatches;
 
-use otter_lib::config::{self, context::Config, StoppingCriteria, VSIDS};
+use otter_lib::config::{self, Config, StoppingCriteria, VSIDS};
 
 pub fn config_from_args(args: &ArgMatches) -> Config {
     let mut the_config = Config::default();
@@ -18,7 +18,7 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
     };
 
     if let Ok(Some(interval)) = args.try_get_one::<Option<u32>>("reduction_interval") {
-        the_config.reduction_scheduler.luby = *interval
+        the_config.scheduler.luby = *interval
     };
 
     if let Ok(Some(u)) = args.try_get_one::<config::LubyRepresentation>("luby") {
@@ -36,20 +36,20 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
     };
 
     if let Ok(Some(value)) = args.try_get_one::<bool>("preprocessing") {
-        the_config.enabled.preprocessing = *value
+        the_config.switch.preprocessing = *value
     };
 
     if let Ok(Some(value)) = args.try_get_one::<bool>("no_restarts") {
-        the_config.enabled.restart = !*value
+        the_config.switch.restart = !*value
     };
 
     if let Ok(Some(true)) = args.try_get_one::<bool>("no_reduction") {
-        the_config.reduction_scheduler.luby = None;
-        the_config.reduction_scheduler.conflict = None;
+        the_config.scheduler.luby = None;
+        the_config.scheduler.conflict = None;
     };
 
     if let Ok(Some(value)) = args.try_get_one::<bool>("no_subsumption") {
-        the_config.enabled.subsumption = !*value
+        the_config.switch.subsumption = !*value
     };
 
     if let Ok(Some(secs)) = args.try_get_one::<u64>("time_limit") {
@@ -65,9 +65,9 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
     };
 
     if let Ok(Some(true)) = args.try_get_one::<bool>("elephant") {
-        the_config.enabled.restart = false;
-        the_config.reduction_scheduler.luby = None;
-        the_config.reduction_scheduler.conflict = None;
+        the_config.switch.restart = false;
+        the_config.scheduler.luby = None;
+        the_config.scheduler.conflict = None;
     };
 
     the_config

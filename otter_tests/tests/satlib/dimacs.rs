@@ -1,5 +1,5 @@
 use otter_lib::{
-    config::context::Config,
+    config::Config,
     dispatch::library::report::{self},
 };
 use otter_tests::{cnf_lib_subdir, silent_formula_report, silent_on_directory};

@@ -5,7 +5,7 @@ mod transfer;
 use crossbeam::channel::Sender;
 
 use crate::{
-    config::{context::Config, dbs::ClauseDBConfig},
+    config::{dbs::ClauseDBConfig, Config},
     db::{
         clause::{activity_glue::ActivityGlue, stored::StoredClause},
         keys::{ClauseKey, FormulaIndex},

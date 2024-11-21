@@ -4,16 +4,19 @@ use crate::{
     context::Context,
     db::keys::ChoiceIndex,
     dispatch::{
-        library::comment::{self, Comment},
-        library::delta::{self, Delta},
-        library::report::{self, Report},
-        library::stat::Stat,
+        library::{
+            comment::{self, Comment},
+            delta::{self, Delta},
+            report::{self, Report},
+            stat::Stat,
+        },
         Dispatch,
     },
     misc::log::targets::{self},
     structures::{
         clause::ClauseT,
         literal::{Literal, LiteralT},
+        valuation::Valuation,
         variable::Variable,
     },
     types::{
@@ -69,20 +72,20 @@ impl Context {
                     self.q_literal(literal)?;
 
                     self.counters.conflicts += 1;
-                    self.counters.conflicts_in_memory += 1;
+                    self.counters.fresh_conflicts += 1;
 
                     if self.scheduled_luby_interrupt() {
                         self.counters.luby.next();
                         self.conflict_dispatch();
 
-                        if self.config.enabled.restart {
+                        if self.config.switch.restart {
                             self.restart()
                         };
 
-                        if self.scheduled_luby_reduction() {
+                        if self.scheduled_by_luby() {
                             self.clause_db.reduce();
                         }
-                    } else if self.scheduled_conflict_reduction() {
+                    } else if self.scheduled_by_conflicts() {
                         self.clause_db.reduce()?;
                     }
 
@@ -174,31 +177,27 @@ impl Context {
         self.backjump(0);
         self.clause_db.reset_heap();
         self.counters.restarts += 1;
-        self.counters.conflicts_in_memory = 0;
+        self.counters.fresh_conflicts = 0;
     }
 
     #[inline(always)]
     pub fn scheduled_luby_interrupt(&self) -> bool {
-        self.counters.conflicts_in_memory
-            % (self.config.luby_u * self.counters.luby.current()) as usize
-            == 0
+        self.counters.fresh_conflicts % (self.config.luby_u * self.counters.luby.current()) == 0
     }
 
     #[inline(always)]
-    pub fn scheduled_conflict_reduction(&self) -> bool {
-        if let Some(interval) = self.config.reduction_scheduler.conflict {
-            (self.counters.conflicts % (interval as usize)) == 0
-        } else {
-            false
-        }
+    pub fn scheduled_by_conflicts(&self) -> bool {
+        self.config
+            .scheduler
+            .conflict
+            .is_some_and(|interval| (self.counters.conflicts % (interval as usize)) == 0)
     }
 
-    pub fn scheduled_luby_reduction(&self) -> bool {
-        if let Some(interval) = self.config.reduction_scheduler.luby {
-            (self.counters.restarts % (interval as usize)) == 0
-        } else {
-            false
-        }
+    pub fn scheduled_by_luby(&self) -> bool {
+        self.config
+            .scheduler
+            .luby
+            .is_some_and(|interval| (self.counters.restarts % (interval as usize)) == 0)
     }
 
     pub fn make_choice(&mut self) -> Result<gen::Choice, err::Queue> {
@@ -233,12 +232,7 @@ impl Context {
             true => self
                 .variable_db
                 .valuation()
-                .iter()
-                .enumerate()
-                .filter_map(|(i, v)| match v {
-                    None => Some(i as Variable),
-                    _ => None,
-                })
+                .unvalued_variables()
                 .choose(&mut self.counters.rng),
             false => {
                 while let Some(index) = self.variable_db.heap_pop_most_active() {
@@ -247,15 +241,7 @@ impl Context {
                         return Some(index);
                     }
                 }
-                self.variable_db
-                    .valuation()
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(i, v)| match v {
-                        None => Some(i as Variable),
-                        _ => None,
-                    })
-                    .next()
+                self.variable_db.valuation().unvalued_variables().next()
             }
         }
     }

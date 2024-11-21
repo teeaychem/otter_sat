@@ -1,14 +1,74 @@
-//! Configuration details.
+//! Configuration of a context.
 //!
 //! Primary configuration is context.
 //! All configuration for a context are contained within context.
 //! Some structures clone parts of the configuration.
 //! Databases.
 //!
+use dbs::{ClauseDBConfig, VariableDBConfig};
+use misc::switches::Switches;
 
-pub mod context;
 pub mod dbs;
 pub mod misc;
+
+#[derive(Clone, Debug)]
+pub struct Config {
+    /// The `u` value to multiply the luby sequence by when determining whether to perform a restart.
+    pub luby_u: LubyRepresentation,
+
+    /// The probability of assigning positive polarity to a variable when freely choosing a variable.
+    pub polarity_lean: PolarityLean,
+
+    /// Preprocessing configuration
+    pub random_choice_frequency: RandomChoiceFrequency,
+
+    /// Which stopping criteria to use during resolution based analysis
+    pub stopping_criteria: StoppingCriteria,
+
+    /// The time limit for a solve.
+    pub time_limit: Option<std::time::Duration>,
+
+    /// Which VSIDS variant to use during resolution based analysis
+    pub vsids_variant: VSIDS,
+
+    /// A scheduler for things such as restarts and reductions.
+    pub scheduler: Scheduler,
+
+    /// Configurations switched on (or off).
+    pub switch: Switches,
+
+    /// Configuration of the clause database.
+    pub clause_db: ClauseDBConfig,
+
+    /// Configuration of the variable database.
+    pub variable_db: VariableDBConfig,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            luby_u: 128,
+
+            polarity_lean: 0.0,
+
+            random_choice_frequency: 0.0,
+
+            stopping_criteria: StoppingCriteria::FirstUIP,
+
+            scheduler: Scheduler {
+                luby: Some(2),
+                conflict: Some(50_000),
+            },
+
+            time_limit: None,
+            vsids_variant: VSIDS::MiniSAT,
+
+            switch: Switches::default(),
+            clause_db: ClauseDBConfig::default(),
+            variable_db: VariableDBConfig::default(),
+        }
+    }
+}
 
 /// Representation used for clause and variable activity
 pub type Activity = f64;
@@ -28,7 +88,7 @@ pub type RandomChoiceFrequency = f64;
 /// Scheduler for reductions.
 /// If two scheduled reductions coincide, only one reduction takes place.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct ReductionScheduler {
+pub struct Scheduler {
     /// Reuce the clause database every `luby` times a luby interrupt happens.
     pub luby: Option<u32>,
 
