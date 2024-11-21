@@ -3,8 +3,6 @@ use crate::context::Context;
 pub mod frat;
 pub mod library;
 
-use library::report::{self, Report};
-
 #[derive(Clone)]
 pub enum Dispatch {
     Delta(library::delta::Delta),
@@ -19,8 +17,8 @@ impl Context {
             self.clause_db.dispatch_active();
 
             for literal in self.literal_db.proven_literals() {
-                let report = report::LiteralDB::Active(*literal);
-                tx.send(Dispatch::Report(Report::LiteralDB(report)));
+                let report = library::report::LiteralDB::Active(*literal);
+                tx.send(Dispatch::Report(library::report::Report::LiteralDB(report)));
             }
         }
     }

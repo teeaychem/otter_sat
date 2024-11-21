@@ -61,7 +61,7 @@ pub mod src {
 
     #[derive(Clone, Copy, Debug)]
     pub enum Clause {
-        Formula,    // Read from a formula
+        Original,   // Read from a formula
         Resolution, // Derived via resolution (during analysis, etc.)
     }
 

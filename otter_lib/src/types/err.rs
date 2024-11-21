@@ -30,9 +30,7 @@ pub enum BCP {
 #[derive(Debug)]
 pub enum Build {
     UnitClauseConflict,
-    AssumptionConflict,
-    AssumptionDirectConflict,
-    AssumptionIndirectConflict,
+    Conflict,
     Parse(Parse),
     ClauseStore(ClauseDB),
 }

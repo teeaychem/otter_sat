@@ -10,7 +10,10 @@ use crate::{
         library::delta::{self},
         Dispatch,
     },
-    structures::literal::Literal,
+    structures::{
+        literal::{Literal, LiteralT},
+        variable::Variable,
+    },
     types::gen::{self},
 };
 
@@ -162,5 +165,9 @@ impl LiteralDB {
 
     pub fn choice_count(&self) -> ChoiceIndex {
         self.choice_stack.len() as ChoiceIndex
+    }
+
+    pub fn make_literal(&self, variable: Variable, polarity: bool) -> Literal {
+        Literal::new(variable, polarity)
     }
 }
