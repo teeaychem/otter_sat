@@ -234,6 +234,7 @@ impl Context {
             }
         }
 
+        // second phase, read until the formula ends
         'formula_loop: loop {
             match file_reader.read_line(&mut buffer) {
                 Ok(0) => break,

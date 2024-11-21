@@ -206,8 +206,15 @@ impl Context {
                 self.counters.choices += 1;
 
                 let choice_literal = {
-                    let previous_value = self.variable_db.previous_value_of(choice_id);
-                    Literal::new(choice_id, previous_value)
+                    if self.config.switch.phase_saving {
+                        let previous_value = self.variable_db.previous_value_of(choice_id);
+                        Literal::new(choice_id, previous_value)
+                    } else {
+                        Literal::new(
+                            choice_id,
+                            self.counters.rng.gen_bool(self.config.polarity_lean),
+                        )
+                    }
                 };
                 log::trace!("Choice {choice_literal}");
                 self.literal_db.note_choice(choice_literal);
