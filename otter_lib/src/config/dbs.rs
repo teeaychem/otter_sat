@@ -2,6 +2,7 @@
 
 use super::{Activity, GlueStrength};
 
+/// Configuration for the clause database.
 #[derive(Clone, Debug)]
 pub struct ClauseDBConfig {
     /// The activity with which the next variable bumped will be bumped by, dynamically adjusted.
@@ -28,6 +29,7 @@ impl Default for ClauseDBConfig {
     }
 }
 
+/// Configuration for the variable database.
 #[derive(Clone, Debug)]
 pub struct VariableDBConfig {
     /// The amount with which to bump a variable by when applying VSIDS.
