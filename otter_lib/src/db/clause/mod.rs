@@ -7,7 +7,7 @@ use crossbeam::channel::Sender;
 use crate::{
     config::{dbs::ClauseDBConfig, Config},
     db::{
-        clause::{activity_glue::ActivityGlue, stored::StoredClause},
+        clause::{activity_glue::ActivityGlue, stored::dbClause},
         keys::{ClauseKey, FormulaIndex},
         variable::VariableDB,
     },
@@ -40,9 +40,9 @@ pub struct ClauseDB {
 
     empty_keys: Vec<ClauseKey>,
 
-    binary: Vec<StoredClause>,
-    formula: Vec<StoredClause>,
-    learned: Vec<Option<StoredClause>>,
+    binary: Vec<dbClause>,
+    formula: Vec<dbClause>,
+    learned: Vec<Option<dbClause>>,
 
     activity_heap: IndexHeap<ActivityGlue>,
 
@@ -144,7 +144,7 @@ impl ClauseDB {
         }
     }
 
-    pub fn get_carefully_mut(&mut self, key: ClauseKey) -> Option<&mut StoredClause> {
+    pub fn get_carefully_mut(&mut self, key: ClauseKey) -> Option<&mut dbClause> {
         match key {
             ClauseKey::Formula(index) => self.formula.get_mut(index as usize),
             ClauseKey::Binary(index) => self.binary.get_mut(index as usize),
@@ -158,7 +158,7 @@ impl ClauseDB {
         }
     }
 
-    fn get_mut(&mut self, key: ClauseKey) -> Result<&mut StoredClause, err::ClauseDB> {
+    fn get_mut(&mut self, key: ClauseKey) -> Result<&mut dbClause, err::ClauseDB> {
         match key {
             ClauseKey::Formula(index) => unsafe {
                 Ok(self.formula.get_unchecked_mut(index as usize))
@@ -208,39 +208,50 @@ impl ClauseDB {
     ) -> Result<ClauseKey, err::ClauseDB> {
         match clause.len() {
             0 => Err(err::ClauseDB::EmptyClause),
+
             1 => Err(err::ClauseDB::UnitClause),
+
             2 => {
                 let key = self.new_binary_id()?;
 
                 if let Some(tx) = &self.tx {
+                    let delta = delta::ClauseDB::ClauseStart;
+                    tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+                    for literal in &clause {
+                        let delta = delta::ClauseDB::ClauseLiteral(*literal);
+                        tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+                    }
                     let delta = {
                         match source {
-                            gen::src::Clause::Original => {
-                                delta::ClauseDB::BinaryOriginal(key, clause.clone())
-                            }
-                            gen::src::Clause::Resolution => {
-                                delta::ClauseDB::BinaryResolution(key, clause.clone())
-                            }
+                            gen::src::Clause::Original => delta::ClauseDB::BinaryOriginal(key),
+                            gen::src::Clause::Resolution => delta::ClauseDB::BinaryResolution(key),
                         }
                     };
                     tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
                 }
 
-                self.binary.push(StoredClause::from(key, clause, variables));
+                self.binary.push(dbClause::from(key, clause, variables));
 
                 Ok(key)
             }
+
             _ => match source {
                 gen::src::Clause::Original => {
                     let the_key = self.new_formula_id()?;
 
                     if let Some(tx) = &self.tx {
-                        let delta = delta::ClauseDB::Original(the_key, clause.clone());
+                        let delta = delta::ClauseDB::ClauseStart;
+                        tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+                        for literal in &clause {
+                            let delta = delta::ClauseDB::ClauseLiteral(*literal);
+                            tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+                        }
+                        let delta = delta::ClauseDB::Original(the_key);
                         tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
                     }
 
                     self.formula
-                        .push(StoredClause::from(the_key, clause, variables));
+                        .push(dbClause::from(the_key, clause, variables));
                     Ok(the_key)
                 }
                 gen::src::Clause::Resolution => {
@@ -253,11 +264,17 @@ impl ClauseDB {
                     };
 
                     if let Some(tx) = &self.tx {
-                        let delta = delta::ClauseDB::Resolution(the_key, clause.clone());
+                        let delta = delta::ClauseDB::ClauseStart;
+                        tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+                        for literal in &clause {
+                            let delta = delta::ClauseDB::ClauseLiteral(*literal);
+                            tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+                        }
+                        let delta = delta::ClauseDB::Resolution(the_key);
                         tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
                     }
 
-                    let the_clause = StoredClause::from(the_key, clause, variables);
+                    let the_clause = dbClause::from(the_key, clause, variables);
 
                     let value = ActivityGlue {
                         activity: 1.0,
@@ -327,7 +344,13 @@ impl ClauseDB {
                 std::mem::take(unsafe { self.learned.get_unchecked_mut(index) }).unwrap();
 
             if let Some(tx) = &self.tx {
-                let delta = delta::ClauseDB::Deletion(the_clause.key(), the_clause.to_vec());
+                let delta = delta::ClauseDB::ClauseStart;
+                tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+                for literal in the_clause.literals() {
+                    let delta = delta::ClauseDB::ClauseLiteral(*literal);
+                    tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+                }
+                let delta = delta::ClauseDB::Deletion(the_clause.key());
                 tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
             }
 
@@ -411,22 +434,22 @@ impl ClauseDB {
         key: ClauseKey,
         literal: Literal,
         variable_db: &mut VariableDB,
-    ) -> Result<ClauseKey, err::RBuf> {
+    ) -> Result<ClauseKey, err::ResolutionBuffer> {
         let the_clause = self.get_carefully_mut(key).unwrap();
         match the_clause.len() {
             0..=2 => panic!("impossible"),
             3 => {
                 let Ok(_) = the_clause.subsume(literal, variable_db, false) else {
-                    return Err(err::RBuf::Subsumption);
+                    return Err(err::ResolutionBuffer::Subsumption);
                 };
                 let Ok(new_key) = self.transfer_to_binary(key, variable_db) else {
-                    return Err(err::RBuf::Transfer);
+                    return Err(err::ResolutionBuffer::Transfer);
                 };
                 Ok(new_key)
             }
             _ => {
                 let Ok(_) = the_clause.subsume(literal, variable_db, true) else {
-                    return Err(err::RBuf::Subsumption);
+                    return Err(err::ResolutionBuffer::Subsumption);
                 };
                 // TODO: Dispatches for subsumption…
                 // let delta = delta::Resolution::Subsumed(key, literal);

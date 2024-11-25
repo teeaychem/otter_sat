@@ -56,7 +56,10 @@ impl Context {
                 Some(value) if check.polarity() != value => {
                     log::trace!(target: targets::PROPAGATION, "Consequence of {clause_key} and {literal} is contradiction.");
                     if let Some(tx) = &self.tx {
-                        let delta = delta::BCP::Conflict(*literal, *clause_key);
+                        let delta = delta::BCP::Conflict {
+                            from: *literal,
+                            via: *clause_key,
+                        };
                         tx.send(Dispatch::Delta(Delta::BCP(delta)));
                     }
                     return Err(err::BCP::Conflict(*clause_key));
@@ -113,7 +116,10 @@ impl Context {
                         Some(value) if the_watch.polarity() != value => {
                             self.clause_db.note_use(*clause_key);
                             if let Some(tx) = &self.tx {
-                                let delta = delta::BCP::Conflict(*literal, *clause_key);
+                                let delta = delta::BCP::Conflict {
+                                    from: *literal,
+                                    via: *clause_key,
+                                };
                                 tx.send(Dispatch::Delta(Delta::BCP(delta)));
                             }
                             return Err(err::BCP::Conflict(*clause_key));

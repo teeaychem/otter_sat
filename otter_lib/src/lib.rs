@@ -2,7 +2,7 @@
 //!
 //! Design
 //! - High-level parts are easy to compose
-//! - Low-level parts are easy to modify
+//! - Low-level parts are easy to extend or modify
 //!
 //! Context
 //! - Databases, linked
@@ -11,8 +11,8 @@
 //! - Transient
 //!
 //! Dispatches
-//! - FRAT
-//! - Unsatisfiable core
+//! - [FRAT](crate::dispatch::frat)
+//! - [Unsatisfiable core](crate::dispatch::core)
 //!
 //! Private items are documented.
 
@@ -38,5 +38,5 @@ pub mod dispatch;
 
 pub mod db;
 
-mod misc;
+pub mod misc;
 pub mod transient;

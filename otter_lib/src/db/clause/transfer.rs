@@ -8,7 +8,7 @@ use crate::{
     types::err::{self},
 };
 
-use super::{stored::StoredClause, ClauseDB};
+use super::{stored::dbClause, ClauseDB};
 
 impl ClauseDB {
     pub(super) fn transfer_to_binary(
@@ -32,17 +32,24 @@ impl ClauseDB {
                 }
 
                 let b_key = self.new_binary_id()?;
-                if let Some(tx) = &self.tx {
-                    let delta = delta::ClauseDB::TransferBinary(key, b_key, copied_clause.clone());
-                    tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
-                }
 
                 unsafe {
                     variables.remove_watch(copied_clause.get_unchecked(0), key)?;
                     variables.remove_watch(copied_clause.get_unchecked(1), key)?;
                 }
 
-                let binary_clause = StoredClause::from(b_key, copied_clause, variables);
+                if let Some(tx) = &self.tx {
+                    let delta = delta::ClauseDB::ClauseStart;
+                    tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+                    for literal in &copied_clause {
+                        let delta = delta::ClauseDB::ClauseLiteral(*literal);
+                        tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+                    }
+                    let delta = delta::ClauseDB::TransferBinary(key, b_key);
+                    tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+                }
+
+                let binary_clause = dbClause::from(b_key, copied_clause, variables);
 
                 self.binary.push(binary_clause);
 
