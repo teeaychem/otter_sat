@@ -1,5 +1,15 @@
+//! Dispatches from a context to external observers.
+//!
+//! - FRAT
+//! - Unsatisfiable cores
+//!
+//! Unsat from FRAT, though not required.
+//!
+//! Examples.
+
 use crate::context::Context;
 
+pub mod core;
 pub mod frat;
 pub mod library;
 

@@ -7,7 +7,7 @@ use crate::{
         Dispatch,
     },
     structures::{
-        clause::{Clause, ClauseT},
+        clause::Clause,
         literal::{Literal, LiteralT},
         variable::Variable,
     },
@@ -36,7 +36,7 @@ impl Context {
     pub fn literal_from_string(&mut self, string: &str) -> Result<Literal, err::Parse> {
         let trimmed_string = string.trim();
         if trimmed_string.is_empty() || trimmed_string == "-" {
-            return Err(err::Parse::NoVariable);
+            return Err(err::Parse::Negation);
         };
 
         let polarity = !trimmed_string.starts_with('-');
@@ -74,14 +74,14 @@ impl Context {
     /// This handles the variations.
     pub fn store_clause(&mut self, clause: Clause) -> Result<(), err::Build> {
         match clause.len() {
-            0 => Err(err::Build::ClauseStore(err::ClauseDB::EmptyClause)),
+            0 => Err(err::Build::ClauseDB(err::ClauseDB::EmptyClause)),
+
             1 => {
                 let literal = unsafe { *clause.get_unchecked(0) };
-                match self.assume(literal) {
-                    Ok(_) => Ok(()),
-                    Err(_e) => Err(err::Build::Conflict),
-                }
+                self.assume(literal)?;
+                Ok(())
             }
+
             _ => {
                 let mut processed_clause: Clause = vec![];
 
@@ -111,22 +111,22 @@ impl Context {
                 let clause = processed_clause;
 
                 match clause.len() {
-                    0 => Err(err::Build::Conflict), // Any empty clause before strengthening raised an error above, so this is safe to ignore
+                    0 => Err(err::Build::ClauseDB(err::ClauseDB::EmptyClause)),
+
                     1 => {
                         let literal = unsafe { clause.get_unchecked(0) };
-                        match self.assume(literal) {
-                            Ok(_) => Ok(()),
-                            Err(e) => Err(err::Build::Conflict),
-                        }
+                        self.assume(literal)?;
+                        Ok(())
                     }
-                    _ => match self.clause_db.store(
-                        clause,
-                        gen::src::Clause::Original,
-                        &mut self.variable_db,
-                    ) {
-                        Ok(_) => Ok(()),
-                        Err(e) => Err(err::Build::ClauseStore(e)),
-                    },
+
+                    _ => {
+                        self.clause_db.store(
+                            clause,
+                            gen::src::Clause::Original,
+                            &mut self.variable_db,
+                        );
+                        Ok(())
+                    }
                 }
             }
         }
@@ -198,6 +198,7 @@ impl Context {
                     buffer.clear();
                     continue;
                 }
+
                 Some('p') => {
                     let mut problem_details = buffer.split_whitespace();
                     let variable_count: usize = match problem_details.nth(2) {
@@ -228,9 +229,8 @@ impl Context {
                     }
                     break;
                 }
-                _ => {
-                    break;
-                }
+
+                _ => break,
             }
         }
 
@@ -254,13 +254,11 @@ impl Context {
                     for item in split_buf {
                         match item {
                             "0" => {
-                                let the_clause = clause_buffer.clone();
+                                let the_clause = std::mem::take(&mut clause_buffer);
                                 match self.store_clause(the_clause) {
                                     Ok(_) => clause_counter += 1,
                                     Err(e) => return Err(e),
                                 }
-
-                                clause_buffer.clear();
                             }
                             _ => {
                                 let the_literal = match self.literal_from_string(item) {
@@ -281,9 +279,8 @@ impl Context {
 
         if let Some(tx) = &self.tx {
             let counts = report::Parser::Counts(self.variable_db.count(), clause_counter);
-            let report_clauses = report::Parser::ContextClauses(self.clause_db.clause_count());
-
             tx.send(Dispatch::Report(Report::Parser(counts)));
+            let report_clauses = report::Parser::ContextClauses(self.clause_db.clause_count());
             tx.send(Dispatch::Report(Report::Parser(report_clauses)));
         }
         Ok(())

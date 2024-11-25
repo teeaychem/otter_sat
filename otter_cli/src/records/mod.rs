@@ -1,4 +1,3 @@
-pub mod core;
 pub mod frat;
 pub mod window;
 
@@ -13,10 +12,17 @@ use crate::{
     window::ContextWindow,
 };
 
-use otter_lib::{config::Config, dispatch::Dispatch};
+use otter_lib::{
+    config::Config,
+    dispatch::{
+        core::{core_db_builder, CoreDB, ErrCore},
+        Dispatch,
+    },
+};
 
-fn hand() -> Box<dyn FnMut(&Dispatch)> {
-    Box::new(|_dispatch: &Dispatch| {})
+#[allow(clippy::type_complexity)]
+fn hand() -> Box<dyn FnMut(&Dispatch) -> Result<(), ErrCore>> {
+    Box::new(|_dispatch: &Dispatch| -> Result<(), ErrCore> { Ok(()) })
 }
 
 #[allow(clippy::result_unit_err)]
@@ -25,7 +31,7 @@ pub fn general_recorder(
     rx: Receiver<Dispatch>,
     config: Config,
     config_io: ConfigIO,
-    the_graph_ptr: Option<Arc<Mutex<records::core::CoreDB>>>,
+    the_graph_ptr: Option<Arc<Mutex<CoreDB>>>,
 ) -> Result<(), ()> {
     let mut window = ContextWindow::default();
     if config_io.show_stats {
@@ -36,7 +42,7 @@ pub fn general_recorder(
     let mut frat_writer = records::frat::build_frat_writer(config_io.frat_path.clone());
 
     let mut grapher = match the_graph_ptr.is_some() {
-        true => records::core::core_db_builder(&the_graph_ptr),
+        true => core_db_builder(&the_graph_ptr),
         false => hand(),
     };
 
@@ -61,7 +67,7 @@ pub fn general_recorder(
             windower(&dispatch);
         }
         frat_writer(&dispatch);
-        grapher(&dispatch);
+        let _ = grapher(&dispatch);
     }
 
     drop(grapher);

@@ -89,7 +89,9 @@ impl VariableDB {
         self.choice_indicies.push(None);
 
         if let Some(tx) = &self.tx {
-            let delta = delta::VariableDB::Internalised(the_variable, name.to_string());
+            let delta_rep = delta::VariableDB::ExternalRepresentation(name.to_string());
+            tx.send(Dispatch::Delta(delta::Delta::VariableDB(delta_rep)));
+            let delta = delta::VariableDB::Internalised(the_variable);
             tx.send(Dispatch::Delta(delta::Delta::VariableDB(delta)));
         }
 

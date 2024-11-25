@@ -15,6 +15,7 @@ use otter_lib::{
     config::Config,
     context::Context,
     dispatch::{
+        core::CoreDB,
         library::report::{self},
         Dispatch,
     },
@@ -36,7 +37,7 @@ mod window;
 
 use config_io::ConfigIO;
 
-use crate::{misc::load_dimacs, records::core::CoreDB};
+use crate::misc::load_dimacs;
 
 fn main() {
     #[cfg(feature = "log")]
@@ -78,7 +79,7 @@ fn main() {
         for path in config_io.files {
             match load_dimacs(&mut the_context, path) {
                 Ok(()) => {}
-                Err(err::Build::ClauseStore(err::ClauseDB::EmptyClause)) => {
+                Err(err::Build::ClauseDB(err::ClauseDB::EmptyClause)) => {
                     println!("s UNSATISFIABLE");
                     std::process::exit(20);
                 }

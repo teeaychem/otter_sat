@@ -24,7 +24,7 @@ impl<T: Deref<Target = [Literal]>> ClauseT for T {
         let mut the_string = String::new();
         for literal in self.deref() {
             let the_represenetation = match literal.polarity() {
-                true => format!("{} ", variables.external_representation(literal.var())),
+                true => format!(" {} ", variables.external_representation(literal.var())),
                 false => format!("-{} ", variables.external_representation(literal.var())),
             };
             the_string.push_str(the_represenetation.as_str());

@@ -14,14 +14,15 @@ use crate::{
 use std::{borrow::Borrow, ops::Deref};
 
 #[derive(Debug)]
-pub struct StoredClause {
+#[allow(non_camel_case_types)]
+pub struct dbClause {
     key: ClauseKey,
     clause: Clause,
     active: bool,
     last: usize,
 }
 
-impl StoredClause {
+impl dbClause {
     pub fn from(key: ClauseKey, clause: Clause, variables: &mut VariableDB) -> Self {
         let mut stored_clause = Self {
             key,
@@ -50,7 +51,7 @@ impl StoredClause {
 
 // Watches
 
-impl StoredClause {
+impl dbClause {
     fn initialise_watches(&mut self, variables: &mut VariableDB) {
         let clause_length = self.clause.len() - 1;
 
@@ -169,7 +170,7 @@ pub enum SubsumptionError {
     WatchError,
 }
 
-impl StoredClause {
+impl dbClause {
     /*
     Subsumption may result in the removal of a watched literal.
     If `fix_watch` is set then watches will be corrected after removing the literal.
@@ -239,13 +240,13 @@ impl StoredClause {
     }
 }
 
-impl std::fmt::Display for StoredClause {
+impl std::fmt::Display for dbClause {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.clause.as_string())
     }
 }
 
-impl Deref for StoredClause {
+impl Deref for dbClause {
     type Target = [Literal];
 
     fn deref(&self) -> &Self::Target {

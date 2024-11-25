@@ -136,7 +136,7 @@ impl ResolutionBuffer {
         levels: &LiteralDB,
         clause_db: &mut ClauseDB,
         variables: &mut VariableDB,
-    ) -> Result<gen::RBuf, err::RBuf> {
+    ) -> Result<gen::RBuf, err::ResolutionBuffer> {
         self.merge_clause(clause_db.get(conflict).expect("missing clause"));
 
         // Maybe the conflit clause was already asserting after the previous choice…
@@ -164,7 +164,7 @@ impl ResolutionBuffer {
                 let source_clause = match clause_db.get(*the_key) {
                     Err(_) => {
                         log::error!(target: targets::RESOLUTION, "Lost resolution clause {the_key:?}");
-                        return Err(err::RBuf::LostClause);
+                        return Err(err::ResolutionBuffer::LostClause);
                     }
                     Ok(clause) => clause,
                 };
@@ -270,7 +270,7 @@ impl ResolutionBuffer {
 
 impl ResolutionBuffer {
     /// Merge a clause into the buffer
-    fn merge_clause(&mut self, clause: &impl ClauseT) -> Result<(), err::RBuf> {
+    fn merge_clause(&mut self, clause: &impl ClauseT) -> Result<(), err::ResolutionBuffer> {
         for literal in clause.literals() {
             match unsafe { self.buffer.get_unchecked(literal.var() as usize) } {
                 Cell::Conflict(_) | Cell::None(_) | Cell::Pivot => {}
@@ -291,7 +291,7 @@ impl ResolutionBuffer {
                     }
                     Some(_) => {
                         log::error!(target: targets::RESOLUTION, "Satisfied clause");
-                        return Err(err::RBuf::SatisfiedResolution);
+                        return Err(err::ResolutionBuffer::SatisfiedClause);
                     }
                 },
                 Cell::Strengthened => {}
@@ -304,7 +304,7 @@ impl ResolutionBuffer {
         &mut self,
         clause: &impl ClauseT,
         using: impl Borrow<Literal>,
-    ) -> Result<(), err::RBuf> {
+    ) -> Result<(), err::ResolutionBuffer> {
         let using = using.borrow();
         let contents = unsafe { *self.buffer.get_unchecked(using.var() as usize) };
         match contents {
@@ -325,7 +325,7 @@ impl ResolutionBuffer {
             }
             _ => {
                 // Skip over any clauses which are not involved in the current resolution trail
-                Err(err::RBuf::LostClause)
+                Err(err::ResolutionBuffer::LostClause)
             }
         }
     }

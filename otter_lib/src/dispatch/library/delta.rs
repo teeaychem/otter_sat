@@ -1,6 +1,6 @@
 use crate::{
     db::keys::ClauseKey,
-    structures::{clause::Clause, literal::Literal, variable::Variable},
+    structures::{literal::Literal, variable::Variable},
 };
 
 #[derive(Clone)]
@@ -19,7 +19,10 @@ pub enum BCP {
         via: ClauseKey,
         to: Literal,
     },
-    Conflict(Literal, ClauseKey), // Literal + ClauseKey -> falsum
+    Conflict {
+        from: Literal,
+        via: ClauseKey,
+    },
 }
 
 #[derive(Clone)]
@@ -31,13 +34,23 @@ pub enum ClauseBuider {
 }
 
 #[derive(Clone)]
+pub enum Resolution {
+    Begin,
+    End,
+    Used(ClauseKey),
+    Subsumed(ClauseKey, Literal),
+}
+
+#[derive(Clone)]
 pub enum ClauseDB {
-    TransferBinary(ClauseKey, ClauseKey, Clause),
-    Deletion(ClauseKey, Clause),
-    BinaryOriginal(ClauseKey, Clause),
-    BinaryResolution(ClauseKey, Clause),
-    Original(ClauseKey, Clause),
-    Resolution(ClauseKey, Clause),
+    ClauseStart,
+    ClauseLiteral(Literal),
+    TransferBinary(ClauseKey, ClauseKey),
+    Deletion(ClauseKey),
+    BinaryOriginal(ClauseKey),
+    BinaryResolution(ClauseKey),
+    Original(ClauseKey),
+    Resolution(ClauseKey),
 }
 
 #[derive(Debug, Clone)]
@@ -50,15 +63,8 @@ pub enum LiteralDB {
 }
 
 #[derive(Clone)]
-pub enum Resolution {
-    Begin,
-    End,
-    Used(ClauseKey),
-    Subsumed(ClauseKey, Literal),
-}
-
-#[derive(Clone)]
 pub enum VariableDB {
-    Internalised(Variable, String),
+    ExternalRepresentation(String),
+    Internalised(Variable),
     Unsatisfiable(ClauseKey),
 }
