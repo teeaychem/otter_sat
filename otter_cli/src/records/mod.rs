@@ -15,14 +15,15 @@ use crate::{
 use otter_lib::{
     config::Config,
     dispatch::{
-        core::{core_db_builder, CoreDB, ErrCore},
+        core::{core_db_builder, CoreDB},
         Dispatch,
     },
+    types::err::{self},
 };
 
 #[allow(clippy::type_complexity)]
-fn hand() -> Box<dyn FnMut(&Dispatch) -> Result<(), ErrCore>> {
-    Box::new(|_dispatch: &Dispatch| -> Result<(), ErrCore> { Ok(()) })
+fn hand() -> Box<dyn FnMut(&Dispatch) -> Result<(), err::Core>> {
+    Box::new(|_dispatch: &Dispatch| -> Result<(), err::Core> { Ok(()) })
 }
 
 #[allow(clippy::result_unit_err)]

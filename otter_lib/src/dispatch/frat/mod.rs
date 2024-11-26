@@ -20,15 +20,9 @@
 #[doc(hidden)]
 pub mod transcriber;
 
-use std::{collections::VecDeque, fs::File, path::PathBuf};
+use std::{collections::VecDeque, fs::File};
 
-use crossbeam::channel::Receiver;
-
-use crate::{
-    db::keys::ClauseKey,
-    dispatch::{frat, Dispatch},
-    structures::literal::Literal,
-};
+use crate::{db::keys::ClauseKey, structures::literal::Literal};
 
 /// An intermediate struct to support transforming dispatches from a context to steps in an FRAT proof.
 pub struct Transcriber {
@@ -51,17 +45,4 @@ pub struct Transcriber {
 
     /// A map from internal variables (the indicies) to external variables (the strings).
     variable_map: Vec<Option<String>>,
-}
-
-/// Passes dispatches on some channel to a writer for the given FRAT path until the channel closes.
-pub fn frat_receiver(rx: Receiver<Dispatch>, frat_path: PathBuf) {
-    let mut transcriber = frat::Transcriber::new(frat_path);
-    let mut handler = move |dispatch: &Dispatch| {
-        transcriber.transcribe(dispatch);
-        transcriber.flush()
-    };
-
-    while let Ok(dispatch) = rx.recv() {
-        handler(&dispatch);
-    }
 }

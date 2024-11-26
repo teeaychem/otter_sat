@@ -1,13 +1,31 @@
 use std::{
     path::PathBuf,
     process::{self},
+    rc::Rc,
     thread,
 };
 
 const FRAT_RS_PATH: &str = "./frat-rs";
 
-use crossbeam::channel::unbounded;
-use otter_lib::{config::Config, context::Context, dispatch::Dispatch};
+use crossbeam::channel::{unbounded, Receiver};
+use otter_lib::{
+    config::Config,
+    context::Context,
+    dispatch::{frat, Dispatch},
+};
+
+/// Passes dispatches on some channel to a writer for the given FRAT path until the channel closes.
+pub fn frat_receiver(rx: Receiver<Dispatch>, frat_path: PathBuf) {
+    let mut transcriber = frat::Transcriber::new(frat_path);
+    let mut handler = move |dispatch: &Dispatch| {
+        transcriber.transcribe(dispatch);
+        transcriber.flush()
+    };
+
+    while let Ok(dispatch) = rx.recv() {
+        handler(&dispatch);
+    }
+}
 
 fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     let mut frat_path_string = file_path.clone().to_str().unwrap().to_owned();
@@ -18,10 +36,15 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
 
     let listener_handle = {
         let frat_path = frat_path.clone();
-        thread::spawn(|| otter_lib::dispatch::frat::frat_receiver(rx, frat_path))
+        thread::spawn(|| frat_receiver(rx, frat_path))
     };
 
-    let mut the_context = Context::from_config(config, Some(tx));
+    let mut the_context = Context::from_config(
+        config,
+        Some(Rc::new(move |d: Dispatch| {
+            let _ = tx.send(d);
+        })),
+    );
 
     match load_dimacs(&mut the_context, &file_path) {
         Ok(()) => {}

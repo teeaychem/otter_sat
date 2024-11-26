@@ -7,14 +7,11 @@ use crate::{
         library::report::{self},
         Dispatch,
     },
-    generic::minimal_pcg::MinimalPCG32,
     types::gen::Solve,
 };
 
-use crossbeam::channel::Sender;
 use rand::SeedableRng;
-
-use std::time::Duration;
+use std::{rc::Rc, time::Duration};
 
 pub struct Counters {
     pub conflicts: usize,
@@ -24,7 +21,7 @@ pub struct Counters {
     pub restarts: usize,
     pub time: Duration,
     pub luby: crate::generic::luby::Luby,
-    pub rng: MinimalPCG32,
+    pub rng: crate::generic::minimal_pcg::MinimalPCG32,
 }
 
 impl Default for Counters {
@@ -38,8 +35,7 @@ impl Default for Counters {
             conflicts: 0,
 
             luby: crate::generic::luby::Luby::default(),
-
-            rng: MinimalPCG32::from_seed(0_u64.to_le_bytes()),
+            rng: crate::generic::minimal_pcg::MinimalPCG32::from_seed(0_u64.to_le_bytes()),
         }
     }
 }
@@ -55,21 +51,22 @@ pub struct Context {
     pub literal_db: LiteralDB,
 
     pub status: Solve,
-    pub tx: Option<Sender<Dispatch>>, //
     pub consequence_q: ConsequenceQ,
+
+    pub dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 }
 
 impl Context {
-    pub fn from_config(config: Config, tx: Option<Sender<Dispatch>>) -> Self {
+    pub fn from_config(config: Config, dispatcher: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
         Self {
             counters: Counters::default(),
-            literal_db: LiteralDB::new(tx.clone()),
-            clause_db: ClauseDB::new(&config, tx.clone()),
-            variable_db: VariableDB::new(&config, tx.clone()),
+            literal_db: LiteralDB::new(dispatcher.clone()),
+            clause_db: ClauseDB::new(&config, dispatcher.clone()),
+            variable_db: VariableDB::new(&config, dispatcher.clone()),
             config,
             status: Solve::Initialised,
-            tx,
             consequence_q: ConsequenceQ::default(),
+            dispatcher,
         }
     }
 }

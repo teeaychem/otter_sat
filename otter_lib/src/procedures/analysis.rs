@@ -22,8 +22,11 @@ impl Context {
                 .apply_VSIDS(self.clause_db.get(key)?.variables());
         }
 
-        let mut the_buffer =
-            ResolutionBuffer::from_variable_store(&self.variable_db, self.tx.clone(), &self.config);
+        let mut the_buffer = ResolutionBuffer::from_variable_store(
+            &self.variable_db,
+            self.dispatcher.clone(),
+            &self.config,
+        );
 
         the_buffer.clear_literal(self.literal_db.last_choice());
         for (_, lit) in self.literal_db.last_consequences() {

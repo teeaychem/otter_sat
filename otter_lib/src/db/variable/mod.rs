@@ -2,7 +2,7 @@ mod activity;
 mod valuation;
 pub mod watch_db;
 
-use crossbeam::channel::Sender;
+use std::rc::Rc;
 
 use crate::{
     config::{dbs::VariableDBConfig, Activity, Config},
@@ -32,12 +32,12 @@ pub struct VariableDB {
     previous_valuation: Vec<bool>,
     choice_indicies: Vec<Option<ChoiceIndex>>,
 
-    tx: Option<Sender<Dispatch>>,
+    dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
     config: VariableDBConfig,
 }
 
 impl VariableDB {
-    pub fn new(config: &Config, tx: Option<Sender<Dispatch>>) -> Self {
+    pub fn new(config: &Config, dispatcher: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
         VariableDB {
             external_map: Vec::<String>::default(),
             internal_map: std::collections::HashMap::default(),
@@ -50,7 +50,7 @@ impl VariableDB {
             previous_valuation: Vec::default(),
             choice_indicies: Vec::default(),
 
-            tx,
+            dispatcher,
             config: config.variable_db.clone(),
         }
     }
@@ -88,11 +88,11 @@ impl VariableDB {
         self.previous_valuation.push(previous_value);
         self.choice_indicies.push(None);
 
-        if let Some(tx) = &self.tx {
+        if let Some(tx) = &self.dispatcher {
             let delta_rep = delta::VariableDB::ExternalRepresentation(name.to_string());
-            tx.send(Dispatch::Delta(delta::Delta::VariableDB(delta_rep)));
+            tx(Dispatch::Delta(delta::Delta::VariableDB(delta_rep)));
             let delta = delta::VariableDB::Internalised(the_variable);
-            tx.send(Dispatch::Delta(delta::Delta::VariableDB(delta)));
+            tx(Dispatch::Delta(delta::Delta::VariableDB(delta)));
         }
 
         the_variable

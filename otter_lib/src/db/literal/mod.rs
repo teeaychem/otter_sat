@@ -1,8 +1,6 @@
 pub mod details;
 
-use std::borrow::Borrow;
-
-use crossbeam::channel::Sender;
+use std::{borrow::Borrow, rc::Rc};
 
 use crate::{
     db::keys::ChoiceIndex,
@@ -39,7 +37,7 @@ For now, this works ok.
 pub struct LiteralDB {
     proven: ProvenLiterals,
     choice_stack: Vec<ChosenLiteral>,
-    tx: Option<Sender<Dispatch>>,
+    pub dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 }
 
 #[derive(Debug)]
@@ -54,11 +52,11 @@ struct ChosenLiteral {
 }
 
 impl LiteralDB {
-    pub fn new(tx: Option<Sender<Dispatch>>) -> Self {
+    pub fn new(tx: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
         LiteralDB {
             proven: ProvenLiterals::default(),
             choice_stack: Vec::default(),
-            tx,
+            dispatcher: tx,
         }
     }
 }
@@ -79,24 +77,24 @@ impl LiteralDB {
         match source {
             gen::src::Literal::Choice => {}
             gen::src::Literal::Assumption => {
-                if let Some(tx) = &self.tx {
+                if let Some(tx) = &self.dispatcher {
                     let delta = delta::LiteralDB::Assumption(literal.borrow().to_owned());
-                    tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                    tx(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                 }
                 self.proven.record_literal(literal)
             }
             gen::src::Literal::Pure => {
-                if let Some(tx) = &self.tx {
+                if let Some(tx) = &self.dispatcher {
                     let delta = delta::LiteralDB::Pure(literal.borrow().to_owned());
-                    tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                    tx(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                 }
                 self.proven.record_literal(literal)
             }
             gen::src::Literal::BCP(_) => match self.choice_stack.len() {
                 0 => {
-                    if let Some(tx) = &self.tx {
+                    if let Some(tx) = &self.dispatcher {
                         let delta = delta::LiteralDB::Proof(literal.borrow().to_owned());
-                        tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                        tx(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                     }
                     self.proven.record_literal(literal)
                 }
@@ -104,17 +102,17 @@ impl LiteralDB {
             },
             gen::src::Literal::Resolution(_) => {
                 // Resoluion implies deduction via (known) clauses
-                if let Some(tx) = &self.tx {
+                if let Some(tx) = &self.dispatcher {
                     let delta = delta::LiteralDB::ResolutionProof(literal.borrow().to_owned());
-                    tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                    tx(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                 }
                 self.proven.record_literal(literal)
             }
             gen::src::Literal::Forced(key) => match self.choice_stack.len() {
                 0 => {
-                    if let Some(tx) = &self.tx {
+                    if let Some(tx) = &self.dispatcher {
                         let delta = delta::LiteralDB::Forced(key, literal.borrow().to_owned());
-                        tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                        tx(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                     }
                     self.proven.record_literal(literal)
                 }
@@ -123,9 +121,9 @@ impl LiteralDB {
             gen::src::Literal::Missed(key) => match self.choice_stack.len() {
                 0 => {
                     // TODO: Make unique o generalise forcing
-                    if let Some(tx) = &self.tx {
+                    if let Some(tx) = &self.dispatcher {
                         let delta = delta::LiteralDB::Forced(key, literal.borrow().to_owned());
-                        tx.send(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                        tx(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                     }
                     self.proven.record_literal(literal)
                 }
