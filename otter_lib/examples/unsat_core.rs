@@ -1,5 +1,6 @@
 use std::{
     io::Write,
+    rc::Rc,
     sync::{Arc, Mutex},
     thread,
 };
@@ -52,7 +53,12 @@ fn main() {
         polarity_lean: 0.0, // Always choose to value a variable false
         ..Default::default()
     };
-    let mut the_context = Context::from_config(config, Some(tx));
+    let mut the_context = Context::from_config(
+        config,
+        Some(Rc::new(move |d: Dispatch| {
+            let _ = tx.send(d);
+        })),
+    );
 
     let mut dimacs = vec![];
 

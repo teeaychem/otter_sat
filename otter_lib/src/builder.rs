@@ -223,9 +223,9 @@ impl Context {
 
                     buffer.clear();
 
-                    if let Some(tx) = &self.tx {
+                    if let Some(tx) = &self.dispatcher {
                         let expectation = report::Parser::Expected(variable_count, clause_count);
-                        tx.send(Dispatch::Report(Report::Parser(expectation)));
+                        tx(Dispatch::Report(Report::Parser(expectation)));
                     }
                     break;
                 }
@@ -277,11 +277,11 @@ impl Context {
             buffer.clear();
         }
 
-        if let Some(tx) = &self.tx {
+        if let Some(tx) = &self.dispatcher {
             let counts = report::Parser::Counts(self.variable_db.count(), clause_counter);
-            tx.send(Dispatch::Report(Report::Parser(counts)));
+            tx(Dispatch::Report(Report::Parser(counts)));
             let report_clauses = report::Parser::ContextClauses(self.clause_db.clause_count());
-            tx.send(Dispatch::Report(Report::Parser(report_clauses)));
+            tx(Dispatch::Report(Report::Parser(report_clauses)));
         }
         Ok(())
     }

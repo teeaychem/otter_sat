@@ -25,6 +25,7 @@ use otter_lib::{
 
 use crossbeam::channel::unbounded;
 use std::{
+    rc::Rc,
     sync::{Arc, Mutex},
     thread,
 };
@@ -38,6 +39,8 @@ mod window;
 use config_io::ConfigIO;
 
 use crate::misc::load_dimacs;
+
+fn hand(_: Dispatch) {}
 
 fn main() {
     #[cfg(feature = "log")]
@@ -74,7 +77,19 @@ fn main() {
         };
 
     // As the context holds a transmitter it'll need to be dropped explicitly
-    let mut the_context = Context::from_config(config, transmitter);
+    let mut the_context = match transmitter {
+        Some(tx) => {
+            let tx = tx;
+            Context::from_config(
+                config,
+                Some(Rc::new(move |d: Dispatch| {
+                    let _ = tx.send(d);
+                })),
+            )
+        }
+        None => Context::from_config(config, Some(Rc::new(hand))),
+    };
+
     let report = 'report: {
         for path in config_io.files {
             match load_dimacs(&mut the_context, path) {

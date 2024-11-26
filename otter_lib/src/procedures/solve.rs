@@ -42,8 +42,8 @@ impl Context {
             self.counters.time = this_total_time.elapsed();
             let time_limit = self.config.time_limit;
             if time_limit.is_some_and(|limit| self.counters.time > limit) {
-                if let Some(tx) = &self.tx {
-                    tx.send(Dispatch::Comment(Comment::Solve(comment::Solve::TimeUp)));
+                if let Some(tx) = &self.dispatcher {
+                    tx(Dispatch::Comment(Comment::Solve(comment::Solve::TimeUp)));
                 }
                 return Ok(self.report());
             }
@@ -103,8 +103,8 @@ impl Context {
                 }
             }
         }
-        if let Some(tx) = &self.tx {
-            tx.send(Dispatch::Report(Report::Finish));
+        if let Some(tx) = &self.dispatcher {
+            tx(Dispatch::Report(Report::Finish));
         }
         Ok(self.report())
     }
@@ -121,9 +121,9 @@ impl Context {
                     if !self.literal_db.choice_made() {
                         self.status = gen::Solve::NoSolution;
 
-                        if let Some(tx) = &self.tx {
+                        if let Some(tx) = &self.dispatcher {
                             let delta = delta::VariableDB::Unsatisfiable(key);
-                            tx.send(Dispatch::Delta(Delta::VariableDB(delta)));
+                            tx(Dispatch::Delta(Delta::VariableDB(delta)));
                         }
 
                         return Ok(gen::Expansion::Conflict);
@@ -165,11 +165,11 @@ impl Context {
     }
 
     pub fn conflict_dispatch(&self) {
-        if let Some(tx) = &self.tx {
-            tx.send(Dispatch::Stats(Stat::Iterations(self.counters.iterations)));
-            tx.send(Dispatch::Stats(Stat::Chosen(self.counters.choices)));
-            tx.send(Dispatch::Stats(Stat::Conflicts(self.counters.conflicts)));
-            tx.send(Dispatch::Stats(Stat::Time(self.counters.time)));
+        if let Some(tx) = &self.dispatcher {
+            tx(Dispatch::Stats(Stat::Iterations(self.counters.iterations)));
+            tx(Dispatch::Stats(Stat::Chosen(self.counters.choices)));
+            tx(Dispatch::Stats(Stat::Conflicts(self.counters.conflicts)));
+            tx(Dispatch::Stats(Stat::Time(self.counters.time)));
         }
     }
 
