@@ -1,4 +1,4 @@
-//! Utilities for writing FRAT proofs
+//! Tools for creating FRAT proofs by using dispatches.
 //!
 //! Full specification of the FRAT format is documented in:
 //! - *A Flexible Proof Format for SAT Solver-Elaborator Communication* (2022) Baek, Carneiro, and Heule.

@@ -1,3 +1,5 @@
+//! Tools for identifying unsatisfiable cores by using dispatches.
+
 use std::{
     collections::{HashMap, VecDeque},
     sync::{Arc, Mutex},

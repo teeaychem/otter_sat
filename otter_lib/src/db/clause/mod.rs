@@ -214,12 +214,12 @@ impl ClauseDB {
             2 => {
                 let key = self.new_binary_id()?;
 
-                if let Some(tx) = &self.dispatcher {
+                if let Some(dispatcher) = &self.dispatcher {
                     let delta = delta::ClauseDB::ClauseStart;
-                    tx(Dispatch::Delta(Delta::ClauseDB(delta)));
+                    dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                     for literal in &clause {
                         let delta = delta::ClauseDB::ClauseLiteral(*literal);
-                        tx(Dispatch::Delta(Delta::ClauseDB(delta)));
+                        dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                     }
                     let delta = {
                         match source {
@@ -227,7 +227,7 @@ impl ClauseDB {
                             gen::src::Clause::Resolution => delta::ClauseDB::BinaryResolution(key),
                         }
                     };
-                    tx(Dispatch::Delta(Delta::ClauseDB(delta)));
+                    dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                 }
 
                 self.binary.push(dbClause::from(key, clause, variables));
@@ -239,15 +239,15 @@ impl ClauseDB {
                 gen::src::Clause::Original => {
                     let the_key = self.new_formula_id()?;
 
-                    if let Some(tx) = &self.dispatcher {
+                    if let Some(dispatcher) = &self.dispatcher {
                         let delta = delta::ClauseDB::ClauseStart;
-                        tx(Dispatch::Delta(Delta::ClauseDB(delta)));
+                        dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                         for literal in &clause {
                             let delta = delta::ClauseDB::ClauseLiteral(*literal);
-                            tx(Dispatch::Delta(Delta::ClauseDB(delta)));
+                            dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                         }
                         let delta = delta::ClauseDB::Original(the_key);
-                        tx(Dispatch::Delta(Delta::ClauseDB(delta)));
+                        dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                     }
 
                     self.formula
@@ -263,15 +263,15 @@ impl ClauseDB {
                         _ => self.empty_keys.pop().unwrap().retoken()?,
                     };
 
-                    if let Some(tx) = &self.dispatcher {
+                    if let Some(dispatcher) = &self.dispatcher {
                         let delta = delta::ClauseDB::ClauseStart;
-                        tx(Dispatch::Delta(Delta::ClauseDB(delta)));
+                        dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                         for literal in &clause {
                             let delta = delta::ClauseDB::ClauseLiteral(*literal);
-                            tx(Dispatch::Delta(Delta::ClauseDB(delta)));
+                            dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                         }
                         let delta = delta::ClauseDB::Resolution(the_key);
-                        tx(Dispatch::Delta(Delta::ClauseDB(delta)));
+                        dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                     }
 
                     let the_clause = dbClause::from(the_key, clause, variables);
@@ -343,15 +343,15 @@ impl ClauseDB {
             let the_clause =
                 std::mem::take(unsafe { self.learned.get_unchecked_mut(index) }).unwrap();
 
-            if let Some(tx) = &self.dispatcher {
+            if let Some(dispatcher) = &self.dispatcher {
                 let delta = delta::ClauseDB::ClauseStart;
-                tx(Dispatch::Delta(Delta::ClauseDB(delta)));
+                dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                 for literal in the_clause.literals() {
                     let delta = delta::ClauseDB::ClauseLiteral(*literal);
-                    tx(Dispatch::Delta(Delta::ClauseDB(delta)));
+                    dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                 }
                 let delta = delta::ClauseDB::Deletion(the_clause.key());
-                tx(Dispatch::Delta(Delta::ClauseDB(delta)));
+                dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
             }
 
             self.activity_heap.remove(index);
@@ -401,19 +401,19 @@ impl ClauseDB {
     }
 
     pub fn dispatch_active(&self) {
-        if let Some(tx) = &self.dispatcher {
+        if let Some(dispatcher) = &self.dispatcher {
             for clause in &self.binary {
                 let report = report::ClauseDB::Active(clause.key(), clause.to_vec());
-                tx(Dispatch::Report(Report::ClauseDB(report)));
+                dispatcher(Dispatch::Report(Report::ClauseDB(report)));
             }
             for clause in &self.formula {
                 let report = report::ClauseDB::Active(clause.key(), clause.to_vec());
-                tx(Dispatch::Report(Report::ClauseDB(report)));
+                dispatcher(Dispatch::Report(Report::ClauseDB(report)));
             }
             for clause in self.learned.iter().flatten() {
                 if clause.is_active() {
                     let report = report::ClauseDB::Active(clause.key(), clause.to_vec());
-                    tx(Dispatch::Report(Report::ClauseDB(report)));
+                    dispatcher(Dispatch::Report(Report::ClauseDB(report)));
                 }
             }
         }
@@ -453,7 +453,7 @@ impl ClauseDB {
                 };
                 // TODO: Dispatches for subsumption…
                 // let delta = delta::Resolution::Subsumed(key, literal);
-                // self.tx(Dispatch::Resolution(delta));
+                // (Dispatch::Resolution(delta));
                 Ok(key)
             }
         }

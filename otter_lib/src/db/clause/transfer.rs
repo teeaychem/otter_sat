@@ -38,15 +38,15 @@ impl ClauseDB {
                     variables.remove_watch(copied_clause.get_unchecked(1), key)?;
                 }
 
-                if let Some(tx) = &self.dispatcher {
+                if let Some(dispatch) = &self.dispatcher {
                     let delta = delta::ClauseDB::ClauseStart;
-                    tx(Dispatch::Delta(Delta::ClauseDB(delta)));
+                    dispatch(Dispatch::Delta(Delta::ClauseDB(delta)));
                     for literal in &copied_clause {
                         let delta = delta::ClauseDB::ClauseLiteral(*literal);
-                        tx(Dispatch::Delta(Delta::ClauseDB(delta)));
+                        dispatch(Dispatch::Delta(Delta::ClauseDB(delta)));
                     }
                     let delta = delta::ClauseDB::TransferBinary(key, b_key);
-                    tx(Dispatch::Delta(Delta::ClauseDB(delta)));
+                    dispatch(Dispatch::Delta(Delta::ClauseDB(delta)));
                 }
 
                 let binary_clause = dbClause::from(b_key, copied_clause, variables);

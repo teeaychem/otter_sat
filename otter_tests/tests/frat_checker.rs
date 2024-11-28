@@ -18,7 +18,7 @@ use otter_lib::{
 pub fn frat_receiver(rx: Receiver<Dispatch>, frat_path: PathBuf) {
     let mut transcriber = frat::Transcriber::new(frat_path);
     let mut handler = move |dispatch: &Dispatch| {
-        transcriber.transcribe(dispatch);
+        let _ = transcriber.transcribe(dispatch);
         transcriber.flush()
     };
 

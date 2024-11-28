@@ -205,7 +205,7 @@ impl Transcriber {
                 }
             }
 
-            Dispatch::Comment(_) | Dispatch::Stats(_) => {}
+            Dispatch::Stat(_) => {}
         };
         Ok(())
     }

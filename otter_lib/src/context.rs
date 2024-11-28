@@ -75,7 +75,6 @@ impl Context {
     pub fn report(&self) -> report::Solve {
         match self.status {
             Solve::FullValuation => report::Solve::Satisfiable,
-            Solve::NoClauses => report::Solve::Satisfiable,
             Solve::NoSolution => report::Solve::Unsatisfiable,
             _ => report::Solve::Unknown,
         }
@@ -90,7 +89,6 @@ impl std::fmt::Display for Solve {
             Solve::NoSolution => write!(f, "NoSolution"),
             Solve::ChoiceMade => write!(f, "ChoiceMade"),
             Solve::FullValuation => write!(f, "AllAssigned"),
-            Solve::NoClauses => write!(f, "NoClauses"),
             Solve::Proof => write!(f, "Proof"),
         }
     }

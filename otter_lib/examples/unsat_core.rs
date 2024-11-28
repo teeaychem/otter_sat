@@ -27,7 +27,7 @@ pub fn database_recorder(
     let mut grapher = core_db_builder(&some_ptr);
     'reception: while let Ok(dispatch) = rx.recv() {
         match &dispatch {
-            Dispatch::Comment(_) | Dispatch::Delta(_) | Dispatch::Stats(_) => {}
+            Dispatch::Delta(_) | Dispatch::Stat(_) => {}
             Dispatch::Report(the_report) => {
                 //
                 match the_report {

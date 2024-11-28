@@ -168,6 +168,14 @@ fn main() {
             println!("s UNSATISFIABLE");
             std::process::exit(20)
         }
+        report::Solve::TimeUp => {
+            drop(the_context);
+            if config_io.detail > 0 {
+                println!("c Time up");
+            }
+            println!("s UNKNOWN");
+            std::process::exit(30)
+        }
         report::Solve::Unknown => {
             drop(the_context);
             println!("s UNKNOWN");

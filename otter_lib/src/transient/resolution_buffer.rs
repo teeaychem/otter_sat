@@ -141,11 +141,11 @@ impl ResolutionBuffer {
         if let Some(asserted_literal) = self.asserts() {
             return Ok(gen::RBuf::Missed(conflict, asserted_literal));
         };
-        if let Some(tx) = &self.dispatcher {
+        if let Some(dispatcher) = &self.dispatcher {
             let delta = delta::Delta::Resolution(delta::Resolution::Begin);
-            tx(Dispatch::Delta(delta));
+            dispatcher(Dispatch::Delta(delta));
             let delta = delta::Resolution::Used(conflict);
-            tx(Dispatch::Delta(delta::Delta::Resolution(delta)));
+            dispatcher(Dispatch::Delta(delta::Delta::Resolution(delta)));
         }
 
         // bump clause activity
@@ -177,10 +177,10 @@ impl ResolutionBuffer {
                     match self.clause_length {
                         0 => {}
                         1 => {
-                            if let Some(tx) = &self.dispatcher {
+                            if let Some(dispatcher) = &self.dispatcher {
                                 let delta = delta::Resolution::Used(*the_key);
-                                tx(Dispatch::Delta(delta::Delta::Resolution(delta)));
-                                tx(Dispatch::Delta(delta::Delta::Resolution(
+                                dispatcher(Dispatch::Delta(delta::Delta::Resolution(delta)));
+                                dispatcher(Dispatch::Delta(delta::Delta::Resolution(
                                     delta::Resolution::End,
                                 )));
                             }
@@ -193,14 +193,14 @@ impl ResolutionBuffer {
                             ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
                                 let new_key = clause_db.subsume(*the_key, *literal, variables)?;
 
-                                if let Some(tx) = &self.dispatcher {
-                                    tx(Dispatch::Delta(delta::Delta::Resolution(
+                                if let Some(dispatcher) = &self.dispatcher {
+                                    dispatcher(Dispatch::Delta(delta::Delta::Resolution(
                                         delta::Resolution::End,
                                     )));
-                                    tx(Dispatch::Delta(delta::Delta::Resolution(
+                                    dispatcher(Dispatch::Delta(delta::Delta::Resolution(
                                         delta::Resolution::Begin,
                                     )));
-                                    tx(Dispatch::Delta(delta::Delta::Resolution(
+                                    dispatcher(Dispatch::Delta(delta::Delta::Resolution(
                                         delta::Resolution::Used(new_key),
                                     )));
                                 }
@@ -208,9 +208,9 @@ impl ResolutionBuffer {
                         },
                     }
                 } else {
-                    if let Some(tx) = &self.dispatcher {
+                    if let Some(dispatcher) = &self.dispatcher {
                         let delta = delta::Resolution::Used(*the_key);
-                        tx(Dispatch::Delta(delta::Delta::Resolution(delta)));
+                        dispatcher(Dispatch::Delta(delta::Delta::Resolution(delta)));
                     }
                 }
 
@@ -221,8 +221,8 @@ impl ResolutionBuffer {
                 if self.valueless_count == 1 {
                     match self.config.stopping {
                         StoppingCriteria::FirstUIP => {
-                            if let Some(tx) = &self.dispatcher {
-                                tx(Dispatch::Delta(delta::Delta::Resolution(
+                            if let Some(dispatcher) = &self.dispatcher {
+                                dispatcher(Dispatch::Delta(delta::Delta::Resolution(
                                     delta::Resolution::End,
                                 )));
                             }
@@ -233,9 +233,9 @@ impl ResolutionBuffer {
                 }
             }
         }
-        if let Some(tx) = &self.dispatcher {
+        if let Some(dispatcher) = &self.dispatcher {
             let delta = delta::Resolution::End;
-            tx(Dispatch::Delta(delta::Delta::Resolution(delta)));
+            dispatcher(Dispatch::Delta(delta::Delta::Resolution(delta)));
         }
         Ok(gen::RBuf::Exhausted)
     }

@@ -16,6 +16,7 @@ pub enum Report {
 pub enum Solve {
     Satisfiable,
     Unsatisfiable,
+    TimeUp,
     Unknown,
 }
 
@@ -42,6 +43,7 @@ impl std::fmt::Display for self::Solve {
         match self {
             Self::Satisfiable => write!(f, "Satisfiable"),
             Self::Unsatisfiable => write!(f, "Unsatisfiable"),
+            Self::TimeUp => write!(f, "Unkown"),
             Self::Unknown => write!(f, "Unkown"),
         }
     }

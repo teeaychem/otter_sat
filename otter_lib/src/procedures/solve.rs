@@ -5,7 +5,6 @@ use crate::{
     db::keys::ChoiceIndex,
     dispatch::{
         library::{
-            comment::{self, Comment},
             delta::{self, Delta},
             report::{self, Report},
             stat::Stat,
@@ -42,10 +41,7 @@ impl Context {
             self.counters.time = this_total_time.elapsed();
             let time_limit = self.config.time_limit;
             if time_limit.is_some_and(|limit| self.counters.time > limit) {
-                if let Some(tx) = &self.dispatcher {
-                    tx(Dispatch::Comment(Comment::Solve(comment::Solve::TimeUp)));
-                }
-                return Ok(self.report());
+                return Ok(report::Solve::TimeUp);
             }
 
             match self.expand()? {
@@ -103,8 +99,8 @@ impl Context {
                 }
             }
         }
-        if let Some(tx) = &self.dispatcher {
-            tx(Dispatch::Report(Report::Finish));
+        if let Some(dispatcher) = &self.dispatcher {
+            dispatcher(Dispatch::Report(Report::Finish));
         }
         Ok(self.report())
     }
@@ -121,9 +117,9 @@ impl Context {
                     if !self.literal_db.choice_made() {
                         self.status = gen::Solve::NoSolution;
 
-                        if let Some(tx) = &self.dispatcher {
+                        if let Some(dispatcher) = &self.dispatcher {
                             let delta = delta::VariableDB::Unsatisfiable(key);
-                            tx(Dispatch::Delta(Delta::VariableDB(delta)));
+                            dispatcher(Dispatch::Delta(Delta::VariableDB(delta)));
                         }
 
                         return Ok(gen::Expansion::Conflict);
@@ -165,11 +161,11 @@ impl Context {
     }
 
     pub fn conflict_dispatch(&self) {
-        if let Some(tx) = &self.dispatcher {
-            tx(Dispatch::Stats(Stat::Iterations(self.counters.iterations)));
-            tx(Dispatch::Stats(Stat::Chosen(self.counters.choices)));
-            tx(Dispatch::Stats(Stat::Conflicts(self.counters.conflicts)));
-            tx(Dispatch::Stats(Stat::Time(self.counters.time)));
+        if let Some(dispatcher) = &self.dispatcher {
+            dispatcher(Dispatch::Stat(Stat::Iterations(self.counters.iterations)));
+            dispatcher(Dispatch::Stat(Stat::Chosen(self.counters.choices)));
+            dispatcher(Dispatch::Stat(Stat::Conflicts(self.counters.conflicts)));
+            dispatcher(Dispatch::Stat(Stat::Time(self.counters.time)));
         }
     }
 

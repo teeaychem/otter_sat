@@ -2,7 +2,6 @@ use crate::window::ContextWindow;
 
 use otter_lib::dispatch::{
     library::{
-        comment::{self},
         report::{self},
         stat::{self},
     },
@@ -11,16 +10,6 @@ use otter_lib::dispatch::{
 
 pub fn window_writer<'w>(window: &'w mut ContextWindow) -> Box<dyn FnMut(&Dispatch) + 'w> {
     let handler = |dispatch: &Dispatch| match &dispatch {
-        Dispatch::Comment(the_comment) => {
-            //
-            match the_comment {
-                comment::Comment::Solve(solve_comment) => {
-                    window.location.1 -= 1;
-                    println!("c {}", solve_comment)
-                }
-            }
-        }
-
         Dispatch::Report(the_report) => {
             //
             match the_report {
@@ -33,7 +22,7 @@ pub fn window_writer<'w>(window: &'w mut ContextWindow) -> Box<dyn FnMut(&Dispat
             }
         }
 
-        Dispatch::Stats(the_stat) => {
+        Dispatch::Stat(the_stat) => {
             //
             use crate::window::WindowItem;
             match the_stat {
