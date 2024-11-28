@@ -77,24 +77,24 @@ impl LiteralDB {
         match source {
             gen::src::Literal::Choice => {}
             gen::src::Literal::Assumption => {
-                if let Some(tx) = &self.dispatcher {
+                if let Some(dispatcher) = &self.dispatcher {
                     let delta = delta::LiteralDB::Assumption(literal.borrow().to_owned());
-                    tx(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                    dispatcher(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                 }
                 self.proven.record_literal(literal)
             }
             gen::src::Literal::Pure => {
-                if let Some(tx) = &self.dispatcher {
+                if let Some(dispatcher) = &self.dispatcher {
                     let delta = delta::LiteralDB::Pure(literal.borrow().to_owned());
-                    tx(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                    dispatcher(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                 }
                 self.proven.record_literal(literal)
             }
             gen::src::Literal::BCP(_) => match self.choice_stack.len() {
                 0 => {
-                    if let Some(tx) = &self.dispatcher {
+                    if let Some(dispatcher) = &self.dispatcher {
                         let delta = delta::LiteralDB::Proof(literal.borrow().to_owned());
-                        tx(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                        dispatcher(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                     }
                     self.proven.record_literal(literal)
                 }
@@ -102,17 +102,17 @@ impl LiteralDB {
             },
             gen::src::Literal::Resolution(_) => {
                 // Resoluion implies deduction via (known) clauses
-                if let Some(tx) = &self.dispatcher {
+                if let Some(dispatcher) = &self.dispatcher {
                     let delta = delta::LiteralDB::ResolutionProof(literal.borrow().to_owned());
-                    tx(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                    dispatcher(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                 }
                 self.proven.record_literal(literal)
             }
             gen::src::Literal::Forced(key) => match self.choice_stack.len() {
                 0 => {
-                    if let Some(tx) = &self.dispatcher {
+                    if let Some(dispatcher) = &self.dispatcher {
                         let delta = delta::LiteralDB::Forced(key, literal.borrow().to_owned());
-                        tx(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                        dispatcher(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                     }
                     self.proven.record_literal(literal)
                 }
@@ -121,9 +121,9 @@ impl LiteralDB {
             gen::src::Literal::Missed(key) => match self.choice_stack.len() {
                 0 => {
                     // TODO: Make unique o generalise forcing
-                    if let Some(tx) = &self.dispatcher {
+                    if let Some(dispatcher) = &self.dispatcher {
                         let delta = delta::LiteralDB::Forced(key, literal.borrow().to_owned());
-                        tx(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                        dispatcher(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
                     }
                     self.proven.record_literal(literal)
                 }

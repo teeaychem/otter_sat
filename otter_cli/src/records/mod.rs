@@ -49,9 +49,8 @@ pub fn general_recorder(
 
     'reception: while let Ok(dispatch) = rx.recv() {
         match &dispatch {
-            Dispatch::Comment(_) => {}
             Dispatch::Delta(_) => {}
-            Dispatch::Stats(_) => {}
+            Dispatch::Stat(_) => {}
             Dispatch::Report(the_report) => {
                 //
                 match the_report {

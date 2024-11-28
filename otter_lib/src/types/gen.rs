@@ -39,7 +39,6 @@ pub enum Solve {
     Proof,
     ChoiceMade,
     FullValuation,
-    NoClauses,
 }
 
 pub enum Value {

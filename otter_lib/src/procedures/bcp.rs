@@ -38,13 +38,13 @@ impl Context {
             match self.variable_db.value_of(check.var()) {
                 None => match self.q_literal(*check) {
                     Ok(gen::Queue::Qd) => {
-                        if let Some(tx) = &self.dispatcher {
+                        if let Some(dispatcher) = &self.dispatcher {
                             let delta = delta::BCP::Instance {
                                 from: *literal,
                                 via: *clause_key,
                                 to: *check,
                             };
-                            tx(Dispatch::Delta(Delta::BCP(delta)));
+                            dispatcher(Dispatch::Delta(Delta::BCP(delta)));
                         }
                         self.literal_db
                             .record_literal(check, gen::src::Literal::BCP(*clause_key));
@@ -55,12 +55,12 @@ impl Context {
                 },
                 Some(value) if check.polarity() != value => {
                     log::trace!(target: targets::PROPAGATION, "Consequence of {clause_key} and {literal} is contradiction.");
-                    if let Some(tx) = &self.dispatcher {
+                    if let Some(dispatcher) = &self.dispatcher {
                         let delta = delta::BCP::Conflict {
                             from: *literal,
                             via: *clause_key,
                         };
-                        tx(Dispatch::Delta(Delta::BCP(delta)));
+                        dispatcher(Dispatch::Delta(Delta::BCP(delta)));
                     }
                     return Err(err::BCP::Conflict(*clause_key));
                 }
@@ -115,12 +115,12 @@ impl Context {
                     match watch_value {
                         Some(value) if the_watch.polarity() != value => {
                             self.clause_db.note_use(*clause_key);
-                            if let Some(tx) = &self.dispatcher {
+                            if let Some(dispatcher) = &self.dispatcher {
                                 let delta = delta::BCP::Conflict {
                                     from: *literal,
                                     via: *clause_key,
                                 };
-                                tx(Dispatch::Delta(Delta::BCP(delta)));
+                                dispatcher(Dispatch::Delta(Delta::BCP(delta)));
                             }
                             return Err(err::BCP::Conflict(*clause_key));
                         }
@@ -130,13 +130,13 @@ impl Context {
                                 return Err(err::BCP::Conflict(*clause_key));
                             };
 
-                            if let Some(tx) = &self.dispatcher {
+                            if let Some(dispatcher) = &self.dispatcher {
                                 let delta = delta::BCP::Instance {
                                     from: *literal,
                                     via: *clause_key,
                                     to: the_watch,
                                 };
-                                tx(Dispatch::Delta(Delta::BCP(delta)));
+                                dispatcher(Dispatch::Delta(Delta::BCP(delta)));
                             }
                             self.literal_db
                                 .record_literal(the_watch, gen::src::Literal::BCP(*clause_key));

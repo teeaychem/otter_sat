@@ -1,5 +1,3 @@
-use std::io::{BufReader, Write};
-
 use otter_lib::{
     config::Config,
     context::Context,

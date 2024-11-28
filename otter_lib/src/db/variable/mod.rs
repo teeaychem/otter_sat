@@ -88,11 +88,11 @@ impl VariableDB {
         self.previous_valuation.push(previous_value);
         self.choice_indicies.push(None);
 
-        if let Some(tx) = &self.dispatcher {
+        if let Some(dispatcher) = &self.dispatcher {
             let delta_rep = delta::VariableDB::ExternalRepresentation(name.to_string());
-            tx(Dispatch::Delta(delta::Delta::VariableDB(delta_rep)));
+            dispatcher(Dispatch::Delta(delta::Delta::VariableDB(delta_rep)));
             let delta = delta::VariableDB::Internalised(the_variable);
-            tx(Dispatch::Delta(delta::Delta::VariableDB(delta)));
+            dispatcher(Dispatch::Delta(delta::Delta::VariableDB(delta)));
         }
 
         the_variable
