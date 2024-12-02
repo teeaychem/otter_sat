@@ -50,10 +50,11 @@ pub struct Context {
     pub variable_db: VariableDB,
     pub literal_db: LiteralDB,
 
-    pub status: Solve,
     pub consequence_q: ConsequenceQ,
 
     pub dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
+
+    pub status: Solve,
 }
 
 impl Context {
