@@ -155,18 +155,6 @@ impl ResolutionBuffer {
 
         'resolution_loop: for (source, literal) in levels.last_consequences().iter().rev() {
             match source {
-                gen::src::Literal::Resolution => {
-                    let resolution_result = self.resolve_clause(literal, literal);
-                    if resolution_result.is_err() {
-                        // the clause wasn't relevant
-                        continue 'resolution_loop;
-                    }
-                    if let Some(dispatcher) = &self.dispatcher {
-                        let delta = delta::Resolution::Used(ClauseKey::Unit(*literal));
-                        dispatcher(Dispatch::Delta(delta::Delta::Resolution(delta)));
-                    }
-                }
-
                 gen::src::Literal::BCP(the_key) => {
                     let source_clause = match clause_db.get(*the_key) {
                         Err(_) => {

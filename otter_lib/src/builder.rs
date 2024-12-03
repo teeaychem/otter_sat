@@ -135,20 +135,22 @@ impl Context {
 }
 
 impl Context {
+    // todo: implement this again, sometime
     // Aka. soft assumption
     // This will hold until a restart happens
-    pub fn believe(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::Context> {
-        if self.literal_db.choice_made() {
-            return Err(err::Context::AssumptionAfterChoice);
-        }
-        match self.q_literal(literal.borrow()) {
-            Ok(_) => {
-                self.record_literal(literal, gen::src::Literal::Original);
-                Ok(())
-            }
-            Err(_) => Err(err::Context::AssumptionConflict),
-        }
-    }
+
+    // pub fn believe(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::Context> {
+    //     if self.literal_db.choice_made() {
+    //         return Err(err::Context::AssumptionAfterChoice);
+    //     }
+    //     match self.q_literal(literal.borrow()) {
+    //         Ok(_) => {
+    //             ???
+    //             Ok(n())
+    //         }
+    //         Err(_) => Err(err::Context::AssumptionConflict),
+    //     }
+    // }
 }
 
 impl Context {

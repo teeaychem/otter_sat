@@ -2,7 +2,7 @@ use crate::{db::keys::ClauseKey, structures::literal::Literal};
 
 pub enum Analysis {
     MissedImplication(ClauseKey, Literal),
-    UnitClause(Literal),
+    UnitClause(ClauseKey),
     FundamentalConflict,
     AssertingClause(ClauseKey, Literal),
 }
@@ -14,7 +14,7 @@ pub enum Choice {
 
 pub enum Expansion {
     Conflict,
-    UnitClause(Literal),
+    UnitClause(ClauseKey),
     AssertingClause(ClauseKey, Literal),
     Exhausted,
 }
@@ -69,7 +69,6 @@ pub mod src {
     #[allow(clippy::upper_case_acronyms)]
     pub enum Literal {
         Choice,         // a choice made where the alternative may make a SAT difference
-        Resolution,     // there was no reason to store the resolved clause
         BCP(ClauseKey), // direct from BCP
         Original,
     }

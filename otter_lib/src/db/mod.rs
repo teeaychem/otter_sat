@@ -13,7 +13,10 @@ use keys::ClauseKey;
 use crate::{
     context::Context,
     dispatch::{library::delta, Dispatch},
-    structures::{clause::Clause, literal::Literal},
+    structures::{
+        clause::{Clause, ClauseT},
+        literal::Literal,
+    },
     types::{err, gen},
 };
 
@@ -43,31 +46,34 @@ impl Context {
                     .top_mut()
                     .record_consequence(literal, source),
             },
-
-            gen::src::Literal::Resolution => {
-                // Resoluion implies deduction via (known) clauses
-                if let Some(dispatcher) = &self.dispatcher {
-                    let delta = delta::LiteralDB::ProofResolution(*literal.borrow());
-                    dispatcher(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
-                }
-                self.clause_db.unit.push(*literal.borrow())
-            }
         }
     }
 
     pub fn record_clause(
         &mut self,
-        clause: Clause,
+        clause: impl ClauseT,
         source: gen::src::Clause,
     ) -> Result<ClauseKey, err::ClauseDB> {
-        match clause.len() {
+        match clause.size() {
             0 => Err(err::ClauseDB::EmptyClause),
 
-            1 => {
-                let literal = unsafe { clause.get_unchecked(0) };
-                self.add_literal(literal);
-                Ok(ClauseKey::Unit(*literal))
-            }
+            1 => match source {
+                gen::src::Clause::Resolution => {
+                    let the_literal = *clause.literals().next().expect("checked already");
+                    if let Some(dispatcher) = &self.dispatcher {
+                        let delta = delta::LiteralDB::ProofResolution(*the_literal.borrow());
+                        dispatcher(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
+                    }
+                    self.clause_db.unit.push(the_literal);
+                    Ok(ClauseKey::Unit(the_literal))
+                }
+
+                _ => {
+                    let the_literal = *clause.literals().next().expect("checked already");
+                    self.add_literal(the_literal);
+                    Ok(ClauseKey::Unit(the_literal))
+                }
+            },
 
             _ => self.clause_db.store(clause, source, &mut self.variable_db),
         }
