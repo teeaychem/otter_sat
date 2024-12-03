@@ -14,7 +14,7 @@ pub enum Choice {
 
 pub enum Expansion {
     Conflict,
-    Proof(Literal),
+    UnitClause(Literal),
     AssertingClause(ClauseKey, Literal),
     Exhausted,
 }
@@ -36,7 +36,7 @@ pub enum Solve {
     Initialised,
     AssertingClause,
     NoSolution,
-    Proof,
+    UnitClause,
     ChoiceMade,
     FullValuation,
 }
@@ -68,9 +68,9 @@ pub mod src {
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     #[allow(clippy::upper_case_acronyms)]
     pub enum Literal {
-        Choice,                // a choice made where the alternative may make a SAT difference
-        Resolution, // there was no reason to store the resolved clause
-        BCP(ClauseKey),        // direct from BCP
+        Choice,         // a choice made where the alternative may make a SAT difference
+        Resolution,     // there was no reason to store the resolved clause
+        BCP(ClauseKey), // direct from BCP
         Original,
     }
 }

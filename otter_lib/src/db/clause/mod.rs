@@ -41,7 +41,7 @@ pub struct ClauseDB {
 
     empty_keys: Vec<ClauseKey>,
 
-    unit: Vec<Literal>,
+    pub unit: Vec<Literal>,
     binary: Vec<dbClause>,
     formula: Vec<dbClause>,
     learned: Vec<Option<dbClause>>,
@@ -208,14 +208,18 @@ impl ClauseDB {
     /// In order to use the clause the watch literals of the struct must be initialised.
     pub fn store(
         &mut self,
-        clause: Clause,
+        clause: impl ClauseT,
         source: gen::src::Clause,
         variables: &mut VariableDB,
     ) -> Result<ClauseKey, err::ClauseDB> {
-        match clause.len() {
+        match clause.size() {
             0 => Err(err::ClauseDB::EmptyClause),
 
-            1 => Err(err::ClauseDB::UnitClause),
+            1 => {
+                let the_literal = clause.literals().next().expect("condition already checked");
+                self.unit.push(*the_literal);
+                Ok(ClauseKey::Unit(*the_literal))
+            }
 
             2 => {
                 let key = self.new_binary_id()?;
@@ -223,7 +227,7 @@ impl ClauseDB {
                 if let Some(dispatcher) = &self.dispatcher {
                     let delta = delta::ClauseDB::ClauseStart;
                     dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                    for literal in &clause {
+                    for literal in clause.literals() {
                         let delta = delta::ClauseDB::ClauseLiteral(*literal);
                         dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                     }
@@ -236,7 +240,8 @@ impl ClauseDB {
                     dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                 }
 
-                self.binary.push(dbClause::from(key, clause, variables));
+                self.binary
+                    .push(dbClause::from(key, clause.transform_to_vec(), variables));
 
                 Ok(key)
             }
@@ -248,7 +253,7 @@ impl ClauseDB {
                     if let Some(dispatcher) = &self.dispatcher {
                         let delta = delta::ClauseDB::ClauseStart;
                         dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                        for literal in &clause {
+                        for literal in clause.literals() {
                             let delta = delta::ClauseDB::ClauseLiteral(*literal);
                             dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                         }
@@ -256,10 +261,14 @@ impl ClauseDB {
                         dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                     }
 
-                    self.formula
-                        .push(dbClause::from(the_key, clause, variables));
+                    self.formula.push(dbClause::from(
+                        the_key,
+                        clause.transform_to_vec(),
+                        variables,
+                    ));
                     Ok(the_key)
                 }
+
                 gen::src::Clause::Resolution => {
                     log::trace!(target: targets::CLAUSE_DB, "Learning clause {}", clause.as_string());
                     self.counts.learned += 1;
@@ -272,7 +281,7 @@ impl ClauseDB {
                     if let Some(dispatcher) = &self.dispatcher {
                         let delta = delta::ClauseDB::ClauseStart;
                         dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                        for literal in &clause {
+                        for literal in clause.literals() {
                             let delta = delta::ClauseDB::ClauseLiteral(*literal);
                             dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                         }
@@ -280,7 +289,7 @@ impl ClauseDB {
                         dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                     }
 
-                    let the_clause = dbClause::from(the_key, clause, variables);
+                    let the_clause = dbClause::from(the_key, clause.transform_to_vec(), variables);
 
                     let value = ActivityGlue {
                         activity: 1.0,
@@ -289,12 +298,13 @@ impl ClauseDB {
 
                     self.activity_heap.add(the_key.index(), value);
                     self.activity_heap.activate(the_key.index());
+
                     match the_key {
                         ClauseKey::Learned(_, 0) => self.learned.push(Some(the_clause)),
                         ClauseKey::Learned(_, _) => unsafe {
                             *self.learned.get_unchecked_mut(the_key.index()) = Some(the_clause)
                         },
-                        _ => panic!("X"),
+                        _ => panic!("not possible"),
                     };
 
                     Ok(the_key)
@@ -396,7 +406,11 @@ impl ClauseDB {
         (self.counts.formula + self.counts.learned + self.counts.binary) as usize
     }
 
-    pub fn all_clauses(&self) -> impl Iterator<Item = &impl ClauseT> + '_ {
+    pub fn all_unit_clauses(&self) -> impl Iterator<Item = &Literal> {
+        self.unit.iter()
+    }
+
+    pub fn all_nonunit_clauses(&self) -> impl Iterator<Item = &impl ClauseT> + '_ {
         self.formula.iter().chain(
             self.binary.iter().chain(
                 self.learned
@@ -421,6 +435,10 @@ impl ClauseDB {
                     let report = report::ClauseDB::Active(clause.key(), clause.to_vec());
                     dispatcher(Dispatch::Report(Report::ClauseDB(report)));
                 }
+            }
+            for literal in self.all_unit_clauses() {
+                let report = report::LiteralDB::Active(*literal);
+                dispatcher(Dispatch::Report(report::Report::LiteralDB(report)));
             }
         }
     }

@@ -11,8 +11,6 @@ use crate::{
     },
 };
 
-#[allow(unused_imports)]
-
 impl Context {
     pub fn conflict_analysis(&mut self, key: ClauseKey) -> Result<gen::Analysis, err::Analysis> {
         log::trace!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.choice_count());
@@ -65,7 +63,7 @@ impl Context {
         This is also skipped for binary clauses, as if the other literal is proven the assertion will also be added as a proof, regardless
          */
         if the_buffer.clause_legnth() > 2 {
-            the_buffer.strengthen_given(self.literal_db.proven_literals().iter());
+            the_buffer.strengthen_given(self.clause_db.all_unit_clauses());
         }
 
         let (asserted_literal, mut resolved_clause) = the_buffer.to_assertion_clause();
@@ -86,12 +84,7 @@ impl Context {
             0 => Err(err::Analysis::EmptyResolution),
             1 => Ok(gen::Analysis::UnitClause(the_literal)),
             _ => {
-                let key = self.clause_db.store(
-                    resolved_clause,
-                    gen::src::Clause::Resolution,
-                    &mut self.variable_db,
-                )?;
-
+                let key = self.record_clause(resolved_clause, gen::src::Clause::Resolution)?;
                 Ok(gen::Analysis::AssertingClause(key, the_literal))
             }
         }

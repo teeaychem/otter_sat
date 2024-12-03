@@ -90,7 +90,7 @@ impl std::fmt::Display for Solve {
             Solve::NoSolution => write!(f, "NoSolution"),
             Solve::ChoiceMade => write!(f, "ChoiceMade"),
             Solve::FullValuation => write!(f, "AllAssigned"),
-            Solve::Proof => write!(f, "Proof"),
+            Solve::UnitClause => write!(f, "Proof"),
         }
     }
 }

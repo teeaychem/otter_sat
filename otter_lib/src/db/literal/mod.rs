@@ -35,18 +35,12 @@ For now, this works ok.
  */
 
 pub struct LiteralDB {
-    proven: ProvenLiterals,
-    choice_stack: Vec<ChosenLiteral>,
+    pub choice_stack: Vec<ChosenLiteral>,
     pub dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 }
 
 #[derive(Debug)]
-struct ProvenLiterals {
-    observations: Vec<Literal>,
-}
-
-#[derive(Debug)]
-struct ChosenLiteral {
+pub struct ChosenLiteral {
     choice: Literal,
     consequences: Vec<(gen::src::Literal, Literal)>,
 }
@@ -54,7 +48,6 @@ struct ChosenLiteral {
 impl LiteralDB {
     pub fn new(tx: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
         LiteralDB {
-            proven: ProvenLiterals::default(),
             choice_stack: Vec::default(),
             dispatcher: tx,
         }
@@ -73,37 +66,6 @@ impl LiteralDB {
     Still, in some cases it's easier to check when recording the literal.
     So, checks are made here.
     */
-    pub fn record_literal(&mut self, literal: impl Borrow<Literal>, source: gen::src::Literal) {
-        match source {
-            gen::src::Literal::Choice => {}
-
-            gen::src::Literal::Original => {
-                if let Some(dispatcher) = &self.dispatcher {
-                    let delta = delta::LiteralDB::Assumption(literal.borrow().to_owned());
-                    dispatcher(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
-                }
-                self.proven.record_literal(literal)
-            }
-            gen::src::Literal::BCP(_) => match self.choice_stack.len() {
-                0 => {
-                    if let Some(dispatcher) = &self.dispatcher {
-                        let delta = delta::LiteralDB::Proof(literal.borrow().to_owned());
-                        dispatcher(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
-                    }
-                    self.proven.record_literal(literal)
-                }
-                _ => self.top_mut().record_consequence(literal, source),
-            },
-            gen::src::Literal::Resolution => {
-                // Resoluion implies deduction via (known) clauses
-                if let Some(dispatcher) = &self.dispatcher {
-                    let delta = delta::LiteralDB::ResolutionProof(literal.borrow().to_owned());
-                    dispatcher(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
-                }
-                self.proven.record_literal(literal)
-            }
-        }
-    }
 
     pub fn last_choice(&self) -> Literal {
         unsafe {
@@ -124,10 +86,6 @@ impl LiteralDB {
 
     pub fn forget_last_choice(&mut self) {
         self.choice_stack.pop();
-    }
-
-    pub fn proven_literals(&self) -> &[Literal] {
-        &self.proven.observations
     }
 
     pub fn choice_made(&self) -> bool {

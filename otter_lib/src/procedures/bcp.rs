@@ -45,8 +45,7 @@ impl Context {
                             };
                             dispatcher(Dispatch::Delta(Delta::BCP(delta)));
                         }
-                        self.literal_db
-                            .record_literal(check, gen::src::Literal::BCP(*clause_key));
+                        self.record_literal(check, gen::src::Literal::BCP(*clause_key));
                     }
                     Err(_key) => {
                         return Err(err::BCP::Conflict(*clause_key));
@@ -136,8 +135,7 @@ impl Context {
                                 };
                                 dispatcher(Dispatch::Delta(Delta::BCP(delta)));
                             }
-                            self.literal_db
-                                .record_literal(the_watch, gen::src::Literal::BCP(*clause_key));
+                            self.record_literal(the_watch, gen::src::Literal::BCP(*clause_key));
                         }
                         Some(_) => {}
                     }

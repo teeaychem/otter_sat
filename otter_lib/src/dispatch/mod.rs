@@ -89,11 +89,6 @@ impl Context {
     pub fn dispatch_active(&self) {
         if let Some(d) = &self.dispatcher {
             self.clause_db.dispatch_active();
-
-            for literal in self.literal_db.proven_literals() {
-                let report = library::report::LiteralDB::Active(*literal);
-                d(Dispatch::Report(library::report::Report::LiteralDB(report)));
-            }
         }
     }
 }
