@@ -45,13 +45,13 @@ impl Context {
             }
 
             match self.expand()? {
-                gen::Expansion::Proof(key, literal) => {
+                gen::Expansion::Proof(literal) => {
                     self.status = gen::Solve::Proof;
 
                     self.backjump(0);
 
                     self.literal_db
-                        .record_literal(literal, gen::src::Literal::Resolution(key));
+                        .record_literal(literal, gen::src::Literal::Resolution);
                     self.q_literal(literal)?;
                     continue 'solve_loop;
                 }
@@ -59,12 +59,19 @@ impl Context {
                     self.status = gen::Solve::AssertingClause;
 
                     let the_clause = self.clause_db.get(key)?;
-                    let index = self.backjump_level(the_clause.literals())?;
+                    let index = self.backjump_level(the_clause)?;
                     self.backjump(index);
 
                     self.clause_db.note_use(key);
+                    if let Some(dispatcher) = &self.dispatcher {
+                        let delta = delta::BCP::Instance {
+                            via: key,
+                            to: literal,
+                        };
+                        dispatcher(Dispatch::Delta(Delta::BCP(delta)));
+                    }
                     self.literal_db
-                        .record_literal(literal, gen::src::Literal::Forced(key));
+                        .record_literal(literal, gen::src::Literal::BCP(key));
                     self.q_literal(literal)?;
 
                     self.counters.conflicts += 1;
@@ -136,18 +143,26 @@ impl Context {
                         gen::Analysis::MissedImplication(key, literal) => {
                             let the_clause = self.clause_db.get(key)?;
 
-                            let index = self.backjump_level(the_clause.literals())?;
+                            let index = self.backjump_level(the_clause)?;
                             self.backjump(index);
 
                             self.q_literal(literal)?;
+
+                            if let Some(dispatcher) = &self.dispatcher {
+                                let delta = delta::BCP::Instance {
+                                    via: key,
+                                    to: literal,
+                                };
+                                dispatcher(Dispatch::Delta(Delta::BCP(delta)));
+                            }
                             self.literal_db
-                                .record_literal(literal, gen::src::Literal::Missed(key));
+                                .record_literal(literal, gen::src::Literal::BCP(key));
 
                             continue 'expansion;
                         }
 
-                        gen::Analysis::Proof(key, literal) => {
-                            return Ok(gen::Expansion::Proof(key, literal));
+                        gen::Analysis::UnitClause(literal) => {
+                            return Ok(gen::Expansion::Proof(literal));
                         }
 
                         gen::Analysis::AssertingClause(key, literal) => {
@@ -266,32 +281,35 @@ impl Context {
     /// The second highest choice index from the given literals, or 0
     /// Aka. The backjump level for a slice of an asserting slice of literals/clause
     // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
-    pub fn backjump_level<'l>(
-        &self,
-        literals: impl Iterator<Item = &'l Literal>,
-    ) -> Result<ChoiceIndex, err::Context> {
-        let mut top_two = (None, None);
-        for literal in literals {
-            let Some(dl) = self.variable_db.choice_index_of(literal.var()) else {
-                log::error!(target: targets::BACKJUMP, "{literal} was not chosen");
-                return Err(err::Context::Backjump);
-            };
+    pub fn backjump_level<'l>(&self, clause: &impl ClauseT) -> Result<ChoiceIndex, err::Context> {
+        match clause.size() {
+            0 => panic!("impossible"),
+            1 => Ok(0),
+            _ => {
+                let mut top_two = (None, None);
+                for literal in clause.literals() {
+                    let Some(dl) = self.variable_db.choice_index_of(literal.var()) else {
+                        log::error!(target: targets::BACKJUMP, "{literal} was not chosen");
+                        return Err(err::Context::Backjump);
+                    };
 
-            match top_two {
-                (_, None) => top_two.1 = Some(dl),
-                (_, Some(the_top)) if dl > the_top => {
-                    top_two.0 = top_two.1;
-                    top_two.1 = Some(dl);
+                    match top_two {
+                        (_, None) => top_two.1 = Some(dl),
+                        (_, Some(the_top)) if dl > the_top => {
+                            top_two.0 = top_two.1;
+                            top_two.1 = Some(dl);
+                        }
+                        (None, _) => top_two.0 = Some(dl),
+                        (Some(second_to_top), _) if dl > second_to_top => top_two.0 = Some(dl),
+                        _ => {}
+                    }
                 }
-                (None, _) => top_two.0 = Some(dl),
-                (Some(second_to_top), _) if dl > second_to_top => top_two.0 = Some(dl),
-                _ => {}
-            }
-        }
 
-        match top_two {
-            (None, _) => Ok(0),
-            (Some(second_to_top), _) => Ok(second_to_top),
+                match top_two {
+                    (None, _) => Ok(0),
+                    (Some(second_to_top), _) => Ok(second_to_top),
+                }
+            }
         }
     }
 }

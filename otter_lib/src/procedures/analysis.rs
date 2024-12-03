@@ -84,7 +84,7 @@ impl Context {
 
         match resolved_clause.len() {
             0 => Err(err::Analysis::EmptyResolution),
-            1 => Ok(gen::Analysis::Proof(key, the_literal)),
+            1 => Ok(gen::Analysis::UnitClause(the_literal)),
             _ => {
                 let key = self.clause_db.store(
                     resolved_clause,

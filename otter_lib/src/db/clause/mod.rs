@@ -31,6 +31,7 @@ use crate::{
 };
 
 pub enum ClauseKind {
+    Unit,
     Binary,
     Long,
 }
@@ -40,6 +41,7 @@ pub struct ClauseDB {
 
     empty_keys: Vec<ClauseKey>,
 
+    unit: Vec<Literal>,
     binary: Vec<dbClause>,
     formula: Vec<dbClause>,
     learned: Vec<Option<dbClause>>,
@@ -73,6 +75,7 @@ impl ClauseDB {
             counts: ClauseDBCounts::default(),
             empty_keys: Vec::default(),
 
+            unit: Vec::default(),
             formula: Vec::default(),
             learned: Vec::default(),
             binary: Vec::default(),
@@ -130,6 +133,7 @@ impl ClauseDB {
 
     pub fn get(&self, key: ClauseKey) -> Result<&impl ClauseT, err::ClauseDB> {
         match key {
+            ClauseKey::Unit(_) => Err(err::ClauseDB::GetUnitKey),
             ClauseKey::Formula(index) => unsafe { Ok(self.formula.get_unchecked(index as usize)) },
             ClauseKey::Binary(index) => unsafe { Ok(self.binary.get_unchecked(index as usize)) },
             ClauseKey::Learned(index, token) => unsafe {
@@ -146,6 +150,7 @@ impl ClauseDB {
 
     pub fn get_carefully_mut(&mut self, key: ClauseKey) -> Option<&mut dbClause> {
         match key {
+            ClauseKey::Unit(l) => None,
             ClauseKey::Formula(index) => self.formula.get_mut(index as usize),
             ClauseKey::Binary(index) => self.binary.get_mut(index as usize),
             ClauseKey::Learned(index, token) => match self.learned.get_mut(index as usize) {
@@ -160,6 +165,7 @@ impl ClauseDB {
 
     fn get_mut(&mut self, key: ClauseKey) -> Result<&mut dbClause, err::ClauseDB> {
         match key {
+            ClauseKey::Unit(_) => Err(err::ClauseDB::GetUnitKey),
             ClauseKey::Formula(index) => unsafe {
                 Ok(self.formula.get_unchecked_mut(index as usize))
             },
@@ -185,7 +191,7 @@ impl ClauseDB {
             ClauseKey::Learned(index, _) => {
                 self.activity_heap.remove(index as usize);
             }
-            ClauseKey::Formula(_) | ClauseKey::Binary(_) => {}
+            ClauseKey::Unit(_) | ClauseKey::Binary(_) | ClauseKey::Formula(_) => {}
         }
     }
 

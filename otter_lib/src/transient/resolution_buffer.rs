@@ -154,83 +154,99 @@ impl ResolutionBuffer {
         };
 
         'resolution_loop: for (source, literal) in levels.last_consequences().iter().rev() {
-            if let gen::src::Literal::Forced(the_key)
-            | gen::src::Literal::BCP(the_key)
-            | gen::src::Literal::Resolution(the_key)
-            | gen::src::Literal::Missed(the_key) = source
-            {
-                let source_clause = match clause_db.get(*the_key) {
-                    Err(_) => {
-                        log::error!(target: targets::RESOLUTION, "Lost resolution clause {the_key:?}");
-                        return Err(err::ResolutionBuffer::LostClause);
+            match source {
+                gen::src::Literal::Resolution => {
+                    let resolution_result = self.resolve_clause(literal, literal);
+                    if resolution_result.is_err() {
+                        // the clause wasn't relevant
+                        continue 'resolution_loop;
                     }
-                    Ok(clause) => clause,
-                };
-
-                let resolution_result = self.resolve_clause(source_clause, literal);
-                if resolution_result.is_err() {
-                    // the clause wasn't relevant
-                    continue 'resolution_loop;
-                }
-
-                if self.config.subsumption && self.clause_length < source_clause.size() {
-                    match self.clause_length {
-                        0 => {}
-                        1 => {
-                            if let Some(dispatcher) = &self.dispatcher {
-                                let delta = delta::Resolution::Used(*the_key);
-                                dispatcher(Dispatch::Delta(delta::Delta::Resolution(delta)));
-                                dispatcher(Dispatch::Delta(delta::Delta::Resolution(
-                                    delta::Resolution::End,
-                                )));
-                            }
-                            return Ok(gen::RBuf::Proof);
-                        }
-                        _ => match the_key {
-                            ClauseKey::Binary(_) => {
-                                todo!("a formula is found which triggers this…");
-                            }
-                            ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
-                                let new_key = clause_db.subsume(*the_key, *literal, variables)?;
-
-                                if let Some(dispatcher) = &self.dispatcher {
-                                    dispatcher(Dispatch::Delta(delta::Delta::Resolution(
-                                        delta::Resolution::End,
-                                    )));
-                                    dispatcher(Dispatch::Delta(delta::Delta::Resolution(
-                                        delta::Resolution::Begin,
-                                    )));
-                                    dispatcher(Dispatch::Delta(delta::Delta::Resolution(
-                                        delta::Resolution::Used(new_key),
-                                    )));
-                                }
-                            }
-                        },
-                    }
-                } else {
                     if let Some(dispatcher) = &self.dispatcher {
-                        let delta = delta::Resolution::Used(*the_key);
+                        let delta = delta::Resolution::Used(ClauseKey::Unit(*literal));
                         dispatcher(Dispatch::Delta(delta::Delta::Resolution(delta)));
                     }
                 }
 
-                if let ClauseKey::Learned(index, _) = the_key {
-                    clause_db.bump_activity(*index)
-                };
-
-                if self.valueless_count == 1 {
-                    match self.config.stopping {
-                        StoppingCriteria::FirstUIP => {
-                            if let Some(dispatcher) = &self.dispatcher {
-                                dispatcher(Dispatch::Delta(delta::Delta::Resolution(
-                                    delta::Resolution::End,
-                                )));
-                            }
-                            return Ok(gen::RBuf::FirstUIP);
+                gen::src::Literal::BCP(the_key) => {
+                    let source_clause = match clause_db.get(*the_key) {
+                        Err(_) => {
+                            log::error!(target: targets::RESOLUTION, "Lost resolution clause {the_key:?}");
+                            return Err(err::ResolutionBuffer::LostClause);
                         }
-                        StoppingCriteria::None => {}
+                        Ok(clause) => clause,
+                    };
+
+                    let resolution_result = self.resolve_clause(source_clause, literal);
+
+                    if resolution_result.is_err() {
+                        // the clause wasn't relevant
+                        continue 'resolution_loop;
+                    }
+
+                    if self.config.subsumption && self.clause_length < source_clause.size() {
+                        match self.clause_length {
+                            0 => {}
+                            1 => {
+                                if let Some(dispatcher) = &self.dispatcher {
+                                    let delta = delta::Resolution::Used(*the_key);
+                                    dispatcher(Dispatch::Delta(delta::Delta::Resolution(delta)));
+                                    dispatcher(Dispatch::Delta(delta::Delta::Resolution(
+                                        delta::Resolution::End,
+                                    )));
+                                }
+                                return Ok(gen::RBuf::Proof);
+                            }
+                            _ => match the_key {
+                                ClauseKey::Unit(_) => {
+                                    panic!("a prior check on the clause length was removed")
+                                }
+                                ClauseKey::Binary(_) => {
+                                    todo!("a formula is found which triggers this…");
+                                }
+                                ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
+                                    let new_key =
+                                        clause_db.subsume(*the_key, *literal, variables)?;
+
+                                    if let Some(dispatcher) = &self.dispatcher {
+                                        dispatcher(Dispatch::Delta(delta::Delta::Resolution(
+                                            delta::Resolution::End,
+                                        )));
+                                        dispatcher(Dispatch::Delta(delta::Delta::Resolution(
+                                            delta::Resolution::Begin,
+                                        )));
+                                        dispatcher(Dispatch::Delta(delta::Delta::Resolution(
+                                            delta::Resolution::Used(new_key),
+                                        )));
+                                    }
+                                }
+                            },
+                        }
+                    } else {
+                        if let Some(dispatcher) = &self.dispatcher {
+                            let delta = delta::Resolution::Used(*the_key);
+                            dispatcher(Dispatch::Delta(delta::Delta::Resolution(delta)));
+                        }
+                    }
+
+                    if let ClauseKey::Learned(index, _) = the_key {
+                        clause_db.bump_activity(*index)
                     };
                 }
+                _ => panic!("unexpected"),
+            };
+
+            if self.valueless_count == 1 {
+                match self.config.stopping {
+                    StoppingCriteria::FirstUIP => {
+                        if let Some(dispatcher) = &self.dispatcher {
+                            dispatcher(Dispatch::Delta(delta::Delta::Resolution(
+                                delta::Resolution::End,
+                            )));
+                        }
+                        return Ok(gen::RBuf::FirstUIP);
+                    }
+                    StoppingCriteria::None => {}
+                };
             }
         }
         if let Some(dispatcher) = &self.dispatcher {

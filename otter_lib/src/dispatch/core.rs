@@ -47,7 +47,7 @@ pub struct CoreDB {
 
     resolution_q: VecDeque<Vec<ClauseKey>>,
 
-    bcp_buffer: Option<(Literal, ClauseKey, Literal)>,
+    bcp_buffer: Option<(ClauseKey, Literal)>,
 
     clause_map: HashMap<ClauseKey, Vec<ClauseKey>>,
 
@@ -82,6 +82,10 @@ impl CoreDB {
                 continue 'the_loop;
             }
             let maybe_clause = match key {
+                ClauseKey::Unit(_) => {
+                    // todo: fixup
+                    todo!()
+                }
                 ClauseKey::Formula(_) => match self.original_map.get(&key) {
                     Some(the_clause) => Some(the_clause),
                     None => return Err(err::Core::MissedKey),
@@ -174,25 +178,26 @@ impl CoreDB {
     }
 
     pub fn process_literal_db_delta(&mut self, δ: &LiteralDB) -> Result<(), err::Core> {
-        use delta::LiteralDB::*;
-        match δ {
-            Assumption(_) | Pure(_) => {}
-            ResolutionProof(literal) => {
-                let Some(the_sources) = self.resolution_q.pop_front() else {
-                    return Err(err::Core::QueueMiss);
-                };
-                self.literal_map.insert(*literal, the_sources);
-            }
-            Proof(_) => {
-                let Some((_, clause, to)) = self.bcp_buffer.take() else {
-                    return Err(err::Core::EmptyBCPBuffer);
-                };
-                self.literal_map.insert(to, vec![clause]);
-            }
-            Forced(key, literal) => {
-                self.literal_map.insert(*literal, vec![*key]);
-            }
-        }
+        // TODO: unit resolution
+        // use delta::LiteralDB::*;
+        // match δ {
+        //     Assumption(_) => {}
+        //     ResolutionProof(literal) => {
+        //         let Some(the_sources) = self.resolution_q.pop_front() else {
+        //             return Err(err::Core::QueueMiss);
+        //         };
+        //         self.literal_map.insert(*literal, the_sources);
+        //     }
+        //     Proof(_) => {
+        //         let Some((clause, to)) = self.bcp_buffer.take() else {
+        //             return Err(err::Core::EmptyBCPBuffer);
+        //         };
+        //         self.literal_map.insert(to, vec![clause]);
+        //     }
+        //     Forced(key, literal) => {
+        //         self.literal_map.insert(*literal, vec![*key]);
+        //     }
+        // }
         Ok(())
     }
 
@@ -208,7 +213,7 @@ impl CoreDB {
     pub fn process_bcp_delta(&mut self, δ: &BCP) -> Result<(), err::Core> {
         use delta::BCP::*;
         match δ {
-            Instance { from, via, to } => self.bcp_buffer = Some((*from, *via, *to)),
+            Instance { via, to } => self.bcp_buffer = Some((*via, *to)),
             Conflict { .. } => {}
         }
 

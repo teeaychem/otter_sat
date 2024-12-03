@@ -1,5 +1,6 @@
 use crate::{
     misc::log::targets::{self},
+    structures::literal::{Literal, LiteralT},
     types::err::{self},
 };
 
@@ -9,6 +10,7 @@ pub type FormulaToken = u16;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ClauseKey {
+    Unit(Literal),
     Formula(FormulaIndex),
     Binary(FormulaIndex),
     Learned(FormulaIndex, FormulaToken),
@@ -17,6 +19,7 @@ pub enum ClauseKey {
 impl ClauseKey {
     pub fn index(&self) -> usize {
         match self {
+            Self::Unit(l) => l.var() as usize,
             Self::Formula(i) => *i as usize,
             Self::Binary(i) => *i as usize,
             Self::Learned(i, _) => *i as usize,
@@ -25,6 +28,10 @@ impl ClauseKey {
 
     pub fn retoken(&self) -> Result<Self, err::ClauseDB> {
         match self {
+            Self::Unit(_) => {
+                log::error!(target: targets::CLAUSE_DB, "Unit keys have a unique token");
+                Err(err::ClauseDB::InvalidKeyToken)
+            }
             Self::Formula(_) => {
                 log::error!(target: targets::CLAUSE_DB, "Formula keys have a unique token");
                 Err(err::ClauseDB::InvalidKeyToken)
@@ -46,6 +53,7 @@ impl ClauseKey {
 impl std::fmt::Display for ClauseKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Unit(key) => write!(f, "Unit({key})"),
             Self::Formula(key) => write!(f, "Formula({key})"),
             Self::Learned(key, token) => write!(f, "Learned({key}, {token})"),
             Self::Binary(key) => write!(f, "Binary({key})"),

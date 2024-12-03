@@ -40,7 +40,6 @@ impl Context {
                     Ok(gen::Queue::Qd) => {
                         if let Some(dispatcher) = &self.dispatcher {
                             let delta = delta::BCP::Instance {
-                                from: *literal,
                                 via: *clause_key,
                                 to: *check,
                             };
@@ -132,7 +131,6 @@ impl Context {
 
                             if let Some(dispatcher) = &self.dispatcher {
                                 let delta = delta::BCP::Instance {
-                                    from: *literal,
                                     via: *clause_key,
                                     to: the_watch,
                                 };

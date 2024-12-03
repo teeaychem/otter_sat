@@ -98,6 +98,9 @@ impl dbClause {
     fn note_watch(&self, literal: impl Borrow<Literal>, variables: &mut VariableDB) {
         let literal = literal.borrow();
         match self.key {
+            ClauseKey::Unit(_) => {
+                panic!("attempting to interact with watches on a unit clause")
+}
             ClauseKey::Binary(_) => unsafe {
                 let check_literal = if self.clause.get_unchecked(0).var() == literal.var() {
                     *self.clause.get_unchecked(1)

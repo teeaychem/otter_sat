@@ -60,6 +60,7 @@ impl Transcriber {
 
     pub(super) fn key_id(key: &ClauseKey) -> String {
         match key {
+            ClauseKey::Unit(l) => format!("010{l}"),
             ClauseKey::Formula(index) => format!("020{index}"),
             ClauseKey::Binary(index) => format!("030{index}"),
             ClauseKey::Learned(index, _) => format!("040{index}"),
@@ -293,7 +294,7 @@ impl Transcriber {
     pub(super) fn literal_db_delta(&mut self, δ: &delta::LiteralDB) -> Result<(), err::FRAT> {
         use delta::LiteralDB::*;
         match δ {
-            Assumption(literal) | Pure(literal) => {
+            Assumption(literal) => {
                 let step = Transcriber::original_literal(literal, self.literal_string(literal));
                 self.step_buffer.push(step);
             }
@@ -309,9 +310,6 @@ impl Transcriber {
             Proof(literal) => {
                 let step = Transcriber::add_literal(literal, self.literal_string(literal), None);
                 self.step_buffer.push(step);
-            }
-            Forced(_, _) => {
-                // forced at level zero?
             }
         }
         Ok(())
