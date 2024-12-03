@@ -60,7 +60,7 @@ impl WatchDB {
                 let mut limit = list.len();
                 while index < limit {
                     let WatchElement::Clause(list_key) = list.get_unchecked(index) else {
-                        return Err(err::Watch::BinaryInLong);
+                        return Err(err::Watch::NotLongInLong);
                     };
 
                     if *list_key == key {
@@ -72,7 +72,7 @@ impl WatchDB {
                 }
                 Ok(())
             }
-            ClauseKey::Binary(_) => Err(err::Watch::BinaryInLong),
+            ClauseKey::Unit(_) | ClauseKey::Binary(_) => Err(err::Watch::NotLongInLong),
         }
     }
 
@@ -117,6 +117,7 @@ impl VariableDB {
         polarity: bool,
     ) -> *mut Vec<WatchElement> {
         match kind {
+            ClauseKind::Unit => todo!(),
             ClauseKind::Binary => &mut *self
                 .watch_dbs
                 .get_unchecked(v_idx as usize)

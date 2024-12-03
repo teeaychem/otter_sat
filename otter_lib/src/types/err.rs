@@ -50,6 +50,10 @@ pub enum Build {
 /// An error in the clause database.
 #[derive(Debug, Clone, Copy)]
 pub enum ClauseDB {
+    /// Attempt to get a unit clause by a key (the key is the literal)
+    GetUnitKey,
+    /// Attempt to transfer a unit clause.
+    TransferUnit,
     /// Attempt to transfer a binary clause.
     TransferBinary,
     /// There was some issue with watches when transfering a clause.
@@ -161,7 +165,7 @@ pub enum FRAT {
 pub enum Watch {
     /// A binary clause was found in a long watch list.
     /// Perhaps an issue during addition during addition or transfer of a clause…?
-    BinaryInLong,
+    NotLongInLong,
 }
 
 #[derive(Debug)]

@@ -15,7 +15,6 @@ pub enum Delta {
 #[derive(Clone)]
 pub enum BCP {
     Instance {
-        from: Literal,
         via: ClauseKey,
         to: Literal,
     },
@@ -58,8 +57,6 @@ pub enum LiteralDB {
     Assumption(Literal),
     ResolutionProof(Literal),
     Proof(Literal),
-    Forced(ClauseKey, Literal),
-    Pure(Literal),
 }
 
 #[derive(Clone)]

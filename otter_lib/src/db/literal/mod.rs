@@ -84,13 +84,6 @@ impl LiteralDB {
                 }
                 self.proven.record_literal(literal)
             }
-            gen::src::Literal::Pure => {
-                if let Some(dispatcher) = &self.dispatcher {
-                    let delta = delta::LiteralDB::Pure(literal.borrow().to_owned());
-                    dispatcher(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
-                }
-                self.proven.record_literal(literal)
-            }
             gen::src::Literal::BCP(_) => match self.choice_stack.len() {
                 0 => {
                     if let Some(dispatcher) = &self.dispatcher {
@@ -101,7 +94,7 @@ impl LiteralDB {
                 }
                 _ => self.top_mut().record_consequence(literal, source),
             },
-            gen::src::Literal::Resolution(_) => {
+            gen::src::Literal::Resolution => {
                 // Resoluion implies deduction via (known) clauses
                 if let Some(dispatcher) = &self.dispatcher {
                     let delta = delta::LiteralDB::ResolutionProof(literal.borrow().to_owned());
@@ -109,27 +102,6 @@ impl LiteralDB {
                 }
                 self.proven.record_literal(literal)
             }
-            gen::src::Literal::Forced(key) => match self.choice_stack.len() {
-                0 => {
-                    if let Some(dispatcher) = &self.dispatcher {
-                        let delta = delta::LiteralDB::Forced(key, literal.borrow().to_owned());
-                        dispatcher(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
-                    }
-                    self.proven.record_literal(literal)
-                }
-                _ => self.top_mut().record_consequence(literal, source),
-            },
-            gen::src::Literal::Missed(key) => match self.choice_stack.len() {
-                0 => {
-                    // TODO: Make unique o generalise forcing
-                    if let Some(dispatcher) = &self.dispatcher {
-                        let delta = delta::LiteralDB::Forced(key, literal.borrow().to_owned());
-                        dispatcher(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
-                    }
-                    self.proven.record_literal(literal)
-                }
-                _ => self.top_mut().record_consequence(literal, source),
-            },
         }
     }
 

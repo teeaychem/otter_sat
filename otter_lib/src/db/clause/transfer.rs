@@ -17,6 +17,10 @@ impl ClauseDB {
         variables: &mut VariableDB,
     ) -> Result<ClauseKey, err::ClauseDB> {
         match key {
+            ClauseKey::Unit(_) => {
+                log::error!(target: targets::TRANSFER, "Attempt to transfer unit");
+                Err(err::ClauseDB::TransferUnit)
+            }
             ClauseKey::Binary(_) => {
                 log::error!(target: targets::TRANSFER, "Attempt to transfer binary");
                 Err(err::ClauseDB::TransferBinary)

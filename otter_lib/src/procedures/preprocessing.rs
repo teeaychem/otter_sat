@@ -49,6 +49,8 @@ impl Context {
         Ok(())
     }
 
+    /// The source of a pure literal is a choice.
+    /// Though, as each literal is pure, no literal is placed on the choice stack.
     pub fn set_pure(&mut self) -> Result<(), err::Queue> {
         let (f, t) = crate::procedures::preprocessing::pure_choices(
             self.clause_db.all_clauses().map(|sc| sc.literals()),
@@ -59,7 +61,7 @@ impl Context {
             match self.q_literal(the_literal) {
                 Ok(gen::Queue::Qd) => {
                     self.literal_db
-                        .record_literal(the_literal, gen::src::Literal::Pure);
+                        .record_literal(the_literal, gen::src::Literal::Choice);
                 }
                 Err(e) => return Err(e),
             }
