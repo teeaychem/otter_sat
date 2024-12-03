@@ -79,4 +79,8 @@ impl<T: Deref<Target = [Literal]>> ClauseT for T {
     fn variables(&self) -> impl Iterator<Item = crate::structures::variable::Variable> {
         self.iter().map(|literal| literal.var())
     }
+
+    fn transform_to_vec(self) -> super::Clause {
+        self.to_vec()
+    }
 }

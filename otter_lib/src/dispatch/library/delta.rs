@@ -14,14 +14,8 @@ pub enum Delta {
 
 #[derive(Clone)]
 pub enum BCP {
-    Instance {
-        via: ClauseKey,
-        to: Literal,
-    },
-    Conflict {
-        from: Literal,
-        via: ClauseKey,
-    },
+    Instance { via: ClauseKey, to: Literal },
+    Conflict { from: Literal, via: ClauseKey },
 }
 
 #[derive(Clone)]
@@ -54,9 +48,9 @@ pub enum ClauseDB {
 
 #[derive(Debug, Clone)]
 pub enum LiteralDB {
-    Assumption(Literal),
-    ResolutionProof(Literal),
-    Proof(Literal),
+    Original(Literal),
+    ProofResolution(Literal),
+    ProofBCP(Literal),
 }
 
 #[derive(Clone)]

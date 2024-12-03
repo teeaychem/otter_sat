@@ -53,15 +53,14 @@ impl Context {
     /// Though, as each literal is pure, no literal is placed on the choice stack.
     pub fn set_pure(&mut self) -> Result<(), err::Queue> {
         let (f, t) = crate::procedures::preprocessing::pure_choices(
-            self.clause_db.all_clauses().map(|sc| sc.literals()),
+            self.clause_db.all_nonunit_clauses().map(|sc| sc.literals()),
         );
 
         for v_id in f.into_iter().chain(t) {
             let the_literal = Literal::new(v_id, false);
             match self.q_literal(the_literal) {
                 Ok(gen::Queue::Qd) => {
-                    self.literal_db
-                        .record_literal(the_literal, gen::src::Literal::Choice);
+                    self.record_literal(the_literal, gen::src::Literal::Choice);
                 }
                 Err(e) => return Err(e),
             }

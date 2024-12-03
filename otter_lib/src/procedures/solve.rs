@@ -44,17 +44,29 @@ impl Context {
                 return Ok(report::Solve::TimeUp);
             }
 
+            let mut conflict_found: bool = false;
+
             match self.expand()? {
-                gen::Expansion::Proof(literal) => {
-                    self.status = gen::Solve::Proof;
+                gen::Expansion::Conflict => break 'solve_loop,
+
+                gen::Expansion::Exhausted => {
+                    //
+                    match self.make_choice()? {
+                        gen::Choice::Made => continue 'solve_loop,
+                        gen::Choice::Exhausted => break 'solve_loop,
+                    }
+                }
+
+                gen::Expansion::UnitClause(literal) => {
+                    self.status = gen::Solve::UnitClause;
 
                     self.backjump(0);
 
-                    self.literal_db
-                        .record_literal(literal, gen::src::Literal::Resolution);
+                    self.record_literal(literal, gen::src::Literal::Resolution);
                     self.q_literal(literal)?;
-                    continue 'solve_loop;
+                    conflict_found = true;
                 }
+
                 gen::Expansion::AssertingClause(key, literal) => {
                     self.status = gen::Solve::AssertingClause;
 
@@ -70,39 +82,29 @@ impl Context {
                         };
                         dispatcher(Dispatch::Delta(Delta::BCP(delta)));
                     }
-                    self.literal_db
-                        .record_literal(literal, gen::src::Literal::BCP(key));
+                    self.record_literal(literal, gen::src::Literal::BCP(key));
                     self.q_literal(literal)?;
-
-                    self.counters.conflicts += 1;
-                    self.counters.fresh_conflicts += 1;
-
-                    if self.scheduled_luby_interrupt() {
-                        self.counters.luby.next();
-                        self.conflict_dispatch();
-
-                        if self.config.switch.restart {
-                            self.restart()
-                        };
-
-                        if self.scheduled_by_luby() {
-                            self.clause_db.reduce();
-                        }
-                    } else if self.scheduled_by_conflicts() {
-                        self.clause_db.reduce()?;
-                    }
-
-                    continue 'solve_loop;
+                    conflict_found = true;
                 }
+            }
 
-                gen::Expansion::Conflict => break 'solve_loop,
+            if conflict_found {
+                self.counters.conflicts += 1;
+                self.counters.fresh_conflicts += 1;
 
-                gen::Expansion::Exhausted => {
-                    //
-                    match self.make_choice()? {
-                        gen::Choice::Made => continue 'solve_loop,
-                        gen::Choice::Exhausted => break 'solve_loop,
+                if self.scheduled_luby_interrupt() {
+                    self.counters.luby.next();
+                    self.conflict_dispatch();
+
+                    if self.config.switch.restart {
+                        self.restart()
+                    };
+
+                    if self.scheduled_by_luby() {
+                        self.clause_db.reduce();
                     }
+                } else if self.scheduled_by_conflicts() {
+                    self.clause_db.reduce()?;
                 }
             }
         }
@@ -155,14 +157,13 @@ impl Context {
                                 };
                                 dispatcher(Dispatch::Delta(Delta::BCP(delta)));
                             }
-                            self.literal_db
-                                .record_literal(literal, gen::src::Literal::BCP(key));
+                            self.record_literal(literal, gen::src::Literal::BCP(key));
 
                             continue 'expansion;
                         }
 
                         gen::Analysis::UnitClause(literal) => {
-                            return Ok(gen::Expansion::Proof(literal));
+                            return Ok(gen::Expansion::UnitClause(literal));
                         }
 
                         gen::Analysis::AssertingClause(key, literal) => {
@@ -281,7 +282,7 @@ impl Context {
     /// The second highest choice index from the given literals, or 0
     /// Aka. The backjump level for a slice of an asserting slice of literals/clause
     // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
-    pub fn backjump_level<'l>(&self, clause: &impl ClauseT) -> Result<ChoiceIndex, err::Context> {
+    pub fn backjump_level(&self, clause: &impl ClauseT) -> Result<ChoiceIndex, err::Context> {
         match clause.size() {
             0 => panic!("impossible"),
             1 => Ok(0),

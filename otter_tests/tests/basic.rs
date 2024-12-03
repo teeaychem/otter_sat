@@ -60,7 +60,10 @@ mod basic {
         let mut the_context = Context::from_config(Config::default(), None);
         let p_q_q_clause = the_context.clause_from_string("p q q").unwrap();
         assert!(the_context.add_clause(p_q_q_clause).is_ok());
-        let database = the_context.clause_db.all_clauses().collect::<Vec<_>>();
+        let database = the_context
+            .clause_db
+            .all_nonunit_clauses()
+            .collect::<Vec<_>>();
         assert_eq!(database.len(), 1);
         let the_clause_dimacs = database[0].as_dimacs(&the_context.variable_db, true);
         assert_eq!(
@@ -74,7 +77,7 @@ mod basic {
         let mut the_context = Context::from_config(Config::default(), None);
         let p_q_np_clause = the_context.clause_from_string("p q -p").unwrap();
         assert!(the_context.add_clause(p_q_np_clause).is_ok());
-        let mut clause_iter = the_context.clause_db.all_clauses();
+        let mut clause_iter = the_context.clause_db.all_nonunit_clauses();
         assert!(clause_iter.next().is_none());
     }
 

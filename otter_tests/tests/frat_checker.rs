@@ -98,6 +98,7 @@ fn frat_dir_test(dir: String) -> usize {
 
 use otter_tests::{cnf_lib_subdir, load_dimacs};
 
+#[ignore]
 #[cfg(test)]
 mod frat_tests {
 

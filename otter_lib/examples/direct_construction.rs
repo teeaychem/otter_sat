@@ -59,7 +59,7 @@ Representations of: ¬p ∨ q
     assert_eq!(p_or_not_q, vec![p, not_q]);
 
     // made clauses must be added to the context:
-    for (i, clause) in the_context.clause_db.all_clauses().enumerate() {
+    for (i, clause) in the_context.clause_db.all_nonunit_clauses().enumerate() {
         println!(
             "  ? {i}: {}",
             clause.as_dimacs(&the_context.variable_db, false)
@@ -70,7 +70,7 @@ Representations of: ¬p ∨ q
     let _ = the_context.add_clause(p_or_not_q);
 
     println!("The clause database after adding ¬p ∨ q and ¬p ∨ q is:");
-    for clause in the_context.clause_db.all_clauses() {
+    for clause in the_context.clause_db.all_nonunit_clauses() {
         println!("  C {}", clause.as_dimacs(&the_context.variable_db, false))
     }
     println!();
@@ -114,16 +114,10 @@ Representations of: ¬p ∨ q
 
     assert_eq!(the_context.report(), report::Solve::Satisfiable);
 
+    // todo: update with unit clauses
     println!("The clause database is now:");
-    for clause in the_context.clause_db.all_clauses() {
+    for clause in the_context.clause_db.all_nonunit_clauses() {
         println!("  C {}", clause.as_dimacs(&the_context.variable_db, false))
-    }
-    println!("The literal database is now:");
-    for literal in the_context.literal_db.proven_literals().iter() {
-        println!(
-            "  L  {}",
-            literal.external_representation(&the_context.variable_db)
-        )
     }
 
     // It is possible to add p ∨ q to 𝐅

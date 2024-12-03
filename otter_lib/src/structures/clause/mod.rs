@@ -22,4 +22,6 @@ pub trait ClauseT {
     fn size(&self) -> usize;
 
     fn variables(&self) -> impl Iterator<Item = Variable>;
+
+    fn transform_to_vec(self) -> Clause;
 }

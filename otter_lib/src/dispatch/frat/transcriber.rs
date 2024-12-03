@@ -294,12 +294,12 @@ impl Transcriber {
     pub(super) fn literal_db_delta(&mut self, δ: &delta::LiteralDB) -> Result<(), err::FRAT> {
         use delta::LiteralDB::*;
         match δ {
-            Assumption(literal) => {
+            Original(literal) => {
                 let step = Transcriber::original_literal(literal, self.literal_string(literal));
                 self.step_buffer.push(step);
             }
 
-            ResolutionProof(literal) => {
+            ProofResolution(literal) => {
                 let Some(steps) = self.resolution_queue.pop_front() else {
                     return Err(err::FRAT::CorruptResolutionQ);
                 };
@@ -307,7 +307,7 @@ impl Transcriber {
                     Transcriber::add_literal(literal, self.literal_string(literal), Some(steps));
                 self.step_buffer.push(step);
             }
-            Proof(literal) => {
+            ProofBCP(literal) => {
                 let step = Transcriber::add_literal(literal, self.literal_string(literal), None);
                 self.step_buffer.push(step);
             }

@@ -75,9 +75,7 @@ impl Context {
                 let Ok(gen::Queue::Qd) = self.q_literal(literal.borrow()) else {
                     return Err(err::Context::AssumptionConflict);
                 };
-                self.literal_db
-                    .record_literal(literal.borrow(), gen::src::Literal::Original);
-                // self.store_literal(literal, src::Literal::Assumption, Vec::default());
+                self.record_literal(literal.borrow(), gen::src::Literal::Original);
                 Ok(())
             }
             Some(v) if v == literal.borrow().polarity() => {
@@ -114,16 +112,14 @@ impl Context {
                     {
                         if processed_literal.polarity() != literal.polarity() {
                             // Skip tautologies
-                            // Could be made more efficient by sorting the literals within a clause, but preference to preserve order for now
                             return Ok(());
                         }
                         // Otherwise, avoid adding the duplicate
                     } else {
                         // Though, strengthen the clause if possible
                         if !self
-                            .literal_db
-                            .proven_literals()
-                            .iter()
+                            .clause_db
+                            .all_unit_clauses()
                             .any(|proven_literal| &proven_literal.negate() == literal)
                         {
                             processed_clause.push(*literal)
@@ -131,26 +127,8 @@ impl Context {
                     }
                 }
 
-                let clause = processed_clause;
-
-                match clause.len() {
-                    0 => Err(err::Build::ClauseDB(err::ClauseDB::EmptyClause)),
-
-                    1 => {
-                        let literal = unsafe { clause.get_unchecked(0) };
-                        self.add_literal(literal)?;
-                        Ok(())
-                    }
-
-                    _ => {
-                        self.clause_db.store(
-                            clause,
-                            gen::src::Clause::Original,
-                            &mut self.variable_db,
-                        );
-                        Ok(())
-                    }
-                }
+                self.record_clause(processed_clause, gen::src::Clause::Original)?;
+                Ok(())
             }
         }
     }
@@ -165,8 +143,7 @@ impl Context {
         }
         match self.q_literal(literal.borrow()) {
             Ok(_) => {
-                self.literal_db
-                    .record_literal(literal, gen::src::Literal::Original);
+                self.record_literal(literal, gen::src::Literal::Original);
                 Ok(())
             }
             Err(_) => Err(err::Context::AssumptionConflict),
