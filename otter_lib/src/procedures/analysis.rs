@@ -82,7 +82,10 @@ impl Context {
 
         match resolved_clause.len() {
             0 => Err(err::Analysis::EmptyResolution),
-            1 => Ok(gen::Analysis::UnitClause(the_literal)),
+            1 => {
+                let key = self.record_clause(the_literal, gen::src::Clause::Resolution)?;
+                Ok(gen::Analysis::UnitClause(key))
+            }
             _ => {
                 let key = self.record_clause(resolved_clause, gen::src::Clause::Resolution)?;
                 Ok(gen::Analysis::AssertingClause(key, the_literal))

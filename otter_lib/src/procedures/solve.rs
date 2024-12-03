@@ -2,7 +2,7 @@ use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
     context::Context,
-    db::keys::ChoiceIndex,
+    db::keys::{ChoiceIndex, ClauseKey},
     dispatch::{
         library::{
             delta::{self, Delta},
@@ -44,7 +44,7 @@ impl Context {
                 return Ok(report::Solve::TimeUp);
             }
 
-            let mut conflict_found: bool = false;
+            let conflict_found;
 
             match self.expand()? {
                 gen::Expansion::Conflict => break 'solve_loop,
@@ -57,13 +57,15 @@ impl Context {
                     }
                 }
 
-                gen::Expansion::UnitClause(literal) => {
+                gen::Expansion::UnitClause(key) => {
                     self.status = gen::Solve::UnitClause;
 
                     self.backjump(0);
+                    let ClauseKey::Unit(the_literal) = key else {
+                        panic!("non-unit key");
+                    };
 
-                    self.record_literal(literal, gen::src::Literal::Resolution);
-                    self.q_literal(literal)?;
+                    self.q_literal(the_literal)?;
                     conflict_found = true;
                 }
 
@@ -162,8 +164,8 @@ impl Context {
                             continue 'expansion;
                         }
 
-                        gen::Analysis::UnitClause(literal) => {
-                            return Ok(gen::Expansion::UnitClause(literal));
+                        gen::Analysis::UnitClause(key) => {
+                            return Ok(gen::Expansion::UnitClause(key));
                         }
 
                         gen::Analysis::AssertingClause(key, literal) => {
