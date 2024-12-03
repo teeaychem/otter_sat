@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 //! A library for determining the satisfiability of boolean formulas written in conjunctive normal form.
 //!
 //!

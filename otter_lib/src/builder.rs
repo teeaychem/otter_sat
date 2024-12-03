@@ -65,6 +65,29 @@ impl Context {
         Ok(the_clause)
     }
 
+    #[allow(unused_must_use)] // ???
+    pub fn add_literal(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::Context> {
+        if self.literal_db.choice_made() {
+            return Err(err::Context::AssumptionAfterChoice);
+        }
+        match self.variable_db.value_of(literal.borrow().var()) {
+            None => {
+                let Ok(gen::Queue::Qd) = self.q_literal(literal.borrow()) else {
+                    return Err(err::Context::AssumptionConflict);
+                };
+                self.literal_db
+                    .record_literal(literal.borrow(), gen::src::Literal::Original);
+                // self.store_literal(literal, src::Literal::Assumption, Vec::default());
+                Ok(())
+            }
+            Some(v) if v == literal.borrow().polarity() => {
+                // Must be at zero for an assumption, so there's nothing to do
+                Ok(())
+            }
+            Some(_) => Err(err::Context::AssumptionConflict),
+        }
+    }
+
     /// The internal representation of clauses.
     ///
     /// - Empty clauses are rejected as these are equivalent to falsum, and so unsatisfiable.
@@ -72,13 +95,13 @@ impl Context {
     /// - Clauses with two or more literals go to the clause database.
     ///
     /// This handles the variations.
-    pub fn store_clause(&mut self, clause: Clause) -> Result<(), err::Build> {
+    pub fn add_clause(&mut self, clause: Clause) -> Result<(), err::Build> {
         match clause.len() {
             0 => Err(err::Build::ClauseDB(err::ClauseDB::EmptyClause)),
 
             1 => {
                 let literal = unsafe { *clause.get_unchecked(0) };
-                self.assume(literal)?;
+                self.add_literal(literal)?;
                 Ok(())
             }
 
@@ -115,7 +138,7 @@ impl Context {
 
                     1 => {
                         let literal = unsafe { clause.get_unchecked(0) };
-                        self.assume(literal)?;
+                        self.add_literal(literal)?;
                         Ok(())
                     }
 
@@ -143,33 +166,10 @@ impl Context {
         match self.q_literal(literal.borrow()) {
             Ok(_) => {
                 self.literal_db
-                    .record_literal(literal, gen::src::Literal::Assumption);
+                    .record_literal(literal, gen::src::Literal::Original);
                 Ok(())
             }
             Err(_) => Err(err::Context::AssumptionConflict),
-        }
-    }
-
-    #[allow(unused_must_use)] // ???
-    pub fn assume(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::Context> {
-        if self.literal_db.choice_made() {
-            return Err(err::Context::AssumptionAfterChoice);
-        }
-        match self.variable_db.value_of(literal.borrow().var()) {
-            None => {
-                let Ok(gen::Queue::Qd) = self.q_literal(literal.borrow()) else {
-                    return Err(err::Context::AssumptionConflict);
-                };
-                self.literal_db
-                    .record_literal(literal.borrow(), gen::src::Literal::Assumption);
-                // self.store_literal(literal, src::Literal::Assumption, Vec::default());
-                Ok(())
-            }
-            Some(v) if v == literal.borrow().polarity() => {
-                // Must be at zero for an assumption, so there's nothing to do
-                Ok(())
-            }
-            Some(_) => Err(err::Context::AssumptionConflict),
         }
     }
 }
@@ -255,7 +255,7 @@ impl Context {
                         match item {
                             "0" => {
                                 let the_clause = std::mem::take(&mut clause_buffer);
-                                match self.store_clause(the_clause) {
+                                match self.add_clause(the_clause) {
                                     Ok(_) => clause_counter += 1,
                                     Err(e) => return Err(e),
                                 }

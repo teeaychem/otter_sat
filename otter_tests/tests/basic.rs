@@ -13,7 +13,7 @@ mod basic {
     fn one_literal() {
         let mut the_context = Context::from_config(Config::default(), None);
         let p_clause = the_context.clause_from_string("p").unwrap();
-        assert!(the_context.store_clause(p_clause).is_ok());
+        assert!(the_context.add_clause(p_clause).is_ok());
         assert!(the_context.solve().is_ok());
         assert_eq!(the_context.report(), report::Solve::Satisfiable)
     }
@@ -22,16 +22,16 @@ mod basic {
     fn conflict() {
         let mut the_context = Context::from_config(Config::default(), None);
         let p_q_clause = the_context.clause_from_string("p q").unwrap();
-        assert!(the_context.store_clause(p_q_clause).is_ok());
+        assert!(the_context.add_clause(p_q_clause).is_ok());
 
         let np_nq_clause = the_context.clause_from_string("-p -q").unwrap();
-        assert!(the_context.store_clause(np_nq_clause).is_ok());
+        assert!(the_context.add_clause(np_nq_clause).is_ok());
 
         let p_nq_clause = the_context.clause_from_string("p -q").unwrap();
-        assert!(the_context.store_clause(p_nq_clause).is_ok());
+        assert!(the_context.add_clause(p_nq_clause).is_ok());
 
         let np_q_clause = the_context.clause_from_string("-p q").unwrap();
-        assert!(the_context.store_clause(np_q_clause).is_ok());
+        assert!(the_context.add_clause(np_q_clause).is_ok());
 
         assert!(the_context.solve().is_ok());
         assert!(matches!(the_context.report(), report::Solve::Unsatisfiable))
@@ -42,11 +42,11 @@ mod basic {
         let mut the_context = Context::from_config(Config::default(), None);
 
         let p_q_clause = the_context.clause_from_string("p q").unwrap();
-        assert!(the_context.store_clause(p_q_clause).is_ok());
+        assert!(the_context.add_clause(p_q_clause).is_ok());
 
         let not_p = the_context.literal_from_string("-p").expect("oh");
 
-        assert!(the_context.assume(not_p).is_ok());
+        assert!(the_context.add_literal(not_p).is_ok());
         assert!(the_context.solve().is_ok());
         assert_eq!(the_context.report(), report::Solve::Satisfiable);
 
@@ -59,7 +59,7 @@ mod basic {
     fn duplicates() {
         let mut the_context = Context::from_config(Config::default(), None);
         let p_q_q_clause = the_context.clause_from_string("p q q").unwrap();
-        assert!(the_context.store_clause(p_q_q_clause).is_ok());
+        assert!(the_context.add_clause(p_q_q_clause).is_ok());
         let database = the_context.clause_db.all_clauses().collect::<Vec<_>>();
         assert_eq!(database.len(), 1);
         let the_clause_dimacs = database[0].as_dimacs(&the_context.variable_db, true);
@@ -73,7 +73,7 @@ mod basic {
     fn tautology_skip() {
         let mut the_context = Context::from_config(Config::default(), None);
         let p_q_np_clause = the_context.clause_from_string("p q -p").unwrap();
-        assert!(the_context.store_clause(p_q_np_clause).is_ok());
+        assert!(the_context.add_clause(p_q_np_clause).is_ok());
         let mut clause_iter = the_context.clause_db.all_clauses();
         assert!(clause_iter.next().is_none());
     }

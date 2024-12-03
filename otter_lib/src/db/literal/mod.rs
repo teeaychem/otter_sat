@@ -76,7 +76,8 @@ impl LiteralDB {
     pub fn record_literal(&mut self, literal: impl Borrow<Literal>, source: gen::src::Literal) {
         match source {
             gen::src::Literal::Choice => {}
-            gen::src::Literal::Assumption => {
+
+            gen::src::Literal::Original => {
                 if let Some(dispatcher) = &self.dispatcher {
                     let delta = delta::LiteralDB::Assumption(literal.borrow().to_owned());
                     dispatcher(Dispatch::Delta(delta::Delta::LiteralDB(delta)));
