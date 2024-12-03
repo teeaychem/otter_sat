@@ -173,7 +173,7 @@ impl ResolutionBuffer {
                     continue 'resolution_loop;
                 }
 
-                if self.config.subsumption && self.clause_length < source_clause.literals().len() {
+                if self.config.subsumption && self.clause_length < source_clause.size() {
                     match self.clause_length {
                         0 => {}
                         1 => {

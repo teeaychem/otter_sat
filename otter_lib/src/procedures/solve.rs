@@ -266,7 +266,10 @@ impl Context {
     /// The second highest choice index from the given literals, or 0
     /// Aka. The backjump level for a slice of an asserting slice of literals/clause
     // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
-    pub fn backjump_level(&self, literals: &[Literal]) -> Result<ChoiceIndex, err::Context> {
+    pub fn backjump_level<'l>(
+        &self,
+        literals: impl Iterator<Item = &'l Literal>,
+    ) -> Result<ChoiceIndex, err::Context> {
         let mut top_two = (None, None);
         for literal in literals {
             let Some(dl) = self.variable_db.choice_index_of(literal.var()) else {

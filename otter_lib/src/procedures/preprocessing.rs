@@ -14,20 +14,20 @@ use crate::{
 
 use std::collections::BTreeSet;
 
-/// General order for pairs related to booleans is 0 is false, 1 is true
+// General order for pairs related to booleans is 0 is false, 1 is true
 pub fn pure_choices<'l>(
-    clauses: impl Iterator<Item = &'l [Literal]>,
+    clauses: impl Iterator<Item = impl Iterator<Item = &'l Literal>>,
 ) -> (Vec<Variable>, Vec<Variable>) {
     let mut the_true: BTreeSet<Variable> = BTreeSet::new();
     let mut the_false: BTreeSet<Variable> = BTreeSet::new();
 
     clauses.for_each(|literals| {
-        literals.iter().for_each(|literal| {
+        for literal in literals {
             match literal.polarity() {
                 true => the_true.insert(literal.var()),
                 false => the_false.insert(literal.var()),
             };
-        });
+        }
     });
 
     let pure_false: Vec<_> = the_false.difference(&the_true).copied().collect();

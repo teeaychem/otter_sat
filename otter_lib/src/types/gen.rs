@@ -74,6 +74,6 @@ pub mod src {
         Resolution(ClauseKey), // there was no reason to store the resolved clause
         BCP(ClauseKey),        // direct from BCP
         Missed(ClauseKey),     // forced by some clause which was missed
-        Assumption,
+        Original,
     }
 }

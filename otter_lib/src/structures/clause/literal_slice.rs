@@ -68,8 +68,12 @@ impl<T: Deref<Target = [Literal]>> ClauseT for T {
         decision_levels.len() as GlueStrength
     }
 
-    fn literals(&self) -> &[Literal] {
-        self
+    fn literals(&self) -> impl Iterator<Item = &Literal> {
+        self.iter()
+    }
+
+    fn size(&self) -> usize {
+        self.len()
     }
 
     fn variables(&self) -> impl Iterator<Item = crate::structures::variable::Variable> {

@@ -57,7 +57,7 @@ fn main() {
 
         let the_clause = the_context.clause_from_string(&new_valuation).unwrap();
 
-        match the_context.store_clause(the_clause) {
+        match the_context.add_clause(the_clause) {
             Ok(()) => {}
             Err(_) => break,
         };

@@ -66,8 +66,8 @@ Representations of: ¬p ∨ q
         )
     }
 
-    let _ = the_context.store_clause(not_p_or_q);
-    let _ = the_context.store_clause(p_or_not_q);
+    let _ = the_context.add_clause(not_p_or_q);
+    let _ = the_context.add_clause(p_or_not_q);
 
     println!("The clause database after adding ¬p ∨ q and ¬p ∨ q is:");
     for clause in the_context.clause_db.all_clauses() {
@@ -87,7 +87,7 @@ Representations of: ¬p ∨ q
     assert_eq!(value_of("q", &the_context), Some(false));
 
     let p_clause = the_context.clause_from_string("p").unwrap();
-    let p_error = the_context.store_clause(p_clause);
+    let p_error = the_context.add_clause(p_clause);
 
     println!("p is incompatible with 𝐕 as so cannot be added to the context ({p_error:?}) without clearing choices made…
 ");
@@ -95,7 +95,7 @@ Representations of: ¬p ∨ q
     the_context.clear_choices();
 
     let p_clause = the_context.clause_from_string("p").unwrap();
-    let _p_ok = the_context.store_clause(p_clause);
+    let _p_ok = the_context.add_clause(p_clause);
 
     assert_eq!(value_of("p", &the_context), Some(true));
 
@@ -110,7 +110,7 @@ Representations of: ¬p ∨ q
 
     // Likewise it is not possible to add ¬p ∨ ¬q to 𝐅
     let clause_np_nq = the_context.clause_from_string("-p -q").unwrap();
-    assert!(the_context.store_clause(clause_np_nq).is_err());
+    assert!(the_context.add_clause(clause_np_nq).is_err());
 
     assert_eq!(the_context.report(), report::Solve::Satisfiable);
 
@@ -128,5 +128,5 @@ Representations of: ¬p ∨ q
 
     // It is possible to add p ∨ q to 𝐅
     let clause_p_q = the_context.clause_from_string("p q").unwrap();
-    assert!(the_context.store_clause(clause_p_q).is_ok());
+    assert!(the_context.add_clause(clause_p_q).is_ok());
 }
