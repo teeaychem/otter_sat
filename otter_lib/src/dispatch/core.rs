@@ -86,7 +86,7 @@ impl CoreDB {
                     // todo: fixup
                     todo!()
                 }
-                ClauseKey::Formula(_) => match self.original_map.get(&key) {
+                ClauseKey::Original(_) => match self.original_map.get(&key) {
                     Some(the_clause) => Some(the_clause),
                     None => return Err(err::Core::MissedKey),
                 },
@@ -102,7 +102,7 @@ impl CoreDB {
                     }
                 },
 
-                ClauseKey::Learned(_, _) => match self.clause_map.get(&key) {
+                ClauseKey::Addition(_, _) => match self.clause_map.get(&key) {
                     None => return Err(err::Core::MissedKey),
                     Some(keys) => {
                         core_q.extend(keys);
@@ -159,20 +159,22 @@ impl CoreDB {
                 self.clause_buffer.push(*literal);
             }
 
-            BinaryResolution(key) | TransferBinary(_, key) | Resolution(key) => {
+            Added(key) | Transfer(_, key) => {
                 let Some(the_sources) = self.resolution_q.pop_front() else {
                     return Err(err::Core::QueueMiss);
                 };
                 self.clause_map.insert(*key, the_sources);
                 self.clause_buffer.clear();
             }
-            Original(key) | BinaryOriginal(key) => {
+            Original(key) => {
                 let the_clause = std::mem::take(&mut self.clause_buffer);
                 self.original_map.insert(*key, the_clause);
             }
             Deletion(_) => {
                 self.clause_buffer.clear();
             }
+
+            BCP(_) => {}
         }
         Ok(())
     }

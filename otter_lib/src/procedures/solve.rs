@@ -72,7 +72,7 @@ impl Context {
                 gen::Expansion::AssertingClause(key, literal) => {
                     self.status = gen::Solve::AssertingClause;
 
-                    let the_clause = self.clause_db.get(key)?;
+                    let the_clause = self.clause_db.get_db_clause(key)?;
                     let index = self.backjump_level(the_clause)?;
                     self.backjump(index);
 
@@ -145,7 +145,7 @@ impl Context {
                         }
 
                         gen::Analysis::MissedImplication(key, literal) => {
-                            let the_clause = self.clause_db.get(key)?;
+                            let the_clause = self.clause_db.get_db_clause(key)?;
 
                             let index = self.backjump_level(the_clause)?;
                             self.backjump(index);

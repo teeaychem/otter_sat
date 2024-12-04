@@ -17,7 +17,7 @@ impl Context {
 
         if let config::VSIDS::Chaff = self.config.vsids_variant {
             self.variable_db
-                .apply_VSIDS(self.clause_db.get(key)?.variables());
+                .apply_VSIDS(self.clause_db.get_db_clause(key)?.variables());
         }
 
         let mut the_buffer = ResolutionBuffer::from_variable_store(

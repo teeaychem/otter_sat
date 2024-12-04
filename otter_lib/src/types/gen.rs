@@ -70,6 +70,5 @@ pub mod src {
     pub enum Literal {
         Choice,         // a choice made where the alternative may make a SAT difference
         BCP(ClauseKey), // direct from BCP
-        Original,
     }
 }

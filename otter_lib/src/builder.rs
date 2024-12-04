@@ -7,7 +7,7 @@ use crate::{
         Dispatch,
     },
     structures::{
-        clause::Clause,
+        clause::{Clause, ClauseT},
         literal::{Literal, LiteralT},
         variable::Variable,
     },
@@ -17,7 +17,7 @@ use crate::{
     },
 };
 
-use std::{borrow::Borrow, io::BufRead};
+use std::{borrow::Borrow, io::BufRead, prelude};
 
 /// Methods for building the context.
 impl Context {
@@ -65,25 +65,32 @@ impl Context {
         Ok(the_clause)
     }
 
-    #[allow(unused_must_use)] // ???
-    pub fn add_literal(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::Context> {
-        if self.literal_db.choice_made() {
-            return Err(err::Context::AssumptionAfterChoice);
-        }
-        match self.variable_db.value_of(literal.borrow().var()) {
-            None => {
-                let Ok(gen::Queue::Qd) = self.q_literal(literal.borrow()) else {
-                    return Err(err::Context::AssumptionConflict);
-                };
-                self.record_literal(literal.borrow(), gen::src::Literal::Original);
-                Ok(())
+    fn preprocess_clause(&self, clause: &mut Clause) -> Result<(), err::Build> {
+        let mut index = 0;
+        let mut max = clause.len();
+        loop {
+            if index == max {
+                break;
             }
-            Some(v) if v == literal.borrow().polarity() => {
-                // Must be at zero for an assumption, so there's nothing to do
-                Ok(())
+            let this_l = clause[index];
+            let this_n = this_l.negate();
+            if clause.iter().any(|l| *l == this_n) {
+                clause.clear();
+                return Ok(());
             }
-            Some(_) => Err(err::Context::AssumptionConflict),
+            if self
+                .clause_db
+                .all_unit_clauses()
+                .any(|proven_literal| proven_literal.negate() == this_l)
+            {
+                clause.swap_remove(index);
+                max -= 1;
+            } else {
+                index += 1;
+            }
         }
+
+        Ok(())
     }
 
     /// The internal representation of clauses.
@@ -93,41 +100,41 @@ impl Context {
     /// - Clauses with two or more literals go to the clause database.
     ///
     /// This handles the variations.
-    pub fn add_clause(&mut self, clause: Clause) -> Result<(), err::Build> {
-        match clause.len() {
-            0 => Err(err::Build::ClauseDB(err::ClauseDB::EmptyClause)),
+    pub fn add_clause(&mut self, clause: impl ClauseT) -> Result<(), err::Build> {
+        if clause.size() == 0 {
+            return Err(err::Build::ClauseDB(err::ClauseDB::EmptyClause));
+        }
+        let mut clause_vec = clause.transform_to_vec();
+
+        self.preprocess_clause(&mut clause_vec)?;
+        match clause_vec.len() {
+            0 => Ok(()),
 
             1 => {
-                let literal = unsafe { *clause.get_unchecked(0) };
-                self.add_literal(literal)?;
+                let literal = unsafe { *clause_vec.get_unchecked(0) };
+                if self.literal_db.choice_made() {
+                    return Err(err::Build::ClauseDB(err::ClauseDB::UnitAfterChoice));
+                }
+                match self.variable_db.value_of(literal.var()) {
+                    None => {
+                        let Ok(gen::Queue::Qd) = self.q_literal(literal.borrow()) else {
+                            return Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict));
+                        };
+                        self.record_clause(literal, gen::src::Clause::Original);
+                        Ok(())
+                    }
+                    Some(v) if v == literal.polarity() => {
+                        // Must be at zero for an assumption, so there's nothing to do
+                        Ok(())
+                    }
+                    Some(_) => Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict)),
+                };
                 Ok(())
             }
 
             _ => {
-                let mut processed_clause: Clause = vec![];
+                self.record_clause(clause_vec, gen::src::Clause::Original)?;
 
-                for literal in &clause {
-                    if let Some(processed_literal) =
-                        processed_clause.iter().find(|l| l.var() == literal.var())
-                    {
-                        if processed_literal.polarity() != literal.polarity() {
-                            // Skip tautologies
-                            return Ok(());
-                        }
-                        // Otherwise, avoid adding the duplicate
-                    } else {
-                        // Though, strengthen the clause if possible
-                        if !self
-                            .clause_db
-                            .all_unit_clauses()
-                            .any(|proven_literal| &proven_literal.negate() == literal)
-                        {
-                            processed_clause.push(*literal)
-                        }
-                    }
-                }
-
-                self.record_clause(processed_clause, gen::src::Clause::Original)?;
                 Ok(())
             }
         }

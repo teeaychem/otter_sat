@@ -70,6 +70,9 @@ pub enum ClauseDB {
     UnitClause,
     /// All possible keys have been used for some clause type (formula/binary/long etc).
     StorageExhausted,
+    ///
+    UnitAfterChoice,
+    ImmediateConflict,
 }
 
 /// An error in the context.
