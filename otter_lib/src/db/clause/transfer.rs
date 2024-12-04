@@ -25,7 +25,7 @@ impl ClauseDB {
                 log::error!(target: targets::TRANSFER, "Attempt to transfer binary");
                 Err(err::ClauseDB::TransferBinary)
             }
-            ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
+            ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
                 let the_clause = self.get_mut(key)?;
                 the_clause.deactivate();
                 let copied_clause = the_clause.to_vec();
@@ -49,7 +49,7 @@ impl ClauseDB {
                         let delta = delta::ClauseDB::ClauseLiteral(*literal);
                         dispatch(Dispatch::Delta(Delta::ClauseDB(delta)));
                     }
-                    let delta = delta::ClauseDB::TransferBinary(key, b_key);
+                    let delta = delta::ClauseDB::Transfer(key, b_key);
                     dispatch(Dispatch::Delta(Delta::ClauseDB(delta)));
                 }
 
@@ -57,7 +57,7 @@ impl ClauseDB {
 
                 self.binary.push(binary_clause);
 
-                if matches!(key, ClauseKey::Learned(_, _)) {
+                if matches!(key, ClauseKey::Addition(_, _)) {
                     self.remove_from_learned(key.index())?;
                 }
 

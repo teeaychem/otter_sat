@@ -131,11 +131,11 @@ impl ResolutionBuffer {
     pub fn resolve_with(
         &mut self,
         conflict: ClauseKey,
-        levels: &LiteralDB,
+        literal_db: &LiteralDB,
         clause_db: &mut ClauseDB,
         variables: &mut VariableDB,
     ) -> Result<gen::RBuf, err::ResolutionBuffer> {
-        self.merge_clause(clause_db.get(conflict).expect("missing clause"));
+        self.merge_clause(clause_db.get_db_clause(conflict).expect("missing clause"));
 
         // Maybe the conflit clause was already asserting after the previous choice…
         if let Some(asserted_literal) = self.asserts() {
@@ -149,14 +149,14 @@ impl ResolutionBuffer {
         }
 
         // bump clause activity
-        if let ClauseKey::Learned(index, _) = conflict {
+        if let ClauseKey::Addition(index, _) = conflict {
             clause_db.bump_activity(index)
         };
 
-        'resolution_loop: for (source, literal) in levels.last_consequences().iter().rev() {
+        'resolution_loop: for (source, literal) in literal_db.last_consequences().iter().rev() {
             match source {
                 gen::src::Literal::BCP(the_key) => {
-                    let source_clause = match clause_db.get(*the_key) {
+                    let source_clause = match clause_db.get_db_clause(*the_key) {
                         Err(_) => {
                             log::error!(target: targets::RESOLUTION, "Lost resolution clause {the_key:?}");
                             return Err(err::ResolutionBuffer::LostClause);
@@ -191,7 +191,7 @@ impl ResolutionBuffer {
                                 ClauseKey::Binary(_) => {
                                     todo!("a formula is found which triggers this…");
                                 }
-                                ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
+                                ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
                                     let new_key =
                                         clause_db.subsume(*the_key, *literal, variables)?;
 
@@ -216,7 +216,7 @@ impl ResolutionBuffer {
                         }
                     }
 
-                    if let ClauseKey::Learned(index, _) = the_key {
+                    if let ClauseKey::Addition(index, _) = the_key {
                         clause_db.bump_activity(*index)
                     };
                 }

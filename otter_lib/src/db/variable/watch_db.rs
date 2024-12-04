@@ -51,7 +51,7 @@ impl WatchDB {
      */
     unsafe fn watch_removed(&self, key: ClauseKey, polarity: bool) -> Result<(), err::Watch> {
         match key {
-            ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
+            ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
                 let list = match polarity {
                     true => &mut *self.positive_long.get(),
                     false => &mut *self.negative_long.get(),

@@ -19,6 +19,7 @@ use crate::{
 };
 
 use super::Transcriber;
+type ResolutionSteps = Option<Vec<ClauseKey>>;
 
 /*
 Use by creating a listener for dispatches from a context and passing each dispatch to the transcriber.
@@ -32,7 +33,7 @@ A few decisions make this a little more delicate than it otherwise could be
 
 - On-the-fly self-subsumption
   + For formulas, specifically,  means it's important to record an origial formula before subsumption is applied
-    Rather than do anything complex this is addressed by writing the original formula at the start of a proof.
+  Rather than do anything complex this is addressed by writing the original formula at the start of a proof.
 
 - Variable renaming
   + … when mixed with 0 as a delimiter in the format requires (i think) translating a clause back to it's DIMACS representation
@@ -40,10 +41,10 @@ A few decisions make this a little more delicate than it otherwise could be
 
 - Multiple clause databases
   + Requires disambiguating indicies.
-    As there are no explicit limits on indicies in the FRAT document, simple ASCII prefixes are used
+  As there are no explicit limits on indicies in the FRAT document, simple ASCII prefixes are used
 
 - Proofs of literals
-  - And all the above also apply to when a literal is proven and so adding a clause is skipped completely
+- And all the above also apply to when a literal is proven and so adding a clause is skipped completely
  */
 
 impl Transcriber {
@@ -60,10 +61,10 @@ impl Transcriber {
 
     pub(super) fn key_id(key: &ClauseKey) -> String {
         match key {
-            ClauseKey::Unit(l) => format!("010{l}"),
-            ClauseKey::Formula(index) => format!("020{index}"),
+            ClauseKey::Unit(l) => format!("010{}", l.var()),
+            ClauseKey::Original(index) => format!("020{index}"),
             ClauseKey::Binary(index) => format!("030{index}"),
-            ClauseKey::Learned(index, _) => format!("040{index}"),
+            ClauseKey::Addition(index, _) => format!("040{index}"),
         }
     }
 
@@ -81,23 +82,17 @@ impl Transcriber {
     //! Functions to write a generate the string representation of an proof step.
     //!
     //! The name format is: \<*type of step*\>_\<*structure to which function applies*\>.
-
-    pub fn original_literal(literal: impl Borrow<Literal>, external: String) -> String {
-        let id_rep = Transcriber::literal_id(literal);
-        format!("o {id_rep} {external} 0\n")
-    }
-
     pub fn original_clause(key: &ClauseKey, external: String) -> String {
         let id_rep = Transcriber::key_id(key);
         format!("o {id_rep} {external} 0\n")
     }
 
     pub fn add_literal(
-        internal: impl Borrow<Literal>,
-        external: String,
-        steps: Option<Vec<ClauseKey>>,
+        literal: impl Borrow<Literal>,
+        name: String,
+        steps: ResolutionSteps,
     ) -> String {
-        let id_rep = Transcriber::literal_id(internal);
+        let id_rep = Transcriber::literal_id(literal);
         let resolution_rep = match steps {
             Some(sequence) => {
                 let resolution_rep = Transcriber::resolution_buffer_ids(sequence);
@@ -105,10 +100,10 @@ impl Transcriber {
             }
             None => String::new(),
         };
-        format!("a {id_rep} {external} {resolution_rep}0\n")
+        format!("a {id_rep} {name} {resolution_rep}0\n")
     }
 
-    pub fn add_clause(key: &ClauseKey, external: String, steps: Option<Vec<ClauseKey>>) -> String {
+    pub fn add_clause(key: &ClauseKey, external: String, steps: ResolutionSteps) -> String {
         let id_rep = Transcriber::key_id(key);
         let resolution_rep = match steps {
             Some(sequence) => {
@@ -194,15 +189,16 @@ impl Transcriber {
                                     self.clause_string(clause.clone()),
                                 ))
                             }
+                            report::ClauseDB::ActiveUnit(literal) => {
+                                self.step_buffer.push(Transcriber::finalise_literal(
+                                    literal,
+                                    self.literal_string(literal),
+                                ))
+                            }
                         }
                     }
-
-                    Report::LiteralDB(report) => match report {
-                        report::LiteralDB::Active(literal) => self.step_buffer.push(
-                            Transcriber::finalise_literal(literal, self.literal_string(literal)),
-                        ),
-                    },
-                    Report::Parser(_) | Report::Finish | Report::Solve(_) => {}
+                    Report::LiteralDB(_) | Report::Parser(_) | Report::Finish | Report::Solve(_) => {
+                    }
                 }
             }
 
@@ -263,55 +259,57 @@ impl Transcriber {
 
             ClauseLiteral(literal) => self.clause_buffer.push(*literal),
 
+            Original(key) => {
+                let step = match key {
+                    ClauseKey::Unit(literal) => {
+                        Transcriber::original_clause(key, self.literal_string(literal))
+                    }
+                    _ => {
+                        let clause = std::mem::take(&mut self.clause_buffer);
+                        Transcriber::original_clause(key, self.clause_string(clause))
+                    }
+                };
+                self.step_buffer.push(step);
+            }
+
+            Added(key) => {
+                let Some(steps) = self.resolution_queue.pop_front() else {
+                    return Err(err::FRAT::CorruptResolutionQ);
+                };
+                let step = match key {
+                    ClauseKey::Unit(lit) => {
+                        Transcriber::add_clause(key, self.literal_string(lit), Some(steps))
+                    }
+                    _ => {
+                        let the_clause = std::mem::take(&mut self.clause_buffer);
+                        Transcriber::add_clause(key, self.clause_string(the_clause), Some(steps))
+                    }
+                };
+                self.step_buffer.push(step);
+            }
+
+            BCP(key) => match key {
+                ClauseKey::Unit(literal) => {
+                    let step = Transcriber::add_clause(key, self.literal_string(literal), None);
+                    self.step_buffer.push(step);
+                }
+                _ => panic!("only unit clause keys from BCP"),
+            },
+
             Deletion(key) => {
                 let the_clause = std::mem::take(&mut self.clause_buffer);
                 let step = Transcriber::delete_clause(key, self.clause_string(the_clause));
                 self.step_buffer.push(step);
             }
 
-            Original(key) | BinaryOriginal(key) => {
-                let the_clause = std::mem::take(&mut self.clause_buffer);
-                let step = Transcriber::original_clause(key, self.clause_string(the_clause));
-                self.step_buffer.push(step);
-            }
-
-            Resolution(key) | BinaryResolution(key) => {
-                let the_clause = std::mem::take(&mut self.clause_buffer);
-                let Some(steps) = self.resolution_queue.pop_front() else {
-                    return Err(err::FRAT::CorruptResolutionQ);
-                };
-                let step =
-                    Transcriber::add_clause(key, self.clause_string(the_clause), Some(steps));
-                self.step_buffer.push(step);
-            }
-
-            TransferBinary(_from, _to) => return Err(err::FRAT::TransfersAreTodo),
+            Transfer(_from, _to) => return Err(err::FRAT::TransfersAreTodo),
         };
 
         Ok(())
     }
 
-    pub(super) fn literal_db_delta(&mut self, δ: &delta::LiteralDB) -> Result<(), err::FRAT> {
+    pub(super) fn literal_db_delta(&mut self, _δ: &delta::LiteralDB) -> Result<(), err::FRAT> {
         use delta::LiteralDB::*;
-        match δ {
-            Original(literal) => {
-                let step = Transcriber::original_literal(literal, self.literal_string(literal));
-                self.step_buffer.push(step);
-            }
-
-            ProofResolution(literal) => {
-                let Some(steps) = self.resolution_queue.pop_front() else {
-                    return Err(err::FRAT::CorruptResolutionQ);
-                };
-                let step =
-                    Transcriber::add_literal(literal, self.literal_string(literal), Some(steps));
-                self.step_buffer.push(step);
-            }
-            ProofBCP(literal) => {
-                let step = Transcriber::add_literal(literal, self.literal_string(literal), None);
-                self.step_buffer.push(step);
-            }
-        }
         Ok(())
     }
 

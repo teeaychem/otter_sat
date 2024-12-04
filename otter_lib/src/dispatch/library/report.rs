@@ -23,6 +23,7 @@ pub enum Solve {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ClauseDB {
     Active(ClauseKey, Clause),
+    ActiveUnit(Literal),
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -34,9 +35,7 @@ pub enum Parser {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub enum LiteralDB {
-    Active(Literal),
-}
+pub enum LiteralDB {}
 
 impl std::fmt::Display for self::Solve {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

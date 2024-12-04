@@ -110,7 +110,7 @@ impl dbClause {
 
                 variables.add_watch(literal, WatchElement::Binary(check_literal, self.key()));
             },
-            ClauseKey::Formula(_) | ClauseKey::Learned(_, _) => {
+            ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
                 unsafe { variables.add_watch(literal, WatchElement::Clause(self.key())) };
             }
         }

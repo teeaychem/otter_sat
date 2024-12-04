@@ -93,7 +93,7 @@ impl ClauseDB {
         if self.counts.formula == FormulaIndex::MAX {
             return Err(err::ClauseDB::StorageExhausted);
         }
-        let key = ClauseKey::Formula(self.counts.formula);
+        let key = ClauseKey::Original(self.counts.formula);
         self.counts.formula += 1;
         Ok(key)
     }
@@ -111,7 +111,7 @@ impl ClauseDB {
         if self.learned.len() == FormulaIndex::MAX as usize {
             return Err(err::ClauseDB::StorageExhausted);
         }
-        let key = ClauseKey::Learned(self.learned.len() as FormulaIndex, 0);
+        let key = ClauseKey::Addition(self.learned.len() as FormulaIndex, 0);
         Ok(key)
     }
 }
@@ -131,15 +131,15 @@ impl ClauseDB {
     //     }
     // }
 
-    pub fn get(&self, key: ClauseKey) -> Result<&impl ClauseT, err::ClauseDB> {
+    pub fn get_db_clause(&self, key: ClauseKey) -> Result<&dbClause, err::ClauseDB> {
         match key {
             ClauseKey::Unit(_) => Err(err::ClauseDB::GetUnitKey),
-            ClauseKey::Formula(index) => unsafe { Ok(self.formula.get_unchecked(index as usize)) },
+            ClauseKey::Original(index) => unsafe { Ok(self.formula.get_unchecked(index as usize)) },
             ClauseKey::Binary(index) => unsafe { Ok(self.binary.get_unchecked(index as usize)) },
-            ClauseKey::Learned(index, token) => unsafe {
+            ClauseKey::Addition(index, token) => unsafe {
                 match self.learned.get_unchecked(index as usize) {
                     Some(clause) => match clause.key() {
-                        ClauseKey::Learned(_, clause_token) if clause_token == token => Ok(clause),
+                        ClauseKey::Addition(_, clause_token) if clause_token == token => Ok(clause),
                         _ => Err(err::ClauseDB::InvalidKeyToken),
                     },
                     None => Err(err::ClauseDB::InvalidKeyIndex),
@@ -148,14 +148,14 @@ impl ClauseDB {
         }
     }
 
-    pub fn get_carefully_mut(&mut self, key: ClauseKey) -> Option<&mut dbClause> {
+    pub fn get_db_clause_carefully_mut(&mut self, key: ClauseKey) -> Option<&mut dbClause> {
         match key {
-            ClauseKey::Unit(l) => None,
-            ClauseKey::Formula(index) => self.formula.get_mut(index as usize),
+            ClauseKey::Unit(_) => None,
+            ClauseKey::Original(index) => self.formula.get_mut(index as usize),
             ClauseKey::Binary(index) => self.binary.get_mut(index as usize),
-            ClauseKey::Learned(index, token) => match self.learned.get_mut(index as usize) {
+            ClauseKey::Addition(index, token) => match self.learned.get_mut(index as usize) {
                 Some(Some(clause)) => match clause.key() {
-                    ClauseKey::Learned(_, clause_token) if clause_token == token => Some(clause),
+                    ClauseKey::Addition(_, clause_token) if clause_token == token => Some(clause),
                     _ => None,
                 },
                 _ => None,
@@ -166,16 +166,16 @@ impl ClauseDB {
     fn get_mut(&mut self, key: ClauseKey) -> Result<&mut dbClause, err::ClauseDB> {
         match key {
             ClauseKey::Unit(_) => Err(err::ClauseDB::GetUnitKey),
-            ClauseKey::Formula(index) => unsafe {
+            ClauseKey::Original(index) => unsafe {
                 Ok(self.formula.get_unchecked_mut(index as usize))
             },
             ClauseKey::Binary(index) => unsafe {
                 Ok(self.binary.get_unchecked_mut(index as usize))
             },
-            ClauseKey::Learned(index, token) => unsafe {
+            ClauseKey::Addition(index, token) => unsafe {
                 match self.learned.get_unchecked_mut(index as usize) {
                     Some(clause) => match clause.key() {
-                        ClauseKey::Learned(_, clause_token) if clause_token == token => Ok(clause),
+                        ClauseKey::Addition(_, clause_token) if clause_token == token => Ok(clause),
                         _ => Err(err::ClauseDB::InvalidKeyToken),
                     },
                     None => Err(err::ClauseDB::InvalidKeyIndex),
@@ -188,10 +188,10 @@ impl ClauseDB {
 impl ClauseDB {
     pub fn note_use(&mut self, key: ClauseKey) {
         match key {
-            ClauseKey::Learned(index, _) => {
+            ClauseKey::Addition(index, _) => {
                 self.activity_heap.remove(index as usize);
             }
-            ClauseKey::Unit(_) | ClauseKey::Binary(_) | ClauseKey::Formula(_) => {}
+            ClauseKey::Unit(_) | ClauseKey::Binary(_) | ClauseKey::Original(_) => {}
         }
     }
 
@@ -216,29 +216,14 @@ impl ClauseDB {
             0 => Err(err::ClauseDB::EmptyClause),
 
             1 => {
-                let the_literal = clause.literals().next().expect("condition already checked");
-                self.unit.push(*the_literal);
-                Ok(ClauseKey::Unit(*the_literal))
+                let the_literal = unsafe { *clause.literals().next().unwrap_unchecked() };
+
+                self.unit.push(the_literal);
+                Ok(ClauseKey::Unit(the_literal))
             }
 
             2 => {
                 let key = self.new_binary_id()?;
-
-                if let Some(dispatcher) = &self.dispatcher {
-                    let delta = delta::ClauseDB::ClauseStart;
-                    dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                    for literal in clause.literals() {
-                        let delta = delta::ClauseDB::ClauseLiteral(*literal);
-                        dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                    }
-                    let delta = {
-                        match source {
-                            gen::src::Clause::Original => delta::ClauseDB::BinaryOriginal(key),
-                            gen::src::Clause::Resolution => delta::ClauseDB::BinaryResolution(key),
-                        }
-                    };
-                    dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                }
 
                 self.binary
                     .push(dbClause::from(key, clause.transform_to_vec(), variables));
@@ -248,25 +233,11 @@ impl ClauseDB {
 
             _ => match source {
                 gen::src::Clause::Original => {
-                    let the_key = self.new_formula_id()?;
+                    let key = self.new_formula_id()?;
+                    let stored_form = dbClause::from(key, clause.transform_to_vec(), variables);
 
-                    if let Some(dispatcher) = &self.dispatcher {
-                        let delta = delta::ClauseDB::ClauseStart;
-                        dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                        for literal in clause.literals() {
-                            let delta = delta::ClauseDB::ClauseLiteral(*literal);
-                            dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                        }
-                        let delta = delta::ClauseDB::Original(the_key);
-                        dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                    }
-
-                    self.formula.push(dbClause::from(
-                        the_key,
-                        clause.transform_to_vec(),
-                        variables,
-                    ));
-                    Ok(the_key)
+                    self.formula.push(stored_form);
+                    Ok(key)
                 }
 
                 gen::src::Clause::Resolution => {
@@ -278,31 +249,20 @@ impl ClauseDB {
                         _ => self.empty_keys.pop().unwrap().retoken()?,
                     };
 
-                    if let Some(dispatcher) = &self.dispatcher {
-                        let delta = delta::ClauseDB::ClauseStart;
-                        dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                        for literal in clause.literals() {
-                            let delta = delta::ClauseDB::ClauseLiteral(*literal);
-                            dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                        }
-                        let delta = delta::ClauseDB::Resolution(the_key);
-                        dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                    }
-
-                    let the_clause = dbClause::from(the_key, clause.transform_to_vec(), variables);
+                    let stored_form = dbClause::from(the_key, clause.transform_to_vec(), variables);
 
                     let value = ActivityGlue {
                         activity: 1.0,
-                        lbd: the_clause.lbd(variables),
+                        lbd: stored_form.lbd(variables),
                     };
 
                     self.activity_heap.add(the_key.index(), value);
                     self.activity_heap.activate(the_key.index());
 
                     match the_key {
-                        ClauseKey::Learned(_, 0) => self.learned.push(Some(the_clause)),
-                        ClauseKey::Learned(_, _) => unsafe {
-                            *self.learned.get_unchecked_mut(the_key.index()) = Some(the_clause)
+                        ClauseKey::Addition(_, 0) => self.learned.push(Some(stored_form)),
+                        ClauseKey::Addition(_, _) => unsafe {
+                            *self.learned.get_unchecked_mut(the_key.index()) = Some(stored_form)
                         },
                         _ => panic!("not possible"),
                     };
@@ -437,8 +397,8 @@ impl ClauseDB {
                 }
             }
             for literal in self.all_unit_clauses() {
-                let report = report::LiteralDB::Active(*literal);
-                dispatcher(Dispatch::Report(report::Report::LiteralDB(report)));
+                let report = report::ClauseDB::ActiveUnit(*literal);
+                dispatcher(Dispatch::Report(report::Report::ClauseDB(report)));
             }
         }
     }
@@ -459,7 +419,7 @@ impl ClauseDB {
         literal: Literal,
         variable_db: &mut VariableDB,
     ) -> Result<ClauseKey, err::ResolutionBuffer> {
-        let the_clause = self.get_carefully_mut(key).unwrap();
+        let the_clause = self.get_db_clause_carefully_mut(key).unwrap();
         match the_clause.len() {
             0..=2 => panic!("impossible"),
             3 => {

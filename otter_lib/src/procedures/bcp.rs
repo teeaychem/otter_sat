@@ -87,7 +87,7 @@ impl Context {
             TODO: From the FRAT paper neither MiniSAT nor CaDiCaL store clause identifiers
             So, there may be some way to avoid this… unless there's a NULLPTR check or…
              */
-            let clause = match self.clause_db.get_carefully_mut(*clause_key) {
+            let clause = match self.clause_db.get_db_clause_carefully_mut(*clause_key) {
                 Some(stored_clause) => stored_clause,
                 None => {
                     list.swap_remove(index);

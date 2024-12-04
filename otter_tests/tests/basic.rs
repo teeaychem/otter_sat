@@ -46,7 +46,7 @@ mod basic {
 
         let not_p = the_context.literal_from_string("-p").expect("oh");
 
-        assert!(the_context.add_literal(not_p).is_ok());
+        assert!(the_context.add_clause(not_p).is_ok());
         assert!(the_context.solve().is_ok());
         assert_eq!(the_context.report(), report::Solve::Satisfiable);
 

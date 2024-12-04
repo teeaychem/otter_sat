@@ -5,53 +5,48 @@ use crate::{
 
 #[derive(Clone)]
 pub enum Delta {
+    BCP(self::BCP),
     ClauseDB(self::ClauseDB),
     LiteralDB(self::LiteralDB),
     Resolution(self::Resolution),
     VariableDB(self::VariableDB),
-    BCP(self::BCP),
 }
 
 #[derive(Clone)]
 pub enum BCP {
-    Instance { via: ClauseKey, to: Literal },
     Conflict { from: Literal, via: ClauseKey },
+    Instance { via: ClauseKey, to: Literal },
 }
 
 #[derive(Clone)]
 pub enum ClauseBuider {
-    Start,
+    End,
     Index(u32),
     Literal(Literal),
-    End,
+    Start,
 }
 
 #[derive(Clone)]
 pub enum Resolution {
     Begin,
     End,
-    Used(ClauseKey),
     Subsumed(ClauseKey, Literal),
+    Used(ClauseKey),
 }
 
 #[derive(Clone)]
 pub enum ClauseDB {
-    ClauseStart,
+    Added(ClauseKey),
+    BCP(ClauseKey),
     ClauseLiteral(Literal),
-    TransferBinary(ClauseKey, ClauseKey),
+    ClauseStart,
     Deletion(ClauseKey),
-    BinaryOriginal(ClauseKey),
-    BinaryResolution(ClauseKey),
+    Transfer(ClauseKey, ClauseKey),
     Original(ClauseKey),
-    Resolution(ClauseKey),
 }
 
 #[derive(Debug, Clone)]
-pub enum LiteralDB {
-    Original(Literal),
-    ProofResolution(Literal),
-    ProofBCP(Literal),
-}
+pub enum LiteralDB {}
 
 #[derive(Clone)]
 pub enum VariableDB {
