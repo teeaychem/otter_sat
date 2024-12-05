@@ -7,9 +7,9 @@ use crate::{
         Dispatch,
     },
     structures::{
-        clause::{Clause, ClauseT},
-        literal::{Literal, LiteralT},
-        variable::Variable,
+        atom::Atom,
+        clause::{vClause, Clause},
+        literal::{vbLiteral, Literal},
     },
     types::{
         err::{self},
@@ -21,19 +21,19 @@ use std::{borrow::Borrow, io::BufRead, prelude};
 
 /// Methods for building the context.
 impl Context {
-    pub fn variable_from_string(&mut self, name: &str) -> Result<Variable, err::Parse> {
-        match self.variable_db.variable_representation(name) {
-            Some(variable) => Ok(variable),
+    pub fn atom_from_string(&mut self, name: &str) -> Result<Atom, err::Parse> {
+        match self.atom_db.atom_representation(name) {
+            Some(atom) => Ok(atom),
             None => {
-                let the_id = self.variable_db.count() as Variable;
-                self.variable_db
-                    .fresh_variable(name, self.counters.rng.gen_bool(self.config.polarity_lean));
+                let the_id = self.atom_db.count() as Atom;
+                self.atom_db
+                    .fresh_atom(name, self.counters.rng.gen_bool(self.config.polarity_lean));
                 Ok(the_id)
             }
         }
     }
 
-    pub fn literal_from_string(&mut self, string: &str) -> Result<Literal, err::Parse> {
+    pub fn literal_from_string(&mut self, string: &str) -> Result<vbLiteral, err::Parse> {
         let trimmed_string = string.trim();
         if trimmed_string.is_empty() || trimmed_string == "-" {
             return Err(err::Parse::Negation);
@@ -46,11 +46,11 @@ impl Context {
             the_name = &the_name[1..];
         }
 
-        let the_variable = { self.variable_from_string(the_name).unwrap() };
-        Ok(Literal::new(the_variable, polarity))
+        let the_atom = { self.atom_from_string(the_name).unwrap() };
+        Ok(vbLiteral::new(the_atom, polarity))
     }
 
-    pub fn clause_from_string(&mut self, string: &str) -> Result<Clause, err::Build> {
+    pub fn clause_from_string(&mut self, string: &str) -> Result<vClause, err::Build> {
         let string_lterals = string.split_whitespace();
         let mut the_clause = vec![];
         for string_literal in string_lterals {
@@ -65,7 +65,7 @@ impl Context {
         Ok(the_clause)
     }
 
-    fn preprocess_clause(&self, clause: &mut Clause) -> Result<(), err::Build> {
+    fn preprocess_clause(&self, clause: &mut vClause) -> Result<(), err::Build> {
         let mut index = 0;
         let mut max = clause.len();
         loop {
@@ -100,7 +100,7 @@ impl Context {
     /// - Clauses with two or more literals go to the clause database.
     ///
     /// This handles the variations.
-    pub fn add_clause(&mut self, clause: impl ClauseT) -> Result<(), err::Build> {
+    pub fn add_clause(&mut self, clause: impl Clause) -> Result<(), err::Build> {
         if clause.size() == 0 {
             return Err(err::Build::ClauseDB(err::ClauseDB::EmptyClause));
         }
@@ -115,7 +115,7 @@ impl Context {
                 if self.literal_db.choice_made() {
                     return Err(err::Build::ClauseDB(err::ClauseDB::UnitAfterChoice));
                 }
-                match self.variable_db.value_of(literal.var()) {
+                match self.atom_db.value_of(literal.var()) {
                     None => {
                         let Ok(gen::Queue::Qd) = self.q_literal(literal.borrow()) else {
                             return Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict));
@@ -166,7 +166,7 @@ impl Context {
         //
 
         let mut buffer = String::with_capacity(1024);
-        let mut clause_buffer: Clause = Vec::default();
+        let mut clause_buffer: vClause = Vec::default();
 
         let mut line_counter = 0;
         let mut clause_counter = 0;
@@ -187,7 +187,7 @@ impl Context {
 
                 Some('p') => {
                     let mut problem_details = buffer.split_whitespace();
-                    let variable_count: usize = match problem_details.nth(2) {
+                    let atom_count: usize = match problem_details.nth(2) {
                         None => return Err(err::Build::Parse(err::Parse::ProblemSpecification)),
                         Some(string) => match string.parse() {
                             Err(_) => {
@@ -210,7 +210,7 @@ impl Context {
                     buffer.clear();
 
                     if let Some(dispatcher) = &self.dispatcher {
-                        let expectation = report::Parser::Expected(variable_count, clause_count);
+                        let expectation = report::Parser::Expected(atom_count, clause_count);
                         dispatcher(Dispatch::Report(Report::Parser(expectation)));
                     }
                     break;
@@ -264,7 +264,7 @@ impl Context {
         }
 
         if let Some(dispatcher) = &self.dispatcher {
-            let counts = report::Parser::Counts(self.variable_db.count(), clause_counter);
+            let counts = report::Parser::Counts(self.atom_db.count(), clause_counter);
             dispatcher(Dispatch::Report(Report::Parser(counts)));
             let report_clauses = report::Parser::ContextClauses(self.clause_db.clause_count());
             dispatcher(Dispatch::Report(Report::Parser(report_clauses)));

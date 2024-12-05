@@ -5,8 +5,8 @@ pub mod watch_db;
 use std::rc::Rc;
 
 use crate::{
-    config::{dbs::VariableDBConfig, Activity, Config},
-    db::{keys::ChoiceIndex, variable::watch_db::WatchDB},
+    config::{dbs::AtomDBConfig, Activity, Config},
+    db::{atom::watch_db::WatchDB, keys::ChoiceIndex},
     dispatch::{
         library::delta::{self},
         Dispatch,
@@ -14,16 +14,16 @@ use crate::{
     generic::heap::IndexHeap,
     misc::log::targets::{self},
     structures::{
+        atom::Atom,
         valuation::{Valuation, ValuationV},
-        variable::Variable,
     },
     types::gen::{self},
 };
 
-pub struct VariableDB {
+pub struct AtomDB {
     watch_dbs: Vec<WatchDB>,
 
-    internal_map: std::collections::HashMap<String, Variable>,
+    internal_map: std::collections::HashMap<String, Atom>,
     external_map: Vec<String>,
 
     activity_heap: IndexHeap<Activity>,
@@ -33,12 +33,12 @@ pub struct VariableDB {
     choice_indicies: Vec<Option<ChoiceIndex>>,
 
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
-    config: VariableDBConfig,
+    config: AtomDBConfig,
 }
 
-impl VariableDB {
+impl AtomDB {
     pub fn new(config: &Config, dispatcher: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
-        VariableDB {
+        AtomDB {
             external_map: Vec::<String>::default(),
             internal_map: std::collections::HashMap::default(),
 
@@ -51,7 +51,7 @@ impl VariableDB {
             choice_indicies: Vec::default(),
 
             dispatcher,
-            config: config.variable_db.clone(),
+            config: config.atom_db.clone(),
         }
     }
 
@@ -65,22 +65,22 @@ impl VariableDB {
     }
 }
 
-impl VariableDB {
-    pub fn variable_representation(&self, name: &str) -> Option<Variable> {
+impl AtomDB {
+    pub fn atom_representation(&self, name: &str) -> Option<Atom> {
         self.internal_map.get(name).copied()
     }
 
-    pub fn external_representation(&self, index: Variable) -> &String {
+    pub fn external_representation(&self, index: Atom) -> &String {
         &self.external_map[index as usize]
     }
 
-    pub fn fresh_variable(&mut self, name: &str, previous_value: bool) -> Variable {
-        let the_variable = self.watch_dbs.len() as Variable;
+    pub fn fresh_atom(&mut self, name: &str, previous_value: bool) -> Atom {
+        let the_atoms = self.watch_dbs.len() as Atom;
 
-        self.internal_map.insert(name.to_string(), the_variable);
+        self.internal_map.insert(name.to_string(), the_atoms);
         self.external_map.push(name.to_string());
 
-        self.activity_heap.add(the_variable as usize, 1.0);
+        self.activity_heap.add(the_atoms as usize, 1.0);
         // self.activity_heap.activate(id as usize);
 
         self.watch_dbs.push(WatchDB::new());
@@ -89,24 +89,24 @@ impl VariableDB {
         self.choice_indicies.push(None);
 
         if let Some(dispatcher) = &self.dispatcher {
-            let delta_rep = delta::VariableDB::ExternalRepresentation(name.to_string());
-            dispatcher(Dispatch::Delta(delta::Delta::VariableDB(delta_rep)));
-            let delta = delta::VariableDB::Internalised(the_variable);
-            dispatcher(Dispatch::Delta(delta::Delta::VariableDB(delta)));
+            let delta_rep = delta::AtomDB::ExternalRepresentation(name.to_string());
+            dispatcher(Dispatch::Delta(delta::Delta::AtomDB(delta_rep)));
+            let delta = delta::AtomDB::Internalised(the_atoms);
+            dispatcher(Dispatch::Delta(delta::Delta::AtomDB(delta)));
         }
 
-        the_variable
+        the_atoms
     }
 }
 
-impl VariableDB {
-    pub fn choice_index_of(&self, v_idx: Variable) -> Option<ChoiceIndex> {
+impl AtomDB {
+    pub fn choice_index_of(&self, v_idx: Atom) -> Option<ChoiceIndex> {
         unsafe { *self.choice_indicies.get_unchecked(v_idx as usize) }
     }
 
     pub fn set_value(
         &mut self,
-        v_idx: Variable,
+        v_idx: Atom,
         polarity: bool,
         level: Option<ChoiceIndex>,
     ) -> Result<gen::Value, gen::Value> {
@@ -121,7 +121,7 @@ impl VariableDB {
         }
     }
 
-    pub fn drop_value(&mut self, index: Variable) {
+    pub fn drop_value(&mut self, index: Atom) {
         log::trace!(target: targets::VALUATION, "Cleared: {index}");
         self.clear_value(index);
         self.activity_heap.activate(index as usize);

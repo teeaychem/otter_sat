@@ -1,10 +1,10 @@
 //! Bases for holding data relevant to a solve.
 
+pub mod atom;
 pub mod clause;
 pub mod consequence_q;
 pub mod keys;
 pub mod literal;
-pub mod variable;
 
 use std::borrow::Borrow;
 
@@ -17,14 +17,14 @@ use crate::{
         Dispatch,
     },
     structures::{
-        clause::{Clause, ClauseT},
-        literal::Literal,
+        clause::{vClause, Clause},
+        literal::vbLiteral,
     },
     types::{err, gen},
 };
 
 impl Context {
-    pub fn record_literal(&mut self, literal: impl Borrow<Literal>, source: gen::src::Literal) {
+    pub fn record_literal(&mut self, literal: impl Borrow<vbLiteral>, source: gen::src::Literal) {
         match source {
             gen::src::Literal::Choice => {}
 
@@ -50,12 +50,10 @@ impl Context {
     /// Dispatches regarding the clause are made here.
     pub fn record_clause(
         &mut self,
-        clause: impl ClauseT,
+        clause: impl Clause,
         source: gen::src::Clause,
     ) -> Result<ClauseKey, err::ClauseDB> {
-        let the_key = self
-            .clause_db
-            .store(clause, source, &mut self.variable_db)?;
+        let the_key = self.clause_db.store(clause, source, &mut self.atom_db)?;
 
         if let Some(dispatcher) = &self.dispatcher {
             match the_key {
@@ -88,9 +86,7 @@ impl Context {
                                     gen::src::Clause::Original => {
                                         delta::ClauseDB::Original(the_key)
                                     }
-                                    gen::src::Clause::Resolution => {
-                                        delta::ClauseDB::Added(the_key)
-                                    }
+                                    gen::src::Clause::Resolution => delta::ClauseDB::Added(the_key),
                                 }
                             };
                             dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));

@@ -2,9 +2,9 @@ use crate::{
     context::Context,
     misc::log::targets::{self},
     structures::{
-        clause::ClauseT,
-        literal::{Literal, LiteralT},
-        variable::Variable,
+        atom::Atom,
+        clause::Clause,
+        literal::{vbLiteral, Literal},
     },
     types::{
         err::{self},
@@ -16,10 +16,10 @@ use std::collections::BTreeSet;
 
 // General order for pairs related to booleans is 0 is false, 1 is true
 pub fn pure_choices<'l>(
-    clauses: impl Iterator<Item = impl Iterator<Item = &'l Literal>>,
-) -> (Vec<Variable>, Vec<Variable>) {
-    let mut the_true: BTreeSet<Variable> = BTreeSet::new();
-    let mut the_false: BTreeSet<Variable> = BTreeSet::new();
+    clauses: impl Iterator<Item = impl Iterator<Item = &'l vbLiteral>>,
+) -> (Vec<Atom>, Vec<Atom>) {
+    let mut the_true: BTreeSet<Atom> = BTreeSet::new();
+    let mut the_false: BTreeSet<Atom> = BTreeSet::new();
 
     clauses.for_each(|literals| {
         for literal in literals {
@@ -57,7 +57,7 @@ impl Context {
         );
 
         for v_id in f.into_iter().chain(t) {
-            let the_literal = Literal::new(v_id, false);
+            let the_literal = vbLiteral::new(v_id, false);
             match self.q_literal(the_literal) {
                 Ok(gen::Queue::Qd) => {
                     self.record_literal(the_literal, gen::src::Literal::Choice);

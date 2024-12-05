@@ -3,7 +3,7 @@ use crate::{
     context::Context,
     db::keys::ClauseKey,
     misc::log::targets::{self},
-    structures::clause::ClauseT,
+    structures::clause::Clause,
     transient::resolution_buffer::ResolutionBuffer,
     types::{
         err::{self},
@@ -16,15 +16,12 @@ impl Context {
         log::trace!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.choice_count());
 
         if let config::VSIDS::Chaff = self.config.vsids_variant {
-            self.variable_db
-                .apply_VSIDS(self.clause_db.get_db_clause(key)?.variables());
+            self.atom_db
+                .apply_VSIDS(self.clause_db.get_db_clause(key)?.atoms());
         }
 
-        let mut the_buffer = ResolutionBuffer::from_variable_store(
-            &self.variable_db,
-            self.dispatcher.clone(),
-            &self.config,
-        );
+        let mut the_buffer =
+            ResolutionBuffer::from_atom_db(&self.atom_db, self.dispatcher.clone(), &self.config);
 
         the_buffer.clear_literal(self.literal_db.last_choice());
         for (_, lit) in self.literal_db.last_consequences() {
@@ -35,7 +32,7 @@ impl Context {
             key,
             &self.literal_db,
             &mut self.clause_db,
-            &mut self.variable_db,
+            &mut self.atom_db,
         ) {
             Ok(gen::RBuf::Proof) | Ok(gen::RBuf::FirstUIP) => {}
             Ok(gen::RBuf::Exhausted) => {
@@ -53,7 +50,7 @@ impl Context {
         }
 
         if let config::VSIDS::MiniSAT = self.config.vsids_variant {
-            self.variable_db.apply_VSIDS(the_buffer.variables_used());
+            self.atom_db.apply_VSIDS(the_buffer.atoms_used());
         }
 
         /*

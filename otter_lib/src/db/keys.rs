@@ -1,6 +1,6 @@
 use crate::{
     misc::log::targets::{self},
-    structures::literal::{Literal, LiteralT},
+    structures::literal::{vbLiteral, Literal},
     types::err::{self},
 };
 
@@ -10,7 +10,7 @@ pub type FormulaToken = u16;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ClauseKey {
-    Unit(Literal),
+    Unit(vbLiteral),
     Original(FormulaIndex),
     Binary(FormulaIndex),
     Addition(FormulaIndex, FormulaToken),

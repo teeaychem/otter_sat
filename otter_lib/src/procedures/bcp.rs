@@ -2,13 +2,13 @@ use std::borrow::Borrow;
 
 use crate::{
     context::Context,
-    db::{clause::ClauseKind, variable::watch_db::WatchElement},
+    db::{atom::watch_db::WatchElement, clause::ClauseKind},
     dispatch::{
         library::delta::{self, Delta},
         Dispatch,
     },
     misc::log::targets::{self},
-    structures::literal::{Literal, LiteralT},
+    structures::literal::{vbLiteral, Literal},
     types::{
         err::{self},
         gen::{self},
@@ -21,13 +21,12 @@ impl Context {
     /// Mutable access to distinct literals.
     /// Work through two lists, which *from the perspective of the compiler* could contain the same literal.
     /// However, this will never be the case
-    pub unsafe fn bcp(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::BCP> {
+    pub unsafe fn bcp(&mut self, literal: impl Borrow<vbLiteral>) -> Result<(), err::BCP> {
         let literal = literal.borrow();
-        let binary_list = &mut *self.variable_db.watch_list(
-            literal.var(),
-            ClauseKind::Binary,
-            !literal.polarity(),
-        );
+        let binary_list =
+            &mut *self
+                .atom_db
+                .watch_list(literal.var(), ClauseKind::Binary, !literal.polarity());
 
         for element in binary_list {
             let WatchElement::Binary(check, clause_key) = element else {
@@ -35,7 +34,7 @@ impl Context {
                 return Err(err::BCP::CorruptWatch);
             };
 
-            match self.variable_db.value_of(check.var()) {
+            match self.atom_db.value_of(check.var()) {
                 None => match self.q_literal(*check) {
                     Ok(gen::Queue::Qd) => {
                         if let Some(dispatcher) = &self.dispatcher {
@@ -71,7 +70,7 @@ impl Context {
 
         let list =
             &mut *self
-                .variable_db
+                .atom_db
                 .watch_list(literal.var(), ClauseKind::Long, !literal.polarity());
 
         let mut index = 0;
@@ -96,7 +95,7 @@ impl Context {
                 }
             };
 
-            match clause.update_watch(literal, &mut self.variable_db) {
+            match clause.update_watch(literal, &mut self.atom_db) {
                 Ok(gen::Watch::Witness) | Ok(gen::Watch::None) => {
                     list.swap_remove(index);
                     length -= 1;
@@ -109,7 +108,7 @@ impl Context {
                 Err(()) => {
                     let the_watch = *clause.get_unchecked(0);
                     // assert_ne!(the_watch.index(), literal.index());
-                    let watch_value = self.variable_db.value_of(the_watch.var());
+                    let watch_value = self.atom_db.value_of(the_watch.var());
                     match watch_value {
                         Some(value) if the_watch.polarity() != value => {
                             self.clause_db.note_use(*clause_key);

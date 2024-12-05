@@ -1,12 +1,12 @@
 use crate::{
     db::{
+        atom::{watch_db::WatchElement, AtomDB},
         keys::ClauseKey,
-        variable::{watch_db::WatchElement, VariableDB},
     },
     misc::log::targets::{self},
     structures::{
-        clause::{Clause, ClauseT},
-        literal::{Literal, LiteralT},
+        clause::{vClause, Clause},
+        literal::{vbLiteral, Literal},
     },
     types::gen::{self},
 };
@@ -17,13 +17,13 @@ use std::{borrow::Borrow, ops::Deref};
 #[allow(non_camel_case_types)]
 pub struct dbClause {
     key: ClauseKey,
-    clause: Clause,
+    clause: vClause,
     active: bool,
     last: usize,
 }
 
 impl dbClause {
-    pub fn from(key: ClauseKey, clause: Clause, variables: &mut VariableDB) -> Self {
+    pub fn from(key: ClauseKey, clause: vClause, atoms: &mut AtomDB) -> Self {
         let mut stored_clause = Self {
             key,
             clause,
@@ -31,7 +31,7 @@ impl dbClause {
             last: 0,
         };
 
-        stored_clause.initialise_watches(variables);
+        stored_clause.initialise_watches(atoms);
 
         stored_clause
     }
@@ -52,7 +52,7 @@ impl dbClause {
 // Watches
 
 impl dbClause {
-    fn initialise_watches(&mut self, variables: &mut VariableDB) {
+    fn initialise_watches(&mut self, atoms: &mut AtomDB) {
         let clause_length = self.clause.len() - 1;
 
         let mut index = 0;
@@ -62,7 +62,7 @@ impl dbClause {
             }
 
             let literal = unsafe { self.clause.get_unchecked(index) };
-            let literal_value = variables.value_of(literal.var());
+            let literal_value = atoms.value_of(literal.var());
             match literal_value {
                 None => break index,
                 Some(value) if value == literal.polarity() => break index,
@@ -75,7 +75,7 @@ impl dbClause {
         self.last = 1;
         for index in 1..clause_length {
             let index_literal = unsafe { self.clause.get_unchecked(index) };
-            let index_value = variables.value_of(index_literal.var());
+            let index_value = atoms.value_of(index_literal.var());
             match index_value {
                 None => {
                     self.last = index;
@@ -90,12 +90,12 @@ impl dbClause {
         }
 
         unsafe {
-            self.note_watch(self.clause.get_unchecked(0), variables);
-            self.note_watch(self.clause.get_unchecked(self.last), variables);
+            self.note_watch(self.clause.get_unchecked(0), atoms);
+            self.note_watch(self.clause.get_unchecked(self.last), atoms);
         }
     }
 
-    fn note_watch(&self, literal: impl Borrow<Literal>, variables: &mut VariableDB) {
+    fn note_watch(&self, literal: impl Borrow<vbLiteral>, atoms: &mut AtomDB) {
         let literal = literal.borrow();
         match self.key {
             ClauseKey::Unit(_) => {
@@ -108,10 +108,10 @@ impl dbClause {
                     *self.clause.get_unchecked(0)
                 };
 
-                variables.add_watch(literal, WatchElement::Binary(check_literal, self.key()));
+                atoms.add_watch(literal, WatchElement::Binary(check_literal, self.key()));
             },
             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
-                unsafe { variables.add_watch(literal, WatchElement::Clause(self.key())) };
+                unsafe { atoms.add_watch(literal, WatchElement::Clause(self.key())) };
             }
         }
     }
@@ -120,8 +120,8 @@ impl dbClause {
     #[allow(clippy::result_unit_err)]
     pub fn update_watch(
         &mut self,
-        literal: impl Borrow<Literal>,
-        variables: &mut VariableDB,
+        literal: impl Borrow<vbLiteral>,
+        atoms: &mut AtomDB,
     ) -> Result<gen::Watch, ()> {
         /*
         This will, logic issues aside, only be called on long formulas
@@ -149,13 +149,13 @@ impl dbClause {
                 return Err(());
             }
             let last_literal = unsafe { self.clause.get_unchecked(self.last) };
-            match variables.value_of(last_literal.var()) {
+            match atoms.value_of(last_literal.var()) {
                 None => {
-                    self.note_watch(*last_literal, variables);
+                    self.note_watch(*last_literal, atoms);
                     return Ok(gen::Watch::None);
                 }
                 Some(value) if value == last_literal.polarity() => {
-                    self.note_watch(*last_literal, variables);
+                    self.note_watch(*last_literal, atoms);
                     return Ok(gen::Watch::Witness);
                 }
                 Some(_) => {}
@@ -189,8 +189,8 @@ impl dbClause {
      */
     pub fn subsume(
         &mut self,
-        literal: impl Borrow<Literal>,
-        variable_db: &mut VariableDB,
+        literal: impl Borrow<vbLiteral>,
+        atom_db: &mut AtomDB,
         fix_watch: bool,
     ) -> Result<usize, SubsumptionError> {
         if self.clause.len() < 3 {
@@ -218,7 +218,7 @@ impl dbClause {
 
         let removed = self.clause.swap_remove(position);
 
-        match unsafe { variable_db.remove_watch(removed, self.key) } {
+        match unsafe { atom_db.remove_watch(removed, self.key) } {
             Ok(()) => {}
             Err(_) => return Err(SubsumptionError::WatchError),
         };
@@ -228,7 +228,7 @@ impl dbClause {
             self.last = 1;
             for index in 1..clause_length {
                 let index_literal = unsafe { self.clause.get_unchecked(index) };
-                let index_value = variable_db.value_of(index_literal.var());
+                let index_value = atom_db.value_of(index_literal.var());
                 match index_value {
                     Some(value) if value != index_literal.polarity() => {}
                     _ => {
@@ -237,7 +237,7 @@ impl dbClause {
                     }
                 }
             }
-            self.note_watch(self.clause[self.last], variable_db);
+            self.note_watch(self.clause[self.last], atom_db);
         }
         Ok(self.clause.len())
     }
@@ -250,7 +250,7 @@ impl std::fmt::Display for dbClause {
 }
 
 impl Deref for dbClause {
-    type Target = [Literal];
+    type Target = [vbLiteral];
 
     fn deref(&self) -> &Self::Target {
         &self.clause

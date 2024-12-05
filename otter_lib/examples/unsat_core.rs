@@ -14,7 +14,7 @@ use otter_lib::{
         library::report::Report,
         Dispatch,
     },
-    structures::clause::ClauseT,
+    structures::clause::Clause,
 };
 
 #[allow(clippy::result_unit_err)]
@@ -91,7 +91,7 @@ fn main() {
     if let Ok(core_keys) = the_core_db.core_clauses() {
         println!("An unsatisfiable core of 𝐅 is:");
         for core_clause in core_keys {
-            println!("{}", core_clause.as_dimacs(&the_context.variable_db, true));
+            println!("{}", core_clause.as_dimacs(&the_context.atom_db, true));
         }
     }
 }

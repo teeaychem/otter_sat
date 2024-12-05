@@ -6,7 +6,7 @@ use otter_lib::{
 
 mod basic {
 
-    use otter_lib::structures::clause::ClauseT;
+    use otter_lib::structures::clause::Clause;
 
     use super::*;
     #[test]
@@ -65,7 +65,7 @@ mod basic {
             .all_nonunit_clauses()
             .collect::<Vec<_>>();
         assert_eq!(database.len(), 1);
-        let the_clause_dimacs = database[0].as_dimacs(&the_context.variable_db, true);
+        let the_clause_dimacs = database[0].as_dimacs(&the_context.atom_db, true);
         assert_eq!(
             the_clause_dimacs.split_whitespace().count(),
             "p q 0".split_whitespace().count()

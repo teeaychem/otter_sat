@@ -7,9 +7,9 @@ use std::rc::Rc;
 use crate::{
     config::{dbs::ClauseDBConfig, Config},
     db::{
+        atom::AtomDB,
         clause::{activity_glue::ActivityGlue, stored::dbClause},
         keys::{ClauseKey, FormulaIndex},
-        variable::VariableDB,
     },
     dispatch::{
         library::{
@@ -21,8 +21,8 @@ use crate::{
     generic::heap::IndexHeap,
     misc::log::targets::{self},
     structures::{
-        clause::{Clause, ClauseT},
-        literal::Literal,
+        clause::{vClause, Clause},
+        literal::vbLiteral,
     },
     types::{
         err::{self},
@@ -41,7 +41,7 @@ pub struct ClauseDB {
 
     empty_keys: Vec<ClauseKey>,
 
-    pub unit: Vec<Literal>,
+    pub unit: Vec<vbLiteral>,
     binary: Vec<dbClause>,
     formula: Vec<dbClause>,
     learned: Vec<Option<dbClause>>,
@@ -208,9 +208,9 @@ impl ClauseDB {
     /// In order to use the clause the watch literals of the struct must be initialised.
     pub fn store(
         &mut self,
-        clause: impl ClauseT,
+        clause: impl Clause,
         source: gen::src::Clause,
-        variables: &mut VariableDB,
+        atoms: &mut AtomDB,
     ) -> Result<ClauseKey, err::ClauseDB> {
         match clause.size() {
             0 => Err(err::ClauseDB::EmptyClause),
@@ -226,7 +226,7 @@ impl ClauseDB {
                 let key = self.new_binary_id()?;
 
                 self.binary
-                    .push(dbClause::from(key, clause.transform_to_vec(), variables));
+                    .push(dbClause::from(key, clause.transform_to_vec(), atoms));
 
                 Ok(key)
             }
@@ -234,7 +234,7 @@ impl ClauseDB {
             _ => match source {
                 gen::src::Clause::Original => {
                     let key = self.new_formula_id()?;
-                    let stored_form = dbClause::from(key, clause.transform_to_vec(), variables);
+                    let stored_form = dbClause::from(key, clause.transform_to_vec(), atoms);
 
                     self.formula.push(stored_form);
                     Ok(key)
@@ -249,11 +249,11 @@ impl ClauseDB {
                         _ => self.empty_keys.pop().unwrap().retoken()?,
                     };
 
-                    let stored_form = dbClause::from(the_key, clause.transform_to_vec(), variables);
+                    let stored_form = dbClause::from(the_key, clause.transform_to_vec(), atoms);
 
                     let value = ActivityGlue {
                         activity: 1.0,
-                        lbd: stored_form.lbd(variables),
+                        lbd: stored_form.lbd(atoms),
                     };
 
                     self.activity_heap.add(the_key.index(), value);
@@ -366,11 +366,11 @@ impl ClauseDB {
         (self.counts.formula + self.counts.learned + self.counts.binary) as usize
     }
 
-    pub fn all_unit_clauses(&self) -> impl Iterator<Item = &Literal> {
+    pub fn all_unit_clauses(&self) -> impl Iterator<Item = &vbLiteral> {
         self.unit.iter()
     }
 
-    pub fn all_nonunit_clauses(&self) -> impl Iterator<Item = &impl ClauseT> + '_ {
+    pub fn all_nonunit_clauses(&self) -> impl Iterator<Item = &impl Clause> + '_ {
         self.formula.iter().chain(
             self.binary.iter().chain(
                 self.learned
@@ -416,23 +416,23 @@ impl ClauseDB {
     pub fn subsume(
         &mut self,
         key: ClauseKey,
-        literal: Literal,
-        variable_db: &mut VariableDB,
+        literal: vbLiteral,
+        atom_db: &mut AtomDB,
     ) -> Result<ClauseKey, err::ResolutionBuffer> {
         let the_clause = self.get_db_clause_carefully_mut(key).unwrap();
         match the_clause.len() {
             0..=2 => panic!("impossible"),
             3 => {
-                let Ok(_) = the_clause.subsume(literal, variable_db, false) else {
+                let Ok(_) = the_clause.subsume(literal, atom_db, false) else {
                     return Err(err::ResolutionBuffer::Subsumption);
                 };
-                let Ok(new_key) = self.transfer_to_binary(key, variable_db) else {
+                let Ok(new_key) = self.transfer_to_binary(key, atom_db) else {
                     return Err(err::ResolutionBuffer::Transfer);
                 };
                 Ok(new_key)
             }
             _ => {
-                let Ok(_) = the_clause.subsume(literal, variable_db, true) else {
+                let Ok(_) = the_clause.subsume(literal, atom_db, true) else {
                     return Err(err::ResolutionBuffer::Subsumption);
                 };
                 // TODO: Dispatches for subsumption…

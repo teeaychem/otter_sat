@@ -12,13 +12,13 @@ use crate::{
         Dispatch,
     },
     structures::{
-        clause::{Clause, ClauseT},
-        literal::{Literal, LiteralT},
+        clause::{vClause, Clause},
+        literal::{vbLiteral, Literal},
     },
     types::err::{self},
 };
 
-use super::library::delta::{ClauseDB, LiteralDB, Resolution, VariableDB, BCP};
+use super::library::delta::{AtomDB, ClauseDB, LiteralDB, Resolution, BCP};
 
 /* A placeholder awaiting interest…
 
@@ -39,23 +39,23 @@ use super::library::delta::{ClauseDB, LiteralDB, Resolution, VariableDB, BCP};
 pub struct CoreDB {
     conflict: Option<ClauseKey>,
 
-    original_map: HashMap<ClauseKey, Clause>,
+    original_map: HashMap<ClauseKey, vClause>,
 
-    clause_buffer: Vec<Literal>,
+    clause_buffer: Vec<vbLiteral>,
 
     resolution_buffer: Vec<ClauseKey>,
 
     resolution_q: VecDeque<Vec<ClauseKey>>,
 
-    bcp_buffer: Option<(ClauseKey, Literal)>,
+    bcp_buffer: Option<(ClauseKey, vbLiteral)>,
 
     clause_map: HashMap<ClauseKey, Vec<ClauseKey>>,
 
-    literal_map: HashMap<Literal, Vec<ClauseKey>>,
+    literal_map: HashMap<vbLiteral, Vec<ClauseKey>>,
 }
 
 impl CoreDB {
-    pub fn core_clauses(&self) -> Result<Vec<Clause>, err::Core> {
+    pub fn core_clauses(&self) -> Result<Vec<vClause>, err::Core> {
         let mut core_q = std::collections::VecDeque::<ClauseKey>::new();
         let mut seen_keys = std::collections::BTreeSet::new();
         let mut seen_literals = std::collections::BTreeSet::new();
@@ -179,7 +179,7 @@ impl CoreDB {
         Ok(())
     }
 
-    pub fn process_literal_db_delta(&mut self, δ: &LiteralDB) -> Result<(), err::Core> {
+    pub fn process_literal_db_delta(&mut self, _δ: &LiteralDB) -> Result<(), err::Core> {
         // TODO: unit resolution
         // use delta::LiteralDB::*;
         // match δ {
@@ -203,8 +203,8 @@ impl CoreDB {
         Ok(())
     }
 
-    pub fn process_variable_db_delta(&mut self, δ: &VariableDB) -> Result<(), err::Core> {
-        use delta::VariableDB::*;
+    pub fn process_atom_db_delta(&mut self, δ: &AtomDB) -> Result<(), err::Core> {
+        use delta::AtomDB::*;
         match δ {
             Unsatisfiable(key) => self.conflict = Some(*key),
             _ => {}
@@ -252,7 +252,7 @@ pub fn core_db_builder(core_db_ptr: &Option<Arc<Mutex<CoreDB>>>) -> CoreReceiver
 
                     LiteralDB(δ) => core_db.process_literal_db_delta(δ)?,
 
-                    VariableDB(δ) => core_db.process_variable_db_delta(δ)?,
+                    AtomDB(δ) => core_db.process_atom_db_delta(δ)?,
 
                     BCP(δ) => core_db.process_bcp_delta(δ)?,
                 }

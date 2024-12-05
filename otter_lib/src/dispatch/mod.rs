@@ -87,7 +87,7 @@ pub enum Dispatch {
 
 impl Context {
     pub fn dispatch_active(&self) {
-        if let Some(d) = &self.dispatcher {
+        if let Some(_d) = &self.dispatcher {
             self.clause_db.dispatch_active();
         }
     }
