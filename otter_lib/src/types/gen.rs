@@ -1,10 +1,10 @@
-use crate::{db::keys::ClauseKey, structures::literal::Literal};
+use crate::{db::keys::ClauseKey, structures::literal::vbLiteral};
 
 pub enum Analysis {
-    MissedImplication(ClauseKey, Literal),
+    MissedImplication(ClauseKey, vbLiteral),
     UnitClause(ClauseKey),
     FundamentalConflict,
-    AssertingClause(ClauseKey, Literal),
+    AssertingClause(ClauseKey, vbLiteral),
 }
 
 pub enum Choice {
@@ -15,7 +15,7 @@ pub enum Choice {
 pub enum Expansion {
     Conflict,
     UnitClause(ClauseKey),
-    AssertingClause(ClauseKey, Literal),
+    AssertingClause(ClauseKey, vbLiteral),
     Exhausted,
 }
 
@@ -28,17 +28,15 @@ pub enum RBuf {
     FirstUIP,
     Exhausted,
     Proof,
-    Missed(ClauseKey, Literal),
+    Missed(ClauseKey, vbLiteral),
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq)]
-pub enum Solve {
-    Initialised,
-    AssertingClause,
-    NoSolution,
-    UnitClause,
-    ChoiceMade,
-    FullValuation,
+pub enum dbStatus {
+    Consistent,
+    Inconsistent,
+    Unknown,
 }
 
 pub enum Value {

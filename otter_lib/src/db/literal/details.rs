@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use crate::{
     db::literal::{ChosenLiteral, LiteralDB},
-    structures::literal::Literal,
+    structures::literal::vbLiteral,
     types::gen,
 };
 
@@ -14,7 +14,7 @@ impl LiteralDB {
 }
 
 impl ChosenLiteral {
-    pub(super) fn new(literal: Literal) -> Self {
+    pub(super) fn new(literal: vbLiteral) -> Self {
         Self {
             choice: literal,
             consequences: vec![],
@@ -22,11 +22,15 @@ impl ChosenLiteral {
     }
 
     #[allow(dead_code)]
-    pub fn consequences(&self) -> &[(gen::src::Literal, Literal)] {
+    pub fn consequences(&self) -> &[(gen::src::Literal, vbLiteral)] {
         &self.consequences
     }
 
-    pub fn record_consequence(&mut self, literal: impl Borrow<Literal>, source: gen::src::Literal) {
+    pub fn record_consequence(
+        &mut self,
+        literal: impl Borrow<vbLiteral>,
+        source: gen::src::Literal,
+    ) {
         self.consequences.push((source, *literal.borrow()))
     }
 }

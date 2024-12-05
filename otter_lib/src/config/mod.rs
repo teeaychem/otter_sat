@@ -5,7 +5,7 @@
 //! Some structures clone parts of the configuration.
 //! Databases.
 //!
-use dbs::{ClauseDBConfig, VariableDBConfig};
+use dbs::{AtomDBConfig, ClauseDBConfig};
 
 pub mod dbs;
 #[doc(hidden)]
@@ -17,7 +17,7 @@ pub struct Config {
     /// The `u` value to multiply the luby sequence by when determining whether to perform a restart.
     pub luby_u: LubyRepresentation,
 
-    /// The probability of assigning positive polarity to a variable when freely choosing a variable.
+    /// The probability of assigning positive polarity to a atom when freely choosing a atom.
     pub polarity_lean: PolarityLean,
 
     /// Preprocessing configuration
@@ -41,8 +41,8 @@ pub struct Config {
     /// Configuration of the clause database.
     pub clause_db: ClauseDBConfig,
 
-    /// Configuration of the variable database.
-    pub variable_db: VariableDBConfig,
+    /// Configuration of the atom database.
+    pub atom_db: AtomDBConfig,
 }
 
 impl Default for Config {
@@ -66,12 +66,12 @@ impl Default for Config {
 
             switch: Switches::default(),
             clause_db: ClauseDBConfig::default(),
-            variable_db: VariableDBConfig::default(),
+            atom_db: AtomDBConfig::default(),
         }
     }
 }
 
-/// Representation used for clause and variable activity
+/// Representation used for clause and atom activity
 pub type Activity = f64;
 
 /// Glue / literal block distance
@@ -118,13 +118,13 @@ impl std::fmt::Display for StoppingCriteria {
     }
 }
 
-/// Variant way to apply VSIDS (variable state independent decay sum) during during resolution-based analysis.
+/// Variant way to apply VSIDS (atom state independent decay sum) during during resolution-based analysis.
 #[derive(Clone, Copy, Debug)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum VSIDS {
-    /// When learning a clause by applying resolution to a sequence of clauses every variable occurring in the learnt clause is bumped.
+    /// When learning a clause by applying resolution to a sequence of clauses every atom occurring in the learnt clause is bumped.
     Chaff,
-    /// When learning a clause by applying resolution to a sequence of clauses every variable occurring in some clause used during resolution (including the learnt clause) is bumped.
+    /// When learning a clause by applying resolution to a sequence of clauses every atom occurring in some clause used during resolution (including the learnt clause) is bumped.
     MiniSAT,
 }
 
@@ -142,7 +142,7 @@ impl std::fmt::Display for VSIDS {
 /// When set to true things related to the identifier are enabled.
 #[derive(Clone, Debug)]
 pub struct Switches {
-    /// Default to th last set value of a variable when choosing  a value for the variable, otherwise choice with specified probability.
+    /// Default to th last set value of a atom when choosing  a value for the atom, otherwise choice with specified probability.
     pub phase_saving: bool,
 
     /// Enable preprocessing of 𝐅.

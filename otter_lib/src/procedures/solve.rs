@@ -13,10 +13,10 @@ use crate::{
     },
     misc::log::targets::{self},
     structures::{
-        clause::ClauseT,
-        literal::{Literal, LiteralT},
+        atom::Atom,
+        clause::Clause,
+        literal::{vbLiteral, Literal},
         valuation::Valuation,
-        variable::Variable,
     },
     types::{
         err::{self},
@@ -46,20 +46,10 @@ impl Context {
 
             let conflict_found;
 
-            match self.expand()? {
+            match self.apply_consequences()? {
                 gen::Expansion::Conflict => break 'solve_loop,
 
-                gen::Expansion::Exhausted => {
-                    //
-                    match self.make_choice()? {
-                        gen::Choice::Made => continue 'solve_loop,
-                        gen::Choice::Exhausted => break 'solve_loop,
-                    }
-                }
-
                 gen::Expansion::UnitClause(key) => {
-                    self.status = gen::Solve::UnitClause;
-
                     self.backjump(0);
                     let ClauseKey::Unit(the_literal) = key else {
                         panic!("non-unit key");
@@ -70,8 +60,6 @@ impl Context {
                 }
 
                 gen::Expansion::AssertingClause(key, literal) => {
-                    self.status = gen::Solve::AssertingClause;
-
                     let the_clause = self.clause_db.get_db_clause(key)?;
                     let index = self.backjump_level(the_clause)?;
                     self.backjump(index);
@@ -87,6 +75,14 @@ impl Context {
                     self.record_literal(literal, gen::src::Literal::BCP(key));
                     self.q_literal(literal)?;
                     conflict_found = true;
+                }
+
+                gen::Expansion::Exhausted => {
+                    //
+                    match self.make_choice()? {
+                        gen::Choice::Made => continue 'solve_loop,
+                        gen::Choice::Exhausted => break 'solve_loop,
+                    }
                 }
             }
 
@@ -118,7 +114,7 @@ impl Context {
 
     /// Expand queued consequences:
     /// Performs an analysis on apparent conflict.
-    pub fn expand(&mut self) -> Result<gen::Expansion, err::Context> {
+    pub fn apply_consequences(&mut self) -> Result<gen::Expansion, err::Context> {
         'expansion: while let Some((literal, _)) = self.get_consequence() {
             match unsafe { self.bcp(literal) } {
                 Ok(()) => {}
@@ -126,11 +122,11 @@ impl Context {
                 Err(err::BCP::Conflict(key)) => {
                     //
                     if !self.literal_db.choice_made() {
-                        self.status = gen::Solve::NoSolution;
+                        self.status = gen::dbStatus::Inconsistent;
 
                         if let Some(dispatcher) = &self.dispatcher {
-                            let delta = delta::VariableDB::Unsatisfiable(key);
-                            dispatcher(Dispatch::Delta(Delta::VariableDB(delta)));
+                            let delta = delta::AtomDB::Unsatisfiable(key);
+                            dispatcher(Dispatch::Delta(Delta::AtomDB(delta)));
                         }
 
                         return Ok(gen::Expansion::Conflict);
@@ -221,10 +217,10 @@ impl Context {
 
                 let choice_literal = {
                     if self.config.switch.phase_saving {
-                        let previous_value = self.variable_db.previous_value_of(choice_id);
-                        Literal::new(choice_id, previous_value)
+                        let previous_value = self.atom_db.previous_value_of(choice_id);
+                        vbLiteral::new(choice_id, previous_value)
                     } else {
-                        Literal::new(
+                        vbLiteral::new(
                             choice_id,
                             self.counters.rng.gen_bool(self.config.polarity_lean),
                         )
@@ -234,35 +230,33 @@ impl Context {
                 self.literal_db.note_choice(choice_literal);
                 self.q_literal(choice_literal)?;
 
-                self.status = gen::Solve::ChoiceMade;
                 Ok(gen::Choice::Made)
             }
             None => {
-                self.status = gen::Solve::FullValuation;
+                self.status = gen::dbStatus::Consistent;
                 Ok(gen::Choice::Exhausted)
             }
         }
     }
 
-    pub fn get_unassigned(&mut self) -> Option<Variable> {
+    pub fn get_unassigned(&mut self) -> Option<Atom> {
         match self
             .counters
             .rng
             .gen_bool(self.config.random_choice_frequency)
         {
             true => self
-                .variable_db
+                .atom_db
                 .valuation()
-                .unvalued_variables()
+                .unvalued_atoms()
                 .choose(&mut self.counters.rng),
             false => {
-                while let Some(index) = self.variable_db.heap_pop_most_active() {
-                    // let the_variable = self.variable_db.get_unsafe(index);
-                    if self.variable_db.value_of(index as Variable).is_none() {
+                while let Some(index) = self.atom_db.heap_pop_most_active() {
+                    if self.atom_db.value_of(index as Atom).is_none() {
                         return Some(index);
                     }
                 }
-                self.variable_db.valuation().unvalued_variables().next()
+                self.atom_db.valuation().unvalued_atoms().next()
             }
         }
     }
@@ -271,10 +265,9 @@ impl Context {
         // log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.index(), to);
 
         for _ in 0..(self.literal_db.choice_count() - to) {
-            self.variable_db
-                .drop_value(self.literal_db.last_choice().var());
+            self.atom_db.drop_value(self.literal_db.last_choice().var());
             for (_, literal) in self.literal_db.last_consequences() {
-                self.variable_db.drop_value(literal.var());
+                self.atom_db.drop_value(literal.var());
             }
             self.literal_db.forget_last_choice();
         }
@@ -284,14 +277,14 @@ impl Context {
     /// The second highest choice index from the given literals, or 0
     /// Aka. The backjump level for a slice of an asserting slice of literals/clause
     // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
-    pub fn backjump_level(&self, clause: &impl ClauseT) -> Result<ChoiceIndex, err::Context> {
+    pub fn backjump_level(&self, clause: &impl Clause) -> Result<ChoiceIndex, err::Context> {
         match clause.size() {
             0 => panic!("impossible"),
             1 => Ok(0),
             _ => {
                 let mut top_two = (None, None);
                 for literal in clause.literals() {
-                    let Some(dl) = self.variable_db.choice_index_of(literal.var()) else {
+                    let Some(dl) = self.atom_db.choice_index_of(literal.var()) else {
                         log::error!(target: targets::BACKJUMP, "{literal} was not chosen");
                         return Err(err::Context::Backjump);
                     };

@@ -1,6 +1,6 @@
 use crate::{
     db::keys::ClauseKey,
-    structures::{literal::Literal, variable::Variable},
+    structures::{atom::Atom, literal::vbLiteral},
 };
 
 #[derive(Clone)]
@@ -9,20 +9,20 @@ pub enum Delta {
     ClauseDB(self::ClauseDB),
     LiteralDB(self::LiteralDB),
     Resolution(self::Resolution),
-    VariableDB(self::VariableDB),
+    AtomDB(self::AtomDB),
 }
 
 #[derive(Clone)]
 pub enum BCP {
-    Conflict { from: Literal, via: ClauseKey },
-    Instance { via: ClauseKey, to: Literal },
+    Conflict { from: vbLiteral, via: ClauseKey },
+    Instance { via: ClauseKey, to: vbLiteral },
 }
 
 #[derive(Clone)]
 pub enum ClauseBuider {
     End,
     Index(u32),
-    Literal(Literal),
+    Literal(vbLiteral),
     Start,
 }
 
@@ -30,7 +30,7 @@ pub enum ClauseBuider {
 pub enum Resolution {
     Begin,
     End,
-    Subsumed(ClauseKey, Literal),
+    Subsumed(ClauseKey, vbLiteral),
     Used(ClauseKey),
 }
 
@@ -38,7 +38,7 @@ pub enum Resolution {
 pub enum ClauseDB {
     Added(ClauseKey),
     BCP(ClauseKey),
-    ClauseLiteral(Literal),
+    ClauseLiteral(vbLiteral),
     ClauseStart,
     Deletion(ClauseKey),
     Transfer(ClauseKey, ClauseKey),
@@ -49,8 +49,8 @@ pub enum ClauseDB {
 pub enum LiteralDB {}
 
 #[derive(Clone)]
-pub enum VariableDB {
+pub enum AtomDB {
     ExternalRepresentation(String),
-    Internalised(Variable),
+    Internalised(Atom),
     Unsatisfiable(ClauseKey),
 }

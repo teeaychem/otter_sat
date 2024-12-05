@@ -1,8 +1,8 @@
 use crate::{
-    db::{clause::ClauseKind, keys::ClauseKey, variable::VariableDB},
+    db::{atom::AtomDB, clause::ClauseKind, keys::ClauseKey},
     structures::{
-        literal::{Literal, LiteralT},
-        variable::Variable,
+        atom::Atom,
+        literal::{vbLiteral, Literal},
     },
     types::err::{self},
 };
@@ -10,7 +10,7 @@ use std::{borrow::Borrow, cell::UnsafeCell};
 
 #[derive(Debug)]
 pub enum WatchElement {
-    Binary(Literal, ClauseKey),
+    Binary(vbLiteral, ClauseKey),
     Clause(ClauseKey),
 }
 
@@ -91,8 +91,8 @@ impl WatchDB {
     }
 }
 
-impl VariableDB {
-    pub unsafe fn add_watch(&mut self, literal: impl Borrow<Literal>, element: WatchElement) {
+impl AtomDB {
+    pub unsafe fn add_watch(&mut self, literal: impl Borrow<vbLiteral>, element: WatchElement) {
         self.watch_dbs
             .get_unchecked(literal.borrow().var() as usize)
             .watch_added(element, literal.borrow().polarity());
@@ -100,7 +100,7 @@ impl VariableDB {
 
     pub unsafe fn remove_watch(
         &mut self,
-        literal: impl Borrow<Literal>,
+        literal: impl Borrow<vbLiteral>,
         key: ClauseKey,
     ) -> Result<(), err::Watch> {
         unsafe {
@@ -112,7 +112,7 @@ impl VariableDB {
 
     pub unsafe fn watch_list(
         &self,
-        v_idx: Variable,
+        v_idx: Atom,
         kind: ClauseKind,
         polarity: bool,
     ) -> *mut Vec<WatchElement> {

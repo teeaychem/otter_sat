@@ -10,7 +10,7 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
     };
 
     if let Ok(Some(decay)) = args.try_get_one::<config::Activity>("variable_decay") {
-        the_config.variable_db.decay = decay * 1e-3
+        the_config.atom_db.decay = decay * 1e-3
     };
 
     if let Ok(Some(decay)) = args.try_get_one::<config::Activity>("clause_decay") {

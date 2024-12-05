@@ -1,8 +1,5 @@
 use otter_lib::{
-    config::Config,
-    context::Context,
-    dispatch::library::report,
-    structures::{clause::ClauseT, literal::LiteralT},
+    config::Config, context::Context, dispatch::library::report, structures::clause::Clause,
 };
 
 fn value_of(variable: &str, context: &Context) -> Option<bool> {
@@ -32,7 +29,7 @@ fn main() {
 
     let not_p_or_q = not_p_or_q.expect("failed to build clause");
     let not_p_or_q_internal_string = not_p_or_q.as_string();
-    let not_p_or_q_external_string = not_p_or_q.as_dimacs(&the_context.variable_db, false);
+    let not_p_or_q_external_string = not_p_or_q.as_dimacs(&the_context.atom_db, false);
     println!(
         "
 Representations of: ¬p ∨ q
@@ -45,14 +42,8 @@ Representations of: ¬p ∨ q
 
     let p_or_not_q = the_context.clause_from_string("p -q").expect("make failed");
 
-    let p_variable = the_context
-        .variable_db
-        .variable_representation("p")
-        .unwrap();
-    let q_variable = the_context
-        .variable_db
-        .variable_representation("q")
-        .unwrap();
+    let p_variable = the_context.atom_db.atom_representation("p").unwrap();
+    let q_variable = the_context.atom_db.atom_representation("q").unwrap();
     let p = the_context.literal_db.make_literal(p_variable, true);
     let not_q = the_context.literal_db.make_literal(q_variable, false);
 
@@ -60,10 +51,7 @@ Representations of: ¬p ∨ q
 
     // made clauses must be added to the context:
     for (i, clause) in the_context.clause_db.all_nonunit_clauses().enumerate() {
-        println!(
-            "  ? {i}: {}",
-            clause.as_dimacs(&the_context.variable_db, false)
-        )
+        println!("  ? {i}: {}", clause.as_dimacs(&the_context.atom_db, false))
     }
 
     let _ = the_context.add_clause(not_p_or_q);
@@ -71,7 +59,7 @@ Representations of: ¬p ∨ q
 
     println!("The clause database after adding ¬p ∨ q and ¬p ∨ q is:");
     for clause in the_context.clause_db.all_nonunit_clauses() {
-        println!("  C {}", clause.as_dimacs(&the_context.variable_db, false))
+        println!("  C {}", clause.as_dimacs(&the_context.atom_db, false))
     }
     println!();
 
@@ -117,7 +105,7 @@ Representations of: ¬p ∨ q
     // todo: update with unit clauses
     println!("The clause database is now:");
     for clause in the_context.clause_db.all_nonunit_clauses() {
-        println!("  C {}", clause.as_dimacs(&the_context.variable_db, false))
+        println!("  C {}", clause.as_dimacs(&the_context.atom_db, false))
     }
 
     // It is possible to add p ∨ q to 𝐅

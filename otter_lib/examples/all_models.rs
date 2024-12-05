@@ -23,9 +23,7 @@ fn main() {
     // Each character in some string as a literal.
     let mut variables = "let's_finds_all_models".chars().collect::<Vec<_>>();
     for variable in &variables {
-        assert!(the_context
-            .variable_from_string(&variable.to_string())
-            .is_ok())
+        assert!(the_context.atom_from_string(&variable.to_string()).is_ok())
     }
 
     let mut count = 0;

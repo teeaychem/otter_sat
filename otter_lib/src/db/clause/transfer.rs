@@ -1,5 +1,5 @@
 use crate::{
-    db::{keys::ClauseKey, variable::VariableDB},
+    db::{atom::AtomDB, keys::ClauseKey},
     dispatch::{
         library::delta::{self, Delta},
         Dispatch,
@@ -14,7 +14,7 @@ impl ClauseDB {
     pub(super) fn transfer_to_binary(
         &mut self,
         key: ClauseKey,
-        variables: &mut VariableDB,
+        atoms: &mut AtomDB,
     ) -> Result<ClauseKey, err::ClauseDB> {
         match key {
             ClauseKey::Unit(_) => {
@@ -38,8 +38,8 @@ impl ClauseDB {
                 let b_key = self.new_binary_id()?;
 
                 unsafe {
-                    variables.remove_watch(copied_clause.get_unchecked(0), key)?;
-                    variables.remove_watch(copied_clause.get_unchecked(1), key)?;
+                    atoms.remove_watch(copied_clause.get_unchecked(0), key)?;
+                    atoms.remove_watch(copied_clause.get_unchecked(1), key)?;
                 }
 
                 if let Some(dispatch) = &self.dispatcher {
@@ -53,7 +53,7 @@ impl ClauseDB {
                     dispatch(Dispatch::Delta(Delta::ClauseDB(delta)));
                 }
 
-                let binary_clause = dbClause::from(b_key, copied_clause, variables);
+                let binary_clause = dbClause::from(b_key, copied_clause, atoms);
 
                 self.binary.push(binary_clause);
 

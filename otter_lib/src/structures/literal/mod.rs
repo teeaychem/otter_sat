@@ -1,23 +1,24 @@
 mod details;
 
-use crate::{db::variable::VariableDB, structures::variable::Variable};
+use crate::{db::atom::AtomDB, structures::atom::Atom};
 
+#[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-pub struct Literal {
-    variable: Variable,
+pub struct vbLiteral {
+    atom: Atom,
     polarity: bool,
 }
 
-pub trait LiteralT {
-    fn new(variable_id: Variable, polarity: bool) -> Self;
+pub trait Literal {
+    fn new(atom_id: Atom, polarity: bool) -> Self;
 
     fn negate(&self) -> Self;
 
-    fn var(&self) -> Variable;
+    fn var(&self) -> Atom;
 
     fn polarity(&self) -> bool;
 
-    fn canonical(&self) -> Literal;
+    fn canonical(&self) -> vbLiteral;
 
-    fn external_representation(&self, variable_db: &VariableDB) -> String;
+    fn external_representation(&self, atom_db: &AtomDB) -> String;
 }

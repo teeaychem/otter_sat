@@ -12,8 +12,8 @@ use crate::{
         Dispatch,
     },
     structures::{
-        literal::{Literal, LiteralT},
-        variable::Variable,
+        atom::Atom,
+        literal::{vbLiteral, Literal},
     },
     types::err::{self},
 };
@@ -35,9 +35,9 @@ A few decisions make this a little more delicate than it otherwise could be
   + For formulas, specifically,  means it's important to record an origial formula before subsumption is applied
   Rather than do anything complex this is addressed by writing the original formula at the start of a proof.
 
-- Variable renaming
+- Atom renaming
   + … when mixed with 0 as a delimiter in the format requires (i think) translating a clause back to it's DIMACS representation
-  - The context stores a translation, but to avoid interacting (and introducing mutexes) the transcriber listens for variables being added to the context and keeps an internal map of their external string
+  - The context stores a translation, but to avoid interacting (and introducing mutexes) the transcriber listens for atoms being added to the context and keeps an internal map of their external string
 
 - Multiple clause databases
   + Requires disambiguating indicies.
@@ -55,7 +55,7 @@ impl Transcriber {
     //! FRAT identifiers are of the form [0-9]+, and so a simple 0*X* prefix is sufficient to disambiguate.
     // use super::*;
 
-    pub(super) fn literal_id(literal: impl Borrow<Literal>) -> String {
+    pub(super) fn literal_id(literal: impl Borrow<vbLiteral>) -> String {
         format!("010{}", literal.borrow().var())
     }
 
@@ -88,7 +88,7 @@ impl Transcriber {
     }
 
     pub fn add_literal(
-        literal: impl Borrow<Literal>,
+        literal: impl Borrow<vbLiteral>,
         name: String,
         steps: ResolutionSteps,
     ) -> String {
@@ -127,7 +127,7 @@ impl Transcriber {
         the_string
     }
 
-    pub fn finalise_literal(literal: impl Borrow<Literal>, external: String) -> String {
+    pub fn finalise_literal(literal: impl Borrow<vbLiteral>, external: String) -> String {
         let id_rep = Transcriber::literal_id(literal);
         format!("f {id_rep} {external} 0\n")
     }
@@ -149,25 +149,25 @@ impl Transcriber {
             file,
             clause_buffer: Vec::default(),
             resolution_buffer: Vec::default(),
-            variable_buffer: String::default(),
+            atom_buffer: String::default(),
             resolution_queue: VecDeque::default(),
             step_buffer: Vec::default(),
-            variable_map: Vec::default(),
+            atom_map: Vec::default(),
         }
     }
 
-    fn note_variable(&mut self, variable: Variable, name: &str) {
-        let required = variable as usize - self.variable_map.len();
+    fn note_atom(&mut self, atom: Atom, name: &str) {
+        let required = atom as usize - self.atom_map.len();
         for _ in 0..required {
-            self.variable_map.push(None);
+            self.atom_map.push(None);
         }
-        self.variable_map.push(Some(name.to_string()));
+        self.atom_map.push(Some(name.to_string()));
     }
 
     pub fn transcribe(&mut self, dispatch: &Dispatch) -> Result<(), err::FRAT> {
         match dispatch {
             Dispatch::Delta(δ) => match δ {
-                Delta::VariableDB(variable_db_δ) => self.variable_db_delta(variable_db_δ)?,
+                Delta::AtomDB(atom_db_δ) => self.atom_db_delta(atom_db_δ)?,
 
                 Delta::ClauseDB(clause_db_δ) => self.clause_db_delta(clause_db_δ)?,
 
@@ -197,8 +197,10 @@ impl Transcriber {
                             }
                         }
                     }
-                    Report::LiteralDB(_) | Report::Parser(_) | Report::Finish | Report::Solve(_) => {
-                    }
+                    Report::LiteralDB(_)
+                    | Report::Parser(_)
+                    | Report::Finish
+                    | Report::Solve(_) => {}
                 }
             }
 
@@ -218,7 +220,7 @@ impl Transcriber {
 impl Transcriber {
     //! Methods to transform from internal to external representation strings.
 
-    pub(super) fn clause_string(&self, clause: Vec<Literal>) -> String {
+    pub(super) fn clause_string(&self, clause: Vec<vbLiteral>) -> String {
         clause
             .iter()
             .map(|l| self.literal_string(l))
@@ -226,8 +228,8 @@ impl Transcriber {
             .join(" ")
     }
 
-    pub(super) fn literal_string(&self, literal: impl Borrow<Literal>) -> String {
-        match &self.variable_map[literal.borrow().var() as usize] {
+    pub(super) fn literal_string(&self, literal: impl Borrow<vbLiteral>) -> String {
+        match &self.atom_map[literal.borrow().var() as usize] {
             Some(ext) => match literal.borrow().polarity() {
                 true => format!("{ext}"),
                 false => format!("-{ext}"),
@@ -238,14 +240,14 @@ impl Transcriber {
 }
 
 impl Transcriber {
-    pub(super) fn variable_db_delta(&mut self, δ: &delta::VariableDB) -> Result<(), err::FRAT> {
-        use delta::VariableDB::*;
+    pub(super) fn atom_db_delta(&mut self, δ: &delta::AtomDB) -> Result<(), err::FRAT> {
+        use delta::AtomDB::*;
         match δ {
-            ExternalRepresentation(rep) => self.variable_buffer = rep.clone(),
+            ExternalRepresentation(rep) => self.atom_buffer = rep.clone(),
 
-            Internalised(variable) => {
-                let rep = std::mem::take(&mut self.variable_buffer);
-                self.note_variable(*variable, rep.as_str());
+            Internalised(atom) => {
+                let rep = std::mem::take(&mut self.atom_buffer);
+                self.note_atom(*atom, rep.as_str());
             }
             Unsatisfiable(_) => self.step_buffer.push(Transcriber::meta_unsatisfiable()),
         }

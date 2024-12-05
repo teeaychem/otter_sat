@@ -1,26 +1,26 @@
-use crate::{config::Activity, db::variable::VariableDB, structures::variable::Variable};
+use crate::{config::Activity, db::atom::AtomDB, structures::atom::Atom};
 
-impl VariableDB {
+impl AtomDB {
     #[allow(non_snake_case)]
-    /// Bumps the activities of each variable in 'variables'
+    /// Bumps the activities of each atom in 'atoms'
     /// If given a hint to the max activity the rescore check is performed once on the hint
-    pub fn apply_VSIDS<V: Iterator<Item = Variable>>(&mut self, variables: V) {
-        for variable in variables {
-            if self.activity_of(variable as usize) + self.config.bump > self.config.max_bump {
+    pub fn apply_VSIDS<A: Iterator<Item = Atom>>(&mut self, atoms: A) {
+        for atom in atoms {
+            if self.activity_of(atom as usize) + self.config.bump > self.config.max_bump {
                 self.rescore_activity()
             }
-            self.bump_activity(variable as usize);
+            self.bump_activity(atom as usize);
         }
 
         self.exponent_activity();
     }
 
-    pub fn heap_pop_most_active(&mut self) -> Option<Variable> {
-        self.activity_heap.pop_max().map(|idx| idx as Variable)
+    pub fn heap_pop_most_active(&mut self) -> Option<Atom> {
+        self.activity_heap.pop_max().map(|idx| idx as Atom)
     }
 }
 
-impl VariableDB {
+impl AtomDB {
     pub(super) fn activity_of(&self, index: usize) -> Activity {
         *self.activity_heap.value_at(index)
     }

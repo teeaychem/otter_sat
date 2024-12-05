@@ -1,25 +1,19 @@
 use crate::{
     context::Context,
-    structures::{valuation::Valuation, variable::Variable},
+    structures::{atom::Atom, valuation::Valuation},
 };
 
 impl Context {
     pub fn valuation_string(&self) -> String {
-        self.variable_db
+        self.atom_db
             .valuation()
             .vv_pairs()
             .filter_map(|(i, v)| {
-                let idx = i as Variable;
+                let idx = i as Atom;
                 match v {
                     None => None,
-                    Some(true) => Some(format!(
-                        " {}",
-                        self.variable_db.external_representation(idx)
-                    )),
-                    Some(false) => Some(format!(
-                        "-{}",
-                        self.variable_db.external_representation(idx)
-                    )),
+                    Some(true) => Some(format!(" {}", self.atom_db.external_representation(idx))),
+                    Some(false) => Some(format!("-{}", self.atom_db.external_representation(idx))),
                 }
             })
             .collect::<Vec<_>>()
@@ -28,7 +22,7 @@ impl Context {
 
     pub fn internal_valuation_string(&self) -> String {
         let mut v = self
-            .variable_db
+            .atom_db
             .valuation()
             .vv_pairs()
             .filter_map(|(i, v)| match v {

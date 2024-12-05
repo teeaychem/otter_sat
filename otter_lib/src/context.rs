@@ -2,12 +2,12 @@
 
 use crate::{
     config::Config,
-    db::{clause::ClauseDB, consequence_q::ConsequenceQ, literal::LiteralDB, variable::VariableDB},
+    db::{atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ, literal::LiteralDB},
     dispatch::{
         library::report::{self},
         Dispatch,
     },
-    types::gen::Solve,
+    types::gen::dbStatus,
 };
 
 use rand::SeedableRng;
@@ -47,26 +47,28 @@ pub struct Context {
     pub counters: Counters,
 
     pub clause_db: ClauseDB,
-    pub variable_db: VariableDB,
+    pub atom_db: AtomDB,
     pub literal_db: LiteralDB,
-
     pub consequence_q: ConsequenceQ,
 
     pub dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 
-    pub status: Solve,
+    pub status: dbStatus,
 }
 
 impl Context {
     pub fn from_config(config: Config, dispatcher: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
         Self {
+            status: dbStatus::Unknown,
+
             counters: Counters::default(),
+
             literal_db: LiteralDB::new(dispatcher.clone()),
             clause_db: ClauseDB::new(&config, dispatcher.clone()),
-            variable_db: VariableDB::new(&config, dispatcher.clone()),
-            config,
-            status: Solve::Initialised,
+            atom_db: AtomDB::new(&config, dispatcher.clone()),
             consequence_q: ConsequenceQ::default(),
+
+            config,
             dispatcher,
         }
     }
@@ -75,22 +77,19 @@ impl Context {
 impl Context {
     pub fn report(&self) -> report::Solve {
         match self.status {
-            Solve::FullValuation => report::Solve::Satisfiable,
-            Solve::NoSolution => report::Solve::Unsatisfiable,
+            dbStatus::Consistent => report::Solve::Satisfiable,
+            dbStatus::Inconsistent => report::Solve::Unsatisfiable,
             _ => report::Solve::Unknown,
         }
     }
 }
 
-impl std::fmt::Display for Solve {
+impl std::fmt::Display for dbStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Solve::Initialised => write!(f, "Initialised"),
-            Solve::AssertingClause => write!(f, "AssertingClause"),
-            Solve::NoSolution => write!(f, "NoSolution"),
-            Solve::ChoiceMade => write!(f, "ChoiceMade"),
-            Solve::FullValuation => write!(f, "AllAssigned"),
-            Solve::UnitClause => write!(f, "Proof"),
+            dbStatus::Consistent => write!(f, "Consistent"),
+            Self::Inconsistent => write!(f, "Inconsistent"),
+            Self::Unknown => write!(f, "Unknown"),
         }
     }
 }

@@ -1,16 +1,16 @@
 use crate::{
     config::GlueStrength,
-    db::variable::VariableDB,
+    db::atom::AtomDB,
     structures::{
-        clause::ClauseT,
-        literal::{Literal, LiteralT},
+        clause::Clause,
+        literal::{vbLiteral, Literal},
         valuation::Valuation,
     },
 };
 
 use std::ops::Deref;
 
-impl<T: Deref<Target = [Literal]>> ClauseT for T {
+impl<T: Deref<Target = [vbLiteral]>> Clause for T {
     fn as_string(&self) -> String {
         let mut the_string = String::default();
         for literal in self.deref() {
@@ -20,12 +20,12 @@ impl<T: Deref<Target = [Literal]>> ClauseT for T {
         the_string
     }
 
-    fn as_dimacs(&self, variables: &VariableDB, zero: bool) -> String {
+    fn as_dimacs(&self, atoms: &AtomDB, zero: bool) -> String {
         let mut the_string = String::new();
         for literal in self.deref() {
             let the_represenetation = match literal.polarity() {
-                true => format!(" {} ", variables.external_representation(literal.var())),
-                false => format!("-{} ", variables.external_representation(literal.var())),
+                true => format!(" {} ", atoms.external_representation(literal.var())),
+                false => format!("-{} ", atoms.external_representation(literal.var())),
             };
             the_string.push_str(the_represenetation.as_str());
         }
@@ -39,7 +39,7 @@ impl<T: Deref<Target = [Literal]>> ClauseT for T {
     }
 
     /// Returns the literal asserted by the clause on the given valuation
-    fn asserts(&self, val: &impl Valuation) -> Option<Literal> {
+    fn asserts(&self, val: &impl Valuation) -> Option<vbLiteral> {
         let mut the_literal = None;
         for lit in self.deref() {
             if let Some(existing_val) = unsafe { val.value_of(lit.var()) } {
@@ -58,17 +58,17 @@ impl<T: Deref<Target = [Literal]>> ClauseT for T {
 
     // TODO: consider a different approach to lbd
     // e.g. an approximate measure of =2, =3, >4 can be settled much more easily
-    fn lbd(&self, variable_db: &VariableDB) -> GlueStrength {
+    fn lbd(&self, atom_db: &AtomDB) -> GlueStrength {
         let mut decision_levels = self
             .iter()
-            .map(|literal| variable_db.choice_index_of(literal.var()))
+            .map(|literal| atom_db.choice_index_of(literal.var()))
             .collect::<Vec<_>>();
         decision_levels.sort_unstable();
         decision_levels.dedup();
         decision_levels.len() as GlueStrength
     }
 
-    fn literals(&self) -> impl Iterator<Item = &Literal> {
+    fn literals(&self) -> impl Iterator<Item = &vbLiteral> {
         self.iter()
     }
 
@@ -76,11 +76,11 @@ impl<T: Deref<Target = [Literal]>> ClauseT for T {
         self.len()
     }
 
-    fn variables(&self) -> impl Iterator<Item = crate::structures::variable::Variable> {
+    fn atoms(&self) -> impl Iterator<Item = crate::structures::atom::Atom> {
         self.iter().map(|literal| literal.var())
     }
 
-    fn transform_to_vec(self) -> super::Clause {
+    fn transform_to_vec(self) -> super::vClause {
         self.to_vec()
     }
 }

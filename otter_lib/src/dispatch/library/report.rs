@@ -1,6 +1,6 @@
 use crate::{
     db::keys::ClauseKey,
-    structures::{clause::Clause, literal::Literal},
+    structures::{clause::vClause, literal::vbLiteral},
 };
 
 #[derive(Clone)]
@@ -22,8 +22,8 @@ pub enum Solve {
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ClauseDB {
-    Active(ClauseKey, Clause),
-    ActiveUnit(Literal),
+    Active(ClauseKey, vClause),
+    ActiveUnit(vbLiteral),
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -52,8 +52,8 @@ impl std::fmt::Display for self::Parser {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Load(formula) => write!(f, "Parsing \"{formula}\""),
-            Self::Expected(v, c) => write!(f, "Expected:     {v} variables and {c} clauses"),
-            Self::Counts(v, c) => write!(f, "Parse result: {v} variables and {c} clauses"),
+            Self::Expected(a, c) => write!(f, "Expected:     {a} atoms and {c} clauses"),
+            Self::Counts(a, c) => write!(f, "Parse result: {a} atoms and {c} clauses"),
             Self::ContextClauses(c) => write!(f, "{c} clauses are in the context"),
         }
     }
