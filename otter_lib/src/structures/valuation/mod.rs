@@ -1,7 +1,15 @@
-//! A (partial) map from atoms to truth values.
+//! A (partial) function from atoms to truth values.
+//!
+//! If all atoms are assigned a value the valuation is 'full', otherwise the valuation is 'partial'.
 //!
 //! The canonical representation of a valuation as a vector of optional booleans, where each index of the vector is interpreted as an atom, though most interaction is through the valuation trait.
-//! In particular, the trait is implemented for anything which can be dereferenced to a slice of optional booleans.
+//!
+//!  In other words, the canonical representation of a valuation 𝐯 is a vector *v* whose length is the number of atoms in the context such that:[^pedantic]
+//!  -  *v*\[a\] = Some(true) *if any only if* 𝐯(𝐚) = true.
+//!  -  *v*\[a\] = Some(false) *if any only if* 𝐯(𝐚) = false.
+//!  -  *v*\[a\] = None *if any only if* 𝐯(𝐚) is undefined.
+//!
+//! The trait is implemented for anything which can be dereferenced to a slice of optional booleans.
 //!
 //! ```rust
 //! # use otter_lib::structures::atom;
@@ -15,6 +23,8 @@
 //!
 //! Throughout the library the unsafe `unchecked_value_of` is preferred over the safe `value_of`. \
 //! This is because the implementation on vectors 'only' guarantees *memory* safety, while use requires the stronger guarantee that the (optional) value atom of interest is mapped to the index of the atom in the valuation, and with this an additional check that the atom really is there is redundant.
+//!
+//! [^pedantic]: Where 'a' is the internal representation of some atom whose external representation is '𝐚'.
 
 /// Implimentation of the valuation trait for anything which can be dereferenced to a slice of optional booleans.
 mod slice_impl;

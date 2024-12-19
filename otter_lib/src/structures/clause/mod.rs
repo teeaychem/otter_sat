@@ -24,10 +24,10 @@
 //! assert_eq!(clause.asserts(&some_valuation), Some(abLiteral::fresh(41, false)));
 //! ```
 //!
+//! - The empty clause is always false (never true).
+//! - Single literals are identified with the clause containing that literal (aka. a 'unit' clause --- where the 'unit' is the literal).
 
-/// Implementation of clause trait for a (single) literal.
 mod literal;
-/// Implementation of clause trait for a slice of literals.
 mod literal_slice;
 
 use crate::{

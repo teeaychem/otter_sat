@@ -1,3 +1,5 @@
+//! Implementation of clause trait for a (single) literal.
+
 use crate::{
     config::LBD,
     db::atom::AtomDB,
