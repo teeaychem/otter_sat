@@ -9,7 +9,7 @@ use crate::{
     structures::{
         atom::Atom,
         clause::{vClause, Clause},
-        literal::{vbLiteral, Literal},
+        literal::{abLiteral, Literal},
     },
     types::{
         err::{self},
@@ -33,7 +33,7 @@ impl Context {
         }
     }
 
-    pub fn literal_from_string(&mut self, string: &str) -> Result<vbLiteral, err::Parse> {
+    pub fn literal_from_string(&mut self, string: &str) -> Result<abLiteral, err::Parse> {
         let trimmed_string = string.trim();
         if trimmed_string.is_empty() || trimmed_string == "-" {
             return Err(err::Parse::Negation);
@@ -47,7 +47,7 @@ impl Context {
         }
 
         let the_atom = { self.atom_from_string(the_name).unwrap() };
-        Ok(vbLiteral::new(the_atom, polarity))
+        Ok(abLiteral::fresh(the_atom, polarity))
     }
 
     pub fn clause_from_string(&mut self, string: &str) -> Result<vClause, err::Build> {
@@ -104,7 +104,7 @@ impl Context {
         if clause.size() == 0 {
             return Err(err::Build::ClauseDB(err::ClauseDB::EmptyClause));
         }
-        let mut clause_vec = clause.transform_to_vec();
+        let mut clause_vec = clause.canonical();
 
         self.preprocess_clause(&mut clause_vec)?;
         match clause_vec.len() {
@@ -115,7 +115,7 @@ impl Context {
                 if self.literal_db.choice_made() {
                     return Err(err::Build::ClauseDB(err::ClauseDB::UnitAfterChoice));
                 }
-                match self.atom_db.value_of(literal.var()) {
+                match self.atom_db.value_of(literal.atom()) {
                     None => {
                         let Ok(gen::Queue::Qd) = self.q_literal(literal.borrow()) else {
                             return Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict));

@@ -6,7 +6,7 @@ use crate::{
     misc::log::targets::{self},
     structures::{
         clause::{vClause, Clause},
-        literal::{vbLiteral, Literal},
+        literal::{abLiteral, Literal},
     },
     types::gen::{self},
 };
@@ -62,7 +62,7 @@ impl dbClause {
             }
 
             let literal = unsafe { self.clause.get_unchecked(index) };
-            let literal_value = atoms.value_of(literal.var());
+            let literal_value = atoms.value_of(literal.atom());
             match literal_value {
                 None => break index,
                 Some(value) if value == literal.polarity() => break index,
@@ -75,7 +75,7 @@ impl dbClause {
         self.last = 1;
         for index in 1..clause_length {
             let index_literal = unsafe { self.clause.get_unchecked(index) };
-            let index_value = atoms.value_of(index_literal.var());
+            let index_value = atoms.value_of(index_literal.atom());
             match index_value {
                 None => {
                     self.last = index;
@@ -95,14 +95,14 @@ impl dbClause {
         }
     }
 
-    fn note_watch(&self, literal: impl Borrow<vbLiteral>, atoms: &mut AtomDB) {
+    fn note_watch(&self, literal: impl Borrow<abLiteral>, atoms: &mut AtomDB) {
         let literal = literal.borrow();
         match self.key {
             ClauseKey::Unit(_) => {
                 panic!("attempting to interact with watches on a unit clause")
             }
             ClauseKey::Binary(_) => unsafe {
-                let check_literal = if self.clause.get_unchecked(0).var() == literal.var() {
+                let check_literal = if self.clause.get_unchecked(0).atom() == literal.atom() {
                     *self.clause.get_unchecked(1)
                 } else {
                     *self.clause.get_unchecked(0)
@@ -120,7 +120,7 @@ impl dbClause {
     #[allow(clippy::result_unit_err)]
     pub fn update_watch(
         &mut self,
-        literal: impl Borrow<vbLiteral>,
+        literal: impl Borrow<abLiteral>,
         atoms: &mut AtomDB,
     ) -> Result<gen::Watch, ()> {
         /*
@@ -130,7 +130,7 @@ impl dbClause {
          */
         // assert!(self.clause.len() > 2);
 
-        if unsafe { self.clause.get_unchecked(0).var() == literal.borrow().var() } {
+        if unsafe { self.clause.get_unchecked(0).atom() == literal.borrow().atom() } {
             self.clause.swap(0, self.last)
         }
         /*
@@ -149,7 +149,7 @@ impl dbClause {
                 return Err(());
             }
             let last_literal = unsafe { self.clause.get_unchecked(self.last) };
-            match atoms.value_of(last_literal.var()) {
+            match atoms.value_of(last_literal.atom()) {
                 None => {
                     self.note_watch(*last_literal, atoms);
                     return Ok(gen::Watch::None);
@@ -189,7 +189,7 @@ impl dbClause {
      */
     pub fn subsume(
         &mut self,
-        literal: impl Borrow<vbLiteral>,
+        literal: impl Borrow<abLiteral>,
         atom_db: &mut AtomDB,
         fix_watch: bool,
     ) -> Result<usize, SubsumptionError> {
@@ -228,7 +228,7 @@ impl dbClause {
             self.last = 1;
             for index in 1..clause_length {
                 let index_literal = unsafe { self.clause.get_unchecked(index) };
-                let index_value = atom_db.value_of(index_literal.var());
+                let index_value = atom_db.value_of(index_literal.atom());
                 match index_value {
                     Some(value) if value != index_literal.polarity() => {}
                     _ => {
@@ -250,7 +250,7 @@ impl std::fmt::Display for dbClause {
 }
 
 impl Deref for dbClause {
-    type Target = [vbLiteral];
+    type Target = [abLiteral];
 
     fn deref(&self) -> &Self::Target {
         &self.clause

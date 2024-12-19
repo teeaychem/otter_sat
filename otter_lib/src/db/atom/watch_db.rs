@@ -2,7 +2,7 @@ use crate::{
     db::{atom::AtomDB, clause::ClauseKind, keys::ClauseKey},
     structures::{
         atom::Atom,
-        literal::{vbLiteral, Literal},
+        literal::{abLiteral, Literal},
     },
     types::err::{self},
 };
@@ -10,7 +10,7 @@ use std::{borrow::Borrow, cell::UnsafeCell};
 
 #[derive(Debug)]
 pub enum WatchElement {
-    Binary(vbLiteral, ClauseKey),
+    Binary(abLiteral, ClauseKey),
     Clause(ClauseKey),
 }
 
@@ -92,20 +92,20 @@ impl WatchDB {
 }
 
 impl AtomDB {
-    pub unsafe fn add_watch(&mut self, literal: impl Borrow<vbLiteral>, element: WatchElement) {
+    pub unsafe fn add_watch(&mut self, literal: impl Borrow<abLiteral>, element: WatchElement) {
         self.watch_dbs
-            .get_unchecked(literal.borrow().var() as usize)
+            .get_unchecked(literal.borrow().atom() as usize)
             .watch_added(element, literal.borrow().polarity());
     }
 
     pub unsafe fn remove_watch(
         &mut self,
-        literal: impl Borrow<vbLiteral>,
+        literal: impl Borrow<abLiteral>,
         key: ClauseKey,
     ) -> Result<(), err::Watch> {
         unsafe {
             self.watch_dbs
-                .get_unchecked(literal.borrow().var() as usize)
+                .get_unchecked(literal.borrow().atom() as usize)
                 .watch_removed(key, literal.borrow().polarity())
         }
     }

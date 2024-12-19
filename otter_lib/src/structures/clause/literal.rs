@@ -1,14 +1,14 @@
 use crate::{
-    config::GlueStrength,
+    config::LBD,
     db::atom::AtomDB,
     structures::{
         clause::Clause,
-        literal::{vbLiteral, Literal},
+        literal::{abLiteral, Literal},
         valuation::Valuation,
     },
 };
 
-impl Clause for vbLiteral {
+impl Clause for abLiteral {
     fn as_string(&self) -> String {
         let mut the_string = String::default();
 
@@ -20,8 +20,8 @@ impl Clause for vbLiteral {
         let mut the_string = String::new();
 
         let the_represenetation = match self.polarity() {
-            true => format!(" {} ", atoms.external_representation(self.var())),
-            false => format!("-{} ", atoms.external_representation(self.var())),
+            true => format!(" {} ", atoms.external_representation(self.atom())),
+            false => format!("-{} ", atoms.external_representation(self.atom())),
         };
         the_string.push_str(the_represenetation.as_str());
 
@@ -35,17 +35,15 @@ impl Clause for vbLiteral {
     }
 
     /// Returns the literal asserted by the clause on the given valuation
-    fn asserts(&self, _val: &impl Valuation) -> Option<vbLiteral> {
+    fn asserts(&self, _val: &impl Valuation) -> Option<abLiteral> {
         Some(*self)
     }
 
-    // TODO: consider a different approach to lbd
-    // e.g. an approximate measure of =2, =3, >4 can be settled much more easily
-    fn lbd(&self, _atom_db: &AtomDB) -> GlueStrength {
+    fn lbd(&self, _atom_db: &AtomDB) -> LBD {
         0
     }
 
-    fn literals(&self) -> impl Iterator<Item = &vbLiteral> {
+    fn literals(&self) -> impl Iterator<Item = &abLiteral> {
         std::iter::once(self)
     }
     fn size(&self) -> usize {
@@ -53,10 +51,10 @@ impl Clause for vbLiteral {
     }
 
     fn atoms(&self) -> impl Iterator<Item = crate::structures::atom::Atom> {
-        std::iter::once(self.var())
+        std::iter::once(self.atom())
     }
 
-    fn transform_to_vec(self) -> super::vClause {
+    fn canonical(self) -> super::vClause {
         vec![self]
     }
 }

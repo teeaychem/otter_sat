@@ -1,6 +1,6 @@
 //! Configuration for clause and atom databases.
 
-use super::{Activity, GlueStrength};
+use super::{Activity, LBD};
 
 /// Configuration for the clause database.
 #[derive(Clone, Debug)]
@@ -15,7 +15,7 @@ pub struct ClauseDBConfig {
     pub max_bump: Activity,
 
     /// Any clauses with lbd within the lbd bound (lbd ≤ bound) will not be removed from the clause database.
-    pub lbd_bound: GlueStrength,
+    pub lbd_bound: LBD,
 }
 
 impl Default for ClauseDBConfig {

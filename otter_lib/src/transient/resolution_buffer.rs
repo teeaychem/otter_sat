@@ -17,7 +17,7 @@ use crate::{
     structures::{
         atom::Atom,
         clause::{vClause, Clause},
-        literal::{vbLiteral, Literal},
+        literal::{abLiteral, Literal},
         valuation::Valuation,
     },
     types::{
@@ -32,9 +32,9 @@ pub enum Cell {
     /// Initial valuation
     Value(Option<bool>),
     /// The atom was not valued.
-    None(vbLiteral),
+    None(abLiteral),
     /// The atom had a conflicting value.
-    Conflict(vbLiteral),
+    Conflict(abLiteral),
     /// The atom was part of resolution but was already proven.
     Strengthened,
     /// The atom was used as a pivot when reading a clause into the buffer.
@@ -45,7 +45,7 @@ pub enum Cell {
 pub struct ResolutionBuffer {
     valueless_count: usize,
     clause_length: usize,
-    asserts: Option<vbLiteral>,
+    asserts: Option<abLiteral>,
     buffer: Vec<Cell>,
     used: Vec<bool>,
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
@@ -91,19 +91,19 @@ impl ResolutionBuffer {
 
     #[allow(dead_code)]
     // May be helpful to debug issues
-    pub fn partial_valuation_in_use(&self) -> Vec<vbLiteral> {
+    pub fn partial_valuation_in_use(&self) -> Vec<abLiteral> {
         self.buffer
             .iter()
             .enumerate()
             .filter_map(|(i, v)| match v {
-                Cell::Value(Some(value)) => Some(vbLiteral::new(i as Atom, *value)),
+                Cell::Value(Some(value)) => Some(abLiteral::fresh(i as Atom, *value)),
                 _ => None,
             })
             .collect::<Vec<_>>()
     }
 
     /// Returns the possible assertion and clause of the buffer as a pair
-    pub fn to_assertion_clause(&self) -> (Option<vbLiteral>, vClause) {
+    pub fn to_assertion_clause(&self) -> (Option<abLiteral>, vClause) {
         let mut the_clause = vec![];
         let mut conflict_literal = None;
         for item in &self.buffer {
@@ -124,8 +124,8 @@ impl ResolutionBuffer {
         (conflict_literal, the_clause)
     }
 
-    pub fn clear_literal(&mut self, literal: vbLiteral) {
-        self.set(literal.var(), Cell::Value(None))
+    pub fn clear_literal(&mut self, literal: impl Borrow<abLiteral>) {
+        self.set(literal.borrow().atom(), Cell::Value(None))
     }
 
     pub fn resolve_with(
@@ -244,14 +244,14 @@ impl ResolutionBuffer {
     }
 
     /// Remove literals which conflict with those at level zero from the clause
-    pub fn strengthen_given<'l>(&mut self, literals: impl Iterator<Item = &'l vbLiteral>) {
+    pub fn strengthen_given<'l>(&mut self, literals: impl Iterator<Item = &'l abLiteral>) {
         for literal in literals {
-            match unsafe { *self.buffer.get_unchecked(literal.var() as usize) } {
+            match unsafe { *self.buffer.get_unchecked(literal.atom() as usize) } {
                 Cell::None(_) | Cell::Conflict(_) => {
                     if let Some(length_minus_one) = self.clause_length.checked_sub(1) {
                         self.clause_length = length_minus_one;
                     }
-                    self.set(literal.var(), Cell::Strengthened)
+                    self.set(literal.atom(), Cell::Strengthened)
                 }
                 _ => {}
             }
@@ -273,22 +273,22 @@ impl ResolutionBuffer {
     /// Merge a clause into the buffer
     fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), err::ResolutionBuffer> {
         for literal in clause.literals() {
-            match unsafe { self.buffer.get_unchecked(literal.var() as usize) } {
+            match unsafe { self.buffer.get_unchecked(literal.atom() as usize) } {
                 Cell::Conflict(_) | Cell::None(_) | Cell::Pivot => {}
                 Cell::Value(maybe) => match maybe {
                     None => {
-                        unsafe { *self.used.get_unchecked_mut(literal.var() as usize) = true };
+                        unsafe { *self.used.get_unchecked_mut(literal.atom() as usize) = true };
                         self.clause_length += 1;
                         self.valueless_count += 1;
-                        self.set(literal.var(), Cell::None(*literal));
+                        self.set(literal.atom(), Cell::None(*literal));
                         if self.asserts.is_none() {
                             self.asserts = Some(*literal);
                         }
                     }
                     Some(value) if *value != literal.polarity() => {
-                        unsafe { *self.used.get_unchecked_mut(literal.var() as usize) = true };
+                        unsafe { *self.used.get_unchecked_mut(literal.atom() as usize) = true };
                         self.clause_length += 1;
-                        self.set(literal.var(), Cell::Conflict(*literal));
+                        self.set(literal.atom(), Cell::Conflict(*literal));
                     }
                     Some(_) => {
                         log::error!(target: targets::RESOLUTION, "Satisfied clause");
@@ -304,15 +304,15 @@ impl ResolutionBuffer {
     fn resolve_clause(
         &mut self,
         clause: &impl Clause,
-        using: impl Borrow<vbLiteral>,
+        using: impl Borrow<abLiteral>,
     ) -> Result<(), err::ResolutionBuffer> {
         let using = using.borrow();
-        let contents = unsafe { *self.buffer.get_unchecked(using.var() as usize) };
+        let contents = unsafe { *self.buffer.get_unchecked(using.atom() as usize) };
         match contents {
             Cell::None(literal) if using == &literal.negate() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
-                self.set(using.var(), Cell::Pivot);
+                self.set(using.atom(), Cell::Pivot);
                 self.valueless_count -= 1;
 
                 Ok(())
@@ -320,7 +320,7 @@ impl ResolutionBuffer {
             Cell::Conflict(literal) if using == &literal.negate() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
-                self.set(using.var(), Cell::Pivot);
+                self.set(using.atom(), Cell::Pivot);
 
                 Ok(())
             }
@@ -335,7 +335,7 @@ impl ResolutionBuffer {
         *unsafe { self.buffer.get_unchecked_mut(index as usize) } = to
     }
 
-    fn asserts(&self) -> Option<vbLiteral> {
+    fn asserts(&self) -> Option<abLiteral> {
         if self.valueless_count == 1 {
             self.asserts
         } else {

@@ -40,7 +40,7 @@
 //! ```
 //!
 //! After matching on the type `Delta` one may then match on `BCP`, and finally on `Conflict` to retreive this detail…
-//!
+//!g
 //! # Examples
 //!
 //! Dispatching details on the addition of an original clause to the clause database.

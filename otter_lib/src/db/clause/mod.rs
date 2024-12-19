@@ -1,4 +1,4 @@
-mod activity_glue;
+pub mod activity_glue;
 mod stored;
 mod transfer;
 
@@ -22,7 +22,7 @@ use crate::{
     misc::log::targets::{self},
     structures::{
         clause::{vClause, Clause},
-        literal::vbLiteral,
+        literal::abLiteral,
     },
     types::{
         err::{self},
@@ -41,7 +41,7 @@ pub struct ClauseDB {
 
     empty_keys: Vec<ClauseKey>,
 
-    pub unit: Vec<vbLiteral>,
+    pub unit: Vec<abLiteral>,
     binary: Vec<dbClause>,
     formula: Vec<dbClause>,
     learned: Vec<Option<dbClause>>,
@@ -226,7 +226,7 @@ impl ClauseDB {
                 let key = self.new_binary_id()?;
 
                 self.binary
-                    .push(dbClause::from(key, clause.transform_to_vec(), atoms));
+                    .push(dbClause::from(key, clause.canonical(), atoms));
 
                 Ok(key)
             }
@@ -234,7 +234,7 @@ impl ClauseDB {
             _ => match source {
                 gen::src::Clause::Original => {
                     let key = self.new_formula_id()?;
-                    let stored_form = dbClause::from(key, clause.transform_to_vec(), atoms);
+                    let stored_form = dbClause::from(key, clause.canonical(), atoms);
 
                     self.formula.push(stored_form);
                     Ok(key)
@@ -249,7 +249,7 @@ impl ClauseDB {
                         _ => self.empty_keys.pop().unwrap().retoken()?,
                     };
 
-                    let stored_form = dbClause::from(the_key, clause.transform_to_vec(), atoms);
+                    let stored_form = dbClause::from(the_key, clause.canonical(), atoms);
 
                     let value = ActivityGlue {
                         activity: 1.0,
@@ -366,7 +366,7 @@ impl ClauseDB {
         (self.counts.formula + self.counts.learned + self.counts.binary) as usize
     }
 
-    pub fn all_unit_clauses(&self) -> impl Iterator<Item = &vbLiteral> {
+    pub fn all_unit_clauses(&self) -> impl Iterator<Item = &abLiteral> {
         self.unit.iter()
     }
 
@@ -416,7 +416,7 @@ impl ClauseDB {
     pub fn subsume(
         &mut self,
         key: ClauseKey,
-        literal: vbLiteral,
+        literal: abLiteral,
         atom_db: &mut AtomDB,
     ) -> Result<ClauseKey, err::ResolutionBuffer> {
         let the_clause = self.get_db_clause_carefully_mut(key).unwrap();

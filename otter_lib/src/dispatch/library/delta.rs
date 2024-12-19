@@ -1,6 +1,6 @@
 use crate::{
     db::keys::ClauseKey,
-    structures::{atom::Atom, literal::vbLiteral},
+    structures::{atom::Atom, literal::abLiteral},
 };
 
 #[derive(Clone)]
@@ -14,15 +14,15 @@ pub enum Delta {
 
 #[derive(Clone)]
 pub enum BCP {
-    Conflict { from: vbLiteral, via: ClauseKey },
-    Instance { via: ClauseKey, to: vbLiteral },
+    Conflict { from: abLiteral, via: ClauseKey },
+    Instance { via: ClauseKey, to: abLiteral },
 }
 
 #[derive(Clone)]
 pub enum ClauseBuider {
     End,
     Index(u32),
-    Literal(vbLiteral),
+    Literal(abLiteral),
     Start,
 }
 
@@ -30,7 +30,7 @@ pub enum ClauseBuider {
 pub enum Resolution {
     Begin,
     End,
-    Subsumed(ClauseKey, vbLiteral),
+    Subsumed(ClauseKey, abLiteral),
     Used(ClauseKey),
 }
 
@@ -38,7 +38,7 @@ pub enum Resolution {
 pub enum ClauseDB {
     Added(ClauseKey),
     BCP(ClauseKey),
-    ClauseLiteral(vbLiteral),
+    ClauseLiteral(abLiteral),
     ClauseStart,
     Deletion(ClauseKey),
     Transfer(ClauseKey, ClauseKey),

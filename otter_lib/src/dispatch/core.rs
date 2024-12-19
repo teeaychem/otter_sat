@@ -13,7 +13,7 @@ use crate::{
     },
     structures::{
         clause::{vClause, Clause},
-        literal::{vbLiteral, Literal},
+        literal::{abLiteral, Literal},
     },
     types::err::{self},
 };
@@ -41,17 +41,17 @@ pub struct CoreDB {
 
     original_map: HashMap<ClauseKey, vClause>,
 
-    clause_buffer: Vec<vbLiteral>,
+    clause_buffer: Vec<abLiteral>,
 
     resolution_buffer: Vec<ClauseKey>,
 
     resolution_q: VecDeque<Vec<ClauseKey>>,
 
-    bcp_buffer: Option<(ClauseKey, vbLiteral)>,
+    bcp_buffer: Option<(ClauseKey, abLiteral)>,
 
     clause_map: HashMap<ClauseKey, Vec<ClauseKey>>,
 
-    literal_map: HashMap<vbLiteral, Vec<ClauseKey>>,
+    literal_map: HashMap<abLiteral, Vec<ClauseKey>>,
 }
 
 impl CoreDB {

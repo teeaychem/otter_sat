@@ -8,7 +8,7 @@ use crate::{
         Dispatch,
     },
     misc::log::targets::{self},
-    structures::literal::{vbLiteral, Literal},
+    structures::literal::{abLiteral, Literal},
     types::{
         err::{self},
         gen::{self},
@@ -21,12 +21,12 @@ impl Context {
     /// Mutable access to distinct literals.
     /// Work through two lists, which *from the perspective of the compiler* could contain the same literal.
     /// However, this will never be the case
-    pub unsafe fn bcp(&mut self, literal: impl Borrow<vbLiteral>) -> Result<(), err::BCP> {
+    pub unsafe fn bcp(&mut self, literal: impl Borrow<abLiteral>) -> Result<(), err::BCP> {
         let literal = literal.borrow();
         let binary_list =
             &mut *self
                 .atom_db
-                .watch_list(literal.var(), ClauseKind::Binary, !literal.polarity());
+                .watch_list(literal.atom(), ClauseKind::Binary, !literal.polarity());
 
         for element in binary_list {
             let WatchElement::Binary(check, clause_key) = element else {
@@ -34,7 +34,7 @@ impl Context {
                 return Err(err::BCP::CorruptWatch);
             };
 
-            match self.atom_db.value_of(check.var()) {
+            match self.atom_db.value_of(check.atom()) {
                 None => match self.q_literal(*check) {
                     Ok(gen::Queue::Qd) => {
                         if let Some(dispatcher) = &self.dispatcher {
@@ -71,7 +71,7 @@ impl Context {
         let list =
             &mut *self
                 .atom_db
-                .watch_list(literal.var(), ClauseKind::Long, !literal.polarity());
+                .watch_list(literal.atom(), ClauseKind::Long, !literal.polarity());
 
         let mut index = 0;
         let mut length = list.len();
@@ -108,7 +108,7 @@ impl Context {
                 Err(()) => {
                     let the_watch = *clause.get_unchecked(0);
                     // assert_ne!(the_watch.index(), literal.index());
-                    let watch_value = self.atom_db.value_of(the_watch.var());
+                    let watch_value = self.atom_db.value_of(the_watch.atom());
                     match watch_value {
                         Some(value) if the_watch.polarity() != value => {
                             self.clause_db.note_use(*clause_key);

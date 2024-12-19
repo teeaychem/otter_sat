@@ -5,7 +5,7 @@ use otter_lib::config::{self, Config, StoppingCriteria, VSIDS};
 pub fn config_from_args(args: &ArgMatches) -> Config {
     let mut the_config = Config::default();
 
-    if let Ok(Some(strength)) = args.try_get_one::<config::GlueStrength>("glue_strength") {
+    if let Ok(Some(strength)) = args.try_get_one::<config::LBD>("glue_strength") {
         the_config.clause_db.lbd_bound = *strength
     };
 

@@ -10,7 +10,7 @@ use crate::{
     },
     structures::{
         atom::Atom,
-        literal::{vbLiteral, Literal},
+        literal::{abLiteral, Literal},
     },
     types::gen::{self},
 };
@@ -41,8 +41,8 @@ pub struct LiteralDB {
 
 #[derive(Debug)]
 pub struct ChosenLiteral {
-    choice: vbLiteral,
-    consequences: Vec<(gen::src::Literal, vbLiteral)>,
+    choice: abLiteral,
+    consequences: Vec<(gen::src::Literal, abLiteral)>,
 }
 
 impl LiteralDB {
@@ -55,7 +55,7 @@ impl LiteralDB {
 }
 
 impl LiteralDB {
-    pub fn note_choice(&mut self, choice: vbLiteral) {
+    pub fn note_choice(&mut self, choice: abLiteral) {
         self.choice_stack.push(ChosenLiteral::new(choice));
     }
 
@@ -67,7 +67,7 @@ impl LiteralDB {
     So, checks are made here.
     */
 
-    pub fn last_choice(&self) -> vbLiteral {
+    pub fn last_choice(&self) -> abLiteral {
         unsafe {
             self.choice_stack
                 .get_unchecked(self.choice_stack.len() - 1)
@@ -75,7 +75,7 @@ impl LiteralDB {
         }
     }
 
-    pub fn last_consequences(&self) -> &[(gen::src::Literal, vbLiteral)] {
+    pub fn last_consequences(&self) -> &[(gen::src::Literal, abLiteral)] {
         unsafe {
             &self
                 .choice_stack
@@ -96,7 +96,7 @@ impl LiteralDB {
         self.choice_stack.len() as ChoiceIndex
     }
 
-    pub fn make_literal(&self, atoms: Atom, polarity: bool) -> vbLiteral {
-        vbLiteral::new(atoms, polarity)
+    pub fn make_literal(&self, atoms: Atom, polarity: bool) -> abLiteral {
+        abLiteral::fresh(atoms, polarity)
     }
 }

@@ -1,10 +1,10 @@
-use crate::{db::keys::ClauseKey, structures::literal::vbLiteral};
+use crate::{db::keys::ClauseKey, structures::literal::abLiteral};
 
 pub enum Analysis {
-    MissedImplication(ClauseKey, vbLiteral),
+    MissedImplication(ClauseKey, abLiteral),
     UnitClause(ClauseKey),
     FundamentalConflict,
-    AssertingClause(ClauseKey, vbLiteral),
+    AssertingClause(ClauseKey, abLiteral),
 }
 
 pub enum Choice {
@@ -15,7 +15,7 @@ pub enum Choice {
 pub enum Expansion {
     Conflict,
     UnitClause(ClauseKey),
-    AssertingClause(ClauseKey, vbLiteral),
+    AssertingClause(ClauseKey, abLiteral),
     Exhausted,
 }
 
@@ -28,7 +28,7 @@ pub enum RBuf {
     FirstUIP,
     Exhausted,
     Proof,
-    Missed(ClauseKey, vbLiteral),
+    Missed(ClauseKey, abLiteral),
 }
 
 #[allow(non_camel_case_types)]
