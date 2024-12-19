@@ -30,6 +30,8 @@
 //! - [Hash](std::hash::Hash)
 //!   + Literals are hashable in order to allow for straightforward use of literals as indicies of maps, etc.
 //!     This is particularly useful when recording information from [dispatches](crate::dispatch).
+//!
+//! In other solvers an integer is often used, with the sign of the integer indicating the value of the literal.
 
 /// Implementation details of the [literal trait](Literal) for the [abLiteral] structure.
 #[allow(non_snake_case)]

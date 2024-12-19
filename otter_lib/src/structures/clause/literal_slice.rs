@@ -1,3 +1,5 @@
+//! Implementation of clause trait for a slice of literals.
+
 use crate::{
     config::LBD,
     db::atom::AtomDB,
@@ -38,7 +40,6 @@ impl<T: Deref<Target = [abLiteral]>> Clause for T {
         }
     }
 
-    /// Returns the literal asserted by the clause on the given valuation
     fn asserts(&self, val: &impl Valuation) -> Option<abLiteral> {
         let mut the_literal = None;
         for lit in self.deref() {

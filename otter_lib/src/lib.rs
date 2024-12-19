@@ -33,60 +33,6 @@
 //!   * [FRAT](crate::dispatch::frat)
 //!   * [Unsatisfiable core](crate::dispatch::core)
 //!
-//! # A short guide to terminology (or, the variety of ways in which some common words are used)
-//!
-//! - (Boolean) values.
-//!   - A pair of things, with the first of the pair identified as `true` and the second as `false`.
-//!     - Other choices include: 〈1, 0〉, 〈⟙, ⟘〉, 〈'is to be', 'is not to be'〉, etc.
-//!   - Implementation:
-//!     - The rust keyword [true](https://doc.rust-lang.org/std/keyword.true.html) is identified as `true` and the keyword [false](https://doc.rust-lang.org/std/keyword.false.html) is identified as `false`.
-//!
-//! - [Atoms](crate::structures::atom) (aka. variables).
-//!   - Things with a name to which assigning a (boolean) value (true or false) is of interest.
-//!     - In the SAT literature these are often called 'variables' while in the logic literature these are often called 'atoms'.
-//!   - Implentation:
-//!     - A distinction is made between 'external' and 'internal' atoms.
-//!       - External atoms
-//!         - Are used to used during external interaction with a context, e.g. when providing a formula as input or reading the value of an atom. \
-//!           External atoms are a string of non-whitespace characters that which does not being with '-' (a minus sign). \
-//!           Examples: `p`, `atom_one`, `96`, `0`.
-//!       - Internal atoms
-//!         - Are used internal to a context.
-//!
-//! - Language 𝓛.
-//!   - A language is some set of atoms, closed under the operations of negation, conjunction, and disjunction.
-//!   - Every formula is expressed in some language, and every context implicity uses a language.
-//!     We do not specifically implement the representation of a language, and instead use context to determine which set of atoms constitutes *the* language of interest (typically, those atoms appearing in the input formula) and whether some collection of atoms belongs to the language, and if so whether it is negated, a conjunction, or disjunction.
-//!
-//!
-//! - A (partial or full) valuation.
-//!   - A function 𝐯 from the a language 𝓛 to the value true, the value false, or to 'no value'.
-//!   - If some atom is assigned 'no value', the valuation is 'partial', otherwise the valuation is 'full'.
-//!   - Implementation: \
-//!       A vector `v` whose length is the number of atoms in 𝓛 such that: \
-//!       `v[a] = Some(true)` if any only if 𝐯(a) = true \
-//!       `v[a] = Some(false)` if any only if 𝐯(a) = false \
-//!       `v[a] = None` if any only if 𝐯(a) = 'no value' \
-//!        where `a` is the internal representation of some atom whose external representation is 'a'.
-//!
-//! - Literals.
-//!   - Some pair of an atom and a value. \
-//!     Often understood either an atom or the negation of an atom (especially in the logic literature).
-//!     Though, as the pairing is so often made when the paired element is not intended as part of the langauge, and as intent is almost always clear by context the generalisation turns out to be quite useful.
-//!   - Prefixing an atom with a '-' (minus sign) allows for input of a negated atom, and the same representation is used for output from the context --- e.g. `-p`, `-atom_one`, `-97`, etc.
-//!   - Implentation: \
-//!     Both as a trait `Literal`, and as a concrete structure implementing the trait. \
-//!     The canonical structure implementing the traint is an `avLiteral` containing a an atom and a value.
-//!     In other solvers an integer is often used, with the sign of the integer indicating the value of the literal.
-//!
-//! - Clauses.
-//!   - Clauses are sets of literals, corresponding to the disjunction of the literals in the set (in the contextually relevant language), with the special case of the empty set being some expression in the langauge which is never true (e.g. 'p and not p').
-//!   - Unit clauses (clauses containig a single literal) are often identified with the literal they contain.
-//!
-//! - Formula 𝐅
-//!   - A set of clauses, interpreted as the conjunction of those clauses (and so is the conjunction of disjunctions over literals in some language).
-//!   - The clause database constitutes a formula, which is always entailed by the formula given to the context, though may differ due to preprocessing or learnt clauses.
-//!
 //! Private items are documented.
 //!
 
