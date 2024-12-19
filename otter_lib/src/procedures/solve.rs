@@ -15,7 +15,7 @@ use crate::{
     structures::{
         atom::Atom,
         clause::Clause,
-        literal::{vbLiteral, Literal},
+        literal::{abLiteral, Literal},
         valuation::Valuation,
     },
     types::{
@@ -218,9 +218,9 @@ impl Context {
                 let choice_literal = {
                     if self.config.switch.phase_saving {
                         let previous_value = self.atom_db.previous_value_of(choice_id);
-                        vbLiteral::new(choice_id, previous_value)
+                        abLiteral::fresh(choice_id, previous_value)
                     } else {
-                        vbLiteral::new(
+                        abLiteral::fresh(
                             choice_id,
                             self.counters.rng.gen_bool(self.config.polarity_lean),
                         )
@@ -265,9 +265,10 @@ impl Context {
         // log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.index(), to);
 
         for _ in 0..(self.literal_db.choice_count() - to) {
-            self.atom_db.drop_value(self.literal_db.last_choice().var());
+            self.atom_db
+                .drop_value(self.literal_db.last_choice().atom());
             for (_, literal) in self.literal_db.last_consequences() {
-                self.atom_db.drop_value(literal.var());
+                self.atom_db.drop_value(literal.atom());
             }
             self.literal_db.forget_last_choice();
         }
@@ -284,7 +285,7 @@ impl Context {
             _ => {
                 let mut top_two = (None, None);
                 for literal in clause.literals() {
-                    let Some(dl) = self.atom_db.choice_index_of(literal.var()) else {
+                    let Some(dl) = self.atom_db.choice_index_of(literal.atom()) else {
                         log::error!(target: targets::BACKJUMP, "{literal} was not chosen");
                         return Err(err::Context::Backjump);
                     };

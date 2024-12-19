@@ -75,7 +75,7 @@ impl Default for Config {
 pub type Activity = f64;
 
 /// Glue / literal block distance
-pub type GlueStrength = u8;
+pub type LBD = u8;
 
 /// Representation used for generating the luby sequence
 pub type LubyRepresentation = u32;

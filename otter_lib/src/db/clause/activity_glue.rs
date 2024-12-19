@@ -1,4 +1,4 @@
-use crate::config::{Activity, GlueStrength};
+use crate::config::{Activity, LBD};
 
 /*
 A basic struct two allow ordering on both clause activity and glue strength
@@ -8,7 +8,7 @@ It is unlikely this has much positive impact, but here it is…
 #[derive(Debug)]
 pub(super) struct ActivityGlue {
     pub activity: Activity,
-    pub lbd: GlueStrength,
+    pub lbd: LBD,
 }
 
 impl Default for ActivityGlue {

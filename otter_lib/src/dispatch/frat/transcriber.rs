@@ -13,7 +13,7 @@ use crate::{
     },
     structures::{
         atom::Atom,
-        literal::{vbLiteral, Literal},
+        literal::{abLiteral, Literal},
     },
     types::err::{self},
 };
@@ -55,13 +55,13 @@ impl Transcriber {
     //! FRAT identifiers are of the form [0-9]+, and so a simple 0*X* prefix is sufficient to disambiguate.
     // use super::*;
 
-    pub(super) fn literal_id(literal: impl Borrow<vbLiteral>) -> String {
-        format!("010{}", literal.borrow().var())
+    pub(super) fn literal_id(literal: impl Borrow<abLiteral>) -> String {
+        format!("010{}", literal.borrow().atom())
     }
 
     pub(super) fn key_id(key: &ClauseKey) -> String {
         match key {
-            ClauseKey::Unit(l) => format!("010{}", l.var()),
+            ClauseKey::Unit(l) => format!("010{}", l.atom()),
             ClauseKey::Original(index) => format!("020{index}"),
             ClauseKey::Binary(index) => format!("030{index}"),
             ClauseKey::Addition(index, _) => format!("040{index}"),
@@ -88,7 +88,7 @@ impl Transcriber {
     }
 
     pub fn add_literal(
-        literal: impl Borrow<vbLiteral>,
+        literal: impl Borrow<abLiteral>,
         name: String,
         steps: ResolutionSteps,
     ) -> String {
@@ -127,7 +127,7 @@ impl Transcriber {
         the_string
     }
 
-    pub fn finalise_literal(literal: impl Borrow<vbLiteral>, external: String) -> String {
+    pub fn finalise_literal(literal: impl Borrow<abLiteral>, external: String) -> String {
         let id_rep = Transcriber::literal_id(literal);
         format!("f {id_rep} {external} 0\n")
     }
@@ -220,7 +220,7 @@ impl Transcriber {
 impl Transcriber {
     //! Methods to transform from internal to external representation strings.
 
-    pub(super) fn clause_string(&self, clause: Vec<vbLiteral>) -> String {
+    pub(super) fn clause_string(&self, clause: Vec<abLiteral>) -> String {
         clause
             .iter()
             .map(|l| self.literal_string(l))
@@ -228,8 +228,8 @@ impl Transcriber {
             .join(" ")
     }
 
-    pub(super) fn literal_string(&self, literal: impl Borrow<vbLiteral>) -> String {
-        match &self.atom_map[literal.borrow().var() as usize] {
+    pub(super) fn literal_string(&self, literal: impl Borrow<abLiteral>) -> String {
+        match &self.atom_map[literal.borrow().atom() as usize] {
             Some(ext) => match literal.borrow().polarity() {
                 true => format!("{ext}"),
                 false => format!("-{ext}"),

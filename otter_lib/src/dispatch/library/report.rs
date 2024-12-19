@@ -1,6 +1,6 @@
 use crate::{
     db::keys::ClauseKey,
-    structures::{clause::vClause, literal::vbLiteral},
+    structures::{clause::vClause, literal::abLiteral},
 };
 
 #[derive(Clone)]
@@ -23,7 +23,7 @@ pub enum Solve {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ClauseDB {
     Active(ClauseKey, vClause),
-    ActiveUnit(vbLiteral),
+    ActiveUnit(abLiteral),
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]

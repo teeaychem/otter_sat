@@ -1,6 +1,6 @@
 use crate::{
     misc::log::targets::{self},
-    structures::literal::{vbLiteral, Literal},
+    structures::literal::{abLiteral, Literal},
     types::err::{self},
 };
 
@@ -10,7 +10,7 @@ pub type FormulaToken = u16;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ClauseKey {
-    Unit(vbLiteral),
+    Unit(abLiteral),
     Original(FormulaIndex),
     Binary(FormulaIndex),
     Addition(FormulaIndex, FormulaToken),
@@ -19,7 +19,7 @@ pub enum ClauseKey {
 impl ClauseKey {
     pub fn index(&self) -> usize {
         match self {
-            Self::Unit(l) => l.var() as usize,
+            Self::Unit(l) => l.atom() as usize,
             Self::Original(i) => *i as usize,
             Self::Binary(i) => *i as usize,
             Self::Addition(i, _) => *i as usize,

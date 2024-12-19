@@ -3,11 +3,10 @@
 //!
 //!
 //! # The context
-//! The library is build around the core structure of a 'context'.
+//! The library is build around the core structure of a '[context]'.
 //!
-//! - Context
-//!     - The clause database \
-//!       A collection of clauses, each indexed by a clause key. \
+//!   - [The clause database](crate::db::clause)
+//!     + A collection of clauses, each indexed by a clause key. \
 //!       From an external perspective there are two important kinds of clause:
 //!       * Original clauses \
 //!         Original clauses are added to the context from some external source (e.g. directly or through some DIMACS file). \
@@ -16,14 +15,14 @@
 //!         Clauses added to the context by some procedure (e.g. via resolution).
 //!         Every added clause is a consequence of the collection of original clauses.
 //!
-//!     - The literal database \
-//!       The literal database handled structures who primary
-//!       * Proven literals
+//!   - [The literal database](crate::db::literal)
+//!     + The literal database handled structures who primary
 //!       * The choice stack
-//!     - The atom database
+//!   - [The atom database](crate::db::atom)
+//!     + Properties of atoms.
 //!       * Valuation
 //!       * Watch database
-//!   - Consequence queue
+//! - [Consequence queue](crate::db::consequence_q)
 //!
 //! # Design
 //! - High-level parts are easy to compose
@@ -38,11 +37,11 @@
 //!
 //! - (Boolean) values.
 //!   - A pair of things, with the first of the pair identified as `true` and the second as `false`.
-//!     - Other choices include: `〈1, 0〉`, `〈⟙, ⟘〉`, `〈'is to be', 'is not to be'〉`.
+//!     - Other choices include: 〈1, 0〉, 〈⟙, ⟘〉, 〈'is to be', 'is not to be'〉, etc.
 //!   - Implementation:
 //!     - The rust keyword [true](https://doc.rust-lang.org/std/keyword.true.html) is identified as `true` and the keyword [false](https://doc.rust-lang.org/std/keyword.false.html) is identified as `false`.
 //!
-//! - Atoms (aka. variables).
+//! - [Atoms](crate::structures::atom) (aka. variables).
 //!   - Things with a name to which assigning a (boolean) value (true or false) is of interest.
 //!     - In the SAT literature these are often called 'variables' while in the logic literature these are often called 'atoms'.
 //!   - Implentation:
@@ -53,12 +52,8 @@
 //!           Examples: `p`, `atom_one`, `96`, `0`.
 //!       - Internal atoms
 //!         - Are used internal to a context.
-//!         - Implementation:
-//!           - A u32 `u` such that either (a) `u` is `0` or (b) `u - 1` is an atom --- i.e. the atoms belong to `[0..m)` for some `m`.
-//!           - This representation allows atoms to be used as the indicies of a structure, e.g. `exteranal_string[a]` without taking too much space.
-//!             Revising the representation to any unsigned integer is possible.
 //!
-//! - A language 𝓛.
+//! - Language 𝓛.
 //!   - A language is some set of atoms, closed under the operations of negation, conjunction, and disjunction.
 //!   - Every formula is expressed in some language, and every context implicity uses a language.
 //!     We do not specifically implement the representation of a language, and instead use context to determine which set of atoms constitutes *the* language of interest (typically, those atoms appearing in the input formula) and whether some collection of atoms belongs to the language, and if so whether it is negated, a conjunction, or disjunction.
@@ -74,8 +69,6 @@
 //!       `v[a] = None` if any only if 𝐯(a) = 'no value' \
 //!        where `a` is the internal representation of some atom whose external representation is 'a'.
 //!
-//!
-//!
 //! - Literals.
 //!   - Some pair of an atom and a value. \
 //!     Often understood either an atom or the negation of an atom (especially in the logic literature).
@@ -89,14 +82,10 @@
 //! - Clauses.
 //!   - Clauses are sets of literals, corresponding to the disjunction of the literals in the set (in the contextually relevant language), with the special case of the empty set being some expression in the langauge which is never true (e.g. 'p and not p').
 //!   - Unit clauses (clauses containig a single literal) are often identified with the literal they contain.
-//!   - Implementation: \
-//!     Both as a trait `Clause`, and as a concrete structure implementing the trait. \
-//!     The canonical structure implementing the traint is vector of literals (a `vClause`), and anything which may be dereferences o a slice of literals implents the trait, along with a lone literal.
 //!
 //! - Formula 𝐅
 //!   - A set of clauses, interpreted as the conjunction of those clauses (and so is the conjunction of disjunctions over literals in some language).
-//!   - Implementation:
-//!     The clause database constitutes a formula, which is always entailed by the formula given to the context, though may differ due to preprocessing or learnt clauses.
+//!   - The clause database constitutes a formula, which is always entailed by the formula given to the context, though may differ due to preprocessing or learnt clauses.
 //!
 //! Private items are documented.
 //!

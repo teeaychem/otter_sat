@@ -15,7 +15,7 @@ use crate::{
     misc::log::targets::{self},
     structures::{
         atom::Atom,
-        valuation::{Valuation, ValuationV},
+        valuation::{vValuation, Valuation},
     },
     types::gen::{self},
 };
@@ -28,7 +28,7 @@ pub struct AtomDB {
 
     activity_heap: IndexHeap<Activity>,
 
-    valuation: ValuationV,
+    valuation: vValuation,
     previous_valuation: Vec<bool>,
     choice_indicies: Vec<Option<ChoiceIndex>>,
 

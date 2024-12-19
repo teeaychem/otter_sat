@@ -18,13 +18,13 @@ use crate::{
     },
     structures::{
         clause::{vClause, Clause},
-        literal::vbLiteral,
+        literal::abLiteral,
     },
     types::{err, gen},
 };
 
 impl Context {
-    pub fn record_literal(&mut self, literal: impl Borrow<vbLiteral>, source: gen::src::Literal) {
+    pub fn record_literal(&mut self, literal: impl Borrow<abLiteral>, source: gen::src::Literal) {
         match source {
             gen::src::Literal::Choice => {}
 

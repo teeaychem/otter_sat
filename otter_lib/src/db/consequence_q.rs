@@ -4,17 +4,17 @@ use crate::{
     context::Context,
     db::keys::ChoiceIndex,
     misc::log::targets::{self},
-    structures::literal::{vbLiteral, Literal},
+    structures::literal::{abLiteral, Literal},
     types::{
         err::{self},
         gen::{self},
     },
 };
 
-pub type ConsequenceQ = std::collections::VecDeque<(vbLiteral, ChoiceIndex)>;
+pub type ConsequenceQ = std::collections::VecDeque<(abLiteral, ChoiceIndex)>;
 
 impl Context {
-    pub fn get_consequence(&mut self) -> Option<(vbLiteral, ChoiceIndex)> {
+    pub fn get_consequence(&mut self) -> Option<(abLiteral, ChoiceIndex)> {
         self.consequence_q.pop_front()
     }
 
@@ -22,9 +22,9 @@ impl Context {
         self.consequence_q.retain(|(_, c)| *c < to);
     }
 
-    pub fn q_literal(&mut self, literal: impl Borrow<vbLiteral>) -> Result<gen::Queue, err::Queue> {
+    pub fn q_literal(&mut self, literal: impl Borrow<abLiteral>) -> Result<gen::Queue, err::Queue> {
         let Ok(_) = self.atom_db.set_value(
-            literal.borrow().var(),
+            literal.borrow().atom(),
             literal.borrow().polarity(),
             Some(self.literal_db.choice_count()),
         ) else {
