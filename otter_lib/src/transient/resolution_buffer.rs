@@ -35,7 +35,10 @@ use crate::{
     config::{Config, StoppingCriteria},
     db::{atom::AtomDB, clause::ClauseDB, keys::ClauseKey, literal::LiteralDB},
     dispatch::{
-        library::delta::{self},
+        library::delta::{
+            self,
+            Resolution::{self},
+        },
         Dispatch,
     },
     misc::log::targets::{self},
@@ -88,6 +91,12 @@ pub struct BufferConfig {
     stopping: StoppingCriteria,
 }
 
+macro_rules! send {
+    ( $dispatcher:ident, $dispatch:expr ) => {{
+        $dispatcher(Dispatch::Delta(delta::Delta::Resolution($dispatch)));
+    }};
+}
+
 impl ResolutionBuffer {
     pub fn clause_legnth(&self) -> usize {
         self.clause_length
@@ -116,43 +125,28 @@ impl ResolutionBuffer {
         }
     }
 
-    #[allow(dead_code)]
-    // May be helpful to debug issues
-    pub fn partial_valuation_in_use(&self) -> Vec<abLiteral> {
-        self.buffer
-            .iter()
-            .enumerate()
-            .filter_map(|(i, v)| match v {
-                Cell::Value(Some(value)) => Some(abLiteral::fresh(i as Atom, *value)),
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-    }
-
-    /// Returns the possible assertion and clause of the buffer as a pair
-    pub fn to_assertion_clause(&self) -> (Option<abLiteral>, vClause) {
+    /// Returns the resolved clause and the index to the asserted literal, if one exists.
+    pub fn to_assertion_clause(self) -> (vClause, Option<usize>) {
         let mut the_clause = vec![];
-        let mut conflict_literal = None;
+        let mut conflict_index = None;
         for item in &self.buffer {
             match item {
                 Cell::Strengthened | Cell::Value(_) | Cell::Pivot => {}
                 Cell::Conflict(literal) => the_clause.push(*literal),
                 Cell::None(literal) => {
                     if self.valueless_count == 1 {
-                        conflict_literal = Some(*literal)
-                    } else {
-                        the_clause.push(*literal)
+                        conflict_index = Some(the_clause.size())
                     }
+                    the_clause.push(*literal)
                 }
             }
         }
 
-        // assert!(conflict_literal.is_some() && the_clause.len() == self.clause_legnth - 1 || the_clause.len() == self.clause_legnth);
-        (conflict_literal, the_clause)
+        (the_clause, conflict_index)
     }
 
     pub fn clear_literal(&mut self, literal: impl Borrow<abLiteral>) {
-        self.set(literal.borrow().atom(), Cell::Value(None))
+        unsafe { self.set(literal.borrow().atom(), Cell::Value(None)) }
     }
 
     pub fn resolve_with(
@@ -165,14 +159,12 @@ impl ResolutionBuffer {
         self.merge_clause(clause_db.get_db_clause(conflict).expect("missing clause"));
 
         // Maybe the conflit clause was already asserting after the previous choice…
-        if let Some(asserted_literal) = self.asserts() {
+        if let Some(asserted_literal) = self.asserted_literal() {
             return Ok(gen::RBuf::Missed(conflict, asserted_literal));
         };
         if let Some(dispatcher) = &self.dispatcher {
-            let delta = delta::Delta::Resolution(delta::Resolution::Begin);
-            dispatcher(Dispatch::Delta(delta));
-            let delta = delta::Resolution::Used(conflict);
-            dispatcher(Dispatch::Delta(delta::Delta::Resolution(delta)));
+            send!(dispatcher, delta::Resolution::Begin);
+            send!(dispatcher, delta::Resolution::Used(conflict));
         }
 
         // bump clause activity
@@ -203,11 +195,8 @@ impl ResolutionBuffer {
                             0 => {}
                             1 => {
                                 if let Some(dispatcher) = &self.dispatcher {
-                                    let delta = delta::Resolution::Used(*the_key);
-                                    dispatcher(Dispatch::Delta(delta::Delta::Resolution(delta)));
-                                    dispatcher(Dispatch::Delta(delta::Delta::Resolution(
-                                        delta::Resolution::End,
-                                    )));
+                                    send!(dispatcher, Resolution::Used(*the_key));
+                                    send!(dispatcher, delta::Resolution::End);
                                 }
                                 return Ok(gen::RBuf::Proof);
                             }
@@ -222,23 +211,16 @@ impl ResolutionBuffer {
                                     let new_key = clause_db.subsume(*the_key, *literal, atom_db)?;
 
                                     if let Some(dispatcher) = &self.dispatcher {
-                                        dispatcher(Dispatch::Delta(delta::Delta::Resolution(
-                                            delta::Resolution::End,
-                                        )));
-                                        dispatcher(Dispatch::Delta(delta::Delta::Resolution(
-                                            delta::Resolution::Begin,
-                                        )));
-                                        dispatcher(Dispatch::Delta(delta::Delta::Resolution(
-                                            delta::Resolution::Used(new_key),
-                                        )));
+                                        send!(dispatcher, delta::Resolution::End);
+                                        send!(dispatcher, delta::Resolution::Begin);
+                                        send!(dispatcher, delta::Resolution::Used(new_key));
                                     }
                                 }
                             },
                         }
                     } else {
                         if let Some(dispatcher) = &self.dispatcher {
-                            let delta = delta::Resolution::Used(*the_key);
-                            dispatcher(Dispatch::Delta(delta::Delta::Resolution(delta)));
+                            send!(dispatcher, delta::Resolution::Used(*the_key));
                         }
                     }
 
@@ -253,9 +235,7 @@ impl ResolutionBuffer {
                 match self.config.stopping {
                     StoppingCriteria::FirstUIP => {
                         if let Some(dispatcher) = &self.dispatcher {
-                            dispatcher(Dispatch::Delta(delta::Delta::Resolution(
-                                delta::Resolution::End,
-                            )));
+                            send!(dispatcher, delta::Resolution::End);
                         }
                         return Ok(gen::RBuf::FirstUIP);
                     }
@@ -264,8 +244,7 @@ impl ResolutionBuffer {
             }
         }
         if let Some(dispatcher) = &self.dispatcher {
-            let delta = delta::Resolution::End;
-            dispatcher(Dispatch::Delta(delta::Delta::Resolution(delta)));
+            send!(dispatcher, delta::Resolution::End);
         }
         Ok(gen::RBuf::Exhausted)
     }
@@ -278,13 +257,14 @@ impl ResolutionBuffer {
                     if let Some(length_minus_one) = self.clause_length.checked_sub(1) {
                         self.clause_length = length_minus_one;
                     }
-                    self.set(literal.atom(), Cell::Strengthened)
+                    unsafe { self.set(literal.atom(), Cell::Strengthened) }
                 }
                 _ => {}
             }
         }
     }
 
+    /// The atoms used during resolution.
     pub fn atoms_used(&self) -> impl Iterator<Item = Atom> + '_ {
         self.buffer
             .iter()
@@ -306,14 +286,14 @@ impl ResolutionBuffer {
                     None => {
                         self.clause_length += 1;
                         self.valueless_count += 1;
-                        self.set(literal.atom(), Cell::None(*literal));
+                        unsafe { self.set(literal.atom(), Cell::None(*literal)) };
                         if self.asserts.is_none() {
                             self.asserts = Some(*literal);
                         }
                     }
                     Some(value) if *value != literal.polarity() => {
                         self.clause_length += 1;
-                        self.set(literal.atom(), Cell::Conflict(*literal));
+                        unsafe { self.set(literal.atom(), Cell::Conflict(*literal)) };
                     }
                     Some(_) => {
                         log::error!(target: targets::RESOLUTION, "Satisfied clause");
@@ -337,7 +317,7 @@ impl ResolutionBuffer {
             Cell::None(literal) if using == &literal.negate() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
-                self.set(using.atom(), Cell::Pivot);
+                unsafe { self.set(using.atom(), Cell::Pivot) };
                 self.valueless_count -= 1;
 
                 Ok(())
@@ -345,7 +325,7 @@ impl ResolutionBuffer {
             Cell::Conflict(literal) if using == &literal.negate() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
-                self.set(using.atom(), Cell::Pivot);
+                unsafe { self.set(using.atom(), Cell::Pivot) };
 
                 Ok(())
             }
@@ -356,11 +336,11 @@ impl ResolutionBuffer {
         }
     }
 
-    fn set(&mut self, index: Atom, to: Cell) {
-        *unsafe { self.buffer.get_unchecked_mut(index as usize) } = to
+    unsafe fn set(&mut self, index: Atom, to: Cell) {
+        *self.buffer.get_unchecked_mut(index as usize) = to
     }
 
-    fn asserts(&self) -> Option<abLiteral> {
+    fn asserted_literal(&self) -> Option<abLiteral> {
         if self.valueless_count == 1 {
             self.asserts
         } else {
