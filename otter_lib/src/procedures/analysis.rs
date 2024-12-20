@@ -63,18 +63,14 @@ impl Context {
             the_buffer.strengthen_given(self.clause_db.all_unit_clauses());
         }
 
-        let (asserted_literal, mut resolved_clause) = the_buffer.to_assertion_clause();
-        // TODO: Revise this, maybe, as it means the watch is in the last place looked…
-        if let Some(assertion) = asserted_literal {
-            resolved_clause.push(assertion);
-        }
+        let (resolved_clause, assertion_index) = the_buffer.to_assertion_clause();
 
-        let the_literal = match asserted_literal {
+        let the_literal = match assertion_index {
             None => {
                 log::error!(target: targets::ANALYSIS, "Failed to resolve to an asserting clause");
                 return Err(err::Analysis::NoAssertion);
             }
-            Some(literal) => literal,
+            Some(index) => *unsafe { resolved_clause.get_unchecked(index) },
         };
 
         match resolved_clause.len() {
