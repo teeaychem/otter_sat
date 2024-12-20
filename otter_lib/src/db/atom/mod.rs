@@ -11,7 +11,7 @@ use crate::{
         library::delta::{self},
         Dispatch,
     },
-    generic::heap::IndexHeap,
+    generic::index_heap::IndexHeap,
     misc::log::targets::{self},
     structures::{
         atom::Atom,

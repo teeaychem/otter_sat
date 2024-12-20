@@ -21,7 +21,7 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
         the_config.scheduler.luby = *interval
     };
 
-    if let Ok(Some(u)) = args.try_get_one::<config::LubyRepresentation>("luby") {
+    if let Ok(Some(u)) = args.try_get_one::<otter_lib::generic::luby::LubyRepresentation>("luby") {
         the_config.luby_u = *u
     };
 

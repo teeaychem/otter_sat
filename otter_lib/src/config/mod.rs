@@ -15,7 +15,7 @@ pub mod misc;
 #[derive(Clone, Debug)]
 pub struct Config {
     /// The `u` value to multiply the luby sequence by when determining whether to perform a restart.
-    pub luby_u: LubyRepresentation,
+    pub luby_u: crate::generic::luby::LubyRepresentation,
 
     /// The probability of assigning positive polarity to a atom when freely choosing a atom.
     pub polarity_lean: PolarityLean,
@@ -76,9 +76,6 @@ pub type Activity = f64;
 
 /// Glue / literal block distance
 pub type LBD = u8;
-
-/// Representation used for generating the luby sequence
-pub type LubyRepresentation = u32;
 
 /// Representation for the probability of choosing `true`
 pub type PolarityLean = f64;

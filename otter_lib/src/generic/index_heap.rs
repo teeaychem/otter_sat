@@ -1,5 +1,36 @@
-#[derive(Debug)]
+//! A generic heap where elements have a fixed index.
+//!
+//!
+//! In other words, a heap backed by a vector with a companion vector which tracks the current location of the initial index of a heap element in the heap.
+//!
+//! Further, the backing vector stays constant, allowing heap to act as a store of elements elements which may be moved onto the heap.
+//!
+//! For example, [IndexHeap] is used as a store of [atoms](crate::structures::atom), as atoms are associated with an index and it is a useful heuristic to choose an atom without a value with the most activity when given a partial valuation with no queued consequences to expand on during a solve.
+//!
+//! Further, to help maintain the heap callback functions [apply_to_index](IndexHeap::apply_to_index) and [apply_to_all](IndexHeap::apply_to_all) are provided.[^note]
+//! [^note]: For example, [apply_to_index](IndexHeap::apply_to_index) allows increasing the activity of an atom and [apply_to_all](IndexHeap::apply_to_all) allows scaling the activity of all atoms.
+//!
+//! ```rust
+//! # use otter_lib::generic::index_heap::IndexHeap;
+//! let mut test_heap = IndexHeap::default();
+//!
+//!         test_heap.add(600, 10);
+//!         test_heap.add(0, 70);
+//!
+//!         test_heap.activate(600);
+//!         test_heap.activate(0);
+//!
+//!  assert_eq!(test_heap.len(), 601);
+//!  assert_eq!(test_heap.value_at(5), &i32::default());
+//!
+//!  assert_eq!(test_heap.pop_max(), Some(0));
+//!  assert_eq!(test_heap.pop_max(), Some(600));
+//!
+//!  assert!(test_heap.pop_max().is_none());
+//!
+//!
 
+#[derive(Debug)]
 pub struct IndexHeap<V: PartialOrd + Default> {
     values: Vec<V>,
     position_in_heap: Vec<Option<usize>>,
@@ -135,6 +166,14 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
 
     pub fn revalue(&mut self, index: usize, value: V) {
         unsafe { *self.values.get_unchecked_mut(index) = value }
+    }
+
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
     }
 }
 
