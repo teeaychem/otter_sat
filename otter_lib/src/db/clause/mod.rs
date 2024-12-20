@@ -18,7 +18,7 @@ use crate::{
         },
         Dispatch,
     },
-    generic::heap::IndexHeap,
+    generic::index_heap::IndexHeap,
     misc::log::targets::{self},
     structures::{
         clause::{vClause, Clause},

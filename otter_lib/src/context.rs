@@ -7,13 +7,14 @@ use crate::{
         library::report::{self},
         Dispatch,
     },
+    generic::minimal_pcg::MinimalPCG32,
     types::gen::dbStatus,
 };
 
-use rand::SeedableRng;
+use rand::{Rng, SeedableRng};
 use std::{rc::Rc, time::Duration};
 
-pub struct Counters {
+pub struct Counters<Rng> {
     pub conflicts: usize,
     pub fresh_conflicts: u32,
     pub choices: usize,
@@ -21,10 +22,10 @@ pub struct Counters {
     pub restarts: usize,
     pub time: Duration,
     pub luby: crate::generic::luby::Luby,
-    pub rng: crate::generic::minimal_pcg::MinimalPCG32,
+    pub rng: Rng,
 }
 
-impl Default for Counters {
+impl Default for Counters<MinimalPCG32> {
     fn default() -> Self {
         Counters {
             fresh_conflicts: 0,
@@ -44,7 +45,7 @@ impl Default for Counters {
 pub struct Context {
     pub config: Config,
 
-    pub counters: Counters,
+    pub counters: Counters<MinimalPCG32>,
 
     pub clause_db: ClauseDB,
     pub atom_db: AtomDB,
