@@ -1,18 +1,14 @@
 pub mod details;
 
-use std::{borrow::Borrow, rc::Rc};
+use std::rc::Rc;
 
 use crate::{
     db::keys::ChoiceIndex,
-    dispatch::{
-        library::delta::{self},
-        Dispatch,
-    },
+    dispatch::Dispatch,
     structures::{
         atom::Atom,
-        literal::{abLiteral, Literal},
+        literal::{self, abLiteral, Literal},
     },
-    types::gen::{self},
 };
 
 /*
@@ -42,7 +38,7 @@ pub struct LiteralDB {
 #[derive(Debug)]
 pub struct ChosenLiteral {
     choice: abLiteral,
-    consequences: Vec<(gen::src::Literal, abLiteral)>,
+    consequences: Vec<(literal::Source, abLiteral)>,
 }
 
 impl LiteralDB {
@@ -75,7 +71,7 @@ impl LiteralDB {
         }
     }
 
-    pub fn last_consequences(&self) -> &[(gen::src::Literal, abLiteral)] {
+    pub fn last_consequences(&self) -> &[(literal::Source, abLiteral)] {
         unsafe {
             &self
                 .choice_stack

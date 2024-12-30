@@ -2,22 +2,20 @@ use rand::Rng;
 
 use crate::{
     context::Context,
+    db::consequence_q::{self},
     dispatch::{
         library::report::{self, Report},
         Dispatch,
     },
     structures::{
         atom::Atom,
-        clause::{vClause, Clause},
+        clause::{self, vClause, Clause},
         literal::{abLiteral, Literal},
     },
-    types::{
-        err::{self},
-        gen::{self},
-    },
+    types::err::{self},
 };
 
-use std::{borrow::Borrow, io::BufRead, prelude};
+use std::{borrow::Borrow, io::BufRead};
 
 /// Methods for building the context.
 impl Context {
@@ -117,10 +115,10 @@ impl Context {
                 }
                 match self.atom_db.value_of(literal.atom()) {
                     None => {
-                        let Ok(gen::Queue::Qd) = self.q_literal(literal.borrow()) else {
+                        let Ok(consequence_q::Ok::Qd) = self.q_literal(literal.borrow()) else {
                             return Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict));
                         };
-                        self.record_clause(literal, gen::src::Clause::Original);
+                        self.record_clause(literal, clause::Source::Original);
                         Ok(())
                     }
                     Some(v) if v == literal.polarity() => {
@@ -133,7 +131,7 @@ impl Context {
             }
 
             _ => {
-                self.record_clause(clause_vec, gen::src::Clause::Original)?;
+                self.record_clause(clause_vec, clause::Source::Original)?;
 
                 Ok(())
             }

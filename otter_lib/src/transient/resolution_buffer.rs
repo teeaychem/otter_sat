@@ -45,14 +45,20 @@ use crate::{
     structures::{
         atom::Atom,
         clause::{vClause, Clause},
-        literal::{abLiteral, Literal},
+        literal::{self, abLiteral, Literal},
         valuation::Valuation,
     },
-    types::{
-        err::{self},
-        gen::{self},
-    },
+    types::err::{self},
 };
+
+/// Possilbe 'Ok' results from resolution using a resolution buffer.
+#[derive(Debug)]
+pub enum Ok {
+    FirstUIP,
+    Exhausted,
+    Proof,
+    Missed(ClauseKey, abLiteral),
+}
 
 /// Cells of a resolution buffer.
 #[derive(Clone, Copy)]
@@ -155,12 +161,12 @@ impl ResolutionBuffer {
         literal_db: &LiteralDB,
         clause_db: &mut ClauseDB,
         atom_db: &mut AtomDB,
-    ) -> Result<gen::RBuf, err::ResolutionBuffer> {
+    ) -> Result<Ok, err::ResolutionBuffer> {
         self.merge_clause(clause_db.get_db_clause(conflict).expect("missing clause"));
 
         // Maybe the conflit clause was already asserting after the previous choice…
         if let Some(asserted_literal) = self.asserted_literal() {
-            return Ok(gen::RBuf::Missed(conflict, asserted_literal));
+            return Ok(Ok::Missed(conflict, asserted_literal));
         };
         if let Some(dispatcher) = &self.dispatcher {
             send!(dispatcher, delta::Resolution::Begin);
@@ -174,7 +180,7 @@ impl ResolutionBuffer {
 
         'resolution_loop: for (source, literal) in literal_db.last_consequences().iter().rev() {
             match source {
-                gen::src::Literal::BCP(the_key) => {
+                literal::Source::BCP(the_key) => {
                     let source_clause = match clause_db.get_db_clause(*the_key) {
                         Err(_) => {
                             log::error!(target: targets::RESOLUTION, "Lost resolution clause {the_key:?}");
@@ -198,7 +204,7 @@ impl ResolutionBuffer {
                                     send!(dispatcher, Resolution::Used(*the_key));
                                     send!(dispatcher, delta::Resolution::End);
                                 }
-                                return Ok(gen::RBuf::Proof);
+                                return Ok(Ok::Proof);
                             }
                             _ => match the_key {
                                 ClauseKey::Unit(_) => {
@@ -237,7 +243,7 @@ impl ResolutionBuffer {
                         if let Some(dispatcher) = &self.dispatcher {
                             send!(dispatcher, delta::Resolution::End);
                         }
-                        return Ok(gen::RBuf::FirstUIP);
+                        return Ok(Ok::FirstUIP);
                     }
                     StoppingCriteria::None => {}
                 };
@@ -246,7 +252,7 @@ impl ResolutionBuffer {
         if let Some(dispatcher) = &self.dispatcher {
             send!(dispatcher, delta::Resolution::End);
         }
-        Ok(gen::RBuf::Exhausted)
+        Ok(Ok::Exhausted)
     }
 
     /// Remove literals which conflict with those at level zero from the clause

@@ -2,16 +2,17 @@
 
 use crate::{
     config::Config,
-    db::{atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ, literal::LiteralDB},
+    db::{
+        atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ, dbStatus, literal::LiteralDB,
+    },
     dispatch::{
         library::report::{self},
         Dispatch,
     },
     generic::minimal_pcg::MinimalPCG32,
-    types::gen::dbStatus,
 };
 
-use rand::{Rng, SeedableRng};
+use rand::SeedableRng;
 use std::{rc::Rc, time::Duration};
 
 pub struct Counters<Rng> {

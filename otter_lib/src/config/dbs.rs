@@ -32,7 +32,7 @@ impl Default for ClauseDBConfig {
 /// Configuration for the atom database.
 #[derive(Clone, Debug)]
 pub struct AtomDBConfig {
-    /// The amount with which to bump a atom by when applying VSIDS.
+    /// The amount with which to bump a atom by when applying [VSIDS](crate::config::vsids).
     pub bump: Activity,
 
     /// After a conflict increase the atom bump by a value (proportional to) 1 / (1 - `FACTOR`^-3)

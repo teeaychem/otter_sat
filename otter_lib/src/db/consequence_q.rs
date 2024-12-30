@@ -5,13 +5,14 @@ use crate::{
     db::keys::ChoiceIndex,
     misc::log::targets::{self},
     structures::literal::{abLiteral, Literal},
-    types::{
-        err::{self},
-        gen::{self},
-    },
+    types::err::{self},
 };
 
 pub type ConsequenceQ = std::collections::VecDeque<(abLiteral, ChoiceIndex)>;
+
+pub enum Ok {
+    Qd,
+}
 
 impl Context {
     pub fn get_consequence(&mut self) -> Option<(abLiteral, ChoiceIndex)> {
@@ -22,7 +23,7 @@ impl Context {
         self.consequence_q.retain(|(_, c)| *c < to);
     }
 
-    pub fn q_literal(&mut self, literal: impl Borrow<abLiteral>) -> Result<gen::Queue, err::Queue> {
+    pub fn q_literal(&mut self, literal: impl Borrow<abLiteral>) -> Result<Ok, err::Queue> {
         let Ok(_) = self.atom_db.set_value(
             literal.borrow().atom(),
             literal.borrow().polarity(),
@@ -36,6 +37,6 @@ impl Context {
         self.consequence_q
             .push_back((*literal.borrow(), self.literal_db.choice_count()));
 
-        Ok(gen::Queue::Qd)
+        Ok(Ok::Qd)
     }
 }

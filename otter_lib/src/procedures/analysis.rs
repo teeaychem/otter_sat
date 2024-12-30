@@ -1,21 +1,39 @@
 use crate::{
-    config::{self, StoppingCriteria},
+    config::StoppingCriteria,
     context::Context,
     db::keys::ClauseKey,
     misc::log::targets::{self},
-    structures::clause::Clause,
-    transient::resolution_buffer::ResolutionBuffer,
-    types::{
-        err::{self},
-        gen::{self},
+    structures::{
+        clause::{self, Clause},
+        literal::abLiteral,
     },
+    transient::resolution_buffer::{self, ResolutionBuffer},
+    types::err::{self},
 };
 
+/// Possible 'Ok' results from conflict analysis.
+pub enum Ok {
+    /// The conflict clause was asserting at some previous decision level.
+    MissedImplication {
+        clause_key: ClauseKey,
+        asserted_literal: abLiteral,
+    },
+    /// The result of analysis is a unit clause.
+    UnitClause(ClauseKey),
+    /// A fundamental conflict is identified, and so the current formula is unsatisfiable.
+    FundamentalConflict,
+    /// The result of analysis is a (non-unit) asserting clause.
+    AssertingClause {
+        clause_key: ClauseKey,
+        asserted_literal: abLiteral,
+    },
+}
+
 impl Context {
-    pub fn conflict_analysis(&mut self, key: ClauseKey) -> Result<gen::Analysis, err::Analysis> {
+    pub fn conflict_analysis(&mut self, key: ClauseKey) -> Result<Ok, err::Analysis> {
         log::trace!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.choice_count());
 
-        if let config::VSIDS::Chaff = self.config.vsids_variant {
+        if let crate::config::vsids::VSIDS::Chaff = self.config.vsids_variant {
             self.atom_db
                 .apply_VSIDS(self.clause_db.get_db_clause(key)?.atoms());
         }
@@ -34,22 +52,25 @@ impl Context {
             &mut self.clause_db,
             &mut self.atom_db,
         ) {
-            Ok(gen::RBuf::Proof) | Ok(gen::RBuf::FirstUIP) => {}
-            Ok(gen::RBuf::Exhausted) => {
+            Ok(resolution_buffer::Ok::Proof) | Ok(resolution_buffer::Ok::FirstUIP) => {}
+            Ok(resolution_buffer::Ok::Exhausted) => {
                 if self.config.stopping_criteria == StoppingCriteria::FirstUIP {
                     log::error!(target: targets::ANALYSIS, "Wrong stopping criteria.");
                     return Err(err::Analysis::FailedStoppingCriteria);
                 }
             }
-            Ok(gen::RBuf::Missed(k, l)) => {
-                return Ok(gen::Analysis::MissedImplication(k, l));
+            Ok(resolution_buffer::Ok::Missed(k, l)) => {
+                return Ok(Ok::MissedImplication {
+                    clause_key: k,
+                    asserted_literal: l,
+                });
             }
             Err(_buffer_error) => {
                 return Err(err::Analysis::Buffer);
             }
         }
 
-        if let config::VSIDS::MiniSAT = self.config.vsids_variant {
+        if let crate::config::vsids::VSIDS::MiniSAT = self.config.vsids_variant {
             self.atom_db.apply_VSIDS(the_buffer.atoms_used());
         }
 
@@ -76,12 +97,15 @@ impl Context {
         match resolved_clause.len() {
             0 => Err(err::Analysis::EmptyResolution),
             1 => {
-                let key = self.record_clause(the_literal, gen::src::Clause::Resolution)?;
-                Ok(gen::Analysis::UnitClause(key))
+                let key = self.record_clause(the_literal, clause::Source::Resolution)?;
+                Ok(Ok::UnitClause(key))
             }
             _ => {
-                let key = self.record_clause(resolved_clause, gen::src::Clause::Resolution)?;
-                Ok(gen::Analysis::AssertingClause(key, the_literal))
+                let key = self.record_clause(resolved_clause, clause::Source::Resolution)?;
+                Ok(Ok::AssertingClause {
+                    clause_key: key,
+                    asserted_literal: the_literal,
+                })
             }
         }
     }

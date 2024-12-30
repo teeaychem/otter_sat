@@ -17,18 +17,26 @@ use crate::{
         Dispatch,
     },
     structures::{
-        clause::{vClause, Clause},
-        literal::abLiteral,
+        clause::{Clause, Source as ClauseSource},
+        literal::{abLiteral, Source as LiteralSource},
     },
-    types::{err, gen},
+    types::err,
 };
 
-impl Context {
-    pub fn record_literal(&mut self, literal: impl Borrow<abLiteral>, source: gen::src::Literal) {
-        match source {
-            gen::src::Literal::Choice => {}
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Eq)]
+pub enum dbStatus {
+    Consistent,
+    Inconsistent,
+    Unknown,
+}
 
-            gen::src::Literal::BCP(_) => match self.literal_db.choice_stack.len() {
+impl Context {
+    pub fn record_literal(&mut self, literal: impl Borrow<abLiteral>, source: LiteralSource) {
+        match source {
+            LiteralSource::Choice => {}
+
+            LiteralSource::BCP(_) => match self.literal_db.choice_stack.len() {
                 0 => {
                     if let Some(dispatcher) = &self.dispatcher {
                         let delta = delta::ClauseDB::BCP(ClauseKey::Unit(*literal.borrow()));
@@ -51,19 +59,19 @@ impl Context {
     pub fn record_clause(
         &mut self,
         clause: impl Clause,
-        source: gen::src::Clause,
+        source: ClauseSource,
     ) -> Result<ClauseKey, err::ClauseDB> {
         let the_key = self.clause_db.store(clause, source, &mut self.atom_db)?;
 
         if let Some(dispatcher) = &self.dispatcher {
             match the_key {
                 ClauseKey::Unit(_) => match source {
-                    gen::src::Clause::Resolution => {
+                    ClauseSource::Resolution => {
                         let delta = delta::ClauseDB::Added(the_key);
                         dispatcher(Dispatch::Delta(delta::Delta::ClauseDB(delta)));
                     }
 
-                    gen::src::Clause::Original => {
+                    ClauseSource::Original => {
                         let delta = delta::ClauseDB::Original(the_key);
                         dispatcher(Dispatch::Delta(delta::Delta::ClauseDB(delta)));
                     }
@@ -83,10 +91,8 @@ impl Context {
                             }
                             let delta = {
                                 match source {
-                                    gen::src::Clause::Original => {
-                                        delta::ClauseDB::Original(the_key)
-                                    }
-                                    gen::src::Clause::Resolution => delta::ClauseDB::Added(the_key),
+                                    ClauseSource::Original => delta::ClauseDB::Original(the_key),
+                                    ClauseSource::Resolution => delta::ClauseDB::Added(the_key),
                                 }
                             };
                             dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));

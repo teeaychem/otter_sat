@@ -17,7 +17,6 @@ use crate::{
         atom::Atom,
         valuation::{vValuation, Valuation},
     },
-    types::gen::{self},
 };
 
 pub struct AtomDB {
@@ -34,6 +33,12 @@ pub struct AtomDB {
 
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
     config: AtomDBConfig,
+}
+
+pub enum Status {
+    NotSet,
+    Match,
+    Conflict,
 }
 
 impl AtomDB {
@@ -109,15 +114,15 @@ impl AtomDB {
         v_idx: Atom,
         polarity: bool,
         level: Option<ChoiceIndex>,
-    ) -> Result<gen::Value, gen::Value> {
+    ) -> Result<Status, Status> {
         match self.value_of(v_idx) {
             None => unsafe {
                 *self.valuation.get_unchecked_mut(v_idx as usize) = Some(polarity);
                 *self.choice_indicies.get_unchecked_mut(v_idx as usize) = level;
-                Ok(gen::Value::NotSet)
+                Ok(Status::NotSet)
             },
-            Some(v) if v == polarity => Ok(gen::Value::Match),
-            Some(_) => Err(gen::Value::Conflict),
+            Some(v) if v == polarity => Ok(Status::Match),
+            Some(_) => Err(Status::Conflict),
         }
     }
 

@@ -14,6 +14,19 @@ pub enum WatchElement {
     Clause(ClauseKey),
 }
 
+/// The status of a watched literal, relative to some given valuation.
+#[derive(Clone, Copy, PartialEq)]
+pub enum WatchStatus {
+    /// The polarity of the watched literal matches the valuation of the atom on the given valuation.\
+    /// E.g. if the literal is -p, then p is valued 'false' on the given valuation.
+    Witness,
+    /// The watched literal has no value on the given valuation.
+    None,
+    /// The polarity of the watched literal does not match the valuation of the atom on the given valuation.\
+    /// E.g. if the literal is -p and p has value 'true' on the given valuation.
+    Conflict,
+}
+
 pub(super) struct WatchDB {
     positive_binary: UnsafeCell<Vec<WatchElement>>,
     positive_long: UnsafeCell<Vec<WatchElement>>,
@@ -22,7 +35,7 @@ pub(super) struct WatchDB {
 }
 
 impl WatchDB {
-    pub(super) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             positive_binary: UnsafeCell::new(Vec::with_capacity(512)),
             positive_long: UnsafeCell::new(Vec::with_capacity(512)),

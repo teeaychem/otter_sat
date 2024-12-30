@@ -3,7 +3,7 @@
 //! - Most of these are very unlikely to occur during use.
 //! - Some of these are internally expected but --- e.g. BCP errors are used to control the flow of a solve.
 //! - Some are external --- e.g. a comtext may return an `AssumptionConflict` error to highlight a request to assume a literal would results in an unsatisfiable formula.
-//! In this case information about satisfiability is obtained and the solver may (if satsfiable) continue to be used for further queries.
+//!   In this case information about satisfiability is obtained and the solver may (if satsfiable) continue to be used for further queries.
 //!
 //! Names of the error enums --- for the most part --- overlap with corresponding structs.
 //  As such, throughout the library err::{self} is often used to prefix use of the types with `err::`.

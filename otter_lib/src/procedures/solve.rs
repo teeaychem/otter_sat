@@ -1,5 +1,3 @@
-use rand::{seq::IteratorRandom, Rng};
-
 use crate::{
     context::Context,
     db::keys::{ChoiceIndex, ClauseKey},
@@ -12,23 +10,18 @@ use crate::{
         Dispatch,
     },
     misc::log::targets::{self},
+    procedures::{
+        apply_consequences::{self},
+        choice::{self},
+    },
     structures::{
-        atom::Atom,
         clause::Clause,
-        literal::{abLiteral, Literal},
-        valuation::Valuation,
+        literal::{self, Literal},
     },
-    types::{
-        err::{self},
-        gen::{self},
-    },
+    types::err::{self},
 };
 
 impl Context {
-    pub fn clear_choices(&mut self) {
-        self.backjump(0);
-    }
-
     pub fn solve(&mut self) -> Result<report::Solve, err::Context> {
         let this_total_time = std::time::Instant::now();
 
@@ -47,19 +40,19 @@ impl Context {
             let conflict_found;
 
             match self.apply_consequences()? {
-                gen::Expansion::Conflict => break 'solve_loop,
+                apply_consequences::Ok::Conflict => break 'solve_loop,
 
-                gen::Expansion::UnitClause(key) => {
+                apply_consequences::Ok::UnitClause(key) => {
                     self.backjump(0);
-                    let ClauseKey::Unit(the_literal) = key else {
+                    let ClauseKey::Unit(literal) = key else {
                         panic!("non-unit key");
                     };
 
-                    self.q_literal(the_literal)?;
+                    self.q_literal(literal)?;
                     conflict_found = true;
                 }
 
-                gen::Expansion::AssertingClause(key, literal) => {
+                apply_consequences::Ok::AssertingClause(key, literal) => {
                     let the_clause = self.clause_db.get_db_clause(key)?;
                     let index = self.backjump_level(the_clause)?;
                     self.backjump(index);
@@ -72,16 +65,16 @@ impl Context {
                         };
                         dispatcher(Dispatch::Delta(Delta::BCP(delta)));
                     }
-                    self.record_literal(literal, gen::src::Literal::BCP(key));
+                    self.record_literal(literal, literal::Source::BCP(key));
                     self.q_literal(literal)?;
                     conflict_found = true;
                 }
 
-                gen::Expansion::Exhausted => {
+                apply_consequences::Ok::Exhausted => {
                     //
                     match self.make_choice()? {
-                        gen::Choice::Made => continue 'solve_loop,
-                        gen::Choice::Exhausted => break 'solve_loop,
+                        choice::Ok::Made => continue 'solve_loop,
+                        choice::Ok::Exhausted => break 'solve_loop,
                     }
                 }
             }
@@ -110,68 +103,6 @@ impl Context {
             dispatcher(Dispatch::Report(Report::Finish));
         }
         Ok(self.report())
-    }
-
-    /// Expand queued consequences:
-    /// Performs an analysis on apparent conflict.
-    pub fn apply_consequences(&mut self) -> Result<gen::Expansion, err::Context> {
-        'expansion: while let Some((literal, _)) = self.get_consequence() {
-            match unsafe { self.bcp(literal) } {
-                Ok(()) => {}
-                Err(err::BCP::CorruptWatch) => return Err(err::Context::BCP),
-                Err(err::BCP::Conflict(key)) => {
-                    //
-                    if !self.literal_db.choice_made() {
-                        self.status = gen::dbStatus::Inconsistent;
-
-                        if let Some(dispatcher) = &self.dispatcher {
-                            let delta = delta::AtomDB::Unsatisfiable(key);
-                            dispatcher(Dispatch::Delta(Delta::AtomDB(delta)));
-                        }
-
-                        return Ok(gen::Expansion::Conflict);
-                    }
-
-                    let analysis_result = self.conflict_analysis(key)?;
-
-                    match analysis_result {
-                        gen::Analysis::FundamentalConflict => {
-                            panic!("impossible");
-                            // Analysis is only called when some decision has been made, for now
-                        }
-
-                        gen::Analysis::MissedImplication(key, literal) => {
-                            let the_clause = self.clause_db.get_db_clause(key)?;
-
-                            let index = self.backjump_level(the_clause)?;
-                            self.backjump(index);
-
-                            self.q_literal(literal)?;
-
-                            if let Some(dispatcher) = &self.dispatcher {
-                                let delta = delta::BCP::Instance {
-                                    via: key,
-                                    to: literal,
-                                };
-                                dispatcher(Dispatch::Delta(Delta::BCP(delta)));
-                            }
-                            self.record_literal(literal, gen::src::Literal::BCP(key));
-
-                            continue 'expansion;
-                        }
-
-                        gen::Analysis::UnitClause(key) => {
-                            return Ok(gen::Expansion::UnitClause(key));
-                        }
-
-                        gen::Analysis::AssertingClause(key, literal) => {
-                            return Ok(gen::Expansion::AssertingClause(key, literal));
-                        }
-                    }
-                }
-            }
-        }
-        Ok(gen::Expansion::Exhausted)
     }
 
     pub fn conflict_dispatch(&self) {
@@ -208,57 +139,6 @@ impl Context {
             .scheduler
             .luby
             .is_some_and(|interval| (self.counters.restarts % (interval as usize)) == 0)
-    }
-
-    pub fn make_choice(&mut self) -> Result<gen::Choice, err::Queue> {
-        match self.get_unassigned() {
-            Some(choice_id) => {
-                self.counters.choices += 1;
-
-                let choice_literal = {
-                    if self.config.switch.phase_saving {
-                        let previous_value = self.atom_db.previous_value_of(choice_id);
-                        abLiteral::fresh(choice_id, previous_value)
-                    } else {
-                        abLiteral::fresh(
-                            choice_id,
-                            self.counters.rng.gen_bool(self.config.polarity_lean),
-                        )
-                    }
-                };
-                log::trace!("Choice {choice_literal}");
-                self.literal_db.note_choice(choice_literal);
-                self.q_literal(choice_literal)?;
-
-                Ok(gen::Choice::Made)
-            }
-            None => {
-                self.status = gen::dbStatus::Consistent;
-                Ok(gen::Choice::Exhausted)
-            }
-        }
-    }
-
-    pub fn get_unassigned(&mut self) -> Option<Atom> {
-        match self
-            .counters
-            .rng
-            .gen_bool(self.config.random_choice_frequency)
-        {
-            true => self
-                .atom_db
-                .valuation()
-                .unvalued_atoms()
-                .choose(&mut self.counters.rng),
-            false => {
-                while let Some(index) = self.atom_db.heap_pop_most_active() {
-                    if self.atom_db.value_of(index as Atom).is_none() {
-                        return Some(index);
-                    }
-                }
-                self.atom_db.valuation().unvalued_atoms().next()
-            }
-        }
     }
 
     pub fn backjump(&mut self, to: ChoiceIndex) {

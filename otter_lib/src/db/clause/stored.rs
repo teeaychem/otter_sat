@@ -1,6 +1,9 @@
 use crate::{
     db::{
-        atom::{watch_db::WatchElement, AtomDB},
+        atom::{
+            watch_db::{WatchElement, WatchStatus},
+            AtomDB,
+        },
         keys::ClauseKey,
     },
     misc::log::targets::{self},
@@ -8,7 +11,6 @@ use crate::{
         clause::{vClause, Clause},
         literal::{abLiteral, Literal},
     },
-    types::gen::{self},
 };
 
 use std::{borrow::Borrow, ops::Deref};
@@ -122,7 +124,7 @@ impl dbClause {
         &mut self,
         literal: impl Borrow<abLiteral>,
         atoms: &mut AtomDB,
-    ) -> Result<gen::Watch, ()> {
+    ) -> Result<WatchStatus, ()> {
         /*
         This will, logic issues aside, only be called on long formulas
         And, given how often it is called, checks to ensure there are no logic issues aren't worthwhile
@@ -152,11 +154,11 @@ impl dbClause {
             match atoms.value_of(last_literal.atom()) {
                 None => {
                     self.note_watch(*last_literal, atoms);
-                    return Ok(gen::Watch::None);
+                    return Ok(WatchStatus::None);
                 }
                 Some(value) if value == last_literal.polarity() => {
                     self.note_watch(*last_literal, atoms);
-                    return Ok(gen::Watch::Witness);
+                    return Ok(WatchStatus::Witness);
                 }
                 Some(_) => {}
             }

@@ -21,13 +21,10 @@ use crate::{
     generic::index_heap::IndexHeap,
     misc::log::targets::{self},
     structures::{
-        clause::{vClause, Clause},
+        clause::{Clause, Source},
         literal::abLiteral,
     },
-    types::{
-        err::{self},
-        gen::{self},
-    },
+    types::err::{self},
 };
 
 pub enum ClauseKind {
@@ -209,7 +206,7 @@ impl ClauseDB {
     pub fn store(
         &mut self,
         clause: impl Clause,
-        source: gen::src::Clause,
+        source: Source,
         atoms: &mut AtomDB,
     ) -> Result<ClauseKey, err::ClauseDB> {
         match clause.size() {
@@ -232,7 +229,7 @@ impl ClauseDB {
             }
 
             _ => match source {
-                gen::src::Clause::Original => {
+                Source::Original => {
                     let key = self.new_formula_id()?;
                     let stored_form = dbClause::from(key, clause.canonical(), atoms);
 
@@ -240,7 +237,7 @@ impl ClauseDB {
                     Ok(key)
                 }
 
-                gen::src::Clause::Resolution => {
+                Source::Resolution => {
                     log::trace!(target: targets::CLAUSE_DB, "Learning clause {}", clause.as_string());
                     self.counts.learned += 1;
 

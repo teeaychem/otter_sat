@@ -2,17 +2,18 @@ use std::borrow::Borrow;
 
 use crate::{
     context::Context,
-    db::{atom::watch_db::WatchElement, clause::ClauseKind},
+    db::{
+        atom::watch_db::{self, WatchElement},
+        clause::ClauseKind,
+        consequence_q::{self},
+    },
     dispatch::{
         library::delta::{self, Delta},
         Dispatch,
     },
     misc::log::targets::{self},
-    structures::literal::{abLiteral, Literal},
-    types::{
-        err::{self},
-        gen::{self},
-    },
+    structures::literal::{self, abLiteral, Literal},
+    types::err::{self},
 };
 
 impl Context {
@@ -36,7 +37,7 @@ impl Context {
 
             match self.atom_db.value_of(check.atom()) {
                 None => match self.q_literal(*check) {
-                    Ok(gen::Queue::Qd) => {
+                    Ok(consequence_q::Ok::Qd) => {
                         if let Some(dispatcher) = &self.dispatcher {
                             let delta = delta::BCP::Instance {
                                 via: *clause_key,
@@ -44,7 +45,7 @@ impl Context {
                             };
                             dispatcher(Dispatch::Delta(Delta::BCP(delta)));
                         }
-                        self.record_literal(check, gen::src::Literal::BCP(*clause_key));
+                        self.record_literal(check, literal::Source::BCP(*clause_key));
                     }
                     Err(_key) => {
                         return Err(err::BCP::Conflict(*clause_key));
@@ -96,12 +97,12 @@ impl Context {
             };
 
             match clause.update_watch(literal, &mut self.atom_db) {
-                Ok(gen::Watch::Witness) | Ok(gen::Watch::None) => {
+                Ok(watch_db::WatchStatus::Witness) | Ok(watch_db::WatchStatus::None) => {
                     list.swap_remove(index);
                     length -= 1;
                     continue 'long_loop;
                 }
-                Ok(gen::Watch::Conflict) => {
+                Ok(watch_db::WatchStatus::Conflict) => {
                     log::error!(target: targets::PROPAGATION, "Conflict from updating watch during propagation.");
                     return Err(err::BCP::CorruptWatch);
                 }
@@ -123,7 +124,7 @@ impl Context {
                         }
                         None => {
                             self.clause_db.note_use(*clause_key);
-                            let Ok(gen::Queue::Qd) = self.q_literal(the_watch) else {
+                            let Ok(consequence_q::Ok::Qd) = self.q_literal(the_watch) else {
                                 return Err(err::BCP::Conflict(*clause_key));
                             };
 
@@ -134,7 +135,7 @@ impl Context {
                                 };
                                 dispatcher(Dispatch::Delta(Delta::BCP(delta)));
                             }
-                            self.record_literal(the_watch, gen::src::Literal::BCP(*clause_key));
+                            self.record_literal(the_watch, literal::Source::BCP(*clause_key));
                         }
                         Some(_) => {}
                     }

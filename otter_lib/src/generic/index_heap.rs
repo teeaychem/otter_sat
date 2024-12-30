@@ -1,6 +1,5 @@
 //! A generic heap where elements have a fixed index.
 //!
-//!
 //! In other words, a heap backed by a vector with a companion vector which tracks the current location of the initial index of a heap element in the heap.
 //!
 //! Further, the backing vector stays constant, allowing heap to act as a store of elements elements which may be moved onto the heap.
@@ -27,8 +26,6 @@
 //!  assert_eq!(test_heap.pop_max(), Some(600));
 //!
 //!  assert!(test_heap.pop_max().is_none());
-//!
-//!
 
 #[derive(Debug)]
 pub struct IndexHeap<V: PartialOrd + Default> {

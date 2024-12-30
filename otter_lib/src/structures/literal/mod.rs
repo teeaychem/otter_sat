@@ -37,7 +37,10 @@
 #[allow(non_snake_case)]
 mod impl_abLiteral;
 
-use crate::{db::atom::AtomDB, structures::atom::Atom};
+use crate::{
+    db::{atom::AtomDB, keys::ClauseKey},
+    structures::atom::Atom,
+};
 
 /// Something which has methods for returning an atom and a polarity, etc.
 pub trait Literal: std::cmp::Ord + std::hash::Hash {
@@ -67,4 +70,12 @@ pub trait Literal: std::cmp::Ord + std::hash::Hash {
 pub struct abLiteral {
     atom: Atom,
     polarity: bool,
+}
+
+/// how a literal was settled
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[allow(clippy::upper_case_acronyms)]
+pub enum Source {
+    Choice,         // a choice made where the alternative may make a SAT difference
+    BCP(ClauseKey), // direct from BCP
 }

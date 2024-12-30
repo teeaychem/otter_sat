@@ -1,6 +1,6 @@
 use clap::ArgMatches;
 
-use otter_lib::config::{self, Config, StoppingCriteria, VSIDS};
+use otter_lib::config::{self, vsids::VSIDS, Config, StoppingCriteria};
 
 pub fn config_from_args(args: &ArgMatches) -> Config {
     let mut the_config = Config::default();
