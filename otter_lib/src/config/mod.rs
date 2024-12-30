@@ -6,10 +6,12 @@
 //! Databases.
 //!
 use dbs::{AtomDBConfig, ClauseDBConfig};
+use vsids::VSIDS;
 
 pub mod dbs;
 #[doc(hidden)]
 pub mod misc;
+pub mod vsids;
 
 /// The primary configuration structure.
 #[derive(Clone, Debug)]
@@ -111,25 +113,6 @@ impl std::fmt::Display for StoppingCriteria {
         match self {
             Self::FirstUIP => write!(f, "FirstUIP"),
             Self::None => write!(f, "None"),
-        }
-    }
-}
-
-/// Variant way to apply VSIDS (atom state independent decay sum) during during resolution-based analysis.
-#[derive(Clone, Copy, Debug)]
-#[allow(clippy::upper_case_acronyms)]
-pub enum VSIDS {
-    /// When learning a clause by applying resolution to a sequence of clauses every atom occurring in the learnt clause is bumped.
-    Chaff,
-    /// When learning a clause by applying resolution to a sequence of clauses every atom occurring in some clause used during resolution (including the learnt clause) is bumped.
-    MiniSAT,
-}
-
-impl std::fmt::Display for VSIDS {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Chaff => write!(f, "Chaff"),
-            Self::MiniSAT => write!(f, "MiniSAT"),
         }
     }
 }

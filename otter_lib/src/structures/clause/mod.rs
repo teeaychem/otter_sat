@@ -33,11 +33,7 @@ mod literal_slice;
 use crate::{
     config::LBD,
     db::atom::AtomDB,
-    structures::{
-        atom::Atom,
-        literal::{abLiteral, Literal},
-        valuation::Valuation,
-    },
+    structures::{atom::Atom, literal::abLiteral, valuation::Valuation},
 };
 
 /// The clause trait.
@@ -76,3 +72,9 @@ pub trait Clause {
 /// The canonical implementation of a clause.
 #[allow(non_camel_case_types)]
 pub type vClause = Vec<abLiteral>;
+
+#[derive(Clone, Copy, Debug)]
+pub enum Source {
+    Original,   // Read from a formula
+    Resolution, // Derived via resolution (during analysis, etc.)
+}

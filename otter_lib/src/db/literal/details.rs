@@ -2,8 +2,7 @@ use std::borrow::Borrow;
 
 use crate::{
     db::literal::{ChosenLiteral, LiteralDB},
-    structures::literal::abLiteral,
-    types::gen,
+    structures::literal::{self, abLiteral},
 };
 
 impl LiteralDB {
@@ -22,15 +21,11 @@ impl ChosenLiteral {
     }
 
     #[allow(dead_code)]
-    pub fn consequences(&self) -> &[(gen::src::Literal, abLiteral)] {
+    pub fn consequences(&self) -> &[(literal::Source, abLiteral)] {
         &self.consequences
     }
 
-    pub fn record_consequence(
-        &mut self,
-        literal: impl Borrow<abLiteral>,
-        source: gen::src::Literal,
-    ) {
+    pub fn record_consequence(&mut self, literal: impl Borrow<abLiteral>, source: literal::Source) {
         self.consequences.push((source, *literal.borrow()))
     }
 }

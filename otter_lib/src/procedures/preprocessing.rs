@@ -1,15 +1,13 @@
 use crate::{
     context::Context,
+    db::consequence_q::{self},
     misc::log::targets::{self},
     structures::{
         atom::Atom,
         clause::Clause,
-        literal::{abLiteral, Literal},
+        literal::{self, abLiteral, Literal},
     },
-    types::{
-        err::{self},
-        gen::{self},
-    },
+    types::err::{self},
 };
 
 use std::collections::BTreeSet;
@@ -59,8 +57,8 @@ impl Context {
         for v_id in f.into_iter().chain(t) {
             let the_literal = abLiteral::fresh(v_id, false);
             match self.q_literal(the_literal) {
-                Ok(gen::Queue::Qd) => {
-                    self.record_literal(the_literal, gen::src::Literal::Choice);
+                Ok(consequence_q::Ok::Qd) => {
+                    self.record_literal(the_literal, literal::Source::Choice);
                 }
                 Err(e) => return Err(e),
             }

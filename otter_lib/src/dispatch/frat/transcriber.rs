@@ -311,7 +311,6 @@ impl Transcriber {
     }
 
     pub(super) fn literal_db_delta(&mut self, _δ: &delta::LiteralDB) -> Result<(), err::FRAT> {
-        use delta::LiteralDB::*;
         Ok(())
     }
 
