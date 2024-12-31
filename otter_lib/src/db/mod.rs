@@ -78,7 +78,7 @@ impl Context {
                 },
 
                 _ => {
-                    let db_clause = self.clause_db.get_db_clause(the_key)?;
+                    let db_clause = self.clause_db.get_db_clause_unsafe(&the_key)?;
                     match db_clause.size() {
                         0 => panic!("impossible"),
                         1 => {}

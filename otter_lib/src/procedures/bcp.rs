@@ -1,9 +1,15 @@
+//! Boolean constraint propagation
+//!
+//! Take queued consequences and check clauses.
+//!
+//! The atom database, the clause database, and the consequence queue, and so indirectly the literal database.
+
 use std::borrow::Borrow;
 
 use crate::{
     context::Context,
     db::{
-        atom::watch_db::{self, WatchElement},
+        atom::watch_db::{self, Watcher},
         clause::ClauseKind,
         consequence_q::{self},
     },
@@ -16,21 +22,33 @@ use crate::{
     types::err::{self},
 };
 
+macro_rules! send {
+    ($self:ident, $dispatcher:ident, $variant:ident, $from:expr, $via:expr ) => {{
+        if let Some(dispatcher) = &$self.$dispatcher {
+            let delta = delta::BCP::$variant {
+                literal: $from,
+                clause: $via,
+            };
+            dispatcher(Dispatch::Delta(Delta::BCP(delta)));
+        }
+    }};
+}
+
 impl Context {
     /// # Safety
-    /// BCP extends the change of status of the given literal to the literals in the relevant watch list
-    /// Mutable access to distinct literals.
-    /// Work through two lists, which *from the perspective of the compiler* could contain the same literal.
-    /// However, this will never be the case
+    /// The implementation of bcp requires a key invariant to be upheld:
+    /// - Watch elements at index 0.
+    ///
     pub unsafe fn bcp(&mut self, literal: impl Borrow<abLiteral>) -> Result<(), err::BCP> {
         let literal = literal.borrow();
-        let binary_list =
-            &mut *self
-                .atom_db
-                .watch_list(literal.atom(), ClauseKind::Binary, !literal.polarity());
+        let binary_list = &mut *self.atom_db.get_watch_list_unchecked(
+            literal.atom(),
+            ClauseKind::Binary,
+            !literal.polarity(),
+        );
 
         for element in binary_list {
-            let WatchElement::Binary(check, clause_key) = element else {
+            let Watcher::Binary(check, clause_key) = element else {
                 log::error!(target: targets::PROPAGATION, "Long clause found in binary watch list.");
                 return Err(err::BCP::CorruptWatch);
             };
@@ -38,30 +56,23 @@ impl Context {
             match self.atom_db.value_of(check.atom()) {
                 None => match self.q_literal(*check) {
                     Ok(consequence_q::Ok::Qd) => {
-                        if let Some(dispatcher) = &self.dispatcher {
-                            let delta = delta::BCP::Instance {
-                                via: *clause_key,
-                                to: *check,
-                            };
-                            dispatcher(Dispatch::Delta(Delta::BCP(delta)));
-                        }
+                        send!(self, dispatcher, Instance, *check, *clause_key);
                         self.record_literal(check, literal::Source::BCP(*clause_key));
                     }
+
                     Err(_key) => {
                         return Err(err::BCP::Conflict(*clause_key));
                     }
                 },
+
                 Some(value) if check.polarity() != value => {
+                    // Note the conflict
                     log::trace!(target: targets::PROPAGATION, "Consequence of {clause_key} and {literal} is contradiction.");
-                    if let Some(dispatcher) = &self.dispatcher {
-                        let delta = delta::BCP::Conflict {
-                            from: *literal,
-                            via: *clause_key,
-                        };
-                        dispatcher(Dispatch::Delta(Delta::BCP(delta)));
-                    }
+                    send!(self, dispatcher, Conflict, *literal, *clause_key);
+
                     return Err(err::BCP::Conflict(*clause_key));
                 }
+
                 Some(_) => {
                     log::trace!(target: targets::PROPAGATION, "Missed implication of {clause_key} {literal}.");
                     // a missed implication, as this is binary
@@ -69,16 +80,17 @@ impl Context {
             }
         }
 
-        let list =
-            &mut *self
-                .atom_db
-                .watch_list(literal.atom(), ClauseKind::Long, !literal.polarity());
+        let long_list = &mut *self.atom_db.get_watch_list_unchecked(
+            literal.atom(),
+            ClauseKind::Long,
+            !literal.polarity(),
+        );
 
         let mut index = 0;
-        let mut length = list.len();
+        let mut length = long_list.len();
 
         'long_loop: while index < length {
-            let WatchElement::Clause(clause_key) = list.get_unchecked(index) else {
+            let Watcher::Clause(clause_key) = long_list.get_unchecked(index) else {
                 log::error!(target: targets::PROPAGATION, "Binary clause found in long watch list.");
                 return Err(err::BCP::CorruptWatch);
             };
@@ -87,56 +99,51 @@ impl Context {
             TODO: From the FRAT paper neither MiniSAT nor CaDiCaL store clause identifiers
             So, there may be some way to avoid this… unless there's a NULLPTR check or…
              */
-            let clause = match self.clause_db.get_db_clause_carefully_mut(*clause_key) {
+            let clause = match self.clause_db.get_db_clause_mut(clause_key) {
                 Some(stored_clause) => stored_clause,
                 None => {
-                    list.swap_remove(index);
+                    long_list.swap_remove(index);
                     length -= 1;
                     continue 'long_loop;
                 }
             };
 
-            match clause.update_watch(literal, &mut self.atom_db) {
+            match clause.update_watch(literal.atom(), &mut self.atom_db) {
                 Ok(watch_db::WatchStatus::Witness) | Ok(watch_db::WatchStatus::None) => {
-                    list.swap_remove(index);
+                    long_list.swap_remove(index);
                     length -= 1;
                     continue 'long_loop;
                 }
+
                 Ok(watch_db::WatchStatus::Conflict) => {
                     log::error!(target: targets::PROPAGATION, "Conflict from updating watch during propagation.");
                     return Err(err::BCP::CorruptWatch);
                 }
+
                 Err(()) => {
                     let the_watch = *clause.get_unchecked(0);
-                    // assert_ne!(the_watch.index(), literal.index());
                     let watch_value = self.atom_db.value_of(the_watch.atom());
+
                     match watch_value {
                         Some(value) if the_watch.polarity() != value => {
                             self.clause_db.note_use(*clause_key);
-                            if let Some(dispatcher) = &self.dispatcher {
-                                let delta = delta::BCP::Conflict {
-                                    from: *literal,
-                                    via: *clause_key,
-                                };
-                                dispatcher(Dispatch::Delta(Delta::BCP(delta)));
-                            }
+                            send!(self, dispatcher, Conflict, *literal, *clause_key);
+
                             return Err(err::BCP::Conflict(*clause_key));
                         }
+
                         None => {
                             self.clause_db.note_use(*clause_key);
-                            let Ok(consequence_q::Ok::Qd) = self.q_literal(the_watch) else {
-                                return Err(err::BCP::Conflict(*clause_key));
+
+                            match self.q_literal(the_watch) {
+                                Ok(consequence_q::Ok::Qd) => {}
+                                Err(_) => return Err(err::BCP::Conflict(*clause_key)),
                             };
 
-                            if let Some(dispatcher) = &self.dispatcher {
-                                let delta = delta::BCP::Instance {
-                                    via: *clause_key,
-                                    to: the_watch,
-                                };
-                                dispatcher(Dispatch::Delta(Delta::BCP(delta)));
-                            }
+                            send!(self, dispatcher, Instance, the_watch, *clause_key);
                             self.record_literal(the_watch, literal::Source::BCP(*clause_key));
                         }
+
                         Some(_) => {}
                     }
                 }

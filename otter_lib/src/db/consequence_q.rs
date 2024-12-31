@@ -24,11 +24,13 @@ impl Context {
     }
 
     pub fn q_literal(&mut self, literal: impl Borrow<abLiteral>) -> Result<Ok, err::Queue> {
-        let Ok(_) = self.atom_db.set_value(
-            literal.borrow().atom(),
-            literal.borrow().polarity(),
-            Some(self.literal_db.choice_count()),
-        ) else {
+        let Ok(_) = (unsafe {
+            self.atom_db.set_value(
+                literal.borrow().atom(),
+                literal.borrow().polarity(),
+                Some(self.literal_db.choice_count()),
+            )
+        }) else {
             log::trace!(target: targets::QUEUE, "Queueing {} failed.", literal.borrow());
             return Err(err::Queue::Conflict);
         };

@@ -1,4 +1,4 @@
-//! A generic heap where elements have a fixed index.
+//! A heap on some subset of elements with fixed indicies.
 //!
 //! In other words, a heap backed by a vector with a companion vector which tracks the current location of the initial index of a heap element in the heap.
 //!

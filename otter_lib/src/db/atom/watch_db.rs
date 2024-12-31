@@ -1,3 +1,37 @@
+//! A structure to record which clauses are watching an atom.
+//!
+//! # Overview
+//!
+//! The clauses watching an atom are distinguished by type, with the relevant distinctions set in the [Watcher] enum.
+//!
+//! At present two distinctions are made:
+//!
+//! 1. Between binary clauses and other clauses.
+//!    - This is made as in a binary clause the watched literals are never updated, and so the *other* literal can be recorded to avoid a trip to the clause itself.
+//! 2. Between the value being watched.
+//!    - This is made as the primary use for watch lists is to identify when the value of an atom has been updated.
+//!      In this case, the the purpose of a watch is to note that the literal in the clause is now false, and so either:
+//!        - The watch must be updated.
+//!        - The clause now asserts some literal.
+//!        - The formula being solved cannot be satisfied on the current valuation.
+//!
+//! So, in total each atom has four associated watch lists in it's watch database.
+//!
+//! Note, a unit clause (a clause containing one literal) never watches any atoms.
+//!
+//! The [WatchDB] structure does not have any associated mutating methods.
+//! Instead, mutation of a [WatchDB] is through methods beloning to the [AtomDB].
+//! Those methods are included in this file in order to access private members of the [WatchDB].
+//!
+//! # Use
+//!
+//! Watch lists are inspected and used during [boolean constraint propagation](crate::procedures::bcp).
+//!
+//! # Safety
+//! As the [AtomDB] methods do not perform a check for whether a [WatchDB] exists for a given atom, these are all marked unsafe.
+//!
+//! At present, this is the only use of *unsafe* with respect to [WatchDB]s.
+
 use crate::{
     db::{atom::AtomDB, clause::ClauseKind, keys::ClauseKey},
     structures::{
@@ -6,11 +40,14 @@ use crate::{
     },
     types::err::{self},
 };
-use std::{borrow::Borrow, cell::UnsafeCell};
+use std::borrow::{Borrow, BorrowMut};
 
+/// The watcher of an atom.
 #[derive(Debug)]
-pub enum WatchElement {
+pub enum Watcher {
+    /// A binary clause together with the *other* literal in the clause.
     Binary(abLiteral, ClauseKey),
+    /// A long clause.
     Clause(ClauseKey),
 }
 
@@ -27,56 +64,123 @@ pub enum WatchStatus {
     Conflict,
 }
 
-pub(super) struct WatchDB {
-    positive_binary: UnsafeCell<Vec<WatchElement>>,
-    positive_long: UnsafeCell<Vec<WatchElement>>,
-    negative_binary: UnsafeCell<Vec<WatchElement>>,
-    negative_long: UnsafeCell<Vec<WatchElement>>,
+/// The watchers of an atom, distinguished by length of clause and which value of the atom is under watch.
+pub struct WatchDB {
+    /// A watch from a binary clause for a value of `true`.
+    positive_binary: Vec<Watcher>,
+
+    /// A watch from a long clause for a value of `true`.
+    positive_long: Vec<Watcher>,
+
+    /// A watch from a binary clause for a value of `false`.
+    negative_binary: Vec<Watcher>,
+
+    /// A watch from a long clause for a value of `false`.
+    negative_long: Vec<Watcher>,
+}
+
+impl Default for WatchDB {
+    fn default() -> Self {
+        Self {
+            positive_binary: Vec::default(),
+            positive_long: Vec::default(),
+
+            negative_binary: Vec::default(),
+            negative_long: Vec::default(),
+        }
+    }
 }
 
 impl WatchDB {
-    pub fn new() -> Self {
-        Self {
-            positive_binary: UnsafeCell::new(Vec::with_capacity(512)),
-            positive_long: UnsafeCell::new(Vec::with_capacity(512)),
-            negative_binary: UnsafeCell::new(Vec::with_capacity(512)),
-            negative_long: UnsafeCell::new(Vec::with_capacity(512)),
+    /// Returns the binary watchers of the atom for the given value.
+    fn occurrences_binary(&mut self, value: bool) -> &mut Vec<Watcher> {
+        match value {
+            true => &mut self.positive_binary,
+            false => &mut self.negative_binary,
         }
     }
 
-    unsafe fn watch_added(&self, element: WatchElement, polarity: bool) {
-        match element {
-            WatchElement::Binary(_, _) => match polarity {
-                true => (*self.positive_binary.get()).push(element),
-                false => (*self.negative_binary.get()).push(element),
+    /// Returns the long watchers of the atom for the given value.
+    fn occurrences_long(&mut self, value: bool) -> &mut Vec<Watcher> {
+        match value {
+            true => &mut self.positive_long,
+            false => &mut self.negative_long,
+        }
+    }
+}
+
+impl AtomDB {
+    /// Notes the given atom is being watched for being valued with the given value by the given watcher.
+    ///
+    /// # Safety
+    /// No check is made on whether a [WatchDB] exists for the atom.
+    pub unsafe fn add_watch_unchecked(&mut self, atom: Atom, value: bool, watcher: Watcher) {
+        match watcher {
+            Watcher::Binary(_, _) => match value {
+                true => self
+                    .watch_dbs
+                    .get_unchecked_mut(atom as usize)
+                    .positive_binary
+                    .push(watcher),
+                false => self
+                    .watch_dbs
+                    .get_unchecked_mut(atom as usize)
+                    .negative_binary
+                    .push(watcher),
             },
-            WatchElement::Clause(_) => match polarity {
-                true => (*self.positive_long.get()).push(element),
-                false => (*self.negative_long.get()).push(element),
+            Watcher::Clause(_) => match value {
+                true => self
+                    .watch_dbs
+                    .get_unchecked_mut(atom as usize)
+                    .positive_long
+                    .push(watcher),
+                false => self
+                    .watch_dbs
+                    .get_unchecked_mut(atom as usize)
+                    .negative_long
+                    .push(watcher),
             },
         }
     }
 
+    /// Notes the given atom is *no longer* being watched for being valued with the given value by the given watcher.
+    ///
+    /// # Safety
+    /// No check is made on whether a [WatchDB] exists for the atom.
     /*
-    Swap remove on keys
-    If there's a guarantee keys appear at most once, then this could break early
-    As this shuffles the list any heuristics on traversal order are affected
+    If there's a guarantee keys appear at most once, the swap remove on keys could break early.
+    Note also, as this shuffles the list any heuristics on traversal order of watches is void.
      */
-    unsafe fn watch_removed(&self, key: ClauseKey, polarity: bool) -> Result<(), err::Watch> {
+    pub unsafe fn remove_watch_unchecked(
+        &mut self,
+        atom: Atom,
+        value: bool,
+        key: &ClauseKey,
+    ) -> Result<(), err::Watch> {
         match key {
             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
-                let list = match polarity {
-                    true => &mut *self.positive_long.get(),
-                    false => &mut *self.negative_long.get(),
+                let list = match value {
+                    true => {
+                        &mut self
+                            .watch_dbs
+                            .get_unchecked_mut(atom as usize)
+                            .positive_long
+                    }
+                    false => {
+                        &mut self
+                            .watch_dbs
+                            .get_unchecked_mut(atom as usize)
+                            .negative_long
+                    }
                 };
                 let mut index = 0;
                 let mut limit = list.len();
                 while index < limit {
-                    let WatchElement::Clause(list_key) = list.get_unchecked(index) else {
+                    let Watcher::Clause(list_key) = list.get_unchecked(index) else {
                         return Err(err::Watch::NotLongInLong);
                     };
 
-                    if *list_key == key {
+                    if list_key == key {
                         list.swap_remove(index);
                         limit -= 1;
                     } else {
@@ -89,56 +193,26 @@ impl WatchDB {
         }
     }
 
-    fn occurrences_binary(&self, polarity: bool) -> *mut Vec<WatchElement> {
-        match polarity {
-            true => self.positive_binary.get(),
-            false => self.negative_binary.get(),
-        }
-    }
-
-    fn occurrences_long(&self, polarity: bool) -> *mut Vec<WatchElement> {
-        match polarity {
-            true => self.positive_long.get(),
-            false => self.negative_long.get(),
-        }
-    }
-}
-
-impl AtomDB {
-    pub unsafe fn add_watch(&mut self, literal: impl Borrow<abLiteral>, element: WatchElement) {
-        self.watch_dbs
-            .get_unchecked(literal.borrow().atom() as usize)
-            .watch_added(element, literal.borrow().polarity());
-    }
-
-    pub unsafe fn remove_watch(
+    /// Returns the relevant collection of watchers for a given atom, clause type, and value.
+    ///
+    /// # Safety
+    /// No check is made on whether a [WatchDB] exists for the atom.
+    pub unsafe fn get_watch_list_unchecked(
         &mut self,
-        literal: impl Borrow<abLiteral>,
-        key: ClauseKey,
-    ) -> Result<(), err::Watch> {
-        unsafe {
-            self.watch_dbs
-                .get_unchecked(literal.borrow().atom() as usize)
-                .watch_removed(key, literal.borrow().polarity())
-        }
-    }
-
-    pub unsafe fn watch_list(
-        &self,
-        v_idx: Atom,
+        atom: Atom,
         kind: ClauseKind,
-        polarity: bool,
-    ) -> *mut Vec<WatchElement> {
+        value: bool,
+    ) -> *mut Vec<Watcher> {
         match kind {
             ClauseKind::Unit => todo!(),
-            ClauseKind::Binary => &mut *self
+            ClauseKind::Binary => self
                 .watch_dbs
-                .get_unchecked(v_idx as usize)
-                .occurrences_binary(polarity),
+                .get_unchecked_mut(atom as usize)
+                .occurrences_binary(value),
             ClauseKind::Long => self
                 .watch_dbs
-                .get_unchecked(v_idx as usize)
-                .occurrences_long(polarity),
+                .get_unchecked_mut(atom as usize)
+                .occurrences_long(value),
         }
     }
 }

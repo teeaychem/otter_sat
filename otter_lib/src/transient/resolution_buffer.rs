@@ -157,31 +157,35 @@ impl ResolutionBuffer {
 
     pub fn resolve_with(
         &mut self,
-        conflict: ClauseKey,
+        conflict: &ClauseKey,
         literal_db: &LiteralDB,
         clause_db: &mut ClauseDB,
         atom_db: &mut AtomDB,
     ) -> Result<Ok, err::ResolutionBuffer> {
-        self.merge_clause(clause_db.get_db_clause(conflict).expect("missing clause"));
+        self.merge_clause(
+            clause_db
+                .get_db_clause_unsafe(conflict)
+                .expect("missing clause"),
+        );
 
         // Maybe the conflit clause was already asserting after the previous choice…
         if let Some(asserted_literal) = self.asserted_literal() {
-            return Ok(Ok::Missed(conflict, asserted_literal));
+            return Ok(Ok::Missed(*conflict, asserted_literal));
         };
         if let Some(dispatcher) = &self.dispatcher {
             send!(dispatcher, delta::Resolution::Begin);
-            send!(dispatcher, delta::Resolution::Used(conflict));
+            send!(dispatcher, delta::Resolution::Used(*conflict));
         }
 
         // bump clause activity
         if let ClauseKey::Addition(index, _) = conflict {
-            clause_db.bump_activity(index)
+            clause_db.bump_activity(*index)
         };
 
         'resolution_loop: for (source, literal) in literal_db.last_consequences().iter().rev() {
             match source {
                 literal::Source::BCP(the_key) => {
-                    let source_clause = match clause_db.get_db_clause(*the_key) {
+                    let source_clause = match clause_db.get_db_clause_unsafe(the_key) {
                         Err(_) => {
                             log::error!(target: targets::RESOLUTION, "Lost resolution clause {the_key:?}");
                             return Err(err::ResolutionBuffer::LostClause);
@@ -214,7 +218,8 @@ impl ResolutionBuffer {
                                     todo!("a formula is found which triggers this…");
                                 }
                                 ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
-                                    let new_key = clause_db.subsume(*the_key, *literal, atom_db)?;
+                                    let new_key =
+                                        unsafe { clause_db.subsume(the_key, literal, atom_db)? };
 
                                     if let Some(dispatcher) = &self.dispatcher {
                                         send!(dispatcher, delta::Resolution::End);

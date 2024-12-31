@@ -39,7 +39,7 @@ fn main() {
 
         count += 1;
 
-        let last_valuation = the_context.valuation_string();
+        let last_valuation = the_context.atom_db.valuation_string();
         println!("v {count}\t {last_valuation}");
         let valuation_parts = last_valuation.split_whitespace();
 

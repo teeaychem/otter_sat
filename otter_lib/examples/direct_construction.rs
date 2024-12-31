@@ -4,10 +4,11 @@ use otter_lib::{
 
 fn value_of(variable: &str, context: &Context) -> Option<bool> {
     let mut the_value = None;
-    if context.valuation_string().contains(variable) {
+    if context.atom_db.valuation_string().contains(variable) {
         the_value = Some(true)
     }
     if context
+        .atom_db
         .valuation_string()
         .contains(format!("-{variable}").as_str())
     {
@@ -42,8 +43,8 @@ Representations of: ¬p ∨ q
 
     let p_or_not_q = the_context.clause_from_string("p -q").expect("make failed");
 
-    let p_variable = the_context.atom_db.atom_representation("p").unwrap();
-    let q_variable = the_context.atom_db.atom_representation("q").unwrap();
+    let p_variable = the_context.atom_db.internal_representation("p").unwrap();
+    let q_variable = the_context.atom_db.internal_representation("q").unwrap();
     let p = the_context.literal_db.make_literal(p_variable, true);
     let not_q = the_context.literal_db.make_literal(q_variable, false);
 
@@ -67,7 +68,7 @@ Representations of: ¬p ∨ q
     println!("Prior to solving the status of 𝐅 is:  {status}");
     assert!(the_context.solve().is_ok());
     let status = the_context.report();
-    let valuation = the_context.valuation_string();
+    let valuation = the_context.atom_db.valuation_string();
     println!("After solving the status of 𝐅 is:     {status} (with valuation 𝐕: {valuation})");
     println!();
 

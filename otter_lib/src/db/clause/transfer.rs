@@ -5,6 +5,7 @@ use crate::{
         Dispatch,
     },
     misc::log::targets::{self},
+    structures::literal::Literal,
     types::err::{self},
 };
 
@@ -13,7 +14,7 @@ use super::{stored::dbClause, ClauseDB};
 impl ClauseDB {
     pub(super) fn transfer_to_binary(
         &mut self,
-        key: ClauseKey,
+        key: &ClauseKey,
         atoms: &mut AtomDB,
     ) -> Result<ClauseKey, err::ClauseDB> {
         match key {
@@ -38,8 +39,10 @@ impl ClauseDB {
                 let b_key = self.new_binary_id()?;
 
                 unsafe {
-                    atoms.remove_watch(copied_clause.get_unchecked(0), key)?;
-                    atoms.remove_watch(copied_clause.get_unchecked(1), key)?;
+                    let zero = copied_clause.get_unchecked(0);
+                    atoms.remove_watch_unchecked(zero.atom(), zero.polarity(), key)?;
+                    let one = copied_clause.get_unchecked(1);
+                    atoms.remove_watch_unchecked(one.atom(), one.polarity(), key)?;
                 }
 
                 if let Some(dispatch) = &self.dispatcher {
@@ -49,7 +52,7 @@ impl ClauseDB {
                         let delta = delta::ClauseDB::ClauseLiteral(*literal);
                         dispatch(Dispatch::Delta(Delta::ClauseDB(delta)));
                     }
-                    let delta = delta::ClauseDB::Transfer(key, b_key);
+                    let delta = delta::ClauseDB::Transfer(*key, b_key);
                     dispatch(Dispatch::Delta(Delta::ClauseDB(delta)));
                 }
 

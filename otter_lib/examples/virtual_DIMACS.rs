@@ -19,6 +19,6 @@ fn main() {
     assert!(context_two.solve().is_ok());
 
     let status = context_two.report();
-    let valuation = context_two.valuation_string();
+    let valuation = context_two.atom_db.valuation_string();
     println!("After solving the status of 𝐅 is: {status} (with valuation 𝐕: {valuation})");
 }

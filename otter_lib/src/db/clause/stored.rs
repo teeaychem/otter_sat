@@ -1,13 +1,14 @@
 use crate::{
     db::{
         atom::{
-            watch_db::{WatchElement, WatchStatus},
+            watch_db::{WatchStatus, Watcher},
             AtomDB,
         },
         keys::ClauseKey,
     },
     misc::log::targets::{self},
     structures::{
+        atom::Atom,
         clause::{vClause, Clause},
         literal::{abLiteral, Literal},
     },
@@ -64,7 +65,7 @@ impl dbClause {
             }
 
             let literal = unsafe { self.clause.get_unchecked(index) };
-            let literal_value = atoms.value_of(literal.atom());
+            let literal_value = unsafe { atoms.value_of(literal.atom()) };
             match literal_value {
                 None => break index,
                 Some(value) if value == literal.polarity() => break index,
@@ -77,7 +78,7 @@ impl dbClause {
         self.last = 1;
         for index in 1..clause_length {
             let index_literal = unsafe { self.clause.get_unchecked(index) };
-            let index_value = atoms.value_of(index_literal.atom());
+            let index_value = unsafe { atoms.value_of(index_literal.atom()) };
             match index_value {
                 None => {
                     self.last = index;
@@ -92,37 +93,45 @@ impl dbClause {
         }
 
         unsafe {
-            self.note_watch(self.clause.get_unchecked(0), atoms);
-            self.note_watch(self.clause.get_unchecked(self.last), atoms);
+            let first = self.clause.get_unchecked(0);
+            self.note_watch(first.atom(), first.polarity(), atoms);
+            let last = self.clause.get_unchecked(self.last);
+            self.note_watch(last.atom(), last.polarity(), atoms);
         }
     }
 
-    fn note_watch(&self, literal: impl Borrow<abLiteral>, atoms: &mut AtomDB) {
-        let literal = literal.borrow();
+    unsafe fn note_watch(&self, atom: Atom, polarity: bool, atoms: &mut AtomDB) {
         match self.key {
             ClauseKey::Unit(_) => {
                 panic!("attempting to interact with watches on a unit clause")
             }
-            ClauseKey::Binary(_) => unsafe {
-                let check_literal = if self.clause.get_unchecked(0).atom() == literal.atom() {
+            ClauseKey::Binary(_) => {
+                let check_literal = if self.clause.get_unchecked(0).atom() == atom {
                     *self.clause.get_unchecked(1)
                 } else {
                     *self.clause.get_unchecked(0)
                 };
 
-                atoms.add_watch(literal, WatchElement::Binary(check_literal, self.key()));
-            },
+                atoms.add_watch_unchecked(
+                    atom,
+                    polarity,
+                    Watcher::Binary(check_literal, self.key()),
+                );
+            }
             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
-                unsafe { atoms.add_watch(literal, WatchElement::Clause(self.key())) };
+                atoms.add_watch_unchecked(atom, polarity, Watcher::Clause(self.key()));
             }
         }
     }
 
+    ///
+    /// # Safety
+    /// No checks on atom as index.
     #[inline(always)]
     #[allow(clippy::result_unit_err)]
-    pub fn update_watch(
+    pub unsafe fn update_watch(
         &mut self,
-        literal: impl Borrow<abLiteral>,
+        atom: Atom,
         atoms: &mut AtomDB,
     ) -> Result<WatchStatus, ()> {
         /*
@@ -132,7 +141,7 @@ impl dbClause {
          */
         // assert!(self.clause.len() > 2);
 
-        if unsafe { self.clause.get_unchecked(0).atom() == literal.borrow().atom() } {
+        if self.clause.get_unchecked(0).atom() == atom {
             self.clause.swap(0, self.last)
         }
         /*
@@ -153,11 +162,11 @@ impl dbClause {
             let last_literal = unsafe { self.clause.get_unchecked(self.last) };
             match atoms.value_of(last_literal.atom()) {
                 None => {
-                    self.note_watch(*last_literal, atoms);
+                    self.note_watch(last_literal.atom(), last_literal.polarity(), atoms);
                     return Ok(WatchStatus::None);
                 }
                 Some(value) if value == last_literal.polarity() => {
-                    self.note_watch(*last_literal, atoms);
+                    self.note_watch(last_literal.atom(), last_literal.polarity(), atoms);
                     return Ok(WatchStatus::Witness);
                 }
                 Some(_) => {}
@@ -189,7 +198,7 @@ impl dbClause {
     At the moment learnt clauses are modified in place.
     For FRAT it's not clear whether id overwriting is ok.
      */
-    pub fn subsume(
+    pub unsafe fn subsume(
         &mut self,
         literal: impl Borrow<abLiteral>,
         atom_db: &mut AtomDB,
@@ -220,7 +229,7 @@ impl dbClause {
 
         let removed = self.clause.swap_remove(position);
 
-        match unsafe { atom_db.remove_watch(removed, self.key) } {
+        match atom_db.remove_watch_unchecked(removed.atom(), removed.polarity(), &self.key) {
             Ok(()) => {}
             Err(_) => return Err(SubsumptionError::WatchError),
         };
@@ -229,7 +238,7 @@ impl dbClause {
             let clause_length = self.clause.len();
             self.last = 1;
             for index in 1..clause_length {
-                let index_literal = unsafe { self.clause.get_unchecked(index) };
+                let index_literal = self.clause.get_unchecked(index);
                 let index_value = atom_db.value_of(index_literal.atom());
                 match index_value {
                     Some(value) if value != index_literal.polarity() => {}
@@ -239,7 +248,8 @@ impl dbClause {
                     }
                 }
             }
-            self.note_watch(self.clause[self.last], atom_db);
+            let watched_literal = self.clause.get_unchecked(self.last);
+            self.note_watch(watched_literal.atom(), watched_literal.polarity(), atom_db);
         }
         Ok(self.clause.len())
     }

@@ -14,8 +14,14 @@ pub enum Delta {
 
 #[derive(Clone)]
 pub enum BCP {
-    Conflict { from: abLiteral, via: ClauseKey },
-    Instance { via: ClauseKey, to: abLiteral },
+    Conflict {
+        literal: abLiteral,
+        clause: ClauseKey,
+    },
+    Instance {
+        clause: ClauseKey,
+        literal: abLiteral,
+    },
 }
 
 #[derive(Clone)]

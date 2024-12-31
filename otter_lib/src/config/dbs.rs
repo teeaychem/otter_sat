@@ -39,7 +39,7 @@ pub struct AtomDBConfig {
     pub decay: Activity,
 
     /// The maximum value to which the activity a atom can rise before rescoring the activity of all atoms.
-    pub max_bump: Activity,
+    pub max_activity: Activity,
 }
 
 impl Default for AtomDBConfig {
@@ -47,7 +47,7 @@ impl Default for AtomDBConfig {
         AtomDBConfig {
             bump: 1.0,
             decay: 50.0 * 1e-3,
-            max_bump: (2.0 as Activity).powi(512), // activity_max: 1e150,
+            max_activity: (2.0 as Activity).powi(512), // activity_max: 1e150,
         }
     }
 }

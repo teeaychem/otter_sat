@@ -53,15 +53,15 @@ impl Context {
                 }
 
                 apply_consequences::Ok::AssertingClause(key, literal) => {
-                    let the_clause = self.clause_db.get_db_clause(key)?;
+                    let the_clause = self.clause_db.get_db_clause_unsafe(&key)?;
                     let index = self.backjump_level(the_clause)?;
                     self.backjump(index);
 
                     self.clause_db.note_use(key);
                     if let Some(dispatcher) = &self.dispatcher {
                         let delta = delta::BCP::Instance {
-                            via: key,
-                            to: literal,
+                            clause: key,
+                            literal,
                         };
                         dispatcher(Dispatch::Delta(Delta::BCP(delta)));
                     }
@@ -145,10 +145,12 @@ impl Context {
         // log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.index(), to);
 
         for _ in 0..(self.literal_db.choice_count() - to) {
-            self.atom_db
-                .drop_value(self.literal_db.last_choice().atom());
+            unsafe {
+                self.atom_db
+                    .drop_value(self.literal_db.last_choice().atom())
+            };
             for (_, literal) in self.literal_db.last_consequences() {
-                self.atom_db.drop_value(literal.atom());
+                unsafe { self.atom_db.drop_value(literal.atom()) };
             }
             self.literal_db.forget_last_choice();
         }
@@ -165,7 +167,7 @@ impl Context {
             _ => {
                 let mut top_two = (None, None);
                 for literal in clause.literals() {
-                    let Some(dl) = self.atom_db.choice_index_of(literal.atom()) else {
+                    let Some(dl) = (unsafe { self.atom_db.choice_index_of(literal.atom()) }) else {
                         log::error!(target: targets::BACKJUMP, "{literal} was not chosen");
                         return Err(err::Context::Backjump);
                     };
