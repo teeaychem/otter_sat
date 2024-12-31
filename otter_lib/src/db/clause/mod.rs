@@ -2,7 +2,7 @@ pub mod activity_glue;
 mod stored;
 mod transfer;
 
-use std::rc::Rc;
+use std::{borrow::Borrow, rc::Rc};
 
 use crate::{
     config::{dbs::ClauseDBConfig, Config},
@@ -128,15 +128,19 @@ impl ClauseDB {
     //     }
     // }
 
-    pub fn get_db_clause(&self, key: ClauseKey) -> Result<&dbClause, err::ClauseDB> {
+    pub fn get_db_clause_unsafe(&self, key: &ClauseKey) -> Result<&dbClause, err::ClauseDB> {
         match key {
             ClauseKey::Unit(_) => Err(err::ClauseDB::GetUnitKey),
-            ClauseKey::Original(index) => unsafe { Ok(self.formula.get_unchecked(index as usize)) },
-            ClauseKey::Binary(index) => unsafe { Ok(self.binary.get_unchecked(index as usize)) },
+            ClauseKey::Original(index) => unsafe {
+                Ok(self.formula.get_unchecked(*index as usize))
+            },
+            ClauseKey::Binary(index) => unsafe { Ok(self.binary.get_unchecked(*index as usize)) },
             ClauseKey::Addition(index, token) => unsafe {
-                match self.learned.get_unchecked(index as usize) {
+                match self.learned.get_unchecked(*index as usize) {
                     Some(clause) => match clause.key() {
-                        ClauseKey::Addition(_, clause_token) if clause_token == token => Ok(clause),
+                        ClauseKey::Addition(_, clause_token) if &clause_token == token => {
+                            Ok(clause)
+                        }
                         _ => Err(err::ClauseDB::InvalidKeyToken),
                     },
                     None => Err(err::ClauseDB::InvalidKeyIndex),
@@ -145,14 +149,14 @@ impl ClauseDB {
         }
     }
 
-    pub fn get_db_clause_carefully_mut(&mut self, key: ClauseKey) -> Option<&mut dbClause> {
+    pub fn get_db_clause_mut(&mut self, key: &ClauseKey) -> Option<&mut dbClause> {
         match key {
             ClauseKey::Unit(_) => None,
-            ClauseKey::Original(index) => self.formula.get_mut(index as usize),
-            ClauseKey::Binary(index) => self.binary.get_mut(index as usize),
-            ClauseKey::Addition(index, token) => match self.learned.get_mut(index as usize) {
+            ClauseKey::Original(index) => self.formula.get_mut(*index as usize),
+            ClauseKey::Binary(index) => self.binary.get_mut(*index as usize),
+            ClauseKey::Addition(index, token) => match self.learned.get_mut(*index as usize) {
                 Some(Some(clause)) => match clause.key() {
-                    ClauseKey::Addition(_, clause_token) if clause_token == token => Some(clause),
+                    ClauseKey::Addition(_, clause_token) if &clause_token == token => Some(clause),
                     _ => None,
                 },
                 _ => None,
@@ -160,19 +164,21 @@ impl ClauseDB {
         }
     }
 
-    fn get_mut(&mut self, key: ClauseKey) -> Result<&mut dbClause, err::ClauseDB> {
+    fn get_mut(&mut self, key: &ClauseKey) -> Result<&mut dbClause, err::ClauseDB> {
         match key {
             ClauseKey::Unit(_) => Err(err::ClauseDB::GetUnitKey),
             ClauseKey::Original(index) => unsafe {
-                Ok(self.formula.get_unchecked_mut(index as usize))
+                Ok(self.formula.get_unchecked_mut(*index as usize))
             },
             ClauseKey::Binary(index) => unsafe {
-                Ok(self.binary.get_unchecked_mut(index as usize))
+                Ok(self.binary.get_unchecked_mut(*index as usize))
             },
             ClauseKey::Addition(index, token) => unsafe {
-                match self.learned.get_unchecked_mut(index as usize) {
+                match self.learned.get_unchecked_mut(*index as usize) {
                     Some(clause) => match clause.key() {
-                        ClauseKey::Addition(_, clause_token) if clause_token == token => Ok(clause),
+                        ClauseKey::Addition(_, clause_token) if &clause_token == token => {
+                            Ok(clause)
+                        }
                         _ => Err(err::ClauseDB::InvalidKeyToken),
                     },
                     None => Err(err::ClauseDB::InvalidKeyIndex),
@@ -410,13 +416,13 @@ impl ClauseDB {
       + As, if the clause appeared in some previous stage then use of the clause would be a missed implication
       + And, missed implications are checked prior to conflicts
      */
-    pub fn subsume(
+    pub unsafe fn subsume(
         &mut self,
-        key: ClauseKey,
-        literal: abLiteral,
+        key: &ClauseKey,
+        literal: impl Borrow<abLiteral>,
         atom_db: &mut AtomDB,
     ) -> Result<ClauseKey, err::ResolutionBuffer> {
-        let the_clause = self.get_db_clause_carefully_mut(key).unwrap();
+        let the_clause = self.get_db_clause_mut(key).unwrap();
         match the_clause.len() {
             0..=2 => panic!("impossible"),
             3 => {
@@ -435,7 +441,7 @@ impl ClauseDB {
                 // TODO: Dispatches for subsumption…
                 // let delta = delta::Resolution::Subsumed(key, literal);
                 // (Dispatch::Resolution(delta));
-                Ok(key)
+                Ok(*key)
             }
         }
     }

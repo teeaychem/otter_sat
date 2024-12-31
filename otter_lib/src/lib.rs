@@ -34,18 +34,17 @@
 //!   * [Unsatisfiable core](crate::dispatch::core)
 //!
 //! Private items are documented.
-//!
 
 #![allow(mixed_script_confusables)]
 #![allow(unused_must_use)]
 #![allow(clippy::single_match)]
 #![allow(clippy::collapsible_else_if)]
+#![allow(clippy::derivable_impls)]
 // #![allow(unused_imports)]
 
 #[doc(hidden)]
-mod builder;
-#[doc(hidden)]
-mod procedures;
+pub mod builder;
+pub mod procedures;
 
 pub mod config;
 pub mod context;

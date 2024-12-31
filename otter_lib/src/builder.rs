@@ -20,7 +20,7 @@ use std::{borrow::Borrow, io::BufRead};
 /// Methods for building the context.
 impl Context {
     pub fn atom_from_string(&mut self, name: &str) -> Result<Atom, err::Parse> {
-        match self.atom_db.atom_representation(name) {
+        match self.atom_db.internal_representation(name) {
             Some(atom) => Ok(atom),
             None => {
                 let the_id = self.atom_db.count() as Atom;
@@ -113,7 +113,7 @@ impl Context {
                 if self.literal_db.choice_made() {
                     return Err(err::Build::ClauseDB(err::ClauseDB::UnitAfterChoice));
                 }
-                match self.atom_db.value_of(literal.atom()) {
+                match unsafe { self.atom_db.value_of(literal.atom()) } {
                     None => {
                         let Ok(consequence_q::Ok::Qd) = self.q_literal(literal.borrow()) else {
                             return Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict));

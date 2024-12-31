@@ -30,12 +30,12 @@ pub enum Ok {
 }
 
 impl Context {
-    pub fn conflict_analysis(&mut self, key: ClauseKey) -> Result<Ok, err::Analysis> {
+    pub fn conflict_analysis(&mut self, key: &ClauseKey) -> Result<Ok, err::Analysis> {
         log::trace!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.choice_count());
 
         if let crate::config::vsids::VSIDS::Chaff = self.config.vsids_variant {
             self.atom_db
-                .apply_VSIDS(self.clause_db.get_db_clause(key)?.atoms());
+                .bump_relative(self.clause_db.get_db_clause_unsafe(key)?.atoms());
         }
 
         let mut the_buffer =
@@ -71,7 +71,7 @@ impl Context {
         }
 
         if let crate::config::vsids::VSIDS::MiniSAT = self.config.vsids_variant {
-            self.atom_db.apply_VSIDS(the_buffer.atoms_used());
+            self.atom_db.bump_relative(the_buffer.atoms_used());
         }
 
         /*

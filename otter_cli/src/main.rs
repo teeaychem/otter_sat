@@ -125,7 +125,7 @@ fn main() {
             }
             report::Solve::Satisfiable => {
                 if config_io.show_valuation {
-                    println!("v {}", the_context.valuation_string());
+                    println!("v {}", the_context.atom_db.valuation_string());
                 }
             }
             _ => {}

@@ -1,3 +1,5 @@
+//! Ways to mutate a context.
+
 pub mod analysis;
 pub mod apply_consequences;
 pub mod bcp;

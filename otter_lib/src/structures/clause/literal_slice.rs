@@ -62,7 +62,7 @@ impl<T: Deref<Target = [abLiteral]>> Clause for T {
     fn lbd(&self, atom_db: &AtomDB) -> LBD {
         let mut decision_levels = self
             .iter()
-            .map(|literal| atom_db.choice_index_of(literal.atom()))
+            .map(|literal| unsafe { atom_db.choice_index_of(literal.atom()) })
             .collect::<Vec<_>>();
         decision_levels.sort_unstable();
         decision_levels.dedup();

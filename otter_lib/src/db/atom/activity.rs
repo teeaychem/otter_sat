@@ -1,47 +1,54 @@
 use crate::{config::Activity, db::atom::AtomDB, structures::atom::Atom};
 
+/// Methods for inspecting and mutating the activity of an atoms.
+///
+/// The role of these methods is tied to the use of [VSIDS](crate::config::vsids).
 impl AtomDB {
     #[allow(non_snake_case)]
-    /// Bumps the activities of each atom in 'atoms'
-    /// If given a hint to the max activity the rescore check is performed once on the hint
-    pub fn apply_VSIDS<A: Iterator<Item = Atom>>(&mut self, atoms: A) {
+    /// Bumps the activities of each atom in the given iterator, and increases the bump for next time.
+    ///
+    /// If the bumped activity would be greater than the maximum allowed activity, the activity of every atom is rescored.
+    pub fn bump_relative<A: Iterator<Item = Atom>>(&mut self, atoms: A) {
         for atom in atoms {
-            if self.activity_of(atom as usize) + self.config.bump > self.config.max_bump {
+            if self.activity_of(atom) + self.config.bump > self.config.max_activity {
                 self.rescore_activity()
             }
-            self.bump_activity(atom as usize);
+            self.bump_activity(atom);
         }
 
         self.exponent_activity();
     }
 
+    /// Pops the most active atoms from the activity heap.
     pub fn heap_pop_most_active(&mut self) -> Option<Atom> {
         self.activity_heap.pop_max().map(|idx| idx as Atom)
     }
-}
 
-impl AtomDB {
-    pub(super) fn activity_of(&self, index: usize) -> Activity {
-        *self.activity_heap.value_at(index)
+    /// The acitivty of an atom, regardless of whether it is on the activity heap.
+    pub fn activity_of(&self, atom: Atom) -> Activity {
+        *self.activity_heap.value_at(atom as usize)
     }
 
-    pub(super) fn bump_activity(&mut self, index: usize) {
+    /// Bumps the activity of an atom and updates it's position on the activity heap, if the atom is on the activity heap.
+    pub fn bump_activity(&mut self, atom: Atom) {
         self.activity_heap
-            .revalue(index, self.activity_of(index) + self.config.bump);
-        self.activity_heap.heapify_if_active(index);
+            .revalue(atom as usize, self.activity_of(atom) + self.config.bump);
+        self.activity_heap.heapify_if_active(atom as usize);
     }
 
-    pub(super) fn exponent_activity(&mut self) {
+    /// Increase the activity bump applied to atoms by a factor.
+    pub fn exponent_activity(&mut self) {
         let factor = 1.0 / (1.0 - self.config.decay);
         self.config.bump *= factor
     }
 
-    pub(super) fn activity_max(&self) -> Option<Activity> {
-        self.activity_heap.peek_max_value().copied()
-    }
-
-    pub(super) fn rescore_activity(&mut self) {
-        let heap_max = self.activity_max().unwrap_or(Activity::MIN);
+    /// Rescores the activity of all atoms and the activity bump .
+    pub fn rescore_activity(&mut self) {
+        let heap_max = self
+            .activity_heap
+            .peek_max_value()
+            .copied()
+            .unwrap_or(Activity::MIN);
         let rescale = Activity::max(heap_max, self.config.bump);
 
         let factor = 1.0 / rescale;

@@ -35,7 +35,7 @@ impl Context {
                         return Ok(Ok::Conflict);
                     }
 
-                    let analysis_result = self.conflict_analysis(key)?;
+                    let analysis_result = self.conflict_analysis(&key)?;
 
                     match analysis_result {
                         analysis::Ok::FundamentalConflict => {
@@ -47,7 +47,7 @@ impl Context {
                             clause_key: key,
                             asserted_literal: literal,
                         } => {
-                            let the_clause = self.clause_db.get_db_clause(key)?;
+                            let the_clause = self.clause_db.get_db_clause_unsafe(&key)?;
 
                             let index = self.backjump_level(the_clause)?;
                             self.backjump(index);
@@ -56,8 +56,8 @@ impl Context {
 
                             if let Some(dispatcher) = &self.dispatcher {
                                 let delta = delta::BCP::Instance {
-                                    via: key,
-                                    to: literal,
+                                    clause: key,
+                                    literal,
                                 };
                                 dispatcher(Dispatch::Delta(delta::Delta::BCP(delta)));
                             }

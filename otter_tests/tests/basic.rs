@@ -50,7 +50,7 @@ mod basic {
         assert!(the_context.solve().is_ok());
         assert_eq!(the_context.report(), report::Solve::Satisfiable);
 
-        let the_valuation = the_context.valuation_string();
+        let the_valuation = the_context.atom_db.valuation_string();
         assert!(the_valuation.contains("-p"));
         assert!(the_valuation.contains("q"));
     }

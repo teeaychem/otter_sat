@@ -215,7 +215,10 @@ impl CoreDB {
     pub fn process_bcp_delta(&mut self, δ: &BCP) -> Result<(), err::Core> {
         use delta::BCP::*;
         match δ {
-            Instance { via, to } => self.bcp_buffer = Some((*via, *to)),
+            Instance {
+                clause: via,
+                literal: to,
+            } => self.bcp_buffer = Some((*via, *to)),
             Conflict { .. } => {}
         }
 

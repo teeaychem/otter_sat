@@ -1,5 +1,16 @@
-mod activity;
-mod valuation;
+//! A database of 'atom related' things, accessed via fields on an [AtomDB] struct.
+//!
+//! Things include:
+//! - Watch lists for each atom in the form of [WatchDB] structs, indexed by atoms.
+//! - A current (often partial) [valuation](Valuation) and the previous valuation (or some randomised valuation).
+//! - An [IndexHeap] recording the activty of atoms, where any atom without a value is 'active' on the heap.
+//! - A record of which choice an atom was valued on.
+//! - Internal and external name maps, for reading and writing [Atom]s, [Literal](crate::structures::literal::Literal)s, etc.
+
+#[doc(hidden)]
+pub mod activity;
+#[doc(hidden)]
+pub mod valuation;
 pub mod watch_db;
 
 use std::rc::Rc;
@@ -19,26 +30,42 @@ use crate::{
     },
 };
 
+/// The atom database.
 pub struct AtomDB {
+    /// Watch lists for each atom in the form of [WatchDB] structs, indexed by atoms in the `watch_dbs` field.
     watch_dbs: Vec<WatchDB>,
 
-    internal_map: std::collections::HashMap<String, Atom>,
-    external_map: Vec<String>,
+    /// A current (often partial) [valuation](Valuation).
+    valuation: vValuation,
+    /// The previous (often partial) [valuation](Valuation) (or some randomised valuation).
+    previous_valuation: Vec<bool>,
 
+    /// An [IndexHeap] recording the activty of atoms, where any atom without a value is 'active' on the heap.
     activity_heap: IndexHeap<Activity>,
 
-    valuation: vValuation,
-    previous_valuation: Vec<bool>,
+    /// A record of which choice an atom was valued on.
     choice_indicies: Vec<Option<ChoiceIndex>>,
 
+    /// A map from the external representation of an atom as a string to its internal representation.
+    internal_map: std::collections::HashMap<String, Atom>,
+    /// A map from the internal representation of an atom to its external representation, where the internal representation of atoms correspond indicies of the vector.
+    external_map: Vec<String>,
+
+    /// An optional function to send dispatches with.
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
+
+    /// A local configuration, typically derived from the configuration of a context.
     config: AtomDBConfig,
 }
 
-pub enum Status {
+/// The status of the valuation of an atom, relative to some known valuation or literal.
+pub enum AtomValue {
+    /// The atom has no value.
     NotSet,
-    Match,
-    Conflict,
+    /// The value of the atoms is the same as the known valuation, or polarity of the literal.
+    Same,
+    /// The value of the atoms is not the same as the known valuation, or polarity of the literal.
+    Different,
 }
 
 impl AtomDB {
@@ -60,25 +87,28 @@ impl AtomDB {
         }
     }
 
+    /// A count of atoms in the [AtomDB].
     // TODO: Maybe something more robust to internal revision
     pub fn count(&self) -> usize {
         self.valuation.len()
     }
 
+    /// The current valuation.
     pub fn valuation(&self) -> &impl Valuation {
         &self.valuation
     }
-}
 
-impl AtomDB {
-    pub fn atom_representation(&self, name: &str) -> Option<Atom> {
+    /// The internal representation of an atom.
+    pub fn internal_representation(&self, name: &str) -> Option<Atom> {
         self.internal_map.get(name).copied()
     }
 
+    /// The external representation of an atom.
     pub fn external_representation(&self, index: Atom) -> &String {
         &self.external_map[index as usize]
     }
 
+    /// A fresh atom, and a corresponding update to all the relevant data structures to ensure *unsafe* functions from the perspective of the compiler which do not check for the presence of an atom are safe.
     pub fn fresh_atom(&mut self, name: &str, previous_value: bool) -> Atom {
         let the_atoms = self.watch_dbs.len() as Atom;
 
@@ -86,9 +116,8 @@ impl AtomDB {
         self.external_map.push(name.to_string());
 
         self.activity_heap.add(the_atoms as usize, 1.0);
-        // self.activity_heap.activate(id as usize);
 
-        self.watch_dbs.push(WatchDB::new());
+        self.watch_dbs.push(WatchDB::default());
         self.valuation.push(None);
         self.previous_valuation.push(previous_value);
         self.choice_indicies.push(None);
@@ -102,31 +131,41 @@ impl AtomDB {
 
         the_atoms
     }
-}
 
-impl AtomDB {
-    pub fn choice_index_of(&self, v_idx: Atom) -> Option<ChoiceIndex> {
-        unsafe { *self.choice_indicies.get_unchecked(v_idx as usize) }
+    /// Which choice an atom was valued on.
+    ///
+    /// # Safety
+    /// No check is made on whether a [WatchDB] exists for the atom.
+    pub unsafe fn choice_index_of(&self, v_idx: Atom) -> Option<ChoiceIndex> {
+        *self.choice_indicies.get_unchecked(v_idx as usize)
     }
 
-    pub fn set_value(
+    /// Sets a given atom to have a given value, with a note of which choice this occurs after, if some choice has been made.
+    ///
+    /// # Safety
+    /// No check is made on whether a [WatchDB] exists for the atom.
+    pub unsafe fn set_value(
         &mut self,
-        v_idx: Atom,
-        polarity: bool,
+        atom: Atom,
+        value: bool,
         level: Option<ChoiceIndex>,
-    ) -> Result<Status, Status> {
-        match self.value_of(v_idx) {
-            None => unsafe {
-                *self.valuation.get_unchecked_mut(v_idx as usize) = Some(polarity);
-                *self.choice_indicies.get_unchecked_mut(v_idx as usize) = level;
-                Ok(Status::NotSet)
-            },
-            Some(v) if v == polarity => Ok(Status::Match),
-            Some(_) => Err(Status::Conflict),
+    ) -> Result<AtomValue, AtomValue> {
+        match self.value_of(atom) {
+            None => {
+                *self.valuation.get_unchecked_mut(atom as usize) = Some(value);
+                *self.choice_indicies.get_unchecked_mut(atom as usize) = level;
+                Ok(AtomValue::NotSet)
+            }
+            Some(v) if v == value => Ok(AtomValue::Same),
+            Some(_) => Err(AtomValue::Different),
         }
     }
 
-    pub fn drop_value(&mut self, index: Atom) {
+    /// Clears the value of an atom, and adds the atom to the activity heap.
+    ///
+    /// # Safety
+    /// No check is made on whether a [WatchDB] exists for the atom.
+    pub unsafe fn drop_value(&mut self, index: Atom) {
         log::trace!(target: targets::VALUATION, "Cleared: {index}");
         self.clear_value(index);
         self.activity_heap.activate(index as usize);
