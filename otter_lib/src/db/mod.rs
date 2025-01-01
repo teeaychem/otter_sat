@@ -1,4 +1,4 @@
-//! Bases for holding data relevant to a solve.
+//! Databases for holding information relevant to a solve.
 
 pub mod atom;
 pub mod clause;
@@ -61,24 +61,24 @@ impl Context {
         clause: impl Clause,
         source: ClauseSource,
     ) -> Result<ClauseKey, err::ClauseDB> {
-        let the_key = self.clause_db.store(clause, source, &mut self.atom_db)?;
+        let key = self.clause_db.store(clause, source, &mut self.atom_db)?;
 
         if let Some(dispatcher) = &self.dispatcher {
-            match the_key {
+            match key {
                 ClauseKey::Unit(_) => match source {
                     ClauseSource::Resolution => {
-                        let delta = delta::ClauseDB::Added(the_key);
+                        let delta = delta::ClauseDB::Added(key);
                         dispatcher(Dispatch::Delta(delta::Delta::ClauseDB(delta)));
                     }
 
                     ClauseSource::Original => {
-                        let delta = delta::ClauseDB::Original(the_key);
+                        let delta = delta::ClauseDB::Original(key);
                         dispatcher(Dispatch::Delta(delta::Delta::ClauseDB(delta)));
                     }
                 },
 
                 _ => {
-                    let db_clause = self.clause_db.get_db_clause_unsafe(&the_key)?;
+                    let db_clause = self.clause_db.get_db_clause_unsafe(&key)?;
                     match db_clause.size() {
                         0 => panic!("impossible"),
                         1 => {}
@@ -91,8 +91,8 @@ impl Context {
                             }
                             let delta = {
                                 match source {
-                                    ClauseSource::Original => delta::ClauseDB::Original(the_key),
-                                    ClauseSource::Resolution => delta::ClauseDB::Added(the_key),
+                                    ClauseSource::Original => delta::ClauseDB::Original(key),
+                                    ClauseSource::Resolution => delta::ClauseDB::Added(key),
                                 }
                             };
                             dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
@@ -102,6 +102,6 @@ impl Context {
             }
         }
 
-        Ok(the_key)
+        Ok(key)
     }
 }
