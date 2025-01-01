@@ -27,7 +27,7 @@ impl Context {
 
                 let choice_literal = {
                     if self.config.switch.phase_saving {
-                        let previous_value = unsafe { self.atom_db.previous_value_of(choice_id) };
+                        let previous_value = self.atom_db.previous_value_of(choice_id);
                         abLiteral::fresh(choice_id, previous_value)
                     } else {
                         abLiteral::fresh(
@@ -62,7 +62,7 @@ impl Context {
                 .choose(&mut self.counters.rng),
             false => {
                 while let Some(index) = self.atom_db.heap_pop_most_active() {
-                    if unsafe { self.atom_db.value_of(index as Atom).is_none() } {
+                    if self.atom_db.value_of(index as Atom).is_none() {
                         return Some(index);
                     }
                 }

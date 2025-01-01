@@ -2,7 +2,7 @@
 //!
 //! # Overview
 //!
-//! The clauses watching an atom are distinguished by type, with the relevant distinctions set in the [Watcher] enum.
+//! The clauses watching an atom are distinguished by type, with the relevant distinctions set in the [WatchTag] enum.
 //!
 //! At present two distinctions are made:
 //!
@@ -44,7 +44,7 @@ use std::borrow::{Borrow, BorrowMut};
 
 /// The watcher of an atom.
 #[derive(Debug)]
-pub enum Watcher {
+pub enum WatchTag {
     /// A binary clause together with the *other* literal in the clause.
     Binary(abLiteral, ClauseKey),
     /// A long clause.
@@ -67,16 +67,16 @@ pub enum WatchStatus {
 /// The watchers of an atom, distinguished by length of clause and which value of the atom is under watch.
 pub struct WatchDB {
     /// A watch from a binary clause for a value of `true`.
-    positive_binary: Vec<Watcher>,
+    positive_binary: Vec<WatchTag>,
 
     /// A watch from a long clause for a value of `true`.
-    positive_long: Vec<Watcher>,
+    positive_long: Vec<WatchTag>,
 
     /// A watch from a binary clause for a value of `false`.
-    negative_binary: Vec<Watcher>,
+    negative_binary: Vec<WatchTag>,
 
     /// A watch from a long clause for a value of `false`.
-    negative_long: Vec<Watcher>,
+    negative_long: Vec<WatchTag>,
 }
 
 impl Default for WatchDB {
@@ -93,7 +93,7 @@ impl Default for WatchDB {
 
 impl WatchDB {
     /// Returns the binary watchers of the atom for the given value.
-    fn occurrences_binary(&mut self, value: bool) -> &mut Vec<Watcher> {
+    fn occurrences_binary(&mut self, value: bool) -> &mut Vec<WatchTag> {
         match value {
             true => &mut self.positive_binary,
             false => &mut self.negative_binary,
@@ -101,7 +101,7 @@ impl WatchDB {
     }
 
     /// Returns the long watchers of the atom for the given value.
-    fn occurrences_long(&mut self, value: bool) -> &mut Vec<Watcher> {
+    fn occurrences_long(&mut self, value: bool) -> &mut Vec<WatchTag> {
         match value {
             true => &mut self.positive_long,
             false => &mut self.negative_long,
@@ -114,9 +114,9 @@ impl AtomDB {
     ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
-    pub unsafe fn add_watch_unchecked(&mut self, atom: Atom, value: bool, watcher: Watcher) {
+    pub unsafe fn add_watch_unchecked(&mut self, atom: Atom, value: bool, watcher: WatchTag) {
         match watcher {
-            Watcher::Binary(_, _) => match value {
+            WatchTag::Binary(_, _) => match value {
                 true => self
                     .watch_dbs
                     .get_unchecked_mut(atom as usize)
@@ -128,7 +128,7 @@ impl AtomDB {
                     .negative_binary
                     .push(watcher),
             },
-            Watcher::Clause(_) => match value {
+            WatchTag::Clause(_) => match value {
                 true => self
                     .watch_dbs
                     .get_unchecked_mut(atom as usize)
@@ -176,7 +176,7 @@ impl AtomDB {
                 let mut index = 0;
                 let mut limit = list.len();
                 while index < limit {
-                    let Watcher::Clause(list_key) = list.get_unchecked(index) else {
+                    let WatchTag::Clause(list_key) = list.get_unchecked(index) else {
                         return Err(err::Watch::NotLongInLong);
                     };
 
@@ -202,7 +202,7 @@ impl AtomDB {
         atom: Atom,
         kind: ClauseKind,
         value: bool,
-    ) -> *mut Vec<Watcher> {
+    ) -> *mut Vec<WatchTag> {
         match kind {
             ClauseKind::Unit => todo!(),
             ClauseKind::Binary => self

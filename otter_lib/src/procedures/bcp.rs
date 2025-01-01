@@ -9,7 +9,7 @@ use std::borrow::Borrow;
 use crate::{
     context::Context,
     db::{
-        atom::watch_db::{self, Watcher},
+        atom::watch_db::{self, WatchTag},
         clause::ClauseKind,
         consequence_q::{self},
     },
@@ -48,7 +48,7 @@ impl Context {
         );
 
         for element in binary_list {
-            let Watcher::Binary(check, clause_key) = element else {
+            let WatchTag::Binary(check, clause_key) = element else {
                 log::error!(target: targets::PROPAGATION, "Long clause found in binary watch list.");
                 return Err(err::BCP::CorruptWatch);
             };
@@ -90,7 +90,7 @@ impl Context {
         let mut length = long_list.len();
 
         'long_loop: while index < length {
-            let Watcher::Clause(clause_key) = long_list.get_unchecked(index) else {
+            let WatchTag::Clause(clause_key) = long_list.get_unchecked(index) else {
                 log::error!(target: targets::PROPAGATION, "Binary clause found in long watch list.");
                 return Err(err::BCP::CorruptWatch);
             };

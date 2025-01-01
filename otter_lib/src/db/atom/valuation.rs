@@ -6,12 +6,14 @@ use super::AtomDB;
 /// Methods associated with the valuation stored in a [AtomDB].
 ///
 /// # Safety
-/// As relevant methods do not ensure an atom is present in the valuation before attempting to access stored information about the atom they are marked as unsafe.
+/// As relevant methods do not ensure an atom is present in the valuation before attempting to access stored information about the atom they inclued unsafe blocks.
+///
+/// Still, by construction …
 impl AtomDB {
     /// Returns the value of the atom from the valuation stored in the [AtomDB].
     /// # Safety
     /// Does not check that the atom is part of the valuation.
-    pub unsafe fn value_of(&self, atom: Atom) -> Option<bool> {
+    pub fn value_of(&self, atom: Atom) -> Option<bool> {
         unsafe { *self.valuation.get_unchecked(atom as usize) }
     }
 
@@ -21,20 +23,20 @@ impl AtomDB {
     ///
     /// # Safety
     /// Does not check that the atom is part of the valuation.
-    pub unsafe fn previous_value_of(&self, atom: Atom) -> bool {
+    pub fn previous_value_of(&self, atom: Atom) -> bool {
         unsafe { *self.previous_valuation.get_unchecked(atom as usize) }
     }
 
     /// Clears the value of the atom from the valuation stored in the [AtomDB].
     /// # Safety
     /// Does not check that the atom is part of the valuation.
-    pub unsafe fn clear_value(&mut self, atom: Atom) {
+    pub fn clear_value(&mut self, atom: Atom) {
         if let Some(present) = self.value_of(atom) {
-            *self.previous_valuation.get_unchecked_mut(atom as usize) = present;
+            unsafe { *self.previous_valuation.get_unchecked_mut(atom as usize) = present };
         }
 
-        *self.valuation.get_unchecked_mut(atom as usize) = None;
-        *self.choice_indicies.get_unchecked_mut(atom as usize) = None;
+        unsafe { *self.valuation.get_unchecked_mut(atom as usize) = None };
+        unsafe { *self.choice_indicies.get_unchecked_mut(atom as usize) = None };
     }
 
     /// A string representing the current valuation, using the external representation of atoms.
