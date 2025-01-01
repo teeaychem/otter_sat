@@ -1,14 +1,16 @@
 pub mod activity_glue;
-mod stored;
+mod db_clause;
 mod transfer;
 
 use std::{borrow::Borrow, rc::Rc};
+
+use db_clause::dbClause;
 
 use crate::{
     config::{dbs::ClauseDBConfig, Config},
     db::{
         atom::AtomDB,
-        clause::{activity_glue::ActivityGlue, stored::dbClause},
+        clause::activity_glue::ActivityGlue,
         keys::{ClauseKey, FormulaIndex},
     },
     dispatch::{

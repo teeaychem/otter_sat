@@ -9,7 +9,7 @@ use crate::{
     types::err::{self},
 };
 
-use super::{stored::dbClause, ClauseDB};
+use super::{db_clause::dbClause, ClauseDB};
 
 impl ClauseDB {
     pub(super) fn transfer_to_binary(

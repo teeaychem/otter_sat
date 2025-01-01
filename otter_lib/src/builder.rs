@@ -121,7 +121,7 @@ impl Context {
             1 => {
                 let literal = unsafe { *clause_vec.get_unchecked(0) };
 
-                match unsafe { self.atom_db.value_of(literal.atom()) } {
+                match self.atom_db.value_of(literal.atom()) {
                     None => match self.q_literal(literal.borrow()) {
                         Ok(consequence_q::Ok::Qd) => {
                             self.record_clause(literal, clause::Source::Original);
