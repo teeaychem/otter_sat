@@ -99,7 +99,7 @@ impl Context {
             TODO: From the FRAT paper neither MiniSAT nor CaDiCaL store clause identifiers
             So, there may be some way to avoid this… unless there's a NULLPTR check or…
              */
-            let clause = match self.clause_db.get_db_clause_mut(clause_key) {
+            let db_clause = match self.clause_db.get_db_clause_mut(clause_key) {
                 Some(stored_clause) => stored_clause,
                 None => {
                     long_list.swap_remove(index);
@@ -108,7 +108,7 @@ impl Context {
                 }
             };
 
-            match clause.update_watch(literal.atom(), &mut self.atom_db) {
+            match db_clause.update_watch(literal.atom(), &mut self.atom_db) {
                 Ok(watch_db::WatchStatus::Witness) | Ok(watch_db::WatchStatus::None) => {
                     long_list.swap_remove(index);
                     length -= 1;
@@ -121,7 +121,7 @@ impl Context {
                 }
 
                 Err(()) => {
-                    let the_watch = *clause.get_unchecked(0);
+                    let the_watch = *db_clause.get_unchecked(0);
                     let watch_value = self.atom_db.value_of(the_watch.atom());
 
                     match watch_value {

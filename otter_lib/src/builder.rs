@@ -12,10 +12,13 @@ use crate::{
         clause::{self, vClause, Clause},
         literal::{abLiteral, Literal},
     },
-    types::err::{self},
+    types::{
+        err::{self},
+        gen::{self},
+    },
 };
 
-use std::{borrow::Borrow, io::BufRead};
+use std::{borrow::Borrow, io::BufRead, prelude};
 
 /// Methods for building the context.
 impl Context {
@@ -98,6 +101,12 @@ impl Context {
     /// - Clauses with two or more literals go to the clause database.
     ///
     /// This handles the variations.
+    /*
+    TODO: Relax the constraints on adding a unit clause after choice.
+    If the choice conflicts with the current valuation, backtracking is required.
+    Otherwise, if the literal is not already recorded as a clause, it could be 'raised' to being a clause.
+    Though, a naive approach may cause some issues with FRAT proofs, and other features which rely on choice level information.
+     */
     pub fn add_clause(&mut self, clause: impl Clause) -> Result<(), err::Build> {
         if clause.size() == 0 {
             return Err(err::Build::ClauseDB(err::ClauseDB::EmptyClause));
@@ -105,25 +114,28 @@ impl Context {
         let mut clause_vec = clause.canonical();
 
         self.preprocess_clause(&mut clause_vec)?;
+
         match clause_vec.len() {
             0 => Ok(()),
 
             1 => {
                 let literal = unsafe { *clause_vec.get_unchecked(0) };
-                if self.literal_db.choice_made() {
-                    return Err(err::Build::ClauseDB(err::ClauseDB::UnitAfterChoice));
-                }
+
                 match unsafe { self.atom_db.value_of(literal.atom()) } {
-                    None => {
-                        let Ok(consequence_q::Ok::Qd) = self.q_literal(literal.borrow()) else {
-                            return Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict));
-                        };
-                        self.record_clause(literal, clause::Source::Original);
-                        Ok(())
-                    }
+                    None => match self.q_literal(literal.borrow()) {
+                        Ok(consequence_q::Ok::Qd) => {
+                            self.record_clause(literal, clause::Source::Original);
+                            Ok(())
+                        }
+                        _ => Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict)),
+                    },
                     Some(v) if v == literal.polarity() => {
                         // Must be at zero for an assumption, so there's nothing to do
-                        Ok(())
+                        if self.counters.choices != 0 {
+                            Err(err::Build::ClauseDB(err::ClauseDB::AddedUnitAfterChoice))
+                        } else {
+                            Ok(())
+                        }
                     }
                     Some(_) => Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict)),
                 };

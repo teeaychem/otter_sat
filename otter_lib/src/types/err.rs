@@ -47,7 +47,7 @@ pub enum Build {
     ClauseDB(ClauseDB),
 }
 
-/// An error in the clause database.
+/// Errors in the clause database.
 #[derive(Debug, Clone, Copy)]
 pub enum ClauseDB {
     /// Attempt to get a unit clause by a key (the key is the literal)
@@ -70,12 +70,22 @@ pub enum ClauseDB {
     UnitClause,
     /// All possible keys have been used for some clause type (formula/binary/long etc).
     StorageExhausted,
+    /// A unit clause was added after some choice has been made.
     ///
-    UnitAfterChoice,
+    /// Ideally, this case could be handled and this error removed.
+    AddedUnitAfterChoice,
+    /// An immediate conflict.
     ImmediateConflict,
 }
 
-/// An error in the context.
+#[derive(Debug, Clone, Copy)]
+pub enum Subsumption {
+    ShortClause,
+    NoPivot,
+    WatchError,
+}
+
+/// Errors in the context.
 #[derive(Debug, Clone, Copy)]
 pub enum Context {
     /// Aka. an assumption was made after some choice.
@@ -108,7 +118,7 @@ pub enum Context {
     Preprocessing,
 }
 
-/// An error during parsing.
+/// Errors during parsing.
 #[derive(Debug)]
 pub enum Parse {
     /// Some issue with the problem specification in a DIMACS input.
@@ -139,7 +149,7 @@ pub enum Report {
     UnsatCoreUnavailable,
 }
 
-/// An error during resolution.
+/// Errors during resolution.
 #[derive(Debug)]
 pub enum ResolutionBuffer {
     /// A clause could not be found.
@@ -152,7 +162,7 @@ pub enum ResolutionBuffer {
     Transfer,
 }
 
-/// An error with the writer for FRAT proofs.
+/// Errors with the writer for FRAT proofs.
 pub enum FRAT {
     /// A corrupt clause buffer.
     /// It is likely the addition of a clause was not noticed and the clause buffer was not cleared.
