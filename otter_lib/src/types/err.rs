@@ -59,7 +59,7 @@ pub enum ClauseDB {
     /// There was some issue with watches when transfering a clause.
     TransferWatch,
     /// A learnt cluase is missing.
-    MissingLearned,
+    Missing,
     /// An invalid key token.
     InvalidKeyToken,
     /// An invalid key index.
@@ -83,6 +83,8 @@ pub enum Subsumption {
     ShortClause,
     NoPivot,
     WatchError,
+    TransferFailure,
+    ClauseTooShort,
 }
 
 /// Errors in the context.
@@ -245,5 +247,11 @@ impl From<ClauseDB> for Build {
 impl From<Context> for Build {
     fn from(e: Context) -> Self {
         Self::Context(e)
+    }
+}
+
+impl From<Subsumption> for ResolutionBuffer {
+    fn from(_value: Subsumption) -> Self {
+        Self::Subsumption
     }
 }

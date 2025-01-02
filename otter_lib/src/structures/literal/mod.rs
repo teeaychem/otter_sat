@@ -45,7 +45,7 @@ use crate::{
 /// Something which has methods for returning an atom and a polarity, etc.
 pub trait Literal: std::cmp::Ord + std::hash::Hash {
     /// A fresh literal, specified by pairing an atom with a boolean.
-    fn fresh(atom_id: Atom, polarity: bool) -> Self;
+    fn fresh(atom: Atom, polarity: bool) -> Self;
 
     /// The negation of the literal.
     fn negate(&self) -> Self;
@@ -76,6 +76,6 @@ pub struct abLiteral {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum Source {
-    Choice,         // a choice made where the alternative may make a SAT difference
+    FreeChoice,     // a choice made where the alternative may make a SAT difference
     BCP(ClauseKey), // direct from BCP
 }

@@ -1,5 +1,9 @@
 use crate::{
-    db::{atom::AtomDB, keys::ClauseKey},
+    db::{
+        atom::AtomDB,
+        clause::{db_clause::dbClause, ClauseDB},
+        keys::ClauseKey,
+    },
     dispatch::{
         library::delta::{self, Delta},
         Dispatch,
@@ -9,12 +13,23 @@ use crate::{
     types::err::{self},
 };
 
-use super::{db_clause::dbClause, ClauseDB};
-
 impl ClauseDB {
-    pub(super) fn transfer_to_binary(
+    /// Transfers an binary original or addition clause which is not stored in the binary database to the binary database, if possible.
+    ///
+    /// To be used after some operation which may shorten a clause, such as [subsumption](dbClause::subsume).
+    ///
+    /// On success a key to the binary clause is returned.
+    ///
+    /// ```rust, ignore
+    /// clause.subsume(literal, ...)?;
+    /// let Ok(new_key) = self.transfer_to_binary(old_key, atom_db)
+    /// ```
+    /*
+    Addition clauses are removed from the database, but as there is at present no way to remove original clauses, these are ignored.
+     */
+    pub fn transfer_to_binary(
         &mut self,
-        key: &ClauseKey,
+        key: ClauseKey,
         atoms: &mut AtomDB,
     ) -> Result<ClauseKey, err::ClauseDB> {
         match key {
@@ -22,12 +37,14 @@ impl ClauseDB {
                 log::error!(target: targets::TRANSFER, "Attempt to transfer unit");
                 Err(err::ClauseDB::TransferUnit)
             }
+
             ClauseKey::Binary(_) => {
                 log::error!(target: targets::TRANSFER, "Attempt to transfer binary");
                 Err(err::ClauseDB::TransferBinary)
             }
+
             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
-                let the_clause = self.get_mut(key)?;
+                let the_clause = self.get_db_clause_mut(&key)?;
                 the_clause.deactivate();
                 let copied_clause = the_clause.to_vec();
 
@@ -36,13 +53,14 @@ impl ClauseDB {
                     return Err(err::ClauseDB::TransferBinary);
                 }
 
-                let b_key = self.new_binary_id()?;
+                let binary_key = self.fresh_binary_key()?;
 
                 unsafe {
+                    // Ok, as checked length is 2, above.
                     let zero = copied_clause.get_unchecked(0);
-                    atoms.remove_watch_unchecked(zero.atom(), zero.polarity(), key)?;
+                    atoms.remove_watch_unchecked(zero.atom(), zero.polarity(), &key)?;
                     let one = copied_clause.get_unchecked(1);
-                    atoms.remove_watch_unchecked(one.atom(), one.polarity(), key)?;
+                    atoms.remove_watch_unchecked(one.atom(), one.polarity(), &key)?;
                 }
 
                 if let Some(dispatch) = &self.dispatcher {
@@ -52,19 +70,19 @@ impl ClauseDB {
                         let delta = delta::ClauseDB::ClauseLiteral(*literal);
                         dispatch(Dispatch::Delta(Delta::ClauseDB(delta)));
                     }
-                    let delta = delta::ClauseDB::Transfer(*key, b_key);
+                    let delta = delta::ClauseDB::Transfer(key, binary_key);
                     dispatch(Dispatch::Delta(Delta::ClauseDB(delta)));
                 }
 
-                let binary_clause = dbClause::from(b_key, copied_clause, atoms);
+                let binary_clause = dbClause::from(binary_key, copied_clause, atoms);
 
                 self.binary.push(binary_clause);
 
                 if matches!(key, ClauseKey::Addition(_, _)) {
-                    self.remove_from_learned(key.index())?;
+                    self.remove_addition(key.index())?;
                 }
 
-                Ok(b_key)
+                Ok(binary_key)
             }
         }
     }

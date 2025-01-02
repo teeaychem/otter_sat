@@ -47,7 +47,8 @@ impl Context {
                             clause_key: key,
                             asserted_literal: literal,
                         } => {
-                            let the_clause = self.clause_db.get_db_clause_unsafe(&key)?;
+                            let the_clause =
+                                unsafe { self.clause_db.get_db_clause_unchecked(&key)? };
 
                             let index = self.backjump_level(the_clause)?;
                             self.backjump(index);

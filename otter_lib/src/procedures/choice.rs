@@ -19,9 +19,25 @@ pub enum Ok {
     Exhausted,
 }
 
+/// Methods related to making choices.
 impl Context {
+    /// Makes a choice using rng to determine whether to make a random choice or to take the atom with the highest activity.
+    ///
+    /// Returns a result detailing the status of the choice or an error from attempting to enque the choice.
+    ///
+    /// ```rust, ignore
+    /// match self.make_choice()? {
+    ///     choice::Ok::Made => continue,
+    ///     choice::Ok::Exhausted => break,
+    /// }
+    /// ```
     pub fn make_choice(&mut self) -> Result<Ok, err::Queue> {
-        match self.get_unassigned() {
+        // Takes ownership of rng to satisfy the borrow checker.
+        // Avoidable, at the cost of a less generic atom method.
+        let mut rng = std::mem::take(&mut self.counters.rng);
+        let chosen_atom = self.atom_without_value(&mut rng);
+        self.counters.rng = rng;
+        match chosen_atom {
             Some(choice_id) => {
                 self.counters.choices += 1;
 
@@ -49,17 +65,14 @@ impl Context {
         }
     }
 
-    pub fn get_unassigned(&mut self) -> Option<Atom> {
-        match self
-            .counters
-            .rng
-            .gen_bool(self.config.random_choice_frequency)
-        {
-            true => self
-                .atom_db
-                .valuation()
-                .unvalued_atoms()
-                .choose(&mut self.counters.rng),
+    /// Returns an atom which has no value on the current valuation, either by random choice or by most activity.
+    ///
+    /// ```rust,ignore
+    /// let atom = self.atom_without_value(MinimalPCG32::default())?;
+    /// ```
+    pub fn atom_without_value(&mut self, rng: &mut impl Rng) -> Option<Atom> {
+        match rng.gen_bool(self.config.random_choice_frequency) {
+            true => self.atom_db.valuation().unvalued_atoms().choose(rng),
             false => {
                 while let Some(index) = self.atom_db.heap_pop_most_active() {
                     if self.atom_db.value_of(index as Atom).is_none() {
@@ -71,6 +84,12 @@ impl Context {
         }
     }
 
+    /// Resets all choices and consequences of those choises.
+    ///
+    /// In other words, backjumps to before a choice was made.
+    /// ```rust, ignore
+    /// context.clear_choices();
+    /// ```
     pub fn clear_choices(&mut self) {
         self.backjump(0);
     }

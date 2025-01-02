@@ -276,7 +276,8 @@ impl Context {
         if let Some(dispatcher) = &self.dispatcher {
             let counts = report::Parser::Counts(self.atom_db.count(), clause_counter);
             dispatcher(Dispatch::Report(Report::Parser(counts)));
-            let report_clauses = report::Parser::ContextClauses(self.clause_db.clause_count());
+            let report_clauses =
+                report::Parser::ContextClauses(self.clause_db.total_clause_count());
             dispatcher(Dispatch::Report(Report::Parser(report_clauses)));
         }
         Ok(())

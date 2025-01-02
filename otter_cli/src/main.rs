@@ -104,7 +104,7 @@ fn main() {
             };
         }
 
-        if the_context.clause_db.clause_count() == 0 {
+        if the_context.clause_db.total_clause_count() == 0 {
             break 'report report::Solve::Satisfiable;
         }
 

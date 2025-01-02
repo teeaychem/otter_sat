@@ -35,7 +35,7 @@ impl Context {
 
         if let crate::config::vsids::VSIDS::Chaff = self.config.vsids_variant {
             self.atom_db
-                .bump_relative(self.clause_db.get_db_clause_unsafe(key)?.atoms());
+                .bump_relative(unsafe { self.clause_db.get_db_clause_unchecked(key)?.atoms() });
         }
 
         let mut the_buffer =
@@ -86,7 +86,7 @@ impl Context {
 
         let (resolved_clause, assertion_index) = the_buffer.to_assertion_clause();
 
-        let the_literal = match assertion_index {
+        let asserted_literal = match assertion_index {
             None => {
                 log::error!(target: targets::ANALYSIS, "Failed to resolve to an asserting clause");
                 return Err(err::Analysis::NoAssertion);
@@ -97,14 +97,14 @@ impl Context {
         match resolved_clause.len() {
             0 => Err(err::Analysis::EmptyResolution),
             1 => {
-                let key = self.record_clause(the_literal, clause::Source::Resolution)?;
+                let key = self.record_clause(asserted_literal, clause::Source::Resolution)?;
                 Ok(Ok::UnitClause(key))
             }
             _ => {
                 let key = self.record_clause(resolved_clause, clause::Source::Resolution)?;
                 Ok(Ok::AssertingClause {
                     clause_key: key,
-                    asserted_literal: the_literal,
+                    asserted_literal,
                 })
             }
         }

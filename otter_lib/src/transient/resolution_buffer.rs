@@ -162,11 +162,11 @@ impl ResolutionBuffer {
         clause_db: &mut ClauseDB,
         atom_db: &mut AtomDB,
     ) -> Result<Ok, err::ResolutionBuffer> {
-        self.merge_clause(
+        self.merge_clause(unsafe {
             clause_db
-                .get_db_clause_unsafe(conflict)
-                .expect("missing clause"),
-        );
+                .get_db_clause_unchecked(conflict)
+                .expect("missing clause")
+        });
 
         // Maybe the conflit clause was already asserting after the previous choice…
         if let Some(asserted_literal) = self.asserted_literal() {
@@ -185,7 +185,8 @@ impl ResolutionBuffer {
         'resolution_loop: for (source, literal) in literal_db.last_consequences().iter().rev() {
             match source {
                 literal::Source::BCP(the_key) => {
-                    let source_clause = match clause_db.get_db_clause_unsafe(the_key) {
+                    let source_clause = match unsafe { clause_db.get_db_clause_unchecked(the_key) }
+                    {
                         Err(_) => {
                             log::error!(target: targets::RESOLUTION, "Lost resolution clause {the_key:?}");
                             return Err(err::ResolutionBuffer::LostClause);
@@ -218,8 +219,7 @@ impl ResolutionBuffer {
                                     todo!("a formula is found which triggers this…");
                                 }
                                 ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
-                                    let new_key =
-                                        unsafe { clause_db.subsume(the_key, literal, atom_db)? };
+                                    let new_key = clause_db.subsume(*the_key, literal, atom_db)?;
 
                                     if let Some(dispatcher) = &self.dispatcher {
                                         send!(dispatcher, delta::Resolution::End);

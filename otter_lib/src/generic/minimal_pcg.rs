@@ -15,6 +15,7 @@ use rand::SeedableRng;
 use rand_core::{impls, Error, RngCore};
 
 /// State and increment
+#[derive(Default)]
 pub struct MinimalPCG32 {
     state: u64,
     inc: u64,

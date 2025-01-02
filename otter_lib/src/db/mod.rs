@@ -25,37 +25,64 @@ use crate::{
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq)]
+/// The status of a database.
 pub enum dbStatus {
+    /// The database is known to be consistent, e.g. with a complete valuation.
     Consistent,
+    /// The database is known to be inconsistnet, e.g. with an unsatisfiable clause identified.
     Inconsistent,
+    /// The consistency of the database is unknown.
     Unknown,
 }
 
+/// Canonical methods to record literals and clauses to the context.
 impl Context {
+    /// Records a literal in the appropriate database.
+    ///
+    /// ```rust, ignore
+    /// self.record_literal(literal, literal::Source::BCP(key));
+    /// ```
+    ///
+    /// If no choices/decisions have been made, literals are added to the clause database as unit clauses.
+    /// Otherwise, literals are recorded as consequences of the current choice.
     pub fn record_literal(&mut self, literal: impl Borrow<abLiteral>, source: LiteralSource) {
         match source {
-            LiteralSource::Choice => {}
-
-            LiteralSource::BCP(_) => match self.literal_db.choice_stack.len() {
-                0 => {
-                    if let Some(dispatcher) = &self.dispatcher {
-                        let delta = delta::ClauseDB::BCP(ClauseKey::Unit(*literal.borrow()));
-                        dispatcher(Dispatch::Delta(delta::Delta::ClauseDB(delta)));
+            LiteralSource::FreeChoice => {
+                //
+                match self.literal_db.choice_stack.len() {
+                    0 => {
+                        self.record_clause(*literal.borrow(), ClauseSource::FreeChoice);
                     }
-                    self.clause_db.unit.push(*literal.borrow())
+                    _ => {
+                        // Making a free choice is not supported after some other (non-free) choice has been made.
+                        panic!("!")
+                    }
                 }
-                _ => self
-                    .literal_db
-                    .top_mut()
-                    .record_consequence(literal, source),
-            },
+            }
+
+            LiteralSource::BCP(_) => {
+                //
+                match self.literal_db.choice_stack.len() {
+                    0 => {
+                        self.record_clause(*literal.borrow(), ClauseSource::BCP);
+                    }
+                    _ => self
+                        .literal_db
+                        .top_mut()
+                        .record_consequence(literal, source),
+                }
+            }
         }
     }
 
-    /// Makes a record of a clause.
+    /// Records a clause and returns the key to the clause.
+    /// If possible, a dispatch is sent with relevant details.
     ///
-    /// The details are handled by the clause database.
-    /// Dispatches regarding the clause are made here.
+    /// ```rust, ignore
+    /// let key = self.record_clause(resolved_clause, clause::Source::Resolution)?;
+    ///
+    /// let key = self.record_clause(literal, clause::Source::BCP)?;
+    /// ```
     pub fn record_clause(
         &mut self,
         clause: impl Clause,
@@ -65,7 +92,18 @@ impl Context {
 
         if let Some(dispatcher) = &self.dispatcher {
             match key {
-                ClauseKey::Unit(_) => match source {
+                ClauseKey::Unit(literal) => match source {
+                    ClauseSource::FreeChoice => {
+                        // TODO: Implement dispatches for free choices
+                    }
+
+                    ClauseSource::BCP => {
+                        if let Some(dispatcher) = &self.dispatcher {
+                            let delta = delta::ClauseDB::BCP(ClauseKey::Unit(literal));
+                            dispatcher(Dispatch::Delta(delta::Delta::ClauseDB(delta)));
+                        }
+                    }
+
                     ClauseSource::Resolution => {
                         let delta = delta::ClauseDB::Added(key);
                         dispatcher(Dispatch::Delta(delta::Delta::ClauseDB(delta)));
@@ -78,10 +116,10 @@ impl Context {
                 },
 
                 _ => {
-                    let db_clause = self.clause_db.get_db_clause_unsafe(&key)?;
+                    let db_clause = unsafe { self.clause_db.get_db_clause_unchecked(&key)? };
                     match db_clause.size() {
-                        0 => panic!("impossible"),
-                        1 => {}
+                        0 | 1 => panic!("!"),
+
                         _ => {
                             let delta = delta::ClauseDB::ClauseStart;
                             dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
@@ -89,8 +127,10 @@ impl Context {
                                 let delta = delta::ClauseDB::ClauseLiteral(*literal);
                                 dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                             }
+
                             let delta = {
                                 match source {
+                                    ClauseSource::BCP | ClauseSource::FreeChoice => panic!("!"),
                                     ClauseSource::Original => delta::ClauseDB::Original(key),
                                     ClauseSource::Resolution => delta::ClauseDB::Added(key),
                                 }
