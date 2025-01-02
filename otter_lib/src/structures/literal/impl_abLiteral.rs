@@ -1,3 +1,5 @@
+//! Implementation details of the [literal trait](Literal) for the [abLiteral] structure.
+
 use crate::{
     db::atom::AtomDB,
     structures::atom::Atom,

@@ -18,10 +18,10 @@
 //!
 //! some_valuation[23] = Some(false);
 //! some_valuation[15] = Some(false);
-//! assert_eq!(clause.asserts(&some_valuation), None);
+//! assert!(clause.asserts(&some_valuation).cmp(&None).is_eq());
 //!
 //! some_valuation[41] = None;
-//! assert_eq!(clause.asserts(&some_valuation), Some(abLiteral::fresh(41, false)));
+//! assert!(clause.asserts(&some_valuation).cmp(&Some(abLiteral::fresh(41, false))).is_eq());
 //! ```
 //!
 //! - The empty clause is always false (never true).
@@ -75,14 +75,17 @@ pub trait Clause {
 #[allow(non_camel_case_types)]
 pub type vClause = Vec<abLiteral>;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub enum Source {
     /// A (unit) clause obtained via BCP.
     BCP,
+
     /// A (unit) clause set by free choice on the value of the contained atom.
     FreeChoice,
+
     /// A clause read from a formula.
     Original,
+
     /// A clause derived via resolution (during analysis, etc.)
     Resolution,
 }

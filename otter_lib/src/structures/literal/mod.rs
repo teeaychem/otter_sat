@@ -18,10 +18,10 @@
 //!
 //! assert!(literal.polarity());
 //!
-//! assert_eq!(literal.atom(), 79);
-//! assert_eq!(literal.negate().polarity(), false);
+//! assert!(literal.atom().cmp(&79).is_eq());
+//! assert!(literal.negate().polarity().cmp(&false).is_eq());
 //!
-//! assert_eq!(literal, abLiteral::fresh(79, !false));
+//! assert!(literal.cmp(&abLiteral::fresh(79, !false)).is_eq());
 //! ```
 //!
 //! Implementation of the literal trait requires implementation of two additional traits:
@@ -33,8 +33,8 @@
 //!
 //! In other solvers an integer is often used, with the sign of the integer indicating the value of the literal.
 
-/// Implementation details of the [literal trait](Literal) for the [abLiteral] structure.
 #[allow(non_snake_case)]
+#[doc(hidden)]
 mod impl_abLiteral;
 
 use crate::{
@@ -66,16 +66,22 @@ pub trait Literal: std::cmp::Ord + std::hash::Hash {
 
 /// The 'canonical' representation of a literal as an atom paired with a boolean.
 #[allow(non_camel_case_types)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct abLiteral {
+    /// The atom of a literal.
     atom: Atom,
+
+    /// The polarity of a literal.
     polarity: bool,
 }
 
 /// how a literal was settled
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum Source {
-    FreeChoice,     // a choice made where the alternative may make a SAT difference
-    BCP(ClauseKey), // direct from BCP
+    /// A choice was made where the alternative the alternative would make no difference to satisfiability.
+    FreeChoice,
+
+    /// A consequence of boolean constraint propagation.
+    BCP(ClauseKey),
 }

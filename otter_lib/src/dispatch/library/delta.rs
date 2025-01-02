@@ -51,7 +51,7 @@ pub enum ClauseDB {
     Original(ClauseKey),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum LiteralDB {}
 
 #[derive(Clone)]

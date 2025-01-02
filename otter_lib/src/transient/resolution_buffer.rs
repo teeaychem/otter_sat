@@ -52,11 +52,17 @@ use crate::{
 };
 
 /// Possilbe 'Ok' results from resolution using a resolution buffer.
-#[derive(Debug)]
 pub enum Ok {
+    /// A unique implication point was identified.
     FirstUIP,
+
+    /// Resolution was applied to every clause used at the given level.
     Exhausted,
-    Proof,
+
+    /// Resolution produced a unit clause.
+    UnitClause,
+
+    /// Resolution identified a clause already in the database.
     Missed(ClauseKey, abLiteral),
 }
 
@@ -65,26 +71,37 @@ pub enum Ok {
 pub enum Cell {
     /// Initial valuation
     Value(Option<bool>),
+
     /// The atom was not valued.
     None(abLiteral),
+
     /// The atom had a conflicting value.
     Conflict(abLiteral),
+
     /// The atom was part of resolution but was already proven.
     Strengthened,
+
     /// The atom was used as a pivot when reading a clause into the buffer.
     Pivot,
 }
 
 /// A buffer for use when applying resolution to a sequence of clauses.
 pub struct ResolutionBuffer {
+    /// A count of literals in the clause whose atoms do not have a value on the given interpretation.
     valueless_count: usize,
+
+    /// The length of the clause.
     clause_length: usize,
+
     /// The literal asserted by the current resolution candidate, if it exists
     asserts: Option<abLiteral>,
+
     /// The buffer
     buffer: Vec<Cell>,
+
     /// Where to send dispatches
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
+
     /// A (typically derived) configuration for the instance of resolution
     config: BufferConfig,
 }
@@ -97,6 +114,7 @@ pub struct BufferConfig {
     stopping: StoppingCriteria,
 }
 
+/// A macro to help send dispatches.
 macro_rules! send {
     ( $dispatcher:ident, $dispatch:expr ) => {{
         $dispatcher(Dispatch::Delta(delta::Delta::Resolution($dispatch)));
@@ -104,16 +122,18 @@ macro_rules! send {
 }
 
 impl ResolutionBuffer {
+    /// The length of the resolved clause.
     pub fn clause_legnth(&self) -> usize {
         self.clause_length
     }
 
-    pub fn from_atom_db(
-        atom_db: &AtomDB,
+    /// Creates a resolution buffer from a valuation, typically the current valuation.
+    pub fn from_valuation(
+        valuation: &impl Valuation,
         dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
         config: &Config,
     ) -> Self {
-        let valuation_copy = atom_db.valuation().values().map(Cell::Value).collect();
+        let valuation_copy = valuation.values().map(Cell::Value).collect();
 
         ResolutionBuffer {
             valueless_count: 0,
@@ -131,10 +151,14 @@ impl ResolutionBuffer {
         }
     }
 
-    /// Returns the resolved clause and the index to the asserted literal, if one exists.
+    /// Returns the resolved clause and an index to where asserted literal is *within the clause*, if one exists.
+    /// ```rust,ignore
+    /// let (resolved_clause, assertion_index) = the_buffer.to_assertion_clause();
+    /// ```
     pub fn to_assertion_clause(self) -> (vClause, Option<usize>) {
         let mut the_clause = vec![];
         let mut conflict_index = None;
+
         for item in &self.buffer {
             match item {
                 Cell::Strengthened | Cell::Value(_) | Cell::Pivot => {}
@@ -151,22 +175,29 @@ impl ResolutionBuffer {
         (the_clause, conflict_index)
     }
 
-    pub fn clear_literal(&mut self, literal: impl Borrow<abLiteral>) {
-        unsafe { self.set(literal.borrow().atom(), Cell::Value(None)) }
+    /// Sets an atom to have no valuation in the resolution buffer.
+    ///
+    /// Useful to initialise the resolution buffer with the current valuation and then to 'roll it back' to the previous valuation.
+    pub fn clear_atom_value(&mut self, atom: Atom) {
+        unsafe { self.set(atom, Cell::Value(None)) }
     }
 
-    pub fn resolve_with(
+    /// Applies resolution with the clauses used to observe consequences at the current level.
+    ///
+    /// Clauses are examined in reverse order of use.
+    pub fn resolve_through_current_level(
         &mut self,
         conflict: &ClauseKey,
         literal_db: &LiteralDB,
         clause_db: &mut ClauseDB,
         atom_db: &mut AtomDB,
     ) -> Result<Ok, err::ResolutionBuffer> {
-        self.merge_clause(unsafe {
-            clause_db
-                .get_db_clause_unchecked(conflict)
-                .expect("missing clause")
-        });
+        let base_clause = match unsafe { clause_db.get_db_clause_unchecked(conflict) } {
+            Ok(c) => c,
+            Err(_) => return Err(err::ResolutionBuffer::MissingClause),
+        };
+
+        self.merge_clause(base_clause);
 
         // Maybe the conflit clause was already asserting after the previous choice…
         if let Some(asserted_literal) = self.asserted_literal() {
@@ -190,7 +221,7 @@ impl ResolutionBuffer {
                     let source_clause = match unsafe { clause_db.get_db_clause_unchecked(the_key) }
                     {
                         Err(_) => {
-                            log::error!(target: targets::RESOLUTION, "Lost resolution clause {the_key:?}");
+                            log::error!(target: targets::RESOLUTION, "Lost resolution clause {the_key}");
                             return Err(err::ResolutionBuffer::LostClause);
                         }
                         Ok(clause) => clause,
@@ -211,7 +242,7 @@ impl ResolutionBuffer {
                                     send!(dispatcher, Resolution::Used(*the_key));
                                     send!(dispatcher, delta::Resolution::End);
                                 }
-                                return Ok(Ok::Proof);
+                                return Ok(Ok::UnitClause);
                             }
                             _ => match the_key {
                                 ClauseKey::Unit(_) => {
@@ -221,7 +252,8 @@ impl ResolutionBuffer {
                                     todo!("a formula is found which triggers this…");
                                 }
                                 ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
-                                    let new_key = clause_db.subsume(*the_key, literal, atom_db)?;
+                                    let new_key =
+                                        unsafe { clause_db.subsume(*the_key, literal, atom_db)? };
 
                                     if let Some(dispatcher) = &self.dispatcher {
                                         send!(dispatcher, delta::Resolution::End);
@@ -262,7 +294,10 @@ impl ResolutionBuffer {
         Ok(Ok::Exhausted)
     }
 
-    /// Remove literals which conflict with those at level zero from the clause
+    /// Remove literals which conflict with those at level zero from the clause.
+    /// ```rust,ignore
+    /// resolution_buffer.strengthen_given(self.clause_db.all_unit_clauses());
+    /// ```
     pub fn strengthen_given<'l>(&mut self, literals: impl Iterator<Item = &'l abLiteral>) {
         for literal in literals {
             match unsafe { *self.buffer.get_unchecked(literal.atom() as usize) } {
@@ -278,6 +313,9 @@ impl ResolutionBuffer {
     }
 
     /// The atoms used during resolution.
+    /// ```rust,ignore
+    /// self.atom_db.bump_relative(resolution_buffer.atoms_used());
+    /// ```
     pub fn atoms_used(&self) -> impl Iterator<Item = Atom> + '_ {
         self.buffer
             .iter()
@@ -289,8 +327,16 @@ impl ResolutionBuffer {
     }
 }
 
+// Private methods
+
 impl ResolutionBuffer {
-    /// Merge a clause into the buffer
+    /// Merge a clause into the resolution buffer, used to set up the resolution buffer and to merge additional clauses.
+    ///
+    /// Updates relevant 'value' cells in the resolution buffer to reflect their relation to the given clause along with connected metadata.
+    ///
+    /// Cells which have already been merged with some other clause are skipped.
+    ///
+    /// If the clause is satisfied and error is returned.
     fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), err::ResolutionBuffer> {
         for literal in clause.literals() {
             match unsafe { self.buffer.get_unchecked(literal.atom() as usize) } {
@@ -319,26 +365,29 @@ impl ResolutionBuffer {
         Ok(())
     }
 
+    /// Resolves an additional clause into the buffer.
+    ///
+    /// Ensures the given pivot can be used to apply resolution with the given clause and the clause in the resolution buffer and applies resolution.
     fn resolve_clause(
         &mut self,
         clause: &impl Clause,
-        using: impl Borrow<abLiteral>,
+        pivot: impl Borrow<abLiteral>,
     ) -> Result<(), err::ResolutionBuffer> {
-        let using = using.borrow();
-        let contents = unsafe { *self.buffer.get_unchecked(using.atom() as usize) };
+        let pivot = pivot.borrow();
+        let contents = unsafe { *self.buffer.get_unchecked(pivot.atom() as usize) };
         match contents {
-            Cell::None(literal) if using == &literal.negate() => {
+            Cell::None(literal) if pivot == &literal.negate() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
-                unsafe { self.set(using.atom(), Cell::Pivot) };
+                unsafe { self.set(pivot.atom(), Cell::Pivot) };
                 self.valueless_count -= 1;
 
                 Ok(())
             }
-            Cell::Conflict(literal) if using == &literal.negate() => {
+            Cell::Conflict(literal) if pivot == &literal.negate() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
-                unsafe { self.set(using.atom(), Cell::Pivot) };
+                unsafe { self.set(pivot.atom(), Cell::Pivot) };
 
                 Ok(())
             }
@@ -349,10 +398,12 @@ impl ResolutionBuffer {
         }
     }
 
-    unsafe fn set(&mut self, index: Atom, to: Cell) {
-        *self.buffer.get_unchecked_mut(index as usize) = to
+    /// Sets a cell corresponding to an atoms to the given enum case.
+    unsafe fn set(&mut self, atom: Atom, to: Cell) {
+        *self.buffer.get_unchecked_mut(atom as usize) = to
     }
 
+    /// The literal asserted by the resolved clause, if it exists.
     fn asserted_literal(&self) -> Option<abLiteral> {
         if self.valueless_count == 1 {
             self.asserts

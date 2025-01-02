@@ -4,15 +4,12 @@
 //!
 //! Note, observed consequences which are known to not rest on some choice(s) are stored as unit clauses in the [clause database](crate::db::clause::ClauseDB).
 
-use std::{borrow::Borrow, rc::Rc};
+use std::rc::Rc;
 
 use crate::{
-    db::keys::ChoiceIndex,
+    db::keys::LevelIndex,
     dispatch::Dispatch,
-    structures::{
-        atom::Atom,
-        literal::{self, abLiteral, Literal},
-    },
+    structures::literal::{self, abLiteral},
 };
 
 #[doc(hidden)]
@@ -91,8 +88,8 @@ impl LiteralDB {
     /// A count of how many levels are present in the choice stack.
     ///
     /// In other words, a count of how many choices have been made.
-    pub fn choice_count(&self) -> ChoiceIndex {
-        self.level_stack.len() as ChoiceIndex
+    pub fn choice_count(&self) -> LevelIndex {
+        self.level_stack.len() as LevelIndex
     }
 
     /// A mutable borrow of the top level.

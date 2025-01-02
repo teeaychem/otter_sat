@@ -1,11 +1,6 @@
-use std::{borrow::Borrow, rc::Rc};
+use std::borrow::Borrow;
 
-use crate::{
-    dispatch::Dispatch,
-    structures::literal::{self, abLiteral},
-};
-
-use super::LiteralDB;
+use crate::structures::literal::{self, abLiteral};
 
 /// A choice/decision level.
 ///

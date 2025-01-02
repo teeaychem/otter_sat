@@ -48,7 +48,7 @@ pub fn silent_formula_report(path: PathBuf, config: &Config) -> report::Solve {
             return report::Solve::Unsatisfiable;
         }
         Err(e) => {
-            panic!("c Error loading file: {e:?}")
+            panic!("c Error loading file.")
         }
     };
 

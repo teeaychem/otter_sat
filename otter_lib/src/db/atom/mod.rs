@@ -17,7 +17,7 @@ use std::rc::Rc;
 
 use crate::{
     config::{dbs::AtomDBConfig, Activity, Config},
-    db::{atom::watch_db::WatchDB, keys::ChoiceIndex},
+    db::{atom::watch_db::WatchDB, keys::LevelIndex},
     dispatch::{
         library::delta::{self},
         Dispatch,
@@ -44,7 +44,7 @@ pub struct AtomDB {
     activity_heap: IndexHeap<Activity>,
 
     /// A record of which choice an atom was valued on.
-    choice_indicies: Vec<Option<ChoiceIndex>>,
+    choice_indicies: Vec<Option<LevelIndex>>,
 
     /// A map from the external representation of an atom as a string to its internal representation.
     internal_map: std::collections::HashMap<String, Atom>,
@@ -136,7 +136,7 @@ impl AtomDB {
     ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
-    pub unsafe fn choice_index_of(&self, v_idx: Atom) -> Option<ChoiceIndex> {
+    pub unsafe fn choice_index_of(&self, v_idx: Atom) -> Option<LevelIndex> {
         *self.choice_indicies.get_unchecked(v_idx as usize)
     }
 
@@ -148,7 +148,7 @@ impl AtomDB {
         &mut self,
         atom: Atom,
         value: bool,
-        level: Option<ChoiceIndex>,
+        level: Option<LevelIndex>,
     ) -> Result<AtomValue, AtomValue> {
         match self.value_of(atom) {
             None => {

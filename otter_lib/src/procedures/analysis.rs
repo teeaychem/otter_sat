@@ -5,7 +5,7 @@ use crate::{
     misc::log::targets::{self},
     structures::{
         clause::{self, Clause},
-        literal::abLiteral,
+        literal::{abLiteral, Literal},
     },
     transient::resolution_buffer::{self, ResolutionBuffer},
     types::err::{self},
@@ -18,10 +18,13 @@ pub enum Ok {
         clause_key: ClauseKey,
         asserted_literal: abLiteral,
     },
+
     /// The result of analysis is a unit clause.
     UnitClause(ClauseKey),
+
     /// A fundamental conflict is identified, and so the current formula is unsatisfiable.
     FundamentalConflict,
+
     /// The result of analysis is a (non-unit) asserting clause.
     AssertingClause {
         clause_key: ClauseKey,
@@ -38,21 +41,25 @@ impl Context {
                 .bump_relative(unsafe { self.clause_db.get_db_clause_unchecked(key)?.atoms() });
         }
 
-        let mut the_buffer =
-            ResolutionBuffer::from_atom_db(&self.atom_db, self.dispatcher.clone(), &self.config);
+        // TODO: As the previous valuation is stored, it'd make sense to use that instead of rolling back the current valuation.
+        let mut the_buffer = ResolutionBuffer::from_valuation(
+            self.atom_db.valuation(),
+            self.dispatcher.clone(),
+            &self.config,
+        );
 
-        the_buffer.clear_literal(unsafe { self.literal_db.last_choice_unchecked() });
-        for (_, lit) in self.literal_db.last_consequences_unchecked() {
-            the_buffer.clear_literal(*lit);
+        the_buffer.clear_atom_value(unsafe { self.literal_db.last_choice_unchecked().atom() });
+        for (_, literal) in self.literal_db.last_consequences_unchecked() {
+            the_buffer.clear_atom_value(literal.atom());
         }
 
-        match the_buffer.resolve_with(
+        match the_buffer.resolve_through_current_level(
             key,
             &self.literal_db,
             &mut self.clause_db,
             &mut self.atom_db,
         ) {
-            Ok(resolution_buffer::Ok::Proof) | Ok(resolution_buffer::Ok::FirstUIP) => {}
+            Ok(resolution_buffer::Ok::UnitClause) | Ok(resolution_buffer::Ok::FirstUIP) => {}
             Ok(resolution_buffer::Ok::Exhausted) => {
                 if self.config.stopping_criteria == StoppingCriteria::FirstUIP {
                     log::error!(target: targets::ANALYSIS, "Wrong stopping criteria.");

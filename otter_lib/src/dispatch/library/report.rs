@@ -20,7 +20,7 @@ pub enum Solve {
     Unknown,
 }
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum ClauseDB {
     Active(ClauseKey, vClause),
     ActiveUnit(abLiteral),
@@ -34,7 +34,7 @@ pub enum Parser {
     ContextClauses(usize),
 }
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum LiteralDB {}
 
 impl std::fmt::Display for self::Solve {
