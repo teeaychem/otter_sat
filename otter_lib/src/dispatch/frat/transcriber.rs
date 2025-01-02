@@ -3,7 +3,7 @@
 use std::{borrow::Borrow, collections::VecDeque, io::Write, path::PathBuf};
 
 use crate::{
-    db::keys::ClauseKey,
+    db::ClauseKey,
     dispatch::{
         library::{
             delta::{self, Delta},

@@ -33,7 +33,7 @@ use std::{borrow::Borrow, rc::Rc};
 
 use crate::{
     config::{Config, StoppingCriteria},
-    db::{atom::AtomDB, clause::ClauseDB, keys::ClauseKey, literal::LiteralDB},
+    db::{atom::AtomDB, clause::ClauseDB, literal::LiteralDB, ClauseKey},
     dispatch::{
         library::delta::{
             self,
@@ -182,7 +182,9 @@ impl ResolutionBuffer {
             clause_db.bump_activity(*index)
         };
 
-        'resolution_loop: for (source, literal) in literal_db.last_consequences().iter().rev() {
+        'resolution_loop: for (source, literal) in
+            literal_db.last_consequences_unchecked().iter().rev()
+        {
             match source {
                 literal::Source::BCP(the_key) => {
                     let source_clause = match unsafe { clause_db.get_db_clause_unchecked(the_key) }

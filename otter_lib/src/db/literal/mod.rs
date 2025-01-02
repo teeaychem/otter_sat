@@ -1,6 +1,10 @@
-pub mod details;
+//! a database of literal indexed things.
+//!
+//! For the moment, this amounts to a stack of all chosen literals.
+//!
+//! Note, observed consequences which are known to not rest on some choice(s) are stored as unit clauses in the [clause database](crate::db::clause::ClauseDB).
 
-use std::rc::Rc;
+use std::{borrow::Borrow, rc::Rc};
 
 use crate::{
     db::keys::ChoiceIndex,
@@ -11,88 +15,92 @@ use crate::{
     },
 };
 
-/*
-A struct abstracting over decision levels.
-Internally this makes use of a pair of private structs.
-Though, this should probably be revised at some point…
+#[doc(hidden)]
+mod level;
+pub use level::*;
 
-- KnowledgeLevel
-  Aka. decision level zero
-  This contains assumptions or proven literals
-
-- DecisionLevel
-  A choice and the consequences of that choice
-
-Specifically, each structs can be replaced by a simple vec.
-And, for decision levels a stack of pointers to where the level began would work.
-The choice/consequence distinction requires some attention, though.
-
-For now, this works ok.
- */
-
+#[allow(dead_code)]
+/// A struct abstracting over decision levels.
 pub struct LiteralDB {
-    pub choice_stack: Vec<ChosenLiteral>,
-    pub dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
-}
-
-#[derive(Debug)]
-pub struct ChosenLiteral {
-    choice: abLiteral,
-    consequences: Vec<(literal::Source, abLiteral)>,
+    /// A stack of levels.
+    level_stack: Vec<Level>,
+    /// A dispatcher.
+    dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 }
 
 impl LiteralDB {
     pub fn new(tx: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
         LiteralDB {
-            choice_stack: Vec::default(),
+            level_stack: Vec::default(),
             dispatcher: tx,
         }
     }
-}
 
-impl LiteralDB {
+    /// Notes a choice has been made and pushes a new level to the top of the level stack.
+    /// ```rust,ignore
+    /// self.literal_db.note_choice(chosen_literal);
+    /// ```
     pub fn note_choice(&mut self, choice: abLiteral) {
-        self.choice_stack.push(ChosenLiteral::new(choice));
+        self.level_stack.push(Level::new(choice));
     }
 
-    /*
-    A recorded literal may be the consequence of a choice or `proven`.
-    In some cases this is simple to determine when the record happens.
-    For example, if a literal was an (external) assumption it is `proven`.
-    Still, in some cases it's easier to check when recording the literal.
-    So, checks are made here.
-    */
+    /// The last choice made.
+    ///
+    /// I.e. the choice of the level at the top of the level stack.
+    ///
+    /// ```rust,ignore
+    /// self.atom_db.drop_value(self.literal_db.last_choice().atom());
+    /// ```
+    /// # Safety
+    /// No check is made to ensure a choice has been made.
+    pub unsafe fn last_choice_unchecked(&self) -> abLiteral {
+        self.level_stack
+            .get_unchecked(self.level_stack.len() - 1)
+            .choice()
+    }
 
-    pub fn last_choice(&self) -> abLiteral {
+    /// Consequences of the last choice made.
+    ///
+    /// I.e. consequences of the choice of the level at the top of the level stack.
+    ///
+    /// ```rust,ignore
+    /// for (source, literal) in literal_db.last_consequences_unchecked().iter().rev() {
+    ///    ...
+    /// }
+    /// ```
+    /// # Safety
+    /// No check is made to ensure a choice has been made.
+    pub fn last_consequences_unchecked(&self) -> &[(literal::Source, abLiteral)] {
         unsafe {
-            self.choice_stack
-                .get_unchecked(self.choice_stack.len() - 1)
-                .choice
+            self.level_stack
+                .get_unchecked(self.level_stack.len() - 1)
+                .consequences()
         }
     }
 
-    pub fn last_consequences(&self) -> &[(literal::Source, abLiteral)] {
-        unsafe {
-            &self
-                .choice_stack
-                .get_unchecked(self.choice_stack.len() - 1)
-                .consequences
-        }
-    }
-
+    /// Removes the top level from the level stack.
     pub fn forget_last_choice(&mut self) {
-        self.choice_stack.pop();
+        self.level_stack.pop();
     }
 
+    /// Returns true if a choice has been made, false otherwise.
     pub fn choice_made(&self) -> bool {
-        !self.choice_stack.is_empty()
+        !self.level_stack.is_empty()
     }
 
+    /// A count of how many levels are present in the choice stack.
+    ///
+    /// In other words, a count of how many choices have been made.
     pub fn choice_count(&self) -> ChoiceIndex {
-        self.choice_stack.len() as ChoiceIndex
+        self.level_stack.len() as ChoiceIndex
     }
 
-    pub fn make_literal(&self, atoms: Atom, polarity: bool) -> abLiteral {
-        abLiteral::fresh(atoms, polarity)
+    /// A mutable borrow of the top level.
+    ///
+    /// # Safety
+    /// No check is made to ensure a choice has been made.
+    pub unsafe fn top_mut_unchecked(&mut self) -> &mut Level {
+        let last_choice_index = self.level_stack.len().saturating_sub(1);
+        self.level_stack.get_unchecked_mut(last_choice_index)
     }
 }
