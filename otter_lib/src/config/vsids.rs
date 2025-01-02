@@ -2,7 +2,7 @@
 //!
 //! For an overview of VSIDS see [Understanding VSIDS branching heuristics in conflict-driven clause-learning sat solvers](https://arxiv.org/abs/1506.08905).
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum VSIDS {
     /// A variant which mimics the VSIDS used by [Chaff](https://dl.acm.org/doi/10.1145/378239.379017).\

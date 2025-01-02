@@ -1,3 +1,5 @@
+//! Tools for building a context.
+
 use rand::Rng;
 
 use crate::{
@@ -12,13 +14,10 @@ use crate::{
         clause::{self, vClause, Clause},
         literal::{abLiteral, Literal},
     },
-    types::{
-        err::{self},
-        gen::{self},
-    },
+    types::err::{self},
 };
 
-use std::{borrow::Borrow, io::BufRead, prelude};
+use std::{borrow::Borrow, io::BufRead};
 
 /// Methods for building the context.
 impl Context {
@@ -34,6 +33,14 @@ impl Context {
         }
     }
 
+    /// Returns a literal from a string.
+    /// ```rust
+    /// # use otter_lib::context::Context;
+    /// # use otter_lib::config::Config;
+    /// #
+    /// let mut the_context = Context::from_config(Config::default(), None);
+    /// let not_p = the_context.literal_from_string("-p").expect("p?");
+    /// ```
     pub fn literal_from_string(&mut self, string: &str) -> Result<abLiteral, err::Parse> {
         let trimmed_string = string.trim();
         if trimmed_string.is_empty() || trimmed_string == "-" {
@@ -47,10 +54,21 @@ impl Context {
             the_name = &the_name[1..];
         }
 
-        let the_atom = { self.atom_from_string(the_name).unwrap() };
+        let the_atom = unsafe { self.atom_from_string(the_name).unwrap_unchecked() };
         Ok(abLiteral::fresh(the_atom, polarity))
     }
 
+    /// Returns a clause from a string.
+    ///
+    /// ```rust
+    /// # use otter_lib::context::Context;
+    /// # use otter_lib::config::Config;
+    /// # use otter_lib::dispatch::library::report::{self};
+    /// #
+    /// let mut the_context = Context::from_config(Config::default(), None);
+    ///
+    /// assert!(the_context.clause_from_string("p -q -r s").is_ok());
+    /// ```
     pub fn clause_from_string(&mut self, string: &str) -> Result<vClause, err::Build> {
         let string_lterals = string.split_whitespace();
         let mut the_clause = vec![];
@@ -66,35 +84,21 @@ impl Context {
         Ok(the_clause)
     }
 
-    fn preprocess_clause(&self, clause: &mut vClause) -> Result<(), err::Build> {
-        let mut index = 0;
-        let mut max = clause.len();
-        loop {
-            if index == max {
-                break;
-            }
-            let this_l = clause[index];
-            let this_n = this_l.negate();
-            if clause.iter().any(|l| *l == this_n) {
-                clause.clear();
-                return Ok(());
-            }
-            if self
-                .clause_db
-                .all_unit_clauses()
-                .any(|proven_literal| proven_literal.negate() == this_l)
-            {
-                clause.swap_remove(index);
-                max -= 1;
-            } else {
-                index += 1;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// The internal representation of clauses.
+    /// Adds a clause to the context.
+    ///
+    /// ```rust
+    /// # use otter_lib::context::Context;
+    /// # use otter_lib::config::Config;
+    /// # use otter_lib::dispatch::library::report::{self};
+    /// #
+    /// let mut the_context = Context::from_config(Config::default(), None);
+    ///
+    /// let a_clause = the_context.clause_from_string("p -q -r s").unwrap();
+    ///
+    ///  assert!(the_context.add_clause(a_clause).is_ok());
+    ///  the_context.solve();
+    ///  assert_eq!(the_context.report(), report::Solve::Satisfiable)
+    /// ```
     ///
     /// - Empty clauses are rejected as these are equivalent to falsum, and so unsatisfiable.
     /// - Unit clause (a literal) literal database.
@@ -149,30 +153,35 @@ impl Context {
             }
         }
     }
-}
 
-impl Context {
-    // todo: implement this again, sometime
-    // Aka. soft assumption
-    // This will hold until a restart happens
-
-    // pub fn believe(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::Context> {
-    //     if self.literal_db.choice_made() {
-    //         return Err(err::Context::AssumptionAfterChoice);
-    //     }
-    //     match self.q_literal(literal.borrow()) {
-    //         Ok(_) => {
-    //             ???
-    //             Ok(n())
-    //         }
-    //         Err(_) => Err(err::Context::AssumptionConflict),
-    //     }
-    // }
-}
-
-impl Context {
+    /// Reads a DIMACS file into the context.
+    ///
+    /// ```rust,ignore
+    /// context.read_dimacs(BufReader::new(&file))?;
+    /// ```
+    ///
+    /// ```rust
+    /// # use otter_lib::context::Context;
+    /// # use otter_lib::config::Config;
+    /// # use std::io::Write;
+    /// let mut the_context = Context::from_config(Config::default(), None);
+    ///
+    /// let mut dimacs = vec![];
+    /// let _ = dimacs.write(b"
+    ///  p  q    0
+    ///  p -q    0
+    /// -p  q    0
+    /// -p -q    0
+    ///  p  q  r 0
+    /// -p  q -r 0
+    ///  r -s    0
+    /// ");
+    ///
+    /// assert!(the_context.read_dimacs(dimacs.as_slice()).is_ok());
+    /// assert!(the_context.solve().is_ok());
+    /// ```
     #[allow(clippy::manual_flatten, unused_labels)]
-    pub fn read_dimacs(&mut self, mut file_reader: impl BufRead) -> Result<(), err::Build> {
+    pub fn read_dimacs(&mut self, mut reader: impl BufRead) -> Result<(), err::Build> {
         //
 
         let mut buffer = String::with_capacity(1024);
@@ -183,7 +192,7 @@ impl Context {
 
         // first phase, read until the formula begins
         'preamble_loop: loop {
-            match file_reader.read_line(&mut buffer) {
+            match reader.read_line(&mut buffer) {
                 Ok(0) => break,
                 Ok(_) => line_counter += 1,
                 Err(_) => return Err(err::Build::Parse(err::Parse::Line(line_counter))),
@@ -232,7 +241,7 @@ impl Context {
 
         // second phase, read until the formula ends
         'formula_loop: loop {
-            match file_reader.read_line(&mut buffer) {
+            match reader.read_line(&mut buffer) {
                 Ok(0) => break,
                 Ok(_) => line_counter += 1,
                 Err(_) => return Err(err::Build::Parse(err::Parse::Line(line_counter))),
@@ -280,6 +289,54 @@ impl Context {
                 report::Parser::ContextClauses(self.clause_db.total_clause_count());
             dispatcher(Dispatch::Report(Report::Parser(report_clauses)));
         }
+        Ok(())
+    }
+
+    // todo: implement this again, sometime
+    // Aka. soft assumption
+    // This will hold until a restart happens
+
+    // pub fn believe(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::Context> {
+    //     if self.literal_db.choice_made() {
+    //         return Err(err::Context::AssumptionAfterChoice);
+    //     }
+    //     match self.q_literal(literal.borrow()) {
+    //         Ok(_) => {
+    //             ???
+    //             Ok(n())
+    //         }
+    //         Err(_) => Err(err::Context::AssumptionConflict),
+    //     }
+    // }
+}
+
+impl Context {
+    /// Preprocess a clause to remove proven literals and duplicate literals.
+    fn preprocess_clause(&self, clause: &mut vClause) -> Result<(), err::Build> {
+        let mut index = 0;
+        let mut max = clause.len();
+        loop {
+            if index == max {
+                break;
+            }
+            let this_l = clause[index];
+            let this_n = this_l.negate();
+            if clause.iter().any(|l| *l == this_n) {
+                clause.clear();
+                return Ok(());
+            }
+            if self
+                .clause_db
+                .all_unit_clauses()
+                .any(|proven_literal| proven_literal.negate() == this_l)
+            {
+                clause.swap_remove(index);
+                max -= 1;
+            } else {
+                index += 1;
+            }
+        }
+
         Ok(())
     }
 }

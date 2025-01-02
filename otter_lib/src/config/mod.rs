@@ -14,7 +14,7 @@ pub mod misc;
 pub mod vsids;
 
 /// The primary configuration structure.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Config {
     /// The `u` value to multiply the luby sequence by when determining whether to perform a restart.
     pub luby_u: crate::generic::luby::LubyRepresentation,
@@ -88,7 +88,7 @@ pub type RandomChoiceFrequency = f64;
 /// Schedulers.
 ///
 /// If two scheduled reductions coincide, only one reduction takes place.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Scheduler {
     /// Reuce the clause database every `luby` times a luby interrupt happens.
     pub luby: Option<u32>,
@@ -98,7 +98,7 @@ pub struct Scheduler {
 }
 
 /// Variant stopping criterias to use during resolution-based analysis.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum StoppingCriteria {
     /// Stop at the first unique implication point.
     ///
@@ -120,7 +120,7 @@ impl std::fmt::Display for StoppingCriteria {
 /// Boolean valued context configurations
 ///
 /// When set to true things related to the identifier are enabled.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Switches {
     /// Default to th last set value of a atom when choosing  a value for the atom, otherwise choice with specified probability.
     pub phase_saving: bool,

@@ -34,10 +34,10 @@ pub enum BCP {
     CorruptWatch,
 }
 
-#[derive(Debug)]
 /// Noted errors when building a context.
 ///
 /// These are general errors which wrap specific errors.
+#[derive(Debug)]
 pub enum Build {
     /// A request to some other part of the context led to an error.
     Context(Context),
@@ -48,7 +48,7 @@ pub enum Build {
 }
 
 /// Errors in the clause database.
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum ClauseDB {
     /// Attempt to get a unit clause by a key (the key is the literal)
     GetUnitKey,
@@ -78,17 +78,18 @@ pub enum ClauseDB {
     ImmediateConflict,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub enum Subsumption {
     ShortClause,
     NoPivot,
     WatchError,
     TransferFailure,
     ClauseTooShort,
+    ClauseDB,
 }
 
 /// Errors in the context.
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Context {
     /// Aka. an assumption was made after some choice.
     /// In principle, not an issue.
@@ -152,7 +153,6 @@ pub enum Report {
 }
 
 /// Errors during resolution.
-#[derive(Debug)]
 pub enum ResolutionBuffer {
     /// A clause could not be found.
     LostClause,
@@ -162,6 +162,7 @@ pub enum ResolutionBuffer {
     /// This is quite serious, unless the wrong valuation has been used…
     SatisfiedClause,
     Transfer,
+    MissingClause,
 }
 
 /// Errors with the writer for FRAT proofs.
@@ -176,7 +177,7 @@ pub enum FRAT {
     TransfersAreTodo,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub enum Watch {
     /// A binary clause was found in a long watch list.
     /// Perhaps an issue during addition during addition or transfer of a clause…?

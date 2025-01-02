@@ -22,29 +22,20 @@
 //! For details on the way watched literals are updated, see implementations (notably [update_watch](dbClause::update_watch)).
 
 use crate::{
-    db::{
-        atom::{
-            watch_db::{WatchStatus, WatchTag},
-            AtomDB,
-        },
-        keys::ClauseKey,
-    },
-    misc::log::targets::{self},
+    db::{atom::AtomDB, keys::ClauseKey},
     structures::{
-        atom::Atom,
         clause::{vClause, Clause},
-        literal::{abLiteral, Literal},
+        literal::abLiteral,
     },
 };
 
-use std::{borrow::Borrow, ops::Deref};
+use std::ops::Deref;
 
 #[doc(hidden)]
 mod subsumption;
 #[doc(hidden)]
 mod watches;
 
-#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub struct dbClause {
     /// A key for accessing the clause

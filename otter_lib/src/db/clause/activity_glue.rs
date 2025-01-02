@@ -6,7 +6,6 @@ It is unlikely this has much positive impact, but here it is…
  */
 
 /// A combination of [clause activity](crate::config::Activity) and [lbd](LBD), used to sort clauses on an activity heap.
-#[derive(Debug)]
 pub struct ActivityLBD {
     /// The activity of a clause.
     pub activity: Activity,

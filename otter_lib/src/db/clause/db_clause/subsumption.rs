@@ -4,7 +4,7 @@ use crate::{
     db::atom::AtomDB,
     misc::log::targets,
     structures::literal::{abLiteral, Literal},
-    types::err::{self, Subsumption},
+    types::err::{self},
 };
 
 use super::dbClause;

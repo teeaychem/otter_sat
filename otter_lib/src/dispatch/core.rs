@@ -35,7 +35,7 @@ use super::library::delta::{AtomDB, ClauseDB, LiteralDB, Resolution, BCP};
  A minor issue is that subsumption may `corrupt` an original formula, so a map from formula keys to their initial form is also kept.
 */
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct CoreDB {
     conflict: Option<ClauseKey>,
 

@@ -34,17 +34,11 @@
 
 use crate::{
     db::{atom::AtomDB, keys::ClauseKey},
-    structures::{
-        atom::Atom,
-        clause::ClauseKind,
-        literal::{abLiteral, Literal},
-    },
+    structures::{atom::Atom, clause::ClauseKind, literal::abLiteral},
     types::err::{self},
 };
-use std::borrow::{Borrow, BorrowMut};
 
 /// The watcher of an atom.
-#[derive(Debug)]
 pub enum WatchTag {
     /// A binary clause together with the *other* literal in the clause.
     Binary(abLiteral, ClauseKey),

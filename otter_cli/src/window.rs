@@ -12,7 +12,7 @@ pub struct ContextWindow {
     pub confclits: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub enum WindowItem {
     Iterations,
     Conflicts,

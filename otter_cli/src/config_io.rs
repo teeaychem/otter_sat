@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 pub const DETAILS: u8 = 0;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ConfigIO {
     pub files: Vec<PathBuf>,
     pub detail: u8,

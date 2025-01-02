@@ -3,7 +3,7 @@
 use super::{Activity, LBD};
 
 /// Configuration for the clause database.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ClauseDBConfig {
     /// The activity with which the next atom bumped will be bumped by, dynamically adjusted.
     pub bump: Activity,
@@ -30,7 +30,7 @@ impl Default for ClauseDBConfig {
 }
 
 /// Configuration for the atom database.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct AtomDBConfig {
     /// The amount with which to bump a atom by when applying [VSIDS](crate::config::vsids).
     pub bump: Activity,

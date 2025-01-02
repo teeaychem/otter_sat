@@ -27,7 +27,6 @@
 //!
 //!  assert!(test_heap.pop_max().is_none());
 
-#[derive(Debug)]
 pub struct IndexHeap<V: PartialOrd + Default> {
     values: Vec<V>,
     position_in_heap: Vec<Option<usize>>,

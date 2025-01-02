@@ -297,6 +297,35 @@ impl ClauseDB {
             }
         }
     }
+
+    /// Returns Ok(mutable clause) corresponding to the given key, or an Err(issue) otherwise.
+    ///
+    /// ```rust, ignore
+    /// self.clause_db.get_db_clause_mut(&key)?
+    /// ```
+    pub unsafe fn get_db_clause_mut_unchecked(
+        &mut self,
+        key: &ClauseKey,
+    ) -> Result<&mut dbClause, err::ClauseDB> {
+        match key {
+            ClauseKey::Unit(_) => Err(err::ClauseDB::GetUnitKey),
+            ClauseKey::Original(index) => Ok(self.original.get_unchecked_mut(*index as usize)),
+            ClauseKey::Binary(index) => Ok(self.binary.get_unchecked_mut(*index as usize)),
+            ClauseKey::Addition(index, token) => {
+                //
+                match self.addition.get_unchecked_mut(*index as usize) {
+                    Some(clause) => match clause.key() {
+                        ClauseKey::Addition(_, clause_token) if &clause_token == token => {
+                            Ok(clause)
+                        }
+                        _ => Err(err::ClauseDB::InvalidKeyToken),
+                    },
+
+                    None => Err(err::ClauseDB::InvalidKeyIndex),
+                }
+            }
+        }
+    }
 }
 
 impl ClauseDB {
@@ -344,7 +373,7 @@ impl ClauseDB {
         'reduction_loop: for _ in 0..limit {
             if let Some(index) = self.activity_heap.peek_max() {
                 let value = self.activity_heap.value_at(index);
-                log::debug!(target: targets::REDUCTION, "Took: {:?}", value);
+                log::debug!(target: targets::REDUCTION, "Took ~ Activity: {} LBD: {}", value.activity, value.lbd);
                 if value.lbd <= self.config.lbd_bound {
                     break 'reduction_loop;
                 } else {
@@ -511,13 +540,16 @@ impl ClauseDB {
       + As, if the clause appeared in some previous stage then use of the clause would be a missed implication
       + And, missed implications are checked prior to conflicts
      */
-    pub fn subsume(
+    pub unsafe fn subsume(
         &mut self,
         key: ClauseKey,
         literal: impl Borrow<abLiteral>,
         atom_db: &mut AtomDB,
     ) -> Result<ClauseKey, err::Subsumption> {
-        let the_clause = self.get_db_clause_mut(&key).unwrap();
+        let the_clause = match self.get_db_clause_mut_unchecked(&key) {
+            Ok(c) => c,
+            Err(_) => return Err(err::Subsumption::ClauseDB),
+        };
         match the_clause.len() {
             0..=2 => Err(err::Subsumption::ClauseTooShort),
             3 => {

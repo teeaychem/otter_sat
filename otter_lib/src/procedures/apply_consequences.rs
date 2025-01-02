@@ -18,7 +18,7 @@ impl Context {
     /// Expand queued consequences:
     /// Performs an analysis on apparent conflict.
     pub fn apply_consequences(&mut self) -> Result<Ok, err::Context> {
-        'expansion: while let Some((literal, _)) = self.get_consequence() {
+        'expansion: while let Some((literal, _)) = self.consequence_q.pop_front() {
             match unsafe { self.bcp(literal) } {
                 Ok(()) => {}
                 Err(err::BCP::CorruptWatch) => return Err(err::Context::BCP),

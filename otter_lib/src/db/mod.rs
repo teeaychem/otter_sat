@@ -23,7 +23,7 @@ use crate::{
 };
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 /// The status of a database.
 pub enum dbStatus {
     /// The database is known to be consistent, e.g. with a complete valuation.

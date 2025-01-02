@@ -41,7 +41,6 @@ fn main() {
         "
 Representations of: ¬p ∨ q
 
-- Debug           {not_p_or_q:?}
 - Internal string {not_p_or_q_internal_string}
 - External string {not_p_or_q_external_string}
 "
@@ -54,7 +53,7 @@ Representations of: ¬p ∨ q
     let p = abLiteral::fresh(p_variable, true);
     let not_q = abLiteral::fresh(q_variable, false);
 
-    assert_eq!(p_or_not_q, vec![p, not_q]);
+    assert!(p_or_not_q.cmp(&vec![p, not_q]).is_eq());
 
     // made clauses must be added to the context:
     for (i, clause) in the_context.clause_db.all_nonunit_clauses().enumerate() {

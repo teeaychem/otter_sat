@@ -6,15 +6,11 @@ use crate::{
         },
         keys::ClauseKey,
     },
-    misc::log::targets::{self},
     structures::{
         atom::Atom,
-        clause::{vClause, Clause},
         literal::{abLiteral, Literal},
     },
 };
-
-use std::{borrow::Borrow, ops::Deref};
 
 use super::dbClause;
 

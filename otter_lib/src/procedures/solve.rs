@@ -1,6 +1,6 @@
 use crate::{
     context::Context,
-    db::{ChoiceIndex, ClauseKey},
+    db::{ClauseKey, LevelIndex},
     dispatch::{
         library::{
             delta::{self, Delta},
@@ -143,7 +143,7 @@ impl Context {
             .is_some_and(|interval| (self.counters.restarts % (interval as usize)) == 0)
     }
 
-    pub fn backjump(&mut self, to: ChoiceIndex) {
+    pub fn backjump(&mut self, to: LevelIndex) {
         // log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.index(), to);
 
         for _ in 0..(self.literal_db.choice_count() - to) {
@@ -156,13 +156,13 @@ impl Context {
             }
             self.literal_db.forget_last_choice();
         }
-        self.clear_consequences(to);
+        self.clear_q(to);
     }
 
     /// The second highest choice index from the given literals, or 0
     /// Aka. The backjump level for a slice of an asserting slice of literals/clause
     // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
-    pub fn backjump_level(&self, clause: &impl Clause) -> Result<ChoiceIndex, err::Context> {
+    pub fn backjump_level(&self, clause: &impl Clause) -> Result<LevelIndex, err::Context> {
         match clause.size() {
             0 => panic!("impossible"),
             1 => Ok(0),

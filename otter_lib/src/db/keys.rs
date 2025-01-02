@@ -4,7 +4,7 @@ use crate::{
     types::err::{self},
 };
 
-pub type ChoiceIndex = u32;
+pub type LevelIndex = u32;
 pub type FormulaIndex = u32;
 pub type FormulaToken = u16;
 
@@ -14,7 +14,7 @@ pub type FormulaToken = u16;
 ///
 /// The only exception to this is unit clauses.
 /// Here, the index is to the atom database.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ClauseKey {
     /// The key to a unit clause contains the (unit) clause.
     // Note, the size of an abLiteral is smaller than the key for an addition clause.
