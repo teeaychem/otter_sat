@@ -1,6 +1,6 @@
 use crate::{
     context::Context,
-    db::keys::{ChoiceIndex, ClauseKey},
+    db::{ChoiceIndex, ClauseKey},
     dispatch::{
         library::{
             delta::{self, Delta},
@@ -149,9 +149,9 @@ impl Context {
         for _ in 0..(self.literal_db.choice_count() - to) {
             unsafe {
                 self.atom_db
-                    .drop_value(self.literal_db.last_choice().atom())
+                    .drop_value(self.literal_db.last_choice_unchecked().atom())
             };
-            for (_, literal) in self.literal_db.last_consequences() {
+            for (_, literal) in self.literal_db.last_consequences_unchecked() {
                 unsafe { self.atom_db.drop_value(literal.atom()) };
             }
             self.literal_db.forget_last_choice();

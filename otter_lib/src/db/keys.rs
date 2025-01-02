@@ -8,15 +8,27 @@ pub type ChoiceIndex = u32;
 pub type FormulaIndex = u32;
 pub type FormulaToken = u16;
 
+/// A key to access a clause stored in the clause database.
+///
+/// Within the clause database clauses are stored in some indexed structure (e.g. a vector) an keys contain the index to the clause together with a token to distinguish reuse of the same index, where relevant.
+///
+/// The only exception to this is unit clauses.
+/// Here, the index is to the atom database.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ClauseKey {
+    /// The key to a unit clause contains the (unit) clause.
+    // Note, the size of an abLiteral is smaller than the key for an addition clause.
     Unit(abLiteral),
-    Original(FormulaIndex),
+    /// The key to a binary clause.
     Binary(FormulaIndex),
+    /// The key to an original clause.
+    Original(FormulaIndex),
+    /// The key to an addition.
     Addition(FormulaIndex, FormulaToken),
 }
 
 impl ClauseKey {
+    /// Extracts the index from a key.
     pub fn index(&self) -> usize {
         match self {
             Self::Unit(l) => l.atom() as usize,
@@ -26,6 +38,9 @@ impl ClauseKey {
         }
     }
 
+    /// Retokens an addition key to distnguish multiple uses of the same index.
+    ///
+    /// Returns an error if used on any other key, or if the token limit has been reached.
     pub fn retoken(&self) -> Result<Self, err::ClauseDB> {
         match self {
             Self::Unit(_) => {

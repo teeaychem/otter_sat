@@ -3,12 +3,11 @@
 pub mod atom;
 pub mod clause;
 pub mod consequence_q;
-pub mod keys;
+mod keys;
+pub use keys::*;
 pub mod literal;
 
 use std::borrow::Borrow;
-
-use keys::ClauseKey;
 
 use crate::{
     context::Context,
@@ -49,7 +48,7 @@ impl Context {
         match source {
             LiteralSource::FreeChoice => {
                 //
-                match self.literal_db.choice_stack.len() {
+                match self.literal_db.choice_count() {
                     0 => {
                         self.record_clause(*literal.borrow(), ClauseSource::FreeChoice);
                     }
@@ -62,14 +61,15 @@ impl Context {
 
             LiteralSource::BCP(_) => {
                 //
-                match self.literal_db.choice_stack.len() {
+                match self.literal_db.choice_count() {
                     0 => {
                         self.record_clause(*literal.borrow(), ClauseSource::BCP);
                     }
-                    _ => self
-                        .literal_db
-                        .top_mut()
-                        .record_consequence(literal, source),
+                    _ => unsafe {
+                        self.literal_db
+                            .top_mut_unchecked()
+                            .record_consequence(literal, source)
+                    },
                 }
             }
         }

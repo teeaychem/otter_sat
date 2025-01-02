@@ -1,5 +1,5 @@
 use crate::{
-    db::keys::ClauseKey,
+    db::ClauseKey,
     structures::{clause::vClause, literal::abLiteral},
 };
 

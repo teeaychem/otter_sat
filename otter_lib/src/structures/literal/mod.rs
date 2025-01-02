@@ -38,7 +38,7 @@
 mod impl_abLiteral;
 
 use crate::{
-    db::{atom::AtomDB, keys::ClauseKey},
+    db::{atom::AtomDB, ClauseKey},
     structures::atom::Atom,
 };
 

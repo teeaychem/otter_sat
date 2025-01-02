@@ -1,6 +1,6 @@
 use crate::{
     context::Context,
-    db::{dbStatus, keys::ClauseKey},
+    db::{dbStatus, ClauseKey},
     dispatch::{library::delta, Dispatch},
     procedures::analysis,
     structures::literal::{self, abLiteral},

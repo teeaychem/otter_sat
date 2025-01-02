@@ -1,7 +1,7 @@
 use crate::{
     config::StoppingCriteria,
     context::Context,
-    db::keys::ClauseKey,
+    db::ClauseKey,
     misc::log::targets::{self},
     structures::{
         clause::{self, Clause},
@@ -41,8 +41,8 @@ impl Context {
         let mut the_buffer =
             ResolutionBuffer::from_atom_db(&self.atom_db, self.dispatcher.clone(), &self.config);
 
-        the_buffer.clear_literal(self.literal_db.last_choice());
-        for (_, lit) in self.literal_db.last_consequences() {
+        the_buffer.clear_literal(unsafe { self.literal_db.last_choice_unchecked() });
+        for (_, lit) in self.literal_db.last_consequences_unchecked() {
             the_buffer.clear_literal(*lit);
         }
 

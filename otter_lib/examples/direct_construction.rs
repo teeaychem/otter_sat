@@ -1,5 +1,11 @@
 use otter_lib::{
-    config::Config, context::Context, dispatch::library::report, structures::clause::Clause,
+    config::Config,
+    context::Context,
+    dispatch::library::report,
+    structures::{
+        clause::Clause,
+        literal::{abLiteral, Literal},
+    },
 };
 
 fn value_of(variable: &str, context: &Context) -> Option<bool> {
@@ -45,8 +51,8 @@ Representations of: ¬p ∨ q
 
     let p_variable = the_context.atom_db.internal_representation("p").unwrap();
     let q_variable = the_context.atom_db.internal_representation("q").unwrap();
-    let p = the_context.literal_db.make_literal(p_variable, true);
-    let not_q = the_context.literal_db.make_literal(q_variable, false);
+    let p = abLiteral::fresh(p_variable, true);
+    let not_q = abLiteral::fresh(q_variable, false);
 
     assert_eq!(p_or_not_q, vec![p, not_q]);
 

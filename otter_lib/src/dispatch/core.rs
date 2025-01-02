@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    db::keys::ClauseKey,
+    db::ClauseKey,
     dispatch::{
         library::delta::{self, Delta},
         Dispatch,
