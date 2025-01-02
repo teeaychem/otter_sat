@@ -36,7 +36,7 @@ impl dbClause {
     /// As subsumption may involve the removal of a watched literal, if `fix_watch` is set then watches will be corrected after removing the literal.
     /// Watches may be left in a corrupted state as there may be no interest in fixing them.
     /// For example,  subsumption may lead to a binary clause and the watches for the clause may be set elsewhere.
-    pub unsafe fn subsume(
+    pub fn subsume(
         &mut self,
         literal: impl Borrow<abLiteral>,
         atom_db: &mut AtomDB,
@@ -69,7 +69,9 @@ impl dbClause {
 
         let removed = self.clause.swap_remove(position);
 
-        match atom_db.remove_watch_unchecked(removed.atom(), removed.polarity(), &self.key) {
+        match unsafe {
+            atom_db.remove_watch_unchecked(removed.atom(), removed.polarity(), &self.key)
+        } {
             Ok(()) => {}
             Err(_) => return Err(err::Subsumption::WatchError),
         };
@@ -78,7 +80,7 @@ impl dbClause {
             let clause_length = self.clause.len();
             self.watch_ptr = 1;
             for index in 1..clause_length {
-                let index_literal = self.clause.get_unchecked(index);
+                let index_literal = unsafe { self.clause.get_unchecked(index) };
                 let index_value = atom_db.value_of(index_literal.atom());
                 match index_value {
                     Some(value) if value != index_literal.polarity() => {}
@@ -88,7 +90,7 @@ impl dbClause {
                     }
                 }
             }
-            let watched_literal = self.clause.get_unchecked(self.watch_ptr);
+            let watched_literal = unsafe { self.clause.get_unchecked(self.watch_ptr) };
             self.note_watch(watched_literal.atom(), watched_literal.polarity(), atom_db);
             // TODO: Is this sufficient to uphold the required invariant?
             if zero_swap && atom_db.value_of(watched_literal.atom()).is_none() {

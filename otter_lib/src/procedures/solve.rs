@@ -53,7 +53,7 @@ impl Context {
                 }
 
                 apply_consequences::Ok::AssertingClause(key, literal) => {
-                    let the_clause = self.clause_db.get_db_clause_unsafe(&key)?;
+                    let the_clause = unsafe { self.clause_db.get_db_clause_unchecked(&key)? };
                     let index = self.backjump_level(the_clause)?;
                     self.backjump(index);
 
@@ -92,10 +92,12 @@ impl Context {
                     };
 
                     if self.scheduled_by_luby() {
-                        self.clause_db.reduce();
+                        self.clause_db
+                            .reduce_by(self.clause_db.current_addition_count() / 2);
                     }
                 } else if self.scheduled_by_conflicts() {
-                    self.clause_db.reduce()?;
+                    self.clause_db
+                        .reduce_by(self.clause_db.current_addition_count() / 2)?;
                 }
             }
         }
@@ -116,7 +118,7 @@ impl Context {
 
     pub fn restart(&mut self) {
         self.backjump(0);
-        self.clause_db.reset_heap();
+        self.clause_db.refresh_heap();
         self.counters.restarts += 1;
         self.counters.fresh_conflicts = 0;
     }

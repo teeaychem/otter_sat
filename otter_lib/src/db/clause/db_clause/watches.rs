@@ -20,10 +20,6 @@ use super::dbClause;
 
 /// Methods for watched literals of a clause.
 ///
-/// # Terminology
-/// - Watch candidate
-///   - A literal with an atom, on the current valuation, that either has no value, or is such that the value of the atom is the same as the polarity of the literal
-///
 /// # Implementation notes
 ///
 /// The approach to watch literals follows [Optimal implementation of watched literals and more general techniques](https://www.jair.org/index.php/jair/article/view/10839).

@@ -27,8 +27,10 @@
 //! - The empty clause is always false (never true).
 //! - Single literals are identified with the clause containing that literal (aka. a 'unit' clause --- where the 'unit' is the literal).
 
+mod kind;
 mod literal;
 mod literal_slice;
+pub use kind::*;
 
 use crate::{
     config::LBD,
@@ -75,6 +77,12 @@ pub type vClause = Vec<abLiteral>;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Source {
-    Original,   // Read from a formula
-    Resolution, // Derived via resolution (during analysis, etc.)
+    /// A (unit) clause obtained via BCP.
+    BCP,
+    /// A (unit) clause set by free choice on the value of the contained atom.
+    FreeChoice,
+    /// A clause read from a formula.
+    Original,
+    /// A clause derived via resolution (during analysis, etc.)
+    Resolution,
 }

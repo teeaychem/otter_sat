@@ -54,11 +54,11 @@ impl Context {
             self.clause_db.all_nonunit_clauses().map(|sc| sc.literals()),
         );
 
-        for v_id in f.into_iter().chain(t) {
-            let the_literal = abLiteral::fresh(v_id, false);
+        for atom in f.into_iter().chain(t) {
+            let the_literal = abLiteral::fresh(atom, false);
             match self.q_literal(the_literal) {
                 Ok(consequence_q::Ok::Qd) => {
-                    self.record_literal(the_literal, literal::Source::Choice);
+                    self.record_literal(the_literal, literal::Source::FreeChoice);
                 }
                 Err(e) => return Err(e),
             }

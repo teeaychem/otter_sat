@@ -33,9 +33,10 @@
 //! At present, this is the only use of *unsafe* with respect to [WatchDB]s.
 
 use crate::{
-    db::{atom::AtomDB, clause::ClauseKind, keys::ClauseKey},
+    db::{atom::AtomDB, keys::ClauseKey},
     structures::{
         atom::Atom,
+        clause::ClauseKind,
         literal::{abLiteral, Literal},
     },
     types::err::{self},
@@ -195,8 +196,14 @@ impl AtomDB {
 
     /// Returns the relevant collection of watchers for a given atom, clause type, and value.
     ///
+    /// ```rust, ignore
+    /// let binary_list = &mut *atom_db.get_watch_list_unchecked(atom, ClauseKind::Binary, false);
+    /// ```
+    ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
+    ///
+    /// Further, a pointer is returned --- --- to help simplify [bcp](crate::procedures::bcp) --- and so care should be taken to avoid creating aliases.
     pub unsafe fn get_watch_list_unchecked(
         &mut self,
         atom: Atom,
@@ -204,7 +211,8 @@ impl AtomDB {
         value: bool,
     ) -> *mut Vec<WatchTag> {
         match kind {
-            ClauseKind::Unit => todo!(),
+            ClauseKind::Empty => panic!("!"),
+            ClauseKind::Unit => panic!("!"),
             ClauseKind::Binary => self
                 .watch_dbs
                 .get_unchecked_mut(atom as usize)

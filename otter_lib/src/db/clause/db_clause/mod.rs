@@ -1,4 +1,4 @@
-//! A [dbClause] is a struct holding a [clause](Clause) and associated metadata.
+//! A struct holding a [clause](Clause) and associated metadata.
 //!
 //! For [clause trait](Clause) see [Clause], and for the canonical representation of a clause see [vClause].
 //!
@@ -7,9 +7,15 @@
 //! - A [key](ClauseKey) used to access the [dbClause]/[clause](Clause).
 //! - Other, useful, metadata.
 //!
-//! # Watched literals
+//! # Terminology
+//! ## Watch candidate
+//!   - A literal with an atom, on the current valuation, that either has no value, or is such that the value of the atom is the same as the polarity of the literal
 //!
-//! Watches are initialised for any clause containing two or more literals.
+//! ## Watched literals
+//!
+//! Two distinguished watch candidates.
+//!
+//! In particular, watches are initialised for any clause containing two or more literals.
 //!
 //! At present, the literals watched are the *first* and *second* literals in the clause.
 //! In order to preserve this invariant, order of literals in the claue is mutated as nedded.
