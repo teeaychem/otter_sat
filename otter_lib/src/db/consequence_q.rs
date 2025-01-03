@@ -1,16 +1,16 @@
 //! A queue of observed consequences to be propagated.
 //!
-//! For primary use case see the following associated [Context] methods:
-//! - [Context::q_literal]
+//! For primary use case see the following associated [GenericContext] methods:
+//! - [GenericContext::q_literal]
 //!
 //! Interaction with the queue as a [std::collections::VecDeque] is preferred, though further methods may be attached to other structs.
-//! For example, [Context::clear_q] provides a convenient way to clear all consequences from a given level.
+//! For example, [GenericContext::clear_q] provides a convenient way to clear all consequences from a given level.
 
 use std::borrow::Borrow;
 
 use crate::{
-    context::Context,
-    db::keys::LevelIndex,
+    context::GenericContext,
+    db::LevelIndex,
     misc::log::targets::{self},
     structures::literal::{abLiteral, Literal},
     types::err::{self},
@@ -25,7 +25,7 @@ pub enum Ok {
     Qd,
 }
 
-impl Context {
+impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Clears all queued consequences from the given level index up to the current level index.
     /// ```rust,ignore
     /// pub fn backjump(&mut self, to: LevelIndex) {

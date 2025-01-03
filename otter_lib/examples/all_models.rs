@@ -12,7 +12,6 @@ use otter_lib::{
 ///  - Or, there's some error in the solver.
 ///
 /// This is not particularly efficient.
-
 // TODO: make this efficient…
 
 fn main() {
@@ -21,9 +20,9 @@ fn main() {
     let mut the_context: Context = Context::from_config(config, None);
 
     // Each character in some string as a literal.
-    let mut variables = "let's_finds_all_models".chars().collect::<Vec<_>>();
-    for variable in &variables {
-        assert!(the_context.atom_from_string(&variable.to_string()).is_ok())
+    let mut atoms = "let's_finds_all_models".chars().collect::<Vec<_>>();
+    for atom in &atoms {
+        assert!(the_context.atom_from_string(&atom.to_string()).is_ok())
     }
 
     let mut count = 0;
@@ -62,8 +61,8 @@ fn main() {
     }
 
     // Shake out any duplicate variables as these are ignored by the context.
-    variables.sort_unstable();
-    variables.dedup();
+    atoms.sort_unstable();
+    atoms.dedup();
 
-    assert_eq!(count, 2_usize.pow(variables.len().try_into().unwrap()));
+    assert_eq!(count, 2_usize.pow(atoms.len().try_into().unwrap()));
 }

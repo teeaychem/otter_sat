@@ -10,7 +10,7 @@ pub mod literal;
 use std::borrow::Borrow;
 
 use crate::{
-    context::Context,
+    context::GenericContext,
     dispatch::{
         library::delta::{self, Delta},
         Dispatch,
@@ -21,6 +21,9 @@ use crate::{
     },
     types::err,
 };
+
+/// The index of a [choice/decision level](crate::db::literal).
+pub type LevelIndex = u32;
 
 #[allow(non_camel_case_types)]
 #[derive(PartialEq, Eq)]
@@ -35,7 +38,7 @@ pub enum dbStatus {
 }
 
 /// Canonical methods to record literals and clauses to the context.
-impl Context {
+impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Records a literal in the appropriate database.
     ///
     /// ```rust, ignore

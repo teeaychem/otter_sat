@@ -8,7 +8,7 @@ use std::{
 use crate::{
     db::ClauseKey,
     dispatch::{
-        library::delta::{self, Delta},
+        library::delta::{self, AtomDB, ClauseDB, Delta, LiteralDB, Resolution, BCP},
         Dispatch,
     },
     structures::{
@@ -17,8 +17,6 @@ use crate::{
     },
     types::err::{self},
 };
-
-use super::library::delta::{AtomDB, ClauseDB, LiteralDB, Resolution, BCP};
 
 /* A placeholder awaiting interest…
 
@@ -35,19 +33,27 @@ use super::library::delta::{AtomDB, ClauseDB, LiteralDB, Resolution, BCP};
  A minor issue is that subsumption may `corrupt` an original formula, so a map from formula keys to their initial form is also kept.
 */
 
+/// A database of information useful for recovering an unsatisfiable core, typically built by reading dispatches from a solve.
 #[derive(Default)]
 pub struct CoreDB {
+    /// The clause used to establish the formula is unsatisfiabile.
     conflict: Option<ClauseKey>,
 
-    original_map: HashMap<ClauseKey, vClause>,
-
+    /// A buffer used when reading dispatches regarding a clause.
     clause_buffer: Vec<abLiteral>,
 
+    /// A buffer used when reading dispatches regarding an instance of resulution.
+    ///
+    /// [ClauseKey]s are keys to those clauses used during resolution.
     resolution_buffer: Vec<ClauseKey>,
 
+    /// A queue of all clauses used during resolution.
     resolution_q: VecDeque<Vec<ClauseKey>>,
 
     bcp_buffer: Option<(ClauseKey, abLiteral)>,
+
+    /// A map of clause keys to clauses of the original formula.
+    original_map: HashMap<ClauseKey, vClause>,
 
     clause_map: HashMap<ClauseKey, Vec<ClauseKey>>,
 

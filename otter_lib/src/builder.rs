@@ -1,9 +1,7 @@
 //! Tools for building a context.
 
-use rand::Rng;
-
 use crate::{
-    context::Context,
+    context::GenericContext,
     db::consequence_q::{self},
     dispatch::{
         library::report::{self, Report},
@@ -20,20 +18,32 @@ use crate::{
 use std::{borrow::Borrow, io::BufRead};
 
 /// Methods for building the context.
-impl Context {
-    pub fn atom_from_string(&mut self, name: &str) -> Result<Atom, err::Parse> {
-        match self.atom_db.internal_representation(name) {
+impl<R: rand::Rng + std::default::Default> GenericContext<R> {
+    /// Returns the internal representation an atom from a string, adding the atom to the context if required.
+    ///
+    /// ```rust
+    /// # use otter_lib::context::Context;
+    /// # use otter_lib::config::Config;
+    /// #
+    /// let mut the_context = Context::from_config(Config::default(), None);
+    /// let mut atoms = vec!["p", "-q", "r", "-r"];
+    /// for atom in &atoms {
+    ///     assert!(the_context.atom_from_string(&atom.to_string()).is_ok())
+    /// }
+    /// ```
+    pub fn atom_from_string(&mut self, string: &str) -> Result<Atom, err::Parse> {
+        match self.atom_db.internal_representation(string) {
             Some(atom) => Ok(atom),
             None => {
                 let the_id = self.atom_db.count() as Atom;
                 self.atom_db
-                    .fresh_atom(name, self.counters.rng.gen_bool(self.config.polarity_lean));
+                    .fresh_atom(string, self.rng.gen_bool(self.config.polarity_lean));
                 Ok(the_id)
             }
         }
     }
 
-    /// Returns a literal from a string.
+    /// Returns the internal representation of a literal from a string, adding an atom to the context if required.
     /// ```rust
     /// # use otter_lib::context::Context;
     /// # use otter_lib::config::Config;
@@ -43,22 +53,26 @@ impl Context {
     /// ```
     pub fn literal_from_string(&mut self, string: &str) -> Result<abLiteral, err::Parse> {
         let trimmed_string = string.trim();
-        if trimmed_string.is_empty() || trimmed_string == "-" {
+        if trimmed_string.is_empty() {
+            return Err(err::Parse::Empty);
+        }
+        if trimmed_string == "-" {
             return Err(err::Parse::Negation);
         };
 
         let polarity = !trimmed_string.starts_with('-');
 
-        let mut the_name = trimmed_string;
-        if !polarity {
-            the_name = &the_name[1..];
-        }
+        let the_atom = match polarity {
+            true => trimmed_string,
+            false => &trimmed_string[1..],
+        };
 
-        let the_atom = unsafe { self.atom_from_string(the_name).unwrap_unchecked() };
+        // Safe, as atom_from_string takes any non-empty string, which has been established.
+        let the_atom = unsafe { self.atom_from_string(the_atom).unwrap_unchecked() };
         Ok(abLiteral::fresh(the_atom, polarity))
     }
 
-    /// Returns a clause from a string.
+    /// Returns the internal representation a clause from a string, adding atoms to the context if required..
     ///
     /// ```rust
     /// # use otter_lib::context::Context;
@@ -71,12 +85,15 @@ impl Context {
     /// ```
     pub fn clause_from_string(&mut self, string: &str) -> Result<vClause, err::Build> {
         let string_lterals = string.split_whitespace();
+
         let mut the_clause = vec![];
+
         for string_literal in string_lterals {
             let the_literal = match self.literal_from_string(string_literal) {
                 Ok(literal) => literal,
                 Err(e) => return Err(err::Build::Parse(e)),
             };
+
             if !the_clause.iter().any(|l| *l == the_literal) {
                 the_clause.push(the_literal);
             }
@@ -120,7 +137,7 @@ impl Context {
         self.preprocess_clause(&mut clause_vec)?;
 
         match clause_vec.len() {
-            0 => Ok(()),
+            0 => Ok(()), // skip tautologies after preprocessing
 
             1 => {
                 let literal = unsafe { *clause_vec.get_unchecked(0) };
@@ -133,14 +150,16 @@ impl Context {
                         }
                         _ => Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict)),
                     },
+
                     Some(v) if v == literal.polarity() => {
                         // Must be at zero for an assumption, so there's nothing to do
-                        if self.counters.choices != 0 {
+                        if self.counters.total_choices != 0 {
                             Err(err::Build::ClauseDB(err::ClauseDB::AddedUnitAfterChoice))
                         } else {
                             Ok(())
                         }
                     }
+
                     Some(_) => Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict)),
                 };
                 Ok(())
@@ -310,7 +329,7 @@ impl Context {
     // }
 }
 
-impl Context {
+impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Preprocess a clause to remove proven literals and duplicate literals.
     fn preprocess_clause(&self, clause: &mut vClause) -> Result<(), err::Build> {
         let mut index = 0;
@@ -321,10 +340,12 @@ impl Context {
             }
             let this_l = clause[index];
             let this_n = this_l.negate();
+
             if clause.iter().any(|l| *l == this_n) {
                 clause.clear();
                 return Ok(());
             }
+
             if self
                 .clause_db
                 .all_unit_clauses()

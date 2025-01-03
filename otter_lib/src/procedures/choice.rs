@@ -1,7 +1,7 @@
 use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
-    context::Context,
+    context::GenericContext,
     db::dbStatus,
     structures::{
         atom::Atom,
@@ -20,7 +20,7 @@ pub enum Ok {
 }
 
 /// Methods related to making choices.
-impl Context {
+impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Makes a choice using rng to determine whether to make a random choice or to take the atom with the highest activity.
     ///
     /// Returns a result detailing the status of the choice or an error from attempting to enque the choice.
@@ -34,22 +34,19 @@ impl Context {
     pub fn make_choice(&mut self) -> Result<Ok, err::Queue> {
         // Takes ownership of rng to satisfy the borrow checker.
         // Avoidable, at the cost of a less generic atom method.
-        let mut rng = std::mem::take(&mut self.counters.rng);
+        let mut rng = std::mem::take(&mut self.rng);
         let chosen_atom = self.atom_without_value(&mut rng);
-        self.counters.rng = rng;
+        self.rng = rng;
         match chosen_atom {
             Some(choice_id) => {
-                self.counters.choices += 1;
+                self.counters.total_choices += 1;
 
                 let choice_literal = {
                     if self.config.switch.phase_saving {
                         let previous_value = self.atom_db.previous_value_of(choice_id);
                         abLiteral::fresh(choice_id, previous_value)
                     } else {
-                        abLiteral::fresh(
-                            choice_id,
-                            self.counters.rng.gen_bool(self.config.polarity_lean),
-                        )
+                        abLiteral::fresh(choice_id, self.rng.gen_bool(self.config.polarity_lean))
                     }
                 };
                 log::trace!("Choice {choice_literal}");

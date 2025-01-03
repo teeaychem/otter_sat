@@ -1,5 +1,5 @@
 use crate::{
-    context::Context,
+    context::GenericContext,
     db::{dbStatus, ClauseKey},
     dispatch::{library::delta, Dispatch},
     procedures::analysis,
@@ -14,7 +14,7 @@ pub enum Ok {
     Exhausted,
 }
 
-impl Context {
+impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Expand queued consequences:
     /// Performs an analysis on apparent conflict.
     pub fn apply_consequences(&mut self) -> Result<Ok, err::Context> {

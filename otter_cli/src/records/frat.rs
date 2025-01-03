@@ -14,7 +14,7 @@ pub fn build_frat_writer(frat_path: Option<PathBuf>) -> Box<dyn FnMut(&Dispatch)
             Box::new(hand)
         }
         Some(path) => {
-            let mut transcriber = frat::Transcriber::new(path);
+            let mut transcriber = frat::Transcriber::new(path).unwrap();
             let handler = move |dispatch: &Dispatch| {
                 let _ = transcriber.transcribe(dispatch);
                 transcriber.flush()

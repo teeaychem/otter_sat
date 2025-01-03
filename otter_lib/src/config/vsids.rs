@@ -1,7 +1,8 @@
 //! Ways to apply VSIDS (variable state independent decay sum) during during resolution-based analysis.
 //!
-//! For an overview of VSIDS see [Understanding VSIDS branching heuristics in conflict-driven clause-learning sat solvers](https://arxiv.org/abs/1506.08905).
+//! See [Understanding VSIDS branching heuristics in conflict-driven clause-learning sat solvers](https://arxiv.org/abs/1506.08905) for an overview of VSIDS .
 
+/// Supported VSIDS variants.
 #[derive(Clone, Copy)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum VSIDS {

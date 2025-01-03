@@ -4,8 +4,10 @@ use crate::{
     types::err::{self},
 };
 
-pub type LevelIndex = u32;
+/// The index to a formula.
 pub type FormulaIndex = u32;
+
+/// The token of a formula index, used to distinguish re-use of the same [FormulaIndex].
 pub type FormulaToken = u16;
 
 /// A key to access a clause stored in the clause database.

@@ -48,6 +48,7 @@ pub struct Config {
 }
 
 impl Default for Config {
+    /// The default context is (roughly) configured to provide quick, deterministic, results on a library of tests.
     fn default() -> Self {
         Config {
             luby_u: 128,
@@ -73,10 +74,12 @@ impl Default for Config {
     }
 }
 
-/// Representation used for clause and atom activity
+/// Representation used for clause and atom activity.
 pub type Activity = f64;
 
-/// Glue / literal block distance
+/// Literal block distance, a.k.a 'glue'.
+///
+/// See [On the Glucose SAT Solver](https://dx.doi.org/10.1142/S0218213018400018) for an overview of LBD, and roughly a decade's worth of insight into the metric.
 pub type LBD = u8;
 
 /// Representation for the probability of choosing `true`
@@ -85,9 +88,9 @@ pub type PolarityLean = f64;
 /// Representation for the probability of making a random choice
 pub type RandomChoiceFrequency = f64;
 
-/// Schedulers.
+/// Schedulers, for reduction of the clause database, etc.
 ///
-/// If two scheduled reductions coincide, only one reduction takes place.
+/// Note: If two scheduled reductions coincide, only one reduction takes place.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Scheduler {
     /// Reuce the clause database every `luby` times a luby interrupt happens.

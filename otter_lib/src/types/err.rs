@@ -134,6 +134,8 @@ pub enum Parse {
     Negation,
     /// No file was found.
     NoFile,
+    /// An empty string, where some non-empty string was required.
+    Empty,
 }
 
 pub enum Preprocessing {

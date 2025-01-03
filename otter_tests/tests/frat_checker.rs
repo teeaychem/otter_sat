@@ -16,7 +16,7 @@ use otter_lib::{
 
 /// Passes dispatches on some channel to a writer for the given FRAT path until the channel closes.
 pub fn frat_receiver(rx: Receiver<Dispatch>, frat_path: PathBuf) {
-    let mut transcriber = frat::Transcriber::new(frat_path);
+    let mut transcriber = frat::Transcriber::new(frat_path).unwrap();
     let mut handler = move |dispatch: &Dispatch| {
         let _ = transcriber.transcribe(dispatch);
         transcriber.flush()
@@ -48,9 +48,7 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
 
     match load_dimacs(&mut the_context, &file_path) {
         Ok(()) => {}
-        Err(e) => {
-            panic!("c Error loading file: {e:?}")
-        }
+        Err(e) => panic!("c Error loading file: {e:?}"),
     };
 
     let _result = the_context.solve();
@@ -87,10 +85,9 @@ fn frat_dir_test(dir: String) -> usize {
         let mut config = Config::default();
         config.switch.subsumption = false;
 
-        if frat_verify(formula, config) {
-            counter += 1
-        } else {
-            break;
+        match frat_verify(formula, config) {
+            true => counter += 1,
+            false => break,
         }
     }
     counter
@@ -98,7 +95,6 @@ fn frat_dir_test(dir: String) -> usize {
 
 use otter_tests::{cnf_lib_subdir, load_dimacs};
 
-#[ignore]
 #[cfg(test)]
 mod frat_tests {
 

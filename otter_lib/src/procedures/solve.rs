@@ -1,5 +1,5 @@
 use crate::{
-    context::Context,
+    context::GenericContext,
     db::{ClauseKey, LevelIndex},
     dispatch::{
         library::{
@@ -21,15 +21,15 @@ use crate::{
     types::err::{self},
 };
 
-impl Context {
+impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn solve(&mut self) -> Result<report::Solve, err::Context> {
         let this_total_time = std::time::Instant::now();
 
         self.preprocess()?;
 
         'solve_loop: loop {
-            self.counters.iterations += 1;
-            log::trace!("Iteration {}", self.counters.iterations);
+            self.counters.total_iterations += 1;
+            log::trace!("Iteration {}", self.counters.total_iterations);
 
             self.counters.time = this_total_time.elapsed();
             let time_limit = self.config.time_limit;
@@ -80,7 +80,7 @@ impl Context {
             }
 
             if conflict_found {
-                self.counters.conflicts += 1;
+                self.counters.total_conflicts += 1;
                 self.counters.fresh_conflicts += 1;
 
                 if self.scheduled_luby_interrupt() {
@@ -109,9 +109,13 @@ impl Context {
 
     pub fn conflict_dispatch(&self) {
         if let Some(dispatcher) = &self.dispatcher {
-            dispatcher(Dispatch::Stat(Stat::Iterations(self.counters.iterations)));
-            dispatcher(Dispatch::Stat(Stat::Chosen(self.counters.choices)));
-            dispatcher(Dispatch::Stat(Stat::Conflicts(self.counters.conflicts)));
+            dispatcher(Dispatch::Stat(Stat::Iterations(
+                self.counters.total_iterations,
+            )));
+            dispatcher(Dispatch::Stat(Stat::Chosen(self.counters.total_choices)));
+            dispatcher(Dispatch::Stat(Stat::Conflicts(
+                self.counters.total_conflicts,
+            )));
             dispatcher(Dispatch::Stat(Stat::Time(self.counters.time)));
         }
     }
@@ -133,7 +137,7 @@ impl Context {
         self.config
             .scheduler
             .conflict
-            .is_some_and(|interval| (self.counters.conflicts % (interval as usize)) == 0)
+            .is_some_and(|interval| (self.counters.total_conflicts % (interval as usize)) == 0)
     }
 
     pub fn scheduled_by_luby(&self) -> bool {
