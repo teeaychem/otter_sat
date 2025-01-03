@@ -1,11 +1,11 @@
 //! A context method to aid boolean constraint propagation
 //!
-//! See [Context::bcp] for details.
+//! See [GenericContext::bcp] for details.
 
 use std::borrow::Borrow;
 
 use crate::{
-    context::Context,
+    context::GenericContext,
     db::{
         atom::watch_db::{self, WatchTag},
         consequence_q::{self},
@@ -35,7 +35,7 @@ macro_rules! send {
     }};
 }
 
-impl Context {
+impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Propagates an atom being assigned some value, given as a literal.
     ///
     /// This is done by examining clauses watching the atom with the opposite polarity and updating the watches of the clause, if possible, queuing the consequence of the asserting clause, or identifying the clause conflicts with the current valuation.

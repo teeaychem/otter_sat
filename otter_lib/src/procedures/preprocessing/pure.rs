@@ -2,7 +2,7 @@
 use std::collections::BTreeSet;
 
 use crate::{
-    context::Context,
+    context::GenericContext,
     db::consequence_q::{self},
     structures::{
         atom::Atom,
@@ -37,7 +37,9 @@ pub fn pure_choices<'l>(
 }
 
 /// Finds all pure literals with respect to non-unit clauses and sets the value of the relevant atom to match the polarity of the literal.
-pub fn set_pure(context: &mut Context) -> Result<(), err::Queue> {
+pub fn set_pure<R: rand::Rng + std::default::Default>(
+    context: &mut GenericContext<R>,
+) -> Result<(), err::Queue> {
     let (f, t) = pure_choices(
         context
             .clause_db

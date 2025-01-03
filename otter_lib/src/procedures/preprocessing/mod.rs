@@ -2,14 +2,14 @@
 use pure::set_pure;
 
 use crate::{
-    context::Context,
+    context::GenericContext,
     misc::log::targets::{self},
     types::err::{self},
 };
 
 pub mod pure;
 
-impl Context {
+impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Applies preprocessing in accordance with the configuration of the context.
     pub fn preprocess(&mut self) -> Result<(), err::Preprocessing> {
         if self.config.switch.preprocessing {

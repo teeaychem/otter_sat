@@ -1,4 +1,4 @@
-//! a database of literal indexed things.
+//! A database of literal indexed things.
 //!
 //! For the moment, this amounts to a stack of all chosen literals.
 //!
@@ -7,7 +7,7 @@
 use std::rc::Rc;
 
 use crate::{
-    db::keys::LevelIndex,
+    db::LevelIndex,
     dispatch::Dispatch,
     structures::literal::{self, abLiteral},
 };

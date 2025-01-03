@@ -71,7 +71,7 @@
 //! 3. Finalise a record of the buffer using the metadata of it's source in the context and the key used for internal access.
 //!
 
-use crate::context::Context;
+use crate::context::GenericContext;
 
 pub mod core;
 pub mod frat;
@@ -80,12 +80,20 @@ pub mod library;
 /// Dispatch types.
 #[derive(Clone)]
 pub enum Dispatch {
+    /// Some change. E.g. while reading a DIMACS formula or obtaining a clause via resolution.
     Delta(library::delta::Delta),
+
+    /// A report. E.g. that a formula is unsatisfiable, that time has elapsed, or that the context contains *n* clauses.
     Report(library::report::Report),
+
+    /// A statistic. E.g. conflicts seen or time taken.
     Stat(library::stat::Stat),
 }
 
-impl Context {
+impl<R: rand::Rng + std::default::Default> GenericContext<R> {
+    /// Send a dispatch detailing all active clauses.
+    ///
+    /// Used, e.g., when finalising an FRAT proof.
     pub fn dispatch_active(&self) {
         if let Some(_d) = &self.dispatcher {
             self.clause_db.dispatch_active();
@@ -93,5 +101,5 @@ impl Context {
     }
 }
 
-/// Ignores a dispatch, for external use.
+/// Ignores a dispatch.
 pub fn hand(_: Dispatch) {}

@@ -17,7 +17,7 @@ use std::rc::Rc;
 
 use crate::{
     config::{dbs::AtomDBConfig, Activity, Config},
-    db::{atom::watch_db::WatchDB, keys::LevelIndex},
+    db::{atom::watch_db::WatchDB, LevelIndex},
     dispatch::{
         library::delta::{self},
         Dispatch,
@@ -109,11 +109,11 @@ impl AtomDB {
     }
 
     /// A fresh atom, and a corresponding update to all the relevant data structures to ensure *unsafe* functions from the perspective of the compiler which do not check for the presence of an atom are safe.
-    pub fn fresh_atom(&mut self, name: &str, previous_value: bool) -> Atom {
+    pub fn fresh_atom(&mut self, string: &str, previous_value: bool) -> Atom {
         let the_atoms = self.watch_dbs.len() as Atom;
 
-        self.internal_map.insert(name.to_string(), the_atoms);
-        self.external_map.push(name.to_string());
+        self.internal_map.insert(string.to_string(), the_atoms);
+        self.external_map.push(string.to_string());
 
         self.activity_heap.add(the_atoms as usize, 1.0);
 
@@ -123,7 +123,7 @@ impl AtomDB {
         self.choice_indicies.push(None);
 
         if let Some(dispatcher) = &self.dispatcher {
-            let delta_rep = delta::AtomDB::ExternalRepresentation(name.to_string());
+            let delta_rep = delta::AtomDB::ExternalRepresentation(string.to_string());
             dispatcher(Dispatch::Delta(delta::Delta::AtomDB(delta_rep)));
             let delta = delta::AtomDB::Internalised(the_atoms);
             dispatcher(Dispatch::Delta(delta::Delta::AtomDB(delta)));

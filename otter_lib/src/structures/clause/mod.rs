@@ -75,12 +75,13 @@ pub trait Clause {
 #[allow(non_camel_case_types)]
 pub type vClause = Vec<abLiteral>;
 
+/// The source of a clause.
 #[derive(Clone, Copy)]
 pub enum Source {
-    /// A (unit) clause obtained via BCP.
+    /// A *unit* clause obtained via BCP.
     BCP,
 
-    /// A (unit) clause set by free choice on the value of the contained atom.
+    /// A *unit* clause set by free choice on the value of the contained atom.
     FreeChoice,
 
     /// A clause read from a formula.

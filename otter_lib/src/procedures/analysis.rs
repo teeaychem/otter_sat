@@ -1,6 +1,6 @@
 use crate::{
     config::StoppingCriteria,
-    context::Context,
+    context::GenericContext,
     db::ClauseKey,
     misc::log::targets::{self},
     structures::{
@@ -32,7 +32,7 @@ pub enum Ok {
     },
 }
 
-impl Context {
+impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn conflict_analysis(&mut self, key: &ClauseKey) -> Result<Ok, err::Analysis> {
         log::trace!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.choice_count());
 

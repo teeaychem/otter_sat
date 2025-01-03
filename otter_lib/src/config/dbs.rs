@@ -1,4 +1,4 @@
-//! Configuration for clause and atom databases.
+//! Configuration of databases, typically derived from the configuration of a context.
 
 use super::{Activity, LBD};
 
