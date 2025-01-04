@@ -31,8 +31,6 @@
 //! - Dispatches
 //!   * [FRAT](crate::dispatch::frat)
 //!   * [Unsatisfiable core](crate::dispatch::core)
-//!
-//! Private items are documented.
 
 #![allow(mixed_script_confusables)]
 #![allow(unused_must_use)]
@@ -58,3 +56,5 @@ pub mod db;
 
 pub mod misc;
 pub mod transient;
+
+pub mod preprocessing;

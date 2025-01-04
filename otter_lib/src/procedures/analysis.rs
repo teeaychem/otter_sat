@@ -1,3 +1,43 @@
+//! Analysis of an unsatisfiable clause.
+//!
+//! Takes a key to a clause which is unsatisfiable on the current valuation and returns an asserting clause.
+//!
+//! In other words, conflict analysis takes a key to a clause which is unsatisfiable on the current valuation and applies resolution using the clauses used to (eventually) make the observation of a conflict given choices made.
+//!
+//! For details on resolution, see the [resolution buffer](crate::transient::resolution_buffer).
+//!
+//! For the method, see: [conflict_analysis](GenericContext::conflict_analysis).
+//!
+//! # Example
+//!
+//! ```rust, ignore
+//! let analysis_result = self.conflict_analysis(&key)?;
+//!
+//! match analysis_result {
+//!     analysis::Ok::FundamentalConflict => {
+//!         ...
+//!     }
+//!
+//!     analysis::Ok::MissedImplication {
+//!         clause_key: key,
+//!         asserted_literal: literal,
+//!     } => {
+//!         Ok(Ok::AssertingClause(key, literal))
+//!     }
+//!
+//!     analysis::Ok::UnitClause(key) => {
+//!         Ok(Ok::UnitClause(key))
+//!     }
+//!
+//!     analysis::Ok::AssertingClause {
+//!         clause_key: key,
+//!         asserted_literal: literal,
+//!     } => {
+//!         Ok(Ok::AssertingClause(key, literal))
+//!     }
+//! }
+//! ```
+
 use crate::{
     config::StoppingCriteria,
     context::GenericContext,
@@ -14,7 +54,7 @@ use crate::{
 /// Possible 'Ok' results from conflict analysis.
 pub enum Ok {
     /// The conflict clause was asserting at some previous decision level.
-    MissedImplication {
+    MissedPropagation {
         clause_key: ClauseKey,
         asserted_literal: abLiteral,
     },
@@ -23,6 +63,9 @@ pub enum Ok {
     UnitClause(ClauseKey),
 
     /// A fundamental conflict is identified, and so the current formula is unsatisfiable.
+    ///
+    /// Note, this result is unused, at present.
+    /// For, conflict analysis is only called after a choice has been made, and so in case of conflict a clause asserting the negation of some choice will always be available (as the choice must have appeared in some clause to derive a conflict).
     FundamentalConflict,
 
     /// The result of analysis is a (non-unit) asserting clause.
@@ -33,12 +76,13 @@ pub enum Ok {
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
+    /// For details on conflict analysis see the [analysis](crate::procedures::analysis) procedure.
     pub fn conflict_analysis(&mut self, key: &ClauseKey) -> Result<Ok, err::Analysis> {
         log::trace!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.choice_count());
 
         if let crate::config::vsids::VSIDS::Chaff = self.config.vsids_variant {
             self.atom_db
-                .bump_relative(unsafe { self.clause_db.get_db_clause_unchecked(key)?.atoms() });
+                .bump_relative(unsafe { self.clause_db.get_unchecked(key)?.atoms() });
         }
 
         // TODO: As the previous valuation is stored, it'd make sense to use that instead of rolling back the current valuation.
@@ -67,7 +111,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
             }
             Ok(resolution_buffer::Ok::Missed(k, l)) => {
-                return Ok(Ok::MissedImplication {
+                return Ok(Ok::MissedPropagation {
                     clause_key: k,
                     asserted_literal: l,
                 });

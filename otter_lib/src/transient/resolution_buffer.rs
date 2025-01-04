@@ -192,7 +192,7 @@ impl ResolutionBuffer {
         clause_db: &mut ClauseDB,
         atom_db: &mut AtomDB,
     ) -> Result<Ok, err::ResolutionBuffer> {
-        let base_clause = match unsafe { clause_db.get_db_clause_unchecked(conflict) } {
+        let base_clause = match unsafe { clause_db.get_unchecked(conflict) } {
             Ok(c) => c,
             Err(_) => return Err(err::ResolutionBuffer::MissingClause),
         };
@@ -218,8 +218,7 @@ impl ResolutionBuffer {
         {
             match source {
                 literal::Source::BCP(the_key) => {
-                    let source_clause = match unsafe { clause_db.get_db_clause_unchecked(the_key) }
-                    {
+                    let source_clause = match unsafe { clause_db.get_unchecked(the_key) } {
                         Err(_) => {
                             log::error!(target: targets::RESOLUTION, "Lost resolution clause {the_key}");
                             return Err(err::ResolutionBuffer::LostClause);

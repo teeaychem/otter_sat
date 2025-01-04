@@ -119,7 +119,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 },
 
                 _ => {
-                    let db_clause = unsafe { self.clause_db.get_db_clause_unchecked(&key)? };
+                    let db_clause = unsafe { self.clause_db.get_unchecked(&key)? };
                     match db_clause.size() {
                         0 | 1 => panic!("!"),
 
