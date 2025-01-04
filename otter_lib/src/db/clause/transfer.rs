@@ -44,7 +44,7 @@ impl ClauseDB {
             }
 
             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
-                let the_clause = self.get_db_clause_mut(&key)?;
+                let the_clause = self.get_mut(&key)?;
                 the_clause.deactivate();
                 let copied_clause = the_clause.to_vec();
 
@@ -58,9 +58,9 @@ impl ClauseDB {
                 unsafe {
                     // Ok, as checked length is 2, above.
                     let zero = copied_clause.get_unchecked(0);
-                    atoms.remove_watch_unchecked(zero.atom(), zero.polarity(), &key)?;
+                    atoms.unwatch_unchecked(zero.atom(), zero.polarity(), &key)?;
                     let one = copied_clause.get_unchecked(1);
-                    atoms.remove_watch_unchecked(one.atom(), one.polarity(), &key)?;
+                    atoms.unwatch_unchecked(one.atom(), one.polarity(), &key)?;
                 }
 
                 if let Some(dispatch) = &self.dispatcher {

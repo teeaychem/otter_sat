@@ -146,7 +146,7 @@ impl AtomDB {
     If there's a guarantee keys appear at most once, the swap remove on keys could break early.
     Note also, as this shuffles the list any heuristics on traversal order of watches is void.
      */
-    pub unsafe fn remove_watch_unchecked(
+    pub unsafe fn unwatch_unchecked(
         &mut self,
         atom: Atom,
         value: bool,

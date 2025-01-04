@@ -233,7 +233,7 @@ impl ClauseDB {
     /// ```rust, ignore
     /// self.clause_db.get_db_clause_mut(&key)?
     /// ```
-    pub fn get_db_clause_mut(&mut self, key: &ClauseKey) -> Result<&mut dbClause, err::ClauseDB> {
+    pub fn get_mut(&mut self, key: &ClauseKey) -> Result<&mut dbClause, err::ClauseDB> {
         match key {
             ClauseKey::Unit(_) => Err(err::ClauseDB::GetUnitKey),
             ClauseKey::Original(index) => {
@@ -276,10 +276,7 @@ impl ClauseDB {
     /// To be used only when there is a guarantee that the clause has not been removed.
     ///
     /// E.g., this is safe to use with binary clauses, but not with addition clauses.
-    pub unsafe fn get_db_clause_unchecked(
-        &self,
-        key: &ClauseKey,
-    ) -> Result<&dbClause, err::ClauseDB> {
+    pub unsafe fn get_unchecked(&self, key: &ClauseKey) -> Result<&dbClause, err::ClauseDB> {
         match key {
             ClauseKey::Unit(_) => Err(err::ClauseDB::GetUnitKey),
             ClauseKey::Original(index) => Ok(self.original.get_unchecked(*index as usize)),
@@ -304,7 +301,9 @@ impl ClauseDB {
     /// ```rust, ignore
     /// self.clause_db.get_db_clause_mut(&key)?
     /// ```
-    pub unsafe fn get_db_clause_mut_unchecked(
+    /// # Safety
+    /// Does not check for a clause, nor the token of a addition key.
+    pub unsafe fn get_unchecked_mut(
         &mut self,
         key: &ClauseKey,
     ) -> Result<&mut dbClause, err::ClauseDB> {
@@ -312,15 +311,10 @@ impl ClauseDB {
             ClauseKey::Unit(_) => Err(err::ClauseDB::GetUnitKey),
             ClauseKey::Original(index) => Ok(self.original.get_unchecked_mut(*index as usize)),
             ClauseKey::Binary(index) => Ok(self.binary.get_unchecked_mut(*index as usize)),
-            ClauseKey::Addition(index, token) => {
+            ClauseKey::Addition(index, _) => {
                 //
                 match self.addition.get_unchecked_mut(*index as usize) {
-                    Some(clause) => match clause.key() {
-                        ClauseKey::Addition(_, clause_token) if &clause_token == token => {
-                            Ok(clause)
-                        }
-                        _ => Err(err::ClauseDB::InvalidKeyToken),
-                    },
+                    Some(clause) => Ok(clause),
 
                     None => Err(err::ClauseDB::InvalidKeyIndex),
                 }
@@ -533,6 +527,9 @@ impl ClauseDB {
     /// ```
     ///
     /// At present, this is limited to clauses with three or more literals.
+    ///
+    /// # Safety
+    /// Assumes a clause is indexed by the key.
     /*
     If the resolved clause is binary then subsumption transfers the clause to the store for binary clauses
     This is safe to do as:
@@ -547,7 +544,7 @@ impl ClauseDB {
         literal: impl Borrow<abLiteral>,
         atom_db: &mut AtomDB,
     ) -> Result<ClauseKey, err::Subsumption> {
-        let the_clause = match self.get_db_clause_mut_unchecked(&key) {
+        let the_clause = match self.get_unchecked_mut(&key) {
             Ok(c) => c,
             Err(_) => return Err(err::Subsumption::ClauseDB),
         };
