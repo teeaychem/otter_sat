@@ -98,7 +98,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         } => {
                             let the_clause = unsafe { self.clause_db.get_unchecked(&key)? };
 
-                            self.backjump(self.backjump_level(the_clause)?);
+                            let index = self.backjump_level(the_clause)?;
+                            self.backjump(index);
 
                             self.q_literal(literal)?;
 

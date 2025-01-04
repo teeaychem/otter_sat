@@ -49,7 +49,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Backjumps to the given target level.
     ///
     /// For documentation, see [procedures::backjump](crate::procedures::backjump).
-    pub fn backjump(&mut self, target_level: LevelIndex) {
+    pub fn backjump(&mut self, target: LevelIndex) {
         // log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.index(), to);
 
         // Sufficiently safe:
@@ -57,16 +57,16 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // So, the elements to pop must exist.
         // And, if an atom is in the choice stack is should certainly be in the atom database.
         unsafe {
-            for _ in 0..(self.literal_db.choice_count().saturating_sub(target_level)) {
+            for _ in 0..(self.literal_db.choice_count().saturating_sub(target)) {
                 self.atom_db
                     .drop_value(self.literal_db.last_choice_unchecked().atom());
                 for (_, literal) in self.literal_db.last_consequences_unchecked() {
                     self.atom_db.drop_value(literal.atom());
                 }
+                self.literal_db.forget_last_choice();
             }
-            self.literal_db.forget_last_choice();
         }
-        self.clear_q(target_level);
+        self.clear_q(target);
     }
 
     /// The bacjump level of a unsatisfiable clause.

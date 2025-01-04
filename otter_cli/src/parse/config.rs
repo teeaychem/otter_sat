@@ -18,7 +18,7 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
     };
 
     if let Ok(Some(interval)) = args.try_get_one::<Option<u32>>("reduction_interval") {
-        the_config.scheduler.luby = *interval
+        the_config.scheduler.restart = *interval
     };
 
     if let Ok(Some(u)) = args.try_get_one::<otter_lib::generic::luby::LubyRepresentation>("luby") {
@@ -44,7 +44,7 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
     };
 
     if let Ok(Some(true)) = args.try_get_one::<bool>("no_reduction") {
-        the_config.scheduler.luby = None;
+        the_config.scheduler.restart = None;
         the_config.scheduler.conflict = None;
     };
 
@@ -66,7 +66,7 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
 
     if let Ok(Some(true)) = args.try_get_one::<bool>("elephant") {
         the_config.switch.restart = false;
-        the_config.scheduler.luby = None;
+        the_config.scheduler.restart = None;
         the_config.scheduler.conflict = None;
     };
 

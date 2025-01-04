@@ -60,7 +60,7 @@ impl Default for Config {
             stopping_criteria: StoppingCriteria::FirstUIP,
 
             scheduler: Scheduler {
-                luby: Some(2),
+                restart: Some(2),
                 conflict: Some(50_000),
             },
 
@@ -94,7 +94,7 @@ pub type RandomChoiceFrequency = f64;
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Scheduler {
     /// Reuce the clause database every `luby` times a luby interrupt happens.
-    pub luby: Option<u32>,
+    pub restart: Option<u32>,
 
     /// Reuce the clause database every `conflict` conflicts.
     pub conflict: Option<u32>,

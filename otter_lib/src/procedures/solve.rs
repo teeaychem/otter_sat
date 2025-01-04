@@ -19,6 +19,22 @@ use crate::{
     types::err::{self},
 };
 
+/// A macro to simplify dispatches.
+macro_rules! send_stats {
+    ($self:ident ) => {{
+        if let Some(dispatcher) = &$self.dispatcher {
+            dispatcher(Dispatch::Stat(Stat::Iterations(
+                $self.counters.total_iterations,
+            )));
+            dispatcher(Dispatch::Stat(Stat::Chosen($self.counters.total_choices)));
+            dispatcher(Dispatch::Stat(Stat::Conflicts(
+                $self.counters.total_conflicts,
+            )));
+            dispatcher(Dispatch::Stat(Stat::Time($self.counters.time)));
+        }
+    }};
+}
+
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn solve(&mut self) -> Result<report::Solve, err::Context> {
         let this_total_time = std::time::Instant::now();
@@ -81,29 +97,20 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 self.counters.total_conflicts += 1;
                 self.counters.fresh_conflicts += 1;
 
-                if self.scheduled_luby_interrupt() {
+                if self.luby_fresh_conflict_interrupt() {
                     self.counters.luby.next();
 
-                    if let Some(dispatcher) = &self.dispatcher {
-                        dispatcher(Dispatch::Stat(Stat::Iterations(
-                            self.counters.total_iterations,
-                        )));
-                        dispatcher(Dispatch::Stat(Stat::Chosen(self.counters.total_choices)));
-                        dispatcher(Dispatch::Stat(Stat::Conflicts(
-                            self.counters.total_conflicts,
-                        )));
-                        dispatcher(Dispatch::Stat(Stat::Time(self.counters.time)));
-                    }
+                    send_stats!(self);
 
                     if self.config.switch.restart {
                         self.restart()
                     };
 
-                    if self.scheduled_by_luby() {
+                    if self.restart_interrupt() {
                         self.clause_db
                             .reduce_by(self.clause_db.current_addition_count() / 2);
                     }
-                } else if self.scheduled_by_conflicts() {
+                } else if self.conflict_total_interrupt() {
                     self.clause_db
                         .reduce_by(self.clause_db.current_addition_count() / 2)?;
                 }
@@ -120,25 +127,5 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         self.clause_db.refresh_heap();
         self.counters.restarts += 1;
         self.counters.fresh_conflicts = 0;
-    }
-
-    #[inline(always)]
-    pub fn scheduled_luby_interrupt(&self) -> bool {
-        self.counters.fresh_conflicts % (self.config.luby_u * self.counters.luby.current()) == 0
-    }
-
-    #[inline(always)]
-    pub fn scheduled_by_conflicts(&self) -> bool {
-        self.config
-            .scheduler
-            .conflict
-            .is_some_and(|interval| (self.counters.total_conflicts % (interval as usize)) == 0)
-    }
-
-    pub fn scheduled_by_luby(&self) -> bool {
-        self.config
-            .scheduler
-            .luby
-            .is_some_and(|interval| (self.counters.restarts % (interval as usize)) == 0)
     }
 }
