@@ -101,10 +101,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
 
                     ClauseSource::BCP => {
-                        if let Some(dispatcher) = &self.dispatcher {
-                            let delta = delta::ClauseDB::BCP(ClauseKey::Unit(literal));
-                            dispatcher(Dispatch::Delta(delta::Delta::ClauseDB(delta)));
-                        }
+                        let delta = delta::ClauseDB::BCP(ClauseKey::Unit(literal));
+                        dispatcher(Dispatch::Delta(delta::Delta::ClauseDB(delta)));
                     }
 
                     ClauseSource::Resolution => {
@@ -119,6 +117,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 },
 
                 _ => {
+                    // Safetly: The key was created above.
+                    // TODO: Dispatches regarding literals could be made before the clause is stored to avoid the get…
                     let db_clause = unsafe { self.clause_db.get_unchecked(&key)? };
                     match db_clause.size() {
                         0 | 1 => panic!("!"),

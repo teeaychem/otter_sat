@@ -2,9 +2,7 @@ use std::borrow::Borrow;
 
 use crate::structures::literal::{self, abLiteral};
 
-/// A choice/decision level.
-///
-/// In other words, a choice and the *observed* consequences of that choice, given prior choices and observed consequences.
+/// A choice level --- the choice and the *observed* consequences of that choice, given prior choices and observed consequences.
 ///
 /// Note: The consequences relation is reflexive, but no reflexive consequences are observed.
 pub struct Level {

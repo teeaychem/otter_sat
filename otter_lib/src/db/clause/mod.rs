@@ -23,6 +23,7 @@ use crate::{
             delta::{self, Delta},
             report::{self, Report},
         },
+        macros::{self},
         Dispatch,
     },
     generic::index_heap::IndexHeap,
@@ -397,16 +398,17 @@ impl ClauseDB {
             let the_clause =
                 std::mem::take(unsafe { self.addition.get_unchecked_mut(index) }).unwrap();
 
-            if let Some(dispatcher) = &self.dispatcher {
-                let delta = delta::ClauseDB::ClauseStart;
-                dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                for literal in the_clause.literals() {
-                    let delta = delta::ClauseDB::ClauseLiteral(*literal);
-                    dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                }
-                let delta = delta::ClauseDB::Deletion(the_clause.key());
-                dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-            }
+            macros::send_remove!(self, the_clause);
+            // if let Some(dispatcher) = &self.dispatcher {
+            //     let delta = delta::ClauseDB::ClauseStart;
+            //     dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
+            //     for literal in the_clause.literals() {
+            //         let delta = delta::ClauseDB::ClauseLiteral(*literal);
+            //         dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
+            //     }
+            //     let delta = delta::ClauseDB::Deletion(the_clause.key());
+            //     dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
+            // }
 
             self.activity_heap.remove(index);
             self.empty_keys.push(the_clause.key());

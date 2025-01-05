@@ -63,7 +63,7 @@ use crate::{
     },
     dispatch::{
         library::delta::{self, Delta},
-        macros::send_bcp,
+        macros::{self},
         Dispatch,
     },
     misc::log::targets::{self},
@@ -100,7 +100,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 match self.atom_db.value_of(check.atom()) {
                     None => match self.q_literal(*check) {
                         Ok(consequence_q::Ok::Qd) => {
-                            send_bcp!(self, Instance, *check, *clause_key);
+                            macros::send_bcp_delta!(self, Instance, *check, *clause_key);
                             self.record_literal(check, literal::Source::BCP(*clause_key));
                         }
 
@@ -112,7 +112,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     Some(value) if check.polarity() != value => {
                         // Note the conflict
                         log::trace!(target: targets::PROPAGATION, "Consequence of {clause_key} and {literal} is contradiction.");
-                        send_bcp!(self, Conflict, *literal, *clause_key);
+                        macros::send_bcp_delta!(self, Conflict, *literal, *clause_key);
 
                         return Err(err::BCP::Conflict(*clause_key));
                     }
@@ -172,7 +172,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         match watch_value {
                             Some(value) if the_watch.polarity() != value => {
                                 self.clause_db.note_use(*clause_key);
-                                send_bcp!(self, Conflict, *literal, *clause_key);
+                                macros::send_bcp_delta!(self, Conflict, *literal, *clause_key);
 
                                 return Err(err::BCP::Conflict(*clause_key));
                             }
@@ -185,7 +185,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                     Err(_) => return Err(err::BCP::Conflict(*clause_key)),
                                 };
 
-                                send_bcp!(self, Instance, the_watch, *clause_key);
+                                macros::send_bcp_delta!(self, Instance, the_watch, *clause_key);
                                 self.record_literal(the_watch, literal::Source::BCP(*clause_key));
                             }
 

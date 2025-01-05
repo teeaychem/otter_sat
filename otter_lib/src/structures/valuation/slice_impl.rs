@@ -1,3 +1,4 @@
+/// Implimentation of the valuation trait for any structure which can be dereferenced to a slice of optional booleans.
 use crate::structures::{atom::Atom, valuation::Valuation};
 
 impl<T: std::ops::Deref<Target = [Option<bool>]>> Valuation for T {
@@ -13,7 +14,7 @@ impl<T: std::ops::Deref<Target = [Option<bool>]>> Valuation for T {
         self.iter().copied()
     }
 
-    fn vv_pairs(&self) -> impl Iterator<Item = (Atom, Option<bool>)> {
+    fn av_pairs(&self) -> impl Iterator<Item = (Atom, Option<bool>)> {
         self.iter()
             .enumerate()
             .map(|(var, val)| (var as Atom, *val))

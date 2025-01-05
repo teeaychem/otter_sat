@@ -25,8 +25,24 @@
 //! This is because the implementation on vectors 'only' guarantees *memory* safety, while use requires the stronger guarantee that the (optional) value atom of interest is mapped to the index of the atom in the valuation, and with this an additional check that the atom really is there is redundant.
 //!
 //! [^pedantic]: Where 'a' is the internal representation of some atom whose external representation is '𝐚'.
+//!
+//! # Soundness
+//!
+//! The valuation trait is implemented for any structure which can be dereferenced to a slice of optional booleans.
+//! And, as the value of an atom is determined by using the atom as an index on the dereferenced structure, there is no structural guarantee that the returned value is for the atom.
+//!
+//! In other words, the following is possible, unsound, and by (design/luck) fails:
+//!
+//! ```rust,should_panic
+//! # use otter_lib::structures::atom;
+//! # use crate::otter_lib::structures::valuation::Valuation;
+//! let atoms =     vec![0,    1,          2];
+//! let valuation = vec![None, Some(true), None];
+//!
+//! let sub_valuation = &valuation[1..];
+//! assert_eq!(sub_valuation.value_of(0), Some(None));
+//! ```
 
-/// Implimentation of the valuation trait for anything which can be dereferenced to a slice of optional booleans.
 mod slice_impl;
 
 use super::atom::Atom;
@@ -50,7 +66,7 @@ pub trait Valuation {
     fn values(&self) -> impl Iterator<Item = Option<bool>>;
 
     /// An iterator through all (Atom, Value) pairs.
-    fn vv_pairs(&self) -> impl Iterator<Item = (Atom, Option<bool>)>;
+    fn av_pairs(&self) -> impl Iterator<Item = (Atom, Option<bool>)>;
 
     /// An iterator through atoms which have some value.
     fn valued_atoms(&self) -> impl Iterator<Item = Atom>;
