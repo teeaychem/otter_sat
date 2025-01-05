@@ -42,7 +42,7 @@ impl AtomDB {
     /// A string representing the current valuation, using the external representation of atoms.
     pub fn valuation_string(&self) -> String {
         self.valuation()
-            .vv_pairs()
+            .av_pairs()
             .filter_map(|(i, v)| {
                 let idx = i as Atom;
                 match v {
@@ -59,7 +59,7 @@ impl AtomDB {
     pub fn internal_valuation_string(&self) -> String {
         let mut v = self
             .valuation()
-            .vv_pairs()
+            .av_pairs()
             .filter_map(|(i, v)| match v {
                 None => None,
                 Some(true) => Some(i as isize),

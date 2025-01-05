@@ -50,7 +50,11 @@
 use crate::{
     context::GenericContext,
     db::{dbStatus, ClauseKey},
-    dispatch::{library::delta, Dispatch},
+    dispatch::{
+        library::delta::{self, Delta},
+        macros::{self},
+        Dispatch,
+    },
     procedures::analysis,
     structures::literal::{self, abLiteral},
     types::err,
@@ -80,10 +84,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     if !self.literal_db.choice_made() {
                         self.status = dbStatus::Inconsistent;
 
-                        if let Some(dispatcher) = &self.dispatcher {
-                            let delta = delta::AtomDB::Unsatisfiable(key);
-                            dispatcher(Dispatch::Delta(delta::Delta::AtomDB(delta)));
-                        }
+                        macros::send_atom_db_delta!(self, delta::AtomDB::Unsatisfiable(key));
 
                         return Ok(Ok::FundamentalConflict);
                     }
@@ -103,13 +104,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                             self.q_literal(literal)?;
 
-                            if let Some(dispatcher) = &self.dispatcher {
-                                let delta = delta::BCP::Instance {
-                                    clause: key,
-                                    literal,
-                                };
-                                dispatcher(Dispatch::Delta(delta::Delta::BCP(delta)));
-                            }
+                            macros::send_bcp_delta!(self, Instance, literal, key);
+
                             self.record_literal(literal, literal::Source::BCP(key));
 
                             continue 'application;

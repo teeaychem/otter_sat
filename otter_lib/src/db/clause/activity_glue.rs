@@ -1,10 +1,5 @@
 use crate::config::{Activity, LBD};
 
-/*
-A basic struct two allow ordering on both clause activity and glue strength
-It is unlikely this has much positive impact, but here it is…
- */
-
 /// A combination of [clause activity](crate::config::Activity) and [lbd](LBD), used to sort clauses on an activity heap.
 pub struct ActivityLBD {
     /// The activity of a clause.
@@ -30,16 +25,14 @@ impl PartialOrd for ActivityLBD {
         let lbd_comparison = match self.lbd.cmp(&other.lbd) {
             Ordering::Less => Ordering::Less,
             Ordering::Greater => Ordering::Greater,
-            Ordering::Equal => {
-                match self.activity.partial_cmp(&other.activity) {
-                    None => Ordering::Equal, // TODO: consider
-                    Some(comparison) => match comparison {
-                        Ordering::Less => Ordering::Greater,
-                        Ordering::Greater => Ordering::Less,
-                        Ordering::Equal => Ordering::Equal,
-                    },
-                }
-            }
+            Ordering::Equal => match self.activity.partial_cmp(&other.activity) {
+                None => Ordering::Equal,
+                Some(comparison) => match comparison {
+                    Ordering::Less => Ordering::Greater,
+                    Ordering::Greater => Ordering::Less,
+                    Ordering::Equal => Ordering::Equal,
+                },
+            },
         };
         Some(lbd_comparison)
     }

@@ -39,6 +39,7 @@ use crate::{
             self,
             Resolution::{self},
         },
+        macros::{self},
         Dispatch,
     },
     misc::log::targets::{self},
@@ -112,13 +113,6 @@ pub struct BufferConfig {
     subsumption: bool,
     /// The stopping criteria to use during resolution.
     stopping: StoppingCriteria,
-}
-
-/// A macro to help send dispatches.
-macro_rules! send {
-    ( $dispatcher:ident, $dispatch:expr ) => {{
-        $dispatcher(Dispatch::Delta(delta::Delta::Resolution($dispatch)));
-    }};
 }
 
 impl ResolutionBuffer {
@@ -203,10 +197,9 @@ impl ResolutionBuffer {
         if let Some(asserted_literal) = self.asserted_literal() {
             return Ok(Ok::Missed(*conflict, asserted_literal));
         };
-        if let Some(dispatcher) = &self.dispatcher {
-            send!(dispatcher, delta::Resolution::Begin);
-            send!(dispatcher, delta::Resolution::Used(*conflict));
-        }
+
+        macros::send_resolution_delta!(self, delta::Resolution::Begin);
+        macros::send_resolution_delta!(self, delta::Resolution::Used(*conflict));
 
         // bump clause activity
         if let ClauseKey::Addition(index, _) = conflict {
@@ -237,35 +230,32 @@ impl ResolutionBuffer {
                         match self.clause_length {
                             0 => {}
                             1 => {
-                                if let Some(dispatcher) = &self.dispatcher {
-                                    send!(dispatcher, Resolution::Used(*the_key));
-                                    send!(dispatcher, delta::Resolution::End);
-                                }
+                                macros::send_resolution_delta!(self, Resolution::Used(*the_key));
+                                macros::send_resolution_delta!(self, delta::Resolution::End);
+
                                 return Ok(Ok::UnitClause);
                             }
                             _ => match the_key {
                                 ClauseKey::Unit(_) => {
-                                    panic!("a prior check on the clause length was removed")
+                                    panic!("!")
                                 }
                                 ClauseKey::Binary(_) => {
                                     todo!("a formula is found which triggers this…");
                                 }
-                                ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
-                                    let new_key =
-                                        unsafe { clause_db.subsume(*the_key, literal, atom_db)? };
+                                ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
+                                    let k = clause_db.subsume(*the_key, literal, atom_db)?;
 
-                                    if let Some(dispatcher) = &self.dispatcher {
-                                        send!(dispatcher, delta::Resolution::End);
-                                        send!(dispatcher, delta::Resolution::Begin);
-                                        send!(dispatcher, delta::Resolution::Used(new_key));
-                                    }
-                                }
+                                    macros::send_resolution_delta!(self, delta::Resolution::End);
+                                    macros::send_resolution_delta!(self, delta::Resolution::Begin);
+                                    macros::send_resolution_delta!(
+                                        self,
+                                        delta::Resolution::Used(k)
+                                    );
+                                },
                             },
                         }
                     } else {
-                        if let Some(dispatcher) = &self.dispatcher {
-                            send!(dispatcher, delta::Resolution::Used(*the_key));
-                        }
+                        macros::send_resolution_delta!(self, delta::Resolution::Used(*the_key));
                     }
 
                     if let ClauseKey::Addition(index, _) = the_key {
@@ -278,18 +268,16 @@ impl ResolutionBuffer {
             if self.valueless_count == 1 {
                 match self.config.stopping {
                     StoppingCriteria::FirstUIP => {
-                        if let Some(dispatcher) = &self.dispatcher {
-                            send!(dispatcher, delta::Resolution::End);
-                        }
+                        macros::send_resolution_delta!(self, delta::Resolution::End);
+
                         return Ok(Ok::FirstUIP);
                     }
                     StoppingCriteria::None => {}
                 };
             }
         }
-        if let Some(dispatcher) = &self.dispatcher {
-            send!(dispatcher, delta::Resolution::End);
-        }
+        macros::send_resolution_delta!(self, delta::Resolution::End);
+
         Ok(Ok::Exhausted)
     }
 

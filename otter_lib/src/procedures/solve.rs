@@ -195,7 +195,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     self.backjump(self.backjump_level(the_clause)?);
 
                     self.clause_db.note_use(key);
-                    macros::send_bcp!(self, Instance, literal, key);
+                    macros::send_bcp_delta!(self, Instance, literal, key);
 
                     self.record_literal(literal, literal::Source::BCP(key));
                     self.q_literal(literal)?;

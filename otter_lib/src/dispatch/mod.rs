@@ -40,7 +40,15 @@
 //! ```
 //!
 //! After matching on the type `Delta` one may then match on `BCP`, and finally on `Conflict` to retreive this detail…
-//!g
+//!
+//! # Macros
+//!
+//! The present implementation of dispatches is to check to see if a dispatcher is present, and if so to send a dispatch.
+//! As such, the runtime overhead of unused dispatches is low (a check on an optional).
+//! Still, these checks need to be written and due to the complexity of writing dispatches tend to distract from the non-dispatch code.
+//!
+//! To help hide most of the complexity, macros are often used.
+//!
 //! # Examples
 //!
 //! Dispatching details on the addition of an original clause to the clause database.
