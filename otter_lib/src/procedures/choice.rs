@@ -1,3 +1,58 @@
+//! Methods for choosing the value of an atom.
+//!
+//! # Overview
+//!
+//! The core choice procedure is straightforward:
+//! - Search through all atoms in the context for an atom which is not assigned a value, and assign either true or false.
+//!
+//! ```rust,ignore
+//! self.atom_db.valuation().unvalued_atoms().next();
+//! // Or…
+//! self.atom_db.valuation().unvalued_atoms().choose(rng_source);
+//! ```
+//!
+//! # Choices as literals
+//!
+//! Strictly a choice is to value some atom *a* with value *v*.
+//! Still, it is convenient to represent such a choice as a literal with atom *a* and polarity *v*.
+//! For example, a choice to value *p* with value *false* can be represented with the literal *-p*.
+//!
+//! ```rust,ignore
+//! let atom = self.atom_db.valuation().unvalued_atoms().next()?;
+//! let value = self.rng.gen_bool(self.config.polarity_lean);
+//! let choice_as_literal = abLiteral::fresh(atom, value);
+//! ```
+//!
+//! # Heuristics
+//!
+//! # Activity
+//!
+//! Atoms may be selected by activity, and the [atom database](crate::db::atom) stores atoms without a value on a max value activity heap in order to support quick access to the most active atom without a value.
+//! Though, as storing *only* without a value takes considerably more effort than *at least* those atoms without a value, it may take some work to find the relevant atom.
+//!
+//! ```rust,ignore
+//! while let Some(atom) = self.atom_db.heap_pop_most_active() {
+//!     if self.atom_db.value_of(atom as Atom).is_none() {
+//!         return Some(atom);
+//!     }
+//! }
+//! ```
+//!
+//! # Phase saving
+//!
+//! If phase saving is enabled if a chosen atom was previously valued *v* the atom is again valued *v*.
+//!
+//! ```rust,ignore
+//! let previous_value = self.atom_db.previous_value_of(chosen_atom);
+//! abLiteral::fresh(chosen_atom, previous_value);
+//! ```
+//!
+//! Note: For efficiency an atom always has a 'previous' value, initialised randomly via [Config::polarity_lean](crate::config::Config::polarity_lean).
+//!
+//! # Randomness
+//!
+//! Use of activity, phase saving, or any other heuristic may be probabilistic, and likewise for the choice of atom and the choice of polarity.
+
 use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
@@ -14,7 +69,7 @@ use crate::{
 /// Possible 'Ok' results from choosing a truth value to assign an atom.
 pub enum Ok {
     /// Some truth value was assigned to some atom.
-    Made,
+    Literal(abLiteral),
     /// All atoms had already been assigned truth values, so no choice could be made.
     Exhausted,
 }
@@ -38,22 +93,22 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let chosen_atom = self.atom_without_value(&mut rng);
         self.rng = rng;
         match chosen_atom {
-            Some(choice_id) => {
+            Some(chosen_atom) => {
                 self.counters.total_choices += 1;
 
-                let choice_literal = {
-                    if self.config.switch.phase_saving {
-                        let previous_value = self.atom_db.previous_value_of(choice_id);
-                        abLiteral::fresh(choice_id, previous_value)
-                    } else {
-                        abLiteral::fresh(choice_id, self.rng.gen_bool(self.config.polarity_lean))
+                let choice_literal = match self.config.switch.phase_saving {
+                    true => {
+                        let previous_value = self.atom_db.previous_value_of(chosen_atom);
+                        abLiteral::fresh(chosen_atom, previous_value)
+                    }
+                    false => {
+                        let random_value = self.rng.gen_bool(self.config.polarity_lean);
+                        abLiteral::fresh(chosen_atom, random_value)
                     }
                 };
                 log::trace!("Choice {choice_literal}");
-                self.literal_db.note_choice(choice_literal);
-                self.q_literal(choice_literal)?;
 
-                Ok(Ok::Made)
+                Ok(Ok::Literal(choice_literal))
             }
             None => {
                 self.status = dbStatus::Consistent;
@@ -71,9 +126,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         match rng.gen_bool(self.config.random_choice_frequency) {
             true => self.atom_db.valuation().unvalued_atoms().choose(rng),
             false => {
-                while let Some(index) = self.atom_db.heap_pop_most_active() {
-                    if self.atom_db.value_of(index as Atom).is_none() {
-                        return Some(index);
+                while let Some(atom) = self.atom_db.heap_pop_most_active() {
+                    if self.atom_db.value_of(atom as Atom).is_none() {
+                        return Some(atom);
                     }
                 }
                 self.atom_db.valuation().unvalued_atoms().next()

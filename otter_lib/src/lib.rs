@@ -31,6 +31,17 @@
 //! - Dispatches
 //!   * [FRAT](crate::dispatch::frat)
 //!   * [Unsatisfiable core](crate::dispatch::core)
+//!
+//! # Debugging
+//!
+//! To help diagnose issues (somewhat) detailed calls to [log!](log) are made, and a variety of targets are defined in order to help narrow output to relevant parts of the library.
+//! As logging is only built on request, and further can be requested by level, logs are verbose.
+//!
+//! The targets are lists in [misc::log].
+//!
+//! For example, when used with [env_logger](https://docs.rs/env_logger/latest/env_logger/):
+//! - Logs related to [the clause database](crate::db::clause) can be filtered with `RUST_LOG=clause_db …` or,
+//! - Logs of reduction count without information about the clauses removed can be found with `RUST_LOG=reduction=info …`
 
 #![allow(mixed_script_confusables)]
 #![allow(unused_must_use)]
