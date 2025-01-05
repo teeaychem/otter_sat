@@ -62,7 +62,7 @@ pub enum Ok {
     FundamentalConflict,
 
     /// A unit clause was derived from
-    UnitClause(ClauseKey),
+    UnitClause(abLiteral),
     AssertingClause(ClauseKey, abLiteral),
     Exhausted,
 }

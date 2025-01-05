@@ -60,7 +60,7 @@ pub enum Ok {
     },
 
     /// The result of analysis is a unit clause.
-    UnitClause(ClauseKey),
+    UnitClause(abLiteral),
 
     /// A fundamental conflict is identified, and so the current formula is unsatisfiable.
     ///
@@ -148,8 +148,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         match resolved_clause.len() {
             0 => Err(err::Analysis::EmptyResolution),
             1 => {
-                let key = self.record_clause(asserted_literal, clause::Source::Resolution)?;
-                Ok(Ok::UnitClause(key))
+                let _ = self.record_clause(asserted_literal, clause::Source::Resolution)?;
+                Ok(Ok::UnitClause(asserted_literal))
             }
             _ => {
                 let key = self.record_clause(resolved_clause, clause::Source::Resolution)?;
