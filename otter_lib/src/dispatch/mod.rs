@@ -76,6 +76,7 @@ use crate::context::GenericContext;
 pub mod core;
 pub mod frat;
 pub mod library;
+pub mod macros;
 
 /// Dispatch types.
 #[derive(Clone)]
