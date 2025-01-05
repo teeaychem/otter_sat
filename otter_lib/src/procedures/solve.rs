@@ -173,7 +173,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 apply_consequences::Ok::Exhausted => {
                     //
                     match self.make_choice()? {
-                        choice::Ok::Made => continue 'solve_loop,
+                        choice::Ok::Literal(choice) => {
+                            self.literal_db.note_choice(choice);
+                            self.q_literal(choice)?;
+                            continue 'solve_loop;
+                        }
                         choice::Ok::Exhausted => break 'solve_loop,
                     }
                 }

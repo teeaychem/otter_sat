@@ -379,7 +379,7 @@ impl ClauseDB {
             }
         }
 
-        log::debug!(target: targets::REDUCTION, "Learnt clauses reduced to: {}", self.addition.len());
+        log::info!(target: targets::REDUCTION, "Learnt clauses reduced to: {}", self.addition.len());
         Ok(())
     }
 
