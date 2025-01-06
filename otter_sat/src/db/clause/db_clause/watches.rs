@@ -16,6 +16,8 @@ use super::dbClause;
 
 /// Methods for watched literals of a clause.
 ///
+/// For more details on watched literals see documentation of the [watch_db](crate::db::atom::watch_db) structure.
+///
 /// # Implementation notes
 ///
 /// The approach to watch literals follows [Optimal implementation of watched literals and more general techniques](https://www.jair.org/index.php/jair/article/view/10839).
@@ -38,9 +40,6 @@ impl dbClause {
     }
 
     /// Initialises watches.
-    ///
-    /// # Safety
-    /// As watches require two or more literals, and watch_ptr must be within the bounds of the vector, use of get_unchecked on index zero and watch_ptr is safe.
     /*
     # Note
     In order to avoid redundant literal lookup, watch candidates are noted when found.
@@ -50,6 +49,7 @@ impl dbClause {
      Still, this is not encoded, as failure for watch A is very unlikely.
      */
     pub fn initialise_watches(&mut self, atoms: &mut AtomDB) {
+        // As watches require two or more literals, and watch_ptr must be within the bounds of the vector, use of get_unchecked on index zero and watch_ptr is safe.
         let mut watch_a_set = false;
         for (index, literal) in self.clause.iter().enumerate() {
             let index_value = atoms.value_of(literal.atom());

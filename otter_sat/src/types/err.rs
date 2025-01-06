@@ -37,7 +37,7 @@ pub enum BCP {
 /// Noted errors when building a context.
 ///
 /// These are general errors which wrap specific errors.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Build {
     /// A request to some other part of the context led to an error.
     Context(Context),
@@ -45,10 +45,12 @@ pub enum Build {
     Parse(Parse),
     /// Interaction with a clause database led to an error.
     ClauseDB(ClauseDB),
+    /// An clear instance of an unsatisfiable clause
+    Unsatisfiable,
 }
 
 /// Errors in the clause database.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ClauseDB {
     /// Attempt to get a unit clause by a key (the key is the literal)
     GetUnitKey,
@@ -89,7 +91,7 @@ pub enum Subsumption {
 }
 
 /// Errors in the context.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Context {
     /// Aka. an assumption was made after some choice.
     /// In principle, not an issue.
@@ -122,7 +124,7 @@ pub enum Context {
 }
 
 /// Errors during parsing.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Parse {
     /// Some issue with the problem specification in a DIMACS input.
     ProblemSpecification,
