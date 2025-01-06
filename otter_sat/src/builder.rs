@@ -134,10 +134,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
         let mut clause_vec = clause.canonical();
 
-        self.preprocess_clause(&mut clause_vec)?;
+        match self.preprocess_clause(&mut clause_vec)? {
+            PreprocessResult::Tautology => return Ok(()),
+            PreprocessResult::Contradiction => return Err(err::Build::Unsatisfiable),
+            _ => {}
+        };
 
         match clause_vec.len() {
-            0 => Ok(()), // skip tautologies after preprocessing
+            0 => panic!("!"),
 
             1 => {
                 let literal = unsafe { *clause_vec.get_unchecked(0) };
@@ -269,9 +273,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Some('%') => break 'formula_loop,
                 Some('c') => {}
                 // Some('p') => {
-                //     return Err(err::Build::Parse(err::Parse::MisplacedProblem(
-                //         line_counter,
-                //     )))
+                //     return Err(err::Build::Parse(err::Parse::MisplacedProblem(line_counter)))
                 // }
                 _ => {
                     let split_buf = buffer.split_whitespace();
@@ -329,9 +331,17 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     // }
 }
 
+/// Primarily to distinguish the case where preprocessing results in an empty clause.
+#[derive(PartialEq, Eq)]
+enum PreprocessResult {
+    Tautology,
+    Contradiction,
+    Clause,
+}
+
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Preprocess a clause to remove proven literals and duplicate literals.
-    fn preprocess_clause(&self, clause: &mut vClause) -> Result<(), err::Build> {
+    fn preprocess_clause(&self, clause: &mut vClause) -> Result<PreprocessResult, err::Build> {
         let mut index = 0;
         let mut max = clause.len();
         loop {
@@ -342,8 +352,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             let this_n = this_l.negate();
 
             if clause.iter().any(|l| *l == this_n) {
-                clause.clear();
-                return Ok(());
+                return Ok(PreprocessResult::Tautology);
             }
 
             if self
@@ -358,6 +367,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
         }
 
-        Ok(())
+        match clause.len() {
+            0 => Ok(PreprocessResult::Contradiction),
+            _ => Ok(PreprocessResult::Clause),
+        }
     }
 }

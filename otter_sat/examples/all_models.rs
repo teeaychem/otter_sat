@@ -13,14 +13,13 @@ use otter_sat::{
 ///
 /// This is not particularly efficient.
 // TODO: make this efficient…
-
 fn main() {
     let config = Config::default();
 
     let mut the_context: Context = Context::from_config(config, None);
 
     // Each character in some string as a literal.
-    let mut atoms = "let's_finds_all_models".chars().collect::<Vec<_>>();
+    let mut atoms = "model".chars().collect::<Vec<_>>();
     for atom in &atoms {
         assert!(the_context.atom_from_string(&atom.to_string()).is_ok())
     }

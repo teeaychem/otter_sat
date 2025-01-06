@@ -1,6 +1,32 @@
 //! A structure to record which clauses are watching an atom.
 //!
-//! # Overview
+//! # Theory
+//!
+//! A core part of a solve is [Boolean Constraint Propagation](crate::procedures::bcp) (BCP).
+//! In short, BCP is the observation that some literal in a clause must be true due to all other literals in the clause being false.
+//!
+//! For example, given the clause p ∨ -q ∨ r and a valuation v such that p is false and q is true, the clause is true on the valution *only if* r is (made) true --- in other contexts, given the valuation and clause specified it is said the clause 'asserts' r.
+//!
+//! Note, BCP only applies when:
+//! - There is exactly one literal without a value.
+//! - All other literals conflict with the background valuation.
+//!
+//! This motivates the use of two watches:
+//! - One watch on a literal without a value, to note the clause is a candidate for BCP to be applied at some point.
+//! - One watch on any other literal which does not conflict with the background valuation, if possible.
+//!   + For, if it is *only* possible to watch some other literal which conflicts with the current valuation, the other literal must be true.
+//!
+//! The watch database records which clauses are watching an atoms, and for the implementation of watching literals see the way clauses are stored in a database [dbClause](crate::db::clause::db_clause) and in particular the associated methods [initialise_watches](crate::db::clause::db_clause::dbClause::initialise_watches) and [update_watch](crate::db::clause::db_clause::dbClause::initialise_watches).
+//!
+//! # Literature
+//!
+//! Watched literals were introduced with [Chaff](https://dl.acm.org/doi/10.1145/378239.379017).
+//!
+//! [US7418369B2](https://patents.google.com/patent/US7418369B2/en) is a patent covering Chaff, though at the time of writing the status of the patent is 'Expired'.
+//!
+//! The implentation of watch literals follows [Optimal implementation of watched literals and more general techniques](https://www.jair.org/index.php/jair/article/view/10839).
+//!
+//! # Implementation
 //!
 //! The clauses watching an atom are distinguished by type, with the relevant distinctions set in the [WatchTag] enum.
 //!
