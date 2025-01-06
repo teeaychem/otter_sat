@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-   "otter_lib",
+   "otter_sat",
    "otter_cli",
    "otter_tests",
 ]

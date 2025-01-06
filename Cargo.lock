@@ -259,14 +259,14 @@ dependencies = [
  "crossbeam",
  "env_logger",
  "log",
- "otter_lib",
+ "otter_sat",
  "termion",
  "tikv-jemallocator",
  "xz2",
 ]
 
 [[package]]
-name = "otter_lib"
+name = "otter_sat"
 version = "0.1.0"
 dependencies = [
  "crossbeam",
@@ -281,7 +281,7 @@ version = "0.1.0"
 dependencies = [
  "crossbeam",
  "glob",
- "otter_lib",
+ "otter_sat",
  "xz2",
 ]
 

@@ -12,7 +12,7 @@ use crate::{
     window::ContextWindow,
 };
 
-use otter_lib::{
+use otter_sat::{
     config::Config,
     dispatch::{
         core::{core_db_builder, CoreDB},
