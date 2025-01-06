@@ -1,6 +1,6 @@
 use crate::window::ContextWindow;
 
-use otter_lib::dispatch::{
+use otter_sat::dispatch::{
     library::{
         report::{self},
         stat::{self},

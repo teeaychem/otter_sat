@@ -1,4 +1,4 @@
-use otter_lib::{
+use otter_sat::{
     config::Config,
     context::Context,
     dispatch::library::report::{self},
@@ -6,7 +6,7 @@ use otter_lib::{
 
 mod basic {
 
-    use otter_lib::structures::clause::Clause;
+    use otter_sat::structures::clause::Clause;
 
     use super::*;
     #[test]

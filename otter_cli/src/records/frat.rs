@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use otter_lib::dispatch::{
+use otter_sat::dispatch::{
     frat::{self},
     Dispatch,
 };

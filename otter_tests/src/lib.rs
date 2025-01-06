@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use otter_lib::{
+use otter_sat::{
     config::Config,
     context::Context,
     dispatch::library::report::{self},

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{value_parser, Arg, Command};
 
-use otter_lib::config::{vsids::VSIDS, Activity, StoppingCriteria};
+use otter_sat::config::{vsids::VSIDS, Activity, StoppingCriteria};
 
 pub fn cli() -> Command {
     Command::new("otter_sat")

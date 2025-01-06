@@ -1,4 +1,4 @@
-use otter_lib::{
+use otter_sat::{
     config::Config,
     dispatch::library::report::{self},
 };

@@ -8,7 +8,7 @@ use std::{
 const FRAT_RS_PATH: &str = "./frat-rs";
 
 use crossbeam::channel::{unbounded, Receiver};
-use otter_lib::{
+use otter_sat::{
     config::Config,
     context::Context,
     dispatch::{frat, Dispatch},

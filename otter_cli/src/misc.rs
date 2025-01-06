@@ -1,6 +1,6 @@
 use std::{fs::File, io::BufReader, path::PathBuf};
 
-use otter_lib::{
+use otter_sat::{
     context::Context,
     types::err::{self},
 };

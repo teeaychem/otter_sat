@@ -11,7 +11,7 @@ use tikv_jemallocator::Jemalloc;
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 
-use otter_lib::{
+use otter_sat::{
     config::Config,
     context::Context,
     dispatch::{

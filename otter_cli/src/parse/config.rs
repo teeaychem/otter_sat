@@ -1,6 +1,6 @@
 use clap::ArgMatches;
 
-use otter_lib::config::{self, vsids::VSIDS, Config, StoppingCriteria};
+use otter_sat::config::{self, vsids::VSIDS, Config, StoppingCriteria};
 
 pub fn config_from_args(args: &ArgMatches) -> Config {
     let mut the_config = Config::default();
@@ -21,7 +21,7 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
         the_config.scheduler.restart = *interval
     };
 
-    if let Ok(Some(u)) = args.try_get_one::<otter_lib::generic::luby::LubyRepresentation>("luby") {
+    if let Ok(Some(u)) = args.try_get_one::<otter_sat::generic::luby::LubyRepresentation>("luby") {
         the_config.luby_u = *u
     };
 
