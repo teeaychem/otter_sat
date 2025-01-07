@@ -35,19 +35,19 @@
 //! # Example
 //!
 //! bcp is a mutating method, and a typical application will match against the result of the mutation.
-//! For example, a conflict may lead to conflict analysis and no conflict may lead to a choice being made.
+//! For example, a conflict may lead to conflict analysis and no conflict may lead to a decision being made.
 //!
 //! ```rust,ignore
 //! match self.bcp(literal) {
 //!     Err(err::BCP::Conflict(key)) => {
-//!         if self.literal_db.choice_made() {
+//!         if self.literal_db.decision_made() {
 //!             let analysis_result = self.conflict_analysis(&clause_key)?;
 //!         ...
 //!         }
 //!     }
 //!     ...
 //!     Ok => {
-//!         match self.make_choice()? {
+//!         match self.make_decision()? {
 //!             ...
 //!         }
 //!     }

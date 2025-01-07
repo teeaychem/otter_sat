@@ -36,7 +36,7 @@ impl AtomDB {
         }
 
         unsafe { *self.valuation.get_unchecked_mut(atom as usize) = None };
-        unsafe { *self.choice_indicies.get_unchecked_mut(atom as usize) = None };
+        unsafe { *self.decision_indicies.get_unchecked_mut(atom as usize) = None };
     }
 
     /// A string representing the current valuation, using the external representation of atoms.

@@ -2,10 +2,10 @@
 //!
 //! # Overview
 //!
-//! A backjump is a 'jump' from some (higher) choice level to some previous (lower) choice level.
+//! A backjump is a 'jump' from some (higher) decision level to some previous (lower) decision level.
 //!
 //! Typically, a backjump is made from level *l* to level *l - i* because a conflict was found at level *l* and analysis produced a clause which asserts some literal at level *l - i*.
-//! In this case, all choices and all consequences of those choices from level *l* down to level *l - i* are undone, and any queued consequences of the choice are removed from the consequence queue.
+//! In this case, all decisions and all consequences of those decisions from level *l* down to level *l - i* are undone, and any queued consequences of the decision are removed from the consequence queue.
 //!
 //! # Methods
 //!
@@ -16,26 +16,30 @@
 //! For sound application the target level must be equal to or lower than the current level.
 //! Still, passing a traget level greater than the current level is safe --- nothing will happen.
 //!
-//! # [backjump_level](GenericContext::backjump_level) --- The backjump level of a(n inconsistent) clause
+//! # [backjump_level](GenericContext::non_chronological_backjump_level) --- The backjump level of a(n unsatisfiable) clause
 //!
-//! The backjump level of a clause is the highest level for which the clause is consistent on the corresponding valuation.
+//! The backjump level of a clause is the highest level for which the clause is satisfiable on the corresponding valuation.
 //!
-//! This definition is partial, in that a clause may be inconsistent without a decision having been made.
-//! Though, in this case there is no need for a backjump level, as the formula itself must be inconsistent and there is no need to continue a solve.
+//! This definition is partial, in that a clause may be unsatisfiable without a decision having been made.
+//! Though, in this case there is no need for a backjump level, as the formula itself must be unsatisfiable and there is no need to continue a solve.
 //!
 //! - Soundness
-//!   + With respect to implementation, the backjump level of a clause is the second highest choice index from the given literals, if more than two choices have been made, and 0 (zero) otherwise. \
-//!     In this respect the implementation of [backjump_level](GenericContext::backjump_level) is only sound to use when applied to an clause inconsistent with the current valuation.
+//!   + With respect to implementation, the backjump level of a clause is the second highest decision index from the given literals, if more than two decisions have been made, and 0 (zero) otherwise. \
+//!     In this respect the implementation of non_chronological_backjump_level is only sound to use when applied to an clause unsatisfiable on the current valuation.
 //!
 //! # Example
 //!
 //! ```rust,ignore
 //! if let AssertingClause(key, literal) = result {
 //!     let the_clause = self.clause_db.get(&key)?;
-//!     let index = self.backjump_level(the_clause)?;
+//!     let index = self.non_chronological_backjump_level(the_clause)?;
 //!     self.backjump(index);
 //! }
 //! ```
+//!
+//! # Literature
+//!
+//! See [Chronological Backtracking](https://doi.org/10.1007/978-3-319-94144-8_7) for a discussion of chronological and non-chronological backjumping --- and a follow-up: [Backing Backtracking](https://www.doi.org/10.1007/978-3-030-24258-9_18).
 
 use crate::{
     context::GenericContext,
@@ -53,34 +57,41 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.index(), to);
 
         // Sufficiently safe:
-        // The pop from the choice stack is fine, as choice_count is the height of the choice stack.
+        // The pop from the decision stack is fine, as decision_count is the height of the decision stack.
         // So, the elements to pop must exist.
-        // And, if an atom is in the choice stack is should certainly be in the atom database.
+        // And, if an atom is in the decision stack is should certainly be in the atom database.
         unsafe {
-            for _ in 0..(self.literal_db.choice_count().saturating_sub(target)) {
+            for _ in 0..(self.literal_db.decision_count().saturating_sub(target)) {
                 self.atom_db
-                    .drop_value(self.literal_db.last_choice_unchecked().atom());
+                    .drop_value(self.literal_db.last_decision_unchecked().atom());
                 for (_, literal) in self.literal_db.last_consequences_unchecked() {
                     self.atom_db.drop_value(literal.atom());
                 }
-                self.literal_db.forget_last_choice();
+                self.literal_db.forget_last_decision();
             }
         }
         self.clear_q(target);
     }
 
-    /// The bacjump level of a unsatisfiable clause.
+    /// The non-chronological backjump level of a unsatisfiable clause.
+    ///
+    /// + The *non-chronological* backjump level is the previous decision level of a clause.
+    /// + The *chronological* backjump level is the previous decision level of a context.
     ///
     /// For documentation, see [procedures::backjump](crate::procedures::backjump).
     // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
-    pub fn backjump_level(&self, clause: &impl Clause) -> Result<LevelIndex, err::Context> {
+    pub fn non_chronological_backjump_level(
+        &self,
+        clause: &impl Clause,
+    ) -> Result<LevelIndex, err::Context> {
         match clause.size() {
             0 => panic!("!"),
             1 => Ok(0),
             _ => {
                 let mut top_two = (None, None);
                 for literal in clause.literals() {
-                    let Some(dl) = (unsafe { self.atom_db.choice_index_of(literal.atom()) }) else {
+                    let Some(dl) = (unsafe { self.atom_db.decision_index_of(literal.atom()) })
+                    else {
                         log::error!(target: targets::BACKJUMP, "{literal} was not chosen");
                         return Err(err::Context::Backjump);
                     };

@@ -123,10 +123,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// This handles the variations.
     /*
-    TODO: Relax the constraints on adding a unit clause after choice.
-    If the choice conflicts with the current valuation, backtracking is required.
+    TODO: Relax the constraints on adding a unit clause after a decision has been made.
+    If the decision conflicts with the current valuation, backtracking is required.
     Otherwise, if the literal is not already recorded as a clause, it could be 'raised' to being a clause.
-    Though, a naive approach may cause some issues with FRAT proofs, and other features which rely on choice level information.
+    Though, a naive approach may cause some issues with FRAT proofs, and other features which rely on decision level information.
      */
     pub fn add_clause(&mut self, clause: impl Clause) -> Result<(), err::Build> {
         if clause.size() == 0 {
@@ -157,8 +157,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     Some(v) if v == literal.polarity() => {
                         // Must be at zero for an assumption, so there's nothing to do
-                        if self.counters.total_choices != 0 {
-                            Err(err::Build::ClauseDB(err::ClauseDB::AddedUnitAfterChoice))
+                        if self.counters.total_decisions != 0 {
+                            Err(err::Build::ClauseDB(err::ClauseDB::AddedUnitAfterDecision))
                         } else {
                             Ok(())
                         }
@@ -318,8 +318,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     // This will hold until a restart happens
 
     // pub fn believe(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::Context> {
-    //     if self.literal_db.choice_made() {
-    //         return Err(err::Context::AssumptionAfterChoice);
+    //     if self.literal_db.decision_made() {
+    //         return Err(err::Context::AssumptionAfterDecision);
     //     }
     //     match self.q_literal(literal.borrow()) {
     //         Ok(_) => {

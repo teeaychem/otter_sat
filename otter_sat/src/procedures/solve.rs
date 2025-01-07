@@ -5,28 +5,52 @@
 //! [solve](crate::procedures::solve) casts the conflict-driven clause-learning algorithm through a valuation relative consequence operator over formulas.
 //!
 //! On this operator a formula entails either itself, or a tautological consequence of itself with some additional clause.
+//! And, if the operator cannot be applied, the formula is unsatisfiable.[^op-note]
+//! [^op-note]: Alternatively, the operator may return some designated formula such as falsum.
 //!
 //! - If the formula entails itself, then inspection of the valuation is required:
-//!   + If the valuation does not contain any choices, the formula is unsatisfiable (on any valuation).
+//!   + If the valuation is partial (and not complete) the valuation *may be* satisfiable, though the rules of inference associated with the operator do not support the derivation of a complete valuation (and so some decision must be made).
 //!   + If the valuation is complete, the formula is satisfiable (on the given valuation).
-//!   + If the valuation is partial (and not complete) the valuation *may be* satisfiable, though the rules of inference associated with the operator do not support the derivation of a complete valuation (and so some choice must be made).
 //! - If the formula entails some formula with an additional clause, then:
-//!   + The formula is unsatisfiable on the given valuation, but *may be* satisfiable on some other valuation.
+//!   + The formula is unsatisfiable on the given valuation, but *may be* satisfiable on some other valuation.\
+//!     Specifically, there is some sub-valuation of the current valuation on which the added clause asserts some literal, and a '[backjump](crate::procedures::backjump)' may be made to that valuation.
 //!
 //! [solve](crate::procedures::solve), then, manages the detailed operator, whose implementation is given in [apply_consequences].
-//! This amounts to applying an instance of the operator:
+//! This amounts to applying an instance of the operator which:
 //!
-//! - Returning *unsatisfiable*, if the formula entails itself and the valuation does not contain any choices.
-//! - Returning *satisfiable*, if the formula entails itself and the valuation is complete.
-//! - Making a choice, if the formula entails itself and the valuation is partial.
-//! - 'Backjumping' to a different valuation, if the formula entails some formula with an additional clause.
+//! - Returns *unsatisfiable*, if it is not possible to apply the consequence relation.
+//! - Returns *satisfiable*, if the formula entails itself and the valuation is complete.
+//! - Makes a decision, if the formula entails itself and the valuation is partial.
+//! - Backjumps to a different valuation, if the formula entails some formula with an additional clause.
 //!
 //! Though, at points this process may be interrupted for some other action.
-//! In particular, [solve](crate::procedures::solve) may revise the valuation to some other valuation (e.g. by forgetting any choices made) regardless of whether the formula entails some formula with an additional clause.
+//! In particular, [solve](crate::procedures::solve) may revise the valuation to some other valuation (e.g. by forgetting any decisions made) regardless of whether the formula entails some formula with an additional clause.
 //!
-//! # [solve](crate::procedures::solve)
+//! Roughly, the loop is as diagrammed:
 //!
-//! Abstracting from various other bookkeeping tasks and optional actions after a context, [solve](crate::procedures::solve) is as follows:
+//! ```none
+//!           +---------------+
+//!   +-------| make_decision |
+//!   |       +---------------+
+//!   |               ⌃
+//!   |               |
+//!   |               | if there is no update to the formula, and the valuation is partial
+//!   |               |
+//!   |               |              +-----> satisfiable, if the valuation is complete
+//!   ⌄   +--------------------+     |
+//! --+-->| apply_consequences |-----+
+//!   ⌃   +--------------------+     |
+//!   |               |              +-----> unsatisfiable, if apply_consequences fails
+//!   |               |
+//!   |               | if a clause is added to the formula
+//!   |               |
+//!   |               ⌄
+//!   |           +----------+
+//!   +-----------| backjump |
+//!               +----------+
+//! ```
+//!
+//! And, abstracting from various other bookkeeping tasks and optional actions after a context, solve is:
 //!
 //! ```rust,ignore
 //! loop {
@@ -36,9 +60,9 @@
 //!
 //!         apply_consequences::Ok::Exhausted => {
 //!             //
-//!             match self.make_choice()? {
-//!                 choice::Ok::Made => continue,
-//!                 choice::Ok::Exhausted => break,
+//!             match self.make_decision()? {
+//!                 decision::Ok::Made => continue,
+//!                 decision::Ok::Exhausted => break,
 //!             }
 //!         }
 //!
@@ -49,7 +73,7 @@
 //!
 //!         apply_consequences::Ok::AssertingClause(key, literal) => {
 //!             let the_clause = self.clause_db.get(&key)?;
-//!             self.backjump(self.backjump_level(the_clause)?);
+//!             self.backjump(self.non_chronological_backjump_level(the_clause)?);
 //!             self.q_literal(literal)?;
 //!         }
 //!     }
@@ -58,7 +82,7 @@
 //! }
 //! ```
 //!
-//! The distinction between a unit clause and clause being returned from [apply_consequence] is made only to avoid the overhead of accessing a clause and determing the relevant backjump level in the case of a unit clause.
+//! The distinction between a unit clause and clause being returned from [apply_consequence](crate::procedures::apply_consequences) is made only to avoid the overhead of accessing a clause and determing the relevant backjump level in the case of a unit clause.
 //!
 //! # Example
 //!
@@ -99,7 +123,7 @@
 //! let p_clause = the_context.clause_from_string("p").unwrap();
 //! let error = the_context.add_clause(p_clause);
 //!
-//! the_context.clear_choices();
+//! the_context.clear_decisions();
 //!
 //! let p_clause = the_context.clause_from_string("p").unwrap();
 //! let _p_ok = the_context.add_clause(p_clause);
@@ -110,25 +134,16 @@
 //!
 //! assert_eq!(the_context.report(), report::Solve::Satisfiable);
 //! ```
-
-/*
-    // Likewise it is not possible to add ¬p ∨ ¬q to 𝐅
-    let clause_np_nq = the_context.clause_from_string("-p -q").unwrap();
-    assert!(the_context.add_clause(clause_np_nq).is_err());
-
-    assert_eq!(the_context.report(), report::Solve::Satisfiable);
-
-    // todo: update with unit clauses
-    println!("The clause database is now:");
-    for clause in the_context.clause_db.all_nonunit_clauses() {
-        println!("  C {}", clause.as_dimacs(&the_context.atom_db, false))
-    }
-
-    // It is possible to add p ∨ q to 𝐅
-    let clause_p_q = the_context.clause_from_string("p q").unwrap();
-    assert!(the_context.add_clause(clause_p_q).is_ok());
-    :?
-*/
+//!
+//! # Literature
+//!
+//! The core solve procedure was developed by reading [Decision Procedures](https://doi.org/10.1007/978-3-662-50497-0)[^a]
+//! and the [Handbook of satisfiability](https://www.iospress.com/catalog/books/handbook-of-satisfiability-2).[^b]
+//! Though, the presentation given is original.
+//!
+//! [^a]: Specifically, Chapter 2 on decision procedures for propositional logic.
+//! [^b]: Specifcally, chapters 3 and 4 on complete algorithms and CDCL techniques.
+//!
 
 use crate::{
     context::GenericContext,
@@ -143,7 +158,7 @@ use crate::{
     },
     procedures::{
         apply_consequences::{self},
-        choice::{self},
+        decision::{self},
     },
     structures::literal::{self},
     types::err::{self},
@@ -172,13 +187,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 apply_consequences::Ok::Exhausted => {
                     //
-                    match self.make_choice()? {
-                        choice::Ok::Literal(choice) => {
-                            self.literal_db.note_choice(choice);
-                            self.q_literal(choice)?;
+                    match self.make_decision()? {
+                        decision::Ok::Literal(decision) => {
+                            self.literal_db.note_decision(decision);
+                            self.q_literal(decision)?;
                             continue 'solve_loop;
                         }
-                        choice::Ok::Exhausted => break 'solve_loop,
+                        decision::Ok::Exhausted => break 'solve_loop,
                     }
                 }
 
@@ -192,7 +207,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 apply_consequences::Ok::AssertingClause(key, literal) => {
                     // Safe, as the key is direct from apply_consequences.
                     let the_clause = unsafe { self.clause_db.get_unchecked(&key)? };
-                    self.backjump(self.backjump_level(the_clause)?);
+                    self.backjump(self.non_chronological_backjump_level(the_clause)?);
 
                     self.clause_db.note_use(key);
                     macros::send_bcp_delta!(self, Instance, literal, key);

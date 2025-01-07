@@ -47,7 +47,7 @@ pub fn silent_formula_report(path: PathBuf, config: &Config) -> report::Solve {
         Err(err::Build::ClauseDB(err::ClauseDB::EmptyClause)) => {
             return report::Solve::Unsatisfiable;
         }
-        Err(e) => {
+        Err(_) => {
             panic!("c Error loading file.")
         }
     };

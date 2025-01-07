@@ -27,7 +27,7 @@ fn main() {
     let mut count = 0;
 
     loop {
-        the_context.clear_choices();
+        the_context.clear_decisions();
         assert!(the_context.solve().is_ok());
 
         match the_context.report() {

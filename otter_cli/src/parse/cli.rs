@@ -73,7 +73,7 @@ Clauses with length greater than two are removed, low activity to high (and high
             .value_parser(value_parser!(bool))
             .required(false)
             .num_args(0)
-            .help("Prevent choices from being forgotten."))
+            .help("Prevent decisions from being forgotten."))
 
         .arg(Arg::new("elephant")
             .long("elephant")
@@ -151,14 +151,14 @@ For the moment this is limited to settling all atoms which occur with a unique p
             .num_args(1)
             .help("The 'u' value to use for the luby calculation when restarts are permitted."))
 
-        .arg(Arg::new("random_choice_frequency")
-            .long("random-choice-frequency")
+        .arg(Arg::new("random_decision_bias")
+            .long("random-decision-bias")
             .short('r')
-            .value_name("FREQUENCY")
+            .value_name("BIAS")
             .value_parser(value_parser!(f64))
             .required(false)
             .num_args(1)
-            .help("The chance of making a random choice (as opposed to using most VSIDS activity)."))
+            .help("The chance of making a random decision (as opposed to using most VSIDS activity)."))
 
         .arg(Arg::new("polarity_lean")
             .long("polarity-lean")
@@ -167,7 +167,7 @@ For the moment this is limited to settling all atoms which occur with a unique p
             .value_parser(value_parser!(f64))
             .required(false)
             .num_args(1)
-            .help("The chance of choosing assigning positive polarity to a variant when making a choice."))
+            .help("The chance of choosing assigning positive polarity to a variant when making a decision."))
 
         .arg(Arg::new("time_limit")
             .long("time-limit")

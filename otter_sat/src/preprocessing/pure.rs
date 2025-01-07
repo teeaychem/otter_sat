@@ -16,7 +16,7 @@ use crate::{
 /// Given an interator over clauses returns a pair of iterators over the pure literals relative to those clauses.
 ///
 /// In other words, returns a pair of iterators where the first iterator contains all the literals which occur only with positive polarity and the second iterator contains all the literals which occur only with negative polarity.
-pub fn pure_choices<'l>(
+pub fn pure_literals<'l>(
     clauses: impl Iterator<Item = impl Iterator<Item = &'l abLiteral>>,
 ) -> (Vec<Atom>, Vec<Atom>) {
     let mut the_true: BTreeSet<Atom> = BTreeSet::new();
@@ -40,7 +40,7 @@ pub fn pure_choices<'l>(
 pub fn set_pure<R: rand::Rng + std::default::Default>(
     context: &mut GenericContext<R>,
 ) -> Result<(), err::Queue> {
-    let (f, t) = pure_choices(
+    let (f, t) = pure_literals(
         context
             .clause_db
             .all_nonunit_clauses()
@@ -51,7 +51,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         let the_literal = abLiteral::fresh(atom, false);
         match context.q_literal(the_literal) {
             Ok(consequence_q::Ok::Qd) => {
-                context.record_literal(the_literal, literal::Source::FreeChoice);
+                context.record_literal(the_literal, literal::Source::PureLiteral);
             }
             Err(e) => return Err(e),
         }
@@ -61,7 +61,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         let the_literal = abLiteral::fresh(atom, true);
         match context.q_literal(the_literal) {
             Ok(consequence_q::Ok::Qd) => {
-                context.record_literal(the_literal, literal::Source::FreeChoice);
+                context.record_literal(the_literal, literal::Source::PureLiteral);
             }
             Err(e) => return Err(e),
         }

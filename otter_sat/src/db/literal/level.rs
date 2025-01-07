@@ -2,26 +2,26 @@ use std::borrow::Borrow;
 
 use crate::structures::literal::{self, abLiteral};
 
-/// A choice level --- the choice and the *observed* consequences of that choice, given prior choices and observed consequences.
+/// A decision level --- the decision and the *observed* consequences of that decision, given prior decisions and observed consequences.
 ///
 /// Note: The consequences relation is reflexive, but no reflexive consequences are observed.
 pub struct Level {
-    choice: abLiteral,
+    decision: abLiteral,
     consequences: Vec<(literal::Source, abLiteral)>,
 }
 
 impl Level {
-    /// A new level from some choice, with no recorded consequences.
-    pub fn new(choice: abLiteral) -> Self {
+    /// A new level from some decision, with no recorded consequences.
+    pub fn new(decision: abLiteral) -> Self {
         Self {
-            choice,
+            decision,
             consequences: vec![],
         }
     }
 
-    /// The choice of a level.
-    pub fn choice(&self) -> abLiteral {
-        self.choice
+    /// The decision of a level.
+    pub fn decision(&self) -> abLiteral {
+        self.decision
     }
 
     /// The consequences of a level.

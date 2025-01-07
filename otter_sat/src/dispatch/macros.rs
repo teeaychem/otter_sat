@@ -20,11 +20,11 @@ macro_rules! send_stats {
     ($self:ident ) => {
         if let Some(dispatcher) = &$self.dispatcher {
             let total_iterations = $self.counters.total_iterations;
-            let total_choices = $self.counters.total_choices;
+            let total_decisions = $self.counters.total_decisions;
             let total_conflicts = $self.counters.total_conflicts;
 
             dispatcher(Dispatch::Stat(Stat::Iterations(total_iterations)));
-            dispatcher(Dispatch::Stat(Stat::Chosen(total_choices)));
+            dispatcher(Dispatch::Stat(Stat::Chosen(total_decisions)));
             dispatcher(Dispatch::Stat(Stat::Conflicts(total_conflicts)));
             dispatcher(Dispatch::Stat(Stat::Time($self.counters.time)));
         }

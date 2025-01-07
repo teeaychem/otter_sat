@@ -145,10 +145,11 @@ impl ClauseDB {
             }
 
             _ => match source {
-                Source::BCP | Source::FreeChoice => panic!("!"), // Sources only valid for unit clauses.
+                Source::BCP | Source::PureLiteral => panic!("!"), // Sources only valid for unit clauses.
 
                 Source::Original => {
                     let key = self.fresh_original_key()?;
+                    log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_string());
                     let stored_form = dbClause::from(key, clause.canonical(), atoms);
 
                     self.original.push(stored_form);
@@ -156,33 +157,33 @@ impl ClauseDB {
                 }
 
                 Source::Resolution => {
-                    log::trace!(target: targets::CLAUSE_DB, "Learning clause {}", clause.as_string());
                     self.addition_count += 1;
 
-                    let the_key = match self.empty_keys.len() {
+                    let key = match self.empty_keys.len() {
                         0 => self.fresh_addition_key()?,
                         _ => self.empty_keys.pop().unwrap().retoken()?,
                     };
+                    log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_string());
 
-                    let stored_form = dbClause::from(the_key, clause.canonical(), atoms);
+                    let stored_form = dbClause::from(key, clause.canonical(), atoms);
 
                     let value = ActivityLBD {
                         activity: 1.0,
                         lbd: stored_form.lbd(atoms),
                     };
 
-                    self.activity_heap.add(the_key.index(), value);
-                    self.activity_heap.activate(the_key.index());
+                    self.activity_heap.add(key.index(), value);
+                    self.activity_heap.activate(key.index());
 
-                    match the_key {
+                    match key {
                         ClauseKey::Addition(_, 0) => self.addition.push(Some(stored_form)),
                         ClauseKey::Addition(_, _) => unsafe {
-                            *self.addition.get_unchecked_mut(the_key.index()) = Some(stored_form)
+                            *self.addition.get_unchecked_mut(key.index()) = Some(stored_form)
                         },
-                        _ => panic!("not possible"),
+                        _ => panic!("!"),
                     };
 
-                    Ok(the_key)
+                    Ok(key)
                 }
             },
         }

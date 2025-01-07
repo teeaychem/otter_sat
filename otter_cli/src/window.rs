@@ -78,14 +78,14 @@ impl ContextWindow {
     pub fn draw_window(&mut self, config: &Config) {
         let mut stdout = stdout();
         writeln!(stdout, "c 🦦");
-        writeln!(stdout, "c CHOICE POLARITY LEAN {}", config.polarity_lean);
+        writeln!(stdout, "c DECISION POLARITY LEAN {}", config.polarity_lean);
         if let Some(limit) = config.time_limit {
             writeln!(stdout, "c TIME LIMIT: {:.2?}", limit);
         }
         writeln!(stdout, "c ITERATIONS");
         writeln!(stdout, "c CONFLCITS");
         writeln!(stdout, "c C/I RATIO");
-        writeln!(stdout, "c CHOICES");
+        writeln!(stdout, "c DECISIONS");
         writeln!(stdout, "c TIME");
 
         self.update_position();

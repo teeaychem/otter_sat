@@ -17,7 +17,7 @@ use super::Counters;
 ///
 /// Requires a source of [rng](rand::Rng) which (also) implements [Default](std::default::Default).
 ///
-/// [Default](std::default::Default) is used in calls [make_choice](GenericContext::make_choice) to appease the borrow checker, and may be relaxed with a different implementation.
+/// [Default](std::default::Default) is used in calls [make_decision](GenericContext::make_decision) to appease the borrow checker, and may be relaxed with a different implementation.
 ///
 /// # Example
 ///

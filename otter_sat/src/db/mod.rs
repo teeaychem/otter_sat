@@ -12,7 +12,7 @@
 //!
 //!   - [The literal database](crate::db::literal)
 //!     + The literal database handled structures who primary
-//!       * The choice stack
+//!       * The decision stack
 //!   - [The atom database](crate::db::atom)
 //!     + Properties of atoms.
 //!       * Valuation
@@ -41,7 +41,7 @@ use crate::{
     types::err,
 };
 
-/// The index of a [choice level](crate::db::literal).
+/// The index of a [decision level](crate::db::literal).
 pub type LevelIndex = u32;
 
 #[allow(non_camel_case_types)]
@@ -74,18 +74,18 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// self.record_literal(literal, literal::Source::BCP(key));
     /// ```
     ///
-    /// If no choices have been made, literals are added to the clause database as unit clauses.
-    /// Otherwise, literals are recorded as consequences of the current choice.
+    /// If no decisions have been made, literals are added to the clause database as unit clauses.
+    /// Otherwise, literals are recorded as consequences of the current decision.
     pub fn record_literal(&mut self, literal: impl Borrow<abLiteral>, source: LiteralSource) {
         match source {
-            LiteralSource::FreeChoice => {
+            LiteralSource::PureLiteral => {
                 //
-                match self.literal_db.choice_count() {
+                match self.literal_db.decision_count() {
                     0 => {
-                        self.record_clause(*literal.borrow(), ClauseSource::FreeChoice);
+                        self.record_clause(*literal.borrow(), ClauseSource::PureLiteral);
                     }
                     _ => {
-                        // Making a free choice is not supported after some other (non-free) choice has been made.
+                        // Making a free decision is not supported after some other (non-free) decision has been made.
                         panic!("!")
                     }
                 }
@@ -93,7 +93,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
             LiteralSource::BCP(_) => {
                 //
-                match self.literal_db.choice_count() {
+                match self.literal_db.decision_count() {
                     0 => {
                         self.record_clause(*literal.borrow(), ClauseSource::BCP);
                     }
@@ -125,8 +125,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         if let Some(dispatcher) = &self.dispatcher {
             match key {
                 ClauseKey::Unit(literal) => match source {
-                    ClauseSource::FreeChoice => {
-                        // TODO: Implement dispatches for free choices
+                    ClauseSource::PureLiteral => {
+                        // TODO: Implement dispatches for free decisions
                     }
 
                     ClauseSource::BCP => {
@@ -162,7 +162,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                             let delta = {
                                 match source {
-                                    ClauseSource::BCP | ClauseSource::FreeChoice => panic!("!"),
+                                    ClauseSource::BCP | ClauseSource::PureLiteral => panic!("!"),
                                     ClauseSource::Original => delta::ClauseDB::Original(key),
                                     ClauseSource::Resolution => delta::ClauseDB::Added(key),
                                 }

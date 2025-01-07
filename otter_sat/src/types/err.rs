@@ -72,10 +72,10 @@ pub enum ClauseDB {
     UnitClause,
     /// All possible keys have been used for some clause type (formula/binary/long etc).
     StorageExhausted,
-    /// A unit clause was added after some choice has been made.
+    /// A unit clause was added after some decision has been made.
     ///
     /// Ideally, this case could be handled and this error removed.
-    AddedUnitAfterChoice,
+    AddedUnitAfterDecision,
     /// An immediate conflict.
     ImmediateConflict,
 }
@@ -93,10 +93,10 @@ pub enum Subsumption {
 /// Errors in the context.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Context {
-    /// Aka. an assumption was made after some choice.
+    /// Aka. an assumption was made after some decision.
     /// In principle, not an issue.
     /// Still, significant complexity is avoided by denying this possibility.
-    AssumptionAfterChoice,
+    AssumptionAfterDecision,
     /// An attempt to make an assumption which conflicts with some proven literal.
     AssumptionConflict,
     /// Somehow checking the literal returned that the literal was set.

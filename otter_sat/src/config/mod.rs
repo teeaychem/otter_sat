@@ -23,7 +23,7 @@ pub struct Config {
     pub polarity_lean: PolarityLean,
 
     /// Preprocessing configuration
-    pub random_choice_frequency: RandomChoiceFrequency,
+    pub random_decision_bias: RandomDecisionBias,
 
     /// Which stopping criteria to use during resolution based analysis
     pub stopping_criteria: StoppingCriteria,
@@ -55,7 +55,7 @@ impl Default for Config {
 
             polarity_lean: 0.0,
 
-            random_choice_frequency: 0.0,
+            random_decision_bias: 0.0,
 
             stopping_criteria: StoppingCriteria::FirstUIP,
 
@@ -85,8 +85,8 @@ pub type LBD = u8;
 /// Representation for the probability of choosing `true`
 pub type PolarityLean = f64;
 
-/// Representation for the probability of making a random choice
-pub type RandomChoiceFrequency = f64;
+/// Representation for the probability of making a random decision
+pub type RandomDecisionBias = f64;
 
 /// Schedulers, for reduction of the clause database, etc.
 ///
@@ -105,7 +105,7 @@ pub struct Scheduler {
 pub enum StoppingCriteria {
     /// Stop at the first unique implication point.
     ///
-    /// In other words, apply resolution until the clause obtained by resolution is asserting on the current valuation without the last choice made, and any consequences of that choice.
+    /// In other words, apply resolution until the clause obtained by resolution is asserting on the current valuation without the last decision made, and any consequences of that decision.
     FirstUIP,
     /// Apply resolution to each clause in the sequence of clauses.
     None,
@@ -125,7 +125,7 @@ impl std::fmt::Display for StoppingCriteria {
 /// When set to true things related to the identifier are enabled.
 #[derive(Clone)]
 pub struct Switches {
-    /// Default to th last set value of a atom when choosing  a value for the atom, otherwise choice with specified probability.
+    /// Default to th last set value of a atom when choosing  a value for the atom, otherwise decision with specified probability.
     pub phase_saving: bool,
 
     /// Enable preprocessing of 𝐅.

@@ -193,7 +193,7 @@ impl ResolutionBuffer {
 
         self.merge_clause(base_clause);
 
-        // Maybe the conflit clause was already asserting after the previous choice…
+        // Maybe the conflit clause was already asserting after the previous decision…
         if let Some(asserted_literal) = self.asserted_literal() {
             return Ok(Ok::Missed(*conflict, asserted_literal));
         };
