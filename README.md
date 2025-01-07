@@ -23,7 +23,7 @@ At present, features include:
 - Clause learning thorugh analysis of implication graphs.
 - Clause forgetting based on glue principles (see: [Glucose](https://github.com/audemard/glucose) for details).
   - By default all clauses which do not match the required `glue` level are forgotten at regular intervals.
-- A [VSIDS](https://arxiv.org/abs/1506.08905) choice selection heuristic.
+- A [VSIDS](https://arxiv.org/abs/1506.08905) decision selection heuristic.
 - Luby-based restarts.
 - Watch literals and watch lists.
 - Phase saving.
@@ -98,7 +98,7 @@ Solver resources used are:
           Prevent clauses from being forgotten.
 
       --no-restart
-          Prevent choices from being forgotten.
+          Prevent decisions from being forgotten.
 
   -🐘, --elephant
           Remember everything.
@@ -133,11 +133,11 @@ Solver resources used are:
   -l, --luby <U>
           The 'u' value to use for the luby calculation when restarts are permitted.
 
-  -r, --random-choice-frequency <FREQUENCY>
-          The chance of making a random choice (as opposed to using most VSIDS activity).
+  -r, --random-decision-bias <BIAS>
+          The chance of making a random decision (as opposed to using most VSIDS activity).
 
   -∠, --polarity-lean <LEAN>
-          The chance of choosing assigning positive polarity to a variant when making a choice.
+          The chance of choosing assigning positive polarity to a variant when making a decision.
 
   -t, --time-limit <SECONDS>
           Time limit for the solve in seconds.

@@ -83,10 +83,10 @@ Representations of: ¬p ∨ q
     let p_clause = the_context.clause_from_string("p").unwrap();
     let p_error = the_context.add_clause(p_clause);
 
-    println!("p is incompatible with 𝐕 as so cannot be added to the context ({p_error:?}) without clearing choices made…
+    println!("p is incompatible with 𝐕 as so cannot be added to the context ({p_error:?}) without clearing decisions made…
 ");
 
-    the_context.clear_choices();
+    the_context.clear_decisions();
 
     let p_clause = the_context.clause_from_string("p").unwrap();
     let _p_ok = the_context.add_clause(p_clause);

@@ -4,7 +4,7 @@
 //! - Watch lists for each atom in the form of [WatchDB] structs, indexed by atoms.
 //! - A current (often partial) [valuation](Valuation) and the previous valuation (or some randomised valuation).
 //! - An [IndexHeap] recording the activty of atoms, where any atom without a value is 'active' on the heap.
-//! - A record of which choice an atom was valued on.
+//! - A record of which decision an atom was valued on.
 //! - Internal and external name maps, for reading and writing [Atom]s, [Literal](crate::structures::literal::Literal)s, etc.
 
 #[doc(hidden)]
@@ -43,8 +43,8 @@ pub struct AtomDB {
     /// An [IndexHeap] recording the activty of atoms, where any atom without a value is 'active' on the heap.
     activity_heap: IndexHeap<Activity>,
 
-    /// A record of which choice an atom was valued on.
-    choice_indicies: Vec<Option<LevelIndex>>,
+    /// A record of which decision an atom was valued on.
+    decision_indicies: Vec<Option<LevelIndex>>,
 
     /// A map from the external representation of an atom as a string to its internal representation.
     internal_map: std::collections::HashMap<String, Atom>,
@@ -80,7 +80,7 @@ impl AtomDB {
 
             valuation: Vec::default(),
             previous_valuation: Vec::default(),
-            choice_indicies: Vec::default(),
+            decision_indicies: Vec::default(),
 
             dispatcher,
             config: config.atom_db.clone(),
@@ -120,7 +120,7 @@ impl AtomDB {
         self.watch_dbs.push(WatchDB::default());
         self.valuation.push(None);
         self.previous_valuation.push(previous_value);
-        self.choice_indicies.push(None);
+        self.decision_indicies.push(None);
 
         if let Some(dispatcher) = &self.dispatcher {
             let delta_rep = delta::AtomDB::ExternalRepresentation(string.to_string());
@@ -132,15 +132,15 @@ impl AtomDB {
         the_atoms
     }
 
-    /// Which choice an atom was valued on.
+    /// Which decision an atom was valued on.
     ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
-    pub unsafe fn choice_index_of(&self, v_idx: Atom) -> Option<LevelIndex> {
-        *self.choice_indicies.get_unchecked(v_idx as usize)
+    pub unsafe fn decision_index_of(&self, v_idx: Atom) -> Option<LevelIndex> {
+        *self.decision_indicies.get_unchecked(v_idx as usize)
     }
 
-    /// Sets a given atom to have a given value, with a note of which choice this occurs after, if some choice has been made.
+    /// Sets a given atom to have a given value, with a note of which decision this occurs after, if some decision has been made.
     ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
@@ -153,7 +153,7 @@ impl AtomDB {
         match self.value_of(atom) {
             None => {
                 *self.valuation.get_unchecked_mut(atom as usize) = Some(value);
-                *self.choice_indicies.get_unchecked_mut(atom as usize) = level;
+                *self.decision_indicies.get_unchecked_mut(atom as usize) = level;
                 Ok(AtomValue::NotSet)
             }
             Some(v) if v == value => Ok(AtomValue::Same),

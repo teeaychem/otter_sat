@@ -30,9 +30,9 @@ pub fn config_from_args(args: &ArgMatches) -> Config {
     };
 
     if let Ok(Some(frequency)) =
-        args.try_get_one::<config::RandomChoiceFrequency>("random_choice_frequency")
+        args.try_get_one::<config::RandomDecisionBias>("random_decision_bias")
     {
-        the_config.random_choice_frequency = *frequency
+        the_config.random_decision_bias = *frequency
     };
 
     if let Ok(Some(value)) = args.try_get_one::<bool>("preprocessing") {

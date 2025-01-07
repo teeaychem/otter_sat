@@ -81,8 +81,8 @@ pub enum Source {
     /// A *unit* clause obtained via BCP.
     BCP,
 
-    /// A *unit* clause set by free choice on the value of the contained atom.
-    FreeChoice,
+    /// A *unit* clause set by free decision on the value of the contained atom.
+    PureLiteral,
 
     /// A clause read from a formula.
     Original,

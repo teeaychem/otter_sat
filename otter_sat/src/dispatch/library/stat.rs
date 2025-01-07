@@ -7,7 +7,7 @@ pub enum Stat {
     /// The count of iterations made.
     Iterations(usize),
 
-    /// The count of choices made.
+    /// The count of decisions made.
     Chosen(usize),
 
     /// The count of conflicts seen.

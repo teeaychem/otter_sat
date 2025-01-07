@@ -1,5 +1,7 @@
 //! A queue of observed consequences to be propagated.
 //!
+//!
+//!
 //! For primary use case see the following associated [GenericContext] methods:
 //! - [GenericContext::q_literal]
 //!
@@ -49,14 +51,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             self.atom_db.set_value(
                 literal.borrow().atom(),
                 literal.borrow().polarity(),
-                Some(self.literal_db.choice_count()),
+                Some(self.literal_db.decision_count()),
             )
         };
         match valuation_result {
             Ok(_) => {
                 // TODO: improvements?
                 self.consequence_q
-                    .push_back((*literal.borrow(), self.literal_db.choice_count()));
+                    .push_back((*literal.borrow(), self.literal_db.decision_count()));
 
                 Ok(Ok::Qd)
             }

@@ -79,8 +79,8 @@ pub struct abLiteral {
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum Source {
-    /// A choice was made where the alternative the alternative would make no difference to satisfiability.
-    FreeChoice,
+    /// A decision was made where the alternative the alternative would make no difference to satisfiability.
+    PureLiteral,
 
     /// A consequence of boolean constraint propagation.
     BCP(ClauseKey),

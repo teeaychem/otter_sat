@@ -5,16 +5,15 @@
 //! otter_sat is developed to help researchers, developers, or anyone curious, to investigate satisfiability solvers, whether as a novice or through implementing novel ideas.
 //! In this respect, otter_sat may (eventually) be seen as similar to [MiniSAT](minisat.se).
 //!
-//! Some [guiding principles](#guiding-principles) of otter_sat are (see [below](#guiding-principles) for further details):
+//! Some guiding principles of otter_sat are (see [below](#guiding-principles) for further details):
 //! - [Modularity](#modularity).
 //! - Documentation, of both implementation and theory.
 //! - [Verification](#verification).
 //! - [Simple efficiency](#simple-efficiency).
 //!
-//!
 //! # Orientation
 //!
-//! The library is design around the core structure of a '[context]'.
+//! The library is design around the core structure of a [context].
 //!
 //! Contexts are built with a configuration and optional method for recording [dispatches](crate::dispatch) from a solve, and clauses may be added though the [DIMACS](crate::context::GenericContext::read_dimacs) representation of a formula or [programatically](crate::context::GenericContext::clause_from_string).
 //!
@@ -27,13 +26,21 @@
 //! Consequences follow a current valuation and formula, which in turn lead to a revised valuation and/or formula, from which further consequences follow.
 //! And, in terms of implementation, data from the clause and atom database is read, used to update the literal database, which in turn leads to revisions of the atom and/or clause database.
 //!
-//! Good starting points, then, may be:
+//! Useful starting points, then, may be:
 //! - The high-level [solve procedure](crate::procedures::solve) to inspect the dynamics of a solve.
 //! - The [database module](crate::db) to inspect the data considered during a solve.
 //! - The [structures] to familiarise yourself with the abstract elements of a solve and their representation (formulas, clauses, etc.)
 //! - The [configuration](crate::config) to see what features are supported.
 //!
-//! # Example --- All models
+//! If you're in search of cnf formulas consider:
+//! - The SATLIB benchmark problems at [www.cs.ubc.ca/~hoos/SATLIB/benchm.html](https://www.cs.ubc.ca/~hoos/SATLIB/benchm.html)
+//! - The Global Benchmark Database at [benchmark-database.de](https://benchmark-database.de)
+//! - SAT/SMT by Example at [smt.st](https://smt.st)
+//!
+//! # Examples
+//!
+//! + Find (a count of) all valuations of some collection of atoms.
+//!
 //! ```rust
 //! # use otter_sat::config::Config;
 //! # use otter_sat::context::Context;
@@ -50,8 +57,8 @@
 //! let mut count = 0;
 //!
 //! loop {
-//!     // Clear any choices made on a previous solve and
-//!     the_context.clear_choices();
+//!     // Clear any decisions made on a previous solve and
+//!     the_context.clear_decisions();
 //!     // Determine the satisfiability of the formula in the context.
 //!     assert!(the_context.solve().is_ok());
 //!
@@ -88,27 +95,8 @@
 //! assert_eq!(count, 2_usize.pow(atoms.len().try_into().unwrap()));
 //! ```
 //!
-//! # Example --- DIMACS
-//! ```rust
-//! # use otter_sat::context::Context;
-//! # use otter_sat::config::Config;
-//! # use std::io::Write;
-//! # use otter_sat::dispatch::library::report::{self};
-//! # use otter_sat::types::err::{self};
-//! let mut the_context = Context::from_config(Config::default(), None);
+//! + Parse and solve a DIMACS formula.
 //!
-//! let mut dimacs = vec![];
-//! let _ = dimacs.write(b"
-//!  p       0
-//! -p  q    0
-//! -p -q  r 0
-//! -r       0
-//! ");
-//! // Some instances of unsatisfiability may be caught when building a context.
-//! assert_eq!(the_context.read_dimacs(dimacs.as_slice()), Err(err::Build::Unsatisfiable));
-//! ```
-//!
-//! # Example --- DIMACS 2
 //! ```rust
 //! # use otter_sat::context::Context;
 //! # use otter_sat::config::Config;
@@ -124,22 +112,32 @@
 //! -p -q 0
 //!  p -q 0
 //! ");
-//! // Others require a solve.
+//!
 //! the_context.read_dimacs(dimacs.as_slice());
 //! the_context.solve();
 //! assert_eq!(the_context.report(), report::Solve::Unsatisfiable);
 //! ```
 //!
-//! # Debugging
+//! + Identify unsatisfiability of a DIMACS formula during parsing.
 //!
-//! To help diagnose issues (somewhat) detailed calls to [log!](log) are made, and a variety of targets are defined in order to help narrow output to relevant parts of the library.
-//! As logging is only built on request, and further can be requested by level, logs are verbose.
+//! ```rust
+//! # use otter_sat::context::Context;
+//! # use otter_sat::config::Config;
+//! # use std::io::Write;
+//! # use otter_sat::dispatch::library::report::{self};
+//! # use otter_sat::types::err::{self};
+//! let mut the_context = Context::from_config(Config::default(), None);
 //!
-//! The targets are lists in [misc::log].
+//! let mut dimacs = vec![];
+//! let _ = dimacs.write(b"
+//!  p       0
+//! -p  q    0
+//! -p -q  r 0
+//!       -r 0
+//! ");
 //!
-//! For example, when used with [env_logger](https://docs.rs/env_logger/latest/env_logger/):
-//! - Logs related to [the clause database](crate::db::clause) can be filtered with `RUST_LOG=clause_db …` or,
-//! - Logs of reduction count without information about the clauses removed can be found with `RUST_LOG=reduction=info …`
+//! assert_eq!(the_context.read_dimacs(dimacs.as_slice()), Err(err::Build::Unsatisfiable));
+//! ```
 //!
 //! # Guiding principles
 //!
@@ -168,6 +166,18 @@
 //!   + The library makes free use of unsafe so long as a reason for why the relevant invariant is maintained.
 //!   + Though, many relevant invariants escape the borrow checker, and for this purpose 'soundness' notes are made where relevant.
 //!   + In addition, there are times when some not-so-simple Rust is required to appease the borrow checker (notably [BCP](crate::procedures::bcp)) and explanations are given of these.
+//!
+//! # Logs
+//!
+//! To help diagnose issues (somewhat) detailed calls to [log!](log) are made, and a variety of targets are defined in order to help narrow output to relevant parts of the library.
+//! As logging is only built on request, and further can be requested by level, logs are verbose.
+//!
+//! The targets are lists in [misc::log].
+//!
+//! For example, when used with [env_logger](https://docs.rs/env_logger/latest/env_logger/):
+//! - Logs related to [the clause database](crate::db::clause) can be filtered with `RUST_LOG=clause_db …` or,
+//! - Logs of reduction count without information about the clauses removed can be found with `RUST_LOG=reduction=info …`
+//!
 
 #![allow(mixed_script_confusables)]
 #![allow(unused_must_use)]

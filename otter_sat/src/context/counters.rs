@@ -10,8 +10,8 @@ pub struct Counters {
     /// As u32 rather than a usize for easier interaction with scheduling variables.
     pub fresh_conflicts: u32,
 
-    /// A count of total choice made.
-    pub total_choices: usize,
+    /// A count of all decisions made.
+    pub total_decisions: usize,
 
     /// The total number of iterations through a solve.
     pub total_iterations: usize,
@@ -31,7 +31,7 @@ impl Default for Counters {
         Counters {
             fresh_conflicts: 0,
 
-            total_choices: 0,
+            total_decisions: 0,
             total_iterations: 0,
             total_conflicts: 0,
 

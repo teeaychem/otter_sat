@@ -2,7 +2,7 @@
 //!
 //! # Overview
 //!
-//! The core choice procedure is straightforward:
+//! The core decision procedure is straightforward:
 //! - Search through all atoms in the context for an atom which is not assigned a value, and assign either true or false.
 //!
 //! ```rust,ignore
@@ -11,16 +11,16 @@
 //! self.atom_db.valuation().unvalued_atoms().choose(rng_source);
 //! ```
 //!
-//! # Choices as literals
+//! # Decisions as literals
 //!
-//! Strictly a choice is to value some atom *a* with value *v*.
-//! Still, it is convenient to represent such a choice as a literal with atom *a* and polarity *v*.
-//! For example, a choice to value *p* with value *false* can be represented with the literal *-p*.
+//! Strictly a decision is to value some atom *a* with value *v*.
+//! Still, it is convenient to represent such a decision as a literal with atom *a* and polarity *v*.
+//! For example, a decision to value *p* with value *false* can be represented with the literal *-p*.
 //!
 //! ```rust,ignore
 //! let atom = self.atom_db.valuation().unvalued_atoms().next()?;
 //! let value = self.rng.gen_bool(self.config.polarity_lean);
-//! let choice_as_literal = abLiteral::fresh(atom, value);
+//! let decision_as_literal = abLiteral::fresh(atom, value);
 //! ```
 //!
 //! # Heuristics
@@ -51,7 +51,7 @@
 //!
 //! # Randomness
 //!
-//! Use of activity, phase saving, or any other heuristic may be probabilistic, and likewise for the choice of atom and the choice of polarity.
+//! Use of activity, phase saving, or any other heuristic may be probabilistic, and likewise for the decision of atom and the decision of polarity.
 
 use rand::{seq::IteratorRandom, Rng};
 
@@ -70,23 +70,23 @@ use crate::{
 pub enum Ok {
     /// Some truth value was assigned to some atom.
     Literal(abLiteral),
-    /// All atoms had already been assigned truth values, so no choice could be made.
+    /// All atoms had already been assigned truth values, so no decision could be made.
     Exhausted,
 }
 
-/// Methods related to making choices.
+/// Methods related to making decisions.
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
-    /// Makes a choice using rng to determine whether to make a random choice or to take the atom with the highest activity.
+    /// Makes a decision using rng to determine whether to make a random decision or to take the atom with the highest activity.
     ///
-    /// Returns a result detailing the status of the choice or an error from attempting to enque the choice.
+    /// Returns a result detailing the status of the decision or an error from attempting to enque the decision.
     ///
     /// ```rust, ignore
-    /// match self.make_choice()? {
-    ///     choice::Ok::Made => continue,
-    ///     choice::Ok::Exhausted => break,
+    /// match self.make_decision()? {
+    ///     decision::Ok::Made => continue,
+    ///     decision::Ok::Exhausted => break,
     /// }
     /// ```
-    pub fn make_choice(&mut self) -> Result<Ok, err::Queue> {
+    pub fn make_decision(&mut self) -> Result<Ok, err::Queue> {
         // Takes ownership of rng to satisfy the borrow checker.
         // Avoidable, at the cost of a less generic atom method.
         let mut rng = std::mem::take(&mut self.rng);
@@ -94,9 +94,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         self.rng = rng;
         match chosen_atom {
             Some(chosen_atom) => {
-                self.counters.total_choices += 1;
+                self.counters.total_decisions += 1;
 
-                let choice_literal = match self.config.switch.phase_saving {
+                let decision_literal = match self.config.switch.phase_saving {
                     true => {
                         let previous_value = self.atom_db.previous_value_of(chosen_atom);
                         abLiteral::fresh(chosen_atom, previous_value)
@@ -106,9 +106,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         abLiteral::fresh(chosen_atom, random_value)
                     }
                 };
-                log::trace!("Choice {choice_literal}");
+                log::trace!("Decision {decision_literal}");
 
-                Ok(Ok::Literal(choice_literal))
+                Ok(Ok::Literal(decision_literal))
             }
             None => {
                 self.status = dbStatus::Consistent;
@@ -117,13 +117,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
     }
 
-    /// Returns an atom which has no value on the current valuation, either by random choice or by most activity.
+    /// Returns an atom which has no value on the current valuation, either by random decision or by most activity.
     ///
     /// ```rust,ignore
     /// let atom = self.atom_without_value(MinimalPCG32::default())?;
     /// ```
     pub fn atom_without_value(&mut self, rng: &mut impl Rng) -> Option<Atom> {
-        match rng.gen_bool(self.config.random_choice_frequency) {
+        match rng.gen_bool(self.config.random_decision_bias) {
             true => self.atom_db.valuation().unvalued_atoms().choose(rng),
             false => {
                 while let Some(atom) = self.atom_db.heap_pop_most_active() {
@@ -136,13 +136,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
     }
 
-    /// Resets all choices and consequences of those choises.
+    /// Resets all decisions and consequences of those choises.
     ///
-    /// In other words, backjumps to before a choice was made.
+    /// In other words, backjumps to before a decision was made.
     /// ```rust, ignore
-    /// context.clear_choices();
+    /// context.clear_decisions();
     /// ```
-    pub fn clear_choices(&mut self) {
+    pub fn clear_decisions(&mut self) {
         self.backjump(0);
     }
 }
