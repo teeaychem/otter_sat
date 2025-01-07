@@ -2,6 +2,13 @@
 name = "otter_sat"
 version = "0.1.0"
 edition = "2021"
+license = "GNU Affero General Public License (AGPL) Version 3"
+homepage = "https://github.com/teeaychem/otter_sat"
+repository = "https://github.com/teeaychem/otter_sat.git"
+categories = ["science", "mathematics"]
+keywords = ["sat"]
+description = "A library for determining the satisfiability of boolean formulas written in conjunctive normal form, developed to support investigation into solvers by researchers, developers, or anyone curious."
+documentation = "https://docs.rs/otter_sat/"
 
 [lib]
 name = "otter_sat"

@@ -2,3 +2,4 @@
 /target
 **.cnf
 /otter_tests/frat-rs
+/otter_sat/examples/todo/
