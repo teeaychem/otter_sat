@@ -20,11 +20,13 @@
 //!
 //! # Literature
 //!
-//! Watched literals were introduced with [Chaff](https://dl.acm.org/doi/10.1145/378239.379017).
+//! [The art of computer programming, Volume 4](https://www-cs-faculty.stanford.edu/~knuth/taocp.html) discusses watched literals in the *Lazy data structures* section of *Backtracking Algorithms*.
+//! And, Knuth attributes the introduction of watched literals to [An Empirical Comparison of Backtracking Algorithms](https://doi.org/10.1109/TPAMI.1982.4767250).
 //!
-//! [US7418369B2](https://patents.google.com/patent/US7418369B2/en) is a patent covering Chaff, though at the time of writing the status of the patent is 'Expired'.
+//! It seems general use of watched literals followed from [Chaff](https://dl.acm.org/doi/10.1145/378239.379017).[^patent]
+//! [^patent]: [US7418369B2](https://patents.google.com/patent/US7418369B2/en) is a patent covering Chaff, though at the time of writing the status of the patent is 'Expired'.
 //!
-//! The implentation of watch literals follows [Optimal implementation of watched literals and more general techniques](https://www.jair.org/index.php/jair/article/view/10839).
+//! The given implentation of watch literals follows [Optimal implementation of watched literals and more general techniques](https://www.jair.org/index.php/jair/article/view/10839).
 //!
 //! # Implementation
 //!

@@ -37,7 +37,7 @@ cargo run --example <EXAMPLE NAME>
 Specific examples are:
 
 ```
-cargo run --example
+cargo run --example sudoku
 cargo run --example all_models
 ```
 
