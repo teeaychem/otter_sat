@@ -1,14 +1,16 @@
 [package]
-name = "otter_sat"
-version = "0.1.0"
-edition = "2021"
-license = "GNU Affero General Public License (AGPL) Version 3"
-homepage = "https://github.com/teeaychem/otter_sat"
-repository = "https://github.com/teeaychem/otter_sat.git"
+authors = ["teeaychem <bsparkes@alumni.stanford.edu>"]
 categories = ["science", "mathematics"]
-keywords = ["sat"]
 description = "A library for determining the satisfiability of boolean formulas written in conjunctive normal form, developed to support investigation into solvers by researchers, developers, or anyone curious."
 documentation = "https://docs.rs/otter_sat/"
+edition = "2021"
+homepage = "https://github.com/teeaychem/otter_sat"
+keywords = ["sat"]
+license = "GNU Affero General Public License (AGPL) Version 3"
+name = "otter_sat"
+readme = "readme.md"
+repository = "https://github.com/teeaychem/otter_sat.git"
+version = "0.0.9"
 
 [lib]
 name = "otter_sat"
@@ -22,4 +24,4 @@ rand = { version = "0.8.5", default-features = false }
 rand_core = "0.6.4"
 
 [dev-dependencies]
-crossbeam = "0.8.4"
+crossbeam = "0.8.4" # Used to run examples.
