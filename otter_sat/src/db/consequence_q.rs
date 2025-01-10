@@ -1,6 +1,19 @@
 //! A queue of observed consequences to be propagated.
 //!
+//! Observed consequences are atom-value pairs, such  that the given atom *must* have the given value on the current valuation.
+//! For convenience, each atom-value pair represented as a literal.
 //!
+//! The following invariant is always upheld:
+//! <div class="warning">
+//! Whenever the current valuation is extended so that atom <i>a</i> has value <i>v</i>, that atom <i>a</i> has value <i>v</i> is added to the consequence queue.
+//! </div>
+//!
+//! Queuing a literal results in an immediate attempt to update the current valuation with the observation.
+//! - If the consequence is *already* part of the current valuation, nothing happens.\
+//!   In this case, given the invariant above conseqence is, or has already been, on the queue.
+//! - If the consequence is *not* already part of the current valuation, the valuation is updated with the consequence and a literal representing the atom-value pair is added to the queue, ready to be examined by a process such as [BCP](crate::procedures::bcp).
+//! - If the consequence *conflicts* with the current valuation, a conflict has been found and an error is returned.\
+//!   Here, a prodedure such as [analysis](crate::procedures::analysis) may be used to recover from the conflict.
 //!
 //! For primary use case see the following associated [GenericContext] methods:
 //! - [GenericContext::q_literal]
@@ -25,6 +38,20 @@ pub type ConsequenceQ = std::collections::VecDeque<(abLiteral, LevelIndex)>;
 pub enum Ok {
     /// The literal was (successfully) queued.
     Qd,
+
+    /// The literal was skipped.
+    ///
+    /// This may happen, e.g., if the consequences of the literal are (set to be) applied.
+    Skip,
+}
+
+/// Relative positions to place a literal on the consequence queue.
+pub enum QPosition {
+    /// The front of the queue
+    Front,
+
+    /// The back of the queue
+    Back,
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
@@ -46,7 +73,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// let a_literal = abLiteral::fresh(atom, value);
     /// self.q_literal(a_literal);
     /// ```
-    pub fn q_literal(&mut self, literal: impl Borrow<abLiteral>) -> Result<Ok, err::Queue> {
+    pub fn q_literal(
+        &mut self,
+        literal: impl Borrow<abLiteral>,
+        position: QPosition,
+    ) -> Result<Ok, err::Queue> {
         let valuation_result = unsafe {
             self.atom_db.set_value(
                 literal.borrow().atom(),
@@ -55,17 +86,42 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             )
         };
         match valuation_result {
-            Ok(_) => {
+            Ok(super::atom::AtomValue::NotSet) => {
                 // TODO: improvements?
-                self.consequence_q
-                    .push_back((*literal.borrow(), self.literal_db.decision_count()));
+                match position {
+                    QPosition::Front => self
+                        .consequence_q
+                        .push_front((*literal.borrow(), self.literal_db.decision_count())),
+                    QPosition::Back => self
+                        .consequence_q
+                        .push_back((*literal.borrow(), self.literal_db.decision_count())),
+                }
 
                 Ok(Ok::Qd)
             }
+            Ok(_) => Ok(Ok::Skip),
             Err(_) => {
                 log::trace!(target: targets::QUEUE, "Queueing {} failed.", literal.borrow());
                 Err(err::Queue::Conflict)
             }
+        }
+    }
+
+    /// Places a literal on the consequence queue, always.
+    ///
+    /// # Soundness
+    /// This does not check to ensure the literal is not (already) unsatisfiable on the current valuation.
+    /// I.e., that it is not possible to value the atom of the literal with the polarity of the literal.
+    /// [GenericContext::q_literal] may be appropriate.
+    pub fn q_literal_regardless(
+        &mut self,
+        literal: impl Borrow<abLiteral>,
+        level: LevelIndex,
+        position: QPosition,
+    ) {
+        match position {
+            QPosition::Front => self.consequence_q.push_front((*literal.borrow(), level)),
+            QPosition::Back => self.consequence_q.push_back((*literal.borrow(), level)),
         }
     }
 }

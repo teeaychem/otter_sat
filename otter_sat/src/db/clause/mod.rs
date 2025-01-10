@@ -122,7 +122,7 @@ impl ClauseDB {
         &mut self,
         clause: impl Clause,
         source: Source,
-        atoms: &mut AtomDB,
+        atom_db: &mut AtomDB,
     ) -> Result<ClauseKey, err::ClauseDB> {
         match clause.size() {
             0 => Err(err::ClauseDB::EmptyClause),
@@ -139,7 +139,7 @@ impl ClauseDB {
                 let key = self.fresh_binary_key()?;
 
                 self.binary
-                    .push(dbClause::from(key, clause.canonical(), atoms));
+                    .push(dbClause::from(key, clause.canonical(), atom_db));
 
                 Ok(key)
             }
@@ -150,7 +150,7 @@ impl ClauseDB {
                 Source::Original => {
                     let key = self.fresh_original_key()?;
                     log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_string());
-                    let stored_form = dbClause::from(key, clause.canonical(), atoms);
+                    let stored_form = dbClause::from(key, clause.canonical(), atom_db);
 
                     self.original.push(stored_form);
                     Ok(key)
@@ -165,11 +165,11 @@ impl ClauseDB {
                     };
                     log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_string());
 
-                    let stored_form = dbClause::from(key, clause.canonical(), atoms);
+                    let stored_form = dbClause::from(key, clause.canonical(), atom_db);
 
                     let value = ActivityLBD {
                         activity: 1.0,
-                        lbd: stored_form.lbd(atoms),
+                        lbd: stored_form.lbd(atom_db),
                     };
 
                     self.activity_heap.add(key.index(), value);

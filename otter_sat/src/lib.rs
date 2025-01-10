@@ -163,7 +163,7 @@
 //!
 //! The solver is efficient in most operations, and known inefficiencies are often noted.
 //! Still, while comprimises are made for the same of efficiency, overall the library is written using mostly simple Rust, with annotated uses of unsafe, notes on when using a function would be unsound, and fights with the borrow checker explained.
-//!   + The library makes free use of unsafe so long as a reason for why the relevant invariant is maintained.
+//!   + The library makes free use of unsafe so long as some reason is given for why safety is maintained.
 //!   + Though, many relevant invariants escape the borrow checker, and for this purpose 'soundness' notes are made where relevant.
 //!   + In addition, there are times when some not-so-simple Rust is required to appease the borrow checker (notably [BCP](crate::procedures::bcp)) and explanations are given of these.
 //!

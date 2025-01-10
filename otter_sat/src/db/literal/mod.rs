@@ -75,12 +75,10 @@ impl LiteralDB {
     /// ```
     /// # Safety
     /// No check is made to ensure a decision has been made.
-    pub fn last_consequences_unchecked(&self) -> &[(literal::Source, abLiteral)] {
-        unsafe {
-            self.level_stack
-                .get_unchecked(self.level_stack.len() - 1)
-                .consequences()
-        }
+    pub unsafe fn last_consequences_unchecked(&self) -> &[(literal::Source, abLiteral)] {
+        self.level_stack
+            .get_unchecked(self.level_stack.len() - 1)
+            .consequences()
     }
 
     /// Consequences at the given level.

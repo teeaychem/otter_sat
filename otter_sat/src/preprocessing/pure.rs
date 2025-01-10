@@ -49,20 +49,24 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
 
     for atom in f.into_iter() {
         let the_literal = abLiteral::fresh(atom, false);
-        match context.q_literal(the_literal) {
+        match context.q_literal(the_literal, consequence_q::QPosition::Back) {
             Ok(consequence_q::Ok::Qd) => {
                 context.record_literal(the_literal, literal::Source::PureLiteral);
             }
+            Ok(consequence_q::Ok::Skip) => {}
+
             Err(e) => return Err(e),
         }
     }
 
     for atom in t.into_iter() {
         let the_literal = abLiteral::fresh(atom, true);
-        match context.q_literal(the_literal) {
+        match context.q_literal(the_literal, consequence_q::QPosition::Back) {
             Ok(consequence_q::Ok::Qd) => {
-                context.record_literal(the_literal, literal::Source::PureLiteral);
+                context.record_literal(the_literal, literal::Source::PureLiteral)
             }
+
+            Ok(consequence_q::Ok::Skip) => {}
             Err(e) => return Err(e),
         }
     }

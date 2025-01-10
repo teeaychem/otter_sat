@@ -45,9 +45,9 @@
 //!   |               | if a clause is added to the formula
 //!   |               |
 //!   |               ⌄
-//!   |           +----------+
-//!   +-----------| backjump |
-//!               +----------+
+//!   |          +----------+
+//!   +----------| backjump |
+//!              +----------+
 //! ```
 //!
 //! And, abstracting from various other bookkeeping tasks and optional actions after a context, solve is:
@@ -166,6 +166,8 @@ use crate::{
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn solve(&mut self) -> Result<report::Solve, err::Context> {
+        use crate::db::consequence_q::QPosition::{self};
+
         let total_time = std::time::Instant::now();
 
         self.preprocess()?;
@@ -190,7 +192,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     match self.make_decision()? {
                         decision::Ok::Literal(decision) => {
                             self.literal_db.note_decision(decision);
-                            self.q_literal(decision)?;
+                            self.q_literal(decision, QPosition::Back)?;
                             continue 'solve_loop;
                         }
                         decision::Ok::Exhausted => break 'solve_loop,
@@ -201,7 +203,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 apply_consequences::Ok::UnitClause(literal) => {
                     self.backjump(0);
 
-                    self.q_literal(literal)?;
+                    self.q_literal(literal, QPosition::Front)?;
                 }
 
                 apply_consequences::Ok::AssertingClause(key, literal) => {
@@ -213,7 +215,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     macros::send_bcp_delta!(self, Instance, literal, key);
 
                     self.record_literal(literal, literal::Source::BCP(key));
-                    self.q_literal(literal)?;
+                    self.q_literal(literal, QPosition::Front)?;
                 }
             }
 

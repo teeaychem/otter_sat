@@ -30,7 +30,7 @@ impl ClauseDB {
     pub fn transfer_to_binary(
         &mut self,
         key: ClauseKey,
-        atoms: &mut AtomDB,
+        atom_db: &mut AtomDB,
     ) -> Result<ClauseKey, err::ClauseDB> {
         match key {
             ClauseKey::Unit(_) => {
@@ -58,9 +58,9 @@ impl ClauseDB {
                 unsafe {
                     // Ok, as checked length is 2, above.
                     let zero = copied_clause.get_unchecked(0);
-                    atoms.unwatch_unchecked(zero.atom(), zero.polarity(), &key)?;
+                    atom_db.unwatch_unchecked(zero.atom(), zero.polarity(), &key)?;
                     let one = copied_clause.get_unchecked(1);
-                    atoms.unwatch_unchecked(one.atom(), one.polarity(), &key)?;
+                    atom_db.unwatch_unchecked(one.atom(), one.polarity(), &key)?;
                 }
 
                 if let Some(dispatch) = &self.dispatcher {
@@ -74,7 +74,7 @@ impl ClauseDB {
                     dispatch(Dispatch::Delta(Delta::ClauseDB(delta)));
                 }
 
-                let binary_clause = dbClause::from(binary_key, copied_clause, atoms);
+                let binary_clause = dbClause::from(binary_key, copied_clause, atom_db);
 
                 self.binary.push(binary_clause);
 
