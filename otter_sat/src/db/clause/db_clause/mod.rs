@@ -17,7 +17,7 @@
 //!
 //! In particular, watches are initialised for any clause containing two or more literals.
 //!
-//! At present, the literals watched are the *first* and *second* literals in the clause.
+//! At present, the literals watched are the *first* literal in the clause and the literal at the position of `watch_ptr`.
 //! In order to preserve this invariant, order of literals in the claue is mutated as nedded.
 //! For details on the way watched literals are updated, see implementations (notably [update_watch](dbClause::update_watch)).
 
@@ -36,6 +36,7 @@ mod subsumption;
 #[doc(hidden)]
 mod watches;
 
+/// A clause together with some metadata.
 #[allow(non_camel_case_types)]
 pub struct dbClause {
     /// A key for accessing the clause
@@ -54,7 +55,7 @@ impl dbClause {
     /// Note: This does not store the [dbClause] in the [clause database](crate::db::clause::ClauseDB).
     /// Instead, this is the canonical way to obtained some thing to be stored in a database.
     /// See, e.g. the [ClauseDB]((crate::db::clause::ClauseDB)) '[store](crate::db::clause::ClauseDB::store)' method for example use.
-    pub fn from(key: ClauseKey, clause: vClause, atoms: &mut AtomDB) -> Self {
+    pub fn from(key: ClauseKey, clause: vClause, atom_db: &mut AtomDB) -> Self {
         let mut db_clause = Self {
             key,
             clause,
@@ -62,7 +63,7 @@ impl dbClause {
             watch_ptr: 0,
         };
 
-        db_clause.initialise_watches(atoms);
+        db_clause.initialise_watches(atom_db);
 
         db_clause
     }

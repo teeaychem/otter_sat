@@ -78,7 +78,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// For documentation see [procedures::bcp](crate::procedures::bcp).
     /// # Safety
     /// The implementation of bcp requires a key invariant to be upheld:
-    /// - Watch elements at index 0.
+    /// <div class="warning">
+    /// The literal at index 0 is a watched literal.
+    /// </div>
     pub unsafe fn bcp(&mut self, literal: impl Borrow<abLiteral>) -> Result<(), err::BCP> {
         let literal = literal.borrow();
 
@@ -98,11 +100,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 };
 
                 match self.atom_db.value_of(check.atom()) {
-                    None => match self.q_literal(*check) {
+                    None => match self.q_literal(*check, consequence_q::QPosition::Back) {
                         Ok(consequence_q::Ok::Qd) => {
                             macros::send_bcp_delta!(self, Instance, *check, *clause_key);
                             self.record_literal(check, literal::Source::BCP(*clause_key));
                         }
+
+                        Ok(consequence_q::Ok::Skip) => {}
 
                         Err(_key) => {
                             return Err(err::BCP::Conflict(*clause_key));
@@ -180,8 +184,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             None => {
                                 self.clause_db.note_use(*clause_key);
 
-                                match self.q_literal(the_watch) {
-                                    Ok(consequence_q::Ok::Qd) => {}
+                                match self.q_literal(the_watch, consequence_q::QPosition::Back) {
+                                    Ok(consequence_q::Ok::Qd) | Ok(consequence_q::Ok::Skip) => {}
+
                                     Err(_) => return Err(err::BCP::Conflict(*clause_key)),
                                 };
 

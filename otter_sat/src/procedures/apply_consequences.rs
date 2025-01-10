@@ -9,11 +9,15 @@
 //! - Makes a decision, if the formula entails itself and the valuation is partial.
 //! - Backjumps to a different valuation, if the formula entails some formula with an additional clause.
 //!
-//!
 //! - A return of *unsatisfiable* is represented as a `FundamentalConflict`.
 //! - A return of a new clause is represented with a [key](crate::db::ClauseKey) to the clause, and an asserted literal.
 //! - No change is represented by a return of `Exhausted`.
 //!   + It is up to a caller of apply_consequences to note whether the background valuation is complete.
+//!
+//! The following invariant is upheld:
+//! <div class="warning">
+//! apply_consequences returns the same formula only if there are no further consequences to apply.
+//! </div>
 //!
 //! # Overview
 //!
@@ -30,18 +34,18 @@
 //! This is to allow for further actions to be taken due to a conflict having been found.
 //!
 //! ```rust,ignore
-//! while let Some((literal, _)) = self.consequence_q.pop_front() {
+//! while let Some((literal, _)) = self.consequence_q.front() {
 //!     match self.bcp(literal) {
-//!         Ok(()) => {} // continue applying consequences
+//!         Ok(()) => self.consequence_q.pop_front(), // continue applying consequences
 //!         Err(err::BCP::Conflict(key)) => {
 //!             if !self.literal_db.decision_made() {
 //!                 return Ok(Ok::FundamentalConflict);
 //!             }
-
+//!
 //!             match self.conflict_analysis(&key)? {
 //!                 // Analysis is only called when some decision has been made.
 //!                 analysis::Ok::FundamentalConflict => !,
-
+//!
 //!                 analysis::Ok::MissedPropagation {
 //!                     clause_key: key,
 //!                     asserted_literal: literal,
@@ -50,11 +54,11 @@
 //!                     ...
 //!                     continue 'application;
 //!                 }
-
+//!
 //!                 analysis::Ok::UnitClause(key) => {
 //!                     return Ok(Ok::UnitClause(key));
 //!                 }
-
+//!
 //!                 analysis::Ok::AssertingClause {
 //!                     clause_key: key,
 //!                     asserted_literal: literal,
@@ -72,13 +76,13 @@
 //!
 //! In some situations the opportunity to propagate a consequence may be 'missed'.
 //! This is identified when conflict analysis returns a clause already present in the clause database.
-//! And, this implies BCP does not propagate *all* boolean constraints.
 //!
+//! As missed propagation implies BCP does not propagate *all* boolean constraints before identifying a conflict.
 //! For, a missed propagation means it is possible to backjump to some sub-valuation on which the clause is asserting, and the valuation obtained by cohering with the asserted literal must be different from the valuation on which the clause is unsatisfiable.
 //!
-//! With respect to the core algorithm, this is because the current implementation this is because asserted literals are placed on the consequence queue, rather than being immediately asserted.
-//! Paired with a heuristic which examines binary clauses first, and it's possible to find multiple ways to derive the same conflict clause.
-// TODO: Implement eager propagation, sometime.
+//! Note, an unsatisfiable formula is unsatisfiable regardless of whether any propagation are missed.
+//! And, a satisfiable formula is satisfiable so long all original clause propagations are made.
+//! So, a solver may be sound and miss some propagations.
 //!
 //! Regardless, missed propagations are returned to and their consequences applied *within* an instance of apply_consequences, in order to maintain the invariant that apply_consequences returns the same formula only if there are no further consequences to apply.
 
@@ -107,12 +111,24 @@ pub enum Ok {
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
-    /// Expand queued consequences:
-    /// Performs an analysis on apparent conflict.
+    /// Applies queued consequences.
+    ///
+    /// apply_consequences applies BCP to the consequence queue until either a conflict is found or the queue is exhausted.
+    ///
+    /// Queued consequences are removed from the queue only if BCP was successful.
+    /// For, in the case of a conflict the consequence may remain, and otherwise will be removed from the queue during a backjump.
     pub fn apply_consequences(&mut self) -> Result<Ok, err::Context> {
-        'application: while let Some((literal, _)) = self.consequence_q.pop_front() {
+        use crate::db::consequence_q::QPosition::{self};
+
+        'application: loop {
+            let Some((literal, _)) = self.consequence_q.front().cloned() else {
+                return Ok(Ok::Exhausted);
+            };
+
             match unsafe { self.bcp(literal) } {
-                Ok(()) => {}
+                Ok(()) => {
+                    self.consequence_q.pop_front();
+                }
                 Err(err::BCP::CorruptWatch) => return Err(err::Context::BCP),
                 Err(err::BCP::Conflict(key)) => {
                     //
@@ -129,8 +145,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         analysis::Ok::FundamentalConflict => panic!("!"),
 
                         analysis::Ok::MissedPropagation {
-                            clause_key: key,
-                            asserted_literal: literal,
+                            key,
+                            literal: asserted_literal,
                         } => {
                             // panic!("!");
                             let the_clause = unsafe { self.clause_db.get_unchecked(&key)? };
@@ -138,11 +154,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let index = self.non_chronological_backjump_level(the_clause)?;
                             self.backjump(index);
 
-                            self.q_literal(literal)?;
+                            self.q_literal(asserted_literal, QPosition::Front)?;
 
-                            macros::send_bcp_delta!(self, Instance, literal, key);
+                            macros::send_bcp_delta!(self, Instance, asserted_literal, key);
 
-                            self.record_literal(literal, literal::Source::BCP(key));
+                            self.record_literal(asserted_literal, literal::Source::BCP(key));
 
                             continue 'application;
                         }
@@ -151,16 +167,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             return Ok(Ok::UnitClause(key));
                         }
 
-                        analysis::Ok::AssertingClause {
-                            clause_key: key,
-                            asserted_literal: literal,
-                        } => {
+                        analysis::Ok::AssertingClause { key, literal } => {
                             return Ok(Ok::AssertingClause(key, literal));
                         }
                     }
                 }
             }
         }
-        Ok(Ok::Exhausted)
     }
 }

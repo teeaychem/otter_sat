@@ -18,12 +18,12 @@ impl Clause for abLiteral {
         the_string
     }
 
-    fn as_dimacs(&self, atoms: &AtomDB, zero: bool) -> String {
+    fn as_dimacs(&self, atom_db: &AtomDB, zero: bool) -> String {
         let mut the_string = String::new();
 
         let the_represenetation = match self.polarity() {
-            true => format!(" {} ", atoms.external_representation(self.atom())),
-            false => format!("-{} ", atoms.external_representation(self.atom())),
+            true => format!(" {} ", atom_db.external_representation(self.atom())),
+            false => format!("-{} ", atom_db.external_representation(self.atom())),
         };
         the_string.push_str(the_represenetation.as_str());
 

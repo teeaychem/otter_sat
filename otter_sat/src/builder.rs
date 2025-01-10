@@ -147,13 +147,15 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 let literal = unsafe { *clause_vec.get_unchecked(0) };
 
                 match self.atom_db.value_of(literal.atom()) {
-                    None => match self.q_literal(literal.borrow()) {
-                        Ok(consequence_q::Ok::Qd) => {
-                            self.record_clause(literal, clause::Source::Original);
-                            Ok(())
+                    None => {
+                        match self.q_literal(literal.borrow(), consequence_q::QPosition::Back) {
+                            Ok(consequence_q::Ok::Qd) => {
+                                self.record_clause(literal, clause::Source::Original);
+                                Ok(())
+                            }
+                            _ => Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict)),
                         }
-                        _ => Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict)),
-                    },
+                    }
 
                     Some(v) if v == literal.polarity() => {
                         // Must be at zero for an assumption, so there's nothing to do

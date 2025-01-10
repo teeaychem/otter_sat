@@ -181,12 +181,13 @@ impl ResolutionBuffer {
     /// Clauses are examined in reverse order of use.
     pub fn resolve_through_current_level(
         &mut self,
-        conflict: &ClauseKey,
+        key: &ClauseKey,
         literal_db: &LiteralDB,
         clause_db: &mut ClauseDB,
         atom_db: &mut AtomDB,
     ) -> Result<Ok, err::ResolutionBuffer> {
-        let base_clause = match unsafe { clause_db.get_unchecked(conflict) } {
+        // The key has already been used to access the conflicting clause.
+        let base_clause = match unsafe { clause_db.get_unchecked(key) } {
             Ok(c) => c,
             Err(_) => return Err(err::ResolutionBuffer::MissingClause),
         };
@@ -194,21 +195,21 @@ impl ResolutionBuffer {
         self.merge_clause(base_clause);
 
         // Maybe the conflit clause was already asserting after the previous decision…
-        if let Some(asserted_literal) = self.asserted_literal() {
-            return Ok(Ok::Missed(*conflict, asserted_literal));
+        if let Some(literal) = self.asserted_literal() {
+            return Ok(Ok::Missed(*key, literal));
         };
 
         macros::send_resolution_delta!(self, delta::Resolution::Begin);
-        macros::send_resolution_delta!(self, delta::Resolution::Used(*conflict));
+        macros::send_resolution_delta!(self, delta::Resolution::Used(*key));
 
         // bump clause activity
-        if let ClauseKey::Addition(index, _) = conflict {
+        if let ClauseKey::Addition(index, _) = key {
             clause_db.bump_activity(*index)
         };
 
-        'resolution_loop: for (source, literal) in
-            literal_db.last_consequences_unchecked().iter().rev()
-        {
+        // Resolution buffer is only used by analysis, which is only called after some decision has been made
+        let the_trail = unsafe { literal_db.last_consequences_unchecked().iter().rev() };
+        'resolution_loop: for (source, literal) in the_trail {
             match source {
                 literal::Source::BCP(the_key) => {
                     let source_clause = match unsafe { clause_db.get_unchecked(the_key) } {

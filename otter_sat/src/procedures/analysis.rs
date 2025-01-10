@@ -54,10 +54,7 @@ use crate::{
 /// Possible 'Ok' results from conflict analysis.
 pub enum Ok {
     /// The conflict clause was asserting at some previous decision level.
-    MissedPropagation {
-        clause_key: ClauseKey,
-        asserted_literal: abLiteral,
-    },
+    MissedPropagation { key: ClauseKey, literal: abLiteral },
 
     /// The result of analysis is a unit clause.
     UnitClause(abLiteral),
@@ -69,10 +66,7 @@ pub enum Ok {
     FundamentalConflict,
 
     /// The result of analysis is a (non-unit) asserting clause.
-    AssertingClause {
-        clause_key: ClauseKey,
-        asserted_literal: abLiteral,
-    },
+    AssertingClause { key: ClauseKey, literal: abLiteral },
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
@@ -92,9 +86,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             &self.config,
         );
 
-        the_buffer.clear_atom_value(unsafe { self.literal_db.last_decision_unchecked().atom() });
-        for (_, literal) in self.literal_db.last_consequences_unchecked() {
-            the_buffer.clear_atom_value(literal.atom());
+        // Some decision must have been made for conflict analysis to take place.
+        unsafe {
+            the_buffer.clear_atom_value(self.literal_db.last_decision_unchecked().atom());
+            for (_, literal) in self.literal_db.last_consequences_unchecked() {
+                the_buffer.clear_atom_value(literal.atom());
+            }
         }
 
         match the_buffer.resolve_through_current_level(
@@ -111,10 +108,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
             }
             Ok(resolution_buffer::Ok::Missed(k, l)) => {
-                return Ok(Ok::MissedPropagation {
-                    clause_key: k,
-                    asserted_literal: l,
-                });
+                return Ok(Ok::MissedPropagation { key: k, literal: l });
             }
             Err(_buffer_error) => {
                 return Err(err::Analysis::Buffer);
@@ -137,26 +131,24 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         let (resolved_clause, assertion_index) = the_buffer.to_assertion_clause();
 
-        let asserted_literal = match assertion_index {
+        let literal = match assertion_index {
             None => {
                 log::error!(target: targets::ANALYSIS, "Failed to resolve to an asserting clause");
                 return Err(err::Analysis::NoAssertion);
             }
+            // Safe, by operation of the resolution buffer.
             Some(index) => *unsafe { resolved_clause.get_unchecked(index) },
         };
 
         match resolved_clause.len() {
             0 => Err(err::Analysis::EmptyResolution),
             1 => {
-                let _ = self.record_clause(asserted_literal, clause::Source::Resolution)?;
-                Ok(Ok::UnitClause(asserted_literal))
+                let _ = self.record_clause(literal, clause::Source::Resolution)?;
+                Ok(Ok::UnitClause(literal))
             }
             _ => {
                 let key = self.record_clause(resolved_clause, clause::Source::Resolution)?;
-                Ok(Ok::AssertingClause {
-                    clause_key: key,
-                    asserted_literal,
-                })
+                Ok(Ok::AssertingClause { key, literal })
             }
         }
     }
