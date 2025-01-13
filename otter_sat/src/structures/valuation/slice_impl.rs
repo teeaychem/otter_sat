@@ -6,7 +6,7 @@ impl<T: std::ops::Deref<Target = [Option<bool>]>> Valuation for T {
         self.get(atom as usize).copied()
     }
 
-    unsafe fn unchecked_value_of(&self, atom: Atom) -> Option<bool> {
+    unsafe fn value_of_unchecked(&self, atom: Atom) -> Option<bool> {
         *self.get_unchecked(atom as usize)
     }
 

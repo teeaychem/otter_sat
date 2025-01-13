@@ -108,6 +108,14 @@ impl AtomDB {
         &self.external_map[index as usize]
     }
 
+    /// Returns the value of an atom given by its exteranl representation
+    pub fn value_of_external(&self, atom: &str) -> Option<bool> {
+        match self.internal_map.get(atom) {
+            Some(atom) => unsafe { self.valuation.value_of_unchecked(*atom) },
+            None => None,
+        }
+    }
+
     /// A fresh atom, and a corresponding update to all the relevant data structures to ensure *unsafe* functions from the perspective of the compiler which do not check for the presence of an atom are safe.
     pub fn fresh_atom(&mut self, string: &str, previous_value: bool) -> Atom {
         let the_atoms = self.watch_dbs.len() as Atom;

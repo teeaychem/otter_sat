@@ -43,7 +43,7 @@ impl<T: Deref<Target = [abLiteral]>> Clause for T {
     fn asserts(&self, val: &impl Valuation) -> Option<abLiteral> {
         let mut the_literal = None;
         for lit in self.deref() {
-            if let Some(existing_val) = unsafe { val.unchecked_value_of(lit.atom()) } {
+            if let Some(existing_val) = unsafe { val.value_of_unchecked(lit.atom()) } {
                 match existing_val == lit.polarity() {
                     true => return None,
                     false => continue,

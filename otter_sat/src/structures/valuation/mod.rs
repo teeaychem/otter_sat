@@ -17,7 +17,7 @@
 //! let atoms =     vec![0,    1,          2];
 //! let valuation = vec![None, Some(true), None];
 //!
-//! assert_eq!(unsafe { valuation.unchecked_value_of(0) }, None);
+//! assert_eq!(unsafe { valuation.value_of_unchecked(0) }, None);
 //! assert_eq!(valuation.unvalued_atoms().count(), 2);
 //! ```
 //!
@@ -59,7 +59,7 @@ pub trait Valuation {
     /// Some value of a atom under the valuation, or otherwise nothing.
     /// # Safety
     /// Implementations are not required to check the atom is part of the valuation.
-    unsafe fn unchecked_value_of(&self, atom: Atom) -> Option<bool>;
+    unsafe fn value_of_unchecked(&self, atom: Atom) -> Option<bool>;
 
     /// An iterator over the values of a atoms in the valuation, in strict, continguous, atom order.
     /// I.e. the first element is the atom '1' and then *n*th element is atom *n*.
