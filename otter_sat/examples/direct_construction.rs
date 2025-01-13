@@ -8,21 +8,6 @@ use otter_sat::{
     },
 };
 
-fn value_of(variable: &str, context: &Context) -> Option<bool> {
-    let mut the_value = None;
-    if context.atom_db.valuation_string().contains(variable) {
-        the_value = Some(true)
-    }
-    if context
-        .atom_db
-        .valuation_string()
-        .contains(format!("-{variable}").as_str())
-    {
-        the_value = Some(false)
-    }
-    the_value
-}
-
 fn main() {
     let config = Config {
         polarity_lean: 0.0, // Always choose to value a variable false
@@ -77,8 +62,8 @@ Representations of: ¬p ∨ q
     println!("After solving the status of 𝐅 is:     {status} (with valuation 𝐕: {valuation})");
     println!();
 
-    assert_eq!(value_of("p", &the_context), Some(false));
-    assert_eq!(value_of("q", &the_context), Some(false));
+    assert_eq!(the_context.atom_db.value_of_external("p"), Some(false));
+    assert_eq!(the_context.atom_db.value_of_external("q"), Some(false));
 
     let p_clause = the_context.clause_from_string("p").unwrap();
     let p_error = the_context.add_clause(p_clause);
@@ -91,7 +76,7 @@ Representations of: ¬p ∨ q
     let p_clause = the_context.clause_from_string("p").unwrap();
     let _p_ok = the_context.add_clause(p_clause);
 
-    assert_eq!(value_of("p", &the_context), Some(true));
+    assert_eq!(the_context.atom_db.value_of_external("p"), Some(true));
 
     assert!(the_context.solve().is_ok());
 
