@@ -91,6 +91,9 @@ mod three_sat_and_backbone_minimal_subinstances {
 
     #[test]
     fn rti_k3_n100_m429() {
+        #[cfg(feature = "log")]
+        env_logger::init();
+
         silent_on_directory(
             cnf_lib_subdir(vec!["SATLIB", "backbone", "RTI_k3_n100_m429"]),
             &Config::default(),
