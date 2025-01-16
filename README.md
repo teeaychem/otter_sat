@@ -4,15 +4,15 @@ Otter… other… odder… a library for determining the satisfiability of boole
 
 At present, this repository contains three interrelated crates:
 
-- `otter_sat` the library.
-- `otter_cli` a command line interface to `otter_sat`.
+- `otter_sat` the library, available as a crate from [crates.io](https://crates.io/crates/otter_sat) and with docs at [docs.rs/otter_sat](https://docs.rs/otter_sat).
+- `otter_cli` a command line interface to `otter_sat`, to be built locally.
 - `otter_tests` a collection of tests to ensure the soundness of `otter_sat`.
 
 # Features
 
 At present, features include:
 
-- Documentation of theory and implementation, some of which may be considered quite detailed.
+- Documentation of theory and implementation, some of which may be considered quite detailed --- see [docs.rs/otter_sat](https://docs.rs/otter_sat) (or via `cargo doc --lib`)
 - Optional generation of [FRAT proofs](https://arxiv.org/pdf/2109.09665v1) which can be checked by independent tools such as [FRAT-rs](https://github.com/digama0/frat).
 - Clause learning thorugh analysis of implication graphs.
 - Clause forgetting based on glue principles (see: [Glucose](https://github.com/audemard/glucose) for details).
@@ -23,6 +23,7 @@ At present, features include:
 - Phase saving.
 - Some optional unpredictability.
 - On-the-fly self-subsumption.
+- And more… (!)
 
 # Examples
 
@@ -31,15 +32,18 @@ Examples can be ran by passing the `example` flag and the name of the example to
 The general pattern is:
 
 ```
-cargo run --example <EXAMPLE NAME>
+cargo run [--profile <PROFILE>] --example <EXAMPLE NAME>
 ```
 
 Specific examples are:
 
 ```
 cargo run --example sudoku
+cargo run --example --profile release nonograms
 cargo run --example all_models
 ```
+
+Nonogramps is reasonably quick in debug mode, but release is recommended.
 
 
 # How this was made
