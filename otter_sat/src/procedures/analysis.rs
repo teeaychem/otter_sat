@@ -18,7 +18,7 @@
 //!         ...
 //!     }
 //!
-//!     analysis::Ok::MissedImplication {
+//!     analysis::Ok::RepeatImplication {
 //!         clause_key: key,
 //!         asserted_literal: literal,
 //!     } => {
@@ -46,6 +46,7 @@ use crate::{
     structures::{
         clause::{self, Clause},
         literal::{abLiteral, Literal},
+        valuation::Valuation,
     },
     transient::resolution_buffer::{self, ResolutionBuffer},
     types::err::{self},
@@ -79,20 +80,22 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 .bump_relative(unsafe { self.clause_db.get_unchecked(key)?.atoms() });
         }
 
+        let mut backstep_valuation = self.atom_db.valuation_canonical().clone();
+        unsafe {
+            backstep_valuation.clear_value_of(self.literal_db.last_decision_unchecked().atom());
+            for (_, literal) in self.literal_db.last_consequences_unchecked() {
+                backstep_valuation.clear_value_of(literal.atom());
+            }
+        }
+
         // TODO: As the previous valuation is stored, it'd make sense to use that instead of rolling back the current valuation.
         let mut the_buffer = ResolutionBuffer::from_valuation(
-            self.atom_db.valuation(),
+            &backstep_valuation,
             self.dispatcher.clone(),
             &self.config,
         );
 
         // Some decision must have been made for conflict analysis to take place.
-        unsafe {
-            the_buffer.clear_atom_value(self.literal_db.last_decision_unchecked().atom());
-            for (_, literal) in self.literal_db.last_consequences_unchecked() {
-                the_buffer.clear_atom_value(literal.atom());
-            }
-        }
 
         match the_buffer.resolve_through_current_level(
             key,
@@ -107,7 +110,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     return Err(err::Analysis::FailedStoppingCriteria);
                 }
             }
-            Ok(resolution_buffer::Ok::Missed(k, l)) => {
+            Ok(resolution_buffer::Ok::Repeat(k, l)) => {
                 return Ok(Ok::MissedPropagation { key: k, literal: l });
             }
             Err(_buffer_error) => {
@@ -143,11 +146,17 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         match resolved_clause.len() {
             0 => Err(err::Analysis::EmptyResolution),
             1 => {
-                let _ = self.record_clause(literal, clause::Source::Resolution)?;
+                self.backjump(0);
+                let _ = self.record_clause(literal, clause::Source::Resolution, None)?;
                 Ok(Ok::UnitClause(literal))
             }
             _ => {
-                let key = self.record_clause(resolved_clause, clause::Source::Resolution)?;
+                let index = self
+                    .non_chronological_backjump_level(&resolved_clause)
+                    .unwrap();
+                self.backjump(index);
+
+                let key = self.record_clause(resolved_clause, clause::Source::Resolution, None)?;
                 Ok(Ok::AssertingClause { key, literal })
             }
         }

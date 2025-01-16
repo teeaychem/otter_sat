@@ -74,7 +74,7 @@ impl ClauseDB {
                     dispatch(Dispatch::Delta(Delta::ClauseDB(delta)));
                 }
 
-                let binary_clause = dbClause::from(binary_key, copied_clause, atom_db);
+                let binary_clause = dbClause::from(binary_key, copied_clause, atom_db, None);
 
                 self.binary.push(binary_clause);
 

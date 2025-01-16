@@ -72,4 +72,29 @@ impl AtomDB {
             .collect::<Vec<_>>()
             .join(" ")
     }
+
+    /// A string representing the current valuation and the decision levels at which atoms were valued.
+    /// The internal representation of atoms is used.
+    pub fn internal_valuation_decision_string(&self) -> String {
+        let mut v = self
+            .valuation()
+            .av_pairs()
+            .filter_map(|(i, v)| match v {
+                None => None,
+                Some(true) => Some(i as isize),
+                Some(false) => Some(-(i as isize)),
+            })
+            .collect::<Vec<_>>();
+        v.sort_unstable();
+        v.iter()
+            .map(|v| unsafe {
+                format!(
+                    "{} ({:?})",
+                    v,
+                    self.decision_index_of(v.unsigned_abs() as Atom).unwrap()
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
 }

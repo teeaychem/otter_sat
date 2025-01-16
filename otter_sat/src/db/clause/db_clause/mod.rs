@@ -26,6 +26,7 @@ use crate::{
     structures::{
         clause::{vClause, Clause},
         literal::abLiteral,
+        valuation::vValuation,
     },
 };
 
@@ -55,7 +56,12 @@ impl dbClause {
     /// Note: This does not store the [dbClause] in the [clause database](crate::db::clause::ClauseDB).
     /// Instead, this is the canonical way to obtained some thing to be stored in a database.
     /// See, e.g. the [ClauseDB]((crate::db::clause::ClauseDB)) '[store](crate::db::clause::ClauseDB::store)' method for example use.
-    pub fn from(key: ClauseKey, clause: vClause, atom_db: &mut AtomDB) -> Self {
+    pub fn from(
+        key: ClauseKey,
+        clause: vClause,
+        atom_db: &mut AtomDB,
+        valuation: Option<&vValuation>,
+    ) -> Self {
         let mut db_clause = Self {
             key,
             clause,
@@ -63,7 +69,7 @@ impl dbClause {
             watch_ptr: 0,
         };
 
-        db_clause.initialise_watches(atom_db);
+        db_clause.initialise_watches(atom_db, valuation);
 
         db_clause
     }

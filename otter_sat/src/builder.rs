@@ -148,9 +148,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 match self.atom_db.value_of(literal.atom()) {
                     None => {
-                        match self.q_literal(literal.borrow(), consequence_q::QPosition::Back) {
+                        match self.q_literal(literal.borrow(), consequence_q::QPosition::Back, 0) {
                             Ok(consequence_q::Ok::Qd) => {
-                                self.record_clause(literal, clause::Source::Original);
+                                self.record_clause(literal, clause::Source::Original, None);
                                 Ok(())
                             }
                             _ => Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict)),
@@ -172,7 +172,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
 
             _ => {
-                self.record_clause(clause_vec, clause::Source::Original)?;
+                self.record_clause(clause_vec, clause::Source::Original, None)?;
 
                 Ok(())
             }

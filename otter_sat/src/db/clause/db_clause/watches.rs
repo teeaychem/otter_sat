@@ -9,6 +9,7 @@ use crate::{
     structures::{
         atom::Atom,
         literal::{abLiteral, Literal},
+        valuation::{vValuation, Valuation},
     },
 };
 
@@ -44,6 +45,10 @@ impl dbClause {
         self.get_unchecked(0)
     }
 
+    pub unsafe fn get_watch_b(&self) -> &abLiteral {
+        self.get_unchecked(self.watch_ptr)
+    }
+
     /// Initialises watches.
     /*
     # Note
@@ -53,11 +58,16 @@ impl dbClause {
      Failure for a candidate for watch A to be found implies a candidate for watch B.
      Still, this is not encoded, as failure for watch A is very unlikely.
      */
-    pub fn initialise_watches(&mut self, atom_db: &mut AtomDB) {
+    pub fn initialise_watches(&mut self, atom_db: &mut AtomDB, valuation: Option<&vValuation>) {
         // As watches require two or more literals, and watch_ptr must be within the bounds of the vector, use of get_unchecked on index zero and watch_ptr is safe.
         let mut watch_a_set = false;
+
         for (index, literal) in self.clause.iter().enumerate() {
-            let index_value = atom_db.value_of(literal.atom());
+            let index_value = match valuation {
+                Some(v) => unsafe { v.value_of_unchecked(literal.atom()) },
+                None => unsafe { atom_db.valuation().value_of_unchecked(literal.atom()) },
+            };
+
             match index_value {
                 None => {
                     self.note_watch(literal.atom(), literal.polarity(), atom_db);
@@ -75,15 +85,30 @@ impl dbClause {
             }
         }
         if !watch_a_set {
+            // May fail if an appropriate backjump has not been made before adding a clause.
             let zero_literal = unsafe { self.clause.get_unchecked(0) };
             self.note_watch(zero_literal.atom(), zero_literal.polarity(), atom_db);
         }
 
+        // For the other watch literal an unvalued or satisfied literal is chosen over an unsatisfied literal.
+        // Still, if there is no other choice, the pointer will rest on some unsatisfied literal with the highest decision level.
         let mut watch_b_set = false;
         self.watch_ptr = 1;
+        let mut decision_level_b = unsafe {
+            let literal = self.clause.get_unchecked(self.watch_ptr);
+            let maybe_decision_level = atom_db.decision_index_of(literal.atom());
+            maybe_decision_level.unwrap_or(0)
+        };
+
         for index in 1..self.clause.len() {
             let literal = unsafe { self.clause.get_unchecked(index) };
-            match atom_db.value_of(literal.atom()) {
+
+            let atom_value = match valuation {
+                Some(v) => unsafe { v.value_of_unchecked(literal.atom()) },
+                None => unsafe { atom_db.valuation().value_of_unchecked(literal.atom()) },
+            };
+
+            match atom_value {
                 None => {
                     self.watch_ptr = index;
                     self.note_watch(literal.atom(), literal.polarity(), atom_db);
@@ -96,7 +121,14 @@ impl dbClause {
                     watch_b_set = true;
                     break;
                 }
-                Some(_) => {}
+                Some(_) => {
+                    let decision_level =
+                        unsafe { atom_db.decision_index_of(literal.atom()).unwrap_unchecked() };
+                    if decision_level > decision_level_b {
+                        self.watch_ptr = index;
+                        decision_level_b = decision_level;
+                    }
+                }
             }
         }
 
@@ -113,9 +145,10 @@ impl dbClause {
     pub fn note_watch(&self, atom: Atom, value: bool, atom_db: &mut AtomDB) {
         match self.key {
             ClauseKey::Unit(_) => {
-                panic!("attempting to interact with watches on a unit clause")
+                panic!("!")
             }
             ClauseKey::Binary(_) => unsafe {
+                // For binary watches, the other watched literal is included in the watch tag.
                 let check_literal = if self.clause.get_unchecked(0).atom() == atom {
                     *self.clause.get_unchecked(1)
                 } else {
@@ -165,9 +198,11 @@ impl dbClause {
             if self.watch_ptr == clause_length {
                 self.watch_ptr = 1 // skip 0
             }
+
             if self.watch_ptr == watch_ptr_cache {
                 break Err(());
             }
+
             let literal = unsafe { self.clause.get_unchecked(self.watch_ptr) };
             match atom_db.value_of(literal.atom()) {
                 None => {

@@ -37,6 +37,7 @@ use crate::{
     structures::{
         clause::{Clause, Source as ClauseSource},
         literal::{abLiteral, Source as LiteralSource},
+        valuation::vValuation,
     },
     types::err,
 };
@@ -82,7 +83,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 //
                 match self.literal_db.decision_count() {
                     0 => {
-                        self.record_clause(*literal.borrow(), ClauseSource::PureLiteral);
+                        self.record_clause(*literal.borrow(), ClauseSource::PureLiteral, None);
                     }
                     _ => {
                         // Making a free decision is not supported after some other (non-free) decision has been made.
@@ -95,7 +96,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 //
                 match self.literal_db.decision_count() {
                     0 => {
-                        self.record_clause(*literal.borrow(), ClauseSource::BCP);
+                        self.record_clause(*literal.borrow(), ClauseSource::BCP, None);
                     }
                     _ => unsafe {
                         self.literal_db
@@ -119,8 +120,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         &mut self,
         clause: impl Clause,
         source: ClauseSource,
+        valuation: Option<&vValuation>,
     ) -> Result<ClauseKey, err::ClauseDB> {
-        let key = self.clause_db.store(clause, source, &mut self.atom_db)?;
+        let key = self
+            .clause_db
+            .store(clause, source, &mut self.atom_db, valuation)?;
 
         if let Some(dispatcher) = &self.dispatcher {
             match key {

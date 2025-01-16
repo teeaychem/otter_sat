@@ -1,7 +1,7 @@
 /// Implimentation of the valuation trait for any structure which can be dereferenced to a slice of optional booleans.
 use crate::structures::{atom::Atom, valuation::Valuation};
 
-impl<T: std::ops::Deref<Target = [Option<bool>]>> Valuation for T {
+impl<T: std::ops::DerefMut<Target = [Option<bool>]>> Valuation for T {
     fn value_of(&self, atom: Atom) -> Option<Option<bool>> {
         self.get(atom as usize).copied()
     }
@@ -32,5 +32,13 @@ impl<T: std::ops::Deref<Target = [Option<bool>]>> Valuation for T {
             None => Some(var as Atom),
             _ => None,
         })
+    }
+
+    fn canonical(&self) -> super::vValuation {
+        self.iter().copied().collect::<Vec<_>>()
+    }
+
+    unsafe fn clear_value_of(&mut self, atom: Atom) {
+        *self.get_unchecked_mut(atom as usize) = None
     }
 }

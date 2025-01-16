@@ -64,7 +64,7 @@ pub enum Ok {
     UnitClause,
 
     /// Resolution identified a clause already in the database.
-    Missed(ClauseKey, abLiteral),
+    Repeat(ClauseKey, abLiteral),
 }
 
 /// Cells of a resolution buffer.
@@ -188,7 +188,7 @@ impl ResolutionBuffer {
     ) -> Result<Ok, err::ResolutionBuffer> {
         // The key has already been used to access the conflicting clause.
         let base_clause = match unsafe { clause_db.get_unchecked(key) } {
-            Ok(c) => c,
+            Ok(clause) => clause,
             Err(_) => return Err(err::ResolutionBuffer::MissingClause),
         };
 
@@ -196,11 +196,11 @@ impl ResolutionBuffer {
 
         // Maybe the conflit clause was already asserting after the previous decision…
         if let Some(literal) = self.asserted_literal() {
-            return Ok(Ok::Missed(*key, literal));
+            return Ok(Ok::Repeat(*key, literal));
         };
 
-        macros::send_resolution_delta!(self, delta::Resolution::Begin);
-        macros::send_resolution_delta!(self, delta::Resolution::Used(*key));
+        macros::dispatch_resolution_delta!(self, delta::Resolution::Begin);
+        macros::dispatch_resolution_delta!(self, delta::Resolution::Used(*key));
 
         // bump clause activity
         if let ClauseKey::Addition(index, _) = key {
@@ -231,24 +231,33 @@ impl ResolutionBuffer {
                         match self.clause_length {
                             0 => {}
                             1 => {
-                                macros::send_resolution_delta!(self, Resolution::Used(*the_key));
-                                macros::send_resolution_delta!(self, delta::Resolution::End);
+                                macros::dispatch_resolution_delta!(
+                                    self,
+                                    Resolution::Used(*the_key)
+                                );
+                                macros::dispatch_resolution_delta!(self, delta::Resolution::End);
 
                                 return Ok(Ok::UnitClause);
                             }
                             _ => match the_key {
-                                ClauseKey::Unit(_) => {
-                                    panic!("!")
-                                }
+                                ClauseKey::Unit(_) => panic!("!"),
+
                                 ClauseKey::Binary(_) => {
                                     todo!("a formula is found which triggers this…");
                                 }
                                 ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
+                                    // TODO: Subsumption should use the appropriate valuation
                                     let k = clause_db.subsume(*the_key, literal, atom_db)?;
 
-                                    macros::send_resolution_delta!(self, delta::Resolution::End);
-                                    macros::send_resolution_delta!(self, delta::Resolution::Begin);
-                                    macros::send_resolution_delta!(
+                                    macros::dispatch_resolution_delta!(
+                                        self,
+                                        delta::Resolution::End
+                                    );
+                                    macros::dispatch_resolution_delta!(
+                                        self,
+                                        delta::Resolution::Begin
+                                    );
+                                    macros::dispatch_resolution_delta!(
                                         self,
                                         delta::Resolution::Used(k)
                                     );
@@ -256,20 +265,20 @@ impl ResolutionBuffer {
                             },
                         }
                     } else {
-                        macros::send_resolution_delta!(self, delta::Resolution::Used(*the_key));
+                        macros::dispatch_resolution_delta!(self, delta::Resolution::Used(*the_key));
                     }
 
                     if let ClauseKey::Addition(index, _) = the_key {
                         clause_db.bump_activity(*index)
                     };
                 }
-                _ => panic!("unexpected"),
+                _ => panic!("!"),
             };
 
             if self.valueless_count == 1 {
                 match self.config.stopping {
                     StoppingCriteria::FirstUIP => {
-                        macros::send_resolution_delta!(self, delta::Resolution::End);
+                        macros::dispatch_resolution_delta!(self, delta::Resolution::End);
 
                         return Ok(Ok::FirstUIP);
                     }
@@ -277,7 +286,7 @@ impl ResolutionBuffer {
                 };
             }
         }
-        macros::send_resolution_delta!(self, delta::Resolution::End);
+        macros::dispatch_resolution_delta!(self, delta::Resolution::End);
 
         Ok(Ok::Exhausted)
     }

@@ -83,6 +83,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// </div>
     pub unsafe fn bcp(&mut self, literal: impl Borrow<abLiteral>) -> Result<(), err::BCP> {
         let literal = literal.borrow();
+        let decision_level = self.literal_db.decision_count();
 
         // Binary clauses block.
         {
@@ -100,30 +101,33 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 };
 
                 match self.atom_db.value_of(check.atom()) {
-                    None => match self.q_literal(*check, consequence_q::QPosition::Back) {
-                        Ok(consequence_q::Ok::Qd) => {
-                            macros::send_bcp_delta!(self, Instance, *check, *clause_key);
-                            self.record_literal(check, literal::Source::BCP(*clause_key));
-                        }
+                    None => {
+                        match self.q_literal(*check, consequence_q::QPosition::Back, decision_level)
+                        {
+                            Ok(consequence_q::Ok::Qd) => {
+                                macros::dispatch_bcp_delta!(self, Instance, *check, *clause_key);
+                                self.record_literal(check, literal::Source::BCP(*clause_key));
+                            }
 
-                        Ok(consequence_q::Ok::Skip) => {}
+                            Ok(consequence_q::Ok::Skip) => {}
 
-                        Err(_key) => {
-                            return Err(err::BCP::Conflict(*clause_key));
+                            Err(_key) => {
+                                return Err(err::BCP::Conflict(*clause_key));
+                            }
                         }
-                    },
+                    }
 
                     Some(value) if check.polarity() != value => {
                         // Note the conflict
                         log::trace!(target: targets::PROPAGATION, "Consequence of {clause_key} and {literal} is contradiction.");
-                        macros::send_bcp_delta!(self, Conflict, *literal, *clause_key);
+                        macros::dispatch_bcp_delta!(self, Conflict, *literal, *clause_key);
 
                         return Err(err::BCP::Conflict(*clause_key));
                     }
 
                     Some(_) => {
-                        log::trace!(target: targets::PROPAGATION, "Missed implication of {clause_key} {literal}.");
-                        // a missed implication, as this is binary
+                        log::trace!(target: targets::PROPAGATION, "Repeat implication of {clause_key} {literal}.");
+                        // a repeat implication, as this is binary
                     }
                 }
             }
@@ -170,13 +174,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
 
                     Err(()) => {
+                        // After the call to update_watch, any atom without a value will be in position 0.
                         let the_watch = *db_clause.get_unchecked(0);
                         let watch_value = self.atom_db.value_of(the_watch.atom());
 
                         match watch_value {
                             Some(value) if the_watch.polarity() != value => {
                                 self.clause_db.note_use(*clause_key);
-                                macros::send_bcp_delta!(self, Conflict, *literal, *clause_key);
+                                macros::dispatch_bcp_delta!(self, Conflict, *literal, *clause_key);
 
                                 return Err(err::BCP::Conflict(*clause_key));
                             }
@@ -184,13 +189,17 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             None => {
                                 self.clause_db.note_use(*clause_key);
 
-                                match self.q_literal(the_watch, consequence_q::QPosition::Back) {
+                                match self.q_literal(
+                                    the_watch,
+                                    consequence_q::QPosition::Back,
+                                    decision_level,
+                                ) {
                                     Ok(consequence_q::Ok::Qd) | Ok(consequence_q::Ok::Skip) => {}
 
                                     Err(_) => return Err(err::BCP::Conflict(*clause_key)),
                                 };
 
-                                macros::send_bcp_delta!(self, Instance, the_watch, *clause_key);
+                                macros::dispatch_bcp_delta!(self, Instance, the_watch, *clause_key);
                                 self.record_literal(the_watch, literal::Source::BCP(*clause_key));
                             }
 
