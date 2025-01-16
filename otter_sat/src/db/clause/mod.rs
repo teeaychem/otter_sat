@@ -31,6 +31,7 @@ use crate::{
     structures::{
         clause::{Clause, Source},
         literal::abLiteral,
+        valuation::vValuation,
     },
     types::err::{self},
 };
@@ -123,6 +124,7 @@ impl ClauseDB {
         clause: impl Clause,
         source: Source,
         atom_db: &mut AtomDB,
+        valuation: Option<&vValuation>,
     ) -> Result<ClauseKey, err::ClauseDB> {
         match clause.size() {
             0 => Err(err::ClauseDB::EmptyClause),
@@ -139,7 +141,7 @@ impl ClauseDB {
                 let key = self.fresh_binary_key()?;
 
                 self.binary
-                    .push(dbClause::from(key, clause.canonical(), atom_db));
+                    .push(dbClause::from(key, clause.canonical(), atom_db, valuation));
 
                 Ok(key)
             }
@@ -150,7 +152,7 @@ impl ClauseDB {
                 Source::Original => {
                     let key = self.fresh_original_key()?;
                     log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_string());
-                    let stored_form = dbClause::from(key, clause.canonical(), atom_db);
+                    let stored_form = dbClause::from(key, clause.canonical(), atom_db, valuation);
 
                     self.original.push(stored_form);
                     Ok(key)
@@ -165,7 +167,7 @@ impl ClauseDB {
                     };
                     log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_string());
 
-                    let stored_form = dbClause::from(key, clause.canonical(), atom_db);
+                    let stored_form = dbClause::from(key, clause.canonical(), atom_db, valuation);
 
                     let value = ActivityLBD {
                         activity: 1.0,
@@ -399,7 +401,7 @@ impl ClauseDB {
             let the_clause =
                 std::mem::take(unsafe { self.addition.get_unchecked_mut(index) }).unwrap();
 
-            macros::send_remove!(self, the_clause);
+            macros::dispatch_clause_removal!(self, the_clause);
             // if let Some(dispatcher) = &self.dispatcher {
             //     let delta = delta::ClauseDB::ClauseStart;
             //     dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
@@ -538,8 +540,8 @@ impl ClauseDB {
     This is safe to do as:
     - After backjumping all the observations at the current level will be forgotten
     - The clause does not appear in the observations of any previous stage
-      + As, if the clause appeared in some previous stage then use of the clause would be a missed implication
-      + And, missed implications are checked prior to conflicts
+      + As, if the clause appeared in some previous stage then use of the clause would be a repeat implication
+      + And, repeat implications are checked prior to conflicts
      */
     pub unsafe fn subsume(
         &mut self,

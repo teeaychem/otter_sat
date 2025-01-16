@@ -93,8 +93,13 @@ impl AtomDB {
         self.valuation.len()
     }
 
-    /// The current valuation.
+    /// The current valuation, as some struction which implements the valuation trait.
     pub fn valuation(&self) -> &impl Valuation {
+        &self.valuation
+    }
+
+    /// The current valuation, as a canonical [vValuation].
+    pub fn valuation_canonical(&self) -> &vValuation {
         &self.valuation
     }
 
@@ -144,8 +149,8 @@ impl AtomDB {
     ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
-    pub unsafe fn decision_index_of(&self, v_idx: Atom) -> Option<LevelIndex> {
-        *self.decision_indicies.get_unchecked(v_idx as usize)
+    pub unsafe fn decision_index_of(&self, atom: Atom) -> Option<LevelIndex> {
+        *self.decision_indicies.get_unchecked(atom as usize)
     }
 
     /// Sets a given atom to have a given value, with a note of which decision this occurs after, if some decision has been made.

@@ -63,7 +63,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// }
     /// ```
     pub fn clear_q(&mut self, from: LevelIndex) {
-        self.consequence_q.retain(|(_, c)| *c < from);
+        self.consequence_q.retain(|(_, c)| *c <= from);
     }
 
     /// Queues a literal, if possible. Otherwise, returns an error.
@@ -77,26 +77,23 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         &mut self,
         literal: impl Borrow<abLiteral>,
         position: QPosition,
+        level: LevelIndex,
     ) -> Result<Ok, err::Queue> {
         let valuation_result = unsafe {
             self.atom_db.set_value(
                 literal.borrow().atom(),
                 literal.borrow().polarity(),
-                Some(self.literal_db.decision_count()),
+                Some(level),
             )
         };
         match valuation_result {
             Ok(super::atom::AtomValue::NotSet) => {
                 // TODO: improvements?
                 match position {
-                    QPosition::Front => self
-                        .consequence_q
-                        .push_front((*literal.borrow(), self.literal_db.decision_count())),
-                    QPosition::Back => self
-                        .consequence_q
-                        .push_back((*literal.borrow(), self.literal_db.decision_count())),
+                    QPosition::Front => self.consequence_q.push_front((*literal.borrow(), level)),
+                    QPosition::Back => self.consequence_q.push_back((*literal.borrow(), level)),
                 }
-
+                log::trace!(target: targets::QUEUE, "Queued {} at level {level}.", literal.borrow());
                 Ok(Ok::Qd)
             }
             Ok(_) => Ok(Ok::Skip),

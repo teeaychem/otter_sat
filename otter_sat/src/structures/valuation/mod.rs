@@ -21,7 +21,7 @@
 //! assert_eq!(valuation.unvalued_atoms().count(), 2);
 //! ```
 //!
-//! Throughout the library the unsafe `unchecked_value_of` is preferred over the safe `value_of`. \
+//! Throughout the library the unsafe `value_of_unchecked` is preferred over the safe `value_of`. \
 //! This is because the implementation on vectors 'only' guarantees *memory* safety, while use requires the stronger guarantee that the (optional) value atom of interest is mapped to the index of the atom in the valuation, and with this an additional check that the atom really is there is redundant.
 //!
 //! [^pedantic]: Where 'a' is the internal representation of some atom whose external representation is '𝐚'.
@@ -39,7 +39,7 @@
 //! let atoms =     vec![0,    1,          2];
 //! let valuation = vec![None, Some(true), None];
 //!
-//! let sub_valuation = &valuation[1..];
+//! let sub_valuation = valuation[1..].iter().copied().collect::<Vec<_>>();
 //! assert_eq!(sub_valuation.value_of(0), Some(None));
 //! ```
 
@@ -73,4 +73,13 @@ pub trait Valuation {
 
     /// An iterator through atoms which do not have some value.
     fn unvalued_atoms(&self) -> impl Iterator<Item = Atom>;
+
+    /// The canonical representation of a valuation as a [vValuation].
+    fn canonical(&self) -> vValuation;
+
+    /// Sets the value of the given atom to `None`.
+    ///
+    /// # Safety
+    /// Implementations are not required to check the atom is part of the valuation.
+    unsafe fn clear_value_of(&mut self, atom: Atom);
 }

@@ -144,7 +144,7 @@ impl Default for Switches {
             phase_saving: true,
             preprocessing: false,
             restart: true,
-            subsumption: true,
+            subsumption: false,
         }
     }
 }

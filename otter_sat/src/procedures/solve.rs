@@ -183,8 +183,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
 
             match self.apply_consequences()? {
-                // Non-conflict variants.
-                // Note: These variants break or continue the solve loop.
+                // Non-conflict variants. These variants break or continue the solve loop.
                 apply_consequences::Ok::FundamentalConflict => break 'solve_loop,
 
                 apply_consequences::Ok::Exhausted => {
@@ -192,30 +191,28 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     match self.make_decision()? {
                         decision::Ok::Literal(decision) => {
                             self.literal_db.note_decision(decision);
-                            self.q_literal(decision, QPosition::Back)?;
+                            self.q_literal(
+                                decision,
+                                QPosition::Back,
+                                self.literal_db.decision_count(),
+                            )?;
                             continue 'solve_loop;
                         }
                         decision::Ok::Exhausted => break 'solve_loop,
                     }
                 }
 
-                // Conflict variants…
+                // Conflict variants. These continue to the remaining contents of a loop.
                 apply_consequences::Ok::UnitClause(literal) => {
-                    self.backjump(0);
-
-                    self.q_literal(literal, QPosition::Front)?;
+                    self.q_literal(literal, QPosition::Front, 0)?;
                 }
 
                 apply_consequences::Ok::AssertingClause(key, literal) => {
-                    // Safe, as the key is direct from apply_consequences.
-                    let the_clause = unsafe { self.clause_db.get_unchecked(&key)? };
-                    self.backjump(self.non_chronological_backjump_level(the_clause)?);
-
                     self.clause_db.note_use(key);
-                    macros::send_bcp_delta!(self, Instance, literal, key);
+                    macros::dispatch_bcp_delta!(self, Instance, literal, key);
 
                     self.record_literal(literal, literal::Source::BCP(key));
-                    self.q_literal(literal, QPosition::Front)?;
+                    self.q_literal(literal, QPosition::Front, self.literal_db.decision_count())?;
                 }
             }
 
@@ -225,7 +222,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             if self.luby_fresh_conflict_interrupt() {
                 self.counters.luby.next();
 
-                macros::send_stats!(self);
+                macros::dispatch_stats!(self);
 
                 if self.config.switch.restart {
                     self.backjump(0);
@@ -243,7 +240,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     .reduce_by(self.clause_db.current_addition_count() / 2)?;
             }
         }
-        macros::send_finish!(self);
+        macros::dispatch_finish!(self);
         Ok(self.report())
     }
 }

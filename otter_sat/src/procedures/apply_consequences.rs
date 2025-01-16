@@ -75,14 +75,17 @@
 //! # Missed propagations
 //!
 //! In some situations the opportunity to propagate a consequence may be 'missed'.
-//! This is identified when conflict analysis returns a clause already present in the clause database.
 //!
-//! As missed propagation implies BCP does not propagate *all* boolean constraints before identifying a conflict.
-//! For, a missed propagation means it is possible to backjump to some sub-valuation on which the clause is asserting, and the valuation obtained by cohering with the asserted literal must be different from the valuation on which the clause is unsatisfiable.
+//! For example, conflict analysis may return a clause already present in the clause database.
+//! In this case, the clause is asserting at some prior decision level, and in turn the clause could have been used for propagation.
 //!
-//! Note, an unsatisfiable formula is unsatisfiable regardless of whether any propagation are missed.
-//! And, a satisfiable formula is satisfiable so long all original clause propagations are made.
-//! So, a solver may be sound and miss some propagations.
+//! Missed propagations do not (necessarily) entail an unsound solve procedure.
+//!
+//! In particular, if the solve returns the formula is unsatisfiable then the propagations *observed* are sufficient to force some atom to be valued both true and false, and any missed propagations are not required.
+//!
+//! If the solve returns the formula is satisfiable, things are a little more difficult.
+//! Still, a satisfiable formula is satisfiable so long all original clause propagations are made.
+//! Or, so long as all propagations with respect to each value set in the final valuation have been made.
 //!
 //! Regardless, missed propagations are returned to and their consequences applied *within* an instance of apply_consequences, in order to maintain the invariant that apply_consequences returns the same formula only if there are no further consequences to apply.
 
@@ -135,7 +138,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     if !self.literal_db.decision_made() {
                         self.status = dbStatus::Inconsistent;
 
-                        macros::send_atom_db_delta!(self, delta::AtomDB::Unsatisfiable(key));
+                        macros::dispatch_atom_db_delta!(self, delta::AtomDB::Unsatisfiable(key));
 
                         return Ok(Ok::FundamentalConflict);
                     }
@@ -154,9 +157,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let index = self.non_chronological_backjump_level(the_clause)?;
                             self.backjump(index);
 
-                            self.q_literal(asserted_literal, QPosition::Front)?;
+                            self.q_literal(
+                                asserted_literal,
+                                QPosition::Front,
+                                self.literal_db.decision_count(),
+                            )?;
 
-                            macros::send_bcp_delta!(self, Instance, asserted_literal, key);
+                            macros::dispatch_bcp_delta!(self, Instance, asserted_literal, key);
 
                             self.record_literal(asserted_literal, literal::Source::BCP(key));
 
