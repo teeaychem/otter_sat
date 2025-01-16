@@ -58,7 +58,7 @@ pub enum Ok {
     MissedPropagation { key: ClauseKey, literal: abLiteral },
 
     /// The result of analysis is a unit clause.
-    UnitClause(abLiteral),
+    UnitClause { key: abLiteral },
 
     /// A fundamental conflict is identified, and so the current formula is unsatisfiable.
     ///
@@ -148,7 +148,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             1 => {
                 self.backjump(0);
                 let _ = self.record_clause(literal, clause::Source::Resolution, None)?;
-                Ok(Ok::UnitClause(literal))
+                Ok(Ok::UnitClause { key: literal })
             }
             _ => {
                 let index = self

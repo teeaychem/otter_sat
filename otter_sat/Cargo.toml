@@ -10,7 +10,7 @@ license = "AGPL-3.0-or-later"
 name = "otter_sat"
 readme = "readme.md"
 repository = "https://github.com/teeaychem/otter_sat.git"
-version = "0.0.9"
+version = "0.0.10"
 
 [lib]
 name = "otter_sat"

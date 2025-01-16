@@ -36,7 +36,7 @@
 //!   |               |
 //!   |               | if there is no update to the formula, and the valuation is partial
 //!   |               |
-//!   |               |              +-----> satisfiable, if the valuation is complete
+//!   |               |              +-----> satisfiable, if the valuation is full
 //!   ⌄   +--------------------+     |
 //! --+-->| apply_consequences |-----+
 //!   ⌃   +--------------------+     |
@@ -191,7 +191,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     match self.make_decision()? {
                         decision::Ok::Literal(decision) => {
                             self.literal_db.note_decision(decision);
-                            self.q_literal(
+                            self.value_and_queue(
                                 decision,
                                 QPosition::Back,
                                 self.literal_db.decision_count(),
@@ -203,16 +203,20 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
 
                 // Conflict variants. These continue to the remaining contents of a loop.
-                apply_consequences::Ok::UnitClause(literal) => {
-                    self.q_literal(literal, QPosition::Front, 0)?;
+                apply_consequences::Ok::UnitClause { key } => {
+                    self.value_and_queue(key, QPosition::Front, 0)?;
                 }
 
-                apply_consequences::Ok::AssertingClause(key, literal) => {
+                apply_consequences::Ok::AssertingClause { key, literal } => {
                     self.clause_db.note_use(key);
                     macros::dispatch_bcp_delta!(self, Instance, literal, key);
 
                     self.record_literal(literal, literal::Source::BCP(key));
-                    self.q_literal(literal, QPosition::Front, self.literal_db.decision_count())?;
+                    self.value_and_queue(
+                        literal,
+                        QPosition::Front,
+                        self.literal_db.decision_count(),
+                    )?;
                 }
             }
 

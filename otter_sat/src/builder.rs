@@ -148,7 +148,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 match self.atom_db.value_of(literal.atom()) {
                     None => {
-                        match self.q_literal(literal.borrow(), consequence_q::QPosition::Back, 0) {
+                        match self.value_and_queue(
+                            literal.borrow(),
+                            consequence_q::QPosition::Back,
+                            0,
+                        ) {
                             Ok(consequence_q::Ok::Qd) => {
                                 self.record_clause(literal, clause::Source::Original, None);
                                 Ok(())
@@ -323,7 +327,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     //     if self.literal_db.decision_made() {
     //         return Err(err::Context::AssumptionAfterDecision);
     //     }
-    //     match self.q_literal(literal.borrow()) {
+    //     match self.value_and_queue(literal.borrow()) {
     //         Ok(_) => {
     //             ???
     //             Ok(n())
