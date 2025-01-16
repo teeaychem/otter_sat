@@ -115,10 +115,13 @@ impl ClauseDB {
     /// Stores a clause with an automatically generated id.
     ///
     /// ```rust, ignore
-    /// self.clause_db.store(clause, ClauseSource::Resolution, &mut self.atom_db);
+    /// self.clause_db.store(clause, ClauseSource::Resolution, &mut self.atom_db, None);
     /// ```
     ///
     /// Any instance of storing a clause should directly or indirectly use this method, as it maintains the activity heap, watched literals, etc.
+    /// A valuation is optional.
+    /// If given, clauses are initialised with respect to the given valuation.
+    /// Otherwise, clauses are initialised with respect to the current valuation of the context.
     pub fn store(
         &mut self,
         clause: impl Clause,

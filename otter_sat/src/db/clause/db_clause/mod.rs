@@ -56,6 +56,10 @@ impl dbClause {
     /// Note: This does not store the [dbClause] in the [clause database](crate::db::clause::ClauseDB).
     /// Instead, this is the canonical way to obtained some thing to be stored in a database.
     /// See, e.g. the [ClauseDB]((crate::db::clause::ClauseDB)) '[store](crate::db::clause::ClauseDB::store)' method for example use.
+    ///
+    /// A valuation is optional.
+    /// If given, clauses are initialised with respect to the given valuation.
+    /// Otherwise, clauses are initialised with respect to the current valuation of the context.
     pub fn from(
         key: ClauseKey,
         clause: vClause,

@@ -35,16 +35,20 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
     /// Counters related to a context/solve.
     pub counters: Counters,
 
+    /// The atom database.
+    /// See [db::atom](crate::db::atom) for details.
+    pub atom_db: AtomDB,
+
     /// The clause database.
+    /// See [db::clause](crate::db::clause) for details.
     pub clause_db: ClauseDB,
 
     /// The literal database.
+    /// See [db::literal](crate::db::literal) for details.
     pub literal_db: LiteralDB,
 
-    /// The atom database.
-    pub atom_db: AtomDB,
-
     /// The consequence queue.
+    /// See [db::consequence_q](crate::db::consequence_q) for details.
     pub consequence_q: ConsequenceQ,
 
     /// The status of the context.

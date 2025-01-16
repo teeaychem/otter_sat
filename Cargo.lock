@@ -267,7 +267,7 @@ dependencies = [
 
 [[package]]
 name = "otter_sat"
-version = "0.0.9"
+version = "0.0.10"
 dependencies = [
  "crossbeam",
  "log",

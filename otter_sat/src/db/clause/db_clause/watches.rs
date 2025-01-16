@@ -41,15 +41,17 @@ use super::dbClause;
 /// </div>
 ///
 impl dbClause {
+    /// Returns the first watched literal (of two).
     pub unsafe fn get_watch_a(&self) -> &abLiteral {
         self.get_unchecked(0)
     }
 
+    /// Returns the second watched literal (of two).
     pub unsafe fn get_watch_b(&self) -> &abLiteral {
         self.get_unchecked(self.watch_ptr)
     }
 
-    /// Initialises watches.
+    /// Initialises watches with respect to the given valuation, or otherwise to the current valuation of the context.
     /*
     # Note
     In order to avoid redundant literal lookup, watch candidates are noted when found.

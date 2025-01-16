@@ -49,7 +49,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
 
     for atom in f.into_iter() {
         let the_literal = abLiteral::fresh(atom, false);
-        match context.q_literal(
+        match context.value_and_queue(
             the_literal,
             consequence_q::QPosition::Back,
             context.literal_db.decision_count(),
@@ -65,7 +65,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
 
     for atom in t.into_iter() {
         let the_literal = abLiteral::fresh(atom, true);
-        match context.q_literal(
+        match context.value_and_queue(
             the_literal,
             consequence_q::QPosition::Back,
             context.literal_db.decision_count(),

@@ -1,6 +1,6 @@
 //! Applies queued consequences.
 //!
-//! For an overview of apply_consequence within a solve, see the documentation of the [solve procedure](crate::procedures::solve).
+//! For an overview of [apply_consequences](GenericContext::apply_consequences) within a solve, see the documentation of the [solve procedure](crate::procedures::solve).
 //!
 //! Roughly, apply_consequences implements an instance of the operator which:
 //!
@@ -9,9 +9,9 @@
 //! - Makes a decision, if the formula entails itself and the valuation is partial.
 //! - Backjumps to a different valuation, if the formula entails some formula with an additional clause.
 //!
-//! - A return of *unsatisfiable* is represented as a `FundamentalConflict`.
+//! - A return of *unsatisfiable* is represented as a [FundamentalConflict](Ok::FundamentalConflict).
 //! - A return of a new clause is represented with a [key](crate::db::ClauseKey) to the clause, and an asserted literal.
-//! - No change is represented by a return of `Exhausted`.
+//! - No change is represented by a return of [Exhausted](Ok::Exhausted).
 //!   + It is up to a caller of apply_consequences to note whether the background valuation is complete.
 //!
 //! The following invariant is upheld:
@@ -39,55 +39,50 @@
 //!         Ok(()) => self.consequence_q.pop_front(), // continue applying consequences
 //!         Err(err::BCP::Conflict(key)) => {
 //!             if !self.literal_db.decision_made() {
-//!                 return Ok(Ok::FundamentalConflict);
+//!                 return Ok(FundamentalConflict);
 //!             }
 //!
 //!             match self.conflict_analysis(&key)? {
 //!                 // Analysis is only called when some decision has been made.
 //!                 analysis::Ok::FundamentalConflict => !,
 //!
-//!                 analysis::Ok::MissedPropagation {
-//!                     clause_key: key,
-//!                     asserted_literal: literal,
-//!                 } => {
-//!                     // return and complete the instance of propagation
-//!                     ...
+//!                 analysis::Ok::MissedPropagation { key, literal } => {
+//!                     ... // return and complete the missed propagation
 //!                     continue 'application;
 //!                 }
 //!
-//!                 analysis::Ok::UnitClause(key) => {
-//!                     return Ok(Ok::UnitClause(key));
+//!                 analysis::Ok::UnitClause { key } => {
+//!                     return Ok(UnitClause(key));
 //!                 }
 //!
-//!                 analysis::Ok::AssertingClause {
-//!                     clause_key: key,
-//!                     asserted_literal: literal,
-//!                 } => {
-//!                     return Ok(Ok::AssertingClause(key, literal));
+//!                 analysis::Ok::AssertingClause { key, literal } => {
+//!                     return Ok(AssertingClause { key, literal });
 //!                 }
 //!             }
 //!         }
 //!     }
 //! }
-//! Ok(Ok::Exhausted)
+//! Ok(Exhausted)
 //! ```
 //!
 //! # Missed propagations
 //!
-//! In some situations the opportunity to propagate a consequence may be 'missed'.
+//! In some situations the opportunity to propagate a consequence may be 'missed' --- conflict analysis may return a clause already present in the clause database.
+//! In this case, the clause returned was asserting at some prior decision level, and in turn the clause could have been used for propagation.
 //!
-//! For example, conflict analysis may return a clause already present in the clause database.
-//! In this case, the clause is asserting at some prior decision level, and in turn the clause could have been used for propagation.
+//! Missed propagations are supported as these do not *necessarily* entail an unsound solve procedure.
+//! For:
 //!
-//! Missed propagations do not (necessarily) entail an unsound solve procedure.
+//! - If the solve returns the formula is unsatisfiable then the propagations *observed* are sufficient to force some atom to be valued both true and false, and any missed propagations are not required.
+//! - If the solve returns the formula is satisfiable, things are a little more difficult.
+//!   Still, a satisfiable formula is satisfiable so long all original clause propagations are made.
+//!   Or, so long as all propagations with respect to each value set in the final valuation have been made.
 //!
-//! In particular, if the solve returns the formula is unsatisfiable then the propagations *observed* are sufficient to force some atom to be valued both true and false, and any missed propagations are not required.
+//! In order to maintain the invariant that [apply_consequences](GenericContext::apply_consequences) returns the same formula only if there are no further consequences to apply, missed propagations are returned to and their consequences applied *within* an instance.
 //!
-//! If the solve returns the formula is satisfiable, things are a little more difficult.
-//! Still, a satisfiable formula is satisfiable so long all original clause propagations are made.
-//! Or, so long as all propagations with respect to each value set in the final valuation have been made.
-//!
-//! Regardless, missed propagations are returned to and their consequences applied *within* an instance of apply_consequences, in order to maintain the invariant that apply_consequences returns the same formula only if there are no further consequences to apply.
+//! Still, missed conflicts may conflict with other invariants.
+//! For example, if all propagations via watched literals occurr prior to making a new decision and a watch is always given to a satisfied literal or a literal whose atom has no valuation, no propagation will be missed (as every asserting clause will be identified).
+//! So, caution should be taken to avoid overlooking a failed invariant.
 
 use crate::{
     context::GenericContext,
@@ -102,19 +97,24 @@ use crate::{
     types::err,
 };
 
-/// Ok results of apply_consequences.
+/// Ok results of [apply_consequences](GenericContext::apply_consequences).
 pub enum Ok {
     /// A conflict was found, and so the formula is unsatisfiable.
     FundamentalConflict,
 
-    /// A unit clause was derived from
-    UnitClause(abLiteral),
-    AssertingClause(ClauseKey, abLiteral),
+    /// A unit clause was derived from some conflict.
+    UnitClause { key: abLiteral },
+
+    /// A non-unit asserting clause was derived from some conflict.
+    AssertingClause { key: ClauseKey, literal: abLiteral },
+
+    /// There were no (further) consequences to apply.
     Exhausted,
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Applies queued consequences.
+    /// See [procedures::apply_consequences](crate::procedures::apply_consequences) for details.
     ///
     /// apply_consequences applies BCP to the consequence queue until either a conflict is found or the queue is exhausted.
     ///
@@ -157,7 +157,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let index = self.non_chronological_backjump_level(the_clause)?;
                             self.backjump(index);
 
-                            self.q_literal(
+                            self.value_and_queue(
                                 asserted_literal,
                                 QPosition::Front,
                                 self.literal_db.decision_count(),
@@ -170,12 +170,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             continue 'application;
                         }
 
-                        analysis::Ok::UnitClause(key) => {
-                            return Ok(Ok::UnitClause(key));
+                        analysis::Ok::UnitClause { key } => {
+                            return Ok(Ok::UnitClause { key });
                         }
 
                         analysis::Ok::AssertingClause { key, literal } => {
-                            return Ok(Ok::AssertingClause(key, literal));
+                            return Ok(Ok::AssertingClause { key, literal });
                         }
                     }
                 }

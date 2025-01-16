@@ -42,7 +42,7 @@
 //!     Err(err::BCP::Conflict(key)) => {
 //!         if self.literal_db.decision_made() {
 //!             let analysis_result = self.conflict_analysis(&clause_key)?;
-//!         ...
+//!             ...
 //!         }
 //!     }
 //!     ...
@@ -102,8 +102,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 match self.atom_db.value_of(check.atom()) {
                     None => {
-                        match self.q_literal(*check, consequence_q::QPosition::Back, decision_level)
-                        {
+                        match self.value_and_queue(
+                            *check,
+                            consequence_q::QPosition::Back,
+                            decision_level,
+                        ) {
                             Ok(consequence_q::Ok::Qd) => {
                                 macros::dispatch_bcp_delta!(self, Instance, *check, *clause_key);
                                 self.record_literal(check, literal::Source::BCP(*clause_key));
@@ -189,7 +192,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             None => {
                                 self.clause_db.note_use(*clause_key);
 
-                                match self.q_literal(
+                                match self.value_and_queue(
                                     the_watch,
                                     consequence_q::QPosition::Back,
                                     decision_level,
