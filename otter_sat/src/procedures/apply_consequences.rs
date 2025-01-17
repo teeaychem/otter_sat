@@ -85,8 +85,8 @@
 //! So, caution should be taken to avoid overlooking a failed invariant.
 
 use crate::{
-    context::GenericContext,
-    db::{dbStatus, ClauseKey},
+    context::{ContextState, GenericContext},
+    db::ClauseKey,
     dispatch::{
         library::delta::{self, Delta},
         macros::{self},
@@ -136,7 +136,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Err(err::BCP::Conflict(key)) => {
                     //
                     if !self.literal_db.decision_made() {
-                        self.status = dbStatus::Inconsistent;
+                        self.state = ContextState::Unsatisfiable;
 
                         macros::dispatch_atom_db_delta!(self, delta::AtomDB::Unsatisfiable(key));
 

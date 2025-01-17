@@ -1,8 +1,6 @@
 use crate::{
     config::Config,
-    db::{
-        atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ, dbStatus, literal::LiteralDB,
-    },
+    db::{atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ, literal::LiteralDB},
     dispatch::{
         library::report::{self},
         Dispatch,
@@ -11,7 +9,7 @@ use crate::{
 
 use std::rc::Rc;
 
-use super::Counters;
+use super::{ContextState, Counters};
 
 /// A generic context, parameratised to a source of randomness.
 ///
@@ -52,7 +50,7 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
     pub consequence_q: ConsequenceQ,
 
     /// The status of the context.
-    pub status: dbStatus,
+    pub state: ContextState,
 
     /// The source of rng.
     pub rng: R,
@@ -63,10 +61,13 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn report(&self) -> report::Solve {
-        match self.status {
-            dbStatus::Consistent => report::Solve::Satisfiable,
-            dbStatus::Inconsistent => report::Solve::Unsatisfiable,
-            _ => report::Solve::Unknown,
+        use crate::context::ContextState;
+        match self.state {
+            ContextState::Configuration | ContextState::Input | ContextState::Solving => {
+                report::Solve::Unknown
+            }
+            ContextState::Satisfiable => report::Solve::Satisfiable,
+            ContextState::Unsatisfiable => report::Solve::Unsatisfiable,
         }
     }
 }

@@ -56,8 +56,7 @@
 use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
-    context::GenericContext,
-    db::dbStatus,
+    context::{ContextState, GenericContext},
     structures::{
         atom::Atom,
         literal::{abLiteral, Literal},
@@ -111,7 +110,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Ok(Ok::Literal(decision_literal))
             }
             None => {
-                self.status = dbStatus::Consistent;
+                self.state = ContextState::Satisfiable;
                 Ok(Ok::Exhausted)
             }
         }

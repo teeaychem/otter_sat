@@ -146,7 +146,7 @@
 //!
 
 use crate::{
-    context::GenericContext,
+    context::{ContextState, GenericContext},
     dispatch::{
         library::{
             delta::{self, Delta},
@@ -167,6 +167,8 @@ use crate::{
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn solve(&mut self) -> Result<report::Solve, err::Context> {
         use crate::db::consequence_q::QPosition::{self};
+
+        self.state = ContextState::Solving;
 
         let total_time = std::time::Instant::now();
 
