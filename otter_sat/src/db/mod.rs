@@ -45,28 +45,6 @@ use crate::{
 /// The index of a [decision level](crate::db::literal).
 pub type LevelIndex = u32;
 
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Eq)]
-/// The status of a database.
-pub enum dbStatus {
-    /// The database is known to be consistent, e.g. with a complete valuation.
-    Consistent,
-    /// The database is known to be inconsistnet, e.g. with an unsatisfiable clause identified.
-    Inconsistent,
-    /// The consistency of the database is unknown.
-    Unknown,
-}
-
-impl std::fmt::Display for dbStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            dbStatus::Consistent => write!(f, "Consistent"),
-            Self::Inconsistent => write!(f, "Inconsistent"),
-            Self::Unknown => write!(f, "Unknown"),
-        }
-    }
-}
-
 /// Canonical methods to record literals and clauses to the context.
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Records a literal in the appropriate database.

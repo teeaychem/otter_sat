@@ -35,3 +35,30 @@ mod generic;
 pub use generic::GenericContext;
 mod specific;
 pub use specific::Context;
+
+#[allow(non_camel_case_types)]
+#[derive(PartialEq, Eq)]
+/// The state of a context.
+/// These states correspond to the states defined in the IPASIR2 specification.
+pub enum ContextState {
+    Configuration,
+    Input,
+    /// The database is known to be consistent, e.g. with a complete valuation.
+    Satisfiable,
+    /// The database is known to be inconsistnet, e.g. with an unsatisfiable clause identified.
+    Unsatisfiable,
+    /// The consistency of the database is unknown.
+    Solving,
+}
+
+impl std::fmt::Display for ContextState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Configuration => write!(f, "Configuration"),
+            Self::Input => write!(f, "Input"),
+            Self::Satisfiable => write!(f, "Satisfiable"),
+            Self::Unsatisfiable => write!(f, "Unsatisfiable"),
+            Self::Solving => write!(f, "Solving"),
+        }
+    }
+}
