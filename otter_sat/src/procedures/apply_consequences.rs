@@ -93,7 +93,10 @@ use crate::{
         Dispatch,
     },
     procedures::analysis,
-    structures::literal::{self, abLiteral},
+    structures::{
+        consequence::{self, Consequence},
+        literal::abLiteral,
+    },
     types::err,
 };
 
@@ -135,7 +138,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Err(err::BCP::CorruptWatch) => return Err(err::Context::BCP),
                 Err(err::BCP::Conflict(key)) => {
                     //
-                    if !self.literal_db.decision_made() {
+                    if !self.literal_db.is_decision_made() {
                         self.state = ContextState::Unsatisfiable;
 
                         macros::dispatch_atom_db_delta!(self, delta::AtomDB::Unsatisfiable(key));
@@ -165,7 +168,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                             macros::dispatch_bcp_delta!(self, Instance, asserted_literal, key);
 
-                            self.record_literal(asserted_literal, literal::Source::BCP(key));
+                            let consequence =
+                                Consequence::from(asserted_literal, consequence::Source::BCP(key));
+                            self.record_consequence(consequence);
 
                             continue 'application;
                         }

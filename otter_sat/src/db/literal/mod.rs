@@ -2,25 +2,38 @@
 //!
 //! For the moment, this amounts to a stack of all chosen literals.
 //!
-//! Note, observed consequences which are known to not rest on some decision(s) are stored as unit clauses in the [clause database](crate::db::clause::ClauseDB).
+//! # Components
+//!
+//! ## The decision level stack
+//!
+//! A stack of [DecisionLevel]s, each of which records a decision made, and the observed consequences of that decision (within the context (of the valuation) the decision was made with respect to).
+//!
+//! A first (or bottom) decision level exists only after some decision has been made.
+//! And, so, in particular, observed consequences which do --- or are known to --- *not* rest on some decision are stored as unit clauses in the [clause database](crate::db::clause::ClauseDB).
+//!
+//! # Terminology
+//!
+//! The 'top' level is the level of the most recent decision made.
+//! - For example, after deciding 'p' is true and 'q' is false, the top decision level records the decision to bind 'q' to false.
+//!
 
 use std::rc::Rc;
 
 use crate::{
-    db::LevelIndex,
+    db::DecisionLevelIndex,
     dispatch::Dispatch,
     structures::{consequence::Consequence, literal::abLiteral},
 };
 
 #[doc(hidden)]
-mod level;
-pub use level::*;
+mod decision_level;
+pub use decision_level::*;
 
 #[allow(dead_code)]
 /// A struct abstracting over decision levels.
 pub struct LiteralDB {
-    /// A stack of levels.
-    level_stack: Vec<Level>,
+    /// A stack of decision levels.
+    level_stack: Vec<DecisionLevel>,
     /// A dispatcher.
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 }
@@ -35,57 +48,37 @@ impl LiteralDB {
 
     /// Notes a decision has been made and pushes a new level to the top of the level stack.
     /// ```rust,ignore
-    /// self.literal_db.note_decision(chosen_literal);
+    /// self.literal_db.decision_match(chosen_literal);
     /// ```
-    pub fn note_decision(&mut self, decision: abLiteral) {
-        self.level_stack.push(Level::new(decision));
+    pub fn decision_made(&mut self, decision: abLiteral) {
+        self.level_stack.push(DecisionLevel::new(decision));
     }
 
-    /// The last decision made.
+    /// The decision of the given level index.
     ///
-    /// I.e. the decision of the level at the top of the level stack.
-    ///
+    /// # Safety
+    /// No check is made to ensure the relevant number of decisions have been made.
+    pub unsafe fn decision_unchecked(&self, level: DecisionLevelIndex) -> abLiteral {
+        self.level_stack.get_unchecked(level as usize).decision()
+    }
+
+    /// The decision of the top level.
     /// ```rust,ignore
-    /// self.atom_db.drop_value(self.literal_db.last_decision().atom());
+    /// self.atom_db.drop_value(self.literal_db.top_decision_unchecked().atom());
     /// ```
     /// # Safety
     /// No check is made to ensure a decision has been made.
-    pub unsafe fn last_decision_unchecked(&self) -> abLiteral {
+    pub unsafe fn top_decision_unchecked(&self) -> abLiteral {
         self.level_stack
             .get_unchecked(self.level_stack.len() - 1)
             .decision()
     }
 
-    /// The decision made at the given level.
+    /// A slice of the consequences at the given decision level index.
     ///
     /// # Safety
     /// No check is made to ensure a decision has been made.
-    pub unsafe fn decision_at_level_unchecked(&self, level: LevelIndex) -> abLiteral {
-        self.level_stack.get_unchecked(level as usize).decision()
-    }
-
-    /// Consequences of the last decision made.
-    ///
-    /// I.e. consequences of the decision of the level at the top of the level stack.
-    ///
-    /// ```rust,ignore
-    /// for (source, literal) in literal_db.last_consequences_unchecked().iter().rev() {
-    ///    ...
-    /// }
-    /// ```
-    /// # Safety
-    /// No check is made to ensure a decision has been made.
-    pub unsafe fn last_consequences_unchecked(&self) -> &[Consequence] {
-        self.level_stack
-            .get_unchecked(self.level_stack.len() - 1)
-            .consequences()
-    }
-
-    /// Consequences at the given level.
-    ///
-    /// # Safety
-    /// No check is made to ensure a decision has been made.
-    pub fn consequences_at_level_unchecked(&self, level: LevelIndex) -> &[Consequence] {
+    pub fn decision_consequences_unchecked(&self, level: DecisionLevelIndex) -> &[Consequence] {
         unsafe {
             self.level_stack
                 .get_unchecked(level as usize)
@@ -93,29 +86,55 @@ impl LiteralDB {
         }
     }
 
-    /// Removes the top level from the level stack.
-    pub fn forget_last_decision(&mut self) {
+    /// A slice of the consequences at the top decision level.
+    /// ```rust,ignore
+    /// for consequence in literal_db.top_consequences_unchecked().iter().rev() {
+    ///    ...
+    /// }
+    /// ```
+    /// # Safety
+    /// No check is made to ensure a decision has been made.
+    pub unsafe fn top_consequences_unchecked(&self) -> &[Consequence] {
+        self.level_stack
+            .get_unchecked(self.decision_count().saturating_sub(1) as usize)
+            .consequences()
+    }
+
+    /// Removes the top decision level.
+    ///
+    /// Note, this does not mutate any valuation.
+    pub fn forget_top_decision(&mut self) {
         self.level_stack.pop();
     }
 
-    /// Returns true if a decision has been made, false otherwise.
-    pub fn decision_made(&self) -> bool {
+    /// Returns true if some decision is active, false otherwise.
+    pub fn is_decision_made(&self) -> bool {
         !self.level_stack.is_empty()
     }
 
     /// A count of how many levels are present in the decision stack.
     ///
     /// In other words, a count of how many decisions have been made.
-    pub fn decision_count(&self) -> LevelIndex {
-        self.level_stack.len() as LevelIndex
+    pub fn decision_count(&self) -> DecisionLevelIndex {
+        self.level_stack.len() as DecisionLevelIndex
     }
 
-    /// A mutable borrow of the top level.
+    /// A mutable borrow of the top decision level.
     ///
     /// # Safety
     /// No check is made to ensure a decision has been made.
-    pub unsafe fn top_mut_unchecked(&mut self) -> &mut Level {
-        let last_decision_index = self.level_stack.len().saturating_sub(1);
-        self.level_stack.get_unchecked_mut(last_decision_index)
+    pub unsafe fn top_level_unchecked_mut(&mut self) -> &mut DecisionLevel {
+        let top_decision_index = self.level_stack.len().saturating_sub(1);
+        self.level_stack.get_unchecked_mut(top_decision_index)
+    }
+}
+
+impl LiteralDB {
+    /// Records a consequence to the top decision level.
+    ///
+    /// # Safety
+    /// No check is made to ensure a decision has been made.
+    pub(super) unsafe fn record_consequence_unchecked(&mut self, consequence: &Consequence) {
+        self.top_level_unchecked_mut().push_consequence(consequence);
     }
 }

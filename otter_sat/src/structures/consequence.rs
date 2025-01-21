@@ -1,17 +1,50 @@
-use crate::structures::{
-    atom::Atom,
-    literal::{self, abLiteral, Literal},
+use std::borrow::Borrow;
+
+use crate::{
+    db::ClauseKey,
+    structures::{
+        atom::Atom,
+        literal::{abLiteral, Literal},
+    },
 };
 
+/// The source of a bind.
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[allow(clippy::upper_case_acronyms)]
+pub enum Source {
+    /// A decision was made where the alternative the alternative would make no difference to satisfiability.
+    PureLiteral,
+
+    /// A consequence of boolean constraint propagation.
+    BCP(ClauseKey),
+}
+
+#[derive(Clone)]
 pub struct Consequence {
     /// The atom-value bind which must hold, represented as a literal.
     pub literal: abLiteral,
 
     /// The immediate reason why the atom-value pair must be.
-    pub source: literal::Source,
+    pub source: Source,
 }
 
 impl Consequence {
+    /// Creates a consequence from a bind represented as a literal and a source.
+    pub fn from(literal: impl Borrow<abLiteral>, source: Source) -> Self {
+        Consequence {
+            literal: literal.borrow().canonical(),
+            source,
+        }
+    }
+
+    /// Creates a consequence of the given atom bound to the given value due to the given source.
+    pub fn from_bind(atom: Atom, value: bool, source: Source) -> Self {
+        Consequence {
+            literal: abLiteral::fresh(atom, value),
+            source,
+        }
+    }
+
     /// The bound atom.
     pub fn atom(&self) -> Atom {
         self.literal.atom()
@@ -28,7 +61,7 @@ impl Consequence {
     }
 
     /// The (immediate) reason why the atom-value bind must hold.
-    pub fn source(&self) -> &literal::Source {
+    pub fn source(&self) -> &Source {
         &self.source
     }
 }

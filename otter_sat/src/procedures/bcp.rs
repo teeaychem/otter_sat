@@ -69,7 +69,8 @@ use crate::{
     misc::log::targets::{self},
     structures::{
         clause::ClauseKind,
-        literal::{self, abLiteral, Literal},
+        consequence::{self, Consequence},
+        literal::{abLiteral, Literal},
     },
     types::err::{self},
 };
@@ -109,7 +110,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         ) {
                             Ok(consequence_q::Ok::Qd) => {
                                 macros::dispatch_bcp_delta!(self, Instance, *check, *clause_key);
-                                self.record_literal(check, literal::Source::BCP(*clause_key));
+                                let consequence =
+                                    Consequence::from(check, consequence::Source::BCP(*clause_key));
+                                self.record_consequence(consequence);
                             }
 
                             Ok(consequence_q::Ok::Skip) => {}
@@ -203,7 +206,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 };
 
                                 macros::dispatch_bcp_delta!(self, Instance, the_watch, *clause_key);
-                                self.record_literal(the_watch, literal::Source::BCP(*clause_key));
+                                let consequence = Consequence::from(
+                                    the_watch,
+                                    consequence::Source::BCP(*clause_key),
+                                );
+                                self.record_consequence(consequence);
                             }
 
                             Some(_) => {}

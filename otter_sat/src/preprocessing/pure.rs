@@ -7,7 +7,8 @@ use crate::{
     structures::{
         atom::Atom,
         clause::Clause,
-        literal::{self, abLiteral, Literal},
+        consequence::{self, Consequence},
+        literal::{abLiteral, Literal},
     },
     types::err::{self},
 };
@@ -55,7 +56,8 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
             context.literal_db.decision_count(),
         ) {
             Ok(consequence_q::Ok::Qd) => {
-                context.record_literal(the_literal, literal::Source::PureLiteral);
+                let consequence = Consequence::from(the_literal, consequence::Source::PureLiteral);
+                context.record_consequence(consequence);
             }
             Ok(consequence_q::Ok::Skip) => {}
 
@@ -71,7 +73,8 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
             context.literal_db.decision_count(),
         ) {
             Ok(consequence_q::Ok::Qd) => {
-                context.record_literal(the_literal, literal::Source::PureLiteral)
+                let consequence = Consequence::from(the_literal, consequence::Source::PureLiteral);
+                context.record_consequence(consequence);
             }
 
             Ok(consequence_q::Ok::Skip) => {}
