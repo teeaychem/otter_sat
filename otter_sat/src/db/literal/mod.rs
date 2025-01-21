@@ -34,14 +34,50 @@ pub use decision_level::*;
 pub struct LiteralDB {
     /// A stack of decision levels.
     level_stack: Vec<DecisionLevel>,
+
+    /// Assumptions
+    assumptions: Vec<abLiteral>,
+
+    /// Consequences of assumptions made
+    assumption_consequences: Vec<Consequence>,
+
     /// A dispatcher.
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
+}
+
+impl LiteralDB {
+    pub fn assumption_is_made(&self) -> bool {
+        !self.assumptions.is_empty()
+    }
+
+    pub fn assumption_made(&mut self, assumption: abLiteral) {
+        self.assumptions.push(assumption);
+    }
+
+    pub fn record_assumption_consequence(&mut self, consequence: Consequence) {
+        self.assumption_consequences.push(consequence);
+    }
+
+    pub fn assumptions(&self) -> &[abLiteral] {
+        &self.assumptions
+    }
+
+    pub fn assumption_consequences(&self) -> &[Consequence] {
+        &self.assumption_consequences
+    }
+
+    pub fn clear_assumptions(&mut self) {
+        self.assumptions.clear();
+        self.assumption_consequences.clear();
+    }
 }
 
 impl LiteralDB {
     pub fn new(tx: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
         LiteralDB {
             level_stack: Vec::default(),
+            assumptions: Vec::default(),
+            assumption_consequences: Vec::default(),
             dispatcher: tx,
         }
     }
@@ -134,7 +170,7 @@ impl LiteralDB {
     ///
     /// # Safety
     /// No check is made to ensure a decision has been made.
-    pub(super) unsafe fn record_consequence_unchecked(&mut self, consequence: &Consequence) {
+    pub(super) unsafe fn record_consequence_unchecked(&mut self, consequence: Consequence) {
         self.top_level_unchecked_mut().push_consequence(consequence);
     }
 }

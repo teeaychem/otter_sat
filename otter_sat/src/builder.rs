@@ -17,6 +17,13 @@ use crate::{
 
 use std::{borrow::Borrow, io::BufRead};
 
+#[derive(Debug)]
+pub enum ClauseOk {
+    Tautology,
+    AddedUnit,
+    AddedLong,
+}
+
 /// Methods for building the context.
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Returns the internal representation an atom from a string, adding the atom to the context if required.
@@ -128,14 +135,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     Otherwise, if the literal is not already recorded as a clause, it could be 'raised' to being a clause.
     Though, a naive approach may cause some issues with FRAT proofs, and other features which rely on decision level information.
      */
-    pub fn add_clause(&mut self, clause: impl Clause) -> Result<(), err::Build> {
+    pub fn add_clause(&mut self, clause: impl Clause) -> Result<ClauseOk, err::Build> {
         if clause.size() == 0 {
             return Err(err::Build::ClauseDB(err::ClauseDB::EmptyClause));
         }
         let mut clause_vec = clause.canonical();
 
         match self.preprocess_clause(&mut clause_vec)? {
-            PreprocessResult::Tautology => return Ok(()),
+            PreprocessResult::Tautology => return Ok(ClauseOk::Tautology),
             PreprocessResult::Contradiction => return Err(err::Build::Unsatisfiable),
             _ => {}
         };
@@ -172,13 +179,65 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     Some(_) => Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict)),
                 };
-                Ok(())
+                Ok(ClauseOk::AddedUnit)
             }
 
             _ => {
+                if clause_vec.iter().all(|literal| {
+                    self.atom_db
+                        .value_of(literal.atom())
+                        .is_some_and(|v| v != literal.polarity())
+                }) {
+                    {
+                        return Err(err::Build::ClauseDB(err::ClauseDB::ValuationConflict));
+                    }
+                }
+
                 self.record_clause(clause_vec, clause::Source::Original, None)?;
 
-                Ok(())
+                Ok(ClauseOk::AddedLong)
+            }
+        }
+    }
+
+    pub fn add_assumption(&mut self, assumption: impl Literal) -> Result<(), err::Build> {
+        let literal = assumption;
+
+        match self.atom_db.value_of(literal.atom()) {
+            None => {
+                match self.value_and_queue(literal.canonical(), consequence_q::QPosition::Back, 0) {
+                    Ok(consequence_q::Ok::Qd) => {
+                        self.literal_db.assumption_made(literal.canonical());
+                        Ok(())
+                    }
+                    _ => Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict)),
+                }
+            }
+
+            Some(v) if v == literal.polarity() => {
+                // Must be at zero for an assumption, so there's nothing to do
+                if self.counters.total_decisions != 0 {
+                    Err(err::Build::ClauseDB(err::ClauseDB::AddedUnitAfterDecision))
+                } else {
+                    Ok(())
+                }
+            }
+
+            Some(_) => Err(err::Build::ClauseDB(err::ClauseDB::ImmediateConflict)),
+        };
+        Ok(())
+    }
+
+    /// Removes assumptions from a context by unbinding the value from any atom bound due to an assumption.
+    pub fn remove_assumptions(&mut self) {
+        for assumption in self.literal_db.assumptions() {
+            // The assumption has been added to the context, so the atom surely exists
+            unsafe { self.atom_db.drop_value(assumption.atom()) };
+        }
+        for consequence in self.literal_db.assumption_consequences() {
+            // The consequence has been observed, so the atom surely exists
+            unsafe {
+                self.atom_db.drop_value(consequence.atom());
             }
         }
     }

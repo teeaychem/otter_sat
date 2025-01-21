@@ -2,6 +2,7 @@ use otter_sat::{
     config::Config,
     context::Context,
     dispatch::library::report::{self},
+    structures::{clause::Clause, literal::abLiteral},
 };
 
 /// A default context is created and some sequences of variables are added.
@@ -19,15 +20,18 @@ fn main() {
     let mut the_context: Context = Context::from_config(config, None);
 
     // Each character in some string as a literal.
-    let mut atoms = "model".chars().collect::<Vec<_>>();
+    let mut atoms = "models".chars().collect::<Vec<_>>();
     for atom in &atoms {
-        assert!(the_context.atom_from_string(&atom.to_string()).is_ok())
+        assert!(the_context.atom_from_string(&atom.to_string()).is_ok());
+        // let assumed_atom = the_context.literal_from_string(&atom.to_string()).unwrap();
     }
+
+    let assume_plural = the_context.literal_from_string("s").unwrap();
+    let _ = the_context.add_assumption(assume_plural);
 
     let mut count = 0;
 
     loop {
-        the_context.clear_decisions();
         assert!(the_context.solve().is_ok());
 
         match the_context.report() {
@@ -51,7 +55,15 @@ fn main() {
             new_valuation.push(' ');
         }
 
-        let the_clause = the_context.clause_from_string(&new_valuation).unwrap();
+        let the_clause = match the_context.clause_from_string(&new_valuation) {
+            Ok(c) => c,
+            Err(e) => {
+                println!("{e:?}");
+                break;
+            }
+        };
+
+        the_context.clear_decisions();
 
         match the_context.add_clause(the_clause) {
             Ok(_) => {}
@@ -63,5 +75,8 @@ fn main() {
     atoms.sort_unstable();
     atoms.dedup();
 
-    assert_eq!(count, 2_usize.pow(atoms.len().try_into().unwrap()));
+    assert_eq!(
+        count,
+        2_usize.pow(atoms.len().saturating_sub(1).try_into().unwrap())
+    );
 }

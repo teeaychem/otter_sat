@@ -142,6 +142,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// context.clear_decisions();
     /// ```
     pub fn clear_decisions(&mut self) {
+        self.state = ContextState::Input;
         self.backjump(0);
     }
 }

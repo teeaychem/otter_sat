@@ -57,8 +57,6 @@
 //! let mut count = 0;
 //!
 //! loop {
-//!     // Clear any decisions made on a previous solve and
-//!     the_context.clear_decisions();
 //!     // Determine the satisfiability of the formula in the context.
 //!     assert!(the_context.solve().is_ok());
 //!
@@ -84,10 +82,13 @@
 //!         new_valuation.push(' ');
 //!     }
 //!
+//!     // Clear any decisions made on a previous solve
+//!     the_context.clear_decisions();
+//!
 //!     // Transform the string to a clause and add the clause to the solve.
 //!     let the_clause = the_context.clause_from_string(&new_valuation).unwrap();
 //!     match the_context.add_clause(the_clause) {
-//!         Ok(()) => {}
+//!         Ok(_) => {}
 //!         Err(_) => break,
 //!     };
 //! }

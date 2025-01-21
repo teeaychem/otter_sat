@@ -58,18 +58,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// If no decisions have been made, literals are added to the clause database as unit clauses.
     /// Otherwise, literals are recorded as consequences of the current decision.
     pub fn record_consequence(&mut self, consequence: impl Borrow<Consequence>) {
-        let consequence = consequence.borrow();
+        let consequence = consequence.borrow().clone();
         match consequence.source() {
             ConsequenceSource::PureLiteral => {
-                //
-                match self.literal_db.decision_count() {
-                    0 => {
-                        self.record_clause(*consequence.literal(), ClauseSource::PureLiteral, None);
-                    }
-                    _ => {
-                        // Making a free decision is not supported after some other (non-free) decision has been made.
-                        panic!("!")
-                    }
+                // Making a free decision is not supported after some other (non-free) decision has been made.
+                if !self.literal_db.is_decision_made() && self.literal_db.decision_count() == 0 {
+                    self.record_clause(*consequence.literal(), ClauseSource::PureLiteral, None);
+                } else {
+                    panic!("!")
                 }
             }
 
@@ -77,7 +73,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 //
                 match self.literal_db.decision_count() {
                     0 => {
-                        self.record_clause(*consequence.literal(), ClauseSource::BCP, None);
+                        if self.literal_db.assumption_is_made() {
+                            self.literal_db.record_assumption_consequence(consequence);
+                        } else {
+                            self.record_clause(*consequence.literal(), ClauseSource::BCP, None);
+                        };
                     }
                     _ => unsafe {
                         self.literal_db.record_consequence_unchecked(consequence);
