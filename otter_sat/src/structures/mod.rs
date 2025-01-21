@@ -26,5 +26,6 @@
 
 pub mod atom;
 pub mod clause;
+pub mod consequence;
 pub mod literal;
 pub mod valuation;

@@ -64,8 +64,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             for _ in 0..(self.literal_db.decision_count().saturating_sub(target)) {
                 self.atom_db
                     .drop_value(self.literal_db.last_decision_unchecked().atom());
-                for (_, literal) in self.literal_db.last_consequences_unchecked() {
-                    self.atom_db.drop_value(literal.atom());
+                for consequence in self.literal_db.last_consequences_unchecked() {
+                    self.atom_db.drop_value(consequence.atom());
                 }
                 self.literal_db.forget_last_decision();
             }

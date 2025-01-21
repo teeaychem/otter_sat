@@ -209,8 +209,8 @@ impl ResolutionBuffer {
 
         // Resolution buffer is only used by analysis, which is only called after some decision has been made
         let the_trail = unsafe { literal_db.last_consequences_unchecked().iter().rev() };
-        'resolution_loop: for (source, literal) in the_trail {
-            match source {
+        'resolution_loop: for consequence in the_trail {
+            match consequence.source() {
                 literal::Source::BCP(the_key) => {
                     let source_clause = match unsafe { clause_db.get_unchecked(the_key) } {
                         Err(_) => {
@@ -220,7 +220,8 @@ impl ResolutionBuffer {
                         Ok(clause) => clause,
                     };
 
-                    let resolution_result = self.resolve_clause(source_clause, literal);
+                    let resolution_result =
+                        self.resolve_clause(source_clause, consequence.literal());
 
                     if resolution_result.is_err() {
                         // the clause wasn't relevant
@@ -247,7 +248,11 @@ impl ResolutionBuffer {
                                 }
                                 ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
                                     // TODO: Subsumption should use the appropriate valuation
-                                    let k = clause_db.subsume(*the_key, literal, atom_db)?;
+                                    let k = clause_db.subsume(
+                                        *the_key,
+                                        consequence.literal(),
+                                        atom_db,
+                                    )?;
 
                                     macros::dispatch_resolution_delta!(
                                         self,

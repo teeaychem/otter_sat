@@ -1,13 +1,16 @@
 use std::borrow::Borrow;
 
-use crate::structures::literal::{self, abLiteral};
+use crate::structures::{
+    consequence::Consequence,
+    literal::{self, abLiteral},
+};
 
 /// A decision level --- the decision and the *observed* consequences of that decision, given prior decisions and observed consequences.
 ///
 /// Note: The consequences relation is reflexive, but no reflexive consequences are observed.
 pub struct Level {
     decision: abLiteral,
-    consequences: Vec<(literal::Source, abLiteral)>,
+    consequences: Vec<Consequence>,
 }
 
 impl Level {
@@ -25,7 +28,7 @@ impl Level {
     }
 
     /// The consequences of a level.
-    pub fn consequences(&self) -> &[(literal::Source, abLiteral)] {
+    pub fn consequences(&self) -> &[Consequence] {
         &self.consequences
     }
 
@@ -33,6 +36,9 @@ impl Level {
     ///
     /// No effort is made to check the literal is really a consequence.
     pub fn record_consequence(&mut self, literal: impl Borrow<abLiteral>, source: literal::Source) {
-        self.consequences.push((source, *literal.borrow()))
+        self.consequences.push(Consequence {
+            literal: *literal.borrow(),
+            source,
+        })
     }
 }
