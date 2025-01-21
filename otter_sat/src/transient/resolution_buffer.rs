@@ -46,7 +46,8 @@ use crate::{
     structures::{
         atom::Atom,
         clause::{vClause, Clause},
-        literal::{self, abLiteral, Literal},
+        consequence,
+        literal::{abLiteral, Literal},
         valuation::Valuation,
     },
     types::err::{self},
@@ -208,10 +209,10 @@ impl ResolutionBuffer {
         };
 
         // Resolution buffer is only used by analysis, which is only called after some decision has been made
-        let the_trail = unsafe { literal_db.last_consequences_unchecked().iter().rev() };
+        let the_trail = unsafe { literal_db.top_consequences_unchecked().iter().rev() };
         'resolution_loop: for consequence in the_trail {
             match consequence.source() {
-                literal::Source::BCP(the_key) => {
+                consequence::Source::BCP(the_key) => {
                     let source_clause = match unsafe { clause_db.get_unchecked(the_key) } {
                         Err(_) => {
                             log::error!(target: targets::RESOLUTION, "Lost resolution clause {the_key}");

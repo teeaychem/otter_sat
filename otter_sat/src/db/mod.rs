@@ -36,32 +36,35 @@ use crate::{
     },
     structures::{
         clause::{Clause, Source as ClauseSource},
-        literal::{abLiteral, Source as LiteralSource},
+        consequence::Consequence,
+        consequence::Source as ConsequenceSource,
         valuation::vValuation,
     },
     types::err,
 };
 
 /// The index of a [decision level](crate::db::literal).
-pub type LevelIndex = u32;
+pub type DecisionLevelIndex = u32;
 
 /// Canonical methods to record literals and clauses to the context.
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Records a literal in the appropriate database.
     ///
     /// ```rust, ignore
-    /// self.record_literal(literal, literal::Source::BCP(key));
+    /// let consequence = Consequence::from(literal, literal::Source::BCP(key));
+    /// self.record_consequence(consequence);
     /// ```
     ///
     /// If no decisions have been made, literals are added to the clause database as unit clauses.
     /// Otherwise, literals are recorded as consequences of the current decision.
-    pub fn record_literal(&mut self, literal: impl Borrow<abLiteral>, source: LiteralSource) {
-        match source {
-            LiteralSource::PureLiteral => {
+    pub fn record_consequence(&mut self, consequence: impl Borrow<Consequence>) {
+        let consequence = consequence.borrow();
+        match consequence.source() {
+            ConsequenceSource::PureLiteral => {
                 //
                 match self.literal_db.decision_count() {
                     0 => {
-                        self.record_clause(*literal.borrow(), ClauseSource::PureLiteral, None);
+                        self.record_clause(*consequence.literal(), ClauseSource::PureLiteral, None);
                     }
                     _ => {
                         // Making a free decision is not supported after some other (non-free) decision has been made.
@@ -70,16 +73,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
             }
 
-            LiteralSource::BCP(_) => {
+            ConsequenceSource::BCP(_) => {
                 //
                 match self.literal_db.decision_count() {
                     0 => {
-                        self.record_clause(*literal.borrow(), ClauseSource::BCP, None);
+                        self.record_clause(*consequence.literal(), ClauseSource::BCP, None);
                     }
                     _ => unsafe {
-                        self.literal_db
-                            .top_mut_unchecked()
-                            .record_consequence(literal, source)
+                        self.literal_db.record_consequence_unchecked(consequence);
                     },
                 }
             }

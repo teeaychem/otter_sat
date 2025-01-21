@@ -37,10 +37,7 @@
 #[doc(hidden)]
 mod impl_abLiteral;
 
-use crate::{
-    db::{atom::AtomDB, ClauseKey},
-    structures::atom::Atom,
-};
+use crate::{db::atom::AtomDB, structures::atom::Atom};
 
 /// Something which has methods for returning an atom and a polarity, etc.
 pub trait Literal: std::cmp::Ord + std::hash::Hash {
@@ -73,15 +70,4 @@ pub struct abLiteral {
 
     /// The polarity of a literal.
     polarity: bool,
-}
-
-/// how a literal was settled
-#[derive(Clone, Copy, PartialEq, Eq)]
-#[allow(clippy::upper_case_acronyms)]
-pub enum Source {
-    /// A decision was made where the alternative the alternative would make no difference to satisfiability.
-    PureLiteral,
-
-    /// A consequence of boolean constraint propagation.
-    BCP(ClauseKey),
 }

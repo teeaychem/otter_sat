@@ -43,7 +43,7 @@
 
 use crate::{
     context::GenericContext,
-    db::LevelIndex,
+    db::DecisionLevelIndex,
     misc::log::targets::{self},
     structures::{clause::Clause, literal::Literal},
     types::err,
@@ -53,7 +53,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Backjumps to the given target level.
     ///
     /// For documentation, see [procedures::backjump](crate::procedures::backjump).
-    pub fn backjump(&mut self, target: LevelIndex) {
+    pub fn backjump(&mut self, target: DecisionLevelIndex) {
         // log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.index(), to);
 
         // Sufficiently safe:
@@ -63,11 +63,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         unsafe {
             for _ in 0..(self.literal_db.decision_count().saturating_sub(target)) {
                 self.atom_db
-                    .drop_value(self.literal_db.last_decision_unchecked().atom());
-                for consequence in self.literal_db.last_consequences_unchecked() {
+                    .drop_value(self.literal_db.top_decision_unchecked().atom());
+                for consequence in self.literal_db.top_consequences_unchecked() {
                     self.atom_db.drop_value(consequence.atom());
                 }
-                self.literal_db.forget_last_decision();
+                self.literal_db.forget_top_decision();
             }
         }
         self.clear_q(target);
@@ -83,7 +83,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn non_chronological_backjump_level(
         &self,
         clause: &impl Clause,
-    ) -> Result<LevelIndex, err::Context> {
+    ) -> Result<DecisionLevelIndex, err::Context> {
         match clause.size() {
             0 => panic!("!"),
             1 => Ok(0),

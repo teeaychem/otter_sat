@@ -82,8 +82,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         let mut backstep_valuation = self.atom_db.valuation_canonical().clone();
         unsafe {
-            backstep_valuation.clear_value_of(self.literal_db.last_decision_unchecked().atom());
-            for assertion in self.literal_db.last_consequences_unchecked() {
+            backstep_valuation.clear_value_of(self.literal_db.top_decision_unchecked().atom());
+            for assertion in self.literal_db.top_consequences_unchecked() {
                 backstep_valuation.clear_value_of(assertion.atom());
             }
         }

@@ -160,7 +160,7 @@ use crate::{
         apply_consequences::{self},
         decision::{self},
     },
-    structures::literal::{self},
+    structures::consequence::{self, Consequence},
     types::err::{self},
 };
 
@@ -192,7 +192,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     //
                     match self.make_decision()? {
                         decision::Ok::Literal(decision) => {
-                            self.literal_db.note_decision(decision);
+                            self.literal_db.decision_made(decision);
                             self.value_and_queue(
                                 decision,
                                 QPosition::Back,
@@ -213,7 +213,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     self.clause_db.note_use(key);
                     macros::dispatch_bcp_delta!(self, Instance, literal, key);
 
-                    self.record_literal(literal, literal::Source::BCP(key));
+                    let consequence = Consequence::from(literal, consequence::Source::BCP(key));
+                    self.record_consequence(consequence);
                     self.value_and_queue(
                         literal,
                         QPosition::Front,

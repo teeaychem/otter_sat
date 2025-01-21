@@ -51,14 +51,14 @@ use std::borrow::Borrow;
 
 use crate::{
     context::GenericContext,
-    db::LevelIndex,
+    db::DecisionLevelIndex,
     misc::log::targets::{self},
     structures::literal::{abLiteral, Literal},
     types::err::{self},
 };
 
 /// A queue of observed consequences and the level at which the consequence was observed.
-pub type ConsequenceQ = std::collections::VecDeque<(abLiteral, LevelIndex)>;
+pub type ConsequenceQ = std::collections::VecDeque<(abLiteral, DecisionLevelIndex)>;
 
 /// Possible 'Ok' results of queuing a literal.
 pub enum Ok {
@@ -88,7 +88,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///     self.clear_consequences(to);
     /// }
     /// ```
-    pub fn clear_q(&mut self, from: LevelIndex) {
+    pub fn clear_q(&mut self, from: DecisionLevelIndex) {
         self.consequence_q.retain(|(_, c)| *c <= from);
     }
 
@@ -103,7 +103,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         &mut self,
         literal: impl Borrow<abLiteral>,
         position: QPosition,
-        level: LevelIndex,
+        level: DecisionLevelIndex,
     ) -> Result<Ok, err::Queue> {
         let valuation_result = unsafe {
             self.atom_db.set_value(
@@ -139,7 +139,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn push_to_consequence_queue(
         &mut self,
         literal: impl Borrow<abLiteral>,
-        level: LevelIndex,
+        level: DecisionLevelIndex,
         position: QPosition,
     ) {
         match position {
