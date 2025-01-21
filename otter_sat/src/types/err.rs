@@ -54,30 +54,46 @@ pub enum Build {
 pub enum ClauseDB {
     /// Attempt to get a unit clause by a key (the key is the literal)
     GetUnitKey,
+
     /// Attempt to transfer a unit clause.
     TransferUnit,
+
     /// Attempt to transfer a binary clause.
     TransferBinary,
+
     /// There was some issue with watches when transfering a clause.
     TransferWatch,
+
     /// A learnt cluase is missing.
     Missing,
+
     /// An invalid key token.
     InvalidKeyToken,
+
     /// An invalid key index.
     InvalidKeyIndex,
+
     /// Some attempt was made to store an empty clause.
     EmptyClause,
+
     /// Some attempt was made to store a unit clause.
     UnitClause,
+
     /// All possible keys have been used for some clause type (formula/binary/long etc).
     StorageExhausted,
+
     /// A unit clause was added after some decision has been made.
     ///
     /// Ideally, this case could be handled and this error removed.
     AddedUnitAfterDecision,
+
     /// An immediate conflict.
     ImmediateConflict,
+
+    /// The clause conflicts with the current valuation.
+    ///
+    /// For example, due to assumption made.
+    ValuationConflict,
 }
 
 #[derive(Clone, Copy)]

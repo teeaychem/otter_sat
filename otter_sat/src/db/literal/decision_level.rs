@@ -30,7 +30,7 @@ impl DecisionLevel {
     /// Records a literal consequence of the level from some source.
     ///
     /// No effort is made to check the literal is really a consequence.
-    pub(super) fn push_consequence(&mut self, consequence: &Consequence) {
-        self.consequences.push(consequence.clone())
+    pub(super) fn push_consequence(&mut self, consequence: Consequence) {
+        self.consequences.push(consequence)
     }
 }
