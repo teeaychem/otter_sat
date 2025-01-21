@@ -9,7 +9,7 @@ use std::rc::Rc;
 use crate::{
     db::LevelIndex,
     dispatch::Dispatch,
-    structures::literal::{self, abLiteral},
+    structures::{consequence::Consequence, literal::abLiteral},
 };
 
 #[doc(hidden)]
@@ -75,7 +75,7 @@ impl LiteralDB {
     /// ```
     /// # Safety
     /// No check is made to ensure a decision has been made.
-    pub unsafe fn last_consequences_unchecked(&self) -> &[(literal::Source, abLiteral)] {
+    pub unsafe fn last_consequences_unchecked(&self) -> &[Consequence] {
         self.level_stack
             .get_unchecked(self.level_stack.len() - 1)
             .consequences()
@@ -85,10 +85,7 @@ impl LiteralDB {
     ///
     /// # Safety
     /// No check is made to ensure a decision has been made.
-    pub fn consequences_at_level_unchecked(
-        &self,
-        level: LevelIndex,
-    ) -> &[(literal::Source, abLiteral)] {
+    pub fn consequences_at_level_unchecked(&self, level: LevelIndex) -> &[Consequence] {
         unsafe {
             self.level_stack
                 .get_unchecked(level as usize)
