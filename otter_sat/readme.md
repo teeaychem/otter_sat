@@ -141,5 +141,5 @@ let _ = dimacs.write(b"
       -r 0
 ");
 
-assert_eq!(the_context.read_dimacs(dimacs.as_slice()), Err(err::Build::Unsatisfiable));
+assert_eq!(the_context.read_dimacs(dimacs.as_slice()), Err(err::BuildErrorKind::Unsatisfiable));
 ```

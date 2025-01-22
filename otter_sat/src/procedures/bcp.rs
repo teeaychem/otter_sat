@@ -82,7 +82,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// <div class="warning">
     /// The literal at index 0 is a watched literal.
     /// </div>
-    pub unsafe fn bcp(&mut self, literal: impl Borrow<abLiteral>) -> Result<(), err::BCP> {
+    pub unsafe fn bcp(&mut self, literal: impl Borrow<abLiteral>) -> Result<(), err::BCPErrorKind> {
         let literal = literal.borrow();
         let decision_level = self.literal_db.decision_count();
 
@@ -98,7 +98,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             for element in binary_list {
                 let WatchTag::Binary(check, clause_key) = element else {
                     log::error!(target: targets::PROPAGATION, "Long clause found in binary watch list.");
-                    return Err(err::BCP::CorruptWatch);
+                    return Err(err::BCPErrorKind::CorruptWatch);
                 };
 
                 match self.atom_db.value_of(check.atom()) {
@@ -108,17 +108,17 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             consequence_q::QPosition::Back,
                             decision_level,
                         ) {
-                            Ok(consequence_q::Ok::Qd) => {
+                            Ok(consequence_q::ConsequenceQueueOk::Qd) => {
                                 macros::dispatch_bcp_delta!(self, Instance, *check, *clause_key);
                                 let consequence =
                                     Consequence::from(check, consequence::Source::BCP(*clause_key));
                                 self.record_consequence(consequence);
                             }
 
-                            Ok(consequence_q::Ok::Skip) => {}
+                            Ok(consequence_q::ConsequenceQueueOk::Skip) => {}
 
                             Err(_key) => {
-                                return Err(err::BCP::Conflict(*clause_key));
+                                return Err(err::BCPErrorKind::Conflict(*clause_key));
                             }
                         }
                     }
@@ -128,7 +128,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         log::trace!(target: targets::PROPAGATION, "Consequence of {clause_key} and {literal} is contradiction.");
                         macros::dispatch_bcp_delta!(self, Conflict, *literal, *clause_key);
 
-                        return Err(err::BCP::Conflict(*clause_key));
+                        return Err(err::BCPErrorKind::Conflict(*clause_key));
                     }
 
                     Some(_) => {
@@ -153,7 +153,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             'long_loop: while index < length {
                 let WatchTag::Clause(clause_key) = long_list.get_unchecked(index) else {
                     log::error!(target: targets::PROPAGATION, "Binary clause found in long watch list.");
-                    return Err(err::BCP::CorruptWatch);
+                    return Err(err::BCPErrorKind::CorruptWatch);
                 };
 
                 // TODO: From the FRAT paper neither MiniSAT nor CaDiCaL store clause identifiers.
@@ -176,7 +176,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     Ok(watch_db::WatchStatus::Conflict) => {
                         log::error!(target: targets::PROPAGATION, "Conflict from updating watch during propagation.");
-                        return Err(err::BCP::CorruptWatch);
+                        return Err(err::BCPErrorKind::CorruptWatch);
                     }
 
                     Err(()) => {
@@ -189,7 +189,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 self.clause_db.note_use(*clause_key);
                                 macros::dispatch_bcp_delta!(self, Conflict, *literal, *clause_key);
 
-                                return Err(err::BCP::Conflict(*clause_key));
+                                return Err(err::BCPErrorKind::Conflict(*clause_key));
                             }
 
                             None => {
@@ -200,9 +200,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                     consequence_q::QPosition::Back,
                                     decision_level,
                                 ) {
-                                    Ok(consequence_q::Ok::Qd) | Ok(consequence_q::Ok::Skip) => {}
+                                    Ok(consequence_q::ConsequenceQueueOk::Qd)
+                                    | Ok(consequence_q::ConsequenceQueueOk::Skip) => {}
 
-                                    Err(_) => return Err(err::BCP::Conflict(*clause_key)),
+                                    Err(_) => return Err(err::BCPErrorKind::Conflict(*clause_key)),
                                 };
 
                                 macros::dispatch_bcp_delta!(self, Instance, the_watch, *clause_key);

@@ -83,7 +83,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn non_chronological_backjump_level(
         &self,
         clause: &impl Clause,
-    ) -> Result<DecisionLevelIndex, err::Context> {
+    ) -> Result<DecisionLevelIndex, err::ContextErrorKind> {
         match clause.size() {
             0 => panic!("!"),
             1 => Ok(0),
@@ -93,7 +93,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     let Some(dl) = (unsafe { self.atom_db.decision_index_of(literal.atom()) })
                     else {
                         log::error!(target: targets::BACKJUMP, "{literal} was not chosen");
-                        return Err(err::Context::Backjump);
+                        return Err(err::ContextErrorKind::Backjump);
                     };
 
                     match top_two {

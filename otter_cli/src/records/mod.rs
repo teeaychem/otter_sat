@@ -22,8 +22,8 @@ use otter_sat::{
 };
 
 #[allow(clippy::type_complexity)]
-fn hand() -> Box<dyn FnMut(&Dispatch) -> Result<(), err::Core>> {
-    Box::new(|_dispatch: &Dispatch| -> Result<(), err::Core> { Ok(()) })
+fn hand() -> Box<dyn FnMut(&Dispatch) -> Result<(), err::CoreErrorKind>> {
+    Box::new(|_dispatch: &Dispatch| -> Result<(), err::CoreErrorKind> { Ok(()) })
 }
 
 #[allow(clippy::result_unit_err)]

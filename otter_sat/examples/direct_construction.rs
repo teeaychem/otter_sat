@@ -85,13 +85,13 @@ Representations of: ¬p ∨ q
 "
     );
 
-    assert_eq!(the_context.report(), report::Solve::Satisfiable);
+    assert_eq!(the_context.report(), report::SolveReport::Satisfiable);
 
     // Likewise it is not possible to add ¬p ∨ ¬q to 𝐅
     let clause_np_nq = the_context.clause_from_string("-p -q").unwrap();
     assert!(the_context.add_clause(clause_np_nq).is_err());
 
-    assert_eq!(the_context.report(), report::Solve::Satisfiable);
+    assert_eq!(the_context.report(), report::SolveReport::Satisfiable);
 
     // todo: update with unit clauses
     println!("The clause database is now:");

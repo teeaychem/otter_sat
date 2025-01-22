@@ -31,7 +31,7 @@ fn main() {
         assert!(the_context.solve().is_ok());
 
         match the_context.report() {
-            report::Solve::Satisfiable => {}
+            report::SolveReport::Satisfiable => {}
             _ => break,
         };
 

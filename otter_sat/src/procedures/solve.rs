@@ -165,7 +165,7 @@ use crate::{
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
-    pub fn solve(&mut self) -> Result<report::Solve, err::Context> {
+    pub fn solve(&mut self) -> Result<report::SolveReport, err::ContextErrorKind> {
         use crate::db::consequence_q::QPosition::{self};
 
         self.state = ContextState::Solving;
@@ -181,17 +181,17 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             self.counters.time = total_time.elapsed();
             let time_limit = self.config.time_limit;
             if time_limit.is_some_and(|limit| self.counters.time > limit) {
-                return Ok(report::Solve::TimeUp);
+                return Ok(report::SolveReport::TimeUp);
             }
 
             match self.apply_consequences()? {
                 // Non-conflict variants. These variants break or continue the solve loop.
-                apply_consequences::Ok::FundamentalConflict => break 'solve_loop,
+                apply_consequences::ApplyConsequenceOk::FundamentalConflict => break 'solve_loop,
 
-                apply_consequences::Ok::Exhausted => {
+                apply_consequences::ApplyConsequenceOk::Exhausted => {
                     //
                     match self.make_decision()? {
-                        decision::Ok::Literal(decision) => {
+                        decision::DecisionOk::Literal(decision) => {
                             self.literal_db.decision_made(decision);
                             self.value_and_queue(
                                 decision,
@@ -200,16 +200,16 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             )?;
                             continue 'solve_loop;
                         }
-                        decision::Ok::Exhausted => break 'solve_loop,
+                        decision::DecisionOk::Exhausted => break 'solve_loop,
                     }
                 }
 
                 // Conflict variants. These continue to the remaining contents of a loop.
-                apply_consequences::Ok::UnitClause { key } => {
+                apply_consequences::ApplyConsequenceOk::UnitClause { key } => {
                     self.value_and_queue(key, QPosition::Front, 0)?;
                 }
 
-                apply_consequences::Ok::AssertingClause { key, literal } => {
+                apply_consequences::ApplyConsequenceOk::AssertingClause { key, literal } => {
                     self.clause_db.note_use(key);
                     macros::dispatch_bcp_delta!(self, Instance, literal, key);
 

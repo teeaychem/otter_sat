@@ -15,7 +15,7 @@ mod basic {
         let p_clause = the_context.clause_from_string("p").unwrap();
         assert!(the_context.add_clause(p_clause).is_ok());
         assert!(the_context.solve().is_ok());
-        assert_eq!(the_context.report(), report::Solve::Satisfiable)
+        assert_eq!(the_context.report(), report::SolveReport::Satisfiable)
     }
 
     #[test]
@@ -34,7 +34,10 @@ mod basic {
         assert!(the_context.add_clause(np_q_clause).is_ok());
 
         assert!(the_context.solve().is_ok());
-        assert!(matches!(the_context.report(), report::Solve::Unsatisfiable))
+        assert!(matches!(
+            the_context.report(),
+            report::SolveReport::Unsatisfiable
+        ))
     }
 
     #[test]
@@ -48,7 +51,7 @@ mod basic {
 
         assert!(the_context.add_clause(not_p).is_ok());
         assert!(the_context.solve().is_ok());
-        assert_eq!(the_context.report(), report::Solve::Satisfiable);
+        assert_eq!(the_context.report(), report::SolveReport::Satisfiable);
 
         let the_valuation = the_context.atom_db.valuation_string();
         assert!(the_valuation.contains("-p"));

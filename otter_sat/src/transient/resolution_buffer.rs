@@ -54,7 +54,7 @@ use crate::{
 };
 
 /// Possilbe 'Ok' results from resolution using a resolution buffer.
-pub enum Ok {
+pub enum ResolutionOk {
     /// A unique implication point was identified.
     FirstUIP,
 
@@ -186,18 +186,18 @@ impl ResolutionBuffer {
         literal_db: &LiteralDB,
         clause_db: &mut ClauseDB,
         atom_db: &mut AtomDB,
-    ) -> Result<Ok, err::ResolutionBuffer> {
+    ) -> Result<ResolutionOk, err::ResolutionBufferErrorKind> {
         // The key has already been used to access the conflicting clause.
         let base_clause = match unsafe { clause_db.get_unchecked(key) } {
             Ok(clause) => clause,
-            Err(_) => return Err(err::ResolutionBuffer::MissingClause),
+            Err(_) => return Err(err::ResolutionBufferErrorKind::MissingClause),
         };
 
         self.merge_clause(base_clause);
 
         // Maybe the conflit clause was already asserting after the previous decision…
         if let Some(literal) = self.asserted_literal() {
-            return Ok(Ok::Repeat(*key, literal));
+            return Ok(ResolutionOk::Repeat(*key, literal));
         };
 
         macros::dispatch_resolution_delta!(self, delta::Resolution::Begin);
@@ -216,7 +216,7 @@ impl ResolutionBuffer {
                     let source_clause = match unsafe { clause_db.get_unchecked(the_key) } {
                         Err(_) => {
                             log::error!(target: targets::RESOLUTION, "Lost resolution clause {the_key}");
-                            return Err(err::ResolutionBuffer::LostClause);
+                            return Err(err::ResolutionBufferErrorKind::LostClause);
                         }
                         Ok(clause) => clause,
                     };
@@ -239,7 +239,7 @@ impl ResolutionBuffer {
                                 );
                                 macros::dispatch_resolution_delta!(self, delta::Resolution::End);
 
-                                return Ok(Ok::UnitClause);
+                                return Ok(ResolutionOk::UnitClause);
                             }
                             _ => match the_key {
                                 ClauseKey::Unit(_) => panic!("!"),
@@ -286,7 +286,7 @@ impl ResolutionBuffer {
                     StoppingCriteria::FirstUIP => {
                         macros::dispatch_resolution_delta!(self, delta::Resolution::End);
 
-                        return Ok(Ok::FirstUIP);
+                        return Ok(ResolutionOk::FirstUIP);
                     }
                     StoppingCriteria::None => {}
                 };
@@ -294,7 +294,7 @@ impl ResolutionBuffer {
         }
         macros::dispatch_resolution_delta!(self, delta::Resolution::End);
 
-        Ok(Ok::Exhausted)
+        Ok(ResolutionOk::Exhausted)
     }
 
     /// Remove literals which conflict with those at level zero from the clause.
@@ -340,7 +340,7 @@ impl ResolutionBuffer {
     /// Cells which have already been merged with some other clause are skipped.
     ///
     /// If the clause is satisfied and error is returned.
-    fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), err::ResolutionBuffer> {
+    fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), err::ResolutionBufferErrorKind> {
         for literal in clause.literals() {
             match unsafe { self.buffer.get_unchecked(literal.atom() as usize) } {
                 Cell::Conflict(_) | Cell::None(_) | Cell::Pivot => {}
@@ -359,7 +359,7 @@ impl ResolutionBuffer {
                     }
                     Some(_) => {
                         log::error!(target: targets::RESOLUTION, "Satisfied clause");
-                        return Err(err::ResolutionBuffer::SatisfiedClause);
+                        return Err(err::ResolutionBufferErrorKind::SatisfiedClause);
                     }
                 },
                 Cell::Strengthened => {}
@@ -375,7 +375,7 @@ impl ResolutionBuffer {
         &mut self,
         clause: &impl Clause,
         pivot: impl Borrow<abLiteral>,
-    ) -> Result<(), err::ResolutionBuffer> {
+    ) -> Result<(), err::ResolutionBufferErrorKind> {
         let pivot = pivot.borrow();
         let contents = unsafe { *self.buffer.get_unchecked(pivot.atom() as usize) };
         match contents {
@@ -396,7 +396,7 @@ impl ResolutionBuffer {
             }
             _ => {
                 // Skip over any clauses which are not involved in the current resolution trail
-                Err(err::ResolutionBuffer::LostClause)
+                Err(err::ResolutionBufferErrorKind::LostClause)
             }
         }
     }

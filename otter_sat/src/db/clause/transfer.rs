@@ -31,16 +31,16 @@ impl ClauseDB {
         &mut self,
         key: ClauseKey,
         atom_db: &mut AtomDB,
-    ) -> Result<ClauseKey, err::ClauseDB> {
+    ) -> Result<ClauseKey, err::ClauseDBErrorKind> {
         match key {
             ClauseKey::Unit(_) => {
                 log::error!(target: targets::TRANSFER, "Attempt to transfer unit");
-                Err(err::ClauseDB::TransferUnit)
+                Err(err::ClauseDBErrorKind::TransferUnit)
             }
 
             ClauseKey::Binary(_) => {
                 log::error!(target: targets::TRANSFER, "Attempt to transfer binary");
-                Err(err::ClauseDB::TransferBinary)
+                Err(err::ClauseDBErrorKind::TransferBinary)
             }
 
             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
@@ -50,7 +50,7 @@ impl ClauseDB {
 
                 if copied_clause.len() != 2 {
                     log::error!(target: targets::TRANSFER, "Attempt to transfer binary");
-                    return Err(err::ClauseDB::TransferBinary);
+                    return Err(err::ClauseDBErrorKind::TransferBinary);
                 }
 
                 let binary_key = self.fresh_binary_key()?;

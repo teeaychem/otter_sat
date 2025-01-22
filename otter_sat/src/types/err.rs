@@ -11,7 +11,7 @@
 use crate::db::ClauseKey;
 
 /// Noted errors during conflict analysis.
-pub enum Analysis {
+pub enum AnalysisErrorKind {
     /// Somehow resolution resolved to an empty clause.
     EmptyResolution,
     /// Resolution failed to terminate with an asserting clause.
@@ -25,7 +25,7 @@ pub enum Analysis {
 }
 
 /// Noted errors during boolean constraint propagation.
-pub enum BCP {
+pub enum BCPErrorKind {
     /// A conflict was found.
     /// This is expected from time to time, and a learning opportunity.
     Conflict(ClauseKey),
@@ -38,20 +38,20 @@ pub enum BCP {
 ///
 /// These are general errors which wrap specific errors.
 #[derive(Debug, Eq, PartialEq)]
-pub enum Build {
+pub enum BuildErrorKind {
     /// A request to some other part of the context led to an error.
-    Context(Context),
+    Context(ContextErrorKind),
     /// An error while parsing.
-    Parse(Parse),
+    Parse(ParseErrorKind),
     /// Interaction with a clause database led to an error.
-    ClauseDB(ClauseDB),
+    ClauseDB(ClauseDBErrorKind),
     /// An clear instance of an unsatisfiable clause
     Unsatisfiable,
 }
 
 /// Errors in the clause database.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ClauseDB {
+pub enum ClauseDBErrorKind {
     /// Attempt to get a unit clause by a key (the key is the literal)
     GetUnitKey,
 
@@ -97,7 +97,7 @@ pub enum ClauseDB {
 }
 
 #[derive(Clone, Copy)]
-pub enum Subsumption {
+pub enum SubsumptionErrorKind {
     ShortClause,
     NoPivot,
     WatchError,
@@ -108,7 +108,7 @@ pub enum Subsumption {
 
 /// Errors in the context.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Context {
+pub enum ContextErrorKind {
     /// Aka. an assumption was made after some decision.
     /// In principle, not an issue.
     /// Still, significant complexity is avoided by denying this possibility.
@@ -141,7 +141,7 @@ pub enum Context {
 
 /// Errors during parsing.
 #[derive(Debug, Eq, PartialEq)]
-pub enum Parse {
+pub enum ParseErrorKind {
     /// Some issue with the problem specification in a DIMACS input.
     ProblemSpecification,
     /// Some unspecific problem at a specific line.
@@ -156,15 +156,15 @@ pub enum Parse {
     Empty,
 }
 
-pub enum Preprocessing {
+pub enum PreprocessingErrorKind {
     Pure,
 }
 
-pub enum Queue {
+pub enum ConsequenceQueueErrorKind {
     Conflict,
 }
 
-pub enum Report {
+pub enum ReportErrorKind {
     /// Failure to retreive a clause from the store for any reason.
     StoreFailure,
     /// An unsatisfiable core could be not constructed.
@@ -173,7 +173,7 @@ pub enum Report {
 }
 
 /// Errors during resolution.
-pub enum ResolutionBuffer {
+pub enum ResolutionBufferErrorKind {
     /// A clause could not be found.
     LostClause,
     /// A minor headache… this can be disabled!
@@ -186,7 +186,7 @@ pub enum ResolutionBuffer {
 }
 
 /// Errors with the writer for FRAT proofs.
-pub enum FRAT {
+pub enum FRATErrorKind {
     /// A corrupt clause buffer.
     /// It is likely the addition of a clause was not noticed and the clause buffer was not cleared.
     CorruptClauseBuffer,
@@ -198,14 +198,14 @@ pub enum FRAT {
 }
 
 #[derive(Clone, Copy)]
-pub enum Watch {
+pub enum WatchErrorKind {
     /// A binary clause was found in a long watch list.
     /// Perhaps an issue during addition during addition or transfer of a clause…?
     NotLongInLong,
 }
 
 #[derive(Debug)]
-pub enum Core {
+pub enum CoreErrorKind {
     QueueMiss,
     EmptyBCPBuffer,
     CorruptClauseBuffer,
@@ -214,65 +214,65 @@ pub enum Core {
 }
 
 // Ignore the reason for failing to transfer a clause
-impl From<Watch> for ClauseDB {
-    fn from(_: Watch) -> Self {
-        ClauseDB::TransferWatch
+impl From<WatchErrorKind> for ClauseDBErrorKind {
+    fn from(_: WatchErrorKind) -> Self {
+        ClauseDBErrorKind::TransferWatch
     }
 }
 
 // Ignore the reason for failing to retreive a clause
-impl From<ClauseDB> for Analysis {
-    fn from(_: ClauseDB) -> Self {
-        Analysis::ClauseDB
+impl From<ClauseDBErrorKind> for AnalysisErrorKind {
+    fn from(_: ClauseDBErrorKind) -> Self {
+        AnalysisErrorKind::ClauseDB
     }
 }
 
 // Ignore the reason for failing to retreive a clause
-impl From<ClauseDB> for Report {
-    fn from(_: ClauseDB) -> Self {
-        Report::StoreFailure
+impl From<ClauseDBErrorKind> for ReportErrorKind {
+    fn from(_: ClauseDBErrorKind) -> Self {
+        ReportErrorKind::StoreFailure
     }
 }
 
 // Ignore the reason for failing to retreive a clause
-impl From<Queue> for Context {
-    fn from(_: Queue) -> Self {
+impl From<ConsequenceQueueErrorKind> for ContextErrorKind {
+    fn from(_: ConsequenceQueueErrorKind) -> Self {
         Self::QueueConflict
     }
 }
 
-impl From<ClauseDB> for Context {
-    fn from(_: ClauseDB) -> Self {
-        Context::ClauseDB
+impl From<ClauseDBErrorKind> for ContextErrorKind {
+    fn from(_: ClauseDBErrorKind) -> Self {
+        ContextErrorKind::ClauseDB
     }
 }
 
-impl From<Analysis> for Context {
-    fn from(_: Analysis) -> Self {
-        Context::Analysis
+impl From<AnalysisErrorKind> for ContextErrorKind {
+    fn from(_: AnalysisErrorKind) -> Self {
+        ContextErrorKind::Analysis
     }
 }
 
-impl From<Preprocessing> for Context {
-    fn from(_: Preprocessing) -> Self {
+impl From<PreprocessingErrorKind> for ContextErrorKind {
+    fn from(_: PreprocessingErrorKind) -> Self {
         Self::Preprocessing
     }
 }
 
-impl From<ClauseDB> for Build {
-    fn from(e: ClauseDB) -> Self {
+impl From<ClauseDBErrorKind> for BuildErrorKind {
+    fn from(e: ClauseDBErrorKind) -> Self {
         Self::ClauseDB(e)
     }
 }
 
-impl From<Context> for Build {
-    fn from(e: Context) -> Self {
+impl From<ContextErrorKind> for BuildErrorKind {
+    fn from(e: ContextErrorKind) -> Self {
         Self::Context(e)
     }
 }
 
-impl From<Subsumption> for ResolutionBuffer {
-    fn from(_value: Subsumption) -> Self {
+impl From<SubsumptionErrorKind> for ResolutionBufferErrorKind {
+    fn from(_value: SubsumptionErrorKind) -> Self {
         Self::Subsumption
     }
 }

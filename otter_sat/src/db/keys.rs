@@ -43,23 +43,23 @@ impl ClauseKey {
     /// Retokens an addition key to distnguish multiple uses of the same index.
     ///
     /// Returns an error if used on any other key, or if the token limit has been reached.
-    pub fn retoken(&self) -> Result<Self, err::ClauseDB> {
+    pub fn retoken(&self) -> Result<Self, err::ClauseDBErrorKind> {
         match self {
             Self::Unit(_) => {
                 log::error!(target: targets::CLAUSE_DB, "Unit keys have a unique token");
-                Err(err::ClauseDB::InvalidKeyToken)
+                Err(err::ClauseDBErrorKind::InvalidKeyToken)
             }
             Self::Original(_) => {
                 log::error!(target: targets::CLAUSE_DB, "Formula keys have a unique token");
-                Err(err::ClauseDB::InvalidKeyToken)
+                Err(err::ClauseDBErrorKind::InvalidKeyToken)
             }
             Self::Binary(_) => {
                 log::error!(target: targets::CLAUSE_DB, "Binary keys have a unique token");
-                Err(err::ClauseDB::InvalidKeyToken)
+                Err(err::ClauseDBErrorKind::InvalidKeyToken)
             }
             Self::Addition(index, token) => {
                 if *token == FormulaToken::MAX {
-                    return Err(err::ClauseDB::StorageExhausted);
+                    return Err(err::ClauseDBErrorKind::StorageExhausted);
                 }
                 Ok(ClauseKey::Addition(*index, token + 1))
             }

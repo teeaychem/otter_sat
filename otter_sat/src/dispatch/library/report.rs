@@ -8,16 +8,16 @@ use crate::{
 #[derive(Clone)]
 pub enum Report {
     /// Information regarding a solve.
-    Solve(self::Solve),
+    Solve(self::SolveReport),
 
     /// Information regarding the clause database.
-    ClauseDB(self::ClauseDB),
+    ClauseDB(self::ClauseDBReport),
 
     /// Information regarding the literal database.
-    LiteralDB(self::LiteralDB),
+    LiteralDB(self::LiteralDBReport),
 
     /// Information regarding the parse when building the context.
-    Parser(self::Parser),
+    Parser(self::ParserReport),
 
     /// No further dispatches will be sent regarding the current solve.
     Finish,
@@ -25,7 +25,7 @@ pub enum Report {
 
 /// High-level reports regarding a solve.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum Solve {
+pub enum SolveReport {
     /// The formula of the context is satisfiable.
     Satisfiable,
 
@@ -42,7 +42,7 @@ pub enum Solve {
 /// Information regarding the clause database.
 // TODO: It would be nice to break down the dispatch of the clause in line with other dispatches.
 #[derive(PartialEq, Eq, Clone)]
-pub enum ClauseDB {
+pub enum ClauseDBReport {
     /// An active non-unit clause.
     Active(ClauseKey, vClause),
     /// An active unit clause
@@ -51,7 +51,7 @@ pub enum ClauseDB {
 
 /// Information regarding the parse when building the context.
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub enum Parser {
+pub enum ParserReport {
     /// A DIMACS file has been loaded.
     Load(String),
 
@@ -67,9 +67,9 @@ pub enum Parser {
 
 /// Information regarding the literal database.
 #[derive(PartialEq, Eq, Clone)]
-pub enum LiteralDB {}
+pub enum LiteralDBReport {}
 
-impl std::fmt::Display for self::Solve {
+impl std::fmt::Display for self::SolveReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Satisfiable => write!(f, "Satisfiable"),
@@ -80,7 +80,7 @@ impl std::fmt::Display for self::Solve {
     }
 }
 
-impl std::fmt::Display for self::Parser {
+impl std::fmt::Display for self::ParserReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Load(formula) => write!(f, "Parsing \"{formula}\""),

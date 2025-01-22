@@ -11,13 +11,13 @@ pub mod pure;
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Applies preprocessing in accordance with the configuration of the context.
-    pub fn preprocess(&mut self) -> Result<(), err::Preprocessing> {
+    pub fn preprocess(&mut self) -> Result<(), err::PreprocessingErrorKind> {
         if self.config.switch.preprocessing {
             match set_pure(self) {
                 Ok(()) => {}
                 Err(_) => {
                     log::error!(target: targets::PREPROCESSING, "Failed to set pure literals");
-                    return Err(err::Preprocessing::Pure);
+                    return Err(err::PreprocessingErrorKind::Pure);
                 }
             };
         }
