@@ -13,20 +13,23 @@
 //! # use otter_sat::context::Context;
 //! # use otter_sat::config::Config;
 //! # use otter_sat::dispatch::library::report::{self};
+//! # use otter_sat::structures::literal::{abLiteral, Literal};
 //! let mut the_context = Context::from_config(Config::default(), None);
 //!
-//! let p_q_clause = the_context.clause_from_string("p q").unwrap();
+//! let p = the_context.fresh_atom().unwrap();
+//! let q = the_context.fresh_atom().unwrap();
+//!
+//! let p_q_clause = vec![abLiteral::fresh(p, true), abLiteral::fresh(q, true)];
 //! assert!(the_context.add_clause(p_q_clause).is_ok());
 //!
-//! let not_p = the_context.literal_from_string("-p").expect("oh");
+//! let not_p = abLiteral::fresh(p, false);
 //!
 //! assert!(the_context.add_clause(not_p).is_ok());
 //! assert!(the_context.solve().is_ok());
-//! assert_eq!(the_context.report(), report::Solve::Satisfiable);
+//! assert_eq!(the_context.report(), report::SolveReport::Satisfiable);
 //!
-//! let the_valuation = the_context.atom_db.valuation_string();
-//! assert!(the_valuation.contains("-p"));
-//! assert!(the_valuation.contains("q"));
+//! assert_eq!(the_context.atom_db.value_of(p), Some(false));
+//! assert_eq!(the_context.atom_db.value_of(q), Some(true));
 //! ```
 
 mod counters;

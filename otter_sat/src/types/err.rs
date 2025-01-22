@@ -10,7 +10,16 @@
 
 use crate::db::ClauseKey;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ErrorKind {
+    Analysis(AnalysisErrorKind),
+    Build(BuildErrorKind),
+    ClauseDB(ClauseDBErrorKind),
+    Parse(ParseErrorKind),
+}
+
 /// Noted errors during conflict analysis.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AnalysisErrorKind {
     /// Somehow resolution resolved to an empty clause.
     EmptyResolution,
@@ -22,6 +31,12 @@ pub enum AnalysisErrorKind {
     ClauseDB,
     /// Resolution failed to stop at the required criteria.
     FailedStoppingCriteria,
+}
+
+impl From<AnalysisErrorKind> for ErrorKind {
+    fn from(e: AnalysisErrorKind) -> Self {
+        ErrorKind::Analysis(e)
+    }
 }
 
 /// Noted errors during boolean constraint propagation.
@@ -37,16 +52,16 @@ pub enum BCPErrorKind {
 /// Noted errors when building a context.
 ///
 /// These are general errors which wrap specific errors.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BuildErrorKind {
-    /// A request to some other part of the context led to an error.
-    Context(ContextErrorKind),
-    /// An error while parsing.
-    Parse(ParseErrorKind),
-    /// Interaction with a clause database led to an error.
-    ClauseDB(ClauseDBErrorKind),
     /// An clear instance of an unsatisfiable clause
     Unsatisfiable,
+}
+
+impl From<BuildErrorKind> for ErrorKind {
+    fn from(e: BuildErrorKind) -> Self {
+        ErrorKind::Build(e)
+    }
 }
 
 /// Errors in the clause database.
@@ -96,6 +111,12 @@ pub enum ClauseDBErrorKind {
     ValuationConflict,
 }
 
+impl From<ClauseDBErrorKind> for ErrorKind {
+    fn from(e: ClauseDBErrorKind) -> Self {
+        ErrorKind::ClauseDB(e)
+    }
+}
+
 #[derive(Clone, Copy)]
 pub enum SubsumptionErrorKind {
     ShortClause,
@@ -140,7 +161,7 @@ pub enum ContextErrorKind {
 }
 
 /// Errors during parsing.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ParseErrorKind {
     /// Some issue with the problem specification in a DIMACS input.
     ProblemSpecification,
@@ -154,6 +175,12 @@ pub enum ParseErrorKind {
     NoFile,
     /// An empty string, where some non-empty string was required.
     Empty,
+}
+
+impl From<ParseErrorKind> for ErrorKind {
+    fn from(e: ParseErrorKind) -> Self {
+        ErrorKind::Parse(e)
+    }
 }
 
 pub enum PreprocessingErrorKind {
@@ -256,18 +283,6 @@ impl From<AnalysisErrorKind> for ContextErrorKind {
 impl From<PreprocessingErrorKind> for ContextErrorKind {
     fn from(_: PreprocessingErrorKind) -> Self {
         Self::Preprocessing
-    }
-}
-
-impl From<ClauseDBErrorKind> for BuildErrorKind {
-    fn from(e: ClauseDBErrorKind) -> Self {
-        Self::ClauseDB(e)
-    }
-}
-
-impl From<ContextErrorKind> for BuildErrorKind {
-    fn from(e: ContextErrorKind) -> Self {
-        Self::Context(e)
     }
 }
 

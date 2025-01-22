@@ -87,52 +87,40 @@
 //! # Example
 //!
 //! ```rust
-//! # fn value_of(variable: &str, context: &Context) -> Option<bool> {
-//! #     let mut the_value = None;
-//! #     if context.atom_db.valuation_string().contains(variable) {
-//! #         the_value = Some(true)
-//! #     }
-//! #     if context
-//! #         .atom_db
-//! #         .valuation_string()
-//! #         .contains(format!("-{variable}").as_str())
-//! #     {
-//! #         the_value = Some(false)
-//! #     }
-//! #     the_value
-//! # }
 //! # use otter_sat::config::Config;
 //! # use otter_sat::context::Context;
 //! # use otter_sat::dispatch::library::report::{self};
+//! # use otter_sat::structures::literal::{abLiteral, Literal};
 //! let config = Config::default();
-//!
 //! let mut the_context: Context = Context::from_config(config, None);
 //!
-//! let not_p_or_q = the_context.clause_from_string("-p q").unwrap();
-//! let p_or_not_q = the_context.clause_from_string("p -q").unwrap();
-//! let _ = the_context.add_clause(not_p_or_q);
-//! let _ = the_context.add_clause(p_or_not_q);
+//! let p = the_context.fresh_atom().unwrap();
+//! let q = the_context.fresh_atom().unwrap();
+//!
+//! let not_p_or_q = vec![abLiteral::fresh(p, false), abLiteral::fresh(q, true)];
+//! let p_or_not_q = vec![abLiteral::fresh(p, true), abLiteral::fresh(q, false)];
+//! assert!(the_context.add_clause(not_p_or_q).is_ok());
+//! assert!(the_context.add_clause(p_or_not_q).is_ok());
 //!
 //! assert!(the_context.solve().is_ok());
 //! let status = the_context.report();
-//! let valuation = the_context.atom_db.valuation_string();
 //!
-//! assert_eq!(value_of("p", &the_context), Some(false));
-//! assert_eq!(value_of("q", &the_context), Some(false));
-//!
-//! let p_clause = the_context.clause_from_string("p").unwrap();
-//! let error = the_context.add_clause(p_clause);
+//! assert_eq!(the_context.atom_db.value_of(p), Some(false));
+//! assert_eq!(the_context.atom_db.value_of(q), Some(false));
 //!
 //! the_context.clear_decisions();
 //!
-//! let p_clause = the_context.clause_from_string("p").unwrap();
-//! let _p_ok = the_context.add_clause(p_clause);
+//! let p_clause = abLiteral::fresh(p, true);
+//! assert!(the_context.add_clause(p_clause).is_ok());
 //!
-//! assert_eq!(value_of("p", &the_context), Some(true));
+//! let p_clause = vec![abLiteral::fresh(p, true)];
+//! assert!(the_context.add_clause(p_clause).is_ok());
+//!
+//! assert_eq!(the_context.atom_db.value_of(p), Some(true));
 //!
 //! assert!(the_context.solve().is_ok());
 //!
-//! assert_eq!(the_context.report(), report::Solve::Satisfiable);
+//! assert_eq!(the_context.report(), report::SolveReport::Satisfiable);
 //! ```
 //!
 //! # Literature

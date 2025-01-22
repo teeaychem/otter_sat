@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 /// A nonogram solver.
 ///
 /// Given the representation of a nonogram a cnf fomula is built and passed to an otter_sat.
@@ -7,6 +9,11 @@ use otter_sat::{
     config::Config,
     context::Context,
     dispatch::library::report::SolveReport::{self},
+    structures::{
+        atom::Atom,
+        clause::vClause,
+        literal::{abLiteral, Literal},
+    },
 };
 
 /// A struct to hold the nonogram puzzle, clause generation follows the main function.
@@ -15,14 +22,14 @@ struct Nonogram {
     col_length: usize,
     rows: Vec<Vec<usize>>,
     cols: Vec<Vec<usize>>,
+
+    atom_map: HashMap<String, Atom>,
+    context: Context,
 }
 
 fn main() {
-    let config = Config::default();
-    let mut the_context = Context::from_config(config, None);
-
     // https://en.wikipedia.org/wiki/Nonogram#/media/File:Nonogram_wiki.svg
-    let puzzle = Nonogram {
+    let mut puzzle = Nonogram {
         row_length: 30,
         col_length: 20,
         rows: vec![
@@ -79,17 +86,18 @@ fn main() {
             vec![1],
             vec![1],
         ],
+        atom_map: HashMap::default(),
+        context: Context::from_config(Config::default(), None),
     };
 
     for clause in puzzle.clauses() {
-        let as_a_clause = the_context.clause_from_string(&clause).unwrap();
-        let _ = the_context.add_clause(as_a_clause);
+        let _ = puzzle.context.add_clause(clause.clone());
     }
 
-    let clause_count = the_context.clause_db.total_clause_count();
+    let clause_count = puzzle.context.clause_db.total_clause_count();
     println!("Context build with {clause_count} clauses",);
 
-    let result = the_context.solve().unwrap();
+    let result = puzzle.context.solve().unwrap();
 
     if matches!(result, SolveReport::Unsatisfiable) {
         println!("No solution");
@@ -100,14 +108,21 @@ fn main() {
 "
     );
 
-    let valuation = the_context.atom_db.valuation_string();
-    let atoms = valuation.split(" ");
+    let valuation = puzzle.context.atom_db.valuation_isize();
 
     let mut display = vec![vec![0; puzzle.row_length]; puzzle.col_length];
 
-    for atom in atoms {
-        if atom.starts_with("Fill") {
-            let idx = &atom[5..atom.len() - 1]
+    let reverse_map = puzzle
+        .atom_map
+        .iter()
+        .map(|(k, v)| (*v, k.clone()))
+        .collect::<HashMap<Atom, String>>();
+
+    for literal in valuation {
+        let atom_string = reverse_map.get(&(literal.abs() as Atom)).unwrap();
+
+        if literal.is_positive() && atom_string.starts_with("Fill") {
+            let idx = &atom_string[5..atom_string.len() - 1]
                 .split(",")
                 .map(|s| s.parse::<usize>().unwrap())
                 .collect::<Vec<_>>();
@@ -148,90 +163,143 @@ fn main() {
 ///
 /// In this respect, the generation of row/column clauses is a equivalent to the generation of column/row clauses, with a few variables changed.
 impl Nonogram {
-    fn fill_literal(row: usize, col: usize, polarity: bool) -> String {
-        match polarity {
-            true => format!("Fill({row},{col})"),
-            false => format!("-Fill({row},{col})"),
-        }
+    fn fill_literal(&mut self, row: usize, col: usize, polarity: bool) -> abLiteral {
+        let atom_string = format!("Fill({row},{col})");
+        let atom = match self.atom_map.get(&atom_string) {
+            Some(atom) => *atom,
+            None => {
+                let atom = self.context.fresh_atom().unwrap();
+                self.atom_map.insert(atom_string, atom);
+                atom
+            }
+        };
+
+        abLiteral::fresh(atom, polarity)
     }
 
-    fn block_start_row_literal(row: usize, col: usize, block_idx: usize, polarity: bool) -> String {
-        match polarity {
-            true => format!("BlockStartRow({row},{col},{block_idx})"),
-            false => format!("-BlockStartRow({row},{col},{block_idx})"),
-        }
+    fn block_start_row_literal(
+        &mut self,
+        row: usize,
+        col: usize,
+        block_idx: usize,
+        polarity: bool,
+    ) -> abLiteral {
+        let atom_string = format!("BlockStartRow({row},{col},{block_idx})");
+        let atom = match self.atom_map.get(&atom_string) {
+            Some(atom) => *atom,
+            None => {
+                let atom = self.context.fresh_atom().unwrap();
+                self.atom_map.insert(atom_string, atom);
+                atom
+            }
+        };
+
+        abLiteral::fresh(atom, polarity)
     }
 
-    fn block_start_col_literal(row: usize, col: usize, block_idx: usize, polarity: bool) -> String {
-        match polarity {
-            true => format!("BlockStartCol({row},{col},{block_idx})"),
-            false => format!("-BlockStartCol({row},{col},{block_idx})"),
-        }
+    fn block_start_col_literal(
+        &mut self,
+        row: usize,
+        col: usize,
+        block_idx: usize,
+        polarity: bool,
+    ) -> abLiteral {
+        let atom_string = format!("BlockStartCol({row},{col},{block_idx})");
+        let atom = match self.atom_map.get(&atom_string) {
+            Some(atom) => *atom,
+            None => {
+                let atom = self.context.fresh_atom().unwrap();
+                self.atom_map.insert(atom_string, atom);
+                atom
+            }
+        };
+
+        abLiteral::fresh(atom, polarity)
     }
 
     fn block_legnth_row_literal(
+        &mut self,
         row: usize,
         block_idx: usize,
         length: usize,
         polarity: bool,
-    ) -> String {
-        match polarity {
-            true => format!("BlockLengthRow({row},{block_idx},{length})"),
-            false => format!("-BlockLengthRow({row},{block_idx},{length})"),
-        }
+    ) -> abLiteral {
+        let atom_string = format!("BlockLengthRow({row},{block_idx},{length})");
+        let atom = match self.atom_map.get(&atom_string) {
+            Some(atom) => *atom,
+            None => {
+                let atom = self.context.fresh_atom().unwrap();
+                self.atom_map.insert(atom_string, atom);
+                atom
+            }
+        };
+
+        abLiteral::fresh(atom, polarity)
     }
 
     fn block_length_col_literal(
+        &mut self,
         col: usize,
         block_idx: usize,
         length: usize,
         polarity: bool,
-    ) -> String {
-        match polarity {
-            true => format!("BlockLengthCol({col},{block_idx},{length})"),
-            false => format!("-BlockLengthCol({col},{block_idx},{length})"),
-        }
+    ) -> abLiteral {
+        let atom_string = format!("BlockLengthCol({col},{block_idx},{length})");
+        let atom = match self.atom_map.get(&atom_string) {
+            Some(atom) => *atom,
+            None => {
+                let atom = self.context.fresh_atom().unwrap();
+                self.atom_map.insert(atom_string, atom);
+                atom
+            }
+        };
+
+        abLiteral::fresh(atom, polarity)
     }
 }
 
 impl Nonogram {
-    fn row_clauses_block_start(&self, row: usize, total_blocks: usize) -> Vec<String> {
-        let mut the_clauses = vec![];
+    fn row_clauses_block_start(&mut self, row: usize, total_blocks: usize) -> Vec<vClause> {
+        let mut the_clauses: Vec<vClause> = vec![];
 
         let mut starts = vec![];
         for block_idx in 0..total_blocks {
-            starts.push(Nonogram::block_start_row_literal(row, 0, block_idx, true));
+            starts.push(self.block_start_row_literal(row, 0, block_idx, true));
         }
 
-        let start_literal = Nonogram::fill_literal(row, 0, false);
-        let required_fill = format!("{start_literal} {}", &starts.join(" "));
+        let start_literal = self.fill_literal(row, 0, false);
+        let mut required_fill = vec![start_literal];
+        required_fill.extend_from_slice(&starts);
+
         the_clauses.push(required_fill);
 
         for idx in 1..self.row_length {
             let mut starts = vec![];
             for block_idx in 0..total_blocks {
-                starts.push(Nonogram::block_start_row_literal(row, idx, block_idx, true));
+                starts.push(self.block_start_row_literal(row, idx, block_idx, true));
             }
-            let prior_literal = Nonogram::fill_literal(row, idx - 1, true);
-            let start_literal = Nonogram::fill_literal(row, idx, false);
-            let required_fill = format!("{prior_literal} {start_literal} {}", &starts.join(" "));
+            let prior_literal = self.fill_literal(row, idx - 1, true);
+            let start_literal = self.fill_literal(row, idx, false);
+            let mut required_fill = vec![prior_literal, start_literal];
+            required_fill.extend_from_slice(&starts);
+
             the_clauses.push(required_fill);
         }
 
         the_clauses
     }
 
-    fn row_clauses_block_start_fills(&self, row: usize, block_idx: usize) -> Vec<String> {
-        let mut clauses = vec![];
+    fn row_clauses_block_start_fills(&mut self, row: usize, block_idx: usize) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
         for col in 0..self.row_length {
-            let start_literal = Nonogram::block_start_row_literal(row, col, block_idx, false);
-            let must_fill_literal = Nonogram::fill_literal(row, col, true);
-            let clause = format!("{start_literal} {must_fill_literal}");
+            let start_literal = self.block_start_row_literal(row, col, block_idx, false);
+            let must_fill_literal = self.fill_literal(row, col, true);
+            let clause = vec![start_literal, must_fill_literal];
             clauses.push(clause);
             if col > 0 {
-                let no_fill_literal = Nonogram::fill_literal(row, col - 1, false);
-                let clause = format!("{start_literal} {no_fill_literal}");
+                let no_fill_literal = self.fill_literal(row, col - 1, false);
+                let clause = vec![start_literal, no_fill_literal];
                 clauses.push(clause);
             }
         }
@@ -239,17 +307,16 @@ impl Nonogram {
         clauses
     }
 
-    fn row_clauses_block_fill(&self, row: usize, block_idx: usize) -> Vec<String> {
-        let mut clauses = vec![];
+    fn row_clauses_block_fill(&mut self, row: usize, block_idx: usize) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
         for col in 0..self.row_length {
-            let start_literal = Nonogram::block_start_row_literal(row, col, block_idx, false);
+            let start_literal = self.block_start_row_literal(row, col, block_idx, false);
             for length in 2..(self.row_length - col) {
-                let length_literal =
-                    Nonogram::block_legnth_row_literal(row, block_idx, length, false);
+                let length_literal = self.block_legnth_row_literal(row, block_idx, length, false);
                 for offest in 0..length {
-                    let fill_literal = Nonogram::fill_literal(row, col + offest, true);
-                    let clause = format!("{start_literal} {length_literal} {fill_literal}");
+                    let fill_literal = self.fill_literal(row, col + offest, true);
+                    let clause = vec![start_literal, length_literal, fill_literal];
                     clauses.push(clause);
                 }
             }
@@ -258,30 +325,26 @@ impl Nonogram {
         clauses
     }
 
-    fn row_clauses_block_length(&self, row: usize, block_idx: usize) -> Vec<String> {
-        let mut clauses = vec![];
+    fn row_clauses_block_length(&mut self, row: usize, block_idx: usize) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
         for start_col in 0..self.row_length {
             let start_block_literal =
-                Nonogram::block_start_row_literal(row, start_col, block_idx, false);
+                self.block_start_row_literal(row, start_col, block_idx, false);
 
             for length in 1..=(self.row_length - start_col) {
-                let mut the_clause = start_block_literal.clone();
+                let mut the_clause = vec![start_block_literal.clone()];
                 for offset in 1..length {
-                    the_clause.push(' ');
-                    let fill_literal = Nonogram::fill_literal(row, start_col + offset, false);
-                    the_clause.push_str(&fill_literal);
+                    let fill_literal = self.fill_literal(row, start_col + offset, false);
+                    the_clause.push(fill_literal);
                 }
 
                 if start_col + length < self.row_length {
-                    the_clause.push(' ');
-                    let length_literal = Nonogram::fill_literal(row, start_col + length, true);
-                    the_clause.push_str(&length_literal);
+                    let length_literal = self.fill_literal(row, start_col + length, true);
+                    the_clause.push(length_literal);
                 }
-                the_clause.push(' ');
-                let length_literal =
-                    Nonogram::block_legnth_row_literal(row, block_idx, length, true);
-                the_clause.push_str(&length_literal);
+                let length_literal = self.block_legnth_row_literal(row, block_idx, length, true);
+                the_clause.push(length_literal);
                 clauses.push(the_clause);
             }
         }
@@ -289,26 +352,26 @@ impl Nonogram {
         clauses
     }
 
-    fn row_clauses_block_starts_somewhere(&self, row: usize, block_idx: usize) -> String {
-        let mut literals = vec![];
+    fn row_clauses_block_starts_somewhere(&mut self, row: usize, block_idx: usize) -> vClause {
+        let mut clause = vec![];
 
         for col in 0..self.row_length {
-            literals.push(Nonogram::block_start_row_literal(row, col, block_idx, true));
+            clause.push(self.block_start_row_literal(row, col, block_idx, true));
         }
 
-        literals.join(" ")
+        clause
     }
 
-    fn row_clauses_block_start_unique_col(&self, row: usize, block_idx: usize) -> Vec<String> {
-        let mut clauses = vec![];
+    fn row_clauses_block_start_unique_col(&mut self, row: usize, block_idx: usize) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
         for col_idx in 0..self.row_length {
-            let block_start_col = Nonogram::block_start_row_literal(row, col_idx, block_idx, false);
+            let block_start_col = self.block_start_row_literal(row, col_idx, block_idx, false);
             for other_col_idx in 0..self.row_length {
                 if col_idx != other_col_idx {
                     let block_start_other_col =
-                        Nonogram::block_start_row_literal(row, other_col_idx, block_idx, false);
-                    let clause = format!("{block_start_col} {block_start_other_col}");
+                        self.block_start_row_literal(row, other_col_idx, block_idx, false);
+                    let clause = vec![block_start_col, block_start_other_col];
                     clauses.push(clause);
                 }
             }
@@ -317,17 +380,16 @@ impl Nonogram {
         clauses
     }
 
-    fn row_clauses_block_length_unique(&self, row: usize, block_idx: usize) -> Vec<String> {
-        let mut clauses = vec![];
+    fn row_clauses_block_length_unique(&mut self, row: usize, block_idx: usize) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
         for length in 1..=self.row_length {
-            let block_length_literal =
-                Nonogram::block_legnth_row_literal(row, block_idx, length, false);
+            let block_length_literal = self.block_legnth_row_literal(row, block_idx, length, false);
             for other_length in 1..=self.row_length {
                 if length != other_length {
                     let other_block_length_literal =
-                        Nonogram::block_legnth_row_literal(row, block_idx, other_length, false);
-                    let clause = format!("{block_length_literal} {other_block_length_literal}");
+                        self.block_legnth_row_literal(row, block_idx, other_length, false);
+                    let clause = vec![block_length_literal, other_block_length_literal];
                     clauses.push(clause);
                 }
             }
@@ -336,18 +398,21 @@ impl Nonogram {
         clauses
     }
 
-    fn row_clauses_block_start_unique_idx(&self, row: usize, total_blocks: usize) -> Vec<String> {
-        let mut clauses = vec![];
+    fn row_clauses_block_start_unique_idx(
+        &mut self,
+        row: usize,
+        total_blocks: usize,
+    ) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
         for col_idx in 0..self.row_length {
             for block_idx in 0..total_blocks {
-                let block_literal =
-                    Nonogram::block_start_row_literal(row, col_idx, block_idx, false);
+                let block_literal = self.block_start_row_literal(row, col_idx, block_idx, false);
                 for other_idx in 0..total_blocks {
                     if block_idx != other_idx {
                         let other_literal =
-                            Nonogram::block_start_row_literal(row, col_idx, other_idx, false);
-                        let clause = format!("{block_literal} {other_literal}");
+                            self.block_start_row_literal(row, col_idx, other_idx, false);
+                        let clause = vec![block_literal, other_literal];
                         clauses.push(clause);
                     }
                 }
@@ -358,33 +423,31 @@ impl Nonogram {
     }
 
     fn row_clauses_precedence(
-        &self,
+        &mut self,
         row: usize,
         block_a_idx: usize,
         block_b_idx: usize,
-    ) -> Vec<String> {
-        let mut clauses = vec![];
+    ) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
         for col_idx in 0..2 {
-            clauses.push(Nonogram::block_start_row_literal(
+            clauses.push(vec![self.block_start_row_literal(
                 row,
                 col_idx,
                 block_b_idx,
                 false,
-            ));
+            )]);
         }
 
         for col_idx in 2..self.row_length {
             let mut literals = vec![];
-            let block_b_at_idx =
-                Nonogram::block_start_row_literal(row, col_idx, block_b_idx, false);
+            let block_b_at_idx = self.block_start_row_literal(row, col_idx, block_b_idx, false);
             literals.push(block_b_at_idx);
             for prior_col in 0..col_idx {
-                let block_a_prior =
-                    Nonogram::block_start_row_literal(row, prior_col, block_a_idx, true);
+                let block_a_prior = self.block_start_row_literal(row, prior_col, block_a_idx, true);
                 literals.push(block_a_prior);
             }
-            clauses.push(literals.join(" "));
+            clauses.push(literals);
         }
 
         clauses
@@ -392,10 +455,10 @@ impl Nonogram {
 
     #[rustfmt::skip]
     #[allow(clippy::needless_range_loop)]
-    fn row_clauses(&self) -> Vec<String> {
-        let mut clauses = vec![];
+    fn row_clauses(&mut self) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
-        for (row_idx, row) in self.rows.iter().enumerate() {
+        for (row_idx, row) in self.rows.clone().iter().enumerate() {
             if row.is_empty() {
                 continue;
             }
@@ -409,12 +472,12 @@ impl Nonogram {
             for block_idx in 0..row.len() {
                 let mut block_clauses = vec![];
                 block_clauses.push(self.row_clauses_block_starts_somewhere(row_idx, block_idx));
-                block_clauses.push(Nonogram::block_legnth_row_literal(
+                block_clauses.push(vec![self.block_legnth_row_literal(
                     row_idx,
                     block_idx,
                     row[block_idx],
                     true,
-                ));
+                )]);
 
                 block_clauses.append(&mut self.row_clauses_block_start_fills(row_idx, block_idx));
                 block_clauses.append(&mut self.row_clauses_block_length(row_idx, block_idx));
@@ -439,43 +502,46 @@ impl Nonogram {
 }
 
 impl Nonogram {
-    fn col_clauses_block_start(&self, col: usize, total_blocks: usize) -> Vec<String> {
+    fn col_clauses_block_start(&mut self, col: usize, total_blocks: usize) -> Vec<vClause> {
         let mut the_clauses = vec![];
 
         let mut starts = vec![];
         for block_idx in 0..total_blocks {
-            starts.push(Nonogram::block_start_col_literal(0, col, block_idx, true));
+            starts.push(self.block_start_col_literal(0, col, block_idx, true));
         }
 
-        let start_literal = Nonogram::fill_literal(0, col, false);
-        let required_fill = format!("{start_literal} {}", &starts.join(" "));
+        let start_literal = self.fill_literal(0, col, false);
+        let mut required_fill = vec![start_literal];
+        required_fill.extend_from_slice(&starts);
+
         the_clauses.push(required_fill);
 
         for idx in 1..self.col_length {
             let mut starts = vec![];
             for block_idx in 0..total_blocks {
-                starts.push(Nonogram::block_start_col_literal(idx, col, block_idx, true));
+                starts.push(self.block_start_col_literal(idx, col, block_idx, true));
             }
-            let prior_literal = Nonogram::fill_literal(idx - 1, col, true);
-            let start_literal = Nonogram::fill_literal(idx, col, false);
-            let required_fill = format!("{prior_literal} {start_literal} {}", &starts.join(" "));
+            let prior_literal = self.fill_literal(idx - 1, col, true);
+            let start_literal = self.fill_literal(idx, col, false);
+            let mut required_fill = vec![prior_literal, start_literal];
+            required_fill.extend_from_slice(&starts);
             the_clauses.push(required_fill);
         }
 
         the_clauses
     }
 
-    fn col_clauses_block_start_fills(&self, col: usize, block_idx: usize) -> Vec<String> {
-        let mut clauses = vec![];
+    fn col_clauses_block_start_fills(&mut self, col: usize, block_idx: usize) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
         for row in 0..self.col_length {
-            let start_literal = Nonogram::block_start_col_literal(row, col, block_idx, false);
-            let must_fill_literal = Nonogram::fill_literal(row, col, true);
-            let clause = format!("{start_literal} {must_fill_literal}");
+            let start_literal = self.block_start_col_literal(row, col, block_idx, false);
+            let must_fill_literal = self.fill_literal(row, col, true);
+            let clause = vec![start_literal, must_fill_literal];
             clauses.push(clause);
             if row > 0 {
-                let no_fill_literal = Nonogram::fill_literal(row - 1, col, false);
-                let clause = format!("{start_literal} {no_fill_literal}");
+                let no_fill_literal = self.fill_literal(row - 1, col, false);
+                let clause = vec![start_literal, no_fill_literal];
                 clauses.push(clause);
             }
         }
@@ -483,17 +549,16 @@ impl Nonogram {
         clauses
     }
 
-    fn col_clauses_block_fill(&self, col: usize, block_idx: usize) -> Vec<String> {
-        let mut clauses = vec![];
+    fn col_clauses_block_fill(&mut self, col: usize, block_idx: usize) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
         for row in 0..self.col_length {
-            let start_literal = Nonogram::block_start_col_literal(row, col, block_idx, false);
+            let start_literal = self.block_start_col_literal(row, col, block_idx, false);
             for length in 2..(self.col_length - row) {
-                let length_literal =
-                    Nonogram::block_length_col_literal(col, block_idx, length, false);
+                let length_literal = self.block_length_col_literal(col, block_idx, length, false);
                 for offset in 0..length {
-                    let fill_literal = Nonogram::fill_literal(row + offset, col, true);
-                    let clause = format!("{start_literal} {length_literal} {fill_literal}");
+                    let fill_literal = self.fill_literal(row + offset, col, true);
+                    let clause = vec![start_literal, length_literal, fill_literal];
                     clauses.push(clause);
                 }
             }
@@ -502,30 +567,27 @@ impl Nonogram {
         clauses
     }
 
-    fn col_clauses_block_length(&self, col: usize, block_idx: usize) -> Vec<String> {
-        let mut clauses = vec![];
+    fn col_clauses_block_length(&mut self, col: usize, block_idx: usize) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
         for start_row in 0..self.col_length {
             let start_block_literal =
-                Nonogram::block_start_col_literal(start_row, col, block_idx, false);
+                self.block_start_col_literal(start_row, col, block_idx, false);
 
             for length in 1..=(self.col_length - start_row) {
-                let mut the_clause = start_block_literal.clone();
+                let mut the_clause = vec![start_block_literal.clone()];
                 for offset in 1..length {
-                    the_clause.push(' ');
-                    let fill_literal = Nonogram::fill_literal(start_row + offset, col, false);
-                    the_clause.push_str(&fill_literal);
+                    let fill_literal = self.fill_literal(start_row + offset, col, false);
+                    the_clause.push(fill_literal);
                 }
 
                 if start_row + length < self.col_length {
-                    the_clause.push(' ');
-                    let length_literal = Nonogram::fill_literal(start_row + length, col, true);
-                    the_clause.push_str(&length_literal);
+                    let length_literal = self.fill_literal(start_row + length, col, true);
+                    the_clause.push(length_literal);
                 }
-                the_clause.push(' ');
-                let length_literal =
-                    Nonogram::block_length_col_literal(col, block_idx, length, true);
-                the_clause.push_str(&length_literal);
+
+                let length_literal = self.block_length_col_literal(col, block_idx, length, true);
+                the_clause.push(length_literal);
                 clauses.push(the_clause);
             }
         }
@@ -533,26 +595,26 @@ impl Nonogram {
         clauses
     }
 
-    fn col_clauses_block_starts_somewhere(&self, col: usize, block_idx: usize) -> String {
+    fn col_clauses_block_starts_somewhere(&mut self, col: usize, block_idx: usize) -> vClause {
         let mut literals = vec![];
 
         for row in 0..self.col_length {
-            literals.push(Nonogram::block_start_col_literal(row, col, block_idx, true));
+            literals.push(self.block_start_col_literal(row, col, block_idx, true));
         }
 
-        literals.join(" ")
+        literals
     }
 
-    fn col_clauses_block_start_unique_row(&self, col: usize, block_idx: usize) -> Vec<String> {
-        let mut clauses = vec![];
+    fn col_clauses_block_start_unique_row(&mut self, col: usize, block_idx: usize) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
         for row_idx in 0..self.col_length {
-            let block_start_row = Nonogram::block_start_col_literal(row_idx, col, block_idx, false);
+            let block_start_row = self.block_start_col_literal(row_idx, col, block_idx, false);
             for other_row_idx in 0..self.col_length {
                 if row_idx != other_row_idx {
                     let block_start_other_row =
-                        Nonogram::block_start_col_literal(other_row_idx, col, block_idx, false);
-                    let clause = format!("{block_start_row} {block_start_other_row}");
+                        self.block_start_col_literal(other_row_idx, col, block_idx, false);
+                    let clause = vec![block_start_row, block_start_other_row];
                     clauses.push(clause);
                 }
             }
@@ -561,17 +623,16 @@ impl Nonogram {
         clauses
     }
 
-    fn col_clauses_block_length_unique(&self, col: usize, block_idx: usize) -> Vec<String> {
-        let mut clauses = vec![];
+    fn col_clauses_block_length_unique(&mut self, col: usize, block_idx: usize) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
         for length in 1..=self.col_length {
-            let block_length_literal =
-                Nonogram::block_length_col_literal(col, block_idx, length, false);
+            let block_length_literal = self.block_length_col_literal(col, block_idx, length, false);
             for other_length in 1..=self.col_length {
                 if length != other_length {
                     let other_block_length_literal =
-                        Nonogram::block_length_col_literal(col, block_idx, other_length, false);
-                    let clause = format!("{block_length_literal} {other_block_length_literal}");
+                        self.block_length_col_literal(col, block_idx, other_length, false);
+                    let clause = vec![block_length_literal, other_block_length_literal];
                     clauses.push(clause);
                 }
             }
@@ -580,18 +641,22 @@ impl Nonogram {
         clauses
     }
 
-    fn col_clauses_block_start_unique_idx(&self, col: usize, total_blocks: usize) -> Vec<String> {
-        let mut clauses = vec![];
+    fn col_clauses_block_start_unique_idx(
+        &mut self,
+        col: usize,
+        total_blocks: usize,
+    ) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
         for row_idx in 0..self.col_length {
             for block_idx in 0..total_blocks {
                 let block_idx_literal =
-                    Nonogram::block_start_col_literal(row_idx, col, block_idx, false);
+                    self.block_start_col_literal(row_idx, col, block_idx, false);
                 for other_block_idx in 0..total_blocks {
                     if block_idx != other_block_idx {
                         let other_block_idx_literal =
-                            Nonogram::block_start_col_literal(row_idx, col, other_block_idx, false);
-                        let clause = format!("{block_idx_literal} {other_block_idx_literal}");
+                            self.block_start_col_literal(row_idx, col, other_block_idx, false);
+                        let clause = vec![block_idx_literal, other_block_idx_literal];
                         clauses.push(clause);
                     }
                 }
@@ -602,33 +667,33 @@ impl Nonogram {
     }
 
     fn col_clauses_precedence(
-        &self,
+        &mut self,
         col: usize,
         block_a_position: usize,
         block_b_position: usize,
-    ) -> Vec<String> {
-        let mut clauses = vec![];
+    ) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
         for excluded in 0..2 {
-            clauses.push(Nonogram::block_start_col_literal(
+            clauses.push(vec![self.block_start_col_literal(
                 col,
                 excluded,
                 block_b_position,
                 false,
-            ));
+            )]);
         }
 
         for row_idx in 2..self.col_length {
             let mut literals = vec![];
             let block_b_at_idx =
-                Nonogram::block_start_col_literal(row_idx, col, block_b_position, false);
+                self.block_start_col_literal(row_idx, col, block_b_position, false);
             literals.push(block_b_at_idx);
             for prior_row in 0..row_idx {
                 let block_a_prior =
-                    Nonogram::block_start_col_literal(prior_row, col, block_a_position, true);
+                    self.block_start_col_literal(prior_row, col, block_a_position, true);
                 literals.push(block_a_prior);
             }
-            clauses.push(literals.join(" "));
+            clauses.push(literals);
         }
 
         clauses
@@ -636,10 +701,10 @@ impl Nonogram {
 
     #[rustfmt::skip]
     #[allow(clippy::needless_range_loop)]
-    fn col_clauses(&self) -> Vec<String> {
-        let mut clauses = vec![];
+    fn col_clauses(&mut self) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
-        for (col_idx, col) in self.cols.iter().enumerate() {
+        for (col_idx, col) in self.cols.clone().iter().enumerate() {
             if col.is_empty() {
                 continue;
             }
@@ -653,12 +718,12 @@ impl Nonogram {
             for block_idx in 0..col.len() {
                 let mut block_clauses = vec![];
                 block_clauses.push(self.col_clauses_block_starts_somewhere(col_idx, block_idx));
-                block_clauses.push(Nonogram::block_length_col_literal(
+                block_clauses.push(vec![self.block_length_col_literal(
                     col_idx,
                     block_idx,
                     col[block_idx],
                     true,
-                ));
+                )]);
 
                 block_clauses.append(&mut self.col_clauses_block_start_fills(col_idx, block_idx));
                 block_clauses.append(&mut self.col_clauses_block_length(col_idx, block_idx));
@@ -681,8 +746,8 @@ impl Nonogram {
         clauses
     }
 
-    fn clauses(&self) -> Vec<String> {
-        let mut clauses = vec![];
+    fn clauses(&mut self) -> Vec<vClause> {
+        let mut clauses: Vec<vClause> = vec![];
 
         clauses.append(&mut self.row_clauses());
         clauses.append(&mut self.col_clauses());

@@ -79,7 +79,7 @@ loop {
 
     // Break from the loop as soon as the context is unsatisfiable.
     match the_context.report() {
-        report::Solve::Satisfiable => {}
+        report::SolveReport::Satisfiable => {}
         _ => break,
     };
 
@@ -141,5 +141,5 @@ let _ = dimacs.write(b"
       -r 0
 ");
 
-assert_eq!(the_context.read_dimacs(dimacs.as_slice()), Err(err::BuildErrorKind::Unsatisfiable));
+assert_eq!(the_context.read_dimacs(dimacs.as_slice()), Err(err::ErrorKind::Build(err::BuildErrorKind::Unsatisfiable)));
 ```

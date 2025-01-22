@@ -22,8 +22,8 @@ impl Clause for abLiteral {
         let mut the_string = String::new();
 
         let the_represenetation = match self.polarity() {
-            true => format!(" {} ", atom_db.external_representation(self.atom())),
-            false => format!("-{} ", atom_db.external_representation(self.atom())),
+            true => format!(" {} ", self.atom()),
+            false => format!("-{} ", self.atom()),
         };
         the_string.push_str(the_represenetation.as_str());
 

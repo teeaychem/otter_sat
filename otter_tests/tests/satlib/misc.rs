@@ -49,7 +49,7 @@ mod graph_colouring {
                     silent_on_directory(
                         morphed_path().join(format!("SW100-8-{}", $n)),
                         &Config::default(),
-                        report::Solve::Satisfiable,
+                        report::SolveReport::Satisfiable,
                     );
                 }
             };
@@ -90,7 +90,7 @@ mod graph_colouring {
                     silent_on_directory(
                         flat_path().join(format!("flat{}-{}", $n, $m)),
                         &Config::default(),
-                        report::Solve::Satisfiable,
+                        report::SolveReport::Satisfiable,
                     );
                 }
             };
