@@ -2,7 +2,6 @@ use otter_sat::{
     config::Config,
     context::Context,
     dispatch::library::report::{self},
-    structures::{clause::Clause, literal::abLiteral},
 };
 
 /// A default context is created and some sequences of variables are added.

@@ -16,6 +16,9 @@ version = "0.0.10"
 name = "otter_sat"
 path = "src/lib.rs"
 
+[features]
+IPSAIR = []
+
 [dependencies]
 
 log = { version = "0.4.22", features = ["max_level_trace", "release_max_level_off"] }
