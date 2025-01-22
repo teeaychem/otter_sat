@@ -6,7 +6,7 @@
 use otter_sat::{
     config::Config,
     context::Context,
-    dispatch::library::report::Solve::{self},
+    dispatch::library::report::SolveReport::{self},
 };
 
 /// A struct to hold the nonogram puzzle, clause generation follows the main function.
@@ -91,7 +91,7 @@ fn main() {
 
     let result = the_context.solve().unwrap();
 
-    if matches!(result, Solve::Unsatisfiable) {
+    if matches!(result, SolveReport::Unsatisfiable) {
         println!("No solution");
         std::process::exit(0);
     }

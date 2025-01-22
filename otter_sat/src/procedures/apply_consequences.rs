@@ -101,7 +101,7 @@ use crate::{
 };
 
 /// Ok results of [apply_consequences](GenericContext::apply_consequences).
-pub enum Ok {
+pub enum ApplyConsequenceOk {
     /// A conflict was found, and so the formula is unsatisfiable.
     FundamentalConflict,
 
@@ -123,34 +123,34 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// Queued consequences are removed from the queue only if BCP was successful.
     /// For, in the case of a conflict the consequence may remain, and otherwise will be removed from the queue during a backjump.
-    pub fn apply_consequences(&mut self) -> Result<Ok, err::Context> {
+    pub fn apply_consequences(&mut self) -> Result<ApplyConsequenceOk, err::ContextErrorKind> {
         use crate::db::consequence_q::QPosition::{self};
 
         'application: loop {
             let Some((literal, _)) = self.consequence_q.front().cloned() else {
-                return Ok(Ok::Exhausted);
+                return Ok(ApplyConsequenceOk::Exhausted);
             };
 
             match unsafe { self.bcp(literal) } {
                 Ok(()) => {
                     self.consequence_q.pop_front();
                 }
-                Err(err::BCP::CorruptWatch) => return Err(err::Context::BCP),
-                Err(err::BCP::Conflict(key)) => {
+                Err(err::BCPErrorKind::CorruptWatch) => return Err(err::ContextErrorKind::BCP),
+                Err(err::BCPErrorKind::Conflict(key)) => {
                     //
                     if !self.literal_db.is_decision_made() {
                         self.state = ContextState::Unsatisfiable;
 
                         macros::dispatch_atom_db_delta!(self, delta::AtomDB::Unsatisfiable(key));
 
-                        return Ok(Ok::FundamentalConflict);
+                        return Ok(ApplyConsequenceOk::FundamentalConflict);
                     }
 
                     match self.conflict_analysis(&key)? {
                         // Analysis is only called when some decision has been made.
-                        analysis::Ok::FundamentalConflict => panic!("!"),
+                        analysis::ConflictAnalysisOk::FundamentalConflict => panic!("!"),
 
-                        analysis::Ok::MissedPropagation {
+                        analysis::ConflictAnalysisOk::MissedPropagation {
                             key,
                             literal: asserted_literal,
                         } => {
@@ -175,12 +175,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             continue 'application;
                         }
 
-                        analysis::Ok::UnitClause { key } => {
-                            return Ok(Ok::UnitClause { key });
+                        analysis::ConflictAnalysisOk::UnitClause { key } => {
+                            return Ok(ApplyConsequenceOk::UnitClause { key });
                         }
 
-                        analysis::Ok::AssertingClause { key, literal } => {
-                            return Ok(Ok::AssertingClause { key, literal });
+                        analysis::ConflictAnalysisOk::AssertingClause { key, literal } => {
+                            return Ok(ApplyConsequenceOk::AssertingClause { key, literal });
                         }
                     }
                 }

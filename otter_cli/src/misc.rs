@@ -6,7 +6,7 @@ use otter_sat::{
 };
 use xz2::read::XzDecoder;
 
-pub fn load_dimacs(context: &mut Context, path: PathBuf) -> Result<(), err::Build> {
+pub fn load_dimacs(context: &mut Context, path: PathBuf) -> Result<(), err::BuildErrorKind> {
     let file = match File::open(&path) {
         Err(_) => panic!("c COULD NOT LOAD FILE"),
         Ok(f) => f,

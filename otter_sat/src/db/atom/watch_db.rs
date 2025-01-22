@@ -179,7 +179,7 @@ impl AtomDB {
         atom: Atom,
         value: bool,
         key: &ClauseKey,
-    ) -> Result<(), err::Watch> {
+    ) -> Result<(), err::WatchErrorKind> {
         match key {
             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
                 let list = match value {
@@ -200,7 +200,7 @@ impl AtomDB {
                 let mut limit = list.len();
                 while index < limit {
                     let WatchTag::Clause(list_key) = list.get_unchecked(index) else {
-                        return Err(err::Watch::NotLongInLong);
+                        return Err(err::WatchErrorKind::NotLongInLong);
                     };
 
                     if list_key == key {
@@ -212,7 +212,7 @@ impl AtomDB {
                 }
                 Ok(())
             }
-            ClauseKey::Unit(_) | ClauseKey::Binary(_) => Err(err::Watch::NotLongInLong),
+            ClauseKey::Unit(_) | ClauseKey::Binary(_) => Err(err::WatchErrorKind::NotLongInLong),
         }
     }
 

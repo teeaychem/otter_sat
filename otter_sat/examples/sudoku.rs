@@ -4,7 +4,7 @@
 use otter_sat::{
     config::Config,
     context::Context,
-    dispatch::library::report::Solve::{self},
+    dispatch::library::report::SolveReport::{self},
 };
 
 type SudokuGrid = [[usize; 9]; 9];
@@ -53,7 +53,7 @@ fn main() {
     let valuation_string = the_context.atom_db.valuation_string();
     let solution = valuation_to_grid(valuation_string);
     match the_context.report() {
-        Solve::Satisfiable => {
+        SolveReport::Satisfiable => {
             print_sudoku_grid(&solution);
             println!();
             match validate_solution(solution) {
@@ -61,7 +61,7 @@ fn main() {
                 false => println!("Validation: NOK"),
             }
         }
-        Solve::Unsatisfiable => {
+        SolveReport::Unsatisfiable => {
             println!("It is not possible to solve the puzzle.")
         }
         _ => {}

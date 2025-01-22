@@ -40,7 +40,7 @@ pub fn pure_literals<'l>(
 /// Finds all pure literals with respect to non-unit clauses and sets the value of the relevant atom to match the polarity of the literal.
 pub fn set_pure<R: rand::Rng + std::default::Default>(
     context: &mut GenericContext<R>,
-) -> Result<(), err::Queue> {
+) -> Result<(), err::ConsequenceQueueErrorKind> {
     let (f, t) = pure_literals(
         context
             .clause_db
@@ -55,11 +55,11 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
             consequence_q::QPosition::Back,
             context.literal_db.decision_count(),
         ) {
-            Ok(consequence_q::Ok::Qd) => {
+            Ok(consequence_q::ConsequenceQueueOk::Qd) => {
                 let consequence = Consequence::from(the_literal, consequence::Source::PureLiteral);
                 context.record_consequence(consequence);
             }
-            Ok(consequence_q::Ok::Skip) => {}
+            Ok(consequence_q::ConsequenceQueueOk::Skip) => {}
 
             Err(e) => return Err(e),
         }
@@ -72,12 +72,12 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
             consequence_q::QPosition::Back,
             context.literal_db.decision_count(),
         ) {
-            Ok(consequence_q::Ok::Qd) => {
+            Ok(consequence_q::ConsequenceQueueOk::Qd) => {
                 let consequence = Consequence::from(the_literal, consequence::Source::PureLiteral);
                 context.record_consequence(consequence);
             }
 
-            Ok(consequence_q::Ok::Skip) => {}
+            Ok(consequence_q::ConsequenceQueueOk::Skip) => {}
             Err(e) => return Err(e),
         }
     }

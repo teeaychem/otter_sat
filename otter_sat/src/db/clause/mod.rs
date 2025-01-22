@@ -86,27 +86,27 @@ impl ClauseDB {
 /// Though, note, as keys use a [index](FormulaIndex) which may be smaller than [usize] a check is made to ensure it will be possible to generate the key.
 impl ClauseDB {
     /// A key to a binary clause.
-    fn fresh_binary_key(&mut self) -> Result<ClauseKey, err::ClauseDB> {
+    fn fresh_binary_key(&mut self) -> Result<ClauseKey, err::ClauseDBErrorKind> {
         if self.binary.len() == FormulaIndex::MAX as usize {
-            return Err(err::ClauseDB::StorageExhausted);
+            return Err(err::ClauseDBErrorKind::StorageExhausted);
         }
         let key = ClauseKey::Binary(self.binary.len() as FormulaIndex);
         Ok(key)
     }
 
     /// A key to an original clause.
-    fn fresh_original_key(&mut self) -> Result<ClauseKey, err::ClauseDB> {
+    fn fresh_original_key(&mut self) -> Result<ClauseKey, err::ClauseDBErrorKind> {
         if self.original.len() == FormulaIndex::MAX as usize {
-            return Err(err::ClauseDB::StorageExhausted);
+            return Err(err::ClauseDBErrorKind::StorageExhausted);
         }
         let key = ClauseKey::Original(self.original.len() as FormulaIndex);
         Ok(key)
     }
 
     /// A key to an addition clause.
-    fn fresh_addition_key(&mut self) -> Result<ClauseKey, err::ClauseDB> {
+    fn fresh_addition_key(&mut self) -> Result<ClauseKey, err::ClauseDBErrorKind> {
         if self.addition.len() == FormulaIndex::MAX as usize {
-            return Err(err::ClauseDB::StorageExhausted);
+            return Err(err::ClauseDBErrorKind::StorageExhausted);
         }
         let key = ClauseKey::Addition(self.addition.len() as FormulaIndex, 0);
         Ok(key)
@@ -128,9 +128,9 @@ impl ClauseDB {
         source: Source,
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,
-    ) -> Result<ClauseKey, err::ClauseDB> {
+    ) -> Result<ClauseKey, err::ClauseDBErrorKind> {
         match clause.size() {
-            0 => Err(err::ClauseDB::EmptyClause),
+            0 => Err(err::ClauseDBErrorKind::EmptyClause),
 
             1 => {
                 // The match ensures there is a next (and then no further) literal in the clause.
@@ -202,21 +202,21 @@ impl ClauseDB {
     /// ```rust, ignore
     /// self.clause_db.get_db_clause(&key)?
     /// ```
-    pub fn get_db_clause(&self, key: &ClauseKey) -> Result<&dbClause, err::ClauseDB> {
+    pub fn get_db_clause(&self, key: &ClauseKey) -> Result<&dbClause, err::ClauseDBErrorKind> {
         match key {
-            ClauseKey::Unit(_) => Err(err::ClauseDB::GetUnitKey),
+            ClauseKey::Unit(_) => Err(err::ClauseDBErrorKind::GetUnitKey),
             ClauseKey::Original(index) => {
                 //
                 match self.original.get(*index as usize) {
                     Some(clause) => Ok(clause),
-                    None => Err(err::ClauseDB::Missing),
+                    None => Err(err::ClauseDBErrorKind::Missing),
                 }
             }
             ClauseKey::Binary(index) => {
                 //
                 match self.binary.get(*index as usize) {
                     Some(clause) => Ok(clause),
-                    None => Err(err::ClauseDB::Missing),
+                    None => Err(err::ClauseDBErrorKind::Missing),
                 }
             }
             ClauseKey::Addition(index, token) => {
@@ -226,10 +226,10 @@ impl ClauseDB {
                         ClauseKey::Addition(_, clause_token) if &clause_token == token => {
                             Ok(clause)
                         }
-                        _ => Err(err::ClauseDB::InvalidKeyToken),
+                        _ => Err(err::ClauseDBErrorKind::InvalidKeyToken),
                     },
-                    Some(None) => Err(err::ClauseDB::InvalidKeyIndex),
-                    None => Err(err::ClauseDB::InvalidKeyIndex),
+                    Some(None) => Err(err::ClauseDBErrorKind::InvalidKeyIndex),
+                    None => Err(err::ClauseDBErrorKind::InvalidKeyIndex),
                 }
             }
         }
@@ -240,21 +240,21 @@ impl ClauseDB {
     /// ```rust, ignore
     /// self.clause_db.get_db_clause_mut(&key)?
     /// ```
-    pub fn get_mut(&mut self, key: &ClauseKey) -> Result<&mut dbClause, err::ClauseDB> {
+    pub fn get_mut(&mut self, key: &ClauseKey) -> Result<&mut dbClause, err::ClauseDBErrorKind> {
         match key {
-            ClauseKey::Unit(_) => Err(err::ClauseDB::GetUnitKey),
+            ClauseKey::Unit(_) => Err(err::ClauseDBErrorKind::GetUnitKey),
             ClauseKey::Original(index) => {
                 //
                 match self.original.get_mut(*index as usize) {
                     Some(clause) => Ok(clause),
-                    None => Err(err::ClauseDB::Missing),
+                    None => Err(err::ClauseDBErrorKind::Missing),
                 }
             }
             ClauseKey::Binary(index) => {
                 //
                 match self.binary.get_mut(*index as usize) {
                     Some(clause) => Ok(clause),
-                    None => Err(err::ClauseDB::Missing),
+                    None => Err(err::ClauseDBErrorKind::Missing),
                 }
             }
             ClauseKey::Addition(index, token) => {
@@ -264,10 +264,10 @@ impl ClauseDB {
                         ClauseKey::Addition(_, clause_token) if &clause_token == token => {
                             Ok(clause)
                         }
-                        _ => Err(err::ClauseDB::InvalidKeyToken),
+                        _ => Err(err::ClauseDBErrorKind::InvalidKeyToken),
                     },
-                    Some(None) => Err(err::ClauseDB::InvalidKeyIndex),
-                    None => Err(err::ClauseDB::InvalidKeyIndex),
+                    Some(None) => Err(err::ClauseDBErrorKind::InvalidKeyIndex),
+                    None => Err(err::ClauseDBErrorKind::InvalidKeyIndex),
                 }
             }
         }
@@ -283,9 +283,12 @@ impl ClauseDB {
     /// To be used only when there is a guarantee that the clause has not been removed.
     ///
     /// E.g., this is safe to use with binary clauses, but not with addition clauses.
-    pub unsafe fn get_unchecked(&self, key: &ClauseKey) -> Result<&dbClause, err::ClauseDB> {
+    pub unsafe fn get_unchecked(
+        &self,
+        key: &ClauseKey,
+    ) -> Result<&dbClause, err::ClauseDBErrorKind> {
         match key {
-            ClauseKey::Unit(_) => Err(err::ClauseDB::GetUnitKey),
+            ClauseKey::Unit(_) => Err(err::ClauseDBErrorKind::GetUnitKey),
             ClauseKey::Original(index) => Ok(self.original.get_unchecked(*index as usize)),
             ClauseKey::Binary(index) => Ok(self.binary.get_unchecked(*index as usize)),
             ClauseKey::Addition(index, token) => {
@@ -295,9 +298,9 @@ impl ClauseDB {
                         ClauseKey::Addition(_, clause_token) if &clause_token == token => {
                             Ok(clause)
                         }
-                        _ => Err(err::ClauseDB::InvalidKeyToken),
+                        _ => Err(err::ClauseDBErrorKind::InvalidKeyToken),
                     },
-                    None => Err(err::ClauseDB::InvalidKeyIndex),
+                    None => Err(err::ClauseDBErrorKind::InvalidKeyIndex),
                 }
             }
         }
@@ -313,9 +316,9 @@ impl ClauseDB {
     pub unsafe fn get_unchecked_mut(
         &mut self,
         key: &ClauseKey,
-    ) -> Result<&mut dbClause, err::ClauseDB> {
+    ) -> Result<&mut dbClause, err::ClauseDBErrorKind> {
         match key {
-            ClauseKey::Unit(_) => Err(err::ClauseDB::GetUnitKey),
+            ClauseKey::Unit(_) => Err(err::ClauseDBErrorKind::GetUnitKey),
             ClauseKey::Original(index) => Ok(self.original.get_unchecked_mut(*index as usize)),
             ClauseKey::Binary(index) => Ok(self.binary.get_unchecked_mut(*index as usize)),
             ClauseKey::Addition(index, _) => {
@@ -323,7 +326,7 @@ impl ClauseDB {
                 match self.addition.get_unchecked_mut(*index as usize) {
                     Some(clause) => Ok(clause),
 
-                    None => Err(err::ClauseDB::InvalidKeyIndex),
+                    None => Err(err::ClauseDBErrorKind::InvalidKeyIndex),
                 }
             }
         }
@@ -371,7 +374,7 @@ impl ClauseDB {
     /// ```
     // TODO: Improvements…?
     // For example, before dropping a clause the lbd could be recalculated…
-    pub fn reduce_by(&mut self, limit: usize) -> Result<(), err::ClauseDB> {
+    pub fn reduce_by(&mut self, limit: usize) -> Result<(), err::ClauseDBErrorKind> {
         'reduction_loop: for _ in 0..limit {
             if let Some(index) = self.activity_heap.peek_max() {
                 let value = self.activity_heap.value_at(index);
@@ -395,10 +398,10 @@ impl ClauseDB {
     As the elements are optional for reuse, take places None at the index, as would be needed anyway
      */
     /// Removes an addition clause at the given index, and sends a dispatch if possible.
-    fn remove_addition(&mut self, index: usize) -> Result<(), err::ClauseDB> {
+    fn remove_addition(&mut self, index: usize) -> Result<(), err::ClauseDBErrorKind> {
         if unsafe { self.addition.get_unchecked(index) }.is_none() {
             log::error!(target: targets::CLAUSE_DB, "attempt to remove something that is not there");
-            Err(err::ClauseDB::Missing)
+            Err(err::ClauseDBErrorKind::Missing)
         } else {
             // assert!(matches!(the_clause.key(), ClauseKey::LearnedLong(_, _)));
             let the_clause =
@@ -503,23 +506,23 @@ impl ClauseDB {
     pub fn dispatch_active(&self) {
         if let Some(dispatcher) = &self.dispatcher {
             for literal in self.all_unit_clauses() {
-                let report = report::ClauseDB::ActiveUnit(*literal);
+                let report = report::ClauseDBReport::ActiveUnit(*literal);
                 dispatcher(Dispatch::Report(report::Report::ClauseDB(report)));
             }
 
             for clause in &self.binary {
-                let report = report::ClauseDB::Active(clause.key(), clause.to_vec());
+                let report = report::ClauseDBReport::Active(clause.key(), clause.to_vec());
                 dispatcher(Dispatch::Report(Report::ClauseDB(report)));
             }
 
             for clause in &self.original {
-                let report = report::ClauseDB::Active(clause.key(), clause.to_vec());
+                let report = report::ClauseDBReport::Active(clause.key(), clause.to_vec());
                 dispatcher(Dispatch::Report(Report::ClauseDB(report)));
             }
 
             for clause in self.addition.iter().flatten() {
                 if clause.is_active() {
-                    let report = report::ClauseDB::Active(clause.key(), clause.to_vec());
+                    let report = report::ClauseDBReport::Active(clause.key(), clause.to_vec());
                     dispatcher(Dispatch::Report(Report::ClauseDB(report)));
                 }
             }
@@ -551,17 +554,17 @@ impl ClauseDB {
         key: ClauseKey,
         literal: impl Borrow<abLiteral>,
         atom_db: &mut AtomDB,
-    ) -> Result<ClauseKey, err::Subsumption> {
+    ) -> Result<ClauseKey, err::SubsumptionErrorKind> {
         let the_clause = match self.get_unchecked_mut(&key) {
             Ok(c) => c,
-            Err(_) => return Err(err::Subsumption::ClauseDB),
+            Err(_) => return Err(err::SubsumptionErrorKind::ClauseDB),
         };
         match the_clause.len() {
-            0..=2 => Err(err::Subsumption::ClauseTooShort),
+            0..=2 => Err(err::SubsumptionErrorKind::ClauseTooShort),
             3 => {
                 the_clause.subsume(literal, atom_db, false)?;
                 let Ok(new_key) = self.transfer_to_binary(key, atom_db) else {
-                    return Err(err::Subsumption::TransferFailure);
+                    return Err(err::SubsumptionErrorKind::TransferFailure);
                 };
                 Ok(new_key)
             }

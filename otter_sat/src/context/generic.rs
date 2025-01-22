@@ -60,14 +60,14 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
-    pub fn report(&self) -> report::Solve {
+    pub fn report(&self) -> report::SolveReport {
         use crate::context::ContextState;
         match self.state {
             ContextState::Configuration | ContextState::Input | ContextState::Solving => {
-                report::Solve::Unknown
+                report::SolveReport::Unknown
             }
-            ContextState::Satisfiable => report::Solve::Satisfiable,
-            ContextState::Unsatisfiable => report::Solve::Unsatisfiable,
+            ContextState::Satisfiable => report::SolveReport::Satisfiable,
+            ContextState::Unsatisfiable => report::SolveReport::Unsatisfiable,
         }
     }
 }

@@ -94,7 +94,7 @@ fn main() {
         for path in config_io.files {
             match load_dimacs(&mut the_context, path) {
                 Ok(()) => {}
-                Err(err::Build::ClauseDB(err::ClauseDB::EmptyClause)) => {
+                Err(err::BuildErrorKind::ClauseDB(err::ClauseDBErrorKind::EmptyClause)) => {
                     println!("s UNSATISFIABLE");
                     std::process::exit(20);
                 }
@@ -105,7 +105,7 @@ fn main() {
         }
 
         if the_context.clause_db.total_clause_count() == 0 {
-            break 'report report::Solve::Satisfiable;
+            break 'report report::SolveReport::Satisfiable;
         }
 
         let the_report = match the_context.solve() {
@@ -117,13 +117,13 @@ fn main() {
         };
 
         match the_report {
-            report::Solve::Unsatisfiable => {
+            report::SolveReport::Unsatisfiable => {
                 if config_io.show_core {
                     // let _ = self.display_core(clause_key);
                 }
                 the_context.dispatch_active();
             }
-            report::Solve::Satisfiable => {
+            report::SolveReport::Satisfiable => {
                 if config_io.show_valuation {
                     println!("v {}", the_context.atom_db.valuation_string());
                 }
@@ -134,7 +134,7 @@ fn main() {
     };
 
     match report {
-        report::Solve::Satisfiable => {
+        report::SolveReport::Satisfiable => {
             if let Some(path) = config_io.frat_path {
                 let _ = std::fs::remove_file(path);
             }
@@ -146,7 +146,7 @@ fn main() {
             println!("s SATISFIABLE");
             std::process::exit(10)
         }
-        report::Solve::Unsatisfiable => {
+        report::SolveReport::Unsatisfiable => {
             if config_io.frat_path.is_some() {
                 println!("c Finalising FRAT proof…");
             }
@@ -168,7 +168,7 @@ fn main() {
             println!("s UNSATISFIABLE");
             std::process::exit(20)
         }
-        report::Solve::TimeUp => {
+        report::SolveReport::TimeUp => {
             drop(the_context);
             if config_io.detail > 0 {
                 println!("c Time up");
@@ -176,7 +176,7 @@ fn main() {
             println!("s UNKNOWN");
             std::process::exit(30)
         }
-        report::Solve::Unknown => {
+        report::SolveReport::Unknown => {
             drop(the_context);
             println!("s UNKNOWN");
             std::process::exit(30)

@@ -53,7 +53,7 @@ use crate::{
 };
 
 /// Possible 'Ok' results from conflict analysis.
-pub enum Ok {
+pub enum ConflictAnalysisOk {
     /// The conflict clause was asserting at some previous decision level.
     MissedPropagation { key: ClauseKey, literal: abLiteral },
 
@@ -72,7 +72,10 @@ pub enum Ok {
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// For details on conflict analysis see the [analysis](crate::procedures::analysis) procedure.
-    pub fn conflict_analysis(&mut self, key: &ClauseKey) -> Result<Ok, err::Analysis> {
+    pub fn conflict_analysis(
+        &mut self,
+        key: &ClauseKey,
+    ) -> Result<ConflictAnalysisOk, err::AnalysisErrorKind> {
         log::trace!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.decision_count());
 
         if let crate::config::vsids::VSIDS::Chaff = self.config.vsids_variant {
@@ -103,18 +106,19 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             &mut self.clause_db,
             &mut self.atom_db,
         ) {
-            Ok(resolution_buffer::Ok::UnitClause) | Ok(resolution_buffer::Ok::FirstUIP) => {}
-            Ok(resolution_buffer::Ok::Exhausted) => {
+            Ok(resolution_buffer::ResolutionOk::UnitClause)
+            | Ok(resolution_buffer::ResolutionOk::FirstUIP) => {}
+            Ok(resolution_buffer::ResolutionOk::Exhausted) => {
                 if self.config.stopping_criteria == StoppingCriteria::FirstUIP {
                     log::error!(target: targets::ANALYSIS, "Wrong stopping criteria.");
-                    return Err(err::Analysis::FailedStoppingCriteria);
+                    return Err(err::AnalysisErrorKind::FailedStoppingCriteria);
                 }
             }
-            Ok(resolution_buffer::Ok::Repeat(k, l)) => {
-                return Ok(Ok::MissedPropagation { key: k, literal: l });
+            Ok(resolution_buffer::ResolutionOk::Repeat(k, l)) => {
+                return Ok(ConflictAnalysisOk::MissedPropagation { key: k, literal: l });
             }
             Err(_buffer_error) => {
-                return Err(err::Analysis::Buffer);
+                return Err(err::AnalysisErrorKind::Buffer);
             }
         }
 
@@ -137,18 +141,18 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let literal = match assertion_index {
             None => {
                 log::error!(target: targets::ANALYSIS, "Failed to resolve to an asserting clause");
-                return Err(err::Analysis::NoAssertion);
+                return Err(err::AnalysisErrorKind::NoAssertion);
             }
             // Safe, by operation of the resolution buffer.
             Some(index) => *unsafe { resolved_clause.get_unchecked(index) },
         };
 
         match resolved_clause.len() {
-            0 => Err(err::Analysis::EmptyResolution),
+            0 => Err(err::AnalysisErrorKind::EmptyResolution),
             1 => {
                 self.backjump(0);
                 let _ = self.record_clause(literal, clause::Source::Resolution, None)?;
-                Ok(Ok::UnitClause { key: literal })
+                Ok(ConflictAnalysisOk::UnitClause { key: literal })
             }
             _ => {
                 let index = self
@@ -157,7 +161,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 self.backjump(index);
 
                 let key = self.record_clause(resolved_clause, clause::Source::Resolution, None)?;
-                Ok(Ok::AssertingClause { key, literal })
+                Ok(ConflictAnalysisOk::AssertingClause { key, literal })
             }
         }
     }
