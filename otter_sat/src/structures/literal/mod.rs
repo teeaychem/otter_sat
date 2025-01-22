@@ -55,10 +55,6 @@ pub trait Literal: std::cmp::Ord + std::hash::Hash {
 
     /// The literal in it's 'canonical' form of an atom paired with a boolean.
     fn canonical(&self) -> abLiteral;
-
-    /// The external representation of the literal.
-    /// Specifically, the external representation of the atom of the literal, prefexied with a minus sign if the literal has negative polarity.
-    fn external_representation(&self, atom_db: &AtomDB) -> String;
 }
 
 /// The 'canonical' representation of a literal as an atom paired with a boolean.

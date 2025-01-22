@@ -1,7 +1,14 @@
+use std::collections::HashMap;
+
 use otter_sat::{
     config::Config,
     context::Context,
     dispatch::library::report::{self},
+    structures::{
+        atom::Atom,
+        literal::{abLiteral, Literal},
+        valuation::Valuation,
+    },
 };
 
 /// A default context is created and some sequences of variables are added.
@@ -12,21 +19,25 @@ use otter_sat::{
 ///  - Or, there's some error in the solver.
 ///
 /// This is not particularly efficient.
-// TODO: make this efficient…
 fn main() {
     let config = Config::default();
 
     let mut the_context: Context = Context::from_config(config, None);
 
+    // The representation of an atom will be given by the corresponding index in this map…
+    let mut atom_map = Vec::<char>::default();
+    // … though as atoms are positive integers, an initial element is added as an offset.
+    atom_map.push('䷼');
+
     // Each character in some string as a literal.
-    let mut atoms = "models".chars().collect::<Vec<_>>();
-    for atom in &atoms {
-        assert!(the_context.atom_from_string(&atom.to_string()).is_ok());
-        // let assumed_atom = the_context.literal_from_string(&atom.to_string()).unwrap();
+    for character in "model".chars() {
+        let _ = the_context.fresh_atom().unwrap();
+        atom_map.push(character);
     }
 
-    let assume_plural = the_context.literal_from_string("s").unwrap();
-    let _ = the_context.add_assumption(assume_plural);
+    let plural_atom = the_context.fresh_atom().unwrap();
+    let _ = the_context.add_assumption(abLiteral::fresh(plural_atom, true));
+    atom_map.push('s');
 
     let mut count = 0;
 
@@ -40,42 +51,47 @@ fn main() {
 
         count += 1;
 
-        let last_valuation = the_context.atom_db.valuation_string();
-        println!("v {count}\t {last_valuation}");
-        let valuation_parts = last_valuation.split_whitespace();
-
-        let mut new_valuation = String::new();
-        for literal in valuation_parts {
-            match literal.chars().next() {
-                Some('-') => new_valuation.push_str(&literal[1..]),
-                Some(_) => new_valuation.push_str(format!("-{literal}").as_str()),
-                None => break,
-            };
-            new_valuation.push(' ');
+        let last_valuation = the_context.atom_db.valuation();
+        let mut valuation_as_chars = Vec::default();
+        for (atom, value) in last_valuation.av_pairs() {
+            let character = atom_map[atom as usize];
+            match value {
+                Some(true) => valuation_as_chars.push(format!(" {character}")),
+                Some(false) => valuation_as_chars.push(format!("-{character}")),
+                None => {}
+            }
         }
 
-        let the_clause = match the_context.clause_from_string(&new_valuation) {
-            Ok(c) => c,
-            Err(e) => {
-                println!("{e:?}");
-                break;
+        println!("v {count}\t {}", valuation_as_chars.join(" "));
+
+        let mut clause = Vec::new();
+
+        for (atom, value) in the_context
+            .atom_db
+            .valuation_canonical()
+            .iter()
+            .enumerate()
+            .skip(1)
+        {
+            match value {
+                Some(v) => {
+                    clause.push(abLiteral::fresh(atom as Atom, !v));
+                }
+                None => {}
             }
-        };
+        }
 
         the_context.clear_decisions();
+        // std::process::exit(1);
 
-        match the_context.add_clause(the_clause) {
-            Ok(_) => {}
+        match the_context.add_clause(clause) {
+            Ok(note) => {}
             Err(_) => break,
         };
     }
 
-    // Shake out any duplicate variables as these are ignored by the context.
-    atoms.sort_unstable();
-    atoms.dedup();
-
     assert_eq!(
         count,
-        2_usize.pow(atoms.len().saturating_sub(1).try_into().unwrap())
+        2_usize.pow(atom_map.len().saturating_sub(2).try_into().unwrap())
     );
 }

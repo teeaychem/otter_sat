@@ -1,7 +1,14 @@
+use std::collections::HashMap;
+
 use otter_sat::{
     config::Config,
     context::Context,
     dispatch::library::report::{self},
+    structures::{
+        atom::Atom,
+        clause::Clause,
+        literal::{abLiteral, Literal},
+    },
 };
 
 /// A default context is created and some sequences of variables are added.
@@ -18,16 +25,16 @@ fn main() {
 
     let mut the_context: Context = Context::from_config(config, None);
 
+    let mut atom_map = HashMap::<char, Atom>::default();
     // Each character in some string as a literal.
-    let mut atoms = "model".chars().collect::<Vec<_>>();
-    for atom in &atoms {
-        assert!(the_context.atom_from_string(&atom.to_string()).is_ok())
+    let mut characters = "model".chars().collect::<Vec<_>>();
+    for character in characters {
+        atom_map.insert(character, the_context.fresh_atom().unwrap());
     }
 
     let mut count = 0;
 
     loop {
-        the_context.clear_decisions();
         assert!(the_context.solve().is_ok());
 
         match the_context.report() {
@@ -39,29 +46,34 @@ fn main() {
 
         let last_valuation = the_context.atom_db.valuation_string();
         println!("v {count}\t {last_valuation}");
-        let valuation_parts = last_valuation.split_whitespace();
 
-        let mut new_valuation = String::new();
-        for literal in valuation_parts {
-            match literal.chars().next() {
-                Some('-') => new_valuation.push_str(&literal[1..]),
-                Some(_) => new_valuation.push_str(format!("-{literal}").as_str()),
-                None => break,
-            };
-            new_valuation.push(' ');
+        let mut clause = Vec::new();
+
+        for (atom, value) in the_context
+            .atom_db
+            .valuation_canonical()
+            .iter()
+            .enumerate()
+            .skip(1)
+        {
+            match value {
+                Some(v) => {
+                    clause.push(abLiteral::fresh(atom as Atom, !v));
+                }
+                None => {}
+            }
         }
 
-        let the_clause = the_context.clause_from_string(&new_valuation).unwrap();
+        println!("To add: {}", clause.as_string());
 
-        match the_context.add_clause(the_clause) {
-            Ok(_) => {}
+        the_context.clear_decisions();
+        // std::process::exit(1);
+
+        match the_context.add_clause(clause) {
+            Ok(note) => {}
             Err(_) => break,
         };
     }
 
-    // Shake out any duplicate variables as these are ignored by the context.
-    atoms.sort_unstable();
-    atoms.dedup();
-
-    assert_eq!(count, 2_usize.pow(atoms.len().try_into().unwrap()));
+    assert_eq!(count, 2_usize.pow(atom_map.len().try_into().unwrap()));
 }

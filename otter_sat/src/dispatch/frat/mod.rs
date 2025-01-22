@@ -70,10 +70,4 @@ pub struct Transcriber {
 
     /// A queue of resolution buffers.
     resolution_queue: VecDeque<Vec<ClauseKey>>,
-
-    /// A map from internal atoms (the indicies) to external atoms (the strings).
-    ///
-    /// Transcripts are written using the external representation of atoms.
-    /// So, a local database of external representations is required.
-    atom_map: Vec<Option<String>>,
 }

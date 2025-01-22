@@ -45,55 +45,47 @@
 //! # use otter_sat::config::Config;
 //! # use otter_sat::context::Context;
 //! # use otter_sat::dispatch::library::report::{self};
-//! // setup a context to solve within.
-//! let mut the_context: Context = Context::from_config(Config::default(), None);
+//! # use otter_sat::structures::atom::Atom;
+//! use otter_sat::structures::literal::{abLiteral, Literal};
 //!
-//! // Each character in the string is interpreted as an atom.
-//! let atoms = "model";
-//! for atom in atoms.chars() { // add atoms to the context.
-//!     assert!(the_context.atom_from_string(&atom.to_string()).is_ok())
+//! let mut the_context: Context = Context::from_config(Config::default(), None);
+//! let mut characters = "model".chars().collect::<Vec<_>>();
+//! for character in &characters {
+//!     assert!(the_context.fresh_atom().is_ok())
 //! }
 //!
 //! let mut count = 0;
 //!
 //! loop {
-//!     // Determine the satisfiability of the formula in the context.
 //!     assert!(the_context.solve().is_ok());
 //!
-//!     // Break from the loop as soon as the context is unsatisfiable.
 //!     match the_context.report() {
-//!         report::Solve::Satisfiable => {}
+//!         report::SolveReport::Satisfiable => {}
 //!         _ => break,
 //!     };
 //!
 //!     count += 1;
 //!
-//!     // Read the (satisfying) valuation from the present solve.
-//!     let valuation = the_context.atom_db.valuation_string();
+//!     let mut clause = Vec::new();
 //!
-//!     // Create the string representation of a clause to force a new valuation.
-//!     let mut new_valuation = String::new();
-//!     for literal in valuation.split_whitespace() {
-//!         match literal.chars().next() {
-//!             Some('-') => new_valuation.push_str(&literal[1..]),
-//!             Some(_) => new_valuation.push_str(format!("-{literal}").as_str()),
-//!             None => break,
-//!         };
-//!         new_valuation.push(' ');
-//!     }
+//!     for (atom, value) in the_context.atom_db.valuation_canonical().iter().enumerate().skip(1) {
+//!        match value {
+//!            Some(v) => {
+//!                clause.push(abLiteral::fresh(atom as Atom, !v));
+//!            }
+//!            None => {}
+//!        }
+//!    }
 //!
-//!     // Clear any decisions made on a previous solve
-//!     the_context.clear_decisions();
+//!    the_context.clear_decisions();
 //!
-//!     // Transform the string to a clause and add the clause to the solve.
-//!     let the_clause = the_context.clause_from_string(&new_valuation).unwrap();
-//!     match the_context.add_clause(the_clause) {
-//!         Ok(_) => {}
-//!         Err(_) => break,
-//!     };
+//!    match the_context.add_clause(clause) {
+//!        Ok(_) => {}
+//!        Err(_) => break,
+//!    };
 //! }
-//! // Check the expected number of models were found.
-//! assert_eq!(count, 2_usize.pow(atoms.len().try_into().unwrap()));
+//!
+//! assert_eq!(count, 2_usize.pow(characters.len().try_into().unwrap()));
 //! ```
 //!
 //! + Parse and solve a DIMACS formula.
@@ -108,15 +100,15 @@
 //!
 //! let mut dimacs = vec![];
 //! let _ = dimacs.write(b"
-//!  p  q 0
-//! -p  q 0
-//! -p -q 0
-//!  p -q 0
+//!  1  2 0
+//! -1  2 0
+//! -1 -2 0
+//!  1 -2 0
 //! ");
 //!
 //! the_context.read_dimacs(dimacs.as_slice());
 //! the_context.solve();
-//! assert_eq!(the_context.report(), report::Solve::Unsatisfiable);
+//! assert_eq!(the_context.report(), report::SolveReport::Unsatisfiable);
 //! ```
 //!
 //! + Identify unsatisfiability of a DIMACS formula during parsing.
@@ -131,13 +123,13 @@
 //!
 //! let mut dimacs = vec![];
 //! let _ = dimacs.write(b"
-//!  p       0
-//! -p  q    0
-//! -p -q  r 0
-//!       -r 0
+//!  1       0
+//! -1  2    0
+//! -1 -2  3 0
+//!       -3 0
 //! ");
 //!
-//! assert_eq!(the_context.read_dimacs(dimacs.as_slice()), Err(err::BuildErrorKind::Unsatisfiable));
+//! assert_eq!(the_context.read_dimacs(dimacs.as_slice()), Err(err::ErrorKind::Build(err::BuildErrorKind::Unsatisfiable)));
 //! ```
 //!
 //! # Guiding principles
@@ -207,4 +199,4 @@ pub mod transient;
 
 pub mod preprocessing;
 
-mod ipasir;
+pub mod ipasir;

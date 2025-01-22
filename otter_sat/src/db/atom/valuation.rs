@@ -44,15 +44,30 @@ impl AtomDB {
         self.valuation()
             .av_pairs()
             .filter_map(|(i, v)| {
-                let idx = i as Atom;
+                let atom = i as Atom;
                 match v {
                     None => None,
-                    Some(true) => Some(format!(" {}", self.external_representation(idx))),
-                    Some(false) => Some(format!("-{}", self.external_representation(idx))),
+                    Some(true) => Some(format!(" {atom}")),
+                    Some(false) => Some(format!("-{atom}")),
                 }
             })
             .collect::<Vec<_>>()
             .join(" ")
+    }
+
+    /// A string representing the current valuation, using the external representation of atoms.
+    pub fn valuation_isize(&self) -> Vec<isize> {
+        self.valuation()
+            .av_pairs()
+            .filter_map(|(i, v)| {
+                let atom = i as Atom;
+                match v {
+                    None => None,
+                    Some(true) => Some(atom as isize),
+                    Some(false) => Some(-(atom as isize)),
+                }
+            })
+            .collect()
     }
 
     /// A string representing the current valuation, using the internal representation of atoms.

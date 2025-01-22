@@ -12,7 +12,7 @@ use otter_sat::{
 };
 use xz2::read::XzDecoder;
 
-pub fn load_dimacs(context: &mut Context, path: &PathBuf) -> Result<(), err::BuildErrorKind> {
+pub fn load_dimacs(context: &mut Context, path: &PathBuf) -> Result<(), err::ErrorKind> {
     let file = match File::open(path) {
         Err(_) => panic!("Could not load {path:?}"),
         Ok(f) => f,
@@ -44,7 +44,7 @@ pub fn silent_formula_report(path: PathBuf, config: &Config) -> report::SolveRep
     let mut the_context = Context::from_config(config.clone(), None);
     match load_dimacs(&mut the_context, &path) {
         Ok(()) => {}
-        Err(err::BuildErrorKind::ClauseDB(err::ClauseDBErrorKind::EmptyClause)) => {
+        Err(err::ErrorKind::ClauseDB(err::ClauseDBErrorKind::EmptyClause)) => {
             return report::SolveReport::Unsatisfiable;
         }
         Err(_) => {

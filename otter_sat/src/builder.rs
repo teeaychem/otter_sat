@@ -15,7 +15,8 @@ use crate::{
     types::err::{self},
 };
 
-use std::{borrow::Borrow, io::BufRead};
+use core::panic;
+use std::{borrow::Borrow, collections::HashMap, io::BufRead};
 
 #[derive(Debug)]
 pub enum ClauseOk {
@@ -26,87 +27,45 @@ pub enum ClauseOk {
 
 /// Methods for building the context.
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
-    /// Returns the internal representation an atom from a string, adding the atom to the context if required.
-    ///
-    /// ```rust
-    /// # use otter_sat::context::Context;
-    /// # use otter_sat::config::Config;
-    /// #
-    /// let mut the_context = Context::from_config(Config::default(), None);
-    /// let mut atoms = vec!["p", "-q", "r", "-r"];
-    /// for atom in &atoms {
-    ///     assert!(the_context.atom_from_string(&atom.to_string()).is_ok())
-    /// }
-    /// ```
-    pub fn atom_from_string(&mut self, string: &str) -> Result<Atom, err::ParseErrorKind> {
-        match self.atom_db.internal_representation(string) {
-            Some(atom) => Ok(atom),
-            None => {
-                let the_id = self.atom_db.count() as Atom;
-                self.atom_db
-                    .fresh_atom(string, self.rng.gen_bool(self.config.polarity_lean));
-                Ok(the_id)
-            }
-        }
+    /// Returns a fresh atom.
+    pub fn fresh_atom(&mut self) -> Result<Atom, err::ParseErrorKind> {
+        let previous_value = self.rng.gen_bool(self.config.polarity_lean);
+        self.re_fresh_atom(previous_value)
     }
 
-    /// Returns the internal representation of a literal from a string, adding an atom to the context if required.
-    /// ```rust
-    /// # use otter_sat::context::Context;
-    /// # use otter_sat::config::Config;
-    /// #
-    /// let mut the_context = Context::from_config(Config::default(), None);
-    /// let not_p = the_context.literal_from_string("-p").expect("p?");
-    /// ```
-    pub fn literal_from_string(&mut self, string: &str) -> Result<abLiteral, err::ParseErrorKind> {
-        let trimmed_string = string.trim();
-        if trimmed_string.is_empty() {
-            return Err(err::ParseErrorKind::Empty);
-        }
-        if trimmed_string == "-" {
-            return Err(err::ParseErrorKind::Negation);
-        };
-
-        let polarity = !trimmed_string.starts_with('-');
-
-        let the_atom = match polarity {
-            true => trimmed_string,
-            false => &trimmed_string[1..],
-        };
-
-        // Safe, as atom_from_string takes any non-empty string, which has been established.
-        let the_atom = unsafe { self.atom_from_string(the_atom).unwrap_unchecked() };
-        Ok(abLiteral::fresh(the_atom, polarity))
+    pub fn re_fresh_atom(&mut self, previous_value: bool) -> Result<Atom, err::ParseErrorKind> {
+        let atom = self.atom_db.fresh_atom(previous_value);
+        Ok(atom)
     }
 
-    /// Returns the internal representation a clause from a string, adding atoms to the context if required..
-    ///
-    /// ```rust
-    /// # use otter_sat::context::Context;
-    /// # use otter_sat::config::Config;
-    /// # use otter_sat::dispatch::library::report::{self};
-    /// #
-    /// let mut the_context = Context::from_config(Config::default(), None);
-    ///
-    /// assert!(the_context.clause_from_string("p -q -r s").is_ok());
-    /// ```
-    pub fn clause_from_string(&mut self, string: &str) -> Result<vClause, err::BuildErrorKind> {
-        let string_lterals = string.split_whitespace();
+    // /// Returns the internal representation a clause from a string, adding atoms to the context if required..
+    // ///
+    // /// ```rust
+    // /// # use otter_sat::context::Context;
+    // /// # use otter_sat::config::Config;
+    // /// # use otter_sat::dispatch::library::report::{self};
+    // /// #
+    // /// let mut the_context = Context::from_config(Config::default(), None);
+    // ///
+    // /// assert!(the_context.clause_from_string("p -q -r s").is_ok());
+    // /// ```
+    // pub fn clause_from_string(&mut self, string: &str) -> Result<vClause, err::BuildErrorKind> {
+    //     let string_lterals = string.split_whitespace();
 
-        let mut the_clause = vec![];
+    //     let mut the_clause = vec![];
 
-        for string_literal in string_lterals {
-            let the_literal = match self.literal_from_string(string_literal) {
-                Ok(literal) => literal,
-                Err(e) => return Err(err::BuildErrorKind::Parse(e)),
-            };
+    //     for string_literal in string_lterals {
+    //         let the_literal = match self.literal_from_string(string_literal) {
+    //             Ok(literal) => literal,
+    //             Err(e) => return Err(err::BuildErrorKind::Parse(e)),
+    //         };
 
-            if !the_clause.iter().any(|l| *l == the_literal) {
-                the_clause.push(the_literal);
-            }
-        }
-        Ok(the_clause)
-    }
+    //         if !the_clause.iter().any(|l| *l == the_literal) {
+    //             the_clause.push(the_literal);
+    //         }
+    //     }
+    //     Ok(the_clause)
+    // }
 
     /// Adds a clause to the context.
     ///
@@ -114,14 +73,17 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// # use otter_sat::context::Context;
     /// # use otter_sat::config::Config;
     /// # use otter_sat::dispatch::library::report::{self};
+    /// # use otter_sat::structures::literal::{abLiteral, Literal};
     /// #
     /// let mut the_context = Context::from_config(Config::default(), None);
+    /// let p = the_context.fresh_atom().unwrap();
+    /// let q = the_context.fresh_atom().unwrap();
     ///
-    /// let a_clause = the_context.clause_from_string("p -q -r s").unwrap();
+    /// let clause = vec![abLiteral::fresh(p, true), abLiteral::fresh(q, false)];
     ///
-    ///  assert!(the_context.add_clause(a_clause).is_ok());
+    ///  assert!(the_context.add_clause(clause).is_ok());
     ///  the_context.solve();
-    ///  assert_eq!(the_context.report(), report::Solve::Satisfiable)
+    ///  assert_eq!(the_context.report(), report::SolveReport::Satisfiable)
     /// ```
     ///
     /// - Empty clauses are rejected as these are equivalent to falsum, and so unsatisfiable.
@@ -135,26 +97,26 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     Otherwise, if the literal is not already recorded as a clause, it could be 'raised' to being a clause.
     Though, a naive approach may cause some issues with FRAT proofs, and other features which rely on decision level information.
      */
-    pub fn add_clause(&mut self, clause: impl Clause) -> Result<ClauseOk, err::BuildErrorKind> {
+    pub fn add_clause(&mut self, clause: impl Clause) -> Result<ClauseOk, err::ErrorKind> {
         if clause.size() == 0 {
-            return Err(err::BuildErrorKind::ClauseDB(
-                err::ClauseDBErrorKind::EmptyClause,
-            ));
+            return Err(err::ErrorKind::from(err::ClauseDBErrorKind::EmptyClause));
         }
         let mut clause_vec = clause.canonical();
+        clause_vec.sort_unstable();
+        clause_vec.dedup();
 
         match self.preprocess_clause(&mut clause_vec)? {
             PreprocessResult::Tautology => return Ok(ClauseOk::Tautology),
-            PreprocessResult::Contradiction => return Err(err::BuildErrorKind::Unsatisfiable),
+            PreprocessResult::Contradiction => {
+                return Err(err::ErrorKind::from(err::BuildErrorKind::Unsatisfiable))
+            }
             _ => {}
         };
 
-        match clause_vec.len() {
-            0 => panic!("!"),
+        match clause_vec[..] {
+            [] => panic!("!"),
 
-            1 => {
-                let literal = unsafe { *clause_vec.get_unchecked(0) };
-
+            [literal] => {
                 match self.atom_db.value_of(literal.atom()) {
                     None => {
                         match self.value_and_queue(
@@ -166,7 +128,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 self.record_clause(literal, clause::Source::Original, None);
                                 Ok(())
                             }
-                            _ => Err(err::BuildErrorKind::ClauseDB(
+                            _ => Err(err::ErrorKind::from(
                                 err::ClauseDBErrorKind::ImmediateConflict,
                             )),
                         }
@@ -175,7 +137,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     Some(v) if v == literal.polarity() => {
                         // Must be at zero for an assumption, so there's nothing to do
                         if self.counters.total_decisions != 0 {
-                            Err(err::BuildErrorKind::ClauseDB(
+                            Err(err::ErrorKind::from(
                                 err::ClauseDBErrorKind::AddedUnitAfterDecision,
                             ))
                         } else {
@@ -183,21 +145,21 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         }
                     }
 
-                    Some(_) => Err(err::BuildErrorKind::ClauseDB(
+                    Some(_) => Err(err::ErrorKind::from(
                         err::ClauseDBErrorKind::ImmediateConflict,
                     )),
                 };
                 Ok(ClauseOk::AddedUnit)
             }
 
-            _ => {
+            [..] => {
                 if clause_vec.iter().all(|literal| {
                     self.atom_db
                         .value_of(literal.atom())
                         .is_some_and(|v| v != literal.polarity())
                 }) {
                     {
-                        return Err(err::BuildErrorKind::ClauseDB(
+                        return Err(err::ErrorKind::from(
                             err::ClauseDBErrorKind::ValuationConflict,
                         ));
                     }
@@ -210,7 +172,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
     }
 
-    pub fn add_assumption(&mut self, assumption: impl Literal) -> Result<(), err::BuildErrorKind> {
+    pub fn add_assumption(&mut self, assumption: impl Literal) -> Result<(), err::ErrorKind> {
         let literal = assumption;
 
         match self.atom_db.value_of(literal.atom()) {
@@ -220,7 +182,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         self.literal_db.assumption_made(literal.canonical());
                         Ok(())
                     }
-                    _ => Err(err::BuildErrorKind::ClauseDB(
+                    _ => Err(err::ErrorKind::from(
                         err::ClauseDBErrorKind::ImmediateConflict,
                     )),
                 }
@@ -229,7 +191,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             Some(v) if v == literal.polarity() => {
                 // Must be at zero for an assumption, so there's nothing to do
                 if self.counters.total_decisions != 0 {
-                    Err(err::BuildErrorKind::ClauseDB(
+                    Err(err::ErrorKind::from(
                         err::ClauseDBErrorKind::AddedUnitAfterDecision,
                     ))
                 } else {
@@ -237,7 +199,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
             }
 
-            Some(_) => Err(err::BuildErrorKind::ClauseDB(
+            Some(_) => Err(err::ErrorKind::from(
                 err::ClauseDBErrorKind::ImmediateConflict,
             )),
         };
@@ -272,22 +234,26 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// let mut dimacs = vec![];
     /// let _ = dimacs.write(b"
-    ///  p  q    0
-    ///  p -q    0
-    /// -p  q    0
-    /// -p -q    0
-    ///  p  q  r 0
-    /// -p  q -r 0
-    ///  r -s    0
+    ///  1  2       0
+    ///  1 -2       0
+    /// -1  2       0
+    /// -1 -2       0
+    ///  1  2  3    0
+    /// -1  2 -3    0
+    ///        3 -4 0
     /// ");
     ///
     /// assert!(the_context.read_dimacs(dimacs.as_slice()).is_ok());
     /// assert!(the_context.solve().is_ok());
     /// ```
     #[allow(clippy::manual_flatten, unused_labels)]
-    pub fn read_dimacs(&mut self, mut reader: impl BufRead) -> Result<(), err::BuildErrorKind> {
+    pub fn read_dimacs(
+        &mut self,
+        mut reader: impl BufRead,
+    ) -> Result<HashMap<isize, Atom>, err::ErrorKind> {
         //
 
+        let mut atom_map = HashMap::<isize, Atom>::default();
         let mut buffer = String::with_capacity(1024);
         let mut clause_buffer: vClause = Vec::default();
 
@@ -300,7 +266,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Ok(0) => break,
                 Ok(_) => line_counter += 1,
                 Err(_) => {
-                    return Err(err::BuildErrorKind::Parse(err::ParseErrorKind::Line(
+                    return Err(err::ErrorKind::from(err::ParseErrorKind::Line(
                         line_counter,
                     )))
                 }
@@ -316,13 +282,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     let mut problem_details = buffer.split_whitespace();
                     let atom_count: usize = match problem_details.nth(2) {
                         None => {
-                            return Err(err::BuildErrorKind::Parse(
+                            return Err(err::ErrorKind::from(
                                 err::ParseErrorKind::ProblemSpecification,
                             ))
                         }
                         Some(string) => match string.parse() {
                             Err(_) => {
-                                return Err(err::BuildErrorKind::Parse(
+                                return Err(err::ErrorKind::from(
                                     err::ParseErrorKind::ProblemSpecification,
                                 ))
                             }
@@ -332,13 +298,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     let clause_count: usize = match problem_details.next() {
                         None => {
-                            return Err(err::BuildErrorKind::Parse(
+                            return Err(err::ErrorKind::from(
                                 err::ParseErrorKind::ProblemSpecification,
                             ))
                         }
                         Some(string) => match string.parse() {
                             Err(_) => {
-                                return Err(err::BuildErrorKind::Parse(
+                                return Err(err::ErrorKind::from(
                                     err::ParseErrorKind::ProblemSpecification,
                                 ))
                             }
@@ -365,7 +331,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Ok(0) => break,
                 Ok(_) => line_counter += 1,
                 Err(_) => {
-                    return Err(err::BuildErrorKind::Parse(err::ParseErrorKind::Line(
+                    return Err(err::ErrorKind::from(err::ParseErrorKind::Line(
                         line_counter,
                     )))
                 }
@@ -388,10 +354,24 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 }
                             }
                             _ => {
-                                let the_literal = match self.literal_from_string(item) {
-                                    Ok(literal) => literal,
-                                    Err(e) => return Err(err::BuildErrorKind::Parse(e)),
+                                // let the_literal = match self.literal_from_string(item) {
+                                //     Ok(literal) => literal,
+                                //     Err(e) => return Err(err::BuildErrorKind::Parse(e)),
+                                // };
+
+                                let parsed_int = match item.parse::<isize>() {
+                                    Ok(int) => int,
+                                    Err(e) => panic!("{e}"),
                                 };
+                                let the_literal = match atom_map.get(&parsed_int.abs()) {
+                                    Some(atom) => abLiteral::fresh(*atom, parsed_int.is_positive()),
+                                    None => {
+                                        let fresh_atom = self.fresh_atom().unwrap();
+                                        atom_map.insert(parsed_int.abs(), fresh_atom);
+                                        abLiteral::fresh(fresh_atom, parsed_int.is_positive())
+                                    }
+                                };
+
                                 if !clause_buffer.iter().any(|l| *l == the_literal) {
                                     clause_buffer.push(the_literal);
                                 }
@@ -411,7 +391,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 report::ParserReport::ContextClauses(self.clause_db.total_clause_count());
             dispatcher(Dispatch::Report(Report::Parser(report_clauses)));
         }
-        Ok(())
+        Ok(atom_map)
     }
 
     // todo: implement this again, sometime

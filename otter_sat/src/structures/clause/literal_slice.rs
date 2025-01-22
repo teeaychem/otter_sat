@@ -26,8 +26,8 @@ impl<T: Deref<Target = [abLiteral]>> Clause for T {
         let mut the_string = String::new();
         for literal in self.deref() {
             let the_represenetation = match literal.polarity() {
-                true => format!(" {} ", atom_db.external_representation(literal.atom())),
-                false => format!("-{} ", atom_db.external_representation(literal.atom())),
+                true => format!(" {} ", literal.atom()),
+                false => format!("-{} ", literal.atom()),
             };
             the_string.push_str(the_represenetation.as_str());
         }

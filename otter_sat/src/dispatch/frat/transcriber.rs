@@ -34,7 +34,6 @@ impl Transcriber {
             atom_buffer: String::default(),
             resolution_queue: VecDeque::default(),
             step_buffer: Vec::default(),
-            atom_map: Vec::default(),
         };
         Ok(transcriber)
     }
@@ -140,15 +139,11 @@ impl Transcriber {
     /// Returns the external representation of a literal.
     fn literal_string(&self, literal: impl Borrow<abLiteral>) -> String {
         let literal = literal.borrow();
+        let atom = literal.atom();
 
-        let external_string = unsafe { self.atom_map.get_unchecked(literal.atom() as usize) };
-
-        match external_string {
-            Some(ext) => match literal.polarity() {
-                true => format!("{ext}"),
-                false => format!("-{ext}"),
-            },
-            None => panic!("Missing external string for {}", literal),
+        match literal.polarity() {
+            true => format!(" {atom}"),
+            false => format!("-{atom}"),
         }
     }
 
@@ -219,12 +214,6 @@ impl Transcriber {
     fn transcribe_atom_db_delta(&mut self, δ: &delta::AtomDB) -> Result<(), err::FRATErrorKind> {
         use delta::AtomDB::*;
         match δ {
-            ExternalRepresentation(rep) => self.atom_buffer = rep.clone(),
-
-            Internalised(atom) => {
-                let rep = std::mem::take(&mut self.atom_buffer);
-                self.note_atom(*atom, rep.as_str());
-            }
             Unsatisfiable(_) => self.step_buffer.push(Transcriber::meta_unsatisfiable()),
         }
         Ok(())
@@ -313,16 +302,5 @@ impl Transcriber {
             Subsumed(_, _) => {} // TODO: Someday… maybe…
         }
         Ok(())
-    }
-}
-
-impl Transcriber {
-    /// Adds an atom to the local atom representation map.
-    fn note_atom(&mut self, atom: Atom, name: &str) {
-        let required = atom as usize - self.atom_map.len();
-        for _ in 0..required {
-            self.atom_map.push(None);
-        }
-        self.atom_map.push(Some(name.to_string()));
     }
 }

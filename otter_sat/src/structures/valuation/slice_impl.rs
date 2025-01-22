@@ -17,6 +17,7 @@ impl<T: std::ops::DerefMut<Target = [Option<bool>]>> Valuation for T {
     fn av_pairs(&self) -> impl Iterator<Item = (Atom, Option<bool>)> {
         self.iter()
             .enumerate()
+            .skip(1)
             .map(|(var, val)| (var as Atom, *val))
     }
 
@@ -40,5 +41,9 @@ impl<T: std::ops::DerefMut<Target = [Option<bool>]>> Valuation for T {
 
     unsafe fn clear_value_of(&mut self, atom: Atom) {
         *self.get_unchecked_mut(atom as usize) = None
+    }
+
+    fn true_check(&self) -> bool {
+        self.first().is_some_and(|v| v == &Some(true))
     }
 }

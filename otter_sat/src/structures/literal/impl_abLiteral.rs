@@ -29,15 +29,6 @@ impl Literal for abLiteral {
     fn canonical(&self) -> super::abLiteral {
         *self
     }
-
-    fn external_representation(&self, atom_db: &AtomDB) -> String {
-        let mut the_string = String::new();
-        if !self.polarity {
-            the_string.push('-');
-        }
-        the_string.push_str(atom_db.external_representation(self.atom).as_str());
-        the_string
-    }
 }
 
 impl PartialOrd for abLiteral {

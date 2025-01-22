@@ -95,12 +95,6 @@ pub enum LiteralDB {}
 /// Changes within the [atom database](AtomDB).
 #[derive(Clone)]
 pub enum AtomDB {
-    /// This is the external representation of some atom, with the internal representation following in the next dispatch.
-    ExternalRepresentation(String),
-
-    /// An atom has been internalised with the detailed representation.
-    Internalised(Atom),
-
     /// The formula is unsatisfiable, with the key as a witness.
     // TODO: Move this elsewhere.
     Unsatisfiable(ClauseKey),

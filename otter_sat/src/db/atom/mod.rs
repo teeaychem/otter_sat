@@ -37,6 +37,7 @@ pub struct AtomDB {
 
     /// A current (often partial) [valuation](Valuation).
     valuation: vValuation,
+
     /// The previous (often partial) [valuation](Valuation) (or some randomised valuation).
     previous_valuation: Vec<bool>,
 
@@ -45,11 +46,6 @@ pub struct AtomDB {
 
     /// A record of which decision an atom was valued on.
     decision_indicies: Vec<Option<DecisionLevelIndex>>,
-
-    /// A map from the external representation of an atom as a string to its internal representation.
-    internal_map: std::collections::HashMap<String, Atom>,
-    /// A map from the internal representation of an atom to its external representation, where the internal representation of atoms correspond indicies of the vector.
-    external_map: Vec<String>,
 
     /// An optional function to send dispatches with.
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
@@ -70,10 +66,7 @@ pub enum AtomValue {
 
 impl AtomDB {
     pub fn new(config: &Config, dispatcher: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
-        AtomDB {
-            external_map: Vec::<String>::default(),
-            internal_map: std::collections::HashMap::default(),
-
+        let mut db = AtomDB {
             watch_dbs: Vec::default(),
 
             activity_heap: IndexHeap::default(),
@@ -84,7 +77,10 @@ impl AtomDB {
 
             dispatcher,
             config: config.atom_db.clone(),
-        }
+        };
+        let the_true = db.fresh_atom(true);
+        unsafe { db.set_value(the_true, true, None) };
+        db
     }
 
     /// A count of atoms in the [AtomDB].
@@ -103,30 +99,9 @@ impl AtomDB {
         &self.valuation
     }
 
-    /// The internal representation of an atom.
-    pub fn internal_representation(&self, name: &str) -> Option<Atom> {
-        self.internal_map.get(name).copied()
-    }
-
-    /// The external representation of an atom.
-    pub fn external_representation(&self, index: Atom) -> &String {
-        &self.external_map[index as usize]
-    }
-
-    /// Returns the value of an atom given by its exteranl representation
-    pub fn value_of_external(&self, atom: &str) -> Option<bool> {
-        match self.internal_map.get(atom) {
-            Some(atom) => unsafe { self.valuation.value_of_unchecked(*atom) },
-            None => None,
-        }
-    }
-
     /// A fresh atom, and a corresponding update to all the relevant data structures to ensure *unsafe* functions from the perspective of the compiler which do not check for the presence of an atom are safe.
-    pub fn fresh_atom(&mut self, string: &str, previous_value: bool) -> Atom {
-        let the_atoms = self.watch_dbs.len() as Atom;
-
-        self.internal_map.insert(string.to_string(), the_atoms);
-        self.external_map.push(string.to_string());
+    pub fn fresh_atom(&mut self, previous_value: bool) -> Atom {
+        let the_atoms = self.valuation.len() as Atom;
 
         self.activity_heap.add(the_atoms as usize, 1.0);
 
@@ -135,12 +110,10 @@ impl AtomDB {
         self.previous_valuation.push(previous_value);
         self.decision_indicies.push(None);
 
-        if let Some(dispatcher) = &self.dispatcher {
-            let delta_rep = delta::AtomDB::ExternalRepresentation(string.to_string());
-            dispatcher(Dispatch::Delta(delta::Delta::AtomDB(delta_rep)));
-            let delta = delta::AtomDB::Internalised(the_atoms);
-            dispatcher(Dispatch::Delta(delta::Delta::AtomDB(delta)));
-        }
+        // if let Some(dispatcher) = &self.dispatcher {
+        //     let delta = delta::AtomDB::Internalised(the_atoms);
+        //     dispatcher(Dispatch::Delta(delta::Delta::AtomDB(delta)));
+        // }
 
         the_atoms
     }

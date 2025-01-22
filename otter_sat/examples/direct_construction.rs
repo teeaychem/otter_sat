@@ -15,30 +15,11 @@ fn main() {
     };
 
     let mut the_context: Context = Context::from_config(config, None);
+    let p = the_context.fresh_atom().unwrap();
+    let q = the_context.fresh_atom().unwrap();
 
-    let not_p_or_q = the_context.clause_from_string("-p q");
-    assert!(not_p_or_q.is_ok());
-
-    let not_p_or_q = not_p_or_q.expect("failed to build clause");
-    let not_p_or_q_internal_string = not_p_or_q.as_string();
-    let not_p_or_q_external_string = not_p_or_q.as_dimacs(&the_context.atom_db, false);
-    println!(
-        "
-Representations of: ¬p ∨ q
-
-- Internal string {not_p_or_q_internal_string}
-- External string {not_p_or_q_external_string}
-"
-    );
-
-    let p_or_not_q = the_context.clause_from_string("p -q").expect("make failed");
-
-    let p_variable = the_context.atom_db.internal_representation("p").unwrap();
-    let q_variable = the_context.atom_db.internal_representation("q").unwrap();
-    let p = abLiteral::fresh(p_variable, true);
-    let not_q = abLiteral::fresh(q_variable, false);
-
-    assert!(p_or_not_q.cmp(&vec![p, not_q]).is_eq());
+    let not_p_or_q = vec![abLiteral::fresh(p, false), abLiteral::fresh(q, true)];
+    let p_or_not_q = vec![abLiteral::fresh(p, true), abLiteral::fresh(q, false)];
 
     // made clauses must be added to the context:
     for (i, clause) in the_context.clause_db.all_nonunit_clauses().enumerate() {
@@ -62,21 +43,19 @@ Representations of: ¬p ∨ q
     println!("After solving the status of 𝐅 is:     {status} (with valuation 𝐕: {valuation})");
     println!();
 
-    assert_eq!(the_context.atom_db.value_of_external("p"), Some(false));
-    assert_eq!(the_context.atom_db.value_of_external("q"), Some(false));
+    assert_eq!(the_context.atom_db.value_of(p), Some(false));
+    assert_eq!(the_context.atom_db.value_of(q), Some(false));
 
-    let p_clause = the_context.clause_from_string("p").unwrap();
-    let p_error = the_context.add_clause(p_clause);
+    let p_error = the_context.add_clause(abLiteral::fresh(p, true));
 
     println!("p is incompatible with 𝐕 as so cannot be added to the context ({p_error:?}) without clearing decisions made…
 ");
 
     the_context.clear_decisions();
 
-    let p_clause = the_context.clause_from_string("p").unwrap();
-    let _p_ok = the_context.add_clause(p_clause);
+    let _p_ok = the_context.add_clause(abLiteral::fresh(p, true));
 
-    assert_eq!(the_context.atom_db.value_of_external("p"), Some(true));
+    assert_eq!(the_context.atom_db.value_of(p), Some(true));
 
     assert!(the_context.solve().is_ok());
 
@@ -88,8 +67,8 @@ Representations of: ¬p ∨ q
     assert_eq!(the_context.report(), report::SolveReport::Satisfiable);
 
     // Likewise it is not possible to add ¬p ∨ ¬q to 𝐅
-    let clause_np_nq = the_context.clause_from_string("-p -q").unwrap();
-    assert!(the_context.add_clause(clause_np_nq).is_err());
+    let not_p_or_not_q = vec![abLiteral::fresh(p, false), abLiteral::fresh(q, false)];
+    assert!(the_context.add_clause(not_p_or_not_q).is_err());
 
     assert_eq!(the_context.report(), report::SolveReport::Satisfiable);
 
@@ -100,6 +79,6 @@ Representations of: ¬p ∨ q
     }
 
     // It is possible to add p ∨ q to 𝐅
-    let clause_p_q = the_context.clause_from_string("p q").unwrap();
-    assert!(the_context.add_clause(clause_p_q).is_ok());
+    let p_or_q = vec![abLiteral::fresh(p, true), abLiteral::fresh(q, true)];
+    assert!(the_context.add_clause(p_or_q).is_ok());
 }
