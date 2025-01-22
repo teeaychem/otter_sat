@@ -206,3 +206,5 @@ pub mod misc;
 pub mod transient;
 
 pub mod preprocessing;
+
+mod ipasir;

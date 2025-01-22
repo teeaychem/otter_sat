@@ -25,6 +25,22 @@ Some guiding principles of the library are:
 - [otter_tests](https://github.com/teeaychem/otter_sat/tree/main/otter_tests) is a crate to test the library against known problems, and to verify produced FRAT proofs and as such contains a variety of illustrative functions to help achieve these tasks.
 - [otter_cli](https://github.com/teeaychem/otter_sat/tree/main/otter_cli) is a cli frontend to the library, which supports DIMACS encoded CNFs.
 
+## IPASIR
+
+C bindings are included.
+
+- Compile the crate as a dynamic library
+
+```sh
+cargo rustc --crate-type=cdylib
+```
+
+Generate a header file using [cbindgen](https://github.com/mozilla/cbindgen)
+
+```sh
+cbindgen --config cbindgen.toml --crate otter_sat --output otter_ipasir.h
+```
+
 # Caveats
 
 The solver is developed to help those curious about sat, and that includes me.
