@@ -32,6 +32,10 @@ pub use decision_level::*;
 #[allow(dead_code)]
 /// A struct abstracting over decision levels.
 pub struct LiteralDB {
+    /// The lower limit to find a decision made during a solve.
+    /// In other words, any decision present *below* the limit was made prior to a call to [solve](crate::procedures::solve).
+    lower_limit: DecisionLevelIndex,
+
     /// A stack of decision levels.
     level_stack: Vec<DecisionLevel>,
 
@@ -75,11 +79,20 @@ impl LiteralDB {
 impl LiteralDB {
     pub fn new(tx: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
         LiteralDB {
+            lower_limit: 0,
             level_stack: Vec::default(),
             assumptions: Vec::default(),
             assumption_consequences: Vec::default(),
             dispatcher: tx,
         }
+    }
+
+    // TODO: Ensure this is used where appropriate.
+    /// Returns the lower limit of the decision stack.
+    ///
+    /// If greater than zero, decisions made prior to the solve would be cleared by backjumping to a level at or lower to the limit.
+    pub fn lower_limit(&self) -> DecisionLevelIndex {
+        self.lower_limit
     }
 
     /// Notes a decision has been made and pushes a new level to the top of the level stack.
