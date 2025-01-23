@@ -3,20 +3,15 @@
 //! For the moment partial.
 
 use crate::{
-    config::Config,
-    context::{Context, ContextState},
+    context::ContextState,
     dispatch::library::report::SolveReport,
-    ipasir::IPASIR_SIGNATURE,
+    ipasir::{ContextBundle, IPASIR_SIGNATURE},
     structures::{
-        atom::Atom,
         clause::vClause,
         literal::{abLiteral, Literal},
     },
 };
-use std::{
-    collections::HashMap,
-    ffi::{c_char, c_int, c_void},
-};
+use std::ffi::{c_char, c_int, c_void};
 
 #[allow(non_camel_case_types)]
 #[repr(C)]
@@ -51,32 +46,6 @@ pub struct ipasir2_option {
     tunable: c_int,
     indexed: c_int,
     handle: *const c_void,
-}
-
-/// A struct which bundles a context with structures to support distinct external representations of atoms.
-///
-/// Required, as a context does not support the creation of arbitrary atoms.
-pub struct ContextBundle {
-    /// A context.
-    context: Context,
-
-    /// A map from the external atom to a context atom.
-    ei_map: HashMap<u32, Atom>,
-
-    /// A map from the context atom to it's external representation.
-    ///
-    /// Here, the external representation is accessed by using the context atom as an index to the vector.
-    ie_map: Vec<u32>,
-}
-
-impl Default for ContextBundle {
-    fn default() -> Self {
-        ContextBundle {
-            context: Context::from_config(Config::default(), None),
-            ei_map: HashMap::default(),
-            ie_map: vec![0],
-        }
-    }
 }
 
 /// # Safety
