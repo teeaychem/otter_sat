@@ -91,7 +91,7 @@ mod basic {
             .all_nonunit_clauses()
             .collect::<Vec<_>>();
         assert_eq!(database.len(), 1);
-        let the_clause_dimacs = database[0].as_dimacs(&the_context.atom_db, true);
+        let the_clause_dimacs = database[0].as_dimacs(true);
         println!("{the_clause_dimacs}");
         assert_eq!(
             the_clause_dimacs.split_whitespace().count(),

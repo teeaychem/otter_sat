@@ -17,7 +17,7 @@ impl Context {
     /// Creates a context from some given configuration.
     pub fn from_config(config: Config, dispatcher: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
         Self {
-            state: ContextState::Input,
+            state: ContextState::Configuration,
 
             counters: Counters::default(),
 

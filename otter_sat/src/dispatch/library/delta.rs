@@ -1,8 +1,5 @@
 //! Details on some change during a procedure or to an interal structure.
-use crate::{
-    db::ClauseKey,
-    structures::{atom::Atom, literal::abLiteral},
-};
+use crate::{db::ClauseKey, structures::literal::abLiteral};
 
 /// High level distinction of changes, by 'location' of the change.
 #[derive(Clone)]

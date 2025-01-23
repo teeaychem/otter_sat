@@ -1,7 +1,6 @@
 //! Implementation details of the [literal trait](Literal) for the [abLiteral] structure.
 
 use crate::{
-    db::atom::AtomDB,
     structures::atom::Atom,
     structures::literal::{abLiteral, Literal},
 };
@@ -28,6 +27,13 @@ impl Literal for abLiteral {
 
     fn canonical(&self) -> super::abLiteral {
         *self
+    }
+
+    fn as_int(&self) -> isize {
+        match self.polarity {
+            true => self.atom as isize,
+            false => -(self.atom as isize),
+        }
     }
 }
 

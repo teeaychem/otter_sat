@@ -160,7 +160,7 @@ fn main() {
                 let the_core_db = the_core_db.lock().unwrap();
                 let core_keys = the_core_db.core_clauses().unwrap();
                 for core_clause in core_keys {
-                    println!("{}", core_clause.as_dimacs(&the_context.atom_db, true));
+                    println!("{}", core_clause.as_dimacs(true));
                 }
             }
 

@@ -22,7 +22,7 @@ impl<T: Deref<Target = [abLiteral]>> Clause for T {
         the_string
     }
 
-    fn as_dimacs(&self, atom_db: &AtomDB, zero: bool) -> String {
+    fn as_dimacs(&self, zero: bool) -> String {
         let mut the_string = String::new();
         for literal in self.deref() {
             let the_represenetation = match literal.polarity() {

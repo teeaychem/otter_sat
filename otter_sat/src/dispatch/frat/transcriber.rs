@@ -12,7 +12,6 @@ use crate::{
         Dispatch,
     },
     structures::{
-        atom::Atom,
         clause::vClause,
         literal::{abLiteral, Literal},
     },
@@ -31,7 +30,6 @@ impl Transcriber {
             file,
             clause_buffer: Vec::default(),
             resolution_buffer: Vec::default(),
-            atom_buffer: String::default(),
             resolution_queue: VecDeque::default(),
             step_buffer: Vec::default(),
         };
@@ -136,7 +134,7 @@ impl Transcriber {
 ///
 /// The name format is: \<*type of step*\>_\<*structure to which function applies*\>.
 impl Transcriber {
-    /// Returns the external representation of a literal.
+    /// Returns the string representation of a literal.
     fn literal_string(&self, literal: impl Borrow<abLiteral>) -> String {
         let literal = literal.borrow();
         let atom = literal.atom();

@@ -65,9 +65,6 @@ pub struct Transcriber {
     /// A buffer holding information about clauses used during an instance of resolutions.
     resolution_buffer: Vec<ClauseKey>,
 
-    /// A buffer to store the external representation of an atom before learning it's internal representation.
-    atom_buffer: String,
-
     /// A queue of resolution buffers.
     resolution_queue: VecDeque<Vec<ClauseKey>>,
 }

@@ -27,7 +27,7 @@ fn main() {
 
     let mut atom_map = HashMap::<char, Atom>::default();
     // Each character in some string as a literal.
-    let mut characters = "model".chars().collect::<Vec<_>>();
+    let characters = "model".chars().collect::<Vec<_>>();
     for character in characters {
         atom_map.insert(character, the_context.fresh_atom().unwrap());
     }
@@ -70,7 +70,7 @@ fn main() {
         // std::process::exit(1);
 
         match the_context.add_clause(clause) {
-            Ok(note) => {}
+            Ok(_) => {}
             Err(_) => break,
         };
     }
