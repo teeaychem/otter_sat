@@ -40,23 +40,29 @@ use crate::{
 pub struct ClauseDB {
     /// Clause database specific configuration parameters.
     config: ClauseDBConfig,
+
     /// A count of addition clauses.
     // This can't be inferred from the learned vec, as indicies may be reused.
     addition_count: usize,
+
     /// A stack of keys for learned clauses whose indicies are empty.
     empty_keys: Vec<ClauseKey>,
 
     /// Unit clause, stored as literals.
     unit: Vec<abLiteral>,
+
     /// Binary clauses.
     binary: Vec<dbClause>,
+
     /// Original clauses.
     original: Vec<dbClause>,
+
     /// Addition clauses.
     addition: Vec<Option<dbClause>>,
 
     /// An activity heap of addition clause keys.
     activity_heap: IndexHeap<ActivityLBD>,
+
     /// Where to send dispatches.
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 }

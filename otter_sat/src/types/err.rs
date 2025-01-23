@@ -15,6 +15,7 @@ pub enum ErrorKind {
     Analysis(AnalysisErrorKind),
     Build(BuildErrorKind),
     ClauseDB(ClauseDBErrorKind),
+    AtomDB(AtomDBErrorKind),
     Parse(ParseErrorKind),
 }
 
@@ -61,6 +62,18 @@ pub enum BuildErrorKind {
 impl From<BuildErrorKind> for ErrorKind {
     fn from(e: BuildErrorKind) -> Self {
         ErrorKind::Build(e)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AtomDBErrorKind {
+    /// There are no more fresh atoms.
+    AtomsExhausted,
+}
+
+impl From<AtomDBErrorKind> for ErrorKind {
+    fn from(e: AtomDBErrorKind) -> Self {
+        ErrorKind::AtomDB(e)
     }
 }
 

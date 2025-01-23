@@ -25,6 +25,7 @@ use crate::{
         atom::Atom,
         valuation::{vValuation, Valuation},
     },
+    types::err::AtomDBErrorKind,
 };
 
 /// The atom database.
@@ -76,7 +77,9 @@ impl AtomDB {
             dispatcher,
             config: config.atom_db.clone(),
         };
-        let the_true = db.fresh_atom(true);
+        // A fresh atom is created so long as the atom count is within Atom::MAX
+        // So, this is safe, for any reasonable atom specification.
+        let the_true = unsafe { db.fresh_atom(true).unwrap_unchecked() };
         unsafe { db.set_value(the_true, true, None) };
         db
     }
@@ -98,10 +101,12 @@ impl AtomDB {
     }
 
     /// A fresh atom, and a corresponding update to all the relevant data structures to ensure *unsafe* functions from the perspective of the compiler which do not check for the presence of an atom are safe.
-    pub fn fresh_atom(&mut self, previous_value: bool) -> Atom {
-        let the_atoms = self.valuation.len() as Atom;
+    pub fn fresh_atom(&mut self, previous_value: bool) -> Result<Atom, AtomDBErrorKind> {
+        let Ok(atom) = self.valuation.len().try_into() else {
+            return Err(AtomDBErrorKind::AtomsExhausted);
+        };
 
-        self.activity_heap.add(the_atoms as usize, 1.0);
+        self.activity_heap.add(atom as usize, 1.0);
 
         self.watch_dbs.push(WatchDB::default());
         self.valuation.push(None);
@@ -113,7 +118,7 @@ impl AtomDB {
         //     dispatcher(Dispatch::Delta(delta::Delta::AtomDB(delta)));
         // }
 
-        the_atoms
+        Ok(atom)
     }
 
     /// Which decision an atom was valued on.

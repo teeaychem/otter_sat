@@ -117,7 +117,7 @@ pub unsafe extern "C" fn ipasir2_options(
     options: *const *mut ipasir2_option,
     count: *mut c_int,
 ) -> ipasir2_errorcode {
-    ipasir2_errorcode::IPASIR2_E_OK
+    todo!()
 }
 
 #[no_mangle]
@@ -126,7 +126,7 @@ pub unsafe extern "C" fn ipasir2_get_option_handle(
     options: *const c_char,
     handle: *const ipasir2_option,
 ) -> ipasir2_errorcode {
-    ipasir2_errorcode::IPASIR2_E_OK
+    todo!()
 }
 
 #[no_mangle]
@@ -136,10 +136,12 @@ pub unsafe extern "C" fn ipasir2_set_option(
     value: i64,
     index: i64,
 ) -> ipasir2_errorcode {
-    ipasir2_errorcode::IPASIR2_E_OK
+    todo!()
 }
 
 /// Adds a clause to the solver.
+///
+/// The `proofmeta` structure is not supported.
 /// # Safety
 /// Recovers a context bundle and takes a clause from raw pointers.
 #[allow(unused_variables)]
@@ -150,9 +152,12 @@ pub unsafe extern "C" fn ipasir2_add(
     len: i32,
     forgettable: i32,
     proofmeta: *mut c_void,
-) {
+) -> ipasir2_errorcode {
+    if !proofmeta.is_null() {
+        return ipasir2_errorcode::IPASIR2_E_UNSUPPORTED_ARGUMENT;
+    }
+
     let clause = std::slice::from_raw_parts(clause, len as usize);
-    println!("The clause : {clause:?}");
 
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
@@ -163,7 +168,9 @@ pub unsafe extern "C" fn ipasir2_add(
 
         match bundle.ei_map.get(&literal_atom) {
             None => {
-                let fresh_atom = bundle.context.fresh_atom().unwrap();
+                let Ok(fresh_atom) = bundle.context.fresh_atom() else {
+                    return ipasir2_errorcode::IPASIR2_E_UNKNOWN;
+                };
                 assert!(bundle.ie_map.len().eq(&(fresh_atom as usize)));
                 bundle.ei_map.insert(literal_atom, fresh_atom);
                 bundle.ie_map.push(literal_atom);
@@ -177,9 +184,7 @@ pub unsafe extern "C" fn ipasir2_add(
 
     bundle.context.add_clause(internal_clause);
 
-    for clause in bundle.context.clause_db.all_nonunit_clauses() {
-        println!("{}", clause.as_string());
-    }
+    ipasir2_errorcode::IPASIR2_E_OK
 }
 
 /// # Safety
@@ -240,7 +245,7 @@ pub unsafe extern "C" fn ipasir2_failed(
     lit: i32,
     result: *mut c_int,
 ) -> ipasir2_errorcode {
-    ipasir2_errorcode::IPASIR2_E_OK
+    todo!()
 }
 
 #[no_mangle]
@@ -248,7 +253,7 @@ pub unsafe extern "C" fn ipasir2_set_terminate(
     solver: *mut c_void,
     data: *mut c_void,
 ) -> ipasir2_errorcode {
-    ipasir2_errorcode::IPASIR2_E_OK
+    todo!()
 }
 
 #[no_mangle]
@@ -257,7 +262,7 @@ pub unsafe extern "C" fn ipasir2_set_export(
     data: *mut c_void,
     max_length: c_int,
 ) -> ipasir2_errorcode {
-    ipasir2_errorcode::IPASIR2_E_OK
+    todo!()
 }
 
 #[no_mangle]
@@ -271,7 +276,7 @@ pub unsafe extern "C" fn ipasir2_delete(
         proofmeta: *mut c_void,
     ),
 ) -> ipasir2_errorcode {
-    ipasir2_errorcode::IPASIR2_E_OK
+    todo!()
 }
 
 #[no_mangle]
@@ -280,7 +285,7 @@ pub unsafe extern "C" fn ipasir2_set_import(
     data: *mut c_void,
     callback: extern "C" fn(data: *mut c_void),
 ) -> ipasir2_errorcode {
-    ipasir2_errorcode::IPASIR2_E_OK
+    todo!()
 }
 
 #[no_mangle]
@@ -289,5 +294,5 @@ pub unsafe extern "C" fn ipasir2_set_fixed(
     data: *mut c_void,
     callback: extern "C" fn(data: *mut c_void, fixed: i32),
 ) -> ipasir2_errorcode {
-    ipasir2_errorcode::IPASIR2_E_OK
+    todo!()
 }
