@@ -18,7 +18,7 @@ impl Clause for abLiteral {
         the_string
     }
 
-    fn as_dimacs(&self, atom_db: &AtomDB, zero: bool) -> String {
+    fn as_dimacs(&self, zero: bool) -> String {
         let mut the_string = String::new();
 
         let the_represenetation = match self.polarity() {

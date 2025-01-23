@@ -37,7 +37,7 @@
 #[doc(hidden)]
 mod impl_abLiteral;
 
-use crate::{db::atom::AtomDB, structures::atom::Atom};
+use crate::structures::atom::Atom;
 
 /// Something which has methods for returning an atom and a polarity, etc.
 pub trait Literal: std::cmp::Ord + std::hash::Hash {
@@ -55,6 +55,9 @@ pub trait Literal: std::cmp::Ord + std::hash::Hash {
 
     /// The literal in it's 'canonical' form of an atom paired with a boolean.
     fn canonical(&self) -> abLiteral;
+
+    /// The literal in it's integer form, with sign indicating polarity.
+    fn as_int(&self) -> isize;
 }
 
 /// The 'canonical' representation of a literal as an atom paired with a boolean.

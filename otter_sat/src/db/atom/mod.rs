@@ -18,10 +18,7 @@ use std::rc::Rc;
 use crate::{
     config::{dbs::AtomDBConfig, Activity, Config},
     db::{atom::watch_db::WatchDB, DecisionLevelIndex},
-    dispatch::{
-        library::delta::{self},
-        Dispatch,
-    },
+    dispatch::Dispatch,
     generic::index_heap::IndexHeap,
     misc::log::targets::{self},
     structures::{
@@ -31,6 +28,7 @@ use crate::{
 };
 
 /// The atom database.
+#[allow(dead_code)]
 pub struct AtomDB {
     /// Watch lists for each atom in the form of [WatchDB] structs, indexed by atoms in the `watch_dbs` field.
     watch_dbs: Vec<WatchDB>,

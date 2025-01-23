@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use otter_sat::{
     config::Config,
     context::Context,
@@ -85,7 +83,7 @@ fn main() {
         // std::process::exit(1);
 
         match the_context.add_clause(clause) {
-            Ok(note) => {}
+            Ok(_) => {}
             Err(_) => break,
         };
     }

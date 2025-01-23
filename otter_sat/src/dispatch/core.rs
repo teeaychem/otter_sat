@@ -216,7 +216,6 @@ impl CoreDB {
         use delta::AtomDB::*;
         match δ {
             Unsatisfiable(key) => self.conflict = Some(*key),
-            _ => {}
         };
         Ok(())
     }

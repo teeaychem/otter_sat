@@ -23,7 +23,7 @@ fn main() {
 
     // made clauses must be added to the context:
     for (i, clause) in the_context.clause_db.all_nonunit_clauses().enumerate() {
-        println!("  ? {i}: {}", clause.as_dimacs(&the_context.atom_db, false))
+        println!("  ? {i}: {}", clause.as_dimacs(false))
     }
 
     let _ = the_context.add_clause(not_p_or_q);
@@ -31,7 +31,7 @@ fn main() {
 
     println!("The clause database after adding ¬p ∨ q and ¬p ∨ q is:");
     for clause in the_context.clause_db.all_nonunit_clauses() {
-        println!("  C {}", clause.as_dimacs(&the_context.atom_db, false))
+        println!("  C {}", clause.as_dimacs(false))
     }
     println!();
 
@@ -75,7 +75,7 @@ fn main() {
     // todo: update with unit clauses
     println!("The clause database is now:");
     for clause in the_context.clause_db.all_nonunit_clauses() {
-        println!("  C {}", clause.as_dimacs(&the_context.atom_db, false))
+        println!("  C {}", clause.as_dimacs(false))
     }
 
     // It is possible to add p ∨ q to 𝐅

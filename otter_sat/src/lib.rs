@@ -199,4 +199,5 @@ pub mod transient;
 
 pub mod preprocessing;
 
+#[allow(dead_code, unused_variables)]
 pub mod ipasir;

@@ -45,7 +45,7 @@ pub trait Clause {
     fn as_string(&self) -> String;
 
     /// A string of the clause in DIMACS form, with the terminating `0` as optional.
-    fn as_dimacs(&self, atom_db: &AtomDB, zero: bool) -> String;
+    fn as_dimacs(&self, zero: bool) -> String;
 
     /// The literal asserted by the clause on a given valuation, if one such literal exists. \
     /// In detail, returns:
