@@ -28,14 +28,13 @@ pub enum ClauseOk {
 /// Methods for building the context.
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Returns a fresh atom.
-    pub fn fresh_atom(&mut self) -> Result<Atom, err::ParseErrorKind> {
+    pub fn fresh_atom(&mut self) -> Result<Atom, err::AtomDBErrorKind> {
         let previous_value = self.rng.gen_bool(self.config.polarity_lean);
         self.re_fresh_atom(previous_value)
     }
 
-    pub fn re_fresh_atom(&mut self, previous_value: bool) -> Result<Atom, err::ParseErrorKind> {
-        let atom = self.atom_db.fresh_atom(previous_value);
-        Ok(atom)
+    pub fn re_fresh_atom(&mut self, previous_value: bool) -> Result<Atom, err::AtomDBErrorKind> {
+        self.atom_db.fresh_atom(previous_value)
     }
 
     // /// Returns the internal representation a clause from a string, adding atoms to the context if required..
