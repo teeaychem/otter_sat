@@ -44,12 +44,18 @@ pub use specific::Context;
 /// The state of a context.
 /// These states correspond to the states defined in the IPASIR2 specification.
 pub enum ContextState {
+    /// The context allows for configuration.
     Configuration,
+
+    /// The context allows input.
     Input,
+
     /// The database is known to be consistent, e.g. with a complete valuation.
     Satisfiable,
+
     /// The database is known to be inconsistnet, e.g. with an unsatisfiable clause identified.
     Unsatisfiable,
+
     /// The consistency of the database is unknown.
     Solving,
 }

@@ -1,10 +1,15 @@
+//! Template bindings for IPASIR2 API.
+//!
+//! For the moment partial.
+
 use crate::{
     config::Config,
     context::{Context, ContextState},
+    dispatch::library::report::SolveReport,
     ipasir::IPASIR_SIGNATURE,
     structures::{
         atom::Atom,
-        clause::{vClause, Clause},
+        clause::vClause,
         literal::{abLiteral, Literal},
     },
 };
@@ -187,6 +192,10 @@ pub unsafe extern "C" fn ipasir2_add(
     ipasir2_errorcode::IPASIR2_E_OK
 }
 
+/// Calls solve on the context bundle.
+///
+///
+///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
 #[no_mangle]
@@ -195,12 +204,45 @@ pub unsafe extern "C" fn ipasir2_solve(
     result: *mut c_int,
     literals: *const i32,
     len: i32,
-) {
+) -> ipasir2_errorcode {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    if len != 0 {
+        let assumption_literals = std::slice::from_raw_parts(literals, len as usize);
+        for assumption in assumption_literals {
+            let literal_atom = assumption.unsigned_abs();
+            let atom = match bundle.ei_map.get(&literal_atom) {
+                Some(atom) => *atom,
+                None => {
+                    let Ok(fresh_atom) = bundle.context.fresh_atom() else {
+                        return ipasir2_errorcode::IPASIR2_E_UNKNOWN;
+                    };
+                    assert!(bundle.ie_map.len().eq(&(fresh_atom as usize)));
+                    bundle.ei_map.insert(literal_atom, fresh_atom);
+                    bundle.ie_map.push(literal_atom);
+                    fresh_atom
+                }
+            };
+            let assumption = abLiteral::fresh(atom, assumption.is_positive());
+            bundle.context.add_assumption(assumption);
+        }
+    }
 
-    let result = bundle.context.solve();
-    println!("{result:?}");
-    println!("{}", bundle.context.atom_db.valuation_string());
+    let solve_result = bundle.context.solve();
+
+    // As this is incremental, prepare for another solve.
+    // This clears the *current* valuation, but if a satisfying valuation was found, it will be preserved in the prior valuation.
+    bundle.context.backjump(0);
+    bundle.context.remove_assumptions();
+
+    let result_code = match solve_result {
+        Ok(SolveReport::Satisfiable) => 10,
+        Ok(SolveReport::Unsatisfiable) => 20,
+        _ => 0,
+    };
+
+    *result = result_code;
+
+    ipasir2_errorcode::IPASIR2_E_OK
 }
 
 /// Returns the literal representing whether the value of the atom of the given literal, if a satisfying valuation has been found.
@@ -228,12 +270,10 @@ pub unsafe extern "C" fn ipasir2_value(
         None => return ipasir2_errorcode::IPASIR2_E_INVALID_ARGUMENT,
     };
 
-    // let result = result.as_mut().unwrap();
-
-    *result = match bundle.context.atom_db.value_of(*internal_atom) {
-        Some(true) => lit,
-        Some(false) => -lit,
-        None => panic!("Hek"),
+    // Following the note on solve, this uses the previous value of the atom as valuations are cleared after a solve completes.
+    *result = match bundle.context.atom_db.previous_value_of(*internal_atom) {
+        true => lit,
+        false => -lit,
     };
 
     ipasir2_errorcode::IPASIR2_E_OK
@@ -252,8 +292,11 @@ pub unsafe extern "C" fn ipasir2_failed(
 pub unsafe extern "C" fn ipasir2_set_terminate(
     solver: *mut c_void,
     data: *mut c_void,
+    callback: Option<extern "C" fn(data: *mut c_void) -> c_int>,
 ) -> ipasir2_errorcode {
-    todo!()
+    // TODO:
+
+    ipasir2_errorcode::IPASIR2_E_UNSUPPORTED
 }
 
 #[no_mangle]
@@ -261,6 +304,9 @@ pub unsafe extern "C" fn ipasir2_set_export(
     solver: *mut c_void,
     data: *mut c_void,
     max_length: c_int,
+    callback: Option<
+        extern "C" fn(data: *mut c_void, clause: *const i32, len: i32, proofmeta: *mut c_void),
+    >,
 ) -> ipasir2_errorcode {
     todo!()
 }
@@ -269,12 +315,9 @@ pub unsafe extern "C" fn ipasir2_set_export(
 pub unsafe extern "C" fn ipasir2_delete(
     solver: *mut c_void,
     data: *mut c_void,
-    callback: extern "C" fn(
-        data: *mut c_void,
-        clause: *const i32,
-        len: i32,
-        proofmeta: *mut c_void,
-    ),
+    callback: Option<
+        extern "C" fn(data: *mut c_void, clause: *const i32, len: i32, proofmeta: *mut c_void),
+    >,
 ) -> ipasir2_errorcode {
     todo!()
 }
@@ -283,7 +326,7 @@ pub unsafe extern "C" fn ipasir2_delete(
 pub unsafe extern "C" fn ipasir2_set_import(
     solver: *mut c_void,
     data: *mut c_void,
-    callback: extern "C" fn(data: *mut c_void),
+    callback: Option<extern "C" fn(data: *mut c_void)>,
 ) -> ipasir2_errorcode {
     todo!()
 }
@@ -292,7 +335,7 @@ pub unsafe extern "C" fn ipasir2_set_import(
 pub unsafe extern "C" fn ipasir2_set_fixed(
     solver: *mut c_void,
     data: *mut c_void,
-    callback: extern "C" fn(data: *mut c_void, fixed: i32),
+    callback: Option<extern "C" fn(data: *mut c_void, fixed: i32)>,
 ) -> ipasir2_errorcode {
     todo!()
 }
