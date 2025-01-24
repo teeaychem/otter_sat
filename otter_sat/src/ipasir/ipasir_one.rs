@@ -109,7 +109,7 @@ pub unsafe extern "C" fn ipasir_solve(solver: *mut c_void) -> c_int {
 /// Explicitly, given a literal of the form ±a, `result` is set to:
 /// * +a, if a is bound to true on the satisfying valuation.
 /// * -a, if a is bound to false on the satisfying valuation.
-///
+///*-
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
 #[no_mangle]

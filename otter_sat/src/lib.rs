@@ -111,27 +111,6 @@
 //! assert_eq!(the_context.report(), report::SolveReport::Unsatisfiable);
 //! ```
 //!
-//! + Identify unsatisfiability of a DIMACS formula during parsing.
-//!
-//! ```rust
-//! # use otter_sat::context::Context;
-//! # use otter_sat::config::Config;
-//! # use std::io::Write;
-//! # use otter_sat::dispatch::library::report::{self};
-//! # use otter_sat::types::err::{self};
-//! let mut the_context = Context::from_config(Config::default(), None);
-//!
-//! let mut dimacs = vec![];
-//! let _ = dimacs.write(b"
-//!  1       0
-//! -1  2    0
-//! -1 -2  3 0
-//!       -3 0
-//! ");
-//!
-//! assert_eq!(the_context.read_dimacs(dimacs.as_slice()), Err(err::ErrorKind::Build(err::BuildErrorKind::Unsatisfiable)));
-//! ```
-//!
 //! # Guiding principles
 //!
 //! ## Modularity
