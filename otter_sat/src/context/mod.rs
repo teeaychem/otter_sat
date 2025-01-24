@@ -39,6 +39,8 @@ pub use generic::GenericContext;
 mod specific;
 pub use specific::Context;
 
+use crate::db::ClauseKey;
+
 #[allow(non_camel_case_types)]
 #[derive(PartialEq, Eq)]
 /// The state of a context.
@@ -54,7 +56,7 @@ pub enum ContextState {
     Satisfiable,
 
     /// The database is known to be inconsistnet, e.g. with an unsatisfiable clause identified.
-    Unsatisfiable,
+    Unsatisfiable(ClauseKey),
 
     /// The consistency of the database is unknown.
     Solving,
@@ -66,7 +68,7 @@ impl std::fmt::Display for ContextState {
             Self::Configuration => write!(f, "Configuration"),
             Self::Input => write!(f, "Input"),
             Self::Satisfiable => write!(f, "Satisfiable"),
-            Self::Unsatisfiable => write!(f, "Unsatisfiable"),
+            Self::Unsatisfiable(_) => write!(f, "Unsatisfiable"),
             Self::Solving => write!(f, "Solving"),
         }
     }

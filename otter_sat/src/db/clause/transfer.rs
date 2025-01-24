@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use crate::{
     db::{
         atom::AtomDB,
@@ -31,6 +33,7 @@ impl ClauseDB {
         &mut self,
         key: ClauseKey,
         atom_db: &mut AtomDB,
+        origins: BTreeSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match key {
             ClauseKey::Unit(_) => {
@@ -74,7 +77,8 @@ impl ClauseDB {
                     dispatch(Dispatch::Delta(Delta::ClauseDB(delta)));
                 }
 
-                let binary_clause = dbClause::new_nonunit(binary_key, copied_clause, atom_db, None);
+                let binary_clause =
+                    dbClause::new_nonunit(binary_key, copied_clause, atom_db, None, origins);
 
                 self.binary.push(binary_clause);
 

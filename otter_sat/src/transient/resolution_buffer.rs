@@ -29,7 +29,7 @@
 //! This allows for a simple implementation, but is likely inefficient for a large collection of atoms.
 //! Improvement could be made by temporarily mapping relevant atoms to a temporary sub-language derived from the clauses which are candidates for resolution (so long as this is a finite collection…)
 
-use std::{borrow::Borrow, rc::Rc};
+use std::{borrow::Borrow, collections::BTreeSet, rc::Rc};
 
 use crate::{
     config::{Config, StoppingCriteria},
@@ -98,6 +98,9 @@ pub struct ResolutionBuffer {
     /// The literal asserted by the current resolution candidate, if it exists
     asserts: Option<cLiteral>,
 
+    /// The origins of the clause
+    origins: BTreeSet<ClauseKey>,
+
     /// The buffer
     buffer: Vec<Cell>,
 
@@ -134,6 +137,7 @@ impl ResolutionBuffer {
             valueless_count: 0,
             clause_length: 0,
             asserts: None,
+            origins: BTreeSet::default(),
 
             buffer: valuation_copy,
 
@@ -187,6 +191,7 @@ impl ResolutionBuffer {
         clause_db: &mut ClauseDB,
         atom_db: &mut AtomDB,
     ) -> Result<ResolutionOk, err::ResolutionBufferError> {
+        self.origins.insert(*key);
         // The key has already been used to access the conflicting clause.
         let base_clause = match unsafe { clause_db.get_unchecked(key) } {
             Ok(clause) => clause,
@@ -200,8 +205,8 @@ impl ResolutionBuffer {
             return Ok(ResolutionOk::Repeat(*key, literal));
         };
 
-        macros::dispatch_resolution_delta!(self, delta::Resolution::Begin);
-        macros::dispatch_resolution_delta!(self, delta::Resolution::Used(*key));
+        macros::dispatch_resolution_delta!(self, Resolution::Begin);
+        macros::dispatch_resolution_delta!(self, Resolution::Used(*key));
 
         // bump clause activity
         if let ClauseKey::Addition(index, _) = key {
@@ -212,10 +217,11 @@ impl ResolutionBuffer {
         let the_trail = unsafe { literal_db.top_consequences_unchecked().iter().rev() };
         'resolution_loop: for consequence in the_trail {
             match consequence.source() {
-                consequence::Source::BCP(the_key) => {
-                    let source_clause = match unsafe { clause_db.get_unchecked(the_key) } {
+                consequence::Source::BCP(key) => {
+                    self.origins.insert(*key);
+                    let source_clause = match unsafe { clause_db.get_unchecked(key) } {
                         Err(_) => {
-                            log::error!(target: targets::RESOLUTION, "Lost resolution clause {the_key}");
+                            log::error!(target: targets::RESOLUTION, "Lost resolution clause {key}");
                             return Err(err::ResolutionBufferError::LostClause);
                         }
                         Ok(clause) => clause,
@@ -233,15 +239,12 @@ impl ResolutionBuffer {
                         match self.clause_length {
                             0 => {}
                             1 => {
-                                macros::dispatch_resolution_delta!(
-                                    self,
-                                    Resolution::Used(*the_key)
-                                );
-                                macros::dispatch_resolution_delta!(self, delta::Resolution::End);
+                                macros::dispatch_resolution_delta!(self, Resolution::Used(*key));
+                                macros::dispatch_resolution_delta!(self, Resolution::End);
 
                                 return Ok(ResolutionOk::UnitClause);
                             }
-                            _ => match the_key {
+                            _ => match key {
                                 ClauseKey::Unit(_) => panic!("!"),
 
                                 ClauseKey::Binary(_) => {
@@ -249,32 +252,28 @@ impl ResolutionBuffer {
                                 }
                                 ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
                                     // TODO: Subsumption should use the appropriate valuation
+                                    let origins = self.take_origins();
+
                                     let k = clause_db.subsume(
-                                        *the_key,
+                                        *key,
                                         consequence.literal(),
                                         atom_db,
+                                        origins,
                                     )?;
 
-                                    macros::dispatch_resolution_delta!(
-                                        self,
-                                        delta::Resolution::End
-                                    );
-                                    macros::dispatch_resolution_delta!(
-                                        self,
-                                        delta::Resolution::Begin
-                                    );
-                                    macros::dispatch_resolution_delta!(
-                                        self,
-                                        delta::Resolution::Used(k)
-                                    );
+                                    self.origins.insert(k);
+
+                                    macros::dispatch_resolution_delta!(self, Resolution::End);
+                                    macros::dispatch_resolution_delta!(self, Resolution::Begin);
+                                    macros::dispatch_resolution_delta!(self, Resolution::Used(k));
                                 },
                             },
                         }
                     } else {
-                        macros::dispatch_resolution_delta!(self, delta::Resolution::Used(*the_key));
+                        macros::dispatch_resolution_delta!(self, Resolution::Used(*key));
                     }
 
-                    if let ClauseKey::Addition(index, _) = the_key {
+                    if let ClauseKey::Addition(index, _) = key {
                         clause_db.bump_activity(*index)
                     };
                 }
@@ -284,7 +283,7 @@ impl ResolutionBuffer {
             if self.valueless_count == 1 {
                 match self.config.stopping {
                     StoppingCriteria::FirstUIP => {
-                        macros::dispatch_resolution_delta!(self, delta::Resolution::End);
+                        macros::dispatch_resolution_delta!(self, Resolution::End);
 
                         return Ok(ResolutionOk::FirstUIP);
                     }
@@ -292,7 +291,7 @@ impl ResolutionBuffer {
                 };
             }
         }
-        macros::dispatch_resolution_delta!(self, delta::Resolution::End);
+        macros::dispatch_resolution_delta!(self, Resolution::End);
 
         Ok(ResolutionOk::Exhausted)
     }
@@ -327,6 +326,10 @@ impl ResolutionBuffer {
                 Cell::Value(_) => None,
                 _ => Some(index as Atom),
             })
+    }
+
+    pub fn take_origins(&mut self) -> BTreeSet<ClauseKey> {
+        std::mem::take(&mut self.origins)
     }
 }
 

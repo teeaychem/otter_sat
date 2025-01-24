@@ -24,9 +24,10 @@ pub mod clause;
 pub mod consequence_q;
 mod keys;
 pub use keys::*;
+use log::log;
 pub mod literal;
 
-use std::borrow::Borrow;
+use std::{borrow::Borrow, collections::BTreeSet};
 
 use crate::{
     context::GenericContext,
@@ -36,11 +37,11 @@ use crate::{
     },
     structures::{
         clause::{Clause, Source as ClauseSource},
-        consequence::Consequence,
-        consequence::Source as ConsequenceSource,
+        consequence::{Consequence, Source as ConsequenceSource},
+        literal::Literal,
         valuation::vValuation,
     },
-    types::err,
+    types::err::{self, ErrorKind},
 };
 
 /// The index of a [decision level](crate::db::literal).
@@ -57,32 +58,69 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// If no decisions have been made, literals are added to the clause database as unit clauses.
     /// Otherwise, literals are recorded as consequences of the current decision.
-    pub fn record_consequence(&mut self, consequence: impl Borrow<Consequence>) {
+    ///
+    /// # Origins
+    /// If a propagation occurs without any decision having been made, then the valuation must conflict with each other literal in the clause.
+    /// So, the origin of the unit is the origin of each literal.
+    pub fn record_consequence(
+        &mut self,
+        consequence: impl Borrow<Consequence>,
+    ) -> Result<(), ErrorKind> {
         let consequence = consequence.borrow().clone();
         match consequence.source() {
             ConsequenceSource::PureLiteral => {
+                let origins = BTreeSet::default();
                 // Making a free decision is not supported after some other (non-free) decision has been made.
                 if !self.literal_db.is_decision_made() && self.literal_db.decision_count() == 0 {
-                    self.record_clause(*consequence.literal(), ClauseSource::PureUnit, None);
+                    self.record_clause(
+                        *consequence.literal(),
+                        ClauseSource::PureUnit,
+                        None,
+                        origins,
+                    );
                 } else {
                     panic!("!")
                 }
+                Ok(())
             }
 
-            ConsequenceSource::BCP(_) => {
+            ConsequenceSource::BCP(key) => {
+                log::info!("BCP Consequence: {key}: {}", consequence.literal());
                 //
                 match self.literal_db.decision_count() {
                     0 => {
                         if self.literal_db.assumption_is_made() {
                             self.literal_db.record_assumption_consequence(consequence);
                         } else {
-                            self.record_clause(*consequence.literal(), ClauseSource::BCP, None);
+                            let unit_clause = *consequence.literal();
+
+                            let direct_origin = unsafe { self.clause_db.get_unchecked(&key) }?;
+
+                            let mut origins = BTreeSet::default();
+                            origins.insert(*key);
+                            for literal in direct_origin.literals().filter(|l| *l != &unit_clause) {
+                                let literal = literal.negate();
+                                let literal_key = ClauseKey::Unit(literal);
+                                match unsafe { self.clause_db.get_unchecked(&literal_key) } {
+                                    Err(_) => {
+                                        log::warn!("Failed search for {literal_key}");
+                                    }
+                                    Ok(db_clause) => {
+                                        origins.extend(db_clause.origins());
+                                    }
+                                }
+                            }
+
+                            log::trace!("Origins: {:?}", &origins);
+
+                            self.record_clause(unit_clause, ClauseSource::BCP, None, origins);
                         };
                     }
                     _ => unsafe {
                         self.literal_db.record_consequence_unchecked(consequence);
                     },
                 }
+                Ok(())
             }
         }
     }
@@ -100,10 +138,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         clause: impl Clause,
         source: ClauseSource,
         valuation: Option<&vValuation>,
+        origins: BTreeSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         let key = self
             .clause_db
-            .store(clause, source, &mut self.atom_db, valuation)?;
+            .store(clause, source, &mut self.atom_db, valuation, origins)?;
+
+        log::info!("Record clause: {key}");
 
         if let Some(dispatcher) = &self.dispatcher {
             match key {

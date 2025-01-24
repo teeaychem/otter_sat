@@ -155,7 +155,7 @@ impl AtomDB {
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
     pub unsafe fn drop_value(&mut self, atom: Atom) {
-        log::trace!(target: targets::VALUATION, "Cleared: {atom}");
+        log::trace!(target: targets::VALUATION, "Cleared atom: {atom}");
         self.clear_value(atom);
         self.activity_heap.activate(atom as usize);
     }

@@ -16,7 +16,11 @@ use crate::{
 };
 
 use core::panic;
-use std::{borrow::Borrow, collections::HashMap, io::BufRead};
+use std::{
+    borrow::Borrow,
+    collections::{BTreeSet, HashMap},
+    io::BufRead,
+};
 
 #[derive(Debug)]
 pub enum ClauseOk {
@@ -93,7 +97,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             0,
                         ) {
                             Ok(consequence_q::ConsequenceQueueOk::Qd) => {
-                                self.record_clause(literal, clause::Source::Original, None);
+                                let origins = BTreeSet::default();
+                                self.record_clause(
+                                    literal,
+                                    clause::Source::Original,
+                                    None,
+                                    origins,
+                                );
                                 Ok(())
                             }
                             _ => Err(err::ErrorKind::from(err::ClauseDBError::ImmediateConflict)),
@@ -127,7 +137,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
                 }
 
-                self.record_clause(clause_vec, clause::Source::Original, None)?;
+                let origins = BTreeSet::default();
+                self.record_clause(clause_vec, clause::Source::Original, None, origins)?;
 
                 Ok(ClauseOk::AddedLong)
             }
