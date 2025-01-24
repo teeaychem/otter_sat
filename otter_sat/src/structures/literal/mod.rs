@@ -62,7 +62,7 @@ pub trait Literal: std::cmp::Ord + std::hash::Hash {
 
 /// The 'canonical' representation of a literal as an atom paired with a boolean.
 #[allow(non_camel_case_types)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct abLiteral {
     /// The atom of a literal.
     atom: Atom,

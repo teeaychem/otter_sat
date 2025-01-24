@@ -75,7 +75,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn conflict_analysis(
         &mut self,
         key: &ClauseKey,
-    ) -> Result<ConflictAnalysisOk, err::AnalysisErrorKind> {
+    ) -> Result<ConflictAnalysisOk, err::ErrorKind> {
         log::trace!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.decision_count());
 
         if let crate::config::vsids::VSIDS::Chaff = self.config.vsids_variant {
@@ -111,14 +111,16 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             Ok(resolution_buffer::ResolutionOk::Exhausted) => {
                 if self.config.stopping_criteria == StoppingCriteria::FirstUIP {
                     log::error!(target: targets::ANALYSIS, "Wrong stopping criteria.");
-                    return Err(err::AnalysisErrorKind::FailedStoppingCriteria);
+                    return Err(err::ErrorKind::from(
+                        err::AnalysisError::FailedStoppingCriteria,
+                    ));
                 }
             }
             Ok(resolution_buffer::ResolutionOk::Repeat(k, l)) => {
                 return Ok(ConflictAnalysisOk::MissedPropagation { key: k, literal: l });
             }
-            Err(_buffer_error) => {
-                return Err(err::AnalysisErrorKind::Buffer);
+            Err(buffer_error) => {
+                return Err(err::ErrorKind::ResolutionBuffer(buffer_error));
             }
         }
 
@@ -141,14 +143,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let literal = match assertion_index {
             None => {
                 log::error!(target: targets::ANALYSIS, "Failed to resolve to an asserting clause");
-                return Err(err::AnalysisErrorKind::NoAssertion);
+                return Err(err::ErrorKind::from(err::AnalysisError::NoAssertion));
             }
             // Safe, by operation of the resolution buffer.
             Some(index) => *unsafe { resolved_clause.get_unchecked(index) },
         };
 
         match resolved_clause.len() {
-            0 => Err(err::AnalysisErrorKind::EmptyResolution),
+            0 => Err(err::ErrorKind::from(err::AnalysisError::EmptyResolution)),
             1 => {
                 self.backjump(0);
                 let _ = self.record_clause(literal, clause::Source::Resolution, None)?;

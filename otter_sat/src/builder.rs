@@ -12,7 +12,7 @@ use crate::{
         clause::{self, vClause, Clause},
         literal::{abLiteral, Literal},
     },
-    types::err::{self},
+    types::err::{self, PreprocessingError},
 };
 
 use core::panic;
@@ -28,12 +28,12 @@ pub enum ClauseOk {
 /// Methods for building the context.
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Returns a fresh atom.
-    pub fn fresh_atom(&mut self) -> Result<Atom, err::AtomDBErrorKind> {
+    pub fn fresh_atom(&mut self) -> Result<Atom, err::AtomDBError> {
         let previous_value = self.rng.gen_bool(self.config.polarity_lean);
         self.re_fresh_atom(previous_value)
     }
 
-    pub fn re_fresh_atom(&mut self, previous_value: bool) -> Result<Atom, err::AtomDBErrorKind> {
+    pub fn re_fresh_atom(&mut self, previous_value: bool) -> Result<Atom, err::AtomDBError> {
         self.atom_db.fresh_atom(previous_value)
     }
 
@@ -69,14 +69,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
      */
     pub fn add_clause(&mut self, clause: impl Clause) -> Result<ClauseOk, err::ErrorKind> {
         if clause.size() == 0 {
-            return Err(err::ErrorKind::from(err::ClauseDBErrorKind::EmptyClause));
+            return Err(err::ErrorKind::from(err::ClauseDBError::EmptyClause));
         }
         let mut clause_vec = clause.canonical();
 
-        match preprocess_clause(&mut clause_vec)? {
-            PreprocessResult::Tautology => return Ok(ClauseOk::Tautology),
-            PreprocessResult::Contradiction => {
-                return Err(err::ErrorKind::from(err::BuildErrorKind::Unsatisfiable))
+        match preprocess_clause(&mut clause_vec) {
+            Ok(PreprocessingOk::Tautology) => return Ok(ClauseOk::Tautology),
+            Err(PreprocessingError::Unsatisfiable) => {
+                return Err(err::ErrorKind::from(err::BuildError::Unsatisfiable))
             }
             _ => {}
         };
@@ -96,9 +96,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 self.record_clause(literal, clause::Source::Original, None);
                                 Ok(())
                             }
-                            _ => Err(err::ErrorKind::from(
-                                err::ClauseDBErrorKind::ImmediateConflict,
-                            )),
+                            _ => Err(err::ErrorKind::from(err::ClauseDBError::ImmediateConflict)),
                         }
                     }
 
@@ -106,16 +104,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         // Must be at zero for an assumption, so there's nothing to do
                         if self.counters.total_decisions != 0 {
                             Err(err::ErrorKind::from(
-                                err::ClauseDBErrorKind::AddedUnitAfterDecision,
+                                err::ClauseDBError::AddedUnitAfterDecision,
                             ))
                         } else {
                             Ok(())
                         }
                     }
 
-                    Some(_) => Err(err::ErrorKind::from(
-                        err::ClauseDBErrorKind::ImmediateConflict,
-                    )),
+                    Some(_) => Err(err::ErrorKind::from(err::ClauseDBError::ImmediateConflict)),
                 };
                 Ok(ClauseOk::AddedUnit)
             }
@@ -127,9 +123,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         .is_some_and(|v| v != literal.polarity())
                 }) {
                     {
-                        return Err(err::ErrorKind::from(
-                            err::ClauseDBErrorKind::ValuationConflict,
-                        ));
+                        return Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict));
                     }
                 }
 
@@ -150,9 +144,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         self.literal_db.assumption_made(literal.canonical());
                         Ok(())
                     }
-                    _ => Err(err::ErrorKind::from(
-                        err::ClauseDBErrorKind::ImmediateConflict,
-                    )),
+                    _ => Err(err::ErrorKind::from(err::ClauseDBError::ImmediateConflict)),
                 }
             }
 
@@ -160,16 +152,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 // Must be at zero for an assumption, so there's nothing to do
                 if self.counters.total_decisions != 0 {
                     Err(err::ErrorKind::from(
-                        err::ClauseDBErrorKind::AddedUnitAfterDecision,
+                        err::ClauseDBError::AddedUnitAfterDecision,
                     ))
                 } else {
                     Ok(())
                 }
             }
 
-            Some(_) => Err(err::ErrorKind::from(
-                err::ClauseDBErrorKind::ImmediateConflict,
-            )),
+            Some(_) => Err(err::ErrorKind::from(err::ClauseDBError::ImmediateConflict)),
         };
         Ok(())
     }
@@ -233,11 +223,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             match reader.read_line(&mut buffer) {
                 Ok(0) => break,
                 Ok(_) => line_counter += 1,
-                Err(_) => {
-                    return Err(err::ErrorKind::from(err::ParseErrorKind::Line(
-                        line_counter,
-                    )))
-                }
+                Err(_) => return Err(err::ErrorKind::from(err::ParseError::Line(line_counter))),
             }
 
             match buffer.chars().next() {
@@ -250,14 +236,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     let mut problem_details = buffer.split_whitespace();
                     let atom_count: usize = match problem_details.nth(2) {
                         None => {
-                            return Err(err::ErrorKind::from(
-                                err::ParseErrorKind::ProblemSpecification,
-                            ))
+                            return Err(err::ErrorKind::from(err::ParseError::ProblemSpecification))
                         }
                         Some(string) => match string.parse() {
                             Err(_) => {
                                 return Err(err::ErrorKind::from(
-                                    err::ParseErrorKind::ProblemSpecification,
+                                    err::ParseError::ProblemSpecification,
                                 ))
                             }
                             Ok(count) => count,
@@ -266,14 +250,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     let clause_count: usize = match problem_details.next() {
                         None => {
-                            return Err(err::ErrorKind::from(
-                                err::ParseErrorKind::ProblemSpecification,
-                            ))
+                            return Err(err::ErrorKind::from(err::ParseError::ProblemSpecification))
                         }
                         Some(string) => match string.parse() {
                             Err(_) => {
                                 return Err(err::ErrorKind::from(
-                                    err::ParseErrorKind::ProblemSpecification,
+                                    err::ParseError::ProblemSpecification,
                                 ))
                             }
                             Ok(count) => count,
@@ -298,11 +280,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             match reader.read_line(&mut buffer) {
                 Ok(0) => break,
                 Ok(_) => line_counter += 1,
-                Err(_) => {
-                    return Err(err::ErrorKind::from(err::ParseErrorKind::Line(
-                        line_counter,
-                    )))
-                }
+                Err(_) => return Err(err::ErrorKind::from(err::ParseError::Line(line_counter))),
             }
             match buffer.chars().next() {
                 Some('%') => break 'formula_loop,
@@ -382,14 +360,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
 /// Primarily to distinguish the case where preprocessing results in an empty clause.
 #[derive(PartialEq, Eq)]
-enum PreprocessResult {
+enum PreprocessingOk {
     Tautology,
-    Contradiction,
     Clause,
 }
 
 /// Preprocess a clause to remove duplicate literals.
-fn preprocess_clause(clause: &mut vClause) -> Result<PreprocessResult, err::BuildErrorKind> {
+fn preprocess_clause(clause: &mut vClause) -> Result<PreprocessingOk, err::PreprocessingError> {
     let mut index = 0;
     let mut max = clause.len();
     'clause_loop: loop {
@@ -406,7 +383,7 @@ fn preprocess_clause(clause: &mut vClause) -> Result<PreprocessResult, err::Buil
                     max -= 1;
                     continue 'clause_loop;
                 } else {
-                    return Ok(PreprocessResult::Tautology);
+                    return Ok(PreprocessingOk::Tautology);
                 }
             }
         }
@@ -414,18 +391,18 @@ fn preprocess_clause(clause: &mut vClause) -> Result<PreprocessResult, err::Buil
     }
 
     match clause.is_empty() {
-        true => Ok(PreprocessResult::Contradiction),
-        false => Ok(PreprocessResult::Clause),
+        false => Ok(PreprocessingOk::Clause),
+        true => Err(PreprocessingError::Unsatisfiable),
     }
 }
 
 #[cfg(test)]
-mod tests {
+mod preprocessing_tests {
     use super::*;
 
     #[test]
     // TODO: test…
-    fn preprocess_pass() {
+    fn pass() {
         let p = abLiteral::fresh(1, true);
         let not_q = abLiteral::fresh(2, false);
         let r = abLiteral::fresh(3, true);
@@ -435,5 +412,29 @@ mod tests {
         let _ = preprocess_clause(&mut processed_clause);
 
         assert!(clause.eq(&processed_clause));
+    }
+
+    #[test]
+    fn duplicate_removal() {
+        let p = abLiteral::fresh(1, true);
+        let not_q = abLiteral::fresh(2, false);
+        let r = abLiteral::fresh(3, true);
+
+        let clause = vec![p, not_q, r];
+        let mut processed_clause = vec![p, not_q, r, r, not_q, p];
+        let _ = preprocess_clause(&mut processed_clause);
+
+        assert!(clause.eq(&processed_clause));
+    }
+
+    #[test]
+    fn contradiction_error() {
+        let p = abLiteral::fresh(1, true);
+        let not_p = abLiteral::fresh(1, false);
+
+        let mut clause = vec![p, not_p];
+        let preprocessing_result = preprocess_clause(&mut clause);
+
+        assert!(preprocessing_result.is_ok_and(|k| k == PreprocessingOk::Tautology));
     }
 }

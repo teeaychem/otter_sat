@@ -94,7 +94,7 @@ fn main() {
         for path in config_io.files {
             match load_dimacs(&mut the_context, path) {
                 Ok(()) => {}
-                Err(err::ErrorKind::ClauseDB(err::ClauseDBErrorKind::EmptyClause)) => {
+                Err(err::ErrorKind::ClauseDB(err::ClauseDBError::EmptyClause)) => {
                     println!("s UNSATISFIABLE");
                     std::process::exit(20);
                 }

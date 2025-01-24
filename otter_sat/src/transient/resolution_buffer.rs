@@ -186,11 +186,11 @@ impl ResolutionBuffer {
         literal_db: &LiteralDB,
         clause_db: &mut ClauseDB,
         atom_db: &mut AtomDB,
-    ) -> Result<ResolutionOk, err::ResolutionBufferErrorKind> {
+    ) -> Result<ResolutionOk, err::ResolutionBufferError> {
         // The key has already been used to access the conflicting clause.
         let base_clause = match unsafe { clause_db.get_unchecked(key) } {
             Ok(clause) => clause,
-            Err(_) => return Err(err::ResolutionBufferErrorKind::MissingClause),
+            Err(_) => return Err(err::ResolutionBufferError::MissingClause),
         };
 
         self.merge_clause(base_clause);
@@ -216,7 +216,7 @@ impl ResolutionBuffer {
                     let source_clause = match unsafe { clause_db.get_unchecked(the_key) } {
                         Err(_) => {
                             log::error!(target: targets::RESOLUTION, "Lost resolution clause {the_key}");
-                            return Err(err::ResolutionBufferErrorKind::LostClause);
+                            return Err(err::ResolutionBufferError::LostClause);
                         }
                         Ok(clause) => clause,
                     };
@@ -340,7 +340,7 @@ impl ResolutionBuffer {
     /// Cells which have already been merged with some other clause are skipped.
     ///
     /// If the clause is satisfied and error is returned.
-    fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), err::ResolutionBufferErrorKind> {
+    fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), err::ResolutionBufferError> {
         for literal in clause.literals() {
             match unsafe { self.buffer.get_unchecked(literal.atom() as usize) } {
                 Cell::Conflict(_) | Cell::None(_) | Cell::Pivot => {}
@@ -359,7 +359,7 @@ impl ResolutionBuffer {
                     }
                     Some(_) => {
                         log::error!(target: targets::RESOLUTION, "Satisfied clause");
-                        return Err(err::ResolutionBufferErrorKind::SatisfiedClause);
+                        return Err(err::ResolutionBufferError::SatisfiedClause);
                     }
                 },
                 Cell::Strengthened => {}
@@ -375,7 +375,7 @@ impl ResolutionBuffer {
         &mut self,
         clause: &impl Clause,
         pivot: impl Borrow<abLiteral>,
-    ) -> Result<(), err::ResolutionBufferErrorKind> {
+    ) -> Result<(), err::ResolutionBufferError> {
         let pivot = pivot.borrow();
         let contents = unsafe { *self.buffer.get_unchecked(pivot.atom() as usize) };
         match contents {
@@ -396,7 +396,7 @@ impl ResolutionBuffer {
             }
             _ => {
                 // Skip over any clauses which are not involved in the current resolution trail
-                Err(err::ResolutionBufferErrorKind::LostClause)
+                Err(err::ResolutionBufferError::LostClause)
             }
         }
     }

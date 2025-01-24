@@ -44,7 +44,7 @@ pub fn silent_formula_report(path: PathBuf, config: &Config) -> report::SolveRep
     let mut the_context = Context::from_config(config.clone(), None);
     match load_dimacs(&mut the_context, &path) {
         Ok(()) => {}
-        Err(err::ErrorKind::ClauseDB(err::ClauseDBErrorKind::EmptyClause)) => {
+        Err(err::ErrorKind::ClauseDB(err::ClauseDBError::EmptyClause)) => {
             return report::SolveReport::Unsatisfiable;
         }
         Err(_) => {

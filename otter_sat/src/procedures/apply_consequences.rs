@@ -97,7 +97,7 @@ use crate::{
         consequence::{self, Consequence},
         literal::abLiteral,
     },
-    types::err,
+    types::err::{self, ErrorKind},
 };
 
 /// Ok results of [apply_consequences](GenericContext::apply_consequences).
@@ -123,7 +123,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// Queued consequences are removed from the queue only if BCP was successful.
     /// For, in the case of a conflict the consequence may remain, and otherwise will be removed from the queue during a backjump.
-    pub fn apply_consequences(&mut self) -> Result<ApplyConsequenceOk, err::ContextErrorKind> {
+    pub fn apply_consequences(&mut self) -> Result<ApplyConsequenceOk, err::ErrorKind> {
         use crate::db::consequence_q::QPosition::{self};
 
         'application: loop {
@@ -135,8 +135,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Ok(()) => {
                     self.consequence_q.pop_front();
                 }
-                Err(err::BCPErrorKind::CorruptWatch) => return Err(err::ContextErrorKind::BCP),
-                Err(err::BCPErrorKind::Conflict(key)) => {
+                Err(err::BCPError::Conflict(key)) => {
                     //
                     if !self.literal_db.is_decision_made() {
                         self.state = ContextState::Unsatisfiable;
@@ -184,6 +183,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         }
                     }
                 }
+                Err(non_conflict_bcp_error) => return Err(ErrorKind::BCP(non_conflict_bcp_error)),
             }
         }
     }

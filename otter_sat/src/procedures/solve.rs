@@ -153,7 +153,7 @@ use crate::{
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
-    pub fn solve(&mut self) -> Result<report::SolveReport, err::ContextErrorKind> {
+    pub fn solve(&mut self) -> Result<report::SolveReport, err::ErrorKind> {
         use crate::db::consequence_q::QPosition::{self};
 
         self.state = ContextState::Solving;

@@ -25,7 +25,7 @@ use crate::{
         atom::Atom,
         valuation::{vValuation, Valuation},
     },
-    types::err::AtomDBErrorKind,
+    types::err::AtomDBError,
 };
 
 /// The atom database.
@@ -101,9 +101,9 @@ impl AtomDB {
     }
 
     /// A fresh atom, and a corresponding update to all the relevant data structures to ensure *unsafe* functions from the perspective of the compiler which do not check for the presence of an atom are safe.
-    pub fn fresh_atom(&mut self, previous_value: bool) -> Result<Atom, AtomDBErrorKind> {
+    pub fn fresh_atom(&mut self, previous_value: bool) -> Result<Atom, AtomDBError> {
         let Ok(atom) = self.valuation.len().try_into() else {
-            return Err(AtomDBErrorKind::AtomsExhausted);
+            return Err(AtomDBError::AtomsExhausted);
         };
 
         self.activity_heap.add(atom as usize, 1.0);
