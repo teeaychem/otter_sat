@@ -245,6 +245,36 @@ fn jnh() {
     assert_eq!(unsat_count, 34);
 }
 
+// #[test]
+// #[ignore = "expensive"]
+// fn lran600() {
+//     let report = silent_formula_report(
+//         cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN"]).join("f600.cnf.xz"),
+//         &Config::default(),
+//     );
+//     assert_eq!(report, report::SolveReport::Satisfiable);
+// }
+
+// #[test]
+// #[ignore = "expensive"]
+// fn lran1000() {
+//     let report = silent_formula_report(
+//         cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN"]).join("f1000.cnf.xz"),
+//         &Config::default(),
+//     );
+//     assert_eq!(report, report::SolveReport::Satisfiable);
+// }
+
+// #[test]
+// #[ignore = "expensive"]
+// fn lran2000() {
+//     let report = silent_formula_report(
+//         cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN"]).join("f2000.cnf.xz"),
+//         &Config::default(),
+//     );
+//     assert_eq!(report, report::SolveReport::Satisfiable);
+// }
+
 #[test]
 #[ignore = "expensive"]
 fn lran() {

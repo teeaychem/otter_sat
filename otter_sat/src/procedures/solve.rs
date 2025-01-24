@@ -56,9 +56,9 @@
 //! loop {
 //!
 //!     match self.apply_consequences()? {
-//!         apply_consequences::Ok::FundamentalConflict => break,
+//!         apply_consequences::ApplyConsequencesOk::FundamentalConflict => break,
 //!
-//!         apply_consequences::Ok::Exhausted => {
+//!         apply_consequences::ApplyConsequencesOk::Exhausted => {
 //!             //
 //!             match self.make_decision()? {
 //!                 decision::Ok::Made => continue,
@@ -66,7 +66,7 @@
 //!             }
 //!         }
 //!
-//!         apply_consequences::Ok::UnitClause(literal) => {
+//!         apply_consequences::ApplyConsequencesOk::UnitClause(literal) => {
 //!             self.backjump(0);
 //!             self.q_literal(literal)?;
 //!         }
@@ -174,9 +174,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
             match self.apply_consequences()? {
                 // Non-conflict variants. These variants break or continue the solve loop.
-                apply_consequences::ApplyConsequenceOk::FundamentalConflict => break 'solve_loop,
+                apply_consequences::ApplyConsequencesOk::FundamentalConflict => break 'solve_loop,
 
-                apply_consequences::ApplyConsequenceOk::Exhausted => {
+                apply_consequences::ApplyConsequencesOk::Exhausted => {
                     //
                     match self.make_decision()? {
                         decision::DecisionOk::Literal(decision) => {
@@ -193,11 +193,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
 
                 // Conflict variants. These continue to the remaining contents of a loop.
-                apply_consequences::ApplyConsequenceOk::UnitClause { key } => {
+                apply_consequences::ApplyConsequencesOk::UnitClause { key } => {
                     self.value_and_queue(key, QPosition::Front, 0)?;
                 }
 
-                apply_consequences::ApplyConsequenceOk::AssertingClause { key, literal } => {
+                apply_consequences::ApplyConsequencesOk::AssertingClause { key, literal } => {
                     self.clause_db.note_use(key);
                     macros::dispatch_bcp_delta!(self, Instance, literal, key);
 

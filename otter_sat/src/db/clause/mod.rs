@@ -48,8 +48,8 @@ pub struct ClauseDB {
     /// A stack of keys for learned clauses whose indicies are empty.
     empty_keys: Vec<ClauseKey>,
 
-    /// Unit clause, stored as literals.
-    unit: Vec<cLiteral>,
+    /// Unit clauses.
+    unit: Vec<dbClause>,
 
     /// Binary clauses.
     binary: Vec<dbClause>,
@@ -141,16 +141,21 @@ impl ClauseDB {
             1 => {
                 // The match ensures there is a next (and then no further) literal in the clause.
                 let the_literal = unsafe { *clause.literals().next().unwrap_unchecked() };
+                let key = ClauseKey::Unit(the_literal);
 
-                self.unit.push(the_literal);
-                Ok(ClauseKey::Unit(the_literal))
+                self.unit.push(dbClause::new_unit(key, the_literal));
+                Ok(key)
             }
 
             2 => {
                 let key = self.fresh_binary_key()?;
 
-                self.binary
-                    .push(dbClause::from(key, clause.canonical(), atom_db, valuation));
+                self.binary.push(dbClause::new_nonunit(
+                    key,
+                    clause.canonical(),
+                    atom_db,
+                    valuation,
+                ));
 
                 Ok(key)
             }
@@ -162,7 +167,8 @@ impl ClauseDB {
                     let key = self.fresh_original_key()?;
                     log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_string());
 
-                    let stored_form = dbClause::from(key, clause.canonical(), atom_db, valuation);
+                    let stored_form =
+                        dbClause::new_nonunit(key, clause.canonical(), atom_db, valuation);
 
                     self.original.push(stored_form);
                     Ok(key)
@@ -177,7 +183,8 @@ impl ClauseDB {
                     };
                     log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_string());
 
-                    let stored_form = dbClause::from(key, clause.canonical(), atom_db, valuation);
+                    let stored_form =
+                        dbClause::new_nonunit(key, clause.canonical(), atom_db, valuation);
 
                     let value = ActivityLBD {
                         activity: 1.0,
@@ -482,13 +489,13 @@ impl ClauseDB {
         self.addition.len()
     }
 
-    /// An iterator over all unit clauses, given as [abLiteral]s.
+    /// An iterator over all unit clauses, given as [cLiteral]s.
     ///
     /// ```rust,ignore
     /// buffer.strengthen_given(self.clause_db.all_unit_clauses());
     /// ```
     pub fn all_unit_clauses(&self) -> impl Iterator<Item = &cLiteral> {
-        self.unit.iter()
+        self.unit.iter().flat_map(|c| c.clause().literals().last())
     }
 
     /// An iterator over all non-unit clauses, given as [impl Clause]s.
