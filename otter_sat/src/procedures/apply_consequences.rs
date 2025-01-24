@@ -95,7 +95,7 @@ use crate::{
     procedures::analysis,
     structures::{
         consequence::{self, Consequence},
-        literal::abLiteral,
+        literal::cLiteral,
     },
     types::err::{self, ErrorKind},
 };
@@ -106,10 +106,10 @@ pub enum ApplyConsequenceOk {
     FundamentalConflict,
 
     /// A unit clause was derived from some conflict.
-    UnitClause { key: abLiteral },
+    UnitClause { key: cLiteral },
 
     /// A non-unit asserting clause was derived from some conflict.
-    AssertingClause { key: ClauseKey, literal: abLiteral },
+    AssertingClause { key: ClauseKey, literal: cLiteral },
 
     /// There were no (further) consequences to apply.
     Exhausted,

@@ -14,8 +14,8 @@ use crate::{
         Dispatch,
     },
     structures::{
-        clause::{vClause, Clause},
-        literal::{abLiteral, Literal},
+        clause::{cClause, Clause},
+        literal::{cLiteral, Literal},
     },
     types::err::{self},
 };
@@ -42,7 +42,7 @@ pub struct CoreDB {
     conflict: Option<ClauseKey>,
 
     /// A buffer used when reading dispatches regarding a clause.
-    clause_buffer: Vec<abLiteral>,
+    clause_buffer: Vec<cLiteral>,
 
     /// A buffer used when reading dispatches regarding an instance of resulution.
     ///
@@ -53,18 +53,18 @@ pub struct CoreDB {
     resolution_q: VecDeque<Vec<ClauseKey>>,
 
     /// A buffer to store a dispatched instance of BCP.
-    bcp_buffer: Option<(ClauseKey, abLiteral)>,
+    bcp_buffer: Option<(ClauseKey, cLiteral)>,
 
     /// A map of clause keys to clauses of the original formula.
-    original_map: HashMap<ClauseKey, vClause>,
+    original_map: HashMap<ClauseKey, cClause>,
 
     clause_map: HashMap<ClauseKey, Vec<ClauseKey>>,
 
-    literal_map: HashMap<abLiteral, Vec<ClauseKey>>,
+    literal_map: HashMap<cLiteral, Vec<ClauseKey>>,
 }
 
 impl CoreDB {
-    pub fn core_clauses(&self) -> Result<Vec<vClause>, err::CoreError> {
+    pub fn core_clauses(&self) -> Result<Vec<cClause>, err::CoreError> {
         let mut core_q = std::collections::VecDeque::<ClauseKey>::new();
         let mut seen_keys = std::collections::BTreeSet::new();
         let mut seen_literals = std::collections::BTreeSet::new();

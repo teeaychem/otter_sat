@@ -25,7 +25,7 @@ impl Literal for abLiteral {
         self.polarity
     }
 
-    fn canonical(&self) -> super::abLiteral {
+    fn canonical(&self) -> super::cLiteral {
         *self
     }
 

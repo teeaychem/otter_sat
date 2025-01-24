@@ -8,8 +8,8 @@ use crate::{
     ipasir::{ContextBundle, IPASIR_SIGNATURE},
     structures::{
         atom::Atom,
-        clause::vClause,
-        literal::{abLiteral, Literal},
+        clause::cClause,
+        literal::{cLiteral, Literal},
     },
 };
 use std::ffi::{c_char, c_int, c_void};
@@ -70,12 +70,12 @@ pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
                     bundle.ie_map.push(literal_atom);
                     bundle
                         .clause_buffer
-                        .push(abLiteral::fresh(fresh_atom, literal.is_positive()));
+                        .push(cLiteral::fresh(fresh_atom, literal.is_positive()));
                 }
                 Some(atom) => {
                     bundle
                         .clause_buffer
-                        .push(abLiteral::fresh(*atom, literal.is_positive()));
+                        .push(cLiteral::fresh(*atom, literal.is_positive()));
                 }
             }
         }

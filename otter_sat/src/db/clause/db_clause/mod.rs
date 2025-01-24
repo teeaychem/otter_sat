@@ -24,8 +24,8 @@
 use crate::{
     db::{atom::AtomDB, keys::ClauseKey},
     structures::{
-        clause::{vClause, Clause},
-        literal::abLiteral,
+        clause::{cClause, Clause},
+        literal::cLiteral,
         valuation::vValuation,
     },
 };
@@ -44,7 +44,7 @@ pub struct dbClause {
     key: ClauseKey,
 
     /// The clause, stored instantiated as a [vClause].
-    clause: vClause,
+    clause: cClause,
 
     /// Whether the clause is active.
     active: bool,
@@ -65,7 +65,7 @@ impl dbClause {
     /// Otherwise, clauses are initialised with respect to the current valuation of the context.
     pub fn from(
         key: ClauseKey,
-        clause: vClause,
+        clause: cClause,
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,
     ) -> Self {
@@ -111,7 +111,7 @@ impl std::fmt::Display for dbClause {
 }
 
 impl Deref for dbClause {
-    type Target = [abLiteral];
+    type Target = [cLiteral];
 
     fn deref(&self) -> &Self::Target {
         &self.clause

@@ -1,5 +1,5 @@
 //! Details on some change during a procedure or to an interal structure.
-use crate::{db::ClauseKey, structures::literal::abLiteral};
+use crate::{db::ClauseKey, structures::literal::cLiteral};
 
 /// High level distinction of changes, by 'location' of the change.
 #[derive(Clone)]
@@ -25,14 +25,14 @@ pub enum Delta {
 pub enum BCP {
     /// A conflict was found with the detailed clause asserting the detailed literal.
     Conflict {
-        literal: abLiteral,
+        literal: cLiteral,
         clause: ClauseKey,
     },
 
     /// An instance of BCP took place, with the detailed literal being asserted by the detailed clause.
     Instance {
         clause: ClauseKey,
-        literal: abLiteral,
+        literal: cLiteral,
     },
 }
 
@@ -46,7 +46,7 @@ pub enum ClauseBuider {
     End,
 
     /// The detailed literal belongs to the clause.
-    Literal(abLiteral),
+    Literal(cLiteral),
 }
 
 /// Changes during resolution.
@@ -59,7 +59,7 @@ pub enum Resolution {
     End,
 
     /// The detailed literal was subsumed in the detailed clause (placeholder).
-    Subsumed(ClauseKey, abLiteral),
+    Subsumed(ClauseKey, cLiteral),
 
     /// The detailed clause was used.
     Used(ClauseKey),
@@ -79,7 +79,7 @@ pub enum ClauseDB {
     ClauseStart,
 
     /// A literal beloning to a clause.
-    ClauseLiteral(abLiteral),
+    ClauseLiteral(cLiteral),
 
     /// A clause with the detailed key was added (and if a clause is being terminated, the clause has concluded and this is the key used to access the clause).
     Added(ClauseKey),

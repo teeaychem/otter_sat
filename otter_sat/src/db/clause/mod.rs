@@ -30,7 +30,7 @@ use crate::{
     misc::log::targets::{self},
     structures::{
         clause::{Clause, Source},
-        literal::abLiteral,
+        literal::cLiteral,
         valuation::vValuation,
     },
     types::err::{self},
@@ -49,7 +49,7 @@ pub struct ClauseDB {
     empty_keys: Vec<ClauseKey>,
 
     /// Unit clause, stored as literals.
-    unit: Vec<abLiteral>,
+    unit: Vec<cLiteral>,
 
     /// Binary clauses.
     binary: Vec<dbClause>,
@@ -161,6 +161,7 @@ impl ClauseDB {
                 Source::Original => {
                     let key = self.fresh_original_key()?;
                     log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_string());
+
                     let stored_form = dbClause::from(key, clause.canonical(), atom_db, valuation);
 
                     self.original.push(stored_form);
@@ -486,7 +487,7 @@ impl ClauseDB {
     /// ```rust,ignore
     /// buffer.strengthen_given(self.clause_db.all_unit_clauses());
     /// ```
-    pub fn all_unit_clauses(&self) -> impl Iterator<Item = &abLiteral> {
+    pub fn all_unit_clauses(&self) -> impl Iterator<Item = &cLiteral> {
         self.unit.iter()
     }
 
@@ -555,7 +556,7 @@ impl ClauseDB {
     pub unsafe fn subsume(
         &mut self,
         key: ClauseKey,
-        literal: impl Borrow<abLiteral>,
+        literal: impl Borrow<cLiteral>,
         atom_db: &mut AtomDB,
     ) -> Result<ClauseKey, err::SubsumptionError> {
         let the_clause = match self.get_unchecked_mut(&key) {

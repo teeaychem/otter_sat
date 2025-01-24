@@ -8,7 +8,7 @@ use crate::{
     },
     structures::{
         atom::Atom,
-        literal::{abLiteral, Literal},
+        literal::{cLiteral, Literal},
         valuation::{vValuation, Valuation},
     },
 };
@@ -42,12 +42,12 @@ use super::dbClause;
 ///
 impl dbClause {
     /// Returns the first watched literal (of two).
-    pub unsafe fn get_watch_a(&self) -> &abLiteral {
+    pub unsafe fn get_watch_a(&self) -> &cLiteral {
         self.get_unchecked(0)
     }
 
     /// Returns the second watched literal (of two).
-    pub unsafe fn get_watch_b(&self) -> &abLiteral {
+    pub unsafe fn get_watch_b(&self) -> &cLiteral {
         self.get_unchecked(self.watch_ptr)
     }
 

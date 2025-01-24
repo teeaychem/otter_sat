@@ -7,8 +7,8 @@ use crate::{
     dispatch::library::report::SolveReport,
     ipasir::{ContextBundle, IPASIR_SIGNATURE},
     structures::{
-        clause::vClause,
-        literal::{abLiteral, Literal},
+        clause::cClause,
+        literal::{cLiteral, Literal},
     },
 };
 use std::ffi::{c_char, c_int, c_void};
@@ -135,7 +135,7 @@ pub unsafe extern "C" fn ipasir2_add(
 
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    let mut internal_clause: vClause = vec![];
+    let mut internal_clause: cClause = vec![];
 
     for literal in clause {
         let literal_atom = literal.unsigned_abs();
@@ -148,10 +148,10 @@ pub unsafe extern "C" fn ipasir2_add(
                 assert!(bundle.ie_map.len().eq(&(fresh_atom as usize)));
                 bundle.ei_map.insert(literal_atom, fresh_atom);
                 bundle.ie_map.push(literal_atom);
-                internal_clause.push(abLiteral::fresh(fresh_atom, literal.is_positive()));
+                internal_clause.push(cLiteral::fresh(fresh_atom, literal.is_positive()));
             }
             Some(atom) => {
-                internal_clause.push(abLiteral::fresh(*atom, literal.is_positive()));
+                internal_clause.push(cLiteral::fresh(*atom, literal.is_positive()));
             }
         }
     }
@@ -191,7 +191,7 @@ pub unsafe extern "C" fn ipasir2_solve(
                     fresh_atom
                 }
             };
-            let assumption = abLiteral::fresh(atom, assumption.is_positive());
+            let assumption = cLiteral::fresh(atom, assumption.is_positive());
             bundle.context.add_assumption(assumption);
         }
     }

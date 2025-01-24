@@ -5,14 +5,14 @@ use crate::{
     db::atom::AtomDB,
     structures::{
         clause::Clause,
-        literal::{abLiteral, Literal},
+        literal::{cLiteral, Literal},
         valuation::Valuation,
     },
 };
 
 use std::ops::Deref;
 
-impl<T: Deref<Target = [abLiteral]>> Clause for T {
+impl<T: Deref<Target = [cLiteral]>> Clause for T {
     fn as_string(&self) -> String {
         let mut the_string = String::default();
         for literal in self.deref() {
@@ -40,7 +40,7 @@ impl<T: Deref<Target = [abLiteral]>> Clause for T {
         }
     }
 
-    fn asserts(&self, val: &impl Valuation) -> Option<abLiteral> {
+    fn asserts(&self, val: &impl Valuation) -> Option<cLiteral> {
         let mut the_literal = None;
         for lit in self.deref() {
             if let Some(existing_val) = unsafe { val.value_of_unchecked(lit.atom()) } {
@@ -64,12 +64,14 @@ impl<T: Deref<Target = [abLiteral]>> Clause for T {
             .iter()
             .map(|literal| unsafe { atom_db.decision_index_of(literal.atom()) })
             .collect::<Vec<_>>();
+
         decision_levels.sort_unstable();
         decision_levels.dedup();
+
         decision_levels.len() as LBD
     }
 
-    fn literals(&self) -> impl Iterator<Item = &abLiteral> {
+    fn literals(&self) -> impl Iterator<Item = &cLiteral> {
         self.iter()
     }
 
@@ -81,7 +83,7 @@ impl<T: Deref<Target = [abLiteral]>> Clause for T {
         self.iter().map(|literal| literal.atom())
     }
 
-    fn canonical(self) -> super::vClause {
+    fn canonical(self) -> super::cClause {
         self.to_vec()
     }
 }

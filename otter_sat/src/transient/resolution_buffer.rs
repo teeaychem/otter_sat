@@ -45,9 +45,9 @@ use crate::{
     misc::log::targets::{self},
     structures::{
         atom::Atom,
-        clause::{vClause, Clause},
+        clause::{cClause, Clause},
         consequence,
-        literal::{abLiteral, Literal},
+        literal::{cLiteral, Literal},
         valuation::Valuation,
     },
     types::err::{self},
@@ -65,7 +65,7 @@ pub enum ResolutionOk {
     UnitClause,
 
     /// Resolution identified a clause already in the database.
-    Repeat(ClauseKey, abLiteral),
+    Repeat(ClauseKey, cLiteral),
 }
 
 /// Cells of a resolution buffer.
@@ -75,10 +75,10 @@ pub enum Cell {
     Value(Option<bool>),
 
     /// The atom was not valued.
-    None(abLiteral),
+    None(cLiteral),
 
     /// The atom had a conflicting value.
-    Conflict(abLiteral),
+    Conflict(cLiteral),
 
     /// The atom was part of resolution but was already proven.
     Strengthened,
@@ -96,7 +96,7 @@ pub struct ResolutionBuffer {
     clause_length: usize,
 
     /// The literal asserted by the current resolution candidate, if it exists
-    asserts: Option<abLiteral>,
+    asserts: Option<cLiteral>,
 
     /// The buffer
     buffer: Vec<Cell>,
@@ -150,7 +150,7 @@ impl ResolutionBuffer {
     /// ```rust,ignore
     /// let (resolved_clause, assertion_index) = the_buffer.to_assertion_clause();
     /// ```
-    pub fn to_assertion_clause(self) -> (vClause, Option<usize>) {
+    pub fn to_assertion_clause(self) -> (cClause, Option<usize>) {
         let mut the_clause = vec![];
         let mut conflict_index = None;
 
@@ -301,7 +301,7 @@ impl ResolutionBuffer {
     /// ```rust,ignore
     /// resolution_buffer.strengthen_given(self.clause_db.all_unit_clauses());
     /// ```
-    pub fn strengthen_given<'l>(&mut self, literals: impl Iterator<Item = &'l abLiteral>) {
+    pub fn strengthen_given<'l>(&mut self, literals: impl Iterator<Item = &'l cLiteral>) {
         for literal in literals {
             match unsafe { *self.buffer.get_unchecked(literal.atom() as usize) } {
                 Cell::None(_) | Cell::Conflict(_) => {
@@ -374,7 +374,7 @@ impl ResolutionBuffer {
     fn resolve_clause(
         &mut self,
         clause: &impl Clause,
-        pivot: impl Borrow<abLiteral>,
+        pivot: impl Borrow<cLiteral>,
     ) -> Result<(), err::ResolutionBufferError> {
         let pivot = pivot.borrow();
         let contents = unsafe { *self.buffer.get_unchecked(pivot.atom() as usize) };
@@ -407,7 +407,7 @@ impl ResolutionBuffer {
     }
 
     /// The literal asserted by the resolved clause, if it exists.
-    fn asserted_literal(&self) -> Option<abLiteral> {
+    fn asserted_literal(&self) -> Option<cLiteral> {
         if self.valueless_count == 1 {
             self.asserts
         } else {

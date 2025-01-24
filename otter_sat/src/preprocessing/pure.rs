@@ -8,7 +8,7 @@ use crate::{
         atom::Atom,
         clause::Clause,
         consequence::{self, Consequence},
-        literal::{abLiteral, Literal},
+        literal::{cLiteral, Literal},
     },
     types::err::{self},
 };
@@ -18,7 +18,7 @@ use crate::{
 ///
 /// In other words, returns a pair of iterators where the first iterator contains all the literals which occur only with positive polarity and the second iterator contains all the literals which occur only with negative polarity.
 pub fn pure_literals<'l>(
-    clauses: impl Iterator<Item = impl Iterator<Item = &'l abLiteral>>,
+    clauses: impl Iterator<Item = impl Iterator<Item = &'l cLiteral>>,
 ) -> (Vec<Atom>, Vec<Atom>) {
     let mut the_true: BTreeSet<Atom> = BTreeSet::new();
     let mut the_false: BTreeSet<Atom> = BTreeSet::new();
@@ -49,7 +49,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
     );
 
     for atom in f.into_iter() {
-        let the_literal = abLiteral::fresh(atom, false);
+        let the_literal = cLiteral::fresh(atom, false);
         match context.value_and_queue(
             the_literal,
             consequence_q::QPosition::Back,
@@ -66,7 +66,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
     }
 
     for atom in t.into_iter() {
-        let the_literal = abLiteral::fresh(atom, true);
+        let the_literal = cLiteral::fresh(atom, true);
         match context.value_and_queue(
             the_literal,
             consequence_q::QPosition::Back,

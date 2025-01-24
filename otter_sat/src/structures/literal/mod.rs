@@ -54,13 +54,13 @@ pub trait Literal: std::cmp::Ord + std::hash::Hash {
     fn polarity(&self) -> bool;
 
     /// The literal in it's 'canonical' form of an atom paired with a boolean.
-    fn canonical(&self) -> abLiteral;
+    fn canonical(&self) -> cLiteral;
 
     /// The literal in it's integer form, with sign indicating polarity.
     fn as_int(&self) -> isize;
 }
 
-/// The 'canonical' representation of a literal as an atom paired with a boolean.
+/// The representation of a literal as an atom paired with a boolean.
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
 pub struct abLiteral {
@@ -70,3 +70,7 @@ pub struct abLiteral {
     /// The polarity of a literal.
     polarity: bool,
 }
+
+/// The canonical implementation of a literal.
+#[allow(non_camel_case_types)]
+pub type cLiteral = abLiteral;

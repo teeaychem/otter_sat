@@ -22,7 +22,7 @@ use std::rc::Rc;
 use crate::{
     db::DecisionLevelIndex,
     dispatch::Dispatch,
-    structures::{consequence::Consequence, literal::abLiteral},
+    structures::{consequence::Consequence, literal::cLiteral},
 };
 
 #[doc(hidden)]
@@ -40,7 +40,7 @@ pub struct LiteralDB {
     level_stack: Vec<DecisionLevel>,
 
     /// Assumptions
-    assumptions: Vec<abLiteral>,
+    assumptions: Vec<cLiteral>,
 
     /// Consequences of assumptions made
     assumption_consequences: Vec<Consequence>,
@@ -54,7 +54,7 @@ impl LiteralDB {
         !self.assumptions.is_empty()
     }
 
-    pub fn assumption_made(&mut self, assumption: abLiteral) {
+    pub fn assumption_made(&mut self, assumption: cLiteral) {
         self.assumptions.push(assumption);
     }
 
@@ -62,7 +62,7 @@ impl LiteralDB {
         self.assumption_consequences.push(consequence);
     }
 
-    pub fn assumptions(&self) -> &[abLiteral] {
+    pub fn assumptions(&self) -> &[cLiteral] {
         &self.assumptions
     }
 
@@ -99,7 +99,7 @@ impl LiteralDB {
     /// ```rust,ignore
     /// self.literal_db.decision_match(chosen_literal);
     /// ```
-    pub fn decision_made(&mut self, decision: abLiteral) {
+    pub fn decision_made(&mut self, decision: cLiteral) {
         self.level_stack.push(DecisionLevel::new(decision));
     }
 
@@ -107,7 +107,7 @@ impl LiteralDB {
     ///
     /// # Safety
     /// No check is made to ensure the relevant number of decisions have been made.
-    pub unsafe fn decision_unchecked(&self, level: DecisionLevelIndex) -> abLiteral {
+    pub unsafe fn decision_unchecked(&self, level: DecisionLevelIndex) -> cLiteral {
         self.level_stack.get_unchecked(level as usize).decision()
     }
 
@@ -117,7 +117,7 @@ impl LiteralDB {
     /// ```
     /// # Safety
     /// No check is made to ensure a decision has been made.
-    pub unsafe fn top_decision_unchecked(&self) -> abLiteral {
+    pub unsafe fn top_decision_unchecked(&self) -> cLiteral {
         self.level_stack
             .get_unchecked(self.level_stack.len() - 1)
             .decision()

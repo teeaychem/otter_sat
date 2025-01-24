@@ -7,7 +7,7 @@ use otter_sat::{
     structures::{
         atom::Atom,
         clause::Clause,
-        literal::{abLiteral, Literal},
+        literal::{cLiteral, Literal},
     },
 };
 
@@ -58,7 +58,7 @@ fn main() {
         {
             match value {
                 Some(v) => {
-                    clause.push(abLiteral::fresh(atom as Atom, !v));
+                    clause.push(cLiteral::fresh(atom as Atom, !v));
                 }
                 None => {}
             }
