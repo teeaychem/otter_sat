@@ -39,11 +39,11 @@ Specific examples are:
 
 ```
 cargo run --example sudoku
-cargo run --example --profile release nonograms
+cargo run --example nonograms --profile release
 cargo run --example all_models
 ```
 
-Nonogramps is reasonably quick in debug mode, but release is recommended.
+Nonograms is reasonably quick in debug mode, but release is recommended.
 
 
 # How this was made

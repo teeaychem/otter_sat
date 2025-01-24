@@ -37,35 +37,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         self.atom_db.fresh_atom(previous_value)
     }
 
-    // /// Returns the internal representation a clause from a string, adding atoms to the context if required..
-    // ///
-    // /// ```rust
-    // /// # use otter_sat::context::Context;
-    // /// # use otter_sat::config::Config;
-    // /// # use otter_sat::dispatch::library::report::{self};
-    // /// #
-    // /// let mut the_context = Context::from_config(Config::default(), None);
-    // ///
-    // /// assert!(the_context.clause_from_string("p -q -r s").is_ok());
-    // /// ```
-    // pub fn clause_from_string(&mut self, string: &str) -> Result<vClause, err::BuildErrorKind> {
-    //     let string_lterals = string.split_whitespace();
-
-    //     let mut the_clause = vec![];
-
-    //     for string_literal in string_lterals {
-    //         let the_literal = match self.literal_from_string(string_literal) {
-    //             Ok(literal) => literal,
-    //             Err(e) => return Err(err::BuildErrorKind::Parse(e)),
-    //         };
-
-    //         if !the_clause.iter().any(|l| *l == the_literal) {
-    //             the_clause.push(the_literal);
-    //         }
-    //     }
-    //     Ok(the_clause)
-    // }
-
     /// Adds a clause to the context.
     ///
     /// ```rust
@@ -101,10 +72,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             return Err(err::ErrorKind::from(err::ClauseDBErrorKind::EmptyClause));
         }
         let mut clause_vec = clause.canonical();
-        clause_vec.sort_unstable();
-        clause_vec.dedup();
 
-        match self.preprocess_clause(&mut clause_vec)? {
+        match preprocess_clause(&mut clause_vec)? {
             PreprocessResult::Tautology => return Ok(ClauseOk::Tautology),
             PreprocessResult::Contradiction => {
                 return Err(err::ErrorKind::from(err::BuildErrorKind::Unsatisfiable))
@@ -419,40 +388,52 @@ enum PreprocessResult {
     Clause,
 }
 
-impl<R: rand::Rng + std::default::Default> GenericContext<R> {
-    /// Preprocess a clause to remove proven literals and duplicate literals.
-    fn preprocess_clause(
-        &self,
-        clause: &mut vClause,
-    ) -> Result<PreprocessResult, err::BuildErrorKind> {
-        let mut index = 0;
-        let mut max = clause.len();
-        loop {
-            if index == max {
-                break;
-            }
-            let this_l = clause[index];
-            let this_n = this_l.negate();
+/// Preprocess a clause to remove duplicate literals.
+fn preprocess_clause(clause: &mut vClause) -> Result<PreprocessResult, err::BuildErrorKind> {
+    let mut index = 0;
+    let mut max = clause.len();
+    'clause_loop: loop {
+        if index == max {
+            break;
+        }
+        let literal = clause[index];
 
-            if clause.iter().any(|l| *l == this_n) {
-                return Ok(PreprocessResult::Tautology);
-            }
-
-            if self
-                .clause_db
-                .all_unit_clauses()
-                .any(|proven_literal| proven_literal.negate() == this_l)
-            {
-                clause.swap_remove(index);
-                max -= 1;
-            } else {
-                index += 1;
+        for other_index in 0..index {
+            let other_literal = clause[other_index];
+            if other_literal.atom() == literal.atom() {
+                if other_literal.polarity() == literal.polarity() {
+                    clause.swap_remove(index);
+                    max -= 1;
+                    continue 'clause_loop;
+                } else {
+                    return Ok(PreprocessResult::Tautology);
+                }
             }
         }
+        index += 1
+    }
 
-        match clause.len() {
-            0 => Ok(PreprocessResult::Contradiction),
-            _ => Ok(PreprocessResult::Clause),
-        }
+    match clause.is_empty() {
+        true => Ok(PreprocessResult::Contradiction),
+        false => Ok(PreprocessResult::Clause),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    // TODO: test…
+    fn preprocess_pass() {
+        let p = abLiteral::fresh(1, true);
+        let not_q = abLiteral::fresh(2, false);
+        let r = abLiteral::fresh(3, true);
+
+        let clause = vec![p, not_q, r];
+        let mut processed_clause = clause.clone();
+        let _ = preprocess_clause(&mut processed_clause);
+
+        assert!(clause.eq(&processed_clause));
     }
 }

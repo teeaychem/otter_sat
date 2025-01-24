@@ -42,10 +42,13 @@ mod watches;
 pub struct dbClause {
     /// A key for accessing the clause
     key: ClauseKey,
+
     /// The clause, stored instantiated as a [vClause].
     clause: vClause,
+
     /// Whether the clause is active.
     active: bool,
+
     /// The 'other' watched literal.
     watch_ptr: usize,
 }
