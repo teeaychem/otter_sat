@@ -64,7 +64,7 @@ pub struct CoreDB {
 }
 
 impl CoreDB {
-    pub fn core_clauses(&self) -> Result<Vec<vClause>, err::CoreErrorKind> {
+    pub fn core_clauses(&self) -> Result<Vec<vClause>, err::CoreError> {
         let mut core_q = std::collections::VecDeque::<ClauseKey>::new();
         let mut seen_keys = std::collections::BTreeSet::new();
         let mut seen_literals = std::collections::BTreeSet::new();
@@ -73,7 +73,7 @@ impl CoreDB {
         // start with the conflict, then loop
         match self.conflict {
             Some(c) => core_q.push_back(c),
-            None => return Err(err::CoreErrorKind::NoConflict),
+            None => return Err(err::CoreError::NoConflict),
         }
 
         /*
@@ -97,13 +97,13 @@ impl CoreDB {
                 }
                 ClauseKey::Original(_) => match self.original_map.get(&key) {
                     Some(the_clause) => Some(the_clause),
-                    None => return Err(err::CoreErrorKind::MissedKey),
+                    None => return Err(err::CoreError::MissedKey),
                 },
 
                 ClauseKey::Binary(_) => match self.clause_map.get(&key) {
                     None => match self.original_map.get(&key) {
                         Some(the_clause) => Some(the_clause),
-                        None => return Err(err::CoreErrorKind::MissedKey),
+                        None => return Err(err::CoreError::MissedKey),
                     },
                     Some(keys) => {
                         core_q.extend(keys);
@@ -112,7 +112,7 @@ impl CoreDB {
                 },
 
                 ClauseKey::Addition(_, _) => match self.clause_map.get(&key) {
-                    None => return Err(err::CoreErrorKind::MissedKey),
+                    None => return Err(err::CoreError::MissedKey),
                     Some(keys) => {
                         core_q.extend(keys);
                         None
@@ -137,12 +137,12 @@ impl CoreDB {
 }
 
 impl CoreDB {
-    pub fn process_resolution_delta(&mut self, δ: &Resolution) -> Result<(), err::CoreErrorKind> {
+    pub fn process_resolution_delta(&mut self, δ: &Resolution) -> Result<(), err::CoreError> {
         use delta::Resolution::*;
         match δ {
             Begin => {
                 if !self.resolution_buffer.is_empty() {
-                    return Err(err::CoreErrorKind::CorruptClauseBuffer);
+                    return Err(err::CoreError::CorruptClauseBuffer);
                 }
             }
             End => {
@@ -155,12 +155,12 @@ impl CoreDB {
         Ok(())
     }
 
-    pub fn process_clause_db_delta(&mut self, δ: &ClauseDB) -> Result<(), err::CoreErrorKind> {
+    pub fn process_clause_db_delta(&mut self, δ: &ClauseDB) -> Result<(), err::CoreError> {
         use delta::ClauseDB::*;
         match δ {
             ClauseStart => {
                 if !self.resolution_buffer.is_empty() {
-                    return Err(err::CoreErrorKind::CorruptClauseBuffer);
+                    return Err(err::CoreError::CorruptClauseBuffer);
                 }
             }
 
@@ -170,7 +170,7 @@ impl CoreDB {
 
             Added(key) | Transfer(_, key) => {
                 let Some(the_sources) = self.resolution_q.pop_front() else {
-                    return Err(err::CoreErrorKind::QueueMiss);
+                    return Err(err::CoreError::QueueMiss);
                 };
                 self.clause_map.insert(*key, the_sources);
                 self.clause_buffer.clear();
@@ -188,7 +188,7 @@ impl CoreDB {
         Ok(())
     }
 
-    pub fn process_literal_db_delta(&mut self, _δ: &LiteralDB) -> Result<(), err::CoreErrorKind> {
+    pub fn process_literal_db_delta(&mut self, _δ: &LiteralDB) -> Result<(), err::CoreError> {
         // TODO: unit resolution
         // use delta::LiteralDB::*;
         // match δ {
@@ -212,7 +212,7 @@ impl CoreDB {
         Ok(())
     }
 
-    pub fn process_atom_db_delta(&mut self, δ: &AtomDB) -> Result<(), err::CoreErrorKind> {
+    pub fn process_atom_db_delta(&mut self, δ: &AtomDB) -> Result<(), err::CoreError> {
         use delta::AtomDB::*;
         match δ {
             Unsatisfiable(key) => self.conflict = Some(*key),
@@ -220,7 +220,7 @@ impl CoreDB {
         Ok(())
     }
 
-    pub fn process_bcp_delta(&mut self, δ: &BCP) -> Result<(), err::CoreErrorKind> {
+    pub fn process_bcp_delta(&mut self, δ: &BCP) -> Result<(), err::CoreError> {
         use delta::BCP::*;
         match δ {
             Instance {
@@ -234,7 +234,7 @@ impl CoreDB {
     }
 }
 
-type CoreReceiver<'g> = Box<dyn FnMut(&Dispatch) -> Result<(), err::CoreErrorKind> + 'g>;
+type CoreReceiver<'g> = Box<dyn FnMut(&Dispatch) -> Result<(), err::CoreError> + 'g>;
 
 /* This is fairly gnarly.
   The goal is to acquire a single lock on a core database for the duration of the returned function.

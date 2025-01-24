@@ -16,7 +16,7 @@ pub type FormulaToken = u16;
 ///
 /// The only exception to this is unit clauses.
 /// Here, the index is to the atom database.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ClauseKey {
     /// The key to a unit clause contains the (unit) clause.
     // Note, the size of an abLiteral is smaller than the key for an addition clause.
@@ -43,23 +43,23 @@ impl ClauseKey {
     /// Retokens an addition key to distnguish multiple uses of the same index.
     ///
     /// Returns an error if used on any other key, or if the token limit has been reached.
-    pub fn retoken(&self) -> Result<Self, err::ClauseDBErrorKind> {
+    pub fn retoken(&self) -> Result<Self, err::ClauseDBError> {
         match self {
             Self::Unit(_) => {
                 log::error!(target: targets::CLAUSE_DB, "Unit keys have a unique token");
-                Err(err::ClauseDBErrorKind::InvalidKeyToken)
+                Err(err::ClauseDBError::InvalidKeyToken)
             }
             Self::Original(_) => {
                 log::error!(target: targets::CLAUSE_DB, "Formula keys have a unique token");
-                Err(err::ClauseDBErrorKind::InvalidKeyToken)
+                Err(err::ClauseDBError::InvalidKeyToken)
             }
             Self::Binary(_) => {
                 log::error!(target: targets::CLAUSE_DB, "Binary keys have a unique token");
-                Err(err::ClauseDBErrorKind::InvalidKeyToken)
+                Err(err::ClauseDBError::InvalidKeyToken)
             }
             Self::Addition(index, token) => {
                 if *token == FormulaToken::MAX {
-                    return Err(err::ClauseDBErrorKind::StorageExhausted);
+                    return Err(err::ClauseDBError::StorageExhausted);
                 }
                 Ok(ClauseKey::Addition(*index, token + 1))
             }

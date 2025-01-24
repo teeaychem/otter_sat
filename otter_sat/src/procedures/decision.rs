@@ -85,7 +85,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///     decision::Ok::Exhausted => break,
     /// }
     /// ```
-    pub fn make_decision(&mut self) -> Result<DecisionOk, err::ConsequenceQueueErrorKind> {
+    pub fn make_decision(&mut self) -> Result<DecisionOk, err::ConsequenceQueueError> {
         // Takes ownership of rng to satisfy the borrow checker.
         // Avoidable, at the cost of a less generic atom method.
         let mut rng = std::mem::take(&mut self.rng);

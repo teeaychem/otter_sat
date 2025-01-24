@@ -104,7 +104,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         literal: impl Borrow<abLiteral>,
         position: QPosition,
         level: DecisionLevelIndex,
-    ) -> Result<ConsequenceQueueOk, err::ConsequenceQueueErrorKind> {
+    ) -> Result<ConsequenceQueueOk, err::ConsequenceQueueError> {
         let valuation_result = unsafe {
             self.atom_db.set_value(
                 literal.borrow().atom(),
@@ -125,7 +125,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             Ok(_) => Ok(ConsequenceQueueOk::Skip),
             Err(_) => {
                 log::trace!(target: targets::QUEUE, "Queueing {} failed.", literal.borrow());
-                Err(err::ConsequenceQueueErrorKind::Conflict)
+                Err(err::ConsequenceQueueError::Conflict)
             }
         }
     }

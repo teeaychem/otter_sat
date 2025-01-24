@@ -41,10 +41,10 @@ impl dbClause {
         literal: impl Borrow<abLiteral>,
         atom_db: &mut AtomDB,
         fix_watch: bool,
-    ) -> Result<usize, err::SubsumptionErrorKind> {
+    ) -> Result<usize, err::SubsumptionError> {
         if self.clause.len() < 3 {
             log::error!(target: targets::SUBSUMPTION, "Subsumption attempted on non-long clause");
-            return Err(err::SubsumptionErrorKind::ShortClause);
+            return Err(err::SubsumptionError::ShortClause);
         }
         let mut position = {
             let search = self
@@ -54,7 +54,7 @@ impl dbClause {
             match search {
                 None => {
                     log::error!(target: targets::SUBSUMPTION, "Pivot not found for subsumption");
-                    return Err(err::SubsumptionErrorKind::NoPivot);
+                    return Err(err::SubsumptionError::NoPivot);
                 }
                 Some(p) => p,
             }
@@ -72,7 +72,7 @@ impl dbClause {
         // Safe, as the atom is contained in a clause, and so is surely part of the database.
         match unsafe { atom_db.unwatch_unchecked(removed.atom(), removed.polarity(), &self.key) } {
             Ok(()) => {}
-            Err(_) => return Err(err::SubsumptionErrorKind::WatchError),
+            Err(_) => return Err(err::SubsumptionError::WatchError),
         };
 
         if fix_watch && position == self.watch_ptr {

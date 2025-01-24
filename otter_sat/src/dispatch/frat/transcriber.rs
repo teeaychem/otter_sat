@@ -37,7 +37,7 @@ impl Transcriber {
     }
 
     /// Transcribes a dispatch.
-    pub fn transcribe(&mut self, dispatch: &Dispatch) -> Result<(), err::FRATErrorKind> {
+    pub fn transcribe(&mut self, dispatch: &Dispatch) -> Result<(), err::FRATError> {
         match dispatch {
             Dispatch::Delta(δ) => match δ {
                 Delta::AtomDB(atom_db_δ) => self.transcribe_atom_db_delta(atom_db_δ)?,
@@ -209,7 +209,7 @@ impl Transcriber {
 
 /// Helper methods for transcription.
 impl Transcriber {
-    fn transcribe_atom_db_delta(&mut self, δ: &delta::AtomDB) -> Result<(), err::FRATErrorKind> {
+    fn transcribe_atom_db_delta(&mut self, δ: &delta::AtomDB) -> Result<(), err::FRATError> {
         use delta::AtomDB::*;
         match δ {
             Unsatisfiable(_) => self.step_buffer.push(Transcriber::meta_unsatisfiable()),
@@ -217,13 +217,10 @@ impl Transcriber {
         Ok(())
     }
 
-    fn transcribe_clause_db_delta(
-        &mut self,
-        δ: &delta::ClauseDB,
-    ) -> Result<(), err::FRATErrorKind> {
+    fn transcribe_clause_db_delta(&mut self, δ: &delta::ClauseDB) -> Result<(), err::FRATError> {
         use delta::ClauseDB::*;
         match δ {
-            ClauseStart => return Err(err::FRATErrorKind::CorruptClauseBuffer),
+            ClauseStart => return Err(err::FRATError::CorruptClauseBuffer),
 
             ClauseLiteral(literal) => self.clause_buffer.push(*literal),
 
@@ -242,7 +239,7 @@ impl Transcriber {
 
             Added(key) => {
                 let Some(steps) = self.resolution_queue.pop_front() else {
-                    return Err(err::FRATErrorKind::CorruptResolutionQ);
+                    return Err(err::FRATError::CorruptResolutionQ);
                 };
                 let step = match key {
                     ClauseKey::Unit(lit) => {
@@ -270,23 +267,21 @@ impl Transcriber {
                 self.step_buffer.push(step);
             }
 
-            Transfer(_from, _to) => return Err(err::FRATErrorKind::TransfersAreTodo),
+            Transfer(_from, _to) => return Err(err::FRATError::TransfersAreTodo),
         };
 
         Ok(())
     }
 
     fn transcribe_literal_db_delta(
-        &mut self,
-        _δ: &delta::LiteralDB,
-    ) -> Result<(), err::FRATErrorKind> {
+        &mut self, _δ: &delta::LiteralDB
+    ) -> Result<(), err::FRATError> {
         Ok(())
     }
 
     fn transcribe_resolution_delta(
-        &mut self,
-        δ: &delta::Resolution,
-    ) -> Result<(), err::FRATErrorKind> {
+        &mut self, δ: &delta::Resolution
+    ) -> Result<(), err::FRATError> {
         use delta::Resolution::*;
         match δ {
             Begin => assert!(self.resolution_buffer.is_empty()),

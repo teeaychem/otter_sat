@@ -100,7 +100,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         clause: impl Clause,
         source: ClauseSource,
         valuation: Option<&vValuation>,
-    ) -> Result<ClauseKey, err::ClauseDBErrorKind> {
+    ) -> Result<ClauseKey, err::ClauseDBError> {
         let key = self
             .clause_db
             .store(clause, source, &mut self.atom_db, valuation)?;

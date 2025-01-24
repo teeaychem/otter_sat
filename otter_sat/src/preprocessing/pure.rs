@@ -40,7 +40,7 @@ pub fn pure_literals<'l>(
 /// Finds all pure literals with respect to non-unit clauses and sets the value of the relevant atom to match the polarity of the literal.
 pub fn set_pure<R: rand::Rng + std::default::Default>(
     context: &mut GenericContext<R>,
-) -> Result<(), err::ConsequenceQueueErrorKind> {
+) -> Result<(), err::ConsequenceQueueError> {
     let (f, t) = pure_literals(
         context
             .clause_db
