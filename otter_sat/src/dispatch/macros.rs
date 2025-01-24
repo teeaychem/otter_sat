@@ -78,7 +78,7 @@ macro_rules! dispatch_clause_removal {
                 let delta = delta::ClauseDB::ClauseLiteral(*literal);
                 dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
             }
-            let delta = delta::ClauseDB::Deletion($clause.key());
+            let delta = delta::ClauseDB::Deletion(*$clause.key());
             dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
         }
     };

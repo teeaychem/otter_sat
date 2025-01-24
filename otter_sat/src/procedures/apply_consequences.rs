@@ -138,7 +138,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Err(err::BCPError::Conflict(key)) => {
                     //
                     if !self.literal_db.is_decision_made() {
-                        self.state = ContextState::Unsatisfiable;
+                        self.state = ContextState::Unsatisfiable(key);
 
                         macros::dispatch_atom_db_delta!(self, delta::AtomDB::Unsatisfiable(key));
 

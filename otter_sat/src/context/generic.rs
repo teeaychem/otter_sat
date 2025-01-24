@@ -1,6 +1,8 @@
 use crate::{
     config::Config,
-    db::{atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ, literal::LiteralDB},
+    db::{
+        atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ, literal::LiteralDB, ClauseKey,
+    },
     dispatch::{
         library::report::{self},
         Dispatch,
@@ -67,7 +69,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 report::SolveReport::Unknown
             }
             ContextState::Satisfiable => report::SolveReport::Satisfiable,
-            ContextState::Unsatisfiable => report::SolveReport::Unsatisfiable,
+            ContextState::Unsatisfiable(_) => report::SolveReport::Unsatisfiable,
+        }
+    }
+
+    pub fn conflict_clause(&self) -> Result<ClauseKey, ()> {
+        match self.state {
+            ContextState::Unsatisfiable(key) => Ok(key),
+            _ => Err(()),
         }
     }
 }

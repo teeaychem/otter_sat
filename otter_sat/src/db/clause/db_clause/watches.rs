@@ -160,11 +160,11 @@ impl dbClause {
                 atom_db.add_watch_unchecked(
                     atom,
                     value,
-                    WatchTag::Binary(check_literal, self.key()),
+                    WatchTag::Binary(check_literal, *self.key()),
                 );
             },
             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
-                atom_db.add_watch_unchecked(atom, value, WatchTag::Clause(self.key()));
+                atom_db.add_watch_unchecked(atom, value, WatchTag::Clause(*self.key()));
             },
         }
     }

@@ -129,15 +129,16 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
 
         /*
-        TODO: Alternative?
+        TODO: Alternative? Re-enable?
         Strengthening iterates through all the proven literals.
         This is skipped for a literal whose proof is to be noted
         This is also skipped for binary clauses, as if the other literal is proven the assertion will also be added as a proof, regardless
          */
-        if the_buffer.clause_legnth() > 2 {
-            the_buffer.strengthen_given(self.clause_db.all_unit_clauses());
-        }
+        // if the_buffer.clause_legnth() > 2 {
+        //     the_buffer.strengthen_given(self.clause_db.all_unit_clauses());
+        // }
 
+        let origins = the_buffer.take_origins();
         let (resolved_clause, assertion_index) = the_buffer.to_assertion_clause();
 
         let literal = match assertion_index {
@@ -153,7 +154,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             0 => Err(err::ErrorKind::from(err::AnalysisError::EmptyResolution)),
             1 => {
                 self.backjump(0);
-                let _ = self.record_clause(literal, clause::Source::Resolution, None)?;
+                self.record_clause(literal, clause::Source::Resolution, None, origins)?;
                 Ok(ConflictAnalysisOk::UnitClause { key: literal })
             }
             _ => {
@@ -162,7 +163,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     .unwrap();
                 self.backjump(index);
 
-                let key = self.record_clause(resolved_clause, clause::Source::Resolution, None)?;
+                let key =
+                    self.record_clause(resolved_clause, clause::Source::Resolution, None, origins)?;
                 Ok(ConflictAnalysisOk::AssertingClause { key, literal })
             }
         }

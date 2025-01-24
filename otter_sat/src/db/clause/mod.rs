@@ -7,7 +7,7 @@ pub mod activity_glue;
 pub mod db_clause;
 mod transfer;
 
-use std::{borrow::Borrow, rc::Rc};
+use std::{borrow::Borrow, collections::BTreeSet, rc::Rc};
 
 use db_clause::dbClause;
 
@@ -134,6 +134,7 @@ impl ClauseDB {
         source: Source,
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,
+        origins: BTreeSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match clause.size() {
             0 => Err(err::ClauseDBError::EmptyClause),
@@ -143,7 +144,8 @@ impl ClauseDB {
                 let the_literal = unsafe { *clause.literals().next().unwrap_unchecked() };
                 let key = ClauseKey::Unit(the_literal);
 
-                self.unit.push(dbClause::new_unit(key, the_literal));
+                self.unit
+                    .push(dbClause::new_unit(key, the_literal, origins));
                 Ok(key)
             }
 
@@ -155,6 +157,7 @@ impl ClauseDB {
                     clause.canonical(),
                     atom_db,
                     valuation,
+                    origins,
                 ));
 
                 Ok(key)
@@ -167,10 +170,10 @@ impl ClauseDB {
                     let key = self.fresh_original_key()?;
                     log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_string());
 
-                    let stored_form =
-                        dbClause::new_nonunit(key, clause.canonical(), atom_db, valuation);
+                    let clause = clause.canonical();
+                    let db_clause = dbClause::new_nonunit(key, clause, atom_db, valuation, origins);
 
-                    self.original.push(stored_form);
+                    self.original.push(db_clause);
                     Ok(key)
                 }
 
@@ -184,7 +187,7 @@ impl ClauseDB {
                     log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_string());
 
                     let stored_form =
-                        dbClause::new_nonunit(key, clause.canonical(), atom_db, valuation);
+                        dbClause::new_nonunit(key, clause.canonical(), atom_db, valuation, origins);
 
                     let value = ActivityLBD {
                         activity: 1.0,
@@ -218,7 +221,13 @@ impl ClauseDB {
     /// ```
     pub fn get_db_clause(&self, key: &ClauseKey) -> Result<&dbClause, err::ClauseDBError> {
         match key {
-            ClauseKey::Unit(_) => Err(err::ClauseDBError::GetUnitKey),
+            ClauseKey::Unit(_) => {
+                //
+                match self.unit.iter().find(|db_clause| db_clause.key() == key) {
+                    Some(clause) => Ok(clause),
+                    None => Err(err::ClauseDBError::Missing),
+                }
+            }
             ClauseKey::Original(index) => {
                 //
                 match self.original.get(*index as usize) {
@@ -237,9 +246,7 @@ impl ClauseDB {
                 //
                 match self.addition.get(*index as usize) {
                     Some(Some(clause)) => match clause.key() {
-                        ClauseKey::Addition(_, clause_token) if &clause_token == token => {
-                            Ok(clause)
-                        }
+                        ClauseKey::Addition(_, clause_token) if clause_token == token => Ok(clause),
                         _ => Err(err::ClauseDBError::InvalidKeyToken),
                     },
                     Some(None) => Err(err::ClauseDBError::InvalidKeyIndex),
@@ -256,7 +263,13 @@ impl ClauseDB {
     /// ```
     pub fn get_mut(&mut self, key: &ClauseKey) -> Result<&mut dbClause, err::ClauseDBError> {
         match key {
-            ClauseKey::Unit(_) => Err(err::ClauseDBError::GetUnitKey),
+            ClauseKey::Unit(_) => {
+                //
+                match self.unit.iter_mut().find(|db_c| db_c.key() == key) {
+                    Some(clause) => Ok(clause),
+                    None => Err(err::ClauseDBError::Missing),
+                }
+            }
             ClauseKey::Original(index) => {
                 //
                 match self.original.get_mut(*index as usize) {
@@ -275,9 +288,7 @@ impl ClauseDB {
                 //
                 match self.addition.get_mut(*index as usize) {
                     Some(Some(clause)) => match clause.key() {
-                        ClauseKey::Addition(_, clause_token) if &clause_token == token => {
-                            Ok(clause)
-                        }
+                        ClauseKey::Addition(_, clause_token) if clause_token == token => Ok(clause),
                         _ => Err(err::ClauseDBError::InvalidKeyToken),
                     },
                     Some(None) => Err(err::ClauseDBError::InvalidKeyIndex),
@@ -299,16 +310,20 @@ impl ClauseDB {
     /// E.g., this is safe to use with binary clauses, but not with addition clauses.
     pub unsafe fn get_unchecked(&self, key: &ClauseKey) -> Result<&dbClause, err::ClauseDBError> {
         match key {
-            ClauseKey::Unit(_) => Err(err::ClauseDBError::GetUnitKey),
+            ClauseKey::Unit(_) => {
+                //
+                match self.unit.iter().find(|db_clause| db_clause.key() == key) {
+                    Some(clause) => Ok(clause),
+                    None => Err(err::ClauseDBError::Missing),
+                }
+            }
             ClauseKey::Original(index) => Ok(self.original.get_unchecked(*index as usize)),
             ClauseKey::Binary(index) => Ok(self.binary.get_unchecked(*index as usize)),
             ClauseKey::Addition(index, token) => {
                 //
                 match self.addition.get_unchecked(*index as usize) {
                     Some(clause) => match clause.key() {
-                        ClauseKey::Addition(_, clause_token) if &clause_token == token => {
-                            Ok(clause)
-                        }
+                        ClauseKey::Addition(_, clause_token) if clause_token == token => Ok(clause),
                         _ => Err(err::ClauseDBError::InvalidKeyToken),
                     },
                     None => Err(err::ClauseDBError::InvalidKeyIndex),
@@ -329,7 +344,13 @@ impl ClauseDB {
         key: &ClauseKey,
     ) -> Result<&mut dbClause, err::ClauseDBError> {
         match key {
-            ClauseKey::Unit(_) => Err(err::ClauseDBError::GetUnitKey),
+            ClauseKey::Unit(_) => {
+                //
+                match self.unit.iter_mut().find(|db_c| db_c.key() == key) {
+                    Some(clause) => Ok(clause),
+                    None => Err(err::ClauseDBError::Missing),
+                }
+            }
             ClauseKey::Original(index) => Ok(self.original.get_unchecked_mut(*index as usize)),
             ClauseKey::Binary(index) => Ok(self.binary.get_unchecked_mut(*index as usize)),
             ClauseKey::Addition(index, _) => {
@@ -400,7 +421,7 @@ impl ClauseDB {
             }
         }
 
-        log::info!(target: targets::REDUCTION, "Learnt clauses reduced to: {}", self.addition.len());
+        log::info!(target: targets::REDUCTION, "Addition clauses reduced to: {}", self.addition.len());
         Ok(())
     }
 
@@ -411,7 +432,7 @@ impl ClauseDB {
     /// Removes an addition clause at the given index, and sends a dispatch if possible.
     fn remove_addition(&mut self, index: usize) -> Result<(), err::ClauseDBError> {
         if unsafe { self.addition.get_unchecked(index) }.is_none() {
-            log::error!(target: targets::CLAUSE_DB, "attempt to remove something that is not there");
+            log::error!(target: targets::CLAUSE_DB, "Remove called on a missing addition clause");
             Err(err::ClauseDBError::Missing)
         } else {
             // assert!(matches!(the_clause.key(), ClauseKey::LearnedLong(_, _)));
@@ -431,7 +452,7 @@ impl ClauseDB {
             // }
 
             self.activity_heap.remove(index);
-            self.empty_keys.push(the_clause.key());
+            self.empty_keys.push(*the_clause.key());
             self.addition_count -= 1;
             Ok(())
         }
@@ -513,6 +534,19 @@ impl ClauseDB {
         )
     }
 
+    pub fn all_clauses(&self) -> impl Iterator<Item = &impl Clause> + '_ {
+        self.original.iter().chain(
+            self.binary
+                .iter()
+                .chain(
+                    self.addition
+                        .iter()
+                        .flat_map(|maybe_clause| maybe_clause.as_ref()),
+                )
+                .chain(self.unit.iter()),
+        )
+    }
+
     /// Send a dispatch of all active clauses.
     pub fn dispatch_active(&self) {
         if let Some(dispatcher) = &self.dispatcher {
@@ -522,18 +556,18 @@ impl ClauseDB {
             }
 
             for clause in &self.binary {
-                let report = report::ClauseDBReport::Active(clause.key(), clause.to_vec());
+                let report = report::ClauseDBReport::Active(*clause.key(), clause.to_vec());
                 dispatcher(Dispatch::Report(Report::ClauseDB(report)));
             }
 
             for clause in &self.original {
-                let report = report::ClauseDBReport::Active(clause.key(), clause.to_vec());
+                let report = report::ClauseDBReport::Active(*clause.key(), clause.to_vec());
                 dispatcher(Dispatch::Report(Report::ClauseDB(report)));
             }
 
             for clause in self.addition.iter().flatten() {
                 if clause.is_active() {
-                    let report = report::ClauseDBReport::Active(clause.key(), clause.to_vec());
+                    let report = report::ClauseDBReport::Active(*clause.key(), clause.to_vec());
                     dispatcher(Dispatch::Report(Report::ClauseDB(report)));
                 }
             }
@@ -565,6 +599,7 @@ impl ClauseDB {
         key: ClauseKey,
         literal: impl Borrow<cLiteral>,
         atom_db: &mut AtomDB,
+        origins: BTreeSet<ClauseKey>,
     ) -> Result<ClauseKey, err::SubsumptionError> {
         let the_clause = match self.get_unchecked_mut(&key) {
             Ok(c) => c,
@@ -574,7 +609,7 @@ impl ClauseDB {
             0..=2 => Err(err::SubsumptionError::ClauseTooShort),
             3 => {
                 the_clause.subsume(literal, atom_db, false)?;
-                let Ok(new_key) = self.transfer_to_binary(key, atom_db) else {
+                let Ok(new_key) = self.transfer_to_binary(key, atom_db, origins) else {
                     return Err(err::SubsumptionError::TransferFailure);
                 };
                 Ok(new_key)

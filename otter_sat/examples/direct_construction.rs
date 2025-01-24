@@ -36,11 +36,13 @@ fn main() {
     println!();
 
     let status = the_context.report();
-    println!("Prior to solving the status of 𝐅 is:  {status}");
+    println!("Prior to solving the status of the formula is:  {status}");
     assert!(the_context.solve().is_ok());
     let status = the_context.report();
     let valuation = the_context.atom_db.valuation_string();
-    println!("After solving the status of 𝐅 is:     {status} (with valuation 𝐕: {valuation})");
+    println!(
+        "After solving the status of the formula is:     {status} (with valuation: {valuation})"
+    );
     println!();
 
     assert_eq!(the_context.atom_db.value_of(p), Some(false));
@@ -48,7 +50,7 @@ fn main() {
 
     let p_error = the_context.add_clause(cLiteral::fresh(p, true));
 
-    println!("p is incompatible with 𝐕 as so cannot be added to the context ({p_error:?}) without clearing decisions made…
+    println!("p is incompatible with the valuation as so cannot be added to the context ({p_error:?}) without clearing decisions made…
 ");
 
     the_context.clear_decisions();
@@ -60,13 +62,13 @@ fn main() {
     assert!(the_context.solve().is_ok());
 
     println!(
-        "After (re)solving the status of 𝐅 is: {status} (with valuation 𝐕: {valuation})
+        "After (re)solving the status of the formula is: {status} (with valuation the valuation: {valuation})
 "
     );
 
     assert_eq!(the_context.report(), report::SolveReport::Satisfiable);
 
-    // Likewise it is not possible to add ¬p ∨ ¬q to 𝐅
+    // Likewise it is not possible to add ¬p ∨ ¬q to the formula
     let not_p_or_not_q = vec![cLiteral::fresh(p, false), cLiteral::fresh(q, false)];
     assert!(the_context.add_clause(not_p_or_not_q).is_err());
 
@@ -78,7 +80,7 @@ fn main() {
         println!("  C {}", clause.as_dimacs(false))
     }
 
-    // It is possible to add p ∨ q to 𝐅
+    // It is possible to add p ∨ q to the formula
     let p_or_q = vec![cLiteral::fresh(p, true), cLiteral::fresh(q, true)];
     assert!(the_context.add_clause(p_or_q).is_ok());
 }

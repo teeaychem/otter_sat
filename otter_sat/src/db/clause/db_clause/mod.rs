@@ -30,7 +30,7 @@ use crate::{
     },
 };
 
-use std::ops::Deref;
+use std::{collections::BTreeSet, ops::Deref};
 
 #[doc(hidden)]
 mod subsumption;
@@ -51,6 +51,9 @@ pub struct dbClause {
 
     /// The 'other' watched literal.
     watch_ptr: usize,
+
+    /// Original clauses used to obtain the clause
+    origins: BTreeSet<ClauseKey>,
 }
 
 impl dbClause {
@@ -59,12 +62,13 @@ impl dbClause {
     /// Note:
     /// - This does not store the [dbClause] in the [clause database](crate::db::clause::ClauseDB).
     ///   Instead, this is the canonical way to obtain some thing to be stored in a database.
-    pub fn new_unit(key: ClauseKey, literal: cLiteral) -> Self {
+    pub fn new_unit(key: ClauseKey, literal: cLiteral, origins: BTreeSet<ClauseKey>) -> Self {
         Self {
             key,
             clause: vec![literal],
             active: true,
             watch_ptr: 0,
+            origins,
         }
     }
 
@@ -82,12 +86,14 @@ impl dbClause {
         clause: cClause,
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,
+        origins: BTreeSet<ClauseKey>,
     ) -> Self {
         let mut db_clause = dbClause {
             key,
             clause,
             active: true,
             watch_ptr: 0,
+            origins,
         };
 
         db_clause.initialise_watches(atom_db, valuation);
@@ -96,8 +102,8 @@ impl dbClause {
     }
 
     /// The key used to access the [dbClause].
-    pub const fn key(&self) -> ClauseKey {
-        self.key
+    pub const fn key(&self) -> &ClauseKey {
+        &self.key
     }
 
     /// Whether the [dbClause] is active.
@@ -118,6 +124,10 @@ impl dbClause {
     /// The clause stored.
     pub fn clause(&self) -> &cClause {
         &self.clause
+    }
+
+    pub fn origins(&self) -> &BTreeSet<ClauseKey> {
+        &self.origins
     }
 }
 

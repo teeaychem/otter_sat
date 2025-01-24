@@ -181,11 +181,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     match self.make_decision()? {
                         decision::DecisionOk::Literal(decision) => {
                             self.literal_db.decision_made(decision);
-                            self.value_and_queue(
-                                decision,
-                                QPosition::Back,
-                                self.literal_db.decision_count(),
-                            )?;
+                            let level = self.literal_db.decision_count();
+                            self.value_and_queue(decision, QPosition::Back, level)?;
                             continue 'solve_loop;
                         }
                         decision::DecisionOk::Exhausted => break 'solve_loop,
@@ -203,11 +200,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     let consequence = Consequence::from(literal, consequence::Source::BCP(key));
                     self.record_consequence(consequence);
-                    self.value_and_queue(
-                        literal,
-                        QPosition::Front,
-                        self.literal_db.decision_count(),
-                    )?;
+                    let level = self.literal_db.decision_count();
+                    self.value_and_queue(literal, QPosition::Front, level)?;
                 }
             }
 
@@ -235,6 +229,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     .reduce_by(self.clause_db.current_addition_count() / 2)?;
             }
         }
+
         macros::dispatch_finish!(self);
         Ok(self.report())
     }
