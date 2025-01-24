@@ -53,12 +53,12 @@ use crate::{
     context::GenericContext,
     db::DecisionLevelIndex,
     misc::log::targets::{self},
-    structures::literal::{abLiteral, Literal},
+    structures::literal::{cLiteral, Literal},
     types::err::{self},
 };
 
 /// A queue of observed consequences and the level at which the consequence was observed.
-pub type ConsequenceQ = std::collections::VecDeque<(abLiteral, DecisionLevelIndex)>;
+pub type ConsequenceQ = std::collections::VecDeque<(cLiteral, DecisionLevelIndex)>;
 
 /// Possible 'Ok' results of queuing a literal.
 pub enum ConsequenceQueueOk {
@@ -101,7 +101,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// ```
     pub fn value_and_queue(
         &mut self,
-        literal: impl Borrow<abLiteral>,
+        literal: impl Borrow<cLiteral>,
         position: QPosition,
         level: DecisionLevelIndex,
     ) -> Result<ConsequenceQueueOk, err::ConsequenceQueueError> {
@@ -138,7 +138,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// [GenericContext::value_and_queue] may be appropriate.
     pub fn push_to_consequence_queue(
         &mut self,
-        literal: impl Borrow<abLiteral>,
+        literal: impl Borrow<cLiteral>,
         level: DecisionLevelIndex,
         position: QPosition,
     ) {

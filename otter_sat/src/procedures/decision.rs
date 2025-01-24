@@ -59,7 +59,7 @@ use crate::{
     context::{ContextState, GenericContext},
     structures::{
         atom::Atom,
-        literal::{abLiteral, Literal},
+        literal::{cLiteral, Literal},
         valuation::Valuation,
     },
     types::err,
@@ -68,7 +68,7 @@ use crate::{
 /// Possible 'Ok' results from choosing a truth value to assign an atom.
 pub enum DecisionOk {
     /// Some truth value was assigned to some atom.
-    Literal(abLiteral),
+    Literal(cLiteral),
     /// All atoms had already been assigned truth values, so no decision could be made.
     Exhausted,
 }
@@ -98,11 +98,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 let decision_literal = match self.config.switch.phase_saving {
                     true => {
                         let previous_value = self.atom_db.previous_value_of(chosen_atom);
-                        abLiteral::fresh(chosen_atom, previous_value)
+                        cLiteral::fresh(chosen_atom, previous_value)
                     }
                     false => {
                         let random_value = self.rng.gen_bool(self.config.polarity_lean);
-                        abLiteral::fresh(chosen_atom, random_value)
+                        cLiteral::fresh(chosen_atom, random_value)
                     }
                 };
                 log::trace!("Decision {decision_literal}");

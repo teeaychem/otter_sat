@@ -35,7 +35,7 @@ pub use kind::*;
 use crate::{
     config::LBD,
     db::atom::AtomDB,
-    structures::{atom::Atom, literal::abLiteral, valuation::Valuation},
+    structures::{atom::Atom, literal::cLiteral, valuation::Valuation},
 };
 
 /// The clause trait.
@@ -52,14 +52,14 @@ pub trait Clause {
     /// - Some(*l*), if *l* has no value on the given valuation and for every other literal *l'* in the clause the polarity of *l'* conflicts with the value of the atom of *l'*.
     /// - None, otherwise.
     #[allow(dead_code)]
-    fn asserts(&self, val: &impl Valuation) -> Option<abLiteral>;
+    fn asserts(&self, val: &impl Valuation) -> Option<cLiteral>;
 
     /// The Literal Block Distance of the clause.
     /// That is, the number of (distinct) decisions which influence the value of atoms in the clause.
     fn lbd(&self, atom_db: &AtomDB) -> LBD;
 
     /// An iterator over all literals in the clause, order is not guaranteed.
-    fn literals(&self) -> impl Iterator<Item = &abLiteral>;
+    fn literals(&self) -> impl Iterator<Item = &cLiteral>;
 
     /// The number of literals in the clause.
     fn size(&self) -> usize;
@@ -68,12 +68,16 @@ pub trait Clause {
     fn atoms(&self) -> impl Iterator<Item = Atom>;
 
     /// The clause in its canonical form.
-    fn canonical(self) -> vClause;
+    fn canonical(self) -> cClause;
 }
+
+/// The implementation of a clause as a vector of literals.
+#[allow(non_camel_case_types)]
+pub type vClause = Vec<cLiteral>;
 
 /// The canonical implementation of a clause.
 #[allow(non_camel_case_types)]
-pub type vClause = Vec<abLiteral>;
+pub type cClause = vClause;
 
 /// The source of a clause.
 #[derive(Clone, Copy)]

@@ -45,7 +45,7 @@ use crate::{
     misc::log::targets::{self},
     structures::{
         clause::{self, Clause},
-        literal::{abLiteral, Literal},
+        literal::{cLiteral, Literal},
         valuation::Valuation,
     },
     transient::resolution_buffer::{self, ResolutionBuffer},
@@ -55,10 +55,10 @@ use crate::{
 /// Possible 'Ok' results from conflict analysis.
 pub enum ConflictAnalysisOk {
     /// The conflict clause was asserting at some previous decision level.
-    MissedPropagation { key: ClauseKey, literal: abLiteral },
+    MissedPropagation { key: ClauseKey, literal: cLiteral },
 
     /// The result of analysis is a unit clause.
-    UnitClause { key: abLiteral },
+    UnitClause { key: cLiteral },
 
     /// A fundamental conflict is identified, and so the current formula is unsatisfiable.
     ///
@@ -67,7 +67,7 @@ pub enum ConflictAnalysisOk {
     FundamentalConflict,
 
     /// The result of analysis is a (non-unit) asserting clause.
-    AssertingClause { key: ClauseKey, literal: abLiteral },
+    AssertingClause { key: ClauseKey, literal: cLiteral },
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {

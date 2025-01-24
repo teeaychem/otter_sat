@@ -9,8 +9,8 @@ use crate::{
     },
     structures::{
         atom::Atom,
-        clause::{self, vClause, Clause},
-        literal::{abLiteral, Literal},
+        clause::{self, cClause, Clause},
+        literal::{cLiteral, Literal},
     },
     types::err::{self, PreprocessingError},
 };
@@ -213,7 +213,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         let mut atom_map = HashMap::<isize, Atom>::default();
         let mut buffer = String::with_capacity(1024);
-        let mut clause_buffer: vClause = Vec::default();
+        let mut clause_buffer: cClause = Vec::default();
 
         let mut line_counter = 0;
         let mut clause_counter = 0;
@@ -310,11 +310,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                     Err(e) => panic!("{e}"),
                                 };
                                 let the_literal = match atom_map.get(&parsed_int.abs()) {
-                                    Some(atom) => abLiteral::fresh(*atom, parsed_int.is_positive()),
+                                    Some(atom) => cLiteral::fresh(*atom, parsed_int.is_positive()),
                                     None => {
                                         let fresh_atom = self.fresh_atom().unwrap();
                                         atom_map.insert(parsed_int.abs(), fresh_atom);
-                                        abLiteral::fresh(fresh_atom, parsed_int.is_positive())
+                                        cLiteral::fresh(fresh_atom, parsed_int.is_positive())
                                     }
                                 };
 
@@ -366,7 +366,7 @@ enum PreprocessingOk {
 }
 
 /// Preprocess a clause to remove duplicate literals.
-fn preprocess_clause(clause: &mut vClause) -> Result<PreprocessingOk, err::PreprocessingError> {
+fn preprocess_clause(clause: &mut cClause) -> Result<PreprocessingOk, err::PreprocessingError> {
     let mut index = 0;
     let mut max = clause.len();
     'clause_loop: loop {
@@ -403,9 +403,9 @@ mod preprocessing_tests {
     #[test]
     // TODO: test…
     fn pass() {
-        let p = abLiteral::fresh(1, true);
-        let not_q = abLiteral::fresh(2, false);
-        let r = abLiteral::fresh(3, true);
+        let p = cLiteral::fresh(1, true);
+        let not_q = cLiteral::fresh(2, false);
+        let r = cLiteral::fresh(3, true);
 
         let clause = vec![p, not_q, r];
         let mut processed_clause = clause.clone();
@@ -416,9 +416,9 @@ mod preprocessing_tests {
 
     #[test]
     fn duplicate_removal() {
-        let p = abLiteral::fresh(1, true);
-        let not_q = abLiteral::fresh(2, false);
-        let r = abLiteral::fresh(3, true);
+        let p = cLiteral::fresh(1, true);
+        let not_q = cLiteral::fresh(2, false);
+        let r = cLiteral::fresh(3, true);
 
         let clause = vec![p, not_q, r];
         let mut processed_clause = vec![p, not_q, r, r, not_q, p];
@@ -429,8 +429,8 @@ mod preprocessing_tests {
 
     #[test]
     fn contradiction_error() {
-        let p = abLiteral::fresh(1, true);
-        let not_p = abLiteral::fresh(1, false);
+        let p = cLiteral::fresh(1, true);
+        let not_p = cLiteral::fresh(1, false);
 
         let mut clause = vec![p, not_p];
         let preprocessing_result = preprocess_clause(&mut clause);

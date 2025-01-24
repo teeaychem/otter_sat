@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     config::Config,
     context::Context,
-    structures::{atom::Atom, clause::vClause},
+    structures::{atom::Atom, clause::cClause},
 };
 
 pub mod ipasir_one;
@@ -27,7 +27,7 @@ pub struct ContextBundle {
     ie_map: Vec<u32>,
 
     /// A buffer for the creation of a clause.
-    clause_buffer: vClause,
+    clause_buffer: cClause,
 }
 
 impl Default for ContextBundle {

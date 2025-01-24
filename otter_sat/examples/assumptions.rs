@@ -4,7 +4,7 @@ use otter_sat::{
     dispatch::library::report::{self},
     structures::{
         atom::Atom,
-        literal::{abLiteral, Literal},
+        literal::{cLiteral, Literal},
         valuation::Valuation,
     },
 };
@@ -34,7 +34,7 @@ fn main() {
     }
 
     let plural_atom = the_context.fresh_atom().unwrap();
-    let _ = the_context.add_assumption(abLiteral::fresh(plural_atom, true));
+    let _ = the_context.add_assumption(cLiteral::fresh(plural_atom, true));
     atom_map.push('s');
 
     let mut count = 0;
@@ -73,7 +73,7 @@ fn main() {
         {
             match value {
                 Some(v) => {
-                    clause.push(abLiteral::fresh(atom as Atom, !v));
+                    clause.push(cLiteral::fresh(atom as Atom, !v));
                 }
                 None => {}
             }
