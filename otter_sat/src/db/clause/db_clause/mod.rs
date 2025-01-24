@@ -1,9 +1,9 @@
 //! A struct holding a [clause](Clause) and associated metadata.
 //!
-//! For [clause trait](Clause) see [Clause], and for the canonical representation of a clause see [vClause].
+//! For [clause trait](Clause) see [Clause], and for the canonical representation of a clause see [cClause].
 //!
 //! A [dbClause] contains:
-//! - A [clause](Clause) (represented as a [vClause]).
+//! - A [clause](Clause) (represented as a [cClause]).
 //! - A [key](ClauseKey) used to access the [dbClause]/[clause](Clause).
 //! - Other, useful, metadata.
 //!
@@ -54,22 +54,36 @@ pub struct dbClause {
 }
 
 impl dbClause {
+    /// Bundles a [ClauseKey] and [Clause] into a [dbClause] and initialises non-watch defaults.
+    ///
+    /// Note:
+    /// - This does not store the [dbClause] in the [clause database](crate::db::clause::ClauseDB).
+    ///   Instead, this is the canonical way to obtain some thing to be stored in a database.
+    pub fn new_unit(key: ClauseKey, literal: cLiteral) -> Self {
+        Self {
+            key,
+            clause: vec![literal],
+            active: true,
+            watch_ptr: 0,
+        }
+    }
+
     /// Bundles a [ClauseKey] and [Clause] into a [dbClause] and initialises defaults.
     ///
     /// Note: This does not store the [dbClause] in the [clause database](crate::db::clause::ClauseDB).
-    /// Instead, this is the canonical way to obtained some thing to be stored in a database.
+    /// Instead, this is the canonical way to obtain some thing to be stored in a database.
     /// See, e.g. the [ClauseDB]((crate::db::clause::ClauseDB)) '[store](crate::db::clause::ClauseDB::store)' method for example use.
     ///
     /// A valuation is optional.
     /// If given, clauses are initialised with respect to the given valuation.
     /// Otherwise, clauses are initialised with respect to the current valuation of the context.
-    pub fn from(
+    pub fn new_nonunit(
         key: ClauseKey,
         clause: cClause,
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,
     ) -> Self {
-        let mut db_clause = Self {
+        let mut db_clause = dbClause {
             key,
             clause,
             active: true,
@@ -101,6 +115,7 @@ impl dbClause {
         self.active = false
     }
 
+    /// The clause stored.
     pub fn clause(&self) -> &cClause {
         &self.clause
     }

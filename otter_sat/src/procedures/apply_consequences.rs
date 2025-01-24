@@ -9,9 +9,9 @@
 //! - Makes a decision, if the formula entails itself and the valuation is partial.
 //! - Backjumps to a different valuation, if the formula entails some formula with an additional clause.
 //!
-//! - A return of *unsatisfiable* is represented as a [FundamentalConflict](Ok::FundamentalConflict).
+//! - A return of *unsatisfiable* is represented as a [FundamentalConflict](ApplyConsequencesOk::FundamentalConflict).
 //! - A return of a new clause is represented with a [key](crate::db::ClauseKey) to the clause, and an asserted literal.
-//! - No change is represented by a return of [Exhausted](Ok::Exhausted).
+//! - No change is represented by a return of [Exhausted](ApplyConsequencesOk::Exhausted).
 //!   + It is up to a caller of apply_consequences to note whether the background valuation is complete.
 //!
 //! The following invariant is upheld:
@@ -101,7 +101,7 @@ use crate::{
 };
 
 /// Ok results of [apply_consequences](GenericContext::apply_consequences).
-pub enum ApplyConsequenceOk {
+pub enum ApplyConsequencesOk {
     /// A conflict was found, and so the formula is unsatisfiable.
     FundamentalConflict,
 
@@ -123,12 +123,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// Queued consequences are removed from the queue only if BCP was successful.
     /// For, in the case of a conflict the consequence may remain, and otherwise will be removed from the queue during a backjump.
-    pub fn apply_consequences(&mut self) -> Result<ApplyConsequenceOk, err::ErrorKind> {
+    pub fn apply_consequences(&mut self) -> Result<ApplyConsequencesOk, err::ErrorKind> {
         use crate::db::consequence_q::QPosition::{self};
 
         'application: loop {
             let Some((literal, _)) = self.consequence_q.front().cloned() else {
-                return Ok(ApplyConsequenceOk::Exhausted);
+                return Ok(ApplyConsequencesOk::Exhausted);
             };
 
             match unsafe { self.bcp(literal) } {
@@ -142,7 +142,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                         macros::dispatch_atom_db_delta!(self, delta::AtomDB::Unsatisfiable(key));
 
-                        return Ok(ApplyConsequenceOk::FundamentalConflict);
+                        return Ok(ApplyConsequencesOk::FundamentalConflict);
                     }
 
                     match self.conflict_analysis(&key)? {
@@ -175,11 +175,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         }
 
                         analysis::ConflictAnalysisOk::UnitClause { key } => {
-                            return Ok(ApplyConsequenceOk::UnitClause { key });
+                            return Ok(ApplyConsequencesOk::UnitClause { key });
                         }
 
                         analysis::ConflictAnalysisOk::AssertingClause { key, literal } => {
-                            return Ok(ApplyConsequenceOk::AssertingClause { key, literal });
+                            return Ok(ApplyConsequencesOk::AssertingClause { key, literal });
                         }
                     }
                 }
