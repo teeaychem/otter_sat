@@ -4,10 +4,13 @@ use super::Clause;
 pub enum ClauseKind {
     /// The clause is empty
     Empty,
+
     /// The clause is a single literal.
     Unit,
+
     /// The clause is exactly two literals.
     Binary,
+
     /// The clause is (inexactly) more than two literals.
     Long,
 }

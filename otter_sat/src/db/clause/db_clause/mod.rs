@@ -100,6 +100,10 @@ impl dbClause {
     pub fn deactivate(&mut self) {
         self.active = false
     }
+
+    pub fn clause(&self) -> &cClause {
+        &self.clause
+    }
 }
 
 // Subsumption
