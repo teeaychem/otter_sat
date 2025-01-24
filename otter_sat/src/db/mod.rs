@@ -63,7 +63,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             ConsequenceSource::PureLiteral => {
                 // Making a free decision is not supported after some other (non-free) decision has been made.
                 if !self.literal_db.is_decision_made() && self.literal_db.decision_count() == 0 {
-                    self.record_clause(*consequence.literal(), ClauseSource::PureLiteral, None);
+                    self.record_clause(*consequence.literal(), ClauseSource::PureUnit, None);
                 } else {
                     panic!("!")
                 }
@@ -108,7 +108,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         if let Some(dispatcher) = &self.dispatcher {
             match key {
                 ClauseKey::Unit(literal) => match source {
-                    ClauseSource::PureLiteral => {
+                    ClauseSource::PureUnit => {
                         // TODO: Implement dispatches for free decisions
                     }
 
@@ -145,7 +145,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                             let delta = {
                                 match source {
-                                    ClauseSource::BCP | ClauseSource::PureLiteral => panic!("!"),
+                                    ClauseSource::BCP | ClauseSource::PureUnit => panic!("!"),
                                     ClauseSource::Original => delta::ClauseDB::Original(key),
                                     ClauseSource::Resolution => delta::ClauseDB::Added(key),
                                 }

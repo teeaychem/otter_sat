@@ -156,7 +156,7 @@ impl ClauseDB {
             }
 
             _ => match source {
-                Source::BCP | Source::PureLiteral => panic!("!"), // Sources only valid for unit clauses.
+                Source::BCP | Source::PureUnit => panic!("!"), // Sources only valid for unit clauses.
 
                 Source::Original => {
                     let key = self.fresh_original_key()?;

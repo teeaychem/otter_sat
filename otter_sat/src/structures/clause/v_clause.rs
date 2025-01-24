@@ -4,6 +4,7 @@ use crate::{
     config::LBD,
     db::atom::AtomDB,
     structures::{
+        atom::Atom,
         clause::Clause,
         literal::{cLiteral, Literal},
         valuation::Valuation,
@@ -12,7 +13,9 @@ use crate::{
 
 use std::ops::Deref;
 
-impl<T: Deref<Target = [cLiteral]>> Clause for T {
+use super::vClause;
+
+impl Clause for vClause {
     fn as_string(&self) -> String {
         let mut the_string = String::default();
         for literal in self.deref() {
@@ -79,11 +82,11 @@ impl<T: Deref<Target = [cLiteral]>> Clause for T {
         self.len()
     }
 
-    fn atoms(&self) -> impl Iterator<Item = crate::structures::atom::Atom> {
+    fn atoms(&self) -> impl Iterator<Item = Atom> {
         self.iter().map(|literal| literal.atom())
     }
 
     fn canonical(self) -> super::cClause {
-        self.to_vec()
+        self
     }
 }

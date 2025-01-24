@@ -27,9 +27,10 @@
 //! - The empty clause is always false (never true).
 //! - Single literals are identified with the clause containing that literal (aka. a 'unit' clause --- where the 'unit' is the literal).
 
+mod db_clause;
 mod kind;
 mod literal;
-mod literal_slice;
+mod v_clause;
 pub use kind::*;
 
 use crate::{
@@ -86,7 +87,7 @@ pub enum Source {
     BCP,
 
     /// A *unit* clause set by free decision on the value of the contained atom.
-    PureLiteral,
+    PureUnit,
 
     /// A clause read from a formula.
     Original,
