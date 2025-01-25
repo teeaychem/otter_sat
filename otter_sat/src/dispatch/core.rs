@@ -66,9 +66,9 @@ pub struct CoreDB {
 impl CoreDB {
     pub fn core_clauses(&self) -> Result<Vec<cClause>, err::CoreError> {
         let mut core_q = std::collections::VecDeque::<ClauseKey>::new();
-        let mut seen_keys = std::collections::BTreeSet::new();
-        let mut seen_literals = std::collections::BTreeSet::new();
-        let mut core_clauses = std::collections::BTreeSet::new();
+        let mut seen_keys = std::collections::HashSet::new();
+        let mut seen_literals = std::collections::HashSet::new();
+        let mut core_clauses = std::collections::HashSet::new();
 
         // start with the conflict, then loop
         match self.conflict {

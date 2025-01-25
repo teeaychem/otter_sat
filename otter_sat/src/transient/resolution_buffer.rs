@@ -29,7 +29,7 @@
 //! This allows for a simple implementation, but is likely inefficient for a large collection of atoms.
 //! Improvement could be made by temporarily mapping relevant atoms to a temporary sub-language derived from the clauses which are candidates for resolution (so long as this is a finite collection…)
 
-use std::{borrow::Borrow, collections::BTreeSet, rc::Rc};
+use std::{borrow::Borrow, collections::HashSet, rc::Rc};
 
 use crate::{
     config::{Config, StoppingCriteria},
@@ -99,7 +99,7 @@ pub struct ResolutionBuffer {
     asserts: Option<cLiteral>,
 
     /// The origins of the clause
-    origins: BTreeSet<ClauseKey>,
+    origins: HashSet<ClauseKey>,
 
     /// The buffer
     buffer: Vec<Cell>,
@@ -137,7 +137,7 @@ impl ResolutionBuffer {
             valueless_count: 0,
             clause_length: 0,
             asserts: None,
-            origins: BTreeSet::default(),
+            origins: HashSet::default(),
 
             buffer: valuation_copy,
 
@@ -328,7 +328,7 @@ impl ResolutionBuffer {
             })
     }
 
-    pub fn take_origins(&mut self) -> BTreeSet<ClauseKey> {
+    pub fn take_origins(&mut self) -> HashSet<ClauseKey> {
         std::mem::take(&mut self.origins)
     }
 }

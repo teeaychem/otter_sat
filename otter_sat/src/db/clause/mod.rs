@@ -7,7 +7,7 @@ pub mod activity_glue;
 pub mod db_clause;
 mod transfer;
 
-use std::{borrow::Borrow, collections::BTreeSet, rc::Rc};
+use std::{borrow::Borrow, collections::HashSet, rc::Rc};
 
 use db_clause::dbClause;
 
@@ -134,7 +134,7 @@ impl ClauseDB {
         source: Source,
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,
-        origins: BTreeSet<ClauseKey>,
+        origins: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match clause.size() {
             0 => Err(err::ClauseDBError::EmptyClause),
@@ -599,7 +599,7 @@ impl ClauseDB {
         key: ClauseKey,
         literal: impl Borrow<cLiteral>,
         atom_db: &mut AtomDB,
-        origins: BTreeSet<ClauseKey>,
+        origins: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::SubsumptionError> {
         let the_clause = match self.get_unchecked_mut(&key) {
             Ok(c) => c,

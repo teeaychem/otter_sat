@@ -1,5 +1,5 @@
 //! Procuedures to identify pure literals.
-use std::collections::BTreeSet;
+use std::collections::HashSet;
 
 use crate::{
     context::GenericContext,
@@ -20,8 +20,8 @@ use crate::{
 pub fn pure_literals<'l>(
     clauses: impl Iterator<Item = impl Iterator<Item = &'l cLiteral>>,
 ) -> (Vec<Atom>, Vec<Atom>) {
-    let mut the_true: BTreeSet<Atom> = BTreeSet::new();
-    let mut the_false: BTreeSet<Atom> = BTreeSet::new();
+    let mut the_true: HashSet<Atom> = HashSet::new();
+    let mut the_false: HashSet<Atom> = HashSet::new();
 
     clauses.for_each(|literals| {
         for literal in literals {
