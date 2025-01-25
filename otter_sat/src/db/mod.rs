@@ -24,10 +24,9 @@ pub mod clause;
 pub mod consequence_q;
 mod keys;
 pub use keys::*;
-use log::log;
 pub mod literal;
 
-use std::{borrow::Borrow, collections::BTreeSet};
+use std::{borrow::Borrow, collections::HashSet};
 
 use crate::{
     context::GenericContext,
@@ -69,7 +68,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let consequence = consequence.borrow().clone();
         match consequence.source() {
             ConsequenceSource::PureLiteral => {
-                let origins = BTreeSet::default();
+                let origins = HashSet::default();
                 // Making a free decision is not supported after some other (non-free) decision has been made.
                 if !self.literal_db.is_decision_made() && self.literal_db.decision_count() == 0 {
                     self.record_clause(
@@ -96,7 +95,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                             let direct_origin = unsafe { self.clause_db.get_unchecked(&key) }?;
 
-                            let mut origins = BTreeSet::default();
+                            let mut origins = HashSet::default();
                             origins.insert(*key);
                             for literal in direct_origin.literals().filter(|l| *l != &unit_clause) {
                                 let literal = literal.negate();
@@ -138,7 +137,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         clause: impl Clause,
         source: ClauseSource,
         valuation: Option<&vValuation>,
-        origins: BTreeSet<ClauseKey>,
+        origins: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         let key = self
             .clause_db

@@ -18,7 +18,7 @@ use crate::{
 use core::panic;
 use std::{
     borrow::Borrow,
-    collections::{BTreeSet, HashMap},
+    collections::{HashMap, HashSet},
     io::BufRead,
 };
 
@@ -97,7 +97,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             0,
                         ) {
                             Ok(consequence_q::ConsequenceQueueOk::Qd) => {
-                                let origins = BTreeSet::default();
+                                let origins = HashSet::default();
                                 self.record_clause(
                                     literal,
                                     clause::Source::Original,
@@ -137,7 +137,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
                 }
 
-                let origins = BTreeSet::default();
+                let origins = HashSet::default();
                 self.record_clause(clause_vec, clause::Source::Original, None, origins)?;
 
                 Ok(ClauseOk::AddedLong)

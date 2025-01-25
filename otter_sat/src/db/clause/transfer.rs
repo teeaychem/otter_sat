@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::HashSet;
 
 use crate::{
     db::{
@@ -33,7 +33,7 @@ impl ClauseDB {
         &mut self,
         key: ClauseKey,
         atom_db: &mut AtomDB,
-        origins: BTreeSet<ClauseKey>,
+        origins: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match key {
             ClauseKey::Unit(_) => {

@@ -30,7 +30,7 @@ use crate::{
     },
 };
 
-use std::{collections::BTreeSet, ops::Deref};
+use std::{collections::HashSet, ops::Deref};
 
 #[doc(hidden)]
 mod subsumption;
@@ -53,7 +53,7 @@ pub struct dbClause {
     watch_ptr: usize,
 
     /// Original clauses used to obtain the clause
-    origins: BTreeSet<ClauseKey>,
+    origins: HashSet<ClauseKey>,
 }
 
 impl dbClause {
@@ -62,7 +62,7 @@ impl dbClause {
     /// Note:
     /// - This does not store the [dbClause] in the [clause database](crate::db::clause::ClauseDB).
     ///   Instead, this is the canonical way to obtain some thing to be stored in a database.
-    pub fn new_unit(key: ClauseKey, literal: cLiteral, origins: BTreeSet<ClauseKey>) -> Self {
+    pub fn new_unit(key: ClauseKey, literal: cLiteral, origins: HashSet<ClauseKey>) -> Self {
         Self {
             key,
             clause: vec![literal],
@@ -86,7 +86,7 @@ impl dbClause {
         clause: cClause,
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,
-        origins: BTreeSet<ClauseKey>,
+        origins: HashSet<ClauseKey>,
     ) -> Self {
         let mut db_clause = dbClause {
             key,
@@ -126,7 +126,7 @@ impl dbClause {
         &self.clause
     }
 
-    pub fn origins(&self) -> &BTreeSet<ClauseKey> {
+    pub fn origins(&self) -> &HashSet<ClauseKey> {
         &self.origins
     }
 }
