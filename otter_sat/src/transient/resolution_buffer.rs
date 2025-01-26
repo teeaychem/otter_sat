@@ -203,9 +203,11 @@ impl ResolutionBuffer {
             ClauseKey::OriginalUnit(_) | ClauseKey::Binary(_) | ClauseKey::Original(_) => {
                 self.origins.insert(*key);
             }
-            ClauseKey::AdditionUnit(_) | ClauseKey::Addition(_, _) => {}
+            ClauseKey::AdditionUnit(_) => {}
+            ClauseKey::Addition(_, _) => {
+                self.origins.extend(base_clause.origins());
+            }
         }
-        self.origins.extend(base_clause.origins());
 
         // Maybe the conflit clause was already asserting after the previous decision…
         if let Some(literal) = self.asserted_literal() {
@@ -239,9 +241,11 @@ impl ResolutionBuffer {
                         | ClauseKey::Original(_) => {
                             self.origins.insert(*key);
                         }
-                        ClauseKey::AdditionUnit(_) | ClauseKey::Addition(_, _) => {}
+                        ClauseKey::AdditionUnit(_) => {}
+                        ClauseKey::Addition(_, _) => {
+                            self.origins.extend(source_clause.origins());
+                        }
                     }
-                    self.origins.extend(source_clause.origins());
 
                     let resolution_result =
                         self.resolve_clause(source_clause, consequence.literal());

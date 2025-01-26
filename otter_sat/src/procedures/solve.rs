@@ -199,9 +199,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     macros::dispatch_bcp_delta!(self, Instance, literal, key);
 
                     let consequence = Consequence::from(literal, consequence::Source::BCP(key));
-                    self.record_consequence(consequence);
                     let level = self.literal_db.decision_count();
                     self.value_and_queue(literal, QPosition::Front, level)?;
+                    self.record_consequence(consequence);
                 }
             }
 
