@@ -6,6 +6,7 @@ pub mod analysis;
 pub mod apply_consequences;
 pub mod backjump;
 pub mod bcp;
+pub mod core;
 pub mod decision;
 pub mod schedulers;
 pub mod solve;

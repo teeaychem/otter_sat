@@ -191,7 +191,6 @@ impl ResolutionBuffer {
         clause_db: &mut ClauseDB,
         atom_db: &mut AtomDB,
     ) -> Result<ResolutionOk, err::ResolutionBufferError> {
-        self.origins.insert(*key);
         // The key has already been used to access the conflicting clause.
         let base_clause = match unsafe { clause_db.get_unchecked(key) } {
             Ok(clause) => clause,
@@ -199,6 +198,14 @@ impl ResolutionBuffer {
         };
 
         self.merge_clause(base_clause);
+
+        match key {
+            ClauseKey::Unit(_) | ClauseKey::Binary(_) | ClauseKey::Original(_) => {
+                self.origins.insert(*key);
+            }
+            _ => {}
+        }
+        self.origins.extend(base_clause.origins());
 
         // Maybe the conflit clause was already asserting after the previous decision…
         if let Some(literal) = self.asserted_literal() {
@@ -218,7 +225,6 @@ impl ResolutionBuffer {
         'resolution_loop: for consequence in the_trail {
             match consequence.source() {
                 consequence::Source::BCP(key) => {
-                    self.origins.insert(*key);
                     let source_clause = match unsafe { clause_db.get_unchecked(key) } {
                         Err(_) => {
                             log::error!(target: targets::RESOLUTION, "Lost resolution clause {key}");
@@ -226,6 +232,14 @@ impl ResolutionBuffer {
                         }
                         Ok(clause) => clause,
                     };
+
+                    match key {
+                        ClauseKey::Unit(_) | ClauseKey::Binary(_) | ClauseKey::Original(_) => {
+                            self.origins.insert(*key);
+                        }
+                        _ => {}
+                    }
+                    self.origins.extend(source_clause.origins());
 
                     let resolution_result =
                         self.resolve_clause(source_clause, consequence.literal());

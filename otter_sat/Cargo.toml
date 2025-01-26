@@ -27,3 +27,4 @@ rand_core = "0.6.4"
 
 [dev-dependencies]
 crossbeam = "0.8.4" # Used to run examples.
+xz2 = "0.1.7" # Use to load cnf files

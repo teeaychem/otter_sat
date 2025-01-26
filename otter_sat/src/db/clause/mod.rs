@@ -435,7 +435,6 @@ impl ClauseDB {
             log::error!(target: targets::CLAUSE_DB, "Remove called on a missing addition clause");
             Err(err::ClauseDBError::Missing)
         } else {
-            // assert!(matches!(the_clause.key(), ClauseKey::LearnedLong(_, _)));
             let the_clause =
                 std::mem::take(unsafe { self.addition.get_unchecked_mut(index) }).unwrap();
 

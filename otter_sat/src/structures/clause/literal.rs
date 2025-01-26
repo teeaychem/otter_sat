@@ -12,10 +12,10 @@ use crate::{
 
 impl Clause for cLiteral {
     fn as_string(&self) -> String {
-        let mut the_string = String::default();
-
-        the_string.push_str(format!("{self}").as_str());
-        the_string
+        match self.polarity() {
+            true => format!(" {self}"),
+            false => format!("{self}"),
+        }
     }
 
     fn as_dimacs(&self, zero: bool) -> String {
