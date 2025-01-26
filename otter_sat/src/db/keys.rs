@@ -77,7 +77,8 @@ impl ClauseKey {
 impl std::fmt::Display for ClauseKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::OriginalUnit(key) | Self::AdditionUnit(key) => write!(f, "Unit({key})"),
+            Self::OriginalUnit(key) => write!(f, "OriginalUnit({key})"),
+            Self::AdditionUnit(key) => write!(f, "AdditionUnit({key})"),
             Self::Original(key) => write!(f, "Formula({key})"),
             Self::Addition(key, token) => write!(f, "Addition({key}, {token})"),
             Self::Binary(key) => write!(f, "Binary({key})"),

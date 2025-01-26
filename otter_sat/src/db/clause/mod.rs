@@ -7,7 +7,11 @@ pub mod activity_glue;
 pub mod db_clause;
 mod transfer;
 
-use std::{borrow::Borrow, collections::HashSet, rc::Rc};
+use std::{
+    borrow::Borrow,
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 
 use db_clause::dbClause;
 
@@ -49,10 +53,10 @@ pub struct ClauseDB {
     empty_keys: Vec<ClauseKey>,
 
     /// Original unit clauses.
-    unit_original: Vec<dbClause>,
+    unit_original: HashMap<ClauseKey, dbClause>,
 
     /// Additionl unit clauses.
-    unit_addition: Vec<dbClause>,
+    unit_addition: HashMap<ClauseKey, dbClause>,
 
     /// Binary clauses.
     binary: Vec<dbClause>,
@@ -76,8 +80,8 @@ impl ClauseDB {
             addition_count: 0,
             empty_keys: Vec::default(),
 
-            unit_original: Vec::default(),
-            unit_addition: Vec::default(),
+            unit_original: HashMap::default(),
+            unit_addition: HashMap::default(),
 
             original: Vec::default(),
             addition: Vec::default(),
@@ -152,15 +156,17 @@ impl ClauseDB {
                     Source::Original => {
                         let key = ClauseKey::OriginalUnit(the_literal);
                         self.unit_original
-                            .push(dbClause::new_unit(key, the_literal, origins));
+                            .insert(key, dbClause::new_unit(key, the_literal, origins));
                         key
                     }
+
                     Source::BCP | Source::Resolution | Source::Assumption => {
                         let key = ClauseKey::AdditionUnit(the_literal);
                         self.unit_addition
-                            .push(dbClause::new_unit(key, the_literal, origins));
+                            .insert(key, dbClause::new_unit(key, the_literal, origins));
                         key
                     }
+
                     Source::PureUnit => panic!("!"),
                 };
 
@@ -243,11 +249,7 @@ impl ClauseDB {
 
             ClauseKey::AdditionUnit(_) => {
                 //
-                match self
-                    .unit_addition
-                    .iter()
-                    .find(|db_clause| db_clause.key() == key)
-                {
+                match self.unit_addition.get(&key) {
                     Some(clause) => Ok(clause),
                     None => Err(err::ClauseDBError::Missing),
                 }
@@ -291,7 +293,7 @@ impl ClauseDB {
 
             ClauseKey::AdditionUnit(_) => {
                 //
-                match self.unit_addition.iter_mut().find(|db_c| db_c.key() == key) {
+                match self.unit_addition.get_mut(&key) {
                     Some(clause) => Ok(clause),
                     None => Err(err::ClauseDBError::Missing),
                 }
@@ -340,11 +342,7 @@ impl ClauseDB {
 
             ClauseKey::AdditionUnit(_) => {
                 //
-                match self
-                    .unit_addition
-                    .iter()
-                    .find(|db_clause| db_clause.key() == key)
-                {
+                match self.unit_addition.get(&key) {
                     Some(clause) => Ok(clause),
                     None => Err(err::ClauseDBError::Missing),
                 }
@@ -380,7 +378,7 @@ impl ClauseDB {
 
             ClauseKey::AdditionUnit(_) => {
                 //
-                match self.unit_addition.iter_mut().find(|db_c| db_c.key() == key) {
+                match self.unit_addition.get_mut(&key) {
                     Some(clause) => Ok(clause),
                     None => Err(err::ClauseDBError::Missing),
                 }
@@ -561,7 +559,7 @@ impl ClauseDB {
     /// ```
     pub fn all_original_unit_clauses(&self) -> impl Iterator<Item = &cLiteral> {
         self.unit_original
-            .iter()
+            .values()
             .flat_map(|c| c.clause().literals().last())
     }
 
@@ -572,7 +570,7 @@ impl ClauseDB {
     /// ```
     pub fn all_addition_unit_clauses(&self) -> impl Iterator<Item = &cLiteral> {
         self.unit_addition
-            .iter()
+            .values()
             .flat_map(|c| c.clause().literals().last())
     }
 
@@ -583,11 +581,11 @@ impl ClauseDB {
     /// ```
     pub fn all_unit_clauses(&self) -> impl Iterator<Item = &cLiteral> {
         self.unit_original
-            .iter()
+            .values()
             .flat_map(|c| c.clause().literals().last())
             .chain(
                 self.unit_addition
-                    .iter()
+                    .values()
                     .flat_map(|c| c.clause().literals().last()),
             )
     }
@@ -616,7 +614,11 @@ impl ClauseDB {
                         .iter()
                         .flat_map(|maybe_clause| maybe_clause.as_ref()),
                 )
-                .chain(self.unit_original.iter().chain(self.unit_addition.iter())),
+                .chain(
+                    self.unit_original
+                        .values()
+                        .chain(self.unit_addition.values()),
+                ),
         )
     }
 
