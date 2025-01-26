@@ -93,20 +93,25 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         } else {
                             let unit_clause = *consequence.literal();
 
-                            let direct_origin = unsafe { self.clause_db.get_unchecked(&key) }?;
-
                             let mut origins = HashSet::default();
 
                             match key {
-                                ClauseKey::OriginalUnit(_)
-                                | ClauseKey::Binary(_)
-                                | ClauseKey::Original(_) => {
+                                ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) => {
+                                    panic!("!")
+                                }
+                                ClauseKey::Binary(_) | ClauseKey::Original(_) => {
                                     origins.insert(*key);
                                 }
-                                ClauseKey::Addition(_, _) | ClauseKey::AdditionUnit(_) => {}
+                                ClauseKey::Addition(_, _) => {}
                             }
 
-                            for literal in direct_origin.literals().filter(|l| *l != &unit_clause) {
+                            let direct_origin_clause =
+                                unsafe { self.clause_db.get_unchecked(key) }?;
+                            for literal in direct_origin_clause.literals() {
+                                if literal == &unit_clause {
+                                    continue;
+                                }
+
                                 let literal = literal.negate();
                                 let literal_key = ClauseKey::AdditionUnit(literal);
 

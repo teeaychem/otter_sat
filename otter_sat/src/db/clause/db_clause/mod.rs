@@ -30,7 +30,11 @@ use crate::{
     },
 };
 
-use std::{collections::HashSet, ops::Deref};
+use std::{
+    collections::HashSet,
+    hash::{Hash, Hasher},
+    ops::Deref,
+};
 
 #[doc(hidden)]
 mod subsumption;
@@ -144,5 +148,19 @@ impl Deref for dbClause {
 
     fn deref(&self) -> &Self::Target {
         &self.clause
+    }
+}
+
+impl PartialEq for dbClause {
+    fn eq(&self, other: &Self) -> bool {
+        self.key.eq(&other.key)
+    }
+}
+
+impl Eq for dbClause {}
+
+impl Hash for dbClause {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.key.hash(state);
     }
 }
