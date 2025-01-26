@@ -15,16 +15,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let mut core: HashSet<ClauseKey> = HashSet::default();
 
         match key {
-            ClauseKey::Unit(_) | ClauseKey::Binary(_) | ClauseKey::Original(_) => {
+            ClauseKey::OriginalUnit(_) | ClauseKey::Binary(_) | ClauseKey::Original(_) => {
                 core.insert(key);
             }
             _ => {}
         }
 
-        let final_clause = self
-            .clause_db
-            .get_db_clause(&key)
-            .expect("Final clause missing");
+        let final_clause = self.clause_db.get(&key).expect("Final clause missing");
 
         let conflict_origins = final_clause.origins();
         if !conflict_origins.is_empty() {
@@ -32,11 +29,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
 
         for literal in final_clause.literals() {
-            let literal_key = ClauseKey::Unit(literal.negate());
-            core.insert(literal_key);
+            let literal_key = ClauseKey::AdditionUnit(literal.negate());
 
-            match self.clause_db.get_db_clause(&literal_key) {
-                Err(e) => panic!("Missing core key: {e:?}"),
+            match self.clause_db.get(&literal_key) {
+                Err(_) => {
+                    core.insert(ClauseKey::OriginalUnit(literal.negate()));
+                }
                 Ok(clause) => {
                     let literal_origins = clause.origins();
 

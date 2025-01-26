@@ -78,7 +78,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         origins,
                     );
                 } else {
-                    panic!("!")
+                    panic!("! Origins")
                 }
                 Ok(())
             }
@@ -96,13 +96,23 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let direct_origin = unsafe { self.clause_db.get_unchecked(&key) }?;
 
                             let mut origins = HashSet::default();
-                            origins.insert(*key);
+
+                            match key {
+                                ClauseKey::OriginalUnit(_)
+                                | ClauseKey::Binary(_)
+                                | ClauseKey::Original(_) => {
+                                    origins.insert(*key);
+                                }
+                                ClauseKey::Addition(_, _) | ClauseKey::AdditionUnit(_) => {}
+                            }
+
                             for literal in direct_origin.literals().filter(|l| *l != &unit_clause) {
                                 let literal = literal.negate();
-                                let literal_key = ClauseKey::Unit(literal);
-                                match unsafe { self.clause_db.get_unchecked(&literal_key) } {
+                                let literal_key = ClauseKey::AdditionUnit(literal);
+
+                                match self.clause_db.get(&literal_key) {
                                     Err(_) => {
-                                        log::warn!("Failed search for {literal_key}");
+                                        origins.insert(ClauseKey::OriginalUnit(literal));
                                     }
                                     Ok(db_clause) => {
                                         origins.extend(db_clause.origins());
@@ -115,6 +125,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             self.record_clause(unit_clause, ClauseSource::BCP, None, origins);
                         };
                     }
+
                     _ => unsafe {
                         self.literal_db.record_consequence_unchecked(consequence);
                     },
@@ -147,13 +158,18 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         if let Some(dispatcher) = &self.dispatcher {
             match key {
-                ClauseKey::Unit(literal) => match source {
+                ClauseKey::OriginalUnit(_) => {
+                    let delta = delta::ClauseDB::Original(key);
+                    dispatcher(Dispatch::Delta(delta::Delta::ClauseDB(delta)));
+                }
+
+                ClauseKey::AdditionUnit(literal) => match source {
                     ClauseSource::PureUnit => {
                         // TODO: Implement dispatches for free decisions
                     }
 
                     ClauseSource::BCP => {
-                        let delta = delta::ClauseDB::BCP(ClauseKey::Unit(literal));
+                        let delta = delta::ClauseDB::BCP(ClauseKey::AdditionUnit(literal));
                         dispatcher(Dispatch::Delta(delta::Delta::ClauseDB(delta)));
                     }
 
@@ -162,10 +178,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         dispatcher(Dispatch::Delta(delta::Delta::ClauseDB(delta)));
                     }
 
-                    ClauseSource::Original => {
-                        let delta = delta::ClauseDB::Original(key);
-                        dispatcher(Dispatch::Delta(delta::Delta::ClauseDB(delta)));
+                    ClauseSource::Assumption => {
+                        // TODO: Deltas for assumptions.
                     }
+
+                    ClauseSource::Original => panic!("!"),
                 },
 
                 _ => {
@@ -185,7 +202,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                             let delta = {
                                 match source {
-                                    ClauseSource::BCP | ClauseSource::PureUnit => panic!("!"),
+                                    ClauseSource::BCP
+                                    | ClauseSource::PureUnit
+                                    | ClauseSource::Assumption => panic!("!"),
                                     ClauseSource::Original => delta::ClauseDB::Original(key),
                                     ClauseSource::Resolution => delta::ClauseDB::Added(key),
                                 }

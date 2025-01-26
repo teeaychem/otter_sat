@@ -94,4 +94,6 @@ pub enum Source {
 
     /// A clause derived via resolution (during analysis, etc.)
     Resolution,
+
+    Assumption,
 }

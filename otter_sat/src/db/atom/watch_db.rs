@@ -212,7 +212,9 @@ impl AtomDB {
                 }
                 Ok(())
             }
-            ClauseKey::Unit(_) | ClauseKey::Binary(_) => Err(err::WatchError::NotLongInLong),
+            ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) | ClauseKey::Binary(_) => {
+                Err(err::WatchError::NotLongInLong)
+            }
         }
     }
 

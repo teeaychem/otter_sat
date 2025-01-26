@@ -66,12 +66,20 @@ impl Transcriber {
                                     self.clause_string(clause.clone()),
                                 ))
                             }
-                            report::ClauseDBReport::ActiveUnit(literal) => {
-                                self.step_buffer.push(Transcriber::finalise_unit_clause(
+
+                            report::ClauseDBReport::ActiveOriginalUnit(literal) => self
+                                .step_buffer
+                                .push(Transcriber::finalise_original_unit_clause(
                                     literal,
                                     self.literal_string(literal),
-                                ))
-                            }
+                                )),
+
+                            report::ClauseDBReport::ActiveAdditionUnit(literal) => self
+                                .step_buffer
+                                .push(Transcriber::finalise_addition_unit_clause(
+                                    literal,
+                                    self.literal_string(literal),
+                                )),
                         }
                     }
                     Report::LiteralDB(_)
@@ -102,7 +110,7 @@ impl Transcriber {
 /// FRAT identifiers are of the form [0-9]+, and so a simple 0*x* prefix is sufficient to disambiguate.
 impl Transcriber {
     /// The identifier of the given literal.
-    fn unit_clause_id(literal: impl Borrow<cLiteral>) -> String {
+    fn unit_clause_id_original(literal: impl Borrow<cLiteral>) -> String {
         let literal = literal.borrow();
         match literal.polarity() {
             true => format!("0110{}", literal.atom()),
@@ -110,13 +118,23 @@ impl Transcriber {
         }
     }
 
+    fn unit_clause_id_addition(literal: impl Borrow<cLiteral>) -> String {
+        let literal = literal.borrow();
+        match literal.polarity() {
+            true => format!("0210{}", literal.atom()),
+            false => format!("0200{}", literal.atom()),
+        }
+    }
+
     /// The identifier of the given clause.
     fn key_id(key: &ClauseKey) -> String {
         match key {
-            ClauseKey::Unit(literal) => Transcriber::unit_clause_id(literal),
-            ClauseKey::Original(index) => format!("020{index}"),
-            ClauseKey::Binary(index) => format!("030{index}"),
-            ClauseKey::Addition(index, _) => format!("040{index}"),
+            ClauseKey::OriginalUnit(literal) => Transcriber::unit_clause_id_original(literal),
+            ClauseKey::AdditionUnit(literal) => Transcriber::unit_clause_id_addition(literal),
+
+            ClauseKey::Original(index) => format!("030{index}"),
+            ClauseKey::Binary(index) => format!("040{index}"),
+            ClauseKey::Addition(index, _) => format!("050{index}"),
         }
     }
 
@@ -193,8 +211,16 @@ impl Transcriber {
     /// Finalises a unit clause.
     ///
     /// Distinguished from finalising a non-unit clause on with respect to paramaters.
-    fn finalise_unit_clause(literal: impl Borrow<cLiteral>, external: String) -> String {
-        let id_rep = Transcriber::unit_clause_id(literal);
+    fn finalise_original_unit_clause(literal: impl Borrow<cLiteral>, external: String) -> String {
+        let id_rep = Transcriber::unit_clause_id_original(literal);
+        format!("f {id_rep} {external} 0\n")
+    }
+
+    /// Finalises a unit clause.
+    ///
+    /// Distinguished from finalising a non-unit clause on with respect to paramaters.
+    fn finalise_addition_unit_clause(literal: impl Borrow<cLiteral>, external: String) -> String {
+        let id_rep = Transcriber::unit_clause_id_addition(literal);
         format!("f {id_rep} {external} 0\n")
     }
 
@@ -226,9 +252,12 @@ impl Transcriber {
 
             Original(key) => {
                 let step = match key {
-                    ClauseKey::Unit(literal) => {
+                    ClauseKey::OriginalUnit(literal) => {
                         Transcriber::original_clause(key, self.literal_string(literal))
                     }
+
+                    ClauseKey::AdditionUnit(_) => panic!("!"),
+
                     _ => {
                         let clause = std::mem::take(&mut self.clause_buffer);
                         Transcriber::original_clause(key, self.clause_string(clause))
@@ -242,9 +271,12 @@ impl Transcriber {
                     return Err(err::FRATError::CorruptResolutionQ);
                 };
                 let step = match key {
-                    ClauseKey::Unit(lit) => {
-                        Transcriber::add_clause(key, self.literal_string(lit), Some(steps))
+                    ClauseKey::OriginalUnit(_) => panic!("!"),
+
+                    ClauseKey::AdditionUnit(literal) => {
+                        Transcriber::add_clause(key, self.literal_string(literal), None)
                     }
+
                     _ => {
                         let the_clause = std::mem::take(&mut self.clause_buffer);
                         Transcriber::add_clause(key, self.clause_string(the_clause), Some(steps))
@@ -254,10 +286,13 @@ impl Transcriber {
             }
 
             BCP(key) => match key {
-                ClauseKey::Unit(literal) => {
+                ClauseKey::OriginalUnit(_) => panic!("! Original BCP"),
+
+                ClauseKey::AdditionUnit(literal) => {
                     let step = Transcriber::add_clause(key, self.literal_string(literal), None);
                     self.step_buffer.push(step);
                 }
+
                 _ => panic!("only unit clause keys from BCP"),
             },
 

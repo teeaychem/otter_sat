@@ -146,7 +146,7 @@ impl dbClause {
     /// A binary clause contains two literals, and so the use of get_unchecked is safe.
     pub fn note_watch(&self, atom: Atom, value: bool, atom_db: &mut AtomDB) {
         match self.key {
-            ClauseKey::Unit(_) => {
+            ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) => {
                 panic!("!")
             }
             ClauseKey::Binary(_) => unsafe {

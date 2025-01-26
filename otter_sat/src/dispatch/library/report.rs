@@ -46,7 +46,9 @@ pub enum ClauseDBReport {
     /// An active non-unit clause.
     Active(ClauseKey, cClause),
     /// An active unit clause
-    ActiveUnit(cLiteral),
+    ActiveOriginalUnit(cLiteral),
+
+    ActiveAdditionUnit(cLiteral),
 }
 
 /// Information regarding the parse when building the context.

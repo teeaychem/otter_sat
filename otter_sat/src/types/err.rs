@@ -92,7 +92,7 @@ impl From<AtomDBError> for ErrorKind {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ClauseDBError {
     /// Attempt to get a unit clause by a key (the key is the literal)
-    GetUnitKey,
+    GetOriginalUnitKey,
 
     /// Attempt to transfer a unit clause.
     TransferUnit,

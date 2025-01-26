@@ -20,11 +20,18 @@ pub type FormulaToken = u16;
 pub enum ClauseKey {
     /// The key to a unit clause contains the (unit) clause.
     // Note, the size of an abLiteral is smaller than the key for an addition clause.
-    Unit(cLiteral),
+    OriginalUnit(cLiteral),
+
+    /// The key to a unit clause contains the (unit) clause.
+    // Note, the size of an abLiteral is smaller than the key for an addition clause.
+    AdditionUnit(cLiteral),
+
     /// The key to a binary clause.
     Binary(FormulaIndex),
+
     /// The key to an original clause.
     Original(FormulaIndex),
+
     /// The key to an addition.
     Addition(FormulaIndex, FormulaToken),
 }
@@ -33,7 +40,7 @@ impl ClauseKey {
     /// Extracts the index from a key.
     pub fn index(&self) -> usize {
         match self {
-            Self::Unit(l) => l.atom() as usize,
+            Self::OriginalUnit(l) | Self::AdditionUnit(l) => l.atom() as usize,
             Self::Original(i) => *i as usize,
             Self::Binary(i) => *i as usize,
             Self::Addition(i, _) => *i as usize,
@@ -45,7 +52,7 @@ impl ClauseKey {
     /// Returns an error if used on any other key, or if the token limit has been reached.
     pub fn retoken(&self) -> Result<Self, err::ClauseDBError> {
         match self {
-            Self::Unit(_) => {
+            Self::OriginalUnit(_) | Self::AdditionUnit(_) => {
                 log::error!(target: targets::CLAUSE_DB, "Unit keys have a unique token");
                 Err(err::ClauseDBError::InvalidKeyToken)
             }
@@ -70,7 +77,7 @@ impl ClauseKey {
 impl std::fmt::Display for ClauseKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Unit(key) => write!(f, "Unit({key})"),
+            Self::OriginalUnit(key) | Self::AdditionUnit(key) => write!(f, "Unit({key})"),
             Self::Original(key) => write!(f, "Formula({key})"),
             Self::Addition(key, token) => write!(f, "Addition({key}, {token})"),
             Self::Binary(key) => write!(f, "Binary({key})"),
