@@ -112,17 +112,18 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                     continue;
                                 }
 
-                                let literal = literal.negate();
-                                let literal_key = ClauseKey::AdditionUnit(literal);
+                                // let literal = literal.negate();
+                                // let literal_key = ClauseKey::AdditionUnit(literal);
 
-                                match self.clause_db.get(&literal_key) {
-                                    Err(_) => {
-                                        origins.insert(ClauseKey::OriginalUnit(literal));
-                                    }
-                                    Ok(db_clause) => {
-                                        origins.extend(db_clause.origins());
-                                    }
-                                }
+                                // match self.clause_db.get(&literal_key) {
+                                //     Err(_) => {
+                                //         origins.insert(ClauseKey::OriginalUnit(literal));
+                                //     }
+                                //     Ok(db_clause) => {
+                                //         // origins.extend(db_clause.origins());
+                                //     }
+                                // }
+                                origins.insert(ClauseKey::OriginalUnit(literal.negate()));
                             }
 
                             log::trace!("Origins: {:?}", &origins);
