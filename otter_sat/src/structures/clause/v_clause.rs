@@ -19,7 +19,10 @@ impl Clause for vClause {
     fn as_string(&self) -> String {
         let mut the_string = String::default();
         for literal in self.deref() {
-            the_string.push_str(format!("{literal} ").as_str());
+            match literal.polarity() {
+                true => the_string.push_str(format!(" {literal} ").as_str()),
+                false => the_string.push_str(format!("{literal} ").as_str()),
+            }
         }
         the_string.pop();
         the_string

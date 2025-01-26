@@ -280,6 +280,7 @@ dependencies = [
  "log",
  "rand",
  "rand_core",
+ "xz2",
 ]
 
 [[package]]

@@ -92,13 +92,14 @@ pub unsafe extern "C" fn ipasir_solve(solver: *mut c_void) -> c_int {
 
     let solve_result = bundle.context.solve();
 
-    // As this is incremental, prepare for another solve.
-    // This clears the *current* valuation, but if a satisfying valuation was found, it will be preserved in the prior valuation.
-    bundle.context.backjump(0);
-    bundle.context.remove_assumptions();
-
     match solve_result {
-        Ok(SolveReport::Satisfiable) => 10,
+        Ok(SolveReport::Satisfiable) => {
+            // As this is incremental, prepare for another solve.
+            // This clears the *current* valuation, but the satisfying valuation is preserved in the prior valuation.
+            bundle.context.backjump(0);
+            bundle.context.remove_assumptions();
+            10
+        }
         Ok(SolveReport::Unsatisfiable) => 20,
         _ => 0,
     }

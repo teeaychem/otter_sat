@@ -56,11 +56,8 @@ fn main() {
             .enumerate()
             .skip(1)
         {
-            match value {
-                Some(v) => {
-                    clause.push(cLiteral::fresh(atom as Atom, !v));
-                }
-                None => {}
+            if let Some(v) = value {
+                clause.push(cLiteral::fresh(atom as Atom, !v));
             }
         }
 
