@@ -36,7 +36,7 @@ impl ClauseDB {
         origins: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match key {
-            ClauseKey::Unit(_) => {
+            ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) => {
                 log::error!(target: targets::TRANSFER, "Attempt to transfer unit");
                 Err(err::ClauseDBError::TransferUnit)
             }

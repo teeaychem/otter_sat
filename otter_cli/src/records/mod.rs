@@ -14,10 +14,7 @@ use crate::{
 
 use otter_sat::{
     config::Config,
-    dispatch::{
-        core::{core_db_builder, CoreDB},
-        Dispatch,
-    },
+    dispatch::Dispatch,
     types::err::{self},
 };
 
@@ -32,7 +29,6 @@ pub fn general_recorder(
     rx: Receiver<Dispatch>,
     config: Config,
     config_io: ConfigIO,
-    the_graph_ptr: Option<Arc<Mutex<CoreDB>>>,
 ) -> Result<(), ()> {
     let mut window = ContextWindow::default();
     if config_io.show_stats {
@@ -41,11 +37,6 @@ pub fn general_recorder(
 
     let mut windower = records::window::window_writer(&mut window);
     let mut frat_writer = records::frat::build_frat_writer(config_io.frat_path.clone());
-
-    let mut grapher = match the_graph_ptr.is_some() {
-        true => core_db_builder(&the_graph_ptr),
-        false => hand(),
-    };
 
     'reception: while let Ok(dispatch) = rx.recv() {
         match &dispatch {
@@ -67,10 +58,7 @@ pub fn general_recorder(
             windower(&dispatch);
         }
         frat_writer(&dispatch);
-        let _ = grapher(&dispatch);
     }
-
-    drop(grapher);
 
     Ok(())
 }

@@ -48,8 +48,11 @@ pub struct ClauseDB {
     /// A stack of keys for learned clauses whose indicies are empty.
     empty_keys: Vec<ClauseKey>,
 
-    /// Unit clauses.
-    unit: Vec<dbClause>,
+    /// Original unit clauses.
+    unit_original: Vec<dbClause>,
+
+    /// Additionl unit clauses.
+    unit_addition: Vec<dbClause>,
 
     /// Binary clauses.
     binary: Vec<dbClause>,
@@ -73,7 +76,9 @@ impl ClauseDB {
             addition_count: 0,
             empty_keys: Vec::default(),
 
-            unit: Vec::default(),
+            unit_original: Vec::default(),
+            unit_addition: Vec::default(),
+
             original: Vec::default(),
             addition: Vec::default(),
             binary: Vec::default(),
@@ -142,10 +147,23 @@ impl ClauseDB {
             1 => {
                 // The match ensures there is a next (and then no further) literal in the clause.
                 let the_literal = unsafe { *clause.literals().next().unwrap_unchecked() };
-                let key = ClauseKey::Unit(the_literal);
 
-                self.unit
-                    .push(dbClause::new_unit(key, the_literal, origins));
+                let key = match source {
+                    Source::Original => {
+                        let key = ClauseKey::OriginalUnit(the_literal);
+                        self.unit_original
+                            .push(dbClause::new_unit(key, the_literal, origins));
+                        key
+                    }
+                    Source::BCP | Source::Resolution | Source::Assumption => {
+                        let key = ClauseKey::AdditionUnit(the_literal);
+                        self.unit_addition
+                            .push(dbClause::new_unit(key, the_literal, origins));
+                        key
+                    }
+                    Source::PureUnit => panic!("!"),
+                };
+
                 Ok(key)
             }
 
@@ -164,7 +182,7 @@ impl ClauseDB {
             }
 
             _ => match source {
-                Source::BCP | Source::PureUnit => panic!("!"), // Sources only valid for unit clauses.
+                Source::Assumption | Source::BCP | Source::PureUnit => panic!("!"), // Sources only valid for unit clauses.
 
                 Source::Original => {
                     let key = self.fresh_original_key()?;
@@ -219,11 +237,17 @@ impl ClauseDB {
     /// ```rust, ignore
     /// self.clause_db.get_db_clause(&key)?
     /// ```
-    pub fn get_db_clause(&self, key: &ClauseKey) -> Result<&dbClause, err::ClauseDBError> {
+    pub fn get(&self, key: &ClauseKey) -> Result<&dbClause, err::ClauseDBError> {
         match key {
-            ClauseKey::Unit(_) => {
+            ClauseKey::OriginalUnit(_) => Err(err::ClauseDBError::GetOriginalUnitKey),
+
+            ClauseKey::AdditionUnit(_) => {
                 //
-                match self.unit.iter().find(|db_clause| db_clause.key() == key) {
+                match self
+                    .unit_addition
+                    .iter()
+                    .find(|db_clause| db_clause.key() == key)
+                {
                     Some(clause) => Ok(clause),
                     None => Err(err::ClauseDBError::Missing),
                 }
@@ -263,9 +287,11 @@ impl ClauseDB {
     /// ```
     pub fn get_mut(&mut self, key: &ClauseKey) -> Result<&mut dbClause, err::ClauseDBError> {
         match key {
-            ClauseKey::Unit(_) => {
+            ClauseKey::OriginalUnit(_) => Err(err::ClauseDBError::GetOriginalUnitKey),
+
+            ClauseKey::AdditionUnit(_) => {
                 //
-                match self.unit.iter_mut().find(|db_c| db_c.key() == key) {
+                match self.unit_addition.iter_mut().find(|db_c| db_c.key() == key) {
                     Some(clause) => Ok(clause),
                     None => Err(err::ClauseDBError::Missing),
                 }
@@ -310,9 +336,15 @@ impl ClauseDB {
     /// E.g., this is safe to use with binary clauses, but not with addition clauses.
     pub unsafe fn get_unchecked(&self, key: &ClauseKey) -> Result<&dbClause, err::ClauseDBError> {
         match key {
-            ClauseKey::Unit(_) => {
+            ClauseKey::OriginalUnit(_) => Err(err::ClauseDBError::GetOriginalUnitKey),
+
+            ClauseKey::AdditionUnit(_) => {
                 //
-                match self.unit.iter().find(|db_clause| db_clause.key() == key) {
+                match self
+                    .unit_addition
+                    .iter()
+                    .find(|db_clause| db_clause.key() == key)
+                {
                     Some(clause) => Ok(clause),
                     None => Err(err::ClauseDBError::Missing),
                 }
@@ -344,9 +376,11 @@ impl ClauseDB {
         key: &ClauseKey,
     ) -> Result<&mut dbClause, err::ClauseDBError> {
         match key {
-            ClauseKey::Unit(_) => {
+            ClauseKey::OriginalUnit(_) => Err(err::ClauseDBError::GetOriginalUnitKey),
+
+            ClauseKey::AdditionUnit(_) => {
                 //
-                match self.unit.iter_mut().find(|db_c| db_c.key() == key) {
+                match self.unit_addition.iter_mut().find(|db_c| db_c.key() == key) {
                     Some(clause) => Ok(clause),
                     None => Err(err::ClauseDBError::Missing),
                 }
@@ -377,7 +411,10 @@ impl ClauseDB {
             ClauseKey::Addition(index, _) => {
                 self.activity_heap.remove(index as usize);
             }
-            ClauseKey::Unit(_) | ClauseKey::Binary(_) | ClauseKey::Original(_) => {}
+            ClauseKey::OriginalUnit(_)
+            | ClauseKey::AdditionUnit(_)
+            | ClauseKey::Binary(_)
+            | ClauseKey::Original(_) => {}
         }
     }
 
@@ -492,12 +529,20 @@ impl ClauseDB {
 
     /// The count of all clauses encountered, including removed clauses.
     pub fn total_clause_count(&self) -> usize {
-        self.unit.len() + self.original.len() + self.binary.len() + self.addition_count
+        self.unit_original.len()
+            + self.unit_addition.len()
+            + self.original.len()
+            + self.binary.len()
+            + self.addition_count
     }
 
     /// The count of all clauses currently in the context.
     pub fn current_clause_count(&self) -> usize {
-        self.unit.len() + self.original.len() + self.binary.len() + self.addition.len()
+        self.unit_original.len()
+            + self.unit_addition.len()
+            + self.original.len()
+            + self.binary.len()
+            + self.addition.len()
     }
 
     /// The count of the current addition clauses in the context.
@@ -514,8 +559,37 @@ impl ClauseDB {
     /// ```rust,ignore
     /// buffer.strengthen_given(self.clause_db.all_unit_clauses());
     /// ```
+    pub fn all_original_unit_clauses(&self) -> impl Iterator<Item = &cLiteral> {
+        self.unit_original
+            .iter()
+            .flat_map(|c| c.clause().literals().last())
+    }
+
+    /// An iterator over all addition unit clauses, given as [cLiteral]s.
+    ///
+    /// ```rust,ignore
+    /// buffer.strengthen_given(self.clause_db.all_unit_clauses());
+    /// ```
+    pub fn all_addition_unit_clauses(&self) -> impl Iterator<Item = &cLiteral> {
+        self.unit_addition
+            .iter()
+            .flat_map(|c| c.clause().literals().last())
+    }
+
+    /// An iterator over all unit clauses, given as [cLiteral]s.
+    ///
+    /// ```rust,ignore
+    /// buffer.strengthen_given(self.clause_db.all_unit_clauses());
+    /// ```
     pub fn all_unit_clauses(&self) -> impl Iterator<Item = &cLiteral> {
-        self.unit.iter().flat_map(|c| c.clause().literals().last())
+        self.unit_original
+            .iter()
+            .flat_map(|c| c.clause().literals().last())
+            .chain(
+                self.unit_addition
+                    .iter()
+                    .flat_map(|c| c.clause().literals().last()),
+            )
     }
 
     /// An iterator over all non-unit clauses, given as [impl Clause]s.
@@ -542,15 +616,20 @@ impl ClauseDB {
                         .iter()
                         .flat_map(|maybe_clause| maybe_clause.as_ref()),
                 )
-                .chain(self.unit.iter()),
+                .chain(self.unit_original.iter().chain(self.unit_addition.iter())),
         )
     }
 
     /// Send a dispatch of all active clauses.
     pub fn dispatch_active(&self) {
         if let Some(dispatcher) = &self.dispatcher {
-            for literal in self.all_unit_clauses() {
-                let report = report::ClauseDBReport::ActiveUnit(*literal);
+            for literal in self.all_original_unit_clauses() {
+                let report = report::ClauseDBReport::ActiveOriginalUnit(*literal);
+                dispatcher(Dispatch::Report(report::Report::ClauseDB(report)));
+            }
+
+            for literal in self.all_addition_unit_clauses() {
+                let report = report::ClauseDBReport::ActiveAdditionUnit(*literal);
                 dispatcher(Dispatch::Report(report::Report::ClauseDB(report)));
             }
 

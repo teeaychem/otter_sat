@@ -200,10 +200,10 @@ impl ResolutionBuffer {
         self.merge_clause(base_clause);
 
         match key {
-            ClauseKey::Unit(_) | ClauseKey::Binary(_) | ClauseKey::Original(_) => {
+            ClauseKey::OriginalUnit(_) | ClauseKey::Binary(_) | ClauseKey::Original(_) => {
                 self.origins.insert(*key);
             }
-            _ => {}
+            ClauseKey::AdditionUnit(_) | ClauseKey::Addition(_, _) => {}
         }
         self.origins.extend(base_clause.origins());
 
@@ -234,10 +234,12 @@ impl ResolutionBuffer {
                     };
 
                     match key {
-                        ClauseKey::Unit(_) | ClauseKey::Binary(_) | ClauseKey::Original(_) => {
+                        ClauseKey::OriginalUnit(_)
+                        | ClauseKey::Binary(_)
+                        | ClauseKey::Original(_) => {
                             self.origins.insert(*key);
                         }
-                        _ => {}
+                        ClauseKey::AdditionUnit(_) | ClauseKey::Addition(_, _) => {}
                     }
                     self.origins.extend(source_clause.origins());
 
@@ -259,7 +261,9 @@ impl ResolutionBuffer {
                                 return Ok(ResolutionOk::UnitClause);
                             }
                             _ => match key {
-                                ClauseKey::Unit(_) => panic!("!"),
+                                ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) => {
+                                    panic!("!")
+                                }
 
                                 ClauseKey::Binary(_) => {
                                     todo!("a formula is found which triggers this…");

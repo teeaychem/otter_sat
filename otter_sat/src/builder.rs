@@ -9,7 +9,7 @@ use crate::{
     },
     structures::{
         atom::Atom,
-        clause::{self, cClause, Clause},
+        clause::{self, cClause, Clause, Source},
         literal::{cLiteral, Literal},
     },
     types::err::{self, PreprocessingError},
@@ -150,8 +150,16 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         match self.atom_db.value_of(literal.atom()) {
             None => {
-                match self.value_and_queue(literal.canonical(), consequence_q::QPosition::Back, 0) {
+                let canonical = literal.canonical();
+                match self.value_and_queue(canonical, consequence_q::QPosition::Back, 0) {
                     Ok(consequence_q::ConsequenceQueueOk::Qd) => {
+                        self.clause_db.store(
+                            canonical,
+                            Source::Assumption,
+                            &mut self.atom_db,
+                            None,
+                            HashSet::default(),
+                        );
                         self.literal_db.assumption_made(literal.canonical());
                         Ok(())
                     }

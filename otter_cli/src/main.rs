@@ -1,4 +1,4 @@
-// #![allow(unused_imports)]
+#![allow(unused_imports)]
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::collapsible_else_if)]
 
@@ -15,7 +15,6 @@ use otter_sat::{
     config::Config,
     context::Context,
     dispatch::{
-        core::CoreDB,
         library::report::{self},
         Dispatch,
     },
@@ -55,22 +54,12 @@ fn main() {
 
     config_preprocessing(&mut config, &mut config_io);
 
-    let core_db_ptr = if config_io.show_core {
-        Some(Arc::new(Mutex::new(CoreDB::default())))
-    } else {
-        None
-    };
-
     let (transmitter, receiver) =
         match config_io.show_core || config_io.show_stats || config_io.frat {
             true => {
                 let (tx, rx) = unbounded::<Dispatch>();
                 let config = config.clone();
                 let config_io = config_io.clone();
-                let core_db_ptr_clone = core_db_ptr.clone();
-                let rx = thread::spawn(|| {
-                    records::general_recorder(rx, config, config_io, core_db_ptr_clone)
-                });
                 (Some(tx), Some(rx))
             }
             false => (None, None),
@@ -138,9 +127,6 @@ fn main() {
             if let Some(path) = config_io.frat_path {
                 let _ = std::fs::remove_file(path);
             }
-            if let Some(handle) = receiver {
-                let _ = handle.join();
-            }
 
             drop(the_context);
             println!("s SATISFIABLE");
@@ -151,17 +137,8 @@ fn main() {
                 println!("c Finalising FRAT proof…");
             }
 
-            if let Some(handle) = receiver {
-                let _ = handle.join();
-            }
-
             if config_io.show_core {
-                let the_core_db = core_db_ptr.expect("core_db should be present…");
-                let the_core_db = the_core_db.lock().unwrap();
-                let core_keys = the_core_db.core_clauses().unwrap();
-                for core_clause in core_keys {
-                    println!("{}", core_clause.as_dimacs(true));
-                }
+                println!("Core: Not yet reimplemented for CLI.")
             }
 
             drop(the_context);
