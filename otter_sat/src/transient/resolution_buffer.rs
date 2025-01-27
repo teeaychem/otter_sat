@@ -192,22 +192,15 @@ impl ResolutionBuffer {
         atom_db: &mut AtomDB,
     ) -> Result<ResolutionOk, err::ResolutionBufferError> {
         // The key has already been used to access the conflicting clause.
-        let base_clause = match unsafe { clause_db.get_unchecked(key) } {
+        let base_clause = match unsafe { clause_db.get_unchecked_mut(key) } {
             Ok(clause) => clause,
             Err(_) => return Err(err::ResolutionBufferError::MissingClause),
         };
 
         self.merge_clause(base_clause);
-
-        match key {
-            ClauseKey::OriginalUnit(_) | ClauseKey::Binary(_) | ClauseKey::Original(_) => {
-                self.origins.insert(*key);
-            }
-            ClauseKey::AdditionUnit(_) => {}
-            ClauseKey::Addition(_, _) => {
-                self.origins.extend(base_clause.origins());
-            }
-        }
+        base_clause.increment_proof_count();
+        clause_db.note_use(*key);
+        self.origins.insert(*key);
 
         // Maybe the conflit clause was already asserting after the previous decision…
         if let Some(literal) = self.asserted_literal() {
@@ -227,7 +220,7 @@ impl ResolutionBuffer {
         'resolution_loop: for consequence in the_trail {
             match consequence.source() {
                 consequence::Source::BCP(key) => {
-                    let source_clause = match unsafe { clause_db.get_unchecked(key) } {
+                    let source_clause = match unsafe { clause_db.get_unchecked_mut(key) } {
                         Err(_) => {
                             log::error!(target: targets::RESOLUTION, "Lost resolution clause {key}");
                             return Err(err::ResolutionBufferError::LostClause);
@@ -235,29 +228,25 @@ impl ResolutionBuffer {
                         Ok(clause) => clause,
                     };
 
-                    match key {
-                        ClauseKey::OriginalUnit(_)
-                        | ClauseKey::Binary(_)
-                        | ClauseKey::Original(_) => {
-                            self.origins.insert(*key);
-                        }
-                        ClauseKey::AdditionUnit(_) => {}
-                        ClauseKey::Addition(_, _) => {
-                            self.origins.extend(source_clause.origins());
-                        }
-                    }
+                    // Recorded here to avoid multiple mutable borrows of clause_db
+                    let source_clause_size = source_clause.size();
 
                     let resolution_result =
                         self.resolve_clause(source_clause, consequence.literal());
+
+                    source_clause.increment_proof_count();
+                    clause_db.note_use(*key);
+                    self.origins.insert(*key);
 
                     if resolution_result.is_err() {
                         // the clause wasn't relevant
                         continue 'resolution_loop;
                     }
 
-                    if self.config.subsumption && self.clause_length < source_clause.size() {
+                    if self.config.subsumption && self.clause_length < source_clause_size {
                         match self.clause_length {
                             0 => {}
+
                             1 => {
                                 macros::dispatch_resolution_delta!(self, Resolution::Used(*key));
                                 macros::dispatch_resolution_delta!(self, Resolution::End);
@@ -272,6 +261,7 @@ impl ResolutionBuffer {
                                 ClauseKey::Binary(_) => {
                                     todo!("a formula is found which triggers this…");
                                 }
+
                                 ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
                                     // TODO: Subsumption should use the appropriate valuation
                                     let origins = self.take_origins();
@@ -283,6 +273,7 @@ impl ResolutionBuffer {
                                         origins,
                                     )?;
 
+                                    // TODO: Inference counts for subsumption
                                     self.origins.insert(k);
 
                                     macros::dispatch_resolution_delta!(self, Resolution::End);

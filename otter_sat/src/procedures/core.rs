@@ -23,7 +23,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         let final_clause = self.clause_db.get(&key).expect("Final clause missing");
 
-        let conflict_origins = final_clause.origins();
+        let conflict_origins = final_clause.premises();
         if !conflict_origins.is_empty() {
             core.extend(conflict_origins.iter());
         }
@@ -36,7 +36,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     core.insert(ClauseKey::OriginalUnit(literal.negate()));
                 }
                 Ok(clause) => {
-                    let literal_origins = clause.origins();
+                    let literal_origins = clause.premises();
 
                     if !literal_origins.is_empty() {
                         core.extend(literal_origins);

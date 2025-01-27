@@ -223,9 +223,11 @@ impl ClauseDB {
 
                     match key {
                         ClauseKey::Addition(_, 0) => self.addition.push(Some(stored_form)),
+
                         ClauseKey::Addition(_, _) => unsafe {
                             *self.addition.get_unchecked_mut(key.index()) = Some(stored_form)
                         },
+
                         _ => panic!("!"),
                     };
 
@@ -249,11 +251,12 @@ impl ClauseDB {
 
             ClauseKey::AdditionUnit(_) => {
                 //
-                match self.unit_addition.get(&key) {
+                match self.unit_addition.get(key) {
                     Some(clause) => Ok(clause),
                     None => Err(err::ClauseDBError::Missing),
                 }
             }
+
             ClauseKey::Original(index) => {
                 //
                 match self.original.get(*index as usize) {
@@ -261,6 +264,7 @@ impl ClauseDB {
                     None => Err(err::ClauseDBError::Missing),
                 }
             }
+
             ClauseKey::Binary(index) => {
                 //
                 match self.binary.get(*index as usize) {
@@ -268,6 +272,7 @@ impl ClauseDB {
                     None => Err(err::ClauseDBError::Missing),
                 }
             }
+
             ClauseKey::Addition(index, token) => {
                 //
                 match self.addition.get(*index as usize) {
@@ -293,7 +298,7 @@ impl ClauseDB {
 
             ClauseKey::AdditionUnit(_) => {
                 //
-                match self.unit_addition.get_mut(&key) {
+                match self.unit_addition.get_mut(key) {
                     Some(clause) => Ok(clause),
                     None => Err(err::ClauseDBError::Missing),
                 }
@@ -342,7 +347,7 @@ impl ClauseDB {
 
             ClauseKey::AdditionUnit(_) => {
                 //
-                match self.unit_addition.get(&key) {
+                match self.unit_addition.get(key) {
                     Some(clause) => Ok(clause),
                     None => Err(err::ClauseDBError::Missing),
                 }
@@ -378,7 +383,7 @@ impl ClauseDB {
 
             ClauseKey::AdditionUnit(_) => {
                 //
-                match self.unit_addition.get_mut(&key) {
+                match self.unit_addition.get_mut(key) {
                     Some(clause) => Ok(clause),
                     None => Err(err::ClauseDBError::Missing),
                 }
@@ -421,8 +426,10 @@ impl ClauseDB {
     /// After this is called every addition clause is a candidate for deletion.
     pub fn refresh_heap(&mut self) {
         for (index, slot) in self.addition.iter().enumerate() {
-            if slot.is_some() {
-                self.activity_heap.activate(index);
+            if let Some(clause) = slot {
+                if clause.proof_occurrence_count() == 0 {
+                    self.activity_heap.activate(index);
+                }
             }
         }
         self.activity_heap.reheap();
@@ -446,6 +453,7 @@ impl ClauseDB {
             if let Some(index) = self.activity_heap.peek_max() {
                 let value = self.activity_heap.value_at(index);
                 log::debug!(target: targets::REDUCTION, "Took ~ Activity: {} LBD: {}", value.activity, value.lbd);
+
                 if value.lbd <= self.config.lbd_bound {
                     break 'reduction_loop;
                 } else {
@@ -472,6 +480,20 @@ impl ClauseDB {
         } else {
             let the_clause =
                 std::mem::take(unsafe { self.addition.get_unchecked_mut(index) }).unwrap();
+
+            for origin_key in the_clause.premises() {
+                match origin_key {
+                    ClauseKey::Addition(_, _) => {
+                        let origin_clause = unsafe { self.get_unchecked_mut(origin_key).unwrap() };
+                        origin_clause.decrement_proof_count();
+                        if origin_clause.proof_occurrence_count() == 0 {
+                            self.activity_heap.activate(origin_key.index());
+                        }
+                    }
+
+                    _ => {}
+                }
+            }
 
             macros::dispatch_clause_removal!(self, the_clause);
             // if let Some(dispatcher) = &self.dispatcher {
