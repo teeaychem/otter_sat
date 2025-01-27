@@ -35,9 +35,8 @@ use crate::{
         Dispatch,
     },
     structures::{
-        clause::{Clause, Source as ClauseSource},
+        clause::{Clause, ClauseSource},
         consequence::{Consequence, Source as ConsequenceSource},
-        literal::Literal,
         valuation::vValuation,
     },
     types::err::{self, ErrorKind},
@@ -58,7 +57,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// If no decisions have been made, literals are added to the clause database as unit clauses.
     /// Otherwise, literals are recorded as consequences of the current decision.
     ///
-    /// # Origins
+    /// # Premises
     /// If a propagation occurs without any decision having been made, then the valuation must conflict with each other literal in the clause.
     /// So, the origin of the unit is the clause used and each literal, and the literals are easily identified by examining the clause.
     pub fn record_consequence(
@@ -68,14 +67,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let consequence = consequence.borrow().clone();
         match consequence.source() {
             ConsequenceSource::PureLiteral => {
-                let origins = HashSet::default();
+                let premises = HashSet::default();
                 // Making a free decision is not supported after some other (non-free) decision has been made.
                 if !self.literal_db.is_decision_made() && self.literal_db.decision_count() == 0 {
                     self.record_clause(
                         *consequence.literal(),
                         ClauseSource::PureUnit,
                         None,
-                        origins,
+                        premises,
                     );
                 } else {
                     panic!("! Origins")
@@ -93,15 +92,15 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         } else {
                             let unit_clause = *consequence.literal();
 
-                            let mut origins = HashSet::default();
-                            origins.insert(*key);
+                            let mut premises = HashSet::default();
+                            premises.insert(*key);
 
                             let direct_origin_clause =
                                 unsafe { self.clause_db.get_unchecked_mut(&key) }?;
                             direct_origin_clause.increment_proof_count();
                             self.clause_db.note_use(*key);
 
-                            self.record_clause(unit_clause, ClauseSource::BCP, None, origins);
+                            self.record_clause(unit_clause, ClauseSource::BCP, None, premises);
                         };
                     }
 
@@ -127,11 +126,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         clause: impl Clause,
         source: ClauseSource,
         valuation: Option<&vValuation>,
-        origins: HashSet<ClauseKey>,
+        premises: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         let key = self
             .clause_db
-            .store(clause, source, &mut self.atom_db, valuation, origins)?;
+            .store(clause, source, &mut self.atom_db, valuation, premises)?;
 
         log::info!("Record clause: {key}");
 

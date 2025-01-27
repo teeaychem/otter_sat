@@ -82,7 +82,7 @@ pub type cClause = vClause;
 
 /// The source of a clause.
 #[derive(Clone, Copy)]
-pub enum Source {
+pub enum ClauseSource {
     /// A *unit* clause obtained via BCP.
     BCP,
 

@@ -33,7 +33,7 @@ impl ClauseDB {
         &mut self,
         key: ClauseKey,
         atom_db: &mut AtomDB,
-        origins: HashSet<ClauseKey>,
+        premises: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match key {
             ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) => {
@@ -78,7 +78,7 @@ impl ClauseDB {
                 }
 
                 let binary_clause =
-                    dbClause::new_nonunit(binary_key, copied_clause, atom_db, None, origins);
+                    dbClause::new_nonunit(binary_key, copied_clause, atom_db, None, premises);
 
                 self.binary.push(binary_clause);
 

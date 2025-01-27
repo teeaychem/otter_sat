@@ -95,19 +95,19 @@ pub struct ResolutionBuffer {
     /// The length of the clause.
     clause_length: usize,
 
-    /// The literal asserted by the current resolution candidate, if it exists
+    /// The literal asserted by the current resolution candidate, if it exists..
     asserts: Option<cLiteral>,
 
-    /// The origins of the clause
-    origins: HashSet<ClauseKey>,
+    /// The (direct) premises used top derive the clause.
+    premises: HashSet<ClauseKey>,
 
-    /// The buffer
+    /// The buffer.
     buffer: Vec<Cell>,
 
-    /// Where to send dispatches
+    /// Where to send dispatches.
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 
-    /// A (typically derived) configuration for the instance of resolution
+    /// A (typically derived) configuration for the instance of resolution.
     config: BufferConfig,
 }
 
@@ -115,6 +115,7 @@ pub struct ResolutionBuffer {
 pub struct BufferConfig {
     /// Whether check for and initiate subsumption.
     subsumption: bool,
+
     /// The stopping criteria to use during resolution.
     stopping: StoppingCriteria,
 }
@@ -137,7 +138,7 @@ impl ResolutionBuffer {
             valueless_count: 0,
             clause_length: 0,
             asserts: None,
-            origins: HashSet::default(),
+            premises: HashSet::default(),
 
             buffer: valuation_copy,
 
@@ -200,7 +201,7 @@ impl ResolutionBuffer {
         self.merge_clause(base_clause);
         base_clause.increment_proof_count();
         clause_db.note_use(*key);
-        self.origins.insert(*key);
+        self.premises.insert(*key);
 
         // Maybe the conflit clause was already asserting after the previous decision…
         if let Some(literal) = self.asserted_literal() {
@@ -236,7 +237,7 @@ impl ResolutionBuffer {
 
                     source_clause.increment_proof_count();
                     clause_db.note_use(*key);
-                    self.origins.insert(*key);
+                    self.premises.insert(*key);
 
                     if resolution_result.is_err() {
                         // the clause wasn't relevant
@@ -264,7 +265,7 @@ impl ResolutionBuffer {
 
                                 ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
                                     // TODO: Subsumption should use the appropriate valuation
-                                    let origins = self.take_origins();
+                                    let origins = self.take_premises();
 
                                     let k = clause_db.subsume(
                                         *key,
@@ -274,7 +275,7 @@ impl ResolutionBuffer {
                                     )?;
 
                                     // TODO: Inference counts for subsumption
-                                    self.origins.insert(k);
+                                    self.premises.insert(k);
 
                                     macros::dispatch_resolution_delta!(self, Resolution::End);
                                     macros::dispatch_resolution_delta!(self, Resolution::Begin);
@@ -341,8 +342,8 @@ impl ResolutionBuffer {
             })
     }
 
-    pub fn take_origins(&mut self) -> HashSet<ClauseKey> {
-        std::mem::take(&mut self.origins)
+    pub fn take_premises(&mut self) -> HashSet<ClauseKey> {
+        std::mem::take(&mut self.premises)
     }
 }
 

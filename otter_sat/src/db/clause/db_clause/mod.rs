@@ -69,13 +69,13 @@ impl dbClause {
     /// Note:
     /// - This does not store the [dbClause] in the [clause database](crate::db::clause::ClauseDB).
     ///   Instead, this is the canonical way to obtain some thing to be stored in a database.
-    pub fn new_unit(key: ClauseKey, literal: cLiteral, origins: HashSet<ClauseKey>) -> Self {
+    pub fn new_unit(key: ClauseKey, literal: cLiteral, premises: HashSet<ClauseKey>) -> Self {
         Self {
             key,
             clause: vec![literal],
             active: true,
             watch_ptr: 0,
-            premises: origins,
+            premises,
             inferences: 0,
         }
     }
@@ -94,14 +94,14 @@ impl dbClause {
         clause: cClause,
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,
-        origins: HashSet<ClauseKey>,
+        premises: HashSet<ClauseKey>,
     ) -> Self {
         let mut db_clause = dbClause {
             key,
             clause,
             active: true,
             watch_ptr: 0,
-            premises: origins,
+            premises,
             inferences: 0,
         };
 

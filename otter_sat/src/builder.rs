@@ -9,7 +9,7 @@ use crate::{
     },
     structures::{
         atom::Atom,
-        clause::{self, cClause, Clause, Source},
+        clause::{cClause, Clause, ClauseSource},
         literal::{cLiteral, Literal},
     },
     types::err::{self, PreprocessingError},
@@ -97,13 +97,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             0,
                         ) {
                             Ok(consequence_q::ConsequenceQueueOk::Qd) => {
-                                let origins = HashSet::default();
-                                self.record_clause(
-                                    literal,
-                                    clause::Source::Original,
-                                    None,
-                                    origins,
-                                );
+                                let premises = HashSet::default();
+                                self.record_clause(literal, ClauseSource::Original, None, premises);
                                 Ok(())
                             }
                             _ => Err(err::ErrorKind::from(err::ClauseDBError::ImmediateConflict)),
@@ -137,8 +132,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
                 }
 
-                let origins = HashSet::default();
-                self.record_clause(clause_vec, clause::Source::Original, None, origins)?;
+                let premises = HashSet::default();
+                self.record_clause(clause_vec, ClauseSource::Original, None, premises)?;
 
                 Ok(ClauseOk::AddedLong)
             }
@@ -155,7 +150,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     Ok(consequence_q::ConsequenceQueueOk::Qd) => {
                         self.clause_db.store(
                             canonical,
-                            Source::Assumption,
+                            ClauseSource::Assumption,
                             &mut self.atom_db,
                             None,
                             HashSet::default(),
