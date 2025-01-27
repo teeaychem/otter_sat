@@ -8,8 +8,8 @@ use crate::{
     ipasir::{ContextBundle, IPASIR_SIGNATURE},
     structures::{
         atom::Atom,
-        clause::cClause,
-        literal::{cLiteral, Literal},
+        clause::{cClause, Clause},
+        literal::{abLiteral, cLiteral, Literal},
     },
 };
 use std::ffi::{c_char, c_int, c_void};
@@ -45,13 +45,23 @@ pub unsafe extern "C" fn ipasir_release(solver: *mut c_void) {
 
 /// Adds a clause to the solver.
 ///
-/// The `proofmeta` structure is not supported.
 /// # Safety
 /// Recovers a context bundle and takes a clause from raw pointers.
 #[allow(unused_variables)]
 #[no_mangle]
 pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+
+    match bundle.context.state {
+        ContextState::Configuration | ContextState::Input => {}
+
+        ContextState::Satisfiable | ContextState::Unsatisfiable(_) => {
+            bundle.context.backjump(0);
+            bundle.context.remove_assumptions();
+        }
+
+        ContextState::Solving => panic!("!"),
+    }
 
     match lit_or_zero {
         0 => {
@@ -72,6 +82,7 @@ pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
                         .clause_buffer
                         .push(cLiteral::fresh(fresh_atom, literal.is_positive()));
                 }
+
                 Some(atom) => {
                     bundle
                         .clause_buffer
@@ -79,6 +90,25 @@ pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
                 }
             }
         }
+    }
+}
+
+/// Adds an assumption to the solver.
+///
+/// # Safety
+/// Recovers a context bundle and takes a clause from raw pointers.
+pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
+    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+
+    match bundle.context.state {
+        ContextState::Configuration | ContextState::Input => {}
+
+        ContextState::Satisfiable | ContextState::Unsatisfiable(_) => {
+            bundle.context.backjump(0);
+            bundle.context.remove_assumptions();
+        }
+
+        ContextState::Solving => panic!("!"),
     }
 }
 
@@ -90,16 +120,24 @@ pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
 pub unsafe extern "C" fn ipasir_solve(solver: *mut c_void) -> c_int {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
+    match bundle.context.state {
+        ContextState::Configuration | ContextState::Input => {}
+
+        ContextState::Satisfiable | ContextState::Unsatisfiable(_) => {
+            bundle.context.backjump(0);
+            bundle.core_keys.clear();
+            bundle.core_literals.clear();
+        }
+
+        ContextState::Solving => {
+            panic!("!")
+        }
+    }
+
     let solve_result = bundle.context.solve();
 
     match solve_result {
-        Ok(SolveReport::Satisfiable) => {
-            // As this is incremental, prepare for another solve.
-            // This clears the *current* valuation, but the satisfying valuation is preserved in the prior valuation.
-            bundle.context.backjump(0);
-            bundle.context.remove_assumptions();
-            10
-        }
+        Ok(SolveReport::Satisfiable) => 10,
         Ok(SolveReport::Unsatisfiable) => 20,
         _ => 0,
     }
@@ -110,7 +148,7 @@ pub unsafe extern "C" fn ipasir_solve(solver: *mut c_void) -> c_int {
 /// Explicitly, given a literal of the form ±a, `result` is set to:
 /// * +a, if a is bound to true on the satisfying valuation.
 /// * -a, if a is bound to false on the satisfying valuation.
-///*-
+///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
 #[no_mangle]
@@ -126,23 +164,59 @@ pub unsafe extern "C" fn ipasir_val(solver: *mut c_void, lit: i32) -> i32 {
         None => return 0,
     };
 
-    // Following the note on solve, this uses the previous value of the atom as valuations are cleared after a solve completes.
-    match bundle.context.atom_db.previous_value_of(*internal_atom) {
-        true => lit,
-        false => -lit,
+    match bundle.context.atom_db.value_of(*internal_atom) {
+        Some(true) => lit,
+        Some(false) => -lit,
+        None => panic!("!"),
     }
 }
 
+/// If the formula is unsatisfiable, returns whether a literal is present in the identified unsatisfiable core.
+///
+/// Note, this is a strict expansion of the IPASIR API requirement, which is undefined on any `lit` which is not an assumption.
+///
+/// Specifically:
+/// - If the formula is unsatisfiable:
+///   + Returns 1, if the given literal is present in the unsatisfiable core, and 0 otherwise.
+///   + Returns 0, otherwise.
+/// - Otherwise, returns -1.
+///
+/// # Safety
+/// Recovers a context bundle from a raw pointer.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir_failed(solver: *mut c_void, lit: i32) -> c_int {
-    todo!()
+    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    let ContextState::Unsatisfiable(_) = bundle.context.state else {
+        return -1;
+    };
+
+    if bundle.core_literals.is_empty() {
+        bundle.core_keys = bundle.context.core_keys();
+        for key in &bundle.core_keys {
+            let clause = bundle.context.clause_db.get_unchecked(key).unwrap();
+            for literal in clause.literals() {
+                bundle.core_literals.insert(*literal);
+            }
+        }
+    }
+
+    let literal_canonical = abLiteral::fresh(lit.unsigned_abs(), lit.is_positive());
+
+    match bundle.core_literals.contains(&literal_canonical) {
+        true => 1,
+        false => 0,
+    }
 }
 
+/// # Safety
+/// Recovers a context bundle from a raw pointer.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir_set_terminate(
     solver: *mut c_void,
     data: *mut c_void,
     callback: Option<extern "C" fn(data: *mut c_void) -> c_int>,
 ) {
-    todo!()
+    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    bundle.context.ipasir_terminate_callback = callback;
+    bundle.context.ipasir_termindate_data = data;
 }

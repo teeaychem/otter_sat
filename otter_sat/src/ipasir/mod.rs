@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     config::Config,
     context::Context,
-    structures::{atom::Atom, clause::cClause},
+    db::ClauseKey,
+    structures::{atom::Atom, clause::cClause, literal::cLiteral},
 };
 
 pub mod ipasir_one;
@@ -28,6 +29,12 @@ pub struct ContextBundle {
 
     /// A buffer for the creation of a clause.
     clause_buffer: cClause,
+
+    /// The keys to a an unsatisfiable core of the formula.
+    core_keys: Vec<ClauseKey>,
+
+    /// The literals which occur in the unsatisfiable core identified by [core_keys].
+    core_literals: HashSet<cLiteral>,
 }
 
 impl Default for ContextBundle {
@@ -37,6 +44,8 @@ impl Default for ContextBundle {
             ei_map: HashMap::default(),
             ie_map: vec![0],
             clause_buffer: Vec::default(),
+            core_keys: Vec::default(),
+            core_literals: HashSet::default(),
         }
     }
 }

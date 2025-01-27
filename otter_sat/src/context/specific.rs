@@ -6,7 +6,7 @@ use crate::{
 };
 
 use rand::SeedableRng;
-use std::rc::Rc;
+use std::{ffi::c_void, rc::Rc};
 
 use super::{ContextState, Counters, GenericContext};
 
@@ -30,6 +30,9 @@ impl Context {
             dispatcher,
 
             rng: crate::generic::minimal_pcg::MinimalPCG32::from_seed(0_u64.to_le_bytes()),
+
+            ipasir_terminate_callback: None,
+            ipasir_termindate_data: std::ptr::dangling_mut(),
         }
     }
 }
