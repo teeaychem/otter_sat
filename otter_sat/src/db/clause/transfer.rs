@@ -29,6 +29,7 @@ impl ClauseDB {
     /*
     Addition clauses are removed from the database, but as there is at present no way to remove original clauses, these are ignored.
      */
+    // TODO: Cleanup original/addition repetition
     pub fn transfer_to_binary(
         &mut self,
         key: ClauseKey,
@@ -41,12 +42,12 @@ impl ClauseDB {
                 Err(err::ClauseDBError::TransferUnit)
             }
 
-            ClauseKey::Binary(_) => {
+            ClauseKey::OriginalBinary(_) | ClauseKey::AdditionBinary(_) => {
                 log::error!(target: targets::TRANSFER, "Attempt to transfer binary");
                 Err(err::ClauseDBError::TransferBinary)
             }
 
-            ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
+            ClauseKey::Original(_) => {
                 let the_clause = self.get_mut(&key)?;
                 the_clause.deactivate();
                 let copied_clause = the_clause.to_vec();
@@ -56,7 +57,7 @@ impl ClauseDB {
                     return Err(err::ClauseDBError::TransferBinary);
                 }
 
-                let binary_key = self.fresh_binary_key()?;
+                let binary_key = self.fresh_original_binary_key()?;
 
                 unsafe {
                     // Ok, as checked length is 2, above.
@@ -80,7 +81,50 @@ impl ClauseDB {
                 let binary_clause =
                     dbClause::new_nonunit(binary_key, copied_clause, atom_db, None, premises);
 
-                self.binary.push(binary_clause);
+                self.binary_original.push(binary_clause);
+
+                if matches!(key, ClauseKey::Addition(_, _)) {
+                    self.remove_addition(key.index())?;
+                }
+
+                Ok(binary_key)
+            }
+
+            ClauseKey::Addition(_, _) => {
+                let the_clause = self.get_mut(&key)?;
+                the_clause.deactivate();
+                let copied_clause = the_clause.to_vec();
+
+                if copied_clause.len() != 2 {
+                    log::error!(target: targets::TRANSFER, "Attempt to transfer binary");
+                    return Err(err::ClauseDBError::TransferBinary);
+                }
+
+                let binary_key = self.fresh_addition_binary_key()?;
+
+                unsafe {
+                    // Ok, as checked length is 2, above.
+                    let zero = copied_clause.get_unchecked(0);
+                    atom_db.unwatch_unchecked(zero.atom(), zero.polarity(), &key)?;
+                    let one = copied_clause.get_unchecked(1);
+                    atom_db.unwatch_unchecked(one.atom(), one.polarity(), &key)?;
+                }
+
+                if let Some(dispatch) = &self.dispatcher {
+                    let delta = delta::ClauseDB::ClauseStart;
+                    dispatch(Dispatch::Delta(Delta::ClauseDB(delta)));
+                    for literal in &copied_clause {
+                        let delta = delta::ClauseDB::ClauseLiteral(*literal);
+                        dispatch(Dispatch::Delta(Delta::ClauseDB(delta)));
+                    }
+                    let delta = delta::ClauseDB::Transfer(key, binary_key);
+                    dispatch(Dispatch::Delta(Delta::ClauseDB(delta)));
+                }
+
+                let binary_clause =
+                    dbClause::new_nonunit(binary_key, copied_clause, atom_db, None, premises);
+
+                self.binary_addition.push(binary_clause);
 
                 if matches!(key, ClauseKey::Addition(_, _)) {
                     self.remove_addition(key.index())?;

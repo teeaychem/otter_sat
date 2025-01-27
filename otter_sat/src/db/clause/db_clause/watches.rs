@@ -149,7 +149,8 @@ impl dbClause {
             ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) => {
                 panic!("!")
             }
-            ClauseKey::Binary(_) => unsafe {
+
+            ClauseKey::OriginalBinary(_) | ClauseKey::AdditionBinary(_) => unsafe {
                 // For binary watches, the other watched literal is included in the watch tag.
                 let check_literal = if self.clause.get_unchecked(0).atom() == atom {
                     *self.clause.get_unchecked(1)
@@ -163,6 +164,7 @@ impl dbClause {
                     WatchTag::Binary(check_literal, *self.key()),
                 );
             },
+
             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
                 atom_db.add_watch_unchecked(atom, value, WatchTag::Clause(*self.key()));
             },

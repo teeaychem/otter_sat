@@ -132,9 +132,11 @@ impl Transcriber {
             ClauseKey::OriginalUnit(literal) => Transcriber::unit_clause_id_original(literal),
             ClauseKey::AdditionUnit(literal) => Transcriber::unit_clause_id_addition(literal),
 
-            ClauseKey::Original(index) => format!("030{index}"),
-            ClauseKey::Binary(index) => format!("040{index}"),
-            ClauseKey::Addition(index, _) => format!("050{index}"),
+            ClauseKey::OriginalBinary(index) => format!("030{index}"),
+            ClauseKey::AdditionBinary(index) => format!("040{index}"),
+
+            ClauseKey::Original(index) => format!("050{index}"),
+            ClauseKey::Addition(index, _) => format!("060{index}"),
         }
     }
 

@@ -259,7 +259,7 @@ impl ResolutionBuffer {
                                     panic!("!")
                                 }
 
-                                ClauseKey::Binary(_) => {
+                                ClauseKey::OriginalBinary(_) | ClauseKey::AdditionBinary(_) => {
                                     todo!("a formula is found which triggers this…");
                                 }
 
