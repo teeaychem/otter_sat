@@ -60,7 +60,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// # Origins
     /// If a propagation occurs without any decision having been made, then the valuation must conflict with each other literal in the clause.
-    /// So, the origin of the unit is the origin of each literal.
+    /// So, the origin of the unit is the clause used and each literal, and the literals are easily identified by examining the clause.
     pub fn record_consequence(
         &mut self,
         consequence: impl Borrow<Consequence>,
@@ -94,39 +94,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let unit_clause = *consequence.literal();
 
                             let mut origins = HashSet::default();
-
-                            match key {
-                                ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) => {
-                                    panic!("!")
-                                }
-                                ClauseKey::Binary(_) | ClauseKey::Original(_) => {
-                                    origins.insert(*key);
-                                }
-                                ClauseKey::Addition(_, _) => {}
-                            }
+                            origins.insert(*key);
 
                             let direct_origin_clause =
-                                unsafe { self.clause_db.get_unchecked(key) }?;
-                            for literal in direct_origin_clause.literals() {
-                                if literal == &unit_clause {
-                                    continue;
-                                }
-
-                                // let literal = literal.negate();
-                                // let literal_key = ClauseKey::AdditionUnit(literal);
-
-                                // match self.clause_db.get(&literal_key) {
-                                //     Err(_) => {
-                                //         origins.insert(ClauseKey::OriginalUnit(literal));
-                                //     }
-                                //     Ok(db_clause) => {
-                                //         // origins.extend(db_clause.origins());
-                                //     }
-                                // }
-                                origins.insert(ClauseKey::OriginalUnit(literal.negate()));
-                            }
-
-                            log::trace!("Origins: {:?}", &origins);
+                                unsafe { self.clause_db.get_unchecked_mut(&key) }?;
+                            direct_origin_clause.increment_proof_count();
+                            self.clause_db.note_use(*key);
 
                             self.record_clause(unit_clause, ClauseSource::BCP, None, origins);
                         };

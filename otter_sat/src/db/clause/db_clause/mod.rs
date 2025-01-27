@@ -57,7 +57,10 @@ pub struct dbClause {
     watch_ptr: usize,
 
     /// Original clauses used to obtain the clause
-    origins: HashSet<ClauseKey>,
+    premises: HashSet<ClauseKey>,
+
+    /// A count of the inferences the clause occurs in.
+    inferences: usize,
 }
 
 impl dbClause {
@@ -72,7 +75,8 @@ impl dbClause {
             clause: vec![literal],
             active: true,
             watch_ptr: 0,
-            origins,
+            premises: origins,
+            inferences: 0,
         }
     }
 
@@ -97,7 +101,8 @@ impl dbClause {
             clause,
             active: true,
             watch_ptr: 0,
-            origins,
+            premises: origins,
+            inferences: 0,
         };
 
         db_clause.initialise_watches(atom_db, valuation);
@@ -130,8 +135,20 @@ impl dbClause {
         &self.clause
     }
 
-    pub fn origins(&self) -> &HashSet<ClauseKey> {
-        &self.origins
+    pub fn premises(&self) -> &HashSet<ClauseKey> {
+        &self.premises
+    }
+
+    pub fn proof_occurrence_count(&self) -> usize {
+        self.inferences
+    }
+
+    pub fn increment_proof_count(&mut self) {
+        self.inferences += 1
+    }
+
+    pub fn decrement_proof_count(&mut self) {
+        self.inferences -= 1
     }
 }
 

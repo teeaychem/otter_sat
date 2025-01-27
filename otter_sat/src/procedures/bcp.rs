@@ -96,7 +96,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             );
 
             for element in binary_list {
-                let WatchTag::Binary(check, clause_key) = element else {
+                let WatchTag::Binary(check, key) = element else {
                     log::error!(target: targets::PROPAGATION, "Long clause found in binary watch list.");
                     return Err(err::BCPError::CorruptWatch);
                 };
@@ -109,30 +109,30 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             decision_level,
                         ) {
                             Ok(consequence_q::ConsequenceQueueOk::Qd) => {
-                                macros::dispatch_bcp_delta!(self, Instance, *check, *clause_key);
+                                macros::dispatch_bcp_delta!(self, Instance, *check, *key);
                                 let consequence =
-                                    Consequence::from(check, consequence::Source::BCP(*clause_key));
+                                    Consequence::from(check, consequence::Source::BCP(*key));
                                 self.record_consequence(consequence);
                             }
 
                             Ok(consequence_q::ConsequenceQueueOk::Skip) => {}
 
                             Err(_key) => {
-                                return Err(err::BCPError::Conflict(*clause_key));
+                                return Err(err::BCPError::Conflict(*key));
                             }
                         }
                     }
 
                     Some(value) if check.polarity() != value => {
                         // Note the conflict
-                        log::trace!(target: targets::PROPAGATION, "Consequence of {clause_key} and {literal} is contradiction.");
-                        macros::dispatch_bcp_delta!(self, Conflict, *literal, *clause_key);
+                        log::trace!(target: targets::PROPAGATION, "Consequence of {key} and {literal} is contradiction.");
+                        macros::dispatch_bcp_delta!(self, Conflict, *literal, *key);
 
-                        return Err(err::BCPError::Conflict(*clause_key));
+                        return Err(err::BCPError::Conflict(*key));
                     }
 
                     Some(_) => {
-                        log::trace!(target: targets::PROPAGATION, "Repeat implication of {clause_key} {literal}.");
+                        log::trace!(target: targets::PROPAGATION, "Repeat implication of {key} {literal}.");
                         // a repeat implication, as this is binary
                     }
                 }
@@ -151,14 +151,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             let mut length = long_list.len();
 
             'long_loop: while index < length {
-                let WatchTag::Clause(clause_key) = long_list.get_unchecked(index) else {
+                let WatchTag::Clause(key) = long_list.get_unchecked(index) else {
                     log::error!(target: targets::PROPAGATION, "Binary clause found in long watch list.");
                     return Err(err::BCPError::CorruptWatch);
                 };
 
                 // TODO: From the FRAT paper neither MiniSAT nor CaDiCaL store clause identifiers.
                 // So, there may be some way to avoid this… unless there's a NULLPTR check or…
-                let db_clause = match self.clause_db.get_mut(clause_key) {
+                let db_clause = match self.clause_db.get_mut(key) {
                     Ok(stored_clause) => stored_clause,
                     Err(_) => {
                         long_list.swap_remove(index);
@@ -186,32 +186,34 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                         match watch_value {
                             Some(value) if the_watch.polarity() != value => {
-                                self.clause_db.note_use(*clause_key);
-                                macros::dispatch_bcp_delta!(self, Conflict, *literal, *clause_key);
+                                self.clause_db.note_use(*key);
+                                macros::dispatch_bcp_delta!(self, Conflict, *literal, *key);
 
-                                return Err(err::BCPError::Conflict(*clause_key));
+                                return Err(err::BCPError::Conflict(*key));
                             }
 
                             None => {
-                                self.clause_db.note_use(*clause_key);
+                                self.clause_db.note_use(*key);
 
                                 match self.value_and_queue(
                                     the_watch,
                                     consequence_q::QPosition::Back,
                                     decision_level,
                                 ) {
-                                    Ok(consequence_q::ConsequenceQueueOk::Qd)
-                                    | Ok(consequence_q::ConsequenceQueueOk::Skip) => {}
+                                    Ok(consequence_q::ConsequenceQueueOk::Qd) => {
+                                        macros::dispatch_bcp_delta!(
+                                            self, Instance, the_watch, *key
+                                        );
+                                        let consequence = Consequence::from(
+                                            the_watch,
+                                            consequence::Source::BCP(*key),
+                                        );
+                                        self.record_consequence(consequence);
+                                    }
+                                    Ok(consequence_q::ConsequenceQueueOk::Skip) => {}
 
-                                    Err(_) => return Err(err::BCPError::Conflict(*clause_key)),
+                                    Err(_) => return Err(err::BCPError::Conflict(*key)),
                                 };
-
-                                macros::dispatch_bcp_delta!(self, Instance, the_watch, *clause_key);
-                                let consequence = Consequence::from(
-                                    the_watch,
-                                    consequence::Source::BCP(*clause_key),
-                                );
-                                self.record_consequence(consequence);
                             }
 
                             Some(_) => {}
