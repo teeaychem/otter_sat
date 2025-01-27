@@ -9,7 +9,10 @@ use crate::{
     },
 };
 
-use std::rc::Rc;
+use std::{
+    ffi::{c_int, c_void},
+    rc::Rc,
+};
 
 use super::{ContextState, Counters};
 
@@ -59,6 +62,10 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
 
     /// An optional function to send dispatches with.
     pub dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
+
+    pub ipasir_terminate_callback: Option<extern "C" fn(data: *mut c_void) -> c_int>,
+
+    pub ipasir_termindate_data: *mut c_void,
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
@@ -73,7 +80,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
     }
 
-    pub fn conflict_clause(&self) -> Result<ClauseKey, ()> {
+    pub fn unsatisfiable_clause(&self) -> Result<ClauseKey, ()> {
         match self.state {
             ContextState::Unsatisfiable(key) => Ok(key),
             _ => Err(()),

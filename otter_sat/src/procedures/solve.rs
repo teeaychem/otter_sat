@@ -211,6 +211,15 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             if self.luby_fresh_conflict_interrupt() {
                 self.counters.luby.next();
 
+                if let Some(callback) = self.ipasir_terminate_callback {
+                    match callback(self.ipasir_termindate_data) {
+                        0 => {}
+                        _ => {
+                            break 'solve_loop;
+                        }
+                    }
+                }
+
                 macros::dispatch_stats!(self);
 
                 if self.config.switch.restart {
