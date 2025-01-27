@@ -27,7 +27,10 @@ pub enum ClauseKey {
     AdditionUnit(cLiteral),
 
     /// The key to a binary clause.
-    Binary(FormulaIndex),
+    OriginalBinary(FormulaIndex),
+
+    /// The key to a binary clause.
+    AdditionBinary(FormulaIndex),
 
     /// The key to an original clause.
     Original(FormulaIndex),
@@ -41,8 +44,8 @@ impl ClauseKey {
     pub fn index(&self) -> usize {
         match self {
             Self::OriginalUnit(l) | Self::AdditionUnit(l) => l.atom() as usize,
+            Self::OriginalBinary(i) | Self::AdditionBinary(i) => *i as usize,
             Self::Original(i) => *i as usize,
-            Self::Binary(i) => *i as usize,
             Self::Addition(i, _) => *i as usize,
         }
     }
@@ -56,14 +59,17 @@ impl ClauseKey {
                 log::error!(target: targets::CLAUSE_DB, "Unit keys have a unique token");
                 Err(err::ClauseDBError::InvalidKeyToken)
             }
+
             Self::Original(_) => {
                 log::error!(target: targets::CLAUSE_DB, "Formula keys have a unique token");
                 Err(err::ClauseDBError::InvalidKeyToken)
             }
-            Self::Binary(_) => {
+
+            Self::OriginalBinary(_) | Self::AdditionBinary(_) => {
                 log::error!(target: targets::CLAUSE_DB, "Binary keys have a unique token");
                 Err(err::ClauseDBError::InvalidKeyToken)
             }
+
             Self::Addition(index, token) => {
                 if *token == FormulaToken::MAX {
                     return Err(err::ClauseDBError::StorageExhausted);
@@ -79,9 +85,10 @@ impl std::fmt::Display for ClauseKey {
         match self {
             Self::OriginalUnit(key) => write!(f, "OriginalUnit({key})"),
             Self::AdditionUnit(key) => write!(f, "AdditionUnit({key})"),
+            Self::OriginalBinary(key) => write!(f, "OriginalBinary({key})"),
+            Self::AdditionBinary(key) => write!(f, "AdditionBinary({key})"),
             Self::Original(key) => write!(f, "Formula({key})"),
             Self::Addition(key, token) => write!(f, "Addition({key}, {token})"),
-            Self::Binary(key) => write!(f, "Binary({key})"),
         }
     }
 }

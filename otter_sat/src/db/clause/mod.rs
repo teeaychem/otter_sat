@@ -59,7 +59,10 @@ pub struct ClauseDB {
     unit_addition: HashMap<ClauseKey, dbClause>,
 
     /// Binary clauses.
-    binary: Vec<dbClause>,
+    binary_original: Vec<dbClause>,
+
+    /// Binary clauses.
+    binary_addition: Vec<dbClause>,
 
     /// Original clauses.
     original: Vec<dbClause>,
@@ -83,9 +86,11 @@ impl ClauseDB {
             unit_original: HashMap::default(),
             unit_addition: HashMap::default(),
 
+            binary_original: Vec::default(),
+            binary_addition: Vec::default(),
+
             original: Vec::default(),
             addition: Vec::default(),
-            binary: Vec::default(),
 
             activity_heap: IndexHeap::default(),
             config: config.clause_db.clone(),
@@ -101,11 +106,19 @@ impl ClauseDB {
 /// Though, note, as keys use a [index](FormulaIndex) which may be smaller than [usize] a check is made to ensure it will be possible to generate the key.
 impl ClauseDB {
     /// A key to a binary clause.
-    fn fresh_binary_key(&mut self) -> Result<ClauseKey, err::ClauseDBError> {
-        if self.binary.len() == FormulaIndex::MAX as usize {
+    fn fresh_original_binary_key(&mut self) -> Result<ClauseKey, err::ClauseDBError> {
+        if self.binary_original.len() == FormulaIndex::MAX as usize {
             return Err(err::ClauseDBError::StorageExhausted);
         }
-        let key = ClauseKey::Binary(self.binary.len() as FormulaIndex);
+        let key = ClauseKey::OriginalBinary(self.binary_original.len() as FormulaIndex);
+        Ok(key)
+    }
+
+    fn fresh_addition_binary_key(&mut self) -> Result<ClauseKey, err::ClauseDBError> {
+        if self.binary_addition.len() == FormulaIndex::MAX as usize {
+            return Err(err::ClauseDBError::StorageExhausted);
+        }
+        let key = ClauseKey::AdditionBinary(self.binary_addition.len() as FormulaIndex);
         Ok(key)
     }
 
@@ -174,17 +187,38 @@ impl ClauseDB {
             }
 
             2 => {
-                let key = self.fresh_binary_key()?;
+                //
+                match source {
+                    ClauseSource::Original => {
+                        let key = self.fresh_original_binary_key()?;
 
-                self.binary.push(dbClause::new_nonunit(
-                    key,
-                    clause.canonical(),
-                    atom_db,
-                    valuation,
-                    premises,
-                ));
+                        self.binary_original.push(dbClause::new_nonunit(
+                            key,
+                            clause.canonical(),
+                            atom_db,
+                            valuation,
+                            premises,
+                        ));
 
-                Ok(key)
+                        Ok(key)
+                    }
+
+                    ClauseSource::BCP | ClauseSource::Resolution => {
+                        let key = self.fresh_addition_binary_key()?;
+
+                        self.binary_addition.push(dbClause::new_nonunit(
+                            key,
+                            clause.canonical(),
+                            atom_db,
+                            valuation,
+                            premises,
+                        ));
+
+                        Ok(key)
+                    }
+
+                    ClauseSource::PureUnit | ClauseSource::Assumption => panic!("!"),
+                }
             }
 
             _ => match source {
@@ -273,9 +307,17 @@ impl ClauseDB {
                 }
             }
 
-            ClauseKey::Binary(index) => {
+            ClauseKey::OriginalBinary(index) => {
                 //
-                match self.binary.get(*index as usize) {
+                match self.binary_original.get(*index as usize) {
+                    Some(clause) => Ok(clause),
+                    None => Err(err::ClauseDBError::Missing),
+                }
+            }
+
+            ClauseKey::AdditionBinary(index) => {
+                //
+                match self.binary_addition.get(*index as usize) {
                     Some(clause) => Ok(clause),
                     None => Err(err::ClauseDBError::Missing),
                 }
@@ -311,6 +353,7 @@ impl ClauseDB {
                     None => Err(err::ClauseDBError::Missing),
                 }
             }
+
             ClauseKey::Original(index) => {
                 //
                 match self.original.get_mut(*index as usize) {
@@ -318,13 +361,23 @@ impl ClauseDB {
                     None => Err(err::ClauseDBError::Missing),
                 }
             }
-            ClauseKey::Binary(index) => {
+
+            ClauseKey::OriginalBinary(index) => {
                 //
-                match self.binary.get_mut(*index as usize) {
+                match self.binary_original.get_mut(*index as usize) {
                     Some(clause) => Ok(clause),
                     None => Err(err::ClauseDBError::Missing),
                 }
             }
+
+            ClauseKey::AdditionBinary(index) => {
+                //
+                match self.binary_addition.get_mut(*index as usize) {
+                    Some(clause) => Ok(clause),
+                    None => Err(err::ClauseDBError::Missing),
+                }
+            }
+
             ClauseKey::Addition(index, token) => {
                 //
                 match self.addition.get_mut(*index as usize) {
@@ -361,7 +414,15 @@ impl ClauseDB {
                 }
             }
             ClauseKey::Original(index) => Ok(self.original.get_unchecked(*index as usize)),
-            ClauseKey::Binary(index) => Ok(self.binary.get_unchecked(*index as usize)),
+
+            ClauseKey::OriginalBinary(index) => {
+                Ok(self.binary_original.get_unchecked(*index as usize))
+            }
+
+            ClauseKey::AdditionBinary(index) => {
+                Ok(self.binary_addition.get_unchecked(*index as usize))
+            }
+
             ClauseKey::Addition(index, token) => {
                 //
                 match self.addition.get_unchecked(*index as usize) {
@@ -397,7 +458,15 @@ impl ClauseDB {
                 }
             }
             ClauseKey::Original(index) => Ok(self.original.get_unchecked_mut(*index as usize)),
-            ClauseKey::Binary(index) => Ok(self.binary.get_unchecked_mut(*index as usize)),
+
+            ClauseKey::OriginalBinary(index) => {
+                Ok(self.binary_original.get_unchecked_mut(*index as usize))
+            }
+
+            ClauseKey::AdditionBinary(index) => {
+                Ok(self.binary_addition.get_unchecked_mut(*index as usize))
+            }
+
             ClauseKey::Addition(index, _) => {
                 //
                 match self.addition.get_unchecked_mut(*index as usize) {
@@ -424,7 +493,8 @@ impl ClauseDB {
             }
             ClauseKey::OriginalUnit(_)
             | ClauseKey::AdditionUnit(_)
-            | ClauseKey::Binary(_)
+            | ClauseKey::OriginalBinary(_)
+            | ClauseKey::AdditionBinary(_)
             | ClauseKey::Original(_) => {}
         }
     }
@@ -550,7 +620,8 @@ impl ClauseDB {
         self.unit_original.len()
             + self.unit_addition.len()
             + self.original.len()
-            + self.binary.len()
+            + self.binary_original.len()
+            + self.binary_addition.len()
             + self.addition_count
     }
 
@@ -559,7 +630,8 @@ impl ClauseDB {
         self.unit_original.len()
             + self.unit_addition.len()
             + self.original.len()
-            + self.binary.len()
+            + self.binary_original.len()
+            + self.binary_addition.len()
             + self.addition.len()
     }
 
@@ -617,28 +689,32 @@ impl ClauseDB {
     /// ```
     pub fn all_nonunit_clauses(&self) -> impl Iterator<Item = &impl Clause> + '_ {
         self.original.iter().chain(
-            self.binary.iter().chain(
-                self.addition
-                    .iter()
-                    .flat_map(|maybe_clause| maybe_clause.as_ref()),
+            self.binary_original.iter().chain(
+                self.binary_addition.iter().chain(
+                    self.addition
+                        .iter()
+                        .flat_map(|maybe_clause| maybe_clause.as_ref()),
+                ),
             ),
         )
     }
 
     pub fn all_clauses(&self) -> impl Iterator<Item = &impl Clause> + '_ {
         self.original.iter().chain(
-            self.binary
-                .iter()
-                .chain(
-                    self.addition
-                        .iter()
-                        .flat_map(|maybe_clause| maybe_clause.as_ref()),
-                )
-                .chain(
-                    self.unit_original
-                        .values()
-                        .chain(self.unit_addition.values()),
-                ),
+            self.binary_original.iter().chain(
+                self.binary_addition
+                    .iter()
+                    .chain(
+                        self.addition
+                            .iter()
+                            .flat_map(|maybe_clause| maybe_clause.as_ref()),
+                    )
+                    .chain(
+                        self.unit_original
+                            .values()
+                            .chain(self.unit_addition.values()),
+                    ),
+            ),
         )
     }
 
@@ -655,7 +731,12 @@ impl ClauseDB {
                 dispatcher(Dispatch::Report(report::Report::ClauseDB(report)));
             }
 
-            for clause in &self.binary {
+            for clause in &self.binary_original {
+                let report = report::ClauseDBReport::Active(*clause.key(), clause.to_vec());
+                dispatcher(Dispatch::Report(Report::ClauseDB(report)));
+            }
+
+            for clause in &self.binary_addition {
                 let report = report::ClauseDBReport::Active(*clause.key(), clause.to_vec());
                 dispatcher(Dispatch::Report(Report::ClauseDB(report)));
             }

@@ -95,8 +95,19 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
                 }
 
-                ClauseKey::Binary(_) => {
+                ClauseKey::OriginalBinary(_) => {
                     core.insert(key);
+                    let clause = unsafe {
+                        self.clause_db
+                            .get_unchecked(&key)
+                            .expect("Missing core clause")
+                    };
+                    for key in clause.premises() {
+                        todo.push_back(*key);
+                    }
+                }
+
+                ClauseKey::AdditionBinary(_) => {
                     let clause = unsafe {
                         self.clause_db
                             .get_unchecked(&key)
