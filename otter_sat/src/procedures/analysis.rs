@@ -44,7 +44,7 @@ use crate::{
     db::ClauseKey,
     misc::log::targets::{self},
     structures::{
-        clause::{self, Clause},
+        clause::{Clause, ClauseSource},
         literal::{cLiteral, Literal},
         valuation::Valuation,
     },
@@ -138,7 +138,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         //     the_buffer.strengthen_given(self.clause_db.all_unit_clauses());
         // }
 
-        let origins = the_buffer.take_origins();
+        let premises = the_buffer.take_premises();
         let (resolved_clause, assertion_index) = the_buffer.to_assertion_clause();
 
         let literal = match assertion_index {
@@ -154,7 +154,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             0 => Err(err::ErrorKind::from(err::AnalysisError::EmptyResolution)),
             1 => {
                 self.backjump(0);
-                self.record_clause(literal, clause::Source::Resolution, None, origins)?;
+                self.record_clause(literal, ClauseSource::Resolution, None, premises)?;
                 Ok(ConflictAnalysisOk::UnitClause { key: literal })
             }
             _ => {
@@ -164,7 +164,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 self.backjump(index);
 
                 let key =
-                    self.record_clause(resolved_clause, clause::Source::Resolution, None, origins)?;
+                    self.record_clause(resolved_clause, ClauseSource::Resolution, None, premises)?;
                 Ok(ConflictAnalysisOk::AssertingClause { key, literal })
             }
         }

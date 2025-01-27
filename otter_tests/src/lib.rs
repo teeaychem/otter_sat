@@ -52,7 +52,11 @@ pub fn silent_formula_report(path: PathBuf, config: &Config) -> report::SolveRep
         }
     };
 
-    assert!(the_context.solve().is_ok());
+    match the_context.solve() {
+        Ok(_) => {}
+        Err(e) => panic!("{e:?}"),
+    }
+
     the_context.report()
 }
 

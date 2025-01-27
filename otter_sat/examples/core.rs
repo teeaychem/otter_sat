@@ -6,7 +6,7 @@ use std::{
 
 use xz2::read::XzDecoder;
 
-use otter_sat::{config::Config, context::Context, structures::clause::Clause};
+use otter_sat::{config::Config, context::Context, db::ClauseKey, structures::clause::Clause};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -30,20 +30,28 @@ fn main() {
 
     println!("{result:?}");
 
-    let key = the_context.conflict_clause().unwrap();
-
     let mut core_dimacs = String::default();
 
     let core = the_context.core_keys();
     for key in core {
-        let clause = unsafe {
-            the_context
-                .clause_db
-                .get_unchecked(&key)
-                .expect("Core key missing")
-        };
-        core_dimacs.push_str(format!("{}\n", clause.as_dimacs(true)).as_str());
+        match key {
+            ClauseKey::OriginalUnit(literal) => {
+                core_dimacs.push_str(format!("{}\n", literal.as_dimacs(true)).as_str());
+            }
+
+            _ => {
+                let clause = unsafe {
+                    the_context
+                        .clause_db
+                        .get_unchecked(&key)
+                        .expect("Core key missing")
+                };
+                core_dimacs.push_str(format!("{}\n", clause.as_dimacs(true)).as_str());
+            }
+        }
     }
+
+    // println!("{core_dimacs}");
 
     let mut core_context = Context::from_config(Config::default(), None);
     let mut core_dimacs_buf = vec![];

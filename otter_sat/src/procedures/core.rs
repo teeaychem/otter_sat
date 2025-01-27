@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 use crate::{
     context::{ContextState, GenericContext},
@@ -14,32 +14,111 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         let mut core: HashSet<ClauseKey> = HashSet::default();
 
+        let mut seen: HashSet<ClauseKey> = HashSet::default();
+        let mut todo: VecDeque<ClauseKey> = VecDeque::default();
+
         match key {
-            ClauseKey::OriginalUnit(_) | ClauseKey::Binary(_) | ClauseKey::Original(_) => {
-                core.insert(key);
-            }
-            _ => {}
+            ClauseKey::OriginalUnit(_) => panic!("!"),
+
+            _ => todo.push_back(key),
         }
 
-        let final_clause = self.clause_db.get(&key).expect("Final clause missing");
+        let unsatisfiable_clause = self.clause_db.get(&key).expect("Final clause missing");
 
-        let conflict_origins = final_clause.premises();
-        if !conflict_origins.is_empty() {
-            core.extend(conflict_origins.iter());
-        }
+        for literal in unsatisfiable_clause.literals() {
+            let negation = literal.negate();
 
-        for literal in final_clause.literals() {
-            let literal_key = ClauseKey::AdditionUnit(literal.negate());
+            let literal_key = ClauseKey::AdditionUnit(negation);
 
             match self.clause_db.get(&literal_key) {
                 Err(_) => {
-                    core.insert(ClauseKey::OriginalUnit(literal.negate()));
+                    core.insert(ClauseKey::OriginalUnit(negation));
                 }
-                Ok(clause) => {
-                    let literal_origins = clause.premises();
+                Ok(_) => {
+                    todo.push_back(ClauseKey::AdditionUnit(negation));
+                }
+            }
+        }
 
-                    if !literal_origins.is_empty() {
-                        core.extend(literal_origins);
+        while let Some(key) = todo.pop_front() {
+            if !seen.insert(key) {
+                continue;
+            }
+
+            match key {
+                ClauseKey::OriginalUnit(_) => {
+                    core.insert(key);
+                }
+
+                ClauseKey::AdditionUnit(unit) => {
+                    let db_clause = unsafe {
+                        self.clause_db
+                            .get_unchecked(&key)
+                            .expect("Missing core clause")
+                    };
+
+                    match db_clause.premises().len() {
+                        0 => panic!("!"),
+
+                        1 => {
+                            let the_premise_key = db_clause.premises().iter().next().unwrap();
+                            let the_premise =
+                                unsafe { self.clause_db.get_unchecked(the_premise_key) }.unwrap();
+
+                            for key in the_premise.premises() {
+                                todo.push_back(*key);
+                            }
+
+                            for literal in the_premise.literals() {
+                                if literal == &unit {
+                                    continue;
+                                }
+
+                                let literal_key = ClauseKey::AdditionUnit(literal.negate());
+
+                                match self.clause_db.get(&literal_key) {
+                                    Err(_) => {
+                                        core.insert(ClauseKey::OriginalUnit(literal.negate()));
+                                    }
+                                    Ok(_) => {
+                                        todo.push_back(literal_key);
+                                    }
+                                }
+                            }
+                        }
+
+                        _ => {
+                            for key in db_clause.premises() {
+                                todo.push_back(*key);
+                            }
+                        }
+                    }
+                }
+
+                ClauseKey::Binary(_) => {
+                    core.insert(key);
+                    let clause = unsafe {
+                        self.clause_db
+                            .get_unchecked(&key)
+                            .expect("Missing core clause")
+                    };
+                    for key in clause.premises() {
+                        todo.push_back(*key);
+                    }
+                }
+
+                ClauseKey::Original(_) => {
+                    core.insert(key);
+                }
+
+                ClauseKey::Addition(_, _) => {
+                    let clause = unsafe {
+                        self.clause_db
+                            .get_unchecked(&key)
+                            .expect("Missing core clause")
+                    };
+                    for key in clause.premises() {
+                        todo.push_back(*key);
                     }
                 }
             }

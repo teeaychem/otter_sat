@@ -33,7 +33,7 @@ use crate::{
     generic::index_heap::IndexHeap,
     misc::log::targets::{self},
     structures::{
-        clause::{Clause, Source},
+        clause::{Clause, ClauseSource},
         literal::cLiteral,
         valuation::vValuation,
     },
@@ -46,7 +46,7 @@ pub struct ClauseDB {
     config: ClauseDBConfig,
 
     /// A count of addition clauses.
-    // This can't be inferred from the learned vec, as indicies may be reused.
+    // This can't be inferred from the addition vec, as indicies may be reused.
     addition_count: usize,
 
     /// A stack of keys for learned clauses whose indicies are empty.
@@ -140,10 +140,10 @@ impl ClauseDB {
     pub fn store(
         &mut self,
         clause: impl Clause,
-        source: Source,
+        source: ClauseSource,
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,
-        origins: HashSet<ClauseKey>,
+        premises: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match clause.size() {
             0 => Err(err::ClauseDBError::EmptyClause),
@@ -153,21 +153,21 @@ impl ClauseDB {
                 let the_literal = unsafe { *clause.literals().next().unwrap_unchecked() };
 
                 let key = match source {
-                    Source::Original => {
+                    ClauseSource::Original => {
                         let key = ClauseKey::OriginalUnit(the_literal);
                         self.unit_original
-                            .insert(key, dbClause::new_unit(key, the_literal, origins));
+                            .insert(key, dbClause::new_unit(key, the_literal, premises));
                         key
                     }
 
-                    Source::BCP | Source::Resolution | Source::Assumption => {
+                    ClauseSource::BCP | ClauseSource::Resolution | ClauseSource::Assumption => {
                         let key = ClauseKey::AdditionUnit(the_literal);
                         self.unit_addition
-                            .insert(key, dbClause::new_unit(key, the_literal, origins));
+                            .insert(key, dbClause::new_unit(key, the_literal, premises));
                         key
                     }
 
-                    Source::PureUnit => panic!("!"),
+                    ClauseSource::PureUnit => panic!("!"),
                 };
 
                 Ok(key)
@@ -181,27 +181,30 @@ impl ClauseDB {
                     clause.canonical(),
                     atom_db,
                     valuation,
-                    origins,
+                    premises,
                 ));
 
                 Ok(key)
             }
 
             _ => match source {
-                Source::Assumption | Source::BCP | Source::PureUnit => panic!("!"), // Sources only valid for unit clauses.
+                ClauseSource::Assumption | ClauseSource::BCP | ClauseSource::PureUnit => {
+                    panic!("!")
+                } // Sources only valid for unit clauses.
 
-                Source::Original => {
+                ClauseSource::Original => {
                     let key = self.fresh_original_key()?;
                     log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_string());
 
                     let clause = clause.canonical();
-                    let db_clause = dbClause::new_nonunit(key, clause, atom_db, valuation, origins);
+                    let db_clause =
+                        dbClause::new_nonunit(key, clause, atom_db, valuation, premises);
 
                     self.original.push(db_clause);
                     Ok(key)
                 }
 
-                Source::Resolution => {
+                ClauseSource::Resolution => {
                     self.addition_count += 1;
 
                     let key = match self.empty_keys.len() {
@@ -210,8 +213,13 @@ impl ClauseDB {
                     };
                     log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_string());
 
-                    let stored_form =
-                        dbClause::new_nonunit(key, clause.canonical(), atom_db, valuation, origins);
+                    let stored_form = dbClause::new_nonunit(
+                        key,
+                        clause.canonical(),
+                        atom_db,
+                        valuation,
+                        premises,
+                    );
 
                     let value = ActivityLBD {
                         activity: 1.0,
@@ -481,13 +489,13 @@ impl ClauseDB {
             let the_clause =
                 std::mem::take(unsafe { self.addition.get_unchecked_mut(index) }).unwrap();
 
-            for origin_key in the_clause.premises() {
-                match origin_key {
+            for premise_key in the_clause.premises() {
+                match premise_key {
                     ClauseKey::Addition(_, _) => {
-                        let origin_clause = unsafe { self.get_unchecked_mut(origin_key).unwrap() };
-                        origin_clause.decrement_proof_count();
-                        if origin_clause.proof_occurrence_count() == 0 {
-                            self.activity_heap.activate(origin_key.index());
+                        let clause = unsafe { self.get_unchecked_mut(premise_key).unwrap() };
+                        clause.decrement_proof_count();
+                        if !clause.is_active() && clause.proof_occurrence_count() == 0 {
+                            self.activity_heap.activate(premise_key.index());
                         }
                     }
 
@@ -496,16 +504,6 @@ impl ClauseDB {
             }
 
             macros::dispatch_clause_removal!(self, the_clause);
-            // if let Some(dispatcher) = &self.dispatcher {
-            //     let delta = delta::ClauseDB::ClauseStart;
-            //     dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-            //     for literal in the_clause.literals() {
-            //         let delta = delta::ClauseDB::ClauseLiteral(*literal);
-            //         dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-            //     }
-            //     let delta = delta::ClauseDB::Deletion(the_clause.key());
-            //     dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-            // }
 
             self.activity_heap.remove(index);
             self.empty_keys.push(*the_clause.key());
@@ -701,7 +699,7 @@ impl ClauseDB {
         key: ClauseKey,
         literal: impl Borrow<cLiteral>,
         atom_db: &mut AtomDB,
-        origins: HashSet<ClauseKey>,
+        premises: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::SubsumptionError> {
         let the_clause = match self.get_unchecked_mut(&key) {
             Ok(c) => c,
@@ -711,7 +709,7 @@ impl ClauseDB {
             0..=2 => Err(err::SubsumptionError::ClauseTooShort),
             3 => {
                 the_clause.subsume(literal, atom_db, false)?;
-                let Ok(new_key) = self.transfer_to_binary(key, atom_db, origins) else {
+                let Ok(new_key) = self.transfer_to_binary(key, atom_db, premises) else {
                     return Err(err::SubsumptionError::TransferFailure);
                 };
                 Ok(new_key)
