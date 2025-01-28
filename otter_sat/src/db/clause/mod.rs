@@ -33,6 +33,7 @@ use crate::{
         Dispatch,
     },
     generic::index_heap::IndexHeap,
+    ipasir::IpasirClauseDBCallbacks,
     misc::log::targets::{self},
     structures::{clause::Clause, literal::cLiteral},
     types::err::{self},
@@ -73,6 +74,8 @@ pub struct ClauseDB {
 
     /// Where to send dispatches.
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
+
+    pub ipasir_callbacks: Option<IpasirClauseDBCallbacks>,
 }
 
 impl ClauseDB {
@@ -92,6 +95,8 @@ impl ClauseDB {
 
             activity_heap: IndexHeap::default(),
             config: config.clause_db.clone(),
+
+            ipasir_callbacks: None,
 
             dispatcher,
         }

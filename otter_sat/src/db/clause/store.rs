@@ -13,7 +13,7 @@ use crate::{
     },
     misc::log::targets,
     structures::{
-        clause::{cClause, Clause, ClauseSource},
+        clause::{cClause, iClause, Clause, ClauseSource},
         literal::cLiteral,
         valuation::vValuation,
     },
@@ -62,6 +62,19 @@ impl ClauseDB {
 }
 
 impl ClauseDB {
+    fn check_callback(&self, clause: &cClause) {
+        if let Some(callbacks) = &self.ipasir_callbacks {
+            if let Some(addition_callback) = callbacks.ipasir_addition_callback {
+                if clause.size() <= callbacks.ipasir_addition_callback_length as usize {
+                    let mut i_clause: iClause =
+                        clause.literals().map(|literal| literal.into()).collect();
+
+                    addition_callback(callbacks.ipasir_addition_data, i_clause.as_mut_ptr());
+                }
+            }
+        }
+    }
+
     fn store_unit(
         &mut self,
         literal: cLiteral,
@@ -99,16 +112,6 @@ impl ClauseDB {
                 Ok(key)
             }
 
-            ClauseSource::Assumption => {
-                let key = ClauseKey::AdditionUnit(literal);
-                let clause = dbClause::new_unit(key, literal, premises);
-                self.unit_addition.insert(key, clause);
-
-                // TODO: Deltas for assumptions
-
-                Ok(key)
-            }
-
             ClauseSource::PureUnit => panic!("!"),
         }
     }
@@ -137,6 +140,7 @@ impl ClauseDB {
                 let key = self.fresh_addition_binary_key()?;
 
                 macros::dispatch_clause_addition!(self, clause, Added, key);
+                self.check_callback(&clause);
 
                 let clause = dbClause::new_nonunit(key, clause, atom_db, valuation, premises);
                 self.binary_addition.push(clause);
@@ -144,7 +148,7 @@ impl ClauseDB {
                 Ok(key)
             }
 
-            ClauseSource::PureUnit | ClauseSource::Assumption => panic!("!"),
+            ClauseSource::PureUnit => panic!("!"),
         }
     }
 
@@ -157,7 +161,7 @@ impl ClauseDB {
         premises: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match source {
-            ClauseSource::Assumption | ClauseSource::BCP | ClauseSource::PureUnit => {
+            ClauseSource::BCP | ClauseSource::PureUnit => {
                 panic!("!")
             } // Sources only valid for unit clauses.
 
@@ -182,6 +186,8 @@ impl ClauseDB {
                 };
 
                 macros::dispatch_clause_addition!(self, clause, Added, key);
+                self.check_callback(&clause);
+
                 log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
 
                 let stored_form = dbClause::new_nonunit(key, clause, atom_db, valuation, premises);

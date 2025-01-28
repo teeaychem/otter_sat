@@ -221,13 +221,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 let canonical = literal.canonical();
                 match self.value_and_queue(canonical, consequence_q::QPosition::Back, 0) {
                     Ok(consequence_q::ConsequenceQueueOk::Qd) => {
-                        self.clause_db.store(
-                            canonical,
-                            ClauseSource::Assumption,
-                            &mut self.atom_db,
-                            None,
-                            HashSet::default(),
-                        );
                         self.literal_db.assumption_made(literal.canonical());
                         Ok(())
                     }
