@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    ffi::{c_int, c_void},
+};
 
 use crate::{
     config::Config,
@@ -46,6 +49,28 @@ impl Default for ContextBundle {
             clause_buffer: Vec::default(),
             core_keys: Vec::default(),
             core_literals: HashSet::default(),
+        }
+    }
+}
+
+pub struct IpasirCallbacks {
+    pub ipasir_terminate_callback: Option<extern "C" fn(data: *mut c_void) -> c_int>,
+    pub ipasir_terminate_data: *mut c_void,
+
+    pub ipasir_addition_callback: Option<extern "C" fn(data: *mut c_void, clause: *mut i32)>,
+    ipasir_addition_callback_length: u32,
+    pub ipasir_addition_data: *mut c_void,
+}
+
+impl Default for IpasirCallbacks {
+    fn default() -> Self {
+        IpasirCallbacks {
+            ipasir_terminate_callback: None,
+            ipasir_terminate_data: std::ptr::dangling_mut(),
+
+            ipasir_addition_callback: None,
+            ipasir_addition_callback_length: 0,
+            ipasir_addition_data: std::ptr::dangling_mut(),
         }
     }
 }
