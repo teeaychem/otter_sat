@@ -25,7 +25,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn restart_interrupt(&self) -> bool {
         self.config
             .scheduler
-            .restart
+            .luby
             .is_some_and(|interval| (self.counters.restarts % (interval as usize)) == 0)
     }
 }
