@@ -33,11 +33,13 @@
 //!
 //! In other solvers an integer is often used, with the sign of the integer indicating the value of the literal.
 
-#[doc(hidden)]
-mod ab_from;
 #[allow(non_snake_case)]
 #[doc(hidden)]
-mod impl_abLiteral;
+mod ab_literal;
+pub use ab_literal::abLiteral;
+
+mod i_literal;
+pub use i_literal::iLiteral;
 
 use crate::structures::atom::Atom;
 
@@ -60,17 +62,6 @@ pub trait Literal: std::cmp::Ord + std::hash::Hash {
 
     /// The literal in it's integer form, with sign indicating polarity.
     fn as_int(&self) -> isize;
-}
-
-/// The representation of a literal as an atom paired with a boolean.
-#[allow(non_camel_case_types)]
-#[derive(Clone, Copy, Debug)]
-pub struct abLiteral {
-    /// The atom of a literal.
-    atom: Atom,
-
-    /// The polarity of a literal.
-    polarity: bool,
 }
 
 /// The canonical implementation of a literal.
