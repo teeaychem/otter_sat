@@ -57,8 +57,10 @@ pub struct AtomDB {
 pub enum AtomValue {
     /// The atom has no value.
     NotSet,
+
     /// The value of the atoms is the same as the known valuation, or polarity of the literal.
     Same,
+
     /// The value of the atoms is not the same as the known valuation, or polarity of the literal.
     Different,
 }
@@ -112,11 +114,6 @@ impl AtomDB {
         self.valuation.push(None);
         self.previous_valuation.push(previous_value);
         self.decision_indicies.push(None);
-
-        // if let Some(dispatcher) = &self.dispatcher {
-        //     let delta = delta::AtomDB::Internalised(the_atoms);
-        //     dispatcher(Dispatch::Delta(delta::Delta::AtomDB(delta)));
-        // }
 
         Ok(atom)
     }

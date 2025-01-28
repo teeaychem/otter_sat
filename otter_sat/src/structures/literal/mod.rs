@@ -33,16 +33,18 @@
 //!
 //! In other solvers an integer is often used, with the sign of the integer indicating the value of the literal.
 
+#[doc(hidden)]
+mod ab_from;
 #[allow(non_snake_case)]
 #[doc(hidden)]
 mod impl_abLiteral;
 
-use crate::structures::atom::Atom;
+use crate::{dispatch::macros::dispatch_atom_db_delta, structures::atom::Atom};
 
 /// Something which has methods for returning an atom and a polarity, etc.
 pub trait Literal: std::cmp::Ord + std::hash::Hash {
     /// A fresh literal, specified by pairing an atom with a boolean.
-    fn fresh(atom: Atom, polarity: bool) -> Self;
+    fn new(atom: Atom, polarity: bool) -> Self;
 
     /// The negation of the literal.
     fn negate(&self) -> Self;

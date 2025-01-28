@@ -49,7 +49,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
     );
 
     for atom in f.into_iter() {
-        let the_literal = cLiteral::fresh(atom, false);
+        let the_literal = cLiteral::new(atom, false);
         let position = consequence_q::QPosition::Back;
         let level = context.literal_db.decision_count();
 
@@ -65,7 +65,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
     }
 
     for atom in t.into_iter() {
-        let the_literal = cLiteral::fresh(atom, false);
+        let the_literal = cLiteral::new(atom, false);
         let position = consequence_q::QPosition::Back;
         let level = context.literal_db.decision_count();
 

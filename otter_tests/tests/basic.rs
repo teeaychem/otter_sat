@@ -16,7 +16,7 @@ mod basic {
     fn one_literal() {
         let mut the_context = Context::from_config(Config::default(), None);
         let p = the_context.fresh_atom().unwrap();
-        let p_clause = cLiteral::fresh(p, true);
+        let p_clause = cLiteral::new(p, true);
         assert!(the_context.add_clause(p_clause).is_ok());
         assert!(the_context.solve().is_ok());
         assert_eq!(the_context.report(), report::SolveReport::Satisfiable)
@@ -29,16 +29,16 @@ mod basic {
         let p = the_context.fresh_atom().unwrap();
         let q = the_context.fresh_atom().unwrap();
 
-        let p_q_clause = vec![cLiteral::fresh(p, true), cLiteral::fresh(q, true)];
+        let p_q_clause = vec![cLiteral::new(p, true), cLiteral::new(q, true)];
         assert!(the_context.add_clause(p_q_clause).is_ok());
 
-        let not_p_not_q_clause = vec![cLiteral::fresh(p, false), cLiteral::fresh(q, false)];
+        let not_p_not_q_clause = vec![cLiteral::new(p, false), cLiteral::new(q, false)];
         assert!(the_context.add_clause(not_p_not_q_clause).is_ok());
 
-        let p_not_q_clause = vec![cLiteral::fresh(p, true), cLiteral::fresh(q, false)];
+        let p_not_q_clause = vec![cLiteral::new(p, true), cLiteral::new(q, false)];
         assert!(the_context.add_clause(p_not_q_clause).is_ok());
 
-        let not_p_q_clause = vec![cLiteral::fresh(p, false), cLiteral::fresh(q, true)];
+        let not_p_q_clause = vec![cLiteral::new(p, false), cLiteral::new(q, true)];
         assert!(the_context.add_clause(not_p_q_clause).is_ok());
 
         assert!(the_context.solve().is_ok());
@@ -55,10 +55,10 @@ mod basic {
         let p = the_context.fresh_atom().unwrap();
         let q = the_context.fresh_atom().unwrap();
 
-        let p_q_clause = vec![cLiteral::fresh(p, true), cLiteral::fresh(q, true)];
+        let p_q_clause = vec![cLiteral::new(p, true), cLiteral::new(q, true)];
         assert!(the_context.add_clause(p_q_clause).is_ok());
 
-        let not_p = cLiteral::fresh(p, false);
+        let not_p = cLiteral::new(p, false);
 
         assert!(the_context.add_clause(not_p).is_ok());
         assert!(the_context.solve().is_ok());
@@ -76,10 +76,10 @@ mod basic {
         let q = the_context.fresh_atom().unwrap();
 
         let p_p_q_q_clause = vec![
-            cLiteral::fresh(p, true),
-            cLiteral::fresh(p, true),
-            cLiteral::fresh(q, true),
-            cLiteral::fresh(q, true),
+            cLiteral::new(p, true),
+            cLiteral::new(p, true),
+            cLiteral::new(q, true),
+            cLiteral::new(q, true),
         ];
         assert!(the_context.add_clause(p_p_q_q_clause).is_ok());
 
@@ -107,9 +107,9 @@ mod basic {
         let q = the_context.fresh_atom().unwrap();
 
         let p_q_not_p_clause = vec![
-            cLiteral::fresh(p, true),
-            cLiteral::fresh(q, false),
-            cLiteral::fresh(p, false),
+            cLiteral::new(p, true),
+            cLiteral::new(q, false),
+            cLiteral::new(p, false),
         ];
         assert!(the_context.add_clause(p_q_not_p_clause).is_ok());
         let mut clause_iter = the_context.clause_db.all_nonunit_clauses();

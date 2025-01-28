@@ -108,7 +108,7 @@ fn add_clauses_cell_value_choice(context: &mut Context, cell_map: &mut HashMap<S
         for col in 1..GRID_SIZE + 1 {
             let mut cell_restriction_clause = vec![];
             for value in 1..GRID_SIZE + 1 {
-                cell_restriction_clause.push(cLiteral::fresh(
+                cell_restriction_clause.push(cLiteral::new(
                     cell_atom(row, col, value, context, cell_map),
                     true,
                 ));
@@ -135,8 +135,8 @@ fn add_clauses_cells_have_unique_value(
                 for other_value in 1..GRID_SIZE + 1 {
                     if other_value != value {
                         let exclusion_clause = vec![
-                            cLiteral::fresh(cell_atom(row, col, value, context, cell_map), false),
-                            cLiteral::fresh(
+                            cLiteral::new(cell_atom(row, col, value, context, cell_map), false),
+                            cLiteral::new(
                                 cell_atom(row, col, other_value, context, cell_map),
                                 false,
                             ),
@@ -163,7 +163,7 @@ fn add_clauses_each_row_has_all_values(
         for row in 1..GRID_SIZE + 1 {
             let mut row_value_clause = vec![];
             for col in 1..GRID_SIZE + 1 {
-                row_value_clause.push(cLiteral::fresh(
+                row_value_clause.push(cLiteral::new(
                     cell_atom(row, col, value, context, cell_map),
                     true,
                 ));
@@ -186,7 +186,7 @@ fn add_clauses_each_col_has_all_values(
         for col in 1..GRID_SIZE + 1 {
             let mut col_value_clause = vec![];
             for row in 1..GRID_SIZE + 1 {
-                col_value_clause.push(cLiteral::fresh(
+                col_value_clause.push(cLiteral::new(
                     cell_atom(row, col, value, context, cell_map),
                     true,
                 ));
@@ -211,7 +211,7 @@ fn add_clauses_each_subgrid_has_all_values(
                 let mut subgrid_val_clause = vec![];
                 for row in 1..(GRID_SIZE / 3) + 1 {
                     for col in 1..(GRID_SIZE / 3) + 1 {
-                        subgrid_val_clause.push(cLiteral::fresh(
+                        subgrid_val_clause.push(cLiteral::new(
                             cell_atom(
                                 row + (sub_grid_r * 3),
                                 col + (sub_grid_c * 3),
@@ -244,7 +244,7 @@ fn add_clauses_detailing_puzzle(
             let value = puzzle[row][col];
             if value != 0 {
                 let clause =
-                    cLiteral::fresh(cell_atom(row + 1, col + 1, value, context, cell_map), true);
+                    cLiteral::new(cell_atom(row + 1, col + 1, value, context, cell_map), true);
                 match context.add_clause(clause) {
                     Ok(_) => {}
                     Err(e) => panic!("Failed to add clause: {e:?}"),

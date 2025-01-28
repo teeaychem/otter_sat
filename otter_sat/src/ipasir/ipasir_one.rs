@@ -17,20 +17,20 @@ use std::ffi::{c_char, c_int, c_void};
 /// # Safety
 /// Writes the signature a raw pointer.
 #[no_mangle]
-pub unsafe extern "C" fn ipasir_signature(signature: *mut *const c_char) {
-    *signature = IPASIR_SIGNATURE.as_ptr();
+pub unsafe extern "C" fn ipasir_signature() -> *const c_char {
+    IPASIR_SIGNATURE.as_ptr()
 }
 
 /// Initialises a solver a binds the given pointer to it's address.
 /// # Safety
 /// Releases the initialised solver to a raw pointer.
 #[no_mangle]
-pub unsafe extern "C" fn ipasir_init(solver: *mut *mut c_void) {
+pub unsafe extern "C" fn ipasir_init() -> *mut c_void {
     let the_bundle = ContextBundle::default();
     assert!(the_bundle.context.state.eq(&ContextState::Configuration));
 
     let boxed_context = Box::new(the_bundle);
-    *solver = Box::into_raw(boxed_context) as *mut c_void;
+    Box::into_raw(boxed_context) as *mut c_void
 }
 
 /// Releases bound solver.
@@ -58,6 +58,8 @@ pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
         ContextState::Satisfiable | ContextState::Unsatisfiable(_) => {
             bundle.context.backjump(0);
             bundle.context.remove_assumptions();
+            bundle.context.consequence_q.clear();
+            bundle.context.state = ContextState::Input;
         }
 
         ContextState::Solving => panic!("!"),
@@ -80,13 +82,13 @@ pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
                     bundle.ie_map.push(literal_atom);
                     bundle
                         .clause_buffer
-                        .push(cLiteral::fresh(fresh_atom, literal.is_positive()));
+                        .push(cLiteral::new(fresh_atom, literal.is_positive()));
                 }
 
                 Some(atom) => {
                     bundle
                         .clause_buffer
-                        .push(cLiteral::fresh(*atom, literal.is_positive()));
+                        .push(cLiteral::new(*atom, literal.is_positive()));
                 }
             }
         }
@@ -97,6 +99,7 @@ pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
 ///
 /// # Safety
 /// Recovers a context bundle and takes a clause from raw pointers.
+#[no_mangle]
 pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
@@ -106,10 +109,20 @@ pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
         ContextState::Satisfiable | ContextState::Unsatisfiable(_) => {
             bundle.context.backjump(0);
             bundle.context.remove_assumptions();
+            bundle.context.consequence_q.clear();
+            bundle.context.state = ContextState::Input;
         }
 
         ContextState::Solving => panic!("!"),
     }
+
+    let lit_atom = lit.unsigned_abs();
+    let context_atom = *bundle.ei_map.get(&lit_atom).unwrap();
+
+    let assumption = abLiteral::new(context_atom, lit.is_positive());
+
+    let result = bundle.context.add_assumption(assumption);
+    // println!("Assuming: {assumption} \t Result: {result:?}");
 }
 
 /// Calls solve on the context bundle.
@@ -127,6 +140,9 @@ pub unsafe extern "C" fn ipasir_solve(solver: *mut c_void) -> c_int {
             bundle.context.backjump(0);
             bundle.core_keys.clear();
             bundle.core_literals.clear();
+            bundle.context.remove_assumptions();
+            bundle.context.consequence_q.clear();
+            bundle.context.state = ContextState::Input;
         }
 
         ContextState::Solving => {
@@ -200,7 +216,7 @@ pub unsafe extern "C" fn ipasir_failed(solver: *mut c_void, lit: i32) -> c_int {
         }
     }
 
-    let literal_canonical = abLiteral::fresh(lit.unsigned_abs(), lit.is_positive());
+    let literal_canonical = abLiteral::new(lit.unsigned_abs(), lit.is_positive());
 
     match bundle.core_literals.contains(&literal_canonical) {
         true => 1,
