@@ -13,7 +13,8 @@ use crate::{
     },
     misc::log::targets,
     structures::{
-        clause::{Clause, ClauseSource},
+        clause::{cClause, Clause, ClauseSource},
+        literal::cLiteral,
         valuation::vValuation,
     },
     types::err,
@@ -47,11 +48,15 @@ impl ClauseDB {
         match clause.size() {
             0 => Err(err::ClauseDBError::EmptyClause),
 
-            1 => self.store_unit(clause, source, premises),
+            // The match ensures there is a next (and then no further) literal in the clause.
+            1 => {
+                let literal = unsafe { clause.literals().next().unwrap_unchecked() };
+                self.store_unit(literal, source, premises)
+            }
 
-            2 => self.store_binary(clause, source, atom_db, valuation, premises),
+            2 => self.store_binary(clause.canonical(), source, atom_db, valuation, premises),
 
-            _ => self.store_long(clause, source, atom_db, valuation, premises),
+            _ => self.store_long(clause.canonical(), source, atom_db, valuation, premises),
         }
     }
 }
@@ -59,63 +64,58 @@ impl ClauseDB {
 impl ClauseDB {
     fn store_unit(
         &mut self,
-        clause: impl Clause,
+        literal: cLiteral,
         source: ClauseSource,
         premises: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
-        // The match ensures there is a next (and then no further) literal in the clause.
-        let the_literal = unsafe { clause.literals().next().unwrap_unchecked() };
-
-        let key = match source {
+        match source {
             ClauseSource::Original => {
-                let key = ClauseKey::OriginalUnit(the_literal);
-                self.unit_original
-                    .insert(key, dbClause::new_unit(key, the_literal, premises));
+                let key = ClauseKey::OriginalUnit(literal);
+                let clause = dbClause::new_unit(key, literal, premises);
+                self.unit_original.insert(key, clause);
 
                 macros::dispatch_clause_db_delta!(self, Original, key);
 
-                key
+                Ok(key)
             }
 
             ClauseSource::BCP => {
-                let key = ClauseKey::AdditionUnit(the_literal);
-                self.unit_addition
-                    .insert(key, dbClause::new_unit(key, the_literal, premises));
+                let key = ClauseKey::AdditionUnit(literal);
+                let clause = dbClause::new_unit(key, literal, premises);
+                self.unit_addition.insert(key, clause);
 
                 macros::dispatch_clause_db_delta!(self, BCP, key);
 
-                key
+                Ok(key)
             }
 
             ClauseSource::Resolution => {
-                let key = ClauseKey::AdditionUnit(the_literal);
-                self.unit_addition
-                    .insert(key, dbClause::new_unit(key, the_literal, premises));
+                let key = ClauseKey::AdditionUnit(literal);
+                let clause = dbClause::new_unit(key, literal, premises);
+                self.unit_addition.insert(key, clause);
 
                 macros::dispatch_clause_db_delta!(self, Added, key);
 
-                key
+                Ok(key)
             }
 
             ClauseSource::Assumption => {
-                let key = ClauseKey::AdditionUnit(the_literal);
-                self.unit_addition
-                    .insert(key, dbClause::new_unit(key, the_literal, premises));
+                let key = ClauseKey::AdditionUnit(literal);
+                let clause = dbClause::new_unit(key, literal, premises);
+                self.unit_addition.insert(key, clause);
 
                 // TODO: Deltas for assumptions
 
-                key
+                Ok(key)
             }
 
             ClauseSource::PureUnit => panic!("!"),
-        };
-
-        Ok(key)
+        }
     }
 
     fn store_binary(
         &mut self,
-        clause: impl Clause,
+        clause: cClause,
         source: ClauseSource,
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,
@@ -127,9 +127,7 @@ impl ClauseDB {
 
                 macros::dispatch_clause_addition!(self, clause, Original, key);
 
-                let clause =
-                    dbClause::new_nonunit(key, clause.canonical(), atom_db, valuation, premises);
-
+                let clause = dbClause::new_nonunit(key, clause, atom_db, valuation, premises);
                 self.binary_original.push(clause);
 
                 Ok(key)
@@ -140,8 +138,7 @@ impl ClauseDB {
 
                 macros::dispatch_clause_addition!(self, clause, Added, key);
 
-                let clause =
-                    dbClause::new_nonunit(key, clause.canonical(), atom_db, valuation, premises);
+                let clause = dbClause::new_nonunit(key, clause, atom_db, valuation, premises);
                 self.binary_addition.push(clause);
 
                 Ok(key)
@@ -153,7 +150,7 @@ impl ClauseDB {
 
     fn store_long(
         &mut self,
-        clause: impl Clause,
+        clause: cClause,
         source: ClauseSource,
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,
@@ -170,7 +167,6 @@ impl ClauseDB {
                 macros::dispatch_clause_addition!(self, clause, Original, key);
                 log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
 
-                let clause = clause.canonical();
                 let db_clause = dbClause::new_nonunit(key, clause, atom_db, valuation, premises);
 
                 self.original.push(db_clause);
@@ -188,8 +184,7 @@ impl ClauseDB {
                 macros::dispatch_clause_addition!(self, clause, Added, key);
                 log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
 
-                let stored_form =
-                    dbClause::new_nonunit(key, clause.canonical(), atom_db, valuation, premises);
+                let stored_form = dbClause::new_nonunit(key, clause, atom_db, valuation, premises);
 
                 let value = ActivityLBD {
                     activity: 1.0,
