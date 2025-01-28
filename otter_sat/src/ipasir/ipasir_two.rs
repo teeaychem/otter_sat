@@ -139,21 +139,8 @@ pub unsafe extern "C" fn ipasir2_add(
 
     for literal in clause {
         let literal_atom = literal.unsigned_abs();
-
-        match bundle.ei_map.get(&literal_atom) {
-            None => {
-                let Ok(fresh_atom) = bundle.context.fresh_atom() else {
-                    return ipasir2_errorcode::IPASIR2_E_UNKNOWN;
-                };
-                assert!(bundle.ie_map.len().eq(&(fresh_atom as usize)));
-                bundle.ei_map.insert(literal_atom, fresh_atom);
-                bundle.ie_map.push(literal_atom);
-                internal_clause.push(cLiteral::new(fresh_atom, literal.is_positive()));
-            }
-            Some(atom) => {
-                internal_clause.push(cLiteral::new(*atom, literal.is_positive()));
-            }
-        }
+        bundle.context.ensure_atom(literal_atom);
+        internal_clause.push(cLiteral::new(literal_atom, literal.is_positive()));
     }
 
     bundle.context.add_clause(internal_clause);
@@ -179,19 +166,8 @@ pub unsafe extern "C" fn ipasir2_solve(
         let assumption_literals = std::slice::from_raw_parts(literals, len as usize);
         for assumption in assumption_literals {
             let literal_atom = assumption.unsigned_abs();
-            let atom = match bundle.ei_map.get(&literal_atom) {
-                Some(atom) => *atom,
-                None => {
-                    let Ok(fresh_atom) = bundle.context.fresh_atom() else {
-                        return ipasir2_errorcode::IPASIR2_E_UNKNOWN;
-                    };
-                    assert!(bundle.ie_map.len().eq(&(fresh_atom as usize)));
-                    bundle.ei_map.insert(literal_atom, fresh_atom);
-                    bundle.ie_map.push(literal_atom);
-                    fresh_atom
-                }
-            };
-            let assumption = cLiteral::new(atom, assumption.is_positive());
+            bundle.context.ensure_atom(literal_atom);
+            let assumption = cLiteral::new(literal_atom, assumption.is_positive());
             bundle.context.add_assumption(assumption);
         }
     }
@@ -234,13 +210,8 @@ pub unsafe extern "C" fn ipasir2_value(
         return ipasir2_errorcode::IPASIR2_E_INVALID_STATE;
     }
 
-    let internal_atom = match bundle.ei_map.get(&lit.unsigned_abs()) {
-        Some(atom) => atom,
-        None => return ipasir2_errorcode::IPASIR2_E_INVALID_ARGUMENT,
-    };
-
     // Following the note on solve, this uses the previous value of the atom as valuations are cleared after a solve completes.
-    *result = match bundle.context.atom_db.previous_value_of(*internal_atom) {
+    *result = match bundle.context.atom_db.previous_value_of(lit.unsigned_abs()) {
         true => lit,
         false => -lit,
     };

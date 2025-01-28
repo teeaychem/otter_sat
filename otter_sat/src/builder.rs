@@ -40,6 +40,15 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         self.atom_db.fresh_atom(previous_value)
     }
 
+    pub fn ensure_atom(&mut self, atom: Atom) -> Result<(), err::AtomDBError> {
+        if self.atom_db.count() <= (atom as usize) {
+            for _ in 0..((atom as usize) - self.atom_db.count()) + 1 {
+                self.fresh_atom();
+            }
+        }
+        Ok(())
+    }
+
     /// Adds a clause to the context, if it is compatible with the contextual valuation.
     ///
     /// ```rust

@@ -27,9 +27,16 @@ fn main() {
     // … though as atoms are positive integers, an initial element is added as an offset.
     atom_map.push('䷼');
 
+    let character_string = "model";
+    let last_character_atom = character_string.len().try_into().unwrap();
+
+    // The atoms in a context are a contiguous slice of the natural numbers, starting at 1.
+    // So, ensuring an atom for the last character in the map entails there will be atoms for present for all other characters.
+    assert!(the_context.ensure_atom(last_character_atom).is_ok());
+
     // Each character in some string as a literal.
-    for character in "model".chars() {
-        let _ = the_context.fresh_atom().unwrap();
+    for character in character_string.chars() {
+        // let _ = the_context.fresh_atom().unwrap();
         atom_map.push(character);
     }
 
