@@ -174,7 +174,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let delta = delta::ClauseDB::ClauseStart;
                             dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                             for literal in db_clause.literals() {
-                                let delta = delta::ClauseDB::ClauseLiteral(*literal);
+                                let delta = delta::ClauseDB::ClauseLiteral(literal);
                                 dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
                             }
 

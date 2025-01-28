@@ -6,36 +6,23 @@ use crate::{
     structures::{
         atom::Atom,
         clause::Clause,
-        literal::{cLiteral, Literal},
+        literal::{cLiteral, iLiteral, Literal},
         valuation::Valuation,
     },
 };
 
-use std::ops::Deref;
+/// The implementation of a clause as a vector of integers.
+#[allow(non_camel_case_types)]
+pub type iClause = Vec<iLiteral>;
 
-use super::vClause;
-
-impl Clause for vClause {
-    fn as_string(&self) -> String {
-        let mut the_string = String::default();
-        for literal in self.deref() {
+impl Clause for iClause {
+    fn as_dimacs(&self, zero: bool) -> String {
+        let mut the_string = String::new();
+        for literal in self.literals() {
             match literal.polarity() {
                 true => the_string.push_str(format!(" {literal} ").as_str()),
                 false => the_string.push_str(format!("{literal} ").as_str()),
-            }
-        }
-        the_string.pop();
-        the_string
-    }
-
-    fn as_dimacs(&self, zero: bool) -> String {
-        let mut the_string = String::new();
-        for literal in self.deref() {
-            let the_represenetation = match literal.polarity() {
-                true => format!(" {} ", literal.atom()),
-                false => format!("-{} ", literal.atom()),
             };
-            the_string.push_str(the_represenetation.as_str());
         }
         if zero {
             the_string += "0";
@@ -47,20 +34,20 @@ impl Clause for vClause {
     }
 
     fn asserts(&self, val: &impl Valuation) -> Option<cLiteral> {
-        let mut the_literal = None;
-        for lit in self.deref() {
+        let mut asserted_literal = None;
+        for lit in self.literals() {
             if let Some(existing_val) = unsafe { val.value_of_unchecked(lit.atom()) } {
                 match existing_val == lit.polarity() {
                     true => return None,
                     false => continue,
                 }
-            } else if the_literal.is_none() {
-                the_literal = Some(lit);
+            } else if asserted_literal.is_none() {
+                asserted_literal = Some(Literal::canonical(&lit));
             } else {
                 return None;
             }
         }
-        the_literal.copied()
+        asserted_literal
     }
 
     // TODO: consider a different approach to lbd
@@ -77,8 +64,8 @@ impl Clause for vClause {
         decision_levels.len() as LBD
     }
 
-    fn literals(&self) -> impl Iterator<Item = &cLiteral> {
-        self.iter()
+    fn literals(&self) -> impl Iterator<Item = cLiteral> {
+        self.iter().map(|literal| literal.into())
     }
 
     fn size(&self) -> usize {
@@ -90,7 +77,9 @@ impl Clause for vClause {
     }
 
     fn canonical(self) -> super::cClause {
-        self
+        self.into_iter()
+            .map(|literal| literal.canonical())
+            .collect()
     }
 
     fn unsatisfiable_on(&self, valuation: &impl Valuation) -> bool {

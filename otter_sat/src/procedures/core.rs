@@ -70,15 +70,18 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             }
 
                             for literal in the_premise.literals() {
-                                if literal == &unit {
+                                if (literal.atom() == unit.atom())
+                                    && (literal.polarity() == unit.polarity())
+                                {
                                     continue;
                                 }
 
-                                let literal_key = ClauseKey::AdditionUnit(literal.negate());
+                                let negation = literal.negate();
+                                let literal_key = ClauseKey::AdditionUnit(negation);
 
                                 match self.clause_db.get(&literal_key) {
                                     Err(_) => {
-                                        core.insert(ClauseKey::OriginalUnit(literal.negate()));
+                                        core.insert(ClauseKey::OriginalUnit(negation));
                                     }
                                     Ok(_) => {
                                         todo.push_back(literal_key);

@@ -156,7 +156,7 @@ impl dbClause {
 
 impl std::fmt::Display for dbClause {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.clause.as_string())
+        write!(f, "{}", self.clause.as_dimacs(false))
     }
 }
 

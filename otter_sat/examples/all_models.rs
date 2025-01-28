@@ -61,7 +61,7 @@ fn main() {
             }
         }
 
-        println!("To add: {}", clause.as_string());
+        println!("To add: {}", clause.as_dimacs(false));
 
         the_context.clear_decisions();
         // std::process::exit(1);

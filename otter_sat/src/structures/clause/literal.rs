@@ -11,13 +11,6 @@ use crate::{
 };
 
 impl Clause for cLiteral {
-    fn as_string(&self) -> String {
-        match self.polarity() {
-            true => format!(" {self}"),
-            false => format!("{self}"),
-        }
-    }
-
     fn as_dimacs(&self, zero: bool) -> String {
         let mut the_string = String::new();
 
@@ -45,8 +38,8 @@ impl Clause for cLiteral {
         0
     }
 
-    fn literals(&self) -> impl Iterator<Item = &cLiteral> {
-        std::iter::once(self)
+    fn literals(&self) -> impl Iterator<Item = cLiteral> {
+        std::iter::once(self.canonical())
     }
     fn size(&self) -> usize {
         1

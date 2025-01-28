@@ -365,14 +365,14 @@ impl ResolutionBuffer {
                     None => {
                         self.clause_length += 1;
                         self.valueless_count += 1;
-                        unsafe { self.set(literal.atom(), Cell::None(*literal)) };
+                        unsafe { self.set(literal.atom(), Cell::None(literal)) };
                         if self.asserts.is_none() {
-                            self.asserts = Some(*literal);
+                            self.asserts = Some(literal);
                         }
                     }
                     Some(value) if *value != literal.polarity() => {
                         self.clause_length += 1;
-                        unsafe { self.set(literal.atom(), Cell::Conflict(*literal)) };
+                        unsafe { self.set(literal.atom(), Cell::Conflict(literal)) };
                     }
                     Some(_) => {
                         log::error!(target: targets::RESOLUTION, "Satisfied clause");
