@@ -40,7 +40,7 @@ impl Consequence {
     /// Creates a consequence of the given atom bound to the given value due to the given source.
     pub fn from_bind(atom: Atom, value: bool, source: Source) -> Self {
         Consequence {
-            literal: cLiteral::fresh(atom, value),
+            literal: cLiteral::new(atom, value),
             source,
         }
     }

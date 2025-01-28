@@ -148,10 +148,10 @@ pub unsafe extern "C" fn ipasir2_add(
                 assert!(bundle.ie_map.len().eq(&(fresh_atom as usize)));
                 bundle.ei_map.insert(literal_atom, fresh_atom);
                 bundle.ie_map.push(literal_atom);
-                internal_clause.push(cLiteral::fresh(fresh_atom, literal.is_positive()));
+                internal_clause.push(cLiteral::new(fresh_atom, literal.is_positive()));
             }
             Some(atom) => {
-                internal_clause.push(cLiteral::fresh(*atom, literal.is_positive()));
+                internal_clause.push(cLiteral::new(*atom, literal.is_positive()));
             }
         }
     }
@@ -191,7 +191,7 @@ pub unsafe extern "C" fn ipasir2_solve(
                     fresh_atom
                 }
             };
-            let assumption = cLiteral::fresh(atom, assumption.is_positive());
+            let assumption = cLiteral::new(atom, assumption.is_positive());
             bundle.context.add_assumption(assumption);
         }
     }

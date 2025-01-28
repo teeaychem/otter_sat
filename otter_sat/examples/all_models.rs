@@ -57,7 +57,7 @@ fn main() {
             .skip(1)
         {
             if let Some(v) = value {
-                clause.push(cLiteral::fresh(atom as Atom, !v));
+                clause.push(cLiteral::new(atom as Atom, !v));
             }
         }
 

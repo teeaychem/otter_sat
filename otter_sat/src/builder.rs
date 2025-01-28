@@ -181,15 +181,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Removes assumptions from a context by unbinding the value from any atom bound due to an assumption.
     pub fn remove_assumptions(&mut self) {
         for assumption in self.literal_db.assumptions() {
-            // The assumption has been added to the context, so the atom surely exists
+            // The assumption has been added to the context, so the atom exists
             unsafe { self.atom_db.drop_value(assumption.atom()) };
         }
         for consequence in self.literal_db.assumption_consequences() {
-            // The consequence has been observed, so the atom surely exists
-            unsafe {
-                self.atom_db.drop_value(consequence.atom());
-            }
+            // The consequence has been observed, so the atom exists
+            unsafe { self.atom_db.drop_value(consequence.atom()) };
         }
+        self.literal_db.clear_assumptions();
     }
 
     /// Reads a DIMACS file into the context.
@@ -324,11 +323,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                     Err(e) => panic!("{e}"),
                                 };
                                 let the_literal = match atom_map.get(&parsed_int.abs()) {
-                                    Some(atom) => cLiteral::fresh(*atom, parsed_int.is_positive()),
+                                    Some(atom) => cLiteral::new(*atom, parsed_int.is_positive()),
                                     None => {
                                         let fresh_atom = self.fresh_atom().unwrap();
                                         atom_map.insert(parsed_int.abs(), fresh_atom);
-                                        cLiteral::fresh(fresh_atom, parsed_int.is_positive())
+                                        cLiteral::new(fresh_atom, parsed_int.is_positive())
                                     }
                                 };
 
@@ -417,9 +416,9 @@ mod preprocessing_tests {
     #[test]
     // TODO: test…
     fn pass() {
-        let p = cLiteral::fresh(1, true);
-        let not_q = cLiteral::fresh(2, false);
-        let r = cLiteral::fresh(3, true);
+        let p = cLiteral::new(1, true);
+        let not_q = cLiteral::new(2, false);
+        let r = cLiteral::new(3, true);
 
         let clause = vec![p, not_q, r];
         let mut processed_clause = clause.clone();
@@ -430,9 +429,9 @@ mod preprocessing_tests {
 
     #[test]
     fn duplicate_removal() {
-        let p = cLiteral::fresh(1, true);
-        let not_q = cLiteral::fresh(2, false);
-        let r = cLiteral::fresh(3, true);
+        let p = cLiteral::new(1, true);
+        let not_q = cLiteral::new(2, false);
+        let r = cLiteral::new(3, true);
 
         let clause = vec![p, not_q, r];
         let mut processed_clause = vec![p, not_q, r, r, not_q, p];
@@ -443,8 +442,8 @@ mod preprocessing_tests {
 
     #[test]
     fn contradiction_error() {
-        let p = cLiteral::fresh(1, true);
-        let not_p = cLiteral::fresh(1, false);
+        let p = cLiteral::new(1, true);
+        let not_p = cLiteral::new(1, false);
 
         let mut clause = vec![p, not_p];
         let preprocessing_result = preprocess_clause(&mut clause);

@@ -6,7 +6,7 @@ use crate::{
 };
 
 impl Literal for abLiteral {
-    fn fresh(atom: Atom, polarity: bool) -> Self {
+    fn new(atom: Atom, polarity: bool) -> Self {
         Self { atom, polarity }
     }
 

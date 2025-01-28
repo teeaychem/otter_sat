@@ -174,7 +174,7 @@ impl Nonogram {
             }
         };
 
-        cLiteral::fresh(atom, polarity)
+        cLiteral::new(atom, polarity)
     }
 
     fn block_start_row_literal(
@@ -194,7 +194,7 @@ impl Nonogram {
             }
         };
 
-        cLiteral::fresh(atom, polarity)
+        cLiteral::new(atom, polarity)
     }
 
     fn block_start_col_literal(
@@ -214,7 +214,7 @@ impl Nonogram {
             }
         };
 
-        cLiteral::fresh(atom, polarity)
+        cLiteral::new(atom, polarity)
     }
 
     fn block_legnth_row_literal(
@@ -234,7 +234,7 @@ impl Nonogram {
             }
         };
 
-        cLiteral::fresh(atom, polarity)
+        cLiteral::new(atom, polarity)
     }
 
     fn block_length_col_literal(
@@ -254,7 +254,7 @@ impl Nonogram {
             }
         };
 
-        cLiteral::fresh(atom, polarity)
+        cLiteral::new(atom, polarity)
     }
 }
 
