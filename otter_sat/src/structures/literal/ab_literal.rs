@@ -1,4 +1,4 @@
-use crate::structures::atom::Atom;
+use crate::structures::{atom::Atom, clause::cClause};
 
 use super::Literal;
 
@@ -87,7 +87,7 @@ impl std::fmt::Display for abLiteral {
     }
 }
 
-// From & Into
+// From
 
 impl From<i16> for abLiteral {
     fn from(value: i16) -> Self {
@@ -97,6 +97,12 @@ impl From<i16> for abLiteral {
 
 impl From<i32> for abLiteral {
     fn from(value: i32) -> Self {
+        abLiteral::new(value.unsigned_abs(), value.is_positive())
+    }
+}
+
+impl From<&i32> for abLiteral {
+    fn from(value: &i32) -> Self {
         abLiteral::new(value.unsigned_abs(), value.is_positive())
     }
 }
@@ -124,5 +130,13 @@ impl TryFrom<isize> for abLiteral {
         } else {
             Err(())
         }
+    }
+}
+
+// Into
+
+impl Into<cClause> for abLiteral {
+    fn into(self) -> cClause {
+        vec![self]
     }
 }

@@ -7,10 +7,6 @@ use crate::{
 };
 
 impl Clause for dbClause {
-    fn as_string(&self) -> String {
-        self.clause().as_string()
-    }
-
     fn as_dimacs(&self, zero: bool) -> String {
         self.clause().as_dimacs(zero)
     }
@@ -23,7 +19,7 @@ impl Clause for dbClause {
         self.clause().lbd(atom_db)
     }
 
-    fn literals(&self) -> impl Iterator<Item = &cLiteral> {
+    fn literals(&self) -> impl std::iter::Iterator<Item = cLiteral> {
         self.clause().literals()
     }
 

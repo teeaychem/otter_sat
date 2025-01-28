@@ -30,8 +30,17 @@
 mod db_clause;
 mod kind;
 mod literal;
-mod v_clause;
-pub use kind::*;
+
+mod ab_clause;
+pub use ab_clause::abClause;
+
+mod i_clause;
+pub use i_clause::iClause;
+
+mod source;
+pub use source::ClauseSource;
+
+pub use kind::ClauseKind;
 
 use crate::{
     config::LBD,
@@ -39,12 +48,12 @@ use crate::{
     structures::{atom::Atom, literal::cLiteral, valuation::Valuation},
 };
 
+/// The canonical implementation of a clause.
+#[allow(non_camel_case_types)]
+pub type cClause = abClause;
+
 /// The clause trait.
 pub trait Clause {
-    /// Some string representation of the clause.
-    /// The representation does not need to use the external representation of atoms within the clause.
-    fn as_string(&self) -> String;
-
     /// A string of the clause in DIMACS form, with the terminating `0` as optional.
     fn as_dimacs(&self, zero: bool) -> String;
 
@@ -60,7 +69,7 @@ pub trait Clause {
     fn lbd(&self, atom_db: &AtomDB) -> LBD;
 
     /// An iterator over all literals in the clause, order is not guaranteed.
-    fn literals(&self) -> impl Iterator<Item = &cLiteral>;
+    fn literals(&self) -> impl Iterator<Item = cLiteral>;
 
     /// The number of literals in the clause.
     fn size(&self) -> usize;
@@ -79,30 +88,4 @@ pub trait Clause {
     /// # Safety
     /// Does not check whether the atom is defined on the valuation.
     unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool;
-}
-
-/// The implementation of a clause as a vector of literals.
-#[allow(non_camel_case_types)]
-pub type vClause = Vec<cLiteral>;
-
-/// The canonical implementation of a clause.
-#[allow(non_camel_case_types)]
-pub type cClause = vClause;
-
-/// The source of a clause.
-#[derive(Clone, Copy)]
-pub enum ClauseSource {
-    /// A *unit* clause obtained via BCP.
-    BCP,
-
-    /// A *unit* clause set by free decision on the value of the contained atom.
-    PureUnit,
-
-    /// A clause read from a formula.
-    Original,
-
-    /// A clause derived via resolution (during analysis, etc.)
-    Resolution,
-
-    Assumption,
 }

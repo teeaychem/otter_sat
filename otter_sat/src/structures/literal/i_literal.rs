@@ -46,3 +46,13 @@ impl From<abLiteral> for iLiteral {
         }
     }
 }
+
+impl From<&abLiteral> for iLiteral {
+    fn from(value: &abLiteral) -> Self {
+        let atom = value.atom();
+        match value.polarity() {
+            true => atom as iLiteral,
+            false => -(atom as iLiteral),
+        }
+    }
+}

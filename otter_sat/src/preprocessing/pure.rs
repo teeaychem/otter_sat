@@ -18,7 +18,7 @@ use crate::{
 ///
 /// In other words, returns a pair of iterators where the first iterator contains all the literals which occur only with positive polarity and the second iterator contains all the literals which occur only with negative polarity.
 pub fn pure_literals<'l>(
-    clauses: impl Iterator<Item = impl Iterator<Item = &'l cLiteral>>,
+    clauses: impl Iterator<Item = impl Iterator<Item = cLiteral>>,
 ) -> (Vec<Atom>, Vec<Atom>) {
     let mut the_true: HashSet<Atom> = HashSet::new();
     let mut the_false: HashSet<Atom> = HashSet::new();

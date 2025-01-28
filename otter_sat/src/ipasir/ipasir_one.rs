@@ -164,7 +164,7 @@ pub unsafe extern "C" fn ipasir_failed(solver: *mut c_void, lit: i32) -> c_int {
         for key in &bundle.core_keys {
             let clause = bundle.context.clause_db.get_unchecked(key).unwrap();
             for literal in clause.literals() {
-                bundle.core_literals.insert(*literal);
+                bundle.core_literals.insert(literal);
             }
         }
     }

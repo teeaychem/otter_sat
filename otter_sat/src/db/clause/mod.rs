@@ -163,7 +163,7 @@ impl ClauseDB {
 
             1 => {
                 // The match ensures there is a next (and then no further) literal in the clause.
-                let the_literal = unsafe { *clause.literals().next().unwrap_unchecked() };
+                let the_literal = unsafe { clause.literals().next().unwrap_unchecked() };
 
                 let key = match source {
                     ClauseSource::Original => {
@@ -228,7 +228,7 @@ impl ClauseDB {
 
                 ClauseSource::Original => {
                     let key = self.fresh_original_key()?;
-                    log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_string());
+                    log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
 
                     let clause = clause.canonical();
                     let db_clause =
@@ -245,7 +245,7 @@ impl ClauseDB {
                         0 => self.fresh_addition_key()?,
                         _ => self.empty_keys.pop().unwrap().retoken()?,
                     };
-                    log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_string());
+                    log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
 
                     let stored_form = dbClause::new_nonunit(
                         key,
@@ -649,7 +649,7 @@ impl ClauseDB {
     /// ```rust,ignore
     /// buffer.strengthen_given(self.clause_db.all_unit_clauses());
     /// ```
-    pub fn all_original_unit_clauses(&self) -> impl Iterator<Item = &cLiteral> {
+    pub fn all_original_unit_clauses(&self) -> impl Iterator<Item = cLiteral> + use<'_> {
         self.unit_original
             .values()
             .flat_map(|c| c.clause().literals().last())
@@ -660,7 +660,7 @@ impl ClauseDB {
     /// ```rust,ignore
     /// buffer.strengthen_given(self.clause_db.all_unit_clauses());
     /// ```
-    pub fn all_addition_unit_clauses(&self) -> impl Iterator<Item = &cLiteral> {
+    pub fn all_addition_unit_clauses(&self) -> impl Iterator<Item = cLiteral> + use<'_> {
         self.unit_addition
             .values()
             .flat_map(|c| c.clause().literals().last())
@@ -671,7 +671,7 @@ impl ClauseDB {
     /// ```rust,ignore
     /// buffer.strengthen_given(self.clause_db.all_unit_clauses());
     /// ```
-    pub fn all_unit_clauses(&self) -> impl Iterator<Item = &cLiteral> {
+    pub fn all_unit_clauses(&self) -> impl Iterator<Item = cLiteral> + use<'_> {
         self.unit_original
             .values()
             .flat_map(|c| c.clause().literals().last())
@@ -722,12 +722,12 @@ impl ClauseDB {
     pub fn dispatch_active(&self) {
         if let Some(dispatcher) = &self.dispatcher {
             for literal in self.all_original_unit_clauses() {
-                let report = report::ClauseDBReport::ActiveOriginalUnit(*literal);
+                let report = report::ClauseDBReport::ActiveOriginalUnit(literal);
                 dispatcher(Dispatch::Report(report::Report::ClauseDB(report)));
             }
 
             for literal in self.all_addition_unit_clauses() {
-                let report = report::ClauseDBReport::ActiveAdditionUnit(*literal);
+                let report = report::ClauseDBReport::ActiveAdditionUnit(literal);
                 dispatcher(Dispatch::Report(report::Report::ClauseDB(report)));
             }
 
