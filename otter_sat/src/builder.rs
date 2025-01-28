@@ -90,7 +90,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         match self.value_and_queue(literal, consequence_q::QPosition::Back, 0) {
                             Ok(consequence_q::ConsequenceQueueOk::Qd) => {
                                 let premises = HashSet::default();
-                                self.record_clause(literal, ClauseSource::Original, None, premises);
+                                self.clause_db.store(
+                                    literal,
+                                    ClauseSource::Original,
+                                    &mut self.atom_db,
+                                    None,
+                                    premises,
+                                );
                                 Ok(())
                             }
                             _ => Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
@@ -118,7 +124,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
 
                 let premises = HashSet::default();
-                self.record_clause(clause_vec, ClauseSource::Original, None, premises)?;
+                self.clause_db.store(
+                    clause_vec,
+                    ClauseSource::Original,
+                    &mut self.atom_db,
+                    None,
+                    premises,
+                )?;
 
                 Ok(ClauseOk::Added)
             }
@@ -150,11 +162,23 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
             [literal] => {
                 let premises = HashSet::default();
-                self.record_clause(literal, ClauseSource::Original, None, premises);
+                self.clause_db.store(
+                    literal,
+                    ClauseSource::Original,
+                    &mut self.atom_db,
+                    None,
+                    premises,
+                );
                 match self.value_and_queue(literal.borrow(), consequence_q::QPosition::Back, 0) {
                     Ok(consequence_q::ConsequenceQueueOk::Qd) => {
                         let premises = HashSet::default();
-                        self.record_clause(literal, ClauseSource::Original, None, premises);
+                        self.clause_db.store(
+                            literal,
+                            ClauseSource::Original,
+                            &mut self.atom_db,
+                            None,
+                            premises,
+                        );
                     }
                     _ => {
                         self.state = ContextState::Unsatisfiable(
@@ -171,7 +195,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     unsafe { clause_vec.unsatisfiable_on_unchecked(self.atom_db.valuation()) };
 
                 let premises = HashSet::default();
-                let result = self.record_clause(clause_vec, ClauseSource::Original, None, premises);
+                let result = self.clause_db.store(
+                    clause_vec,
+                    ClauseSource::Original,
+                    &mut self.atom_db,
+                    None,
+                    premises,
+                );
                 if unsatisfiable {
                     match result {
                         Ok(key) => self.state = ContextState::Unsatisfiable(key),
