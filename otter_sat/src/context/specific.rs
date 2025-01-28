@@ -22,11 +22,10 @@ impl Context {
             config,
             consequence_q: ConsequenceQ::default(),
             counters: Counters::default(),
-            ipasir_terminate_callback: None,
-            ipasir_termindate_data: std::ptr::dangling_mut(),
             literal_db: LiteralDB::new(dispatcher.clone()),
             rng: crate::generic::minimal_pcg::MinimalPCG32::from_seed(0_u64.to_le_bytes()),
             state: ContextState::Configuration,
+            ipasir_callbacks: None,
 
             dispatcher,
         }

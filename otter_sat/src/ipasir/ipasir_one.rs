@@ -14,6 +14,8 @@ use crate::{
 };
 use std::ffi::{c_char, c_int, c_void};
 
+use super::IpasirCallbacks;
+
 /// # Safety
 /// Writes the signature a raw pointer.
 #[no_mangle]
@@ -204,6 +206,54 @@ pub unsafe extern "C" fn ipasir_set_terminate(
     callback: Option<extern "C" fn(data: *mut c_void) -> c_int>,
 ) {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
-    bundle.context.ipasir_terminate_callback = callback;
-    bundle.context.ipasir_termindate_data = data;
+
+    match &mut bundle.context.ipasir_callbacks {
+        None => {
+            let callbacks = IpasirCallbacks {
+                ipasir_terminate_callback: callback,
+                ipasir_terminate_data: data,
+
+                ..Default::default()
+            };
+
+            bundle.context.ipasir_callbacks = Some(callbacks);
+        }
+        Some(callbacks) => {
+            callbacks.ipasir_terminate_callback = callback;
+            callbacks.ipasir_terminate_data = data;
+        }
+    }
+}
+
+/// Sets a callback function used to extract addition clauses up to a given length.
+///
+/// # Safety
+/// Recovers a context bundle from a raw pointer.
+#[no_mangle]
+pub unsafe extern "C" fn ipasir_set_learn(
+    solver: *mut c_void,
+    data: *mut c_void,
+    max_length: c_int,
+    learn: Option<extern "C" fn(data: *mut c_void, clause: *mut i32)>,
+) {
+    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+
+    match &mut bundle.context.ipasir_callbacks {
+        None => {
+            let callbacks = IpasirCallbacks {
+                ipasir_addition_callback: learn,
+                ipasir_addition_callback_length: max_length as u32,
+                ipasir_addition_data: data,
+
+                ..Default::default()
+            };
+
+            bundle.context.ipasir_callbacks = Some(callbacks);
+        }
+        Some(callbacks) => {
+            callbacks.ipasir_addition_callback = learn;
+            callbacks.ipasir_addition_callback_length = max_length as u32;
+            callbacks.ipasir_addition_data = data;
+        }
+    }
 }

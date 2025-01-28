@@ -224,10 +224,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             if self.luby_fresh_conflict_interrupt() {
                 self.counters.luby.next();
 
-                if let Some(callback) = self.ipasir_terminate_callback {
-                    match callback(self.ipasir_termindate_data) {
-                        0 => {}
-                        _ => {
+                if let Some(callbacks) = &self.ipasir_callbacks {
+                    if let Some(terminate_callback) = callbacks.ipasir_terminate_callback {
+                        if terminate_callback(callbacks.ipasir_terminate_data) != 0 {
                             break 'solve_loop;
                         }
                     }
