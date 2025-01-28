@@ -43,21 +43,29 @@ impl Default for ContextBundle {
     }
 }
 
-pub struct IpasirCallbacks {
+pub struct IpasirSolveCallbacks {
     pub ipasir_terminate_callback: Option<extern "C" fn(data: *mut c_void) -> c_int>,
     pub ipasir_terminate_data: *mut c_void,
+}
 
+pub struct IpasirClauseDBCallbacks {
     pub ipasir_addition_callback: Option<extern "C" fn(data: *mut c_void, clause: *mut i32)>,
-    ipasir_addition_callback_length: u32,
+    pub ipasir_addition_callback_length: u32,
     pub ipasir_addition_data: *mut c_void,
 }
 
-impl Default for IpasirCallbacks {
+impl Default for IpasirSolveCallbacks {
     fn default() -> Self {
-        IpasirCallbacks {
+        Self {
             ipasir_terminate_callback: None,
             ipasir_terminate_data: std::ptr::dangling_mut(),
+        }
+    }
+}
 
+impl Default for IpasirClauseDBCallbacks {
+    fn default() -> Self {
+        Self {
             ipasir_addition_callback: None,
             ipasir_addition_callback_length: 0,
             ipasir_addition_data: std::ptr::dangling_mut(),

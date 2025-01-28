@@ -12,6 +12,4 @@ pub enum ClauseSource {
 
     /// A clause derived via resolution (during analysis, etc.)
     Resolution,
-
-    Assumption,
 }

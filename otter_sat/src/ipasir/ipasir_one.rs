@@ -14,7 +14,7 @@ use crate::{
 };
 use std::ffi::{c_char, c_int, c_void};
 
-use super::IpasirCallbacks;
+use super::{IpasirClauseDBCallbacks, IpasirSolveCallbacks};
 
 /// # Safety
 /// Writes the signature a raw pointer.
@@ -191,11 +191,9 @@ pub unsafe extern "C" fn ipasir_set_terminate(
 
     match &mut bundle.context.ipasir_callbacks {
         None => {
-            let callbacks = IpasirCallbacks {
+            let callbacks = IpasirSolveCallbacks {
                 ipasir_terminate_callback: callback,
                 ipasir_terminate_data: data,
-
-                ..Default::default()
             };
 
             bundle.context.ipasir_callbacks = Some(callbacks);
@@ -220,17 +218,15 @@ pub unsafe extern "C" fn ipasir_set_learn(
 ) {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    match &mut bundle.context.ipasir_callbacks {
+    match &mut bundle.context.clause_db.ipasir_callbacks {
         None => {
-            let callbacks = IpasirCallbacks {
+            let callbacks = IpasirClauseDBCallbacks {
                 ipasir_addition_callback: learn,
                 ipasir_addition_callback_length: max_length as u32,
                 ipasir_addition_data: data,
-
-                ..Default::default()
             };
 
-            bundle.context.ipasir_callbacks = Some(callbacks);
+            bundle.context.clause_db.ipasir_callbacks = Some(callbacks);
         }
         Some(callbacks) => {
             callbacks.ipasir_addition_callback = learn;
