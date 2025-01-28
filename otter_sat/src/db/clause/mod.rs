@@ -170,13 +170,43 @@ impl ClauseDB {
                         let key = ClauseKey::OriginalUnit(the_literal);
                         self.unit_original
                             .insert(key, dbClause::new_unit(key, the_literal, premises));
+
+                        macros::dispatch_clause_db_delta!(self, Original, key);
+
                         key
                     }
 
-                    ClauseSource::BCP | ClauseSource::Resolution | ClauseSource::Assumption => {
+                    ClauseSource::BCP => {
                         let key = ClauseKey::AdditionUnit(the_literal);
                         self.unit_addition
                             .insert(key, dbClause::new_unit(key, the_literal, premises));
+
+                        macros::dispatch_clause_db_delta!(
+                            self,
+                            BCP,
+                            ClauseKey::AdditionUnit(the_literal)
+                        );
+
+                        key
+                    }
+
+                    ClauseSource::Resolution => {
+                        let key = ClauseKey::AdditionUnit(the_literal);
+                        self.unit_addition
+                            .insert(key, dbClause::new_unit(key, the_literal, premises));
+
+                        macros::dispatch_clause_db_delta!(self, Added, key);
+
+                        key
+                    }
+
+                    ClauseSource::Assumption => {
+                        let key = ClauseKey::AdditionUnit(the_literal);
+                        self.unit_addition
+                            .insert(key, dbClause::new_unit(key, the_literal, premises));
+
+                        // TODO: Deltas for assumptions
+
                         key
                     }
 
@@ -192,6 +222,8 @@ impl ClauseDB {
                     ClauseSource::Original => {
                         let key = self.fresh_original_binary_key()?;
 
+                        macros::dispatch_clause_addition!(self, clause, Original, key);
+
                         self.binary_original.push(dbClause::new_nonunit(
                             key,
                             clause.canonical(),
@@ -205,6 +237,8 @@ impl ClauseDB {
 
                     ClauseSource::BCP | ClauseSource::Resolution => {
                         let key = self.fresh_addition_binary_key()?;
+
+                        macros::dispatch_clause_addition!(self, clause, Added, key);
 
                         self.binary_addition.push(dbClause::new_nonunit(
                             key,
@@ -228,6 +262,8 @@ impl ClauseDB {
 
                 ClauseSource::Original => {
                     let key = self.fresh_original_key()?;
+
+                    macros::dispatch_clause_addition!(self, clause, Original, key);
                     log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
 
                     let clause = clause.canonical();
@@ -245,6 +281,8 @@ impl ClauseDB {
                         0 => self.fresh_addition_key()?,
                         _ => self.empty_keys.pop().unwrap().retoken()?,
                     };
+
+                    macros::dispatch_clause_addition!(self, clause, Added, key);
                     log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
 
                     let stored_form = dbClause::new_nonunit(

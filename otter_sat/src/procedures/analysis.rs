@@ -154,7 +154,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             0 => Err(err::ErrorKind::from(err::AnalysisError::EmptyResolution)),
             1 => {
                 self.backjump(0);
-                self.record_clause(literal, ClauseSource::Resolution, None, premises)?;
+                self.clause_db.store(
+                    literal,
+                    ClauseSource::Resolution,
+                    &mut self.atom_db,
+                    None,
+                    premises,
+                )?;
                 Ok(ConflictAnalysisOk::UnitClause { key: literal })
             }
             _ => {
@@ -163,8 +169,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     .unwrap();
                 self.backjump(index);
 
-                let key =
-                    self.record_clause(resolved_clause, ClauseSource::Resolution, None, premises)?;
+                let key = self.clause_db.store(
+                    resolved_clause,
+                    ClauseSource::Resolution,
+                    &mut self.atom_db,
+                    None,
+                    premises,
+                )?;
                 Ok(ConflictAnalysisOk::AssertingClause { key, literal })
             }
         }

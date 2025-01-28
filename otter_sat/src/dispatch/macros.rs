@@ -3,7 +3,7 @@
 /// A macro to send bcp dispatches.
 /// Requires an optional dispatch method is available via self.
 macro_rules! dispatch_bcp_delta {
-    ($self:ident, $variant:ident, $literal:expr, $clause:expr ) => {
+    ($self:ident, $variant:ident, $literal:expr, $clause:expr) => {
         if let Some(dispatcher) = &$self.dispatcher {
             let delta = delta::BCP::$variant {
                 literal: $literal,
@@ -17,7 +17,7 @@ pub(crate) use dispatch_bcp_delta;
 
 /// A macro to simplify dispatches.
 macro_rules! dispatch_stats {
-    ($self:ident ) => {
+    ($self:ident) => {
         if let Some(dispatcher) = &$self.dispatcher {
             let total_iterations = $self.counters.total_iterations;
             let total_decisions = $self.counters.total_decisions;
@@ -84,3 +84,33 @@ macro_rules! dispatch_clause_removal {
     };
 }
 pub(crate) use dispatch_clause_removal;
+
+/// Clause db deltas
+macro_rules! dispatch_clause_db_delta {
+    ($self:ident, $variant:ident, $key:expr) => {
+        if let Some(dispatcher) = &$self.dispatcher {
+            let delta = delta::ClauseDB::$variant($key);
+            dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
+        }
+    };
+}
+pub(crate) use dispatch_clause_db_delta;
+
+/// For adding a clause
+///
+/// Assumes no further use will be made of the clause and calls `into_iter` to access the literals of the clause.
+macro_rules! dispatch_clause_addition {
+    ($self:ident, $clause:expr, $variant:ident, $key:ident) => {
+        if let Some(dispatcher) = &$self.dispatcher {
+            let delta = delta::ClauseDB::ClauseStart;
+            dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
+            for literal in $clause.literals() {
+                let delta = delta::ClauseDB::ClauseLiteral(literal);
+                dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
+            }
+            let delta = delta::ClauseDB::$variant($key);
+            dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
+        }
+    };
+}
+pub(crate) use dispatch_clause_addition;

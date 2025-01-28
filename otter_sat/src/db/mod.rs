@@ -30,16 +30,11 @@ use std::{borrow::Borrow, collections::HashSet};
 
 use crate::{
     context::GenericContext,
-    dispatch::{
-        library::delta::{self, Delta},
-        Dispatch,
-    },
     structures::{
-        clause::{Clause, ClauseSource},
+        clause::ClauseSource,
         consequence::{Consequence, Source as ConsequenceSource},
-        valuation::vValuation,
     },
-    types::err::{self, ErrorKind},
+    types::err::ErrorKind,
 };
 
 /// The index of a [decision level](crate::db::literal).
@@ -70,9 +65,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 let premises = HashSet::default();
                 // Making a free decision is not supported after some other (non-free) decision has been made.
                 if !self.literal_db.is_decision_made() && self.literal_db.decision_count() == 0 {
-                    self.record_clause(
+                    self.clause_db.store(
                         *consequence.literal(),
                         ClauseSource::PureUnit,
+                        &mut self.atom_db,
                         None,
                         premises,
                     );
@@ -100,7 +96,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             direct_origin_clause.increment_proof_count();
                             self.clause_db.note_use(*key);
 
-                            self.record_clause(unit_clause, ClauseSource::BCP, None, premises);
+                            self.clause_db.store(
+                                unit_clause,
+                                ClauseSource::BCP,
+                                &mut self.atom_db,
+                                None,
+                                premises,
+                            );
                         };
                     }
 
@@ -111,89 +113,5 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Ok(())
             }
         }
-    }
-
-    /// Records a clause and returns the key to the clause.
-    /// If possible, a dispatch is sent with relevant details.
-    ///
-    /// ```rust, ignore
-    /// let key = self.record_clause(resolved_clause, clause::Source::Resolution)?;
-    ///
-    /// let key = self.record_clause(literal, clause::Source::BCP)?;
-    /// ```
-    pub fn record_clause(
-        &mut self,
-        clause: impl Clause,
-        source: ClauseSource,
-        valuation: Option<&vValuation>,
-        premises: HashSet<ClauseKey>,
-    ) -> Result<ClauseKey, err::ClauseDBError> {
-        let key = self
-            .clause_db
-            .store(clause, source, &mut self.atom_db, valuation, premises)?;
-
-        log::info!("Record clause: {key}");
-
-        if let Some(dispatcher) = &self.dispatcher {
-            match key {
-                ClauseKey::OriginalUnit(_) => {
-                    let delta = delta::ClauseDB::Original(key);
-                    dispatcher(Dispatch::Delta(delta::Delta::ClauseDB(delta)));
-                }
-
-                ClauseKey::AdditionUnit(literal) => match source {
-                    ClauseSource::PureUnit => {
-                        // TODO: Implement dispatches for free decisions
-                    }
-
-                    ClauseSource::BCP => {
-                        let delta = delta::ClauseDB::BCP(ClauseKey::AdditionUnit(literal));
-                        dispatcher(Dispatch::Delta(delta::Delta::ClauseDB(delta)));
-                    }
-
-                    ClauseSource::Resolution => {
-                        let delta = delta::ClauseDB::Added(key);
-                        dispatcher(Dispatch::Delta(delta::Delta::ClauseDB(delta)));
-                    }
-
-                    ClauseSource::Assumption => {
-                        // TODO: Deltas for assumptions.
-                    }
-
-                    ClauseSource::Original => panic!("!"),
-                },
-
-                _ => {
-                    // Safety: The key was created above.
-                    // TODO: Dispatches regarding literals could be made before the clause is stored to avoid the get…
-                    let db_clause = unsafe { self.clause_db.get_unchecked(&key)? };
-                    match db_clause.size() {
-                        0 | 1 => panic!("!"),
-
-                        _ => {
-                            let delta = delta::ClauseDB::ClauseStart;
-                            dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                            for literal in db_clause.literals() {
-                                let delta = delta::ClauseDB::ClauseLiteral(literal);
-                                dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                            }
-
-                            let delta = {
-                                match source {
-                                    ClauseSource::BCP
-                                    | ClauseSource::PureUnit
-                                    | ClauseSource::Assumption => panic!("!"),
-                                    ClauseSource::Original => delta::ClauseDB::Original(key),
-                                    ClauseSource::Resolution => delta::ClauseDB::Added(key),
-                                }
-                            };
-                            dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(key)
     }
 }
