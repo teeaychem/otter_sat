@@ -92,4 +92,22 @@ impl Clause for vClause {
     fn canonical(self) -> super::cClause {
         self
     }
+
+    fn unsatisfiable_on(&self, valuation: &impl Valuation) -> bool {
+        self.literals().all(|literal| {
+            valuation
+                .value_of(literal.atom())
+                .is_some_and(|value_presence| {
+                    value_presence.is_some_and(|value| value != literal.polarity())
+                })
+        })
+    }
+
+    unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool {
+        self.literals().all(|literal| {
+            valuation
+                .value_of_unchecked(literal.atom())
+                .is_some_and(|value| value != literal.polarity())
+        })
+    }
 }

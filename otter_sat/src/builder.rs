@@ -1,7 +1,7 @@
 //! Tools for building a context.
 
 use crate::{
-    context::GenericContext,
+    context::{ContextState, GenericContext},
     db::consequence_q::{self},
     dispatch::{
         library::report::{self, Report},
@@ -22,11 +22,10 @@ use std::{
     io::BufRead,
 };
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ClauseOk {
     Tautology,
-    AddedUnit,
-    AddedLong,
+    Added,
 }
 
 /// Methods for building the context.
@@ -41,7 +40,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         self.atom_db.fresh_atom(previous_value)
     }
 
-    /// Adds a clause to the context.
+    /// Adds a clause to the context, if it is compatible with the contextual valuation.
     ///
     /// ```rust
     /// # use otter_sat::context::Context;
@@ -53,24 +52,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// let p = the_context.fresh_atom().unwrap();
     /// let q = the_context.fresh_atom().unwrap();
     ///
-    /// let clause = vec![abLiteral::fresh(p, true), abLiteral::fresh(q, false)];
+    /// let clause = vec![abLiteral::new(p, true), abLiteral::new(q, false)];
     ///
     ///  assert!(the_context.add_clause(clause).is_ok());
     ///  the_context.solve();
     ///  assert_eq!(the_context.report(), report::SolveReport::Satisfiable)
     /// ```
-    ///
-    /// - Empty clauses are rejected as these are equivalent to falsum, and so unsatisfiable.
-    /// - Unit clause (a literal) literal database.
-    /// - Clauses with two or more literals go to the clause database.
-    ///
-    /// This handles the variations.
-    /*
-    TODO: Relax the constraints on adding a unit clause after a decision has been made.
-    If the decision conflicts with the current valuation, backtracking is required.
-    Otherwise, if the literal is not already recorded as a clause, it could be 'raised' to being a clause.
-    Though, a naive approach may cause some issues with FRAT proofs, and other features which rely on decision level information.
-     */
     pub fn add_clause(&mut self, clause: impl Clause) -> Result<ClauseOk, err::ErrorKind> {
         if clause.size() == 0 {
             return Err(err::ErrorKind::from(err::ClauseDBError::EmptyClause));
@@ -91,51 +78,98 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             [literal] => {
                 match self.atom_db.value_of(literal.atom()) {
                     None => {
-                        match self.value_and_queue(
-                            literal.borrow(),
-                            consequence_q::QPosition::Back,
-                            0,
-                        ) {
+                        match self.value_and_queue(literal, consequence_q::QPosition::Back, 0) {
                             Ok(consequence_q::ConsequenceQueueOk::Qd) => {
                                 let premises = HashSet::default();
                                 self.record_clause(literal, ClauseSource::Original, None, premises);
                                 Ok(())
                             }
-                            _ => Err(err::ErrorKind::from(err::ClauseDBError::ImmediateConflict)),
+                            _ => Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
                         }
                     }
 
                     Some(v) if v == literal.polarity() => {
                         // Must be at zero for an assumption, so there's nothing to do
                         if self.counters.total_decisions != 0 {
-                            Err(err::ErrorKind::from(
-                                err::ClauseDBError::AddedUnitAfterDecision,
-                            ))
+                            Err(err::ErrorKind::from(err::ClauseDBError::DecisionMade))
                         } else {
                             Ok(())
                         }
                     }
 
-                    Some(_) => Err(err::ErrorKind::from(err::ClauseDBError::ImmediateConflict)),
+                    Some(_) => Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
                 };
-                Ok(ClauseOk::AddedUnit)
+                Ok(ClauseOk::Added)
             }
 
             [..] => {
-                if clause_vec.iter().all(|literal| {
-                    self.atom_db
-                        .value_of(literal.atom())
-                        .is_some_and(|v| v != literal.polarity())
-                }) {
-                    {
-                        return Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict));
-                    }
+                if unsafe { clause_vec.unsatisfiable_on_unchecked(self.atom_db.valuation()) } {
+                    println!("{:?}", self.atom_db.valuation_string());
+                    return Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict));
                 }
 
                 let premises = HashSet::default();
                 self.record_clause(clause_vec, ClauseSource::Original, None, premises)?;
 
-                Ok(ClauseOk::AddedLong)
+                Ok(ClauseOk::Added)
+            }
+        }
+    }
+
+    /// Adds a clause to the database, regardless of the contextual valuation.
+    ///
+    /// The same checks as [add_clause] are made, but are used to immediately sets to the state of the solver to unsatisfiable.
+    pub fn add_clause_unchecked(
+        &mut self,
+        clause: impl Clause,
+    ) -> Result<ClauseOk, err::ErrorKind> {
+        if clause.size() == 0 {
+            return Err(err::ErrorKind::from(err::ClauseDBError::EmptyClause));
+        }
+        let mut clause_vec = clause.canonical();
+
+        match preprocess_clause(&mut clause_vec) {
+            Ok(PreprocessingOk::Tautology) => return Ok(ClauseOk::Tautology),
+            Err(PreprocessingError::Unsatisfiable) => {
+                return Err(err::ErrorKind::from(err::BuildError::Unsatisfiable))
+            }
+            _ => {}
+        };
+
+        match clause_vec[..] {
+            [] => panic!("!"),
+
+            [literal] => {
+                let premises = HashSet::default();
+                self.record_clause(literal, ClauseSource::Original, None, premises);
+                match self.value_and_queue(literal.borrow(), consequence_q::QPosition::Back, 0) {
+                    Ok(consequence_q::ConsequenceQueueOk::Qd) => {
+                        let premises = HashSet::default();
+                        self.record_clause(literal, ClauseSource::Original, None, premises);
+                    }
+                    _ => {
+                        self.state = ContextState::Unsatisfiable(
+                            crate::db::ClauseKey::OriginalUnit(literal),
+                        );
+                    }
+                }
+
+                Ok(ClauseOk::Added)
+            }
+
+            [..] => {
+                let unsatisfiable =
+                    unsafe { clause_vec.unsatisfiable_on_unchecked(self.atom_db.valuation()) };
+
+                let premises = HashSet::default();
+                let result = self.record_clause(clause_vec, ClauseSource::Original, None, premises);
+                if unsatisfiable {
+                    match result {
+                        Ok(key) => self.state = ContextState::Unsatisfiable(key),
+                        Err(_) => panic!("!"),
+                    }
+                }
+                Ok(ClauseOk::Added)
             }
         }
     }
@@ -158,22 +192,20 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         self.literal_db.assumption_made(literal.canonical());
                         Ok(())
                     }
-                    _ => Err(err::ErrorKind::from(err::ClauseDBError::ImmediateConflict)),
+                    _ => Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
                 }
             }
 
             Some(v) if v == literal.polarity() => {
                 // Must be at zero for an assumption, so there's nothing to do
                 if self.counters.total_decisions != 0 {
-                    Err(err::ErrorKind::from(
-                        err::ClauseDBError::AddedUnitAfterDecision,
-                    ))
+                    Err(err::ErrorKind::from(err::ClauseDBError::DecisionMade))
                 } else {
                     Ok(())
                 }
             }
 
-            Some(_) => Err(err::ErrorKind::from(err::ClauseDBError::ImmediateConflict)),
+            Some(_) => Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
         };
         Ok(())
     }

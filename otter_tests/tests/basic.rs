@@ -1,4 +1,5 @@
 use otter_sat::{
+    builder::ClauseOk,
     config::Config,
     context::Context,
     dispatch::library::report::{self},
@@ -17,8 +18,11 @@ mod basic {
         let mut the_context = Context::from_config(Config::default(), None);
         let p = the_context.fresh_atom().unwrap();
         let p_clause = cLiteral::new(p, true);
-        assert!(the_context.add_clause(p_clause).is_ok());
+
+        assert_eq!(Ok(ClauseOk::Added), the_context.add_clause(p_clause));
+
         assert!(the_context.solve().is_ok());
+
         assert_eq!(the_context.report(), report::SolveReport::Satisfiable)
     }
 
@@ -56,7 +60,7 @@ mod basic {
         let q = the_context.fresh_atom().unwrap();
 
         let p_q_clause = vec![cLiteral::new(p, true), cLiteral::new(q, true)];
-        assert!(the_context.add_clause(p_q_clause).is_ok());
+        assert_eq!(Ok(ClauseOk::Added), the_context.add_clause(p_q_clause));
 
         let not_p = cLiteral::new(p, false);
 

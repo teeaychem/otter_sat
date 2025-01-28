@@ -59,4 +59,18 @@ impl Clause for cLiteral {
     fn canonical(self) -> super::cClause {
         vec![self]
     }
+
+    fn unsatisfiable_on(&self, valuation: &impl Valuation) -> bool {
+        valuation
+            .value_of(self.atom())
+            .is_some_and(|value_presence| {
+                value_presence.is_some_and(|value| value != self.polarity())
+            })
+    }
+
+    unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool {
+        valuation
+            .value_of_unchecked(self.atom())
+            .is_some_and(|v| v != self.polarity())
+    }
 }

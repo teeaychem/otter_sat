@@ -6,11 +6,11 @@
 //! # use otter_sat::structures::literal::abLiteral;
 //! # use otter_sat::structures::literal::Literal;
 //! # use otter_sat::structures::clause::Clause;
-//! let clause = vec![abLiteral::fresh(23, true),
-//!                   abLiteral::fresh(41, false),
-//!                   abLiteral::fresh(3,  false),
-//!                   abLiteral::fresh(15, true),
-//!                   abLiteral::fresh(4,  false)];
+//! let clause = vec![abLiteral::new(23, true),
+//!                   abLiteral::new(41, false),
+//!                   abLiteral::new(3,  false),
+//!                   abLiteral::new(15, true),
+//!                   abLiteral::new(4,  false)];
 //!
 //! assert_eq!(clause.size(), 5);
 //!
@@ -21,7 +21,7 @@
 //! assert!(clause.asserts(&some_valuation).cmp(&None).is_eq());
 //!
 //! some_valuation[41] = None;
-//! assert!(clause.asserts(&some_valuation).cmp(&Some(abLiteral::fresh(41, false))).is_eq());
+//! assert!(clause.asserts(&some_valuation).cmp(&Some(abLiteral::new(41, false))).is_eq());
 //! ```
 //!
 //! - The empty clause is always false (never true).
@@ -70,6 +70,15 @@ pub trait Clause {
 
     /// The clause in its canonical form.
     fn canonical(self) -> cClause;
+
+    /// Returns whether the clause is unsatisfiable on the given valuation
+    fn unsatisfiable_on(&self, valuation: &impl Valuation) -> bool;
+
+    /// Returns whether the clause is unsatisfiable on the given valuation
+    ///
+    /// # Safety
+    /// Does not check whether the atom is defined on the valuation.
+    unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool;
 }
 
 /// The implementation of a clause as a vector of literals.

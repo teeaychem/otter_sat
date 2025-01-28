@@ -72,7 +72,7 @@
 //!     for (atom, value) in the_context.atom_db.valuation_canonical().iter().enumerate().skip(1) {
 //!        match value {
 //!            Some(v) => {
-//!                clause.push(abLiteral::fresh(atom as Atom, !v));
+//!                clause.push(abLiteral::new(atom as Atom, !v));
 //!            }
 //!            None => {}
 //!        }

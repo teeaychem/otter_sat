@@ -97,8 +97,8 @@
 //! let p = the_context.fresh_atom().unwrap();
 //! let q = the_context.fresh_atom().unwrap();
 //!
-//! let not_p_or_q = vec![abLiteral::fresh(p, false), abLiteral::fresh(q, true)];
-//! let p_or_not_q = vec![abLiteral::fresh(p, true), abLiteral::fresh(q, false)];
+//! let not_p_or_q = vec![abLiteral::new(p, false), abLiteral::new(q, true)];
+//! let p_or_not_q = vec![abLiteral::new(p, true), abLiteral::new(q, false)];
 //! assert!(the_context.add_clause(not_p_or_q).is_ok());
 //! assert!(the_context.add_clause(p_or_not_q).is_ok());
 //!
@@ -110,10 +110,10 @@
 //!
 //! the_context.clear_decisions();
 //!
-//! let p_clause = abLiteral::fresh(p, true);
+//! let p_clause = abLiteral::new(p, true);
 //! assert!(the_context.add_clause(p_clause).is_ok());
 //!
-//! let p_clause = vec![abLiteral::fresh(p, true)];
+//! let p_clause = vec![abLiteral::new(p, true)];
 //! assert!(the_context.add_clause(p_clause).is_ok());
 //!
 //! assert_eq!(the_context.atom_db.value_of(p), Some(true));
@@ -155,6 +155,19 @@ use crate::{
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn solve(&mut self) -> Result<report::SolveReport, err::ErrorKind> {
         use crate::db::consequence_q::QPosition::{self};
+
+        match self.state {
+            ContextState::Solving => {
+                return Err(err::ErrorKind::State(err::StateError::SolveInProgress));
+            }
+            ContextState::Satisfiable => {
+                return Err(err::ErrorKind::State(err::StateError::SatisfiableContext));
+            }
+            ContextState::Unsatisfiable(_) => {
+                return Err(err::ErrorKind::State(err::StateError::UnsatisfiableContext));
+            }
+            ContextState::Configuration | ContextState::Input => {}
+        }
 
         self.state = ContextState::Solving;
 

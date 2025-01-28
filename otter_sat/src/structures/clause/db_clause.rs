@@ -38,4 +38,12 @@ impl Clause for dbClause {
     fn canonical(self) -> super::cClause {
         self.clause().to_vec()
     }
+
+    fn unsatisfiable_on(&self, valuation: &impl Valuation) -> bool {
+        self.clause().unsatisfiable_on(valuation)
+    }
+
+    unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool {
+        self.clause().unsatisfiable_on_unchecked(valuation)
+    }
 }

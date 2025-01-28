@@ -179,7 +179,7 @@ impl AtomDB {
         atom: Atom,
         value: bool,
         key: &ClauseKey,
-    ) -> Result<(), err::WatchError> {
+    ) -> Result<(), err::ClauseDBError> {
         match key {
             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
                 let list = match value {
@@ -200,7 +200,7 @@ impl AtomDB {
                 let mut limit = list.len();
                 while index < limit {
                     let WatchTag::Clause(list_key) = list.get_unchecked(index) else {
-                        return Err(err::WatchError::NotLongInLong);
+                        return Err(err::ClauseDBError::NotLongInLong);
                     };
 
                     if list_key == key {
@@ -215,11 +215,13 @@ impl AtomDB {
             ClauseKey::OriginalUnit(_)
             | ClauseKey::AdditionUnit(_)
             | ClauseKey::OriginalBinary(_)
-            | ClauseKey::AdditionBinary(_) => Err(err::WatchError::NotLongInLong),
+            | ClauseKey::AdditionBinary(_) => Err(err::ClauseDBError::NotLongInLong),
         }
     }
 
     /// Returns the relevant collection of watchers for a given atom, clause type, and value.
+    ///
+    /// A pointer is returned --- --- to help simplify [bcp](crate::procedures::bcp) --- and so care should be taken to avoid creating aliases.
     ///
     /// ```rust, ignore
     /// let binary_list = &mut *atom_db.get_watch_list_unchecked(atom, ClauseKind::Binary, false);
@@ -227,8 +229,6 @@ impl AtomDB {
     ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
-    ///
-    /// Further, a pointer is returned --- --- to help simplify [bcp](crate::procedures::bcp) --- and so care should be taken to avoid creating aliases.
     pub unsafe fn get_watch_list_unchecked(
         &mut self,
         atom: Atom,

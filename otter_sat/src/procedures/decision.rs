@@ -20,7 +20,7 @@
 //! ```rust,ignore
 //! let atom = self.atom_db.valuation().unvalued_atoms().next()?;
 //! let value = self.rng.gen_bool(self.config.polarity_lean);
-//! let decision_as_literal = abLiteral::fresh(atom, value);
+//! let decision_as_literal = abLiteral::new(atom, value);
 //! ```
 //!
 //! # Heuristics
@@ -44,7 +44,7 @@
 //!
 //! ```rust,ignore
 //! let previous_value = self.atom_db.previous_value_of(chosen_atom);
-//! abLiteral::fresh(chosen_atom, previous_value);
+//! abLiteral::new(chosen_atom, previous_value);
 //! ```
 //!
 //! Note: For efficiency an atom always has a 'previous' value, initialised randomly via [Config::polarity_lean](crate::config::Config::polarity_lean).
