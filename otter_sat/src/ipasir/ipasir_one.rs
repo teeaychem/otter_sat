@@ -63,25 +63,10 @@ pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
         }
         literal => {
             let literal_atom = literal.unsigned_abs();
-            match bundle.ei_map.get(&literal_atom) {
-                None => {
-                    let Ok(fresh_atom) = bundle.context.fresh_atom() else {
-                        std::process::exit(1);
-                    };
-                    assert!(bundle.ie_map.len().eq(&(fresh_atom as usize)));
-                    bundle.ei_map.insert(literal_atom, fresh_atom);
-                    bundle.ie_map.push(literal_atom);
-                    bundle
-                        .clause_buffer
-                        .push(cLiteral::new(fresh_atom, literal.is_positive()));
-                }
-
-                Some(atom) => {
-                    bundle
-                        .clause_buffer
-                        .push(cLiteral::new(*atom, literal.is_positive()));
-                }
-            }
+            bundle.context.ensure_atom(literal_atom);
+            bundle
+                .clause_buffer
+                .push(cLiteral::new(literal_atom, literal.is_positive()));
         }
     }
 }
@@ -96,10 +81,10 @@ pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
 
     bundle.context.refresh();
 
-    let lit_atom = lit.unsigned_abs();
-    let context_atom = *bundle.ei_map.get(&lit_atom).unwrap();
+    let literal_atom = lit.unsigned_abs();
+    bundle.context.ensure_atom(literal_atom);
 
-    let assumption = abLiteral::new(context_atom, lit.is_positive());
+    let assumption = abLiteral::new(literal_atom, lit.is_positive());
 
     let result = bundle.context.add_assumption(assumption);
     // println!("Assuming: {assumption} \t Result: {result:?}");
@@ -146,12 +131,9 @@ pub unsafe extern "C" fn ipasir_val(solver: *mut c_void, lit: i32) -> i32 {
         return 0;
     }
 
-    let internal_atom = match bundle.ei_map.get(&lit.unsigned_abs()) {
-        Some(atom) => atom,
-        None => return 0,
-    };
+    let literal_atom = lit.unsigned_abs();
 
-    match bundle.context.atom_db.value_of(*internal_atom) {
+    match bundle.context.atom_db.value_of(literal_atom) {
         Some(true) => lit,
         Some(false) => -lit,
         None => panic!("!"),
