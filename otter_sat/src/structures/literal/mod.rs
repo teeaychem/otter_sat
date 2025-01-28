@@ -14,14 +14,14 @@
 //! # use crate::otter_sat::structures::literal::Literal;
 //! let atom = 79;
 //! let polarity = true;
-//! let literal = abLiteral::fresh(atom, polarity);
+//! let literal = abLiteral::new(atom, polarity);
 //!
 //! assert!(literal.polarity());
 //!
 //! assert!(literal.atom().cmp(&79).is_eq());
 //! assert!(literal.negate().polarity().cmp(&false).is_eq());
 //!
-//! assert!(literal.cmp(&abLiteral::fresh(79, !false)).is_eq());
+//! assert!(literal.cmp(&abLiteral::new(79, !false)).is_eq());
 //! ```
 //!
 //! Implementation of the literal trait requires implementation of two additional traits:
@@ -39,7 +39,7 @@ mod ab_from;
 #[doc(hidden)]
 mod impl_abLiteral;
 
-use crate::{dispatch::macros::dispatch_atom_db_delta, structures::atom::Atom};
+use crate::structures::atom::Atom;
 
 /// Something which has methods for returning an atom and a polarity, etc.
 pub trait Literal: std::cmp::Ord + std::hash::Hash {

@@ -19,10 +19,10 @@
 //! let p = the_context.fresh_atom().unwrap();
 //! let q = the_context.fresh_atom().unwrap();
 //!
-//! let p_q_clause = vec![abLiteral::fresh(p, true), abLiteral::fresh(q, true)];
+//! let p_q_clause = vec![abLiteral::new(p, true), abLiteral::new(q, true)];
 //! assert!(the_context.add_clause(p_q_clause).is_ok());
 //!
-//! let not_p = abLiteral::fresh(p, false);
+//! let not_p = abLiteral::new(p, false);
 //!
 //! assert!(the_context.add_clause(not_p).is_ok());
 //! assert!(the_context.solve().is_ok());

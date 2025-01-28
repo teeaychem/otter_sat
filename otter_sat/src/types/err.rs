@@ -22,6 +22,8 @@ pub enum ErrorKind {
     BCP(BCPError),
     Backjump,
     ResolutionBuffer(ResolutionBufferError),
+    State(StateError),
+    Transfer(TransferError),
 }
 
 /// Noted errors during conflict analysis.
@@ -40,6 +42,18 @@ pub enum AnalysisError {
 impl From<AnalysisError> for ErrorKind {
     fn from(e: AnalysisError) -> Self {
         ErrorKind::Analysis(e)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AtomDBError {
+    /// There are no more fresh atoms.
+    AtomsExhausted,
+}
+
+impl From<AtomDBError> for ErrorKind {
+    fn from(e: AtomDBError) -> Self {
+        ErrorKind::AtomDB(e)
     }
 }
 
@@ -76,18 +90,6 @@ impl From<BuildError> for ErrorKind {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum AtomDBError {
-    /// There are no more fresh atoms.
-    AtomsExhausted,
-}
-
-impl From<AtomDBError> for ErrorKind {
-    fn from(e: AtomDBError) -> Self {
-        ErrorKind::AtomDB(e)
-    }
-}
-
 /// Errors in the clause database.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ClauseDBError {
@@ -100,8 +102,9 @@ pub enum ClauseDBError {
     /// Attempt to transfer a binary clause.
     TransferBinary,
 
-    /// There was some issue with watches when transfering a clause.
-    TransferWatch,
+    /// A unit or binary clause was found in a long watch list.
+    /// Perhaps an issue during addition during addition or transfer of a clause…?
+    NotLongInLong,
 
     /// A learnt cluase is missing.
     Missing,
@@ -121,10 +124,7 @@ pub enum ClauseDBError {
     /// A unit clause was added after some decision has been made.
     ///
     /// Ideally, this case could be handled and this error removed.
-    AddedUnitAfterDecision,
-
-    /// An immediate conflict.
-    ImmediateConflict,
+    DecisionMade,
 
     /// The clause conflicts with the current valuation.
     ///
@@ -138,14 +138,38 @@ impl From<ClauseDBError> for ErrorKind {
     }
 }
 
-#[derive(Clone, Copy)]
-pub enum SubsumptionError {
-    ShortClause,
-    NoPivot,
-    WatchError,
-    TransferFailure,
-    ClauseTooShort,
-    ClauseDB,
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ConsequenceQueueError {
+    Conflict,
+}
+
+impl From<ConsequenceQueueError> for ErrorKind {
+    fn from(e: ConsequenceQueueError) -> Self {
+        ErrorKind::ConsequenceQueue(e)
+    }
+}
+
+#[derive(Debug)]
+pub enum CoreError {
+    QueueMiss,
+    EmptyBCPBuffer,
+    CorruptClauseBuffer,
+    MissedKey,
+    NoConflict,
+}
+
+/// Errors with the writer for FRAT proofs.
+pub enum FRATError {
+    /// A corrupt clause buffer.
+    /// It is likely the addition of a clause was not noticed and the clause buffer was not cleared.
+    CorruptClauseBuffer,
+
+    /// A corrupt resolution buffer.
+    /// It is likely the addition of a clause via resolution was not noticed and the clause buffer was not cleared.
+    CorruptResolutionQ,
+
+    /// Transfers are todo!
+    TransfersAreTodo,
 }
 
 /// Errors during parsing.
@@ -188,17 +212,6 @@ impl From<PreprocessingError> for ErrorKind {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ConsequenceQueueError {
-    Conflict,
-}
-
-impl From<ConsequenceQueueError> for ErrorKind {
-    fn from(e: ConsequenceQueueError) -> Self {
-        ErrorKind::ConsequenceQueue(e)
-    }
-}
-
 /// Errors during resolution.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ResolutionBufferError {
@@ -221,45 +234,28 @@ impl From<ResolutionBufferError> for ErrorKind {
     }
 }
 
-/// Errors with the writer for FRAT proofs.
-pub enum FRATError {
-    /// A corrupt clause buffer.
-    /// It is likely the addition of a clause was not noticed and the clause buffer was not cleared.
-    CorruptClauseBuffer,
-
-    /// A corrupt resolution buffer.
-    /// It is likely the addition of a clause via resolution was not noticed and the clause buffer was not cleared.
-    CorruptResolutionQ,
-
-    /// Transfers are todo!
-    TransfersAreTodo,
-}
-
-#[derive(Clone, Copy)]
-pub enum WatchError {
-    /// A binary clause was found in a long watch list.
-    /// Perhaps an issue during addition during addition or transfer of a clause…?
-    NotLongInLong,
-}
-
-#[derive(Debug)]
-pub enum CoreError {
-    QueueMiss,
-    EmptyBCPBuffer,
-    CorruptClauseBuffer,
-    MissedKey,
-    NoConflict,
-}
-
-// Ignore the reason for failing to transfer a clause
-impl From<WatchError> for ClauseDBError {
-    fn from(_: WatchError) -> Self {
-        ClauseDBError::TransferWatch
-    }
-}
-
 impl From<SubsumptionError> for ResolutionBufferError {
     fn from(_value: SubsumptionError) -> Self {
         Self::Subsumption
     }
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StateError {
+    SolveInProgress,
+    SatisfiableContext,
+    UnsatisfiableContext,
+}
+
+#[derive(Clone, Copy)]
+pub enum SubsumptionError {
+    ShortClause,
+    NoPivot,
+    WatchError,
+    TransferFailure,
+    ClauseTooShort,
+    ClauseDB,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TransferError {}

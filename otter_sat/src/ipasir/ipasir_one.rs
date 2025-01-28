@@ -52,23 +52,12 @@ pub unsafe extern "C" fn ipasir_release(solver: *mut c_void) {
 pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    match bundle.context.state {
-        ContextState::Configuration | ContextState::Input => {}
-
-        ContextState::Satisfiable | ContextState::Unsatisfiable(_) => {
-            bundle.context.backjump(0);
-            bundle.context.remove_assumptions();
-            bundle.context.consequence_q.clear();
-            bundle.context.state = ContextState::Input;
-        }
-
-        ContextState::Solving => panic!("!"),
-    }
+    bundle.context.refresh();
 
     match lit_or_zero {
         0 => {
             let clause = std::mem::take(&mut bundle.clause_buffer);
-            bundle.context.add_clause(clause);
+            bundle.context.add_clause_unchecked(clause);
         }
         literal => {
             let literal_atom = literal.unsigned_abs();
@@ -103,18 +92,7 @@ pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
 pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    match bundle.context.state {
-        ContextState::Configuration | ContextState::Input => {}
-
-        ContextState::Satisfiable | ContextState::Unsatisfiable(_) => {
-            bundle.context.backjump(0);
-            bundle.context.remove_assumptions();
-            bundle.context.consequence_q.clear();
-            bundle.context.state = ContextState::Input;
-        }
-
-        ContextState::Solving => panic!("!"),
-    }
+    bundle.context.refresh();
 
     let lit_atom = lit.unsigned_abs();
     let context_atom = *bundle.ei_map.get(&lit_atom).unwrap();
@@ -133,21 +111,12 @@ pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
 pub unsafe extern "C" fn ipasir_solve(solver: *mut c_void) -> c_int {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    match bundle.context.state {
-        ContextState::Configuration | ContextState::Input => {}
-
-        ContextState::Satisfiable | ContextState::Unsatisfiable(_) => {
-            bundle.context.backjump(0);
+    match bundle.context.refresh() {
+        true => {
             bundle.core_keys.clear();
             bundle.core_literals.clear();
-            bundle.context.remove_assumptions();
-            bundle.context.consequence_q.clear();
-            bundle.context.state = ContextState::Input;
         }
-
-        ContextState::Solving => {
-            panic!("!")
-        }
+        false => {}
     }
 
     let solve_result = bundle.context.solve();
@@ -224,6 +193,8 @@ pub unsafe extern "C" fn ipasir_failed(solver: *mut c_void, lit: i32) -> c_int {
     }
 }
 
+/// Sets a callback function used to request termination of a solve.
+///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
 #[no_mangle]

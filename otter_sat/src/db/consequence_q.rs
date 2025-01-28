@@ -4,7 +4,7 @@
 //! For convenience, each atom-value pair represented as a literal.
 //!
 //! ```rust,ignore
-//! match context.value_and_queue(abLiteral::fresh(atom, false), QPosition::Back, 0) {
+//! match context.value_and_queue(abLiteral::new(atom, false), QPosition::Back, 0) {
 //!     Ok(Qd) => context.record_literal(literal, literal::Source::Decision),
 //!     Ok(Skip) => break,
 //!     Err(e) => return Err(e),
@@ -97,7 +97,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// A literal can be queued so long as it does not conflict with the current valuation.
     /// ```rust,ignore
-    /// context.value_and_queue(abLiteral::fresh(atom, value));
+    /// context.value_and_queue(abLiteral::new(atom, value));
     /// ```
     pub fn value_and_queue(
         &mut self,
