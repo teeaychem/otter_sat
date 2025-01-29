@@ -3,3 +3,6 @@
 **.cnf
 /otter_tests/frat-rs
 /otter_sat/examples/todo/
+/otter_tests_plus/ipasir_api/ipasir
+/otter_tests_plus/ipasir_api/build
+/otter_tests_plus/ipasir_api/.cache

@@ -185,6 +185,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 return Ok(report::SolveReport::TimeUp);
             }
 
+            if let Some(callbacks) = &self.ipasir_callbacks {
+                if let Some(terminate_callback) = callbacks.ipasir_terminate_callback {
+                    if terminate_callback(callbacks.ipasir_terminate_data) != 0 {
+                        break 'solve_loop;
+                    }
+                }
+            }
+
             match self.apply_consequences()? {
                 // Non-conflict variants. These variants break or continue the solve loop.
                 apply_consequences::ApplyConsequencesOk::FundamentalConflict => break 'solve_loop,
@@ -223,14 +231,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
             if self.luby_fresh_conflict_interrupt() {
                 self.counters.luby.next();
-
-                if let Some(callbacks) = &self.ipasir_callbacks {
-                    if let Some(terminate_callback) = callbacks.ipasir_terminate_callback {
-                        if terminate_callback(callbacks.ipasir_terminate_data) != 0 {
-                            break 'solve_loop;
-                        }
-                    }
-                }
 
                 macros::dispatch_stats!(self);
 

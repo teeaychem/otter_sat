@@ -13,7 +13,7 @@ use crate::{
 pub mod ipasir_one;
 pub mod ipasir_two;
 
-const IPASIR_SIGNATURE: &std::ffi::CStr = c"otter_sat 0.0.10";
+const IPASIR_SIGNATURE: &std::ffi::CStr = c"otter_sat 0.10.0";
 
 /// A struct which bundles a context with structures to support distinct external representations of atoms.
 ///
