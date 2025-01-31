@@ -119,7 +119,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
             [..] => {
                 if unsafe { clause_vec.unsatisfiable_on_unchecked(self.atom_db.valuation()) } {
-                    println!("{:?}", self.atom_db.valuation_string());
                     return Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict));
                 }
 
@@ -181,6 +180,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         );
                     }
                     _ => {
+                        println!("Conflict adding clause {literal}");
                         self.state = ContextState::Unsatisfiable(
                             crate::db::ClauseKey::OriginalUnit(literal),
                         );
@@ -214,31 +214,38 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     }
 
     pub fn add_assumption(&mut self, assumption: impl Literal) -> Result<(), err::ErrorKind> {
-        let literal = assumption;
+        let literal = assumption.canonical();
 
         match self.atom_db.value_of(literal.atom()) {
-            None => {
-                let canonical = literal.canonical();
-                match self.value_and_queue(canonical, consequence_q::QPosition::Back, 0) {
-                    Ok(consequence_q::ConsequenceQueueOk::Qd) => {
-                        self.literal_db.assumption_made(literal.canonical());
-                        Ok(())
-                    }
-                    _ => Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
+            None => match self.value_and_queue(literal, consequence_q::QPosition::Back, 0) {
+                Ok(consequence_q::ConsequenceQueueOk::Qd) => {
+                    self.literal_db.assumption_made(literal);
+                    Ok(())
                 }
-            }
+                _ => Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
+            },
 
             Some(v) if v == literal.polarity() => {
                 // Must be at zero for an assumption, so there's nothing to do
                 if self.counters.total_decisions != 0 {
                     Err(err::ErrorKind::from(err::ClauseDBError::DecisionMade))
                 } else {
+                    println!("Already");
                     Ok(())
                 }
             }
 
             Some(_) => Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
-        };
+        }
+    }
+
+    pub fn add_assumption_unchecked(
+        &mut self,
+        assumption: impl Literal,
+    ) -> Result<(), err::ErrorKind> {
+        let literal = assumption;
+        self.ensure_atom(literal.atom());
+        self.literal_db.assumption_made(literal.canonical());
         Ok(())
     }
 

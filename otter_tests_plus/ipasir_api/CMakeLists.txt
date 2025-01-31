@@ -1,11 +1,18 @@
 cmake_minimum_required(VERSION 3.20)
-project(otter_sat_IPASIR)
+project(otter_sat_IPASIR C CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# set(CMAKE_C_COMPILER gcc)
+# set(CMAKE_C_STANDARD 11)
+# set(CMAKE_C_STANDARD_REQUIRED TRUE)
+# set(CMAKE_C_FLAGS "-Wall -DNDEBUG -O3")
+
+# set(CMAKE_CXX_COMPILER g++)
+# set(CMAKE_CXX_FLAGS "-Wall -DNDEBUG -O0 -g")
+
 # genipafolio requires random_shuffle, depreciated in 14+
 set(CMAKE_CXX_STANDARD 11)
-
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 include_directories(${CMAKE_SOURCE_DIR}/../../target/release/)
@@ -56,8 +63,34 @@ target_link_libraries(genipalsp_otter_sat ${LIBRARIES})
 add_executable(genipalsp_minisat ipasir/app/genipalsp/genipalsp.cpp)
 target_link_libraries(genipalsp_minisat ${CMAKE_CURRENT_BINARY_DIR}/minisat220/libipasirminisat220.a)
 
+# genipareach
 
+add_executable(genipareach_otter_sat ipasir/app/genipareach/genipareach.cpp)
+target_link_libraries(genipareach_otter_sat ${LIBRARIES})
 
+add_executable(genipareach_minisat ipasir/app/genipareach/genipareach.cpp)
+target_link_libraries(genipareach_minisat ${CMAKE_CURRENT_BINARY_DIR}/minisat220/libipasirminisat220.a)
 
+# ipasir-check-conflict
 
-# add_executable(picosat961 ipasir/sat/picosat961/ipasirpicosatglue.c)
+add_executable(ipasir-check-conflict_otter_sat ipasir/app/ipasir-check-conflict/ipasir-check-conflict.cc)
+target_link_libraries(ipasir-check-conflict_otter_sat ${LIBRARIES})
+
+add_executable(ipasir-check-conflict_minisat ipasir/app/ipasir-check-conflict/ipasir-check-conflict.cc)
+target_link_libraries(ipasir-check-conflict_minisat ${CMAKE_CURRENT_BINARY_DIR}/minisat220/libipasirminisat220.a)
+
+# ipasir-check-iterative
+
+add_executable(ipasir-check-iterative_otter_sat ipasir/app/ipasir-check-iterative/ipasir-check-iterative.cc)
+target_link_libraries(ipasir-check-iterative_otter_sat ${LIBRARIES})
+
+add_executable(ipasir-check-iterative_minisat ipasir/app/ipasir-check-iterative/ipasir-check-iterative.cc)
+target_link_libraries(ipasir-check-iterative_minisat ${CMAKE_CURRENT_BINARY_DIR}/minisat220/libipasirminisat220.a)
+
+# ipasir-check-satunsat
+
+add_executable(ipasir-check-satunsat_otter_sat ipasir/app/ipasir-check-satunsat/ipasir-check-satunsat.cc)
+target_link_libraries(ipasir-check-satunsat_otter_sat ${LIBRARIES})
+
+add_executable(ipasir-check-satunsat_minisat ipasir/app/ipasir-check-satunsat/ipasir-check-satunsat.cc)
+target_link_libraries(ipasir-check-satunsat_minisat ${CMAKE_CURRENT_BINARY_DIR}/minisat220/libipasirminisat220.a)
