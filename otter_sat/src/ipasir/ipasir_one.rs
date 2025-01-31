@@ -4,6 +4,7 @@
 
 use crate::{
     context::ContextState,
+    db::ClauseKey,
     dispatch::library::report::SolveReport,
     ipasir::{ContextBundle, IPASIR_SIGNATURE},
     structures::{
@@ -54,7 +55,7 @@ pub unsafe extern "C" fn ipasir_release(solver: *mut c_void) {
 pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    bundle.context.refresh();
+    bundle.keep_fresh();
 
     match lit_or_zero {
         0 => {
@@ -79,15 +80,14 @@ pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
 pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    bundle.context.refresh();
+    bundle.keep_fresh();
 
     let literal_atom = lit.unsigned_abs();
     bundle.context.ensure_atom(literal_atom);
 
     let assumption = abLiteral::new(literal_atom, lit.is_positive());
 
-    let result = bundle.context.add_assumption(assumption);
-    // println!("Assuming: {assumption} \t Result: {result:?}");
+    let result = bundle.context.add_assumption_unchecked(assumption);
 }
 
 /// Calls solve on the context bundle.
@@ -98,13 +98,7 @@ pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
 pub unsafe extern "C" fn ipasir_solve(solver: *mut c_void) -> c_int {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    match bundle.context.refresh() {
-        true => {
-            bundle.core_keys.clear();
-            bundle.core_literals.clear();
-        }
-        false => {}
-    }
+    bundle.keep_fresh();
 
     let solve_result = bundle.context.solve();
 
@@ -162,16 +156,27 @@ pub unsafe extern "C" fn ipasir_failed(solver: *mut c_void, lit: i32) -> c_int {
     if bundle.core_literals.is_empty() {
         bundle.core_keys = bundle.context.core_keys();
         for key in &bundle.core_keys {
-            let clause = bundle.context.clause_db.get_unchecked(key).unwrap();
-            for literal in clause.literals() {
-                bundle.core_literals.insert(literal);
+            match key {
+                ClauseKey::OriginalUnit(literal) => {
+                    bundle.core_literals.insert(*literal);
+                }
+                _ => {
+                    match bundle.context.clause_db.get_unchecked(key) {
+                        Ok(clause) => {
+                            for literal in clause.literals() {
+                                bundle.core_literals.insert(literal);
+                            }
+                        }
+                        Err(e) => panic!("{e:?}"),
+                    };
+                }
             }
         }
     }
 
-    let literal_canonical = abLiteral::new(lit.unsigned_abs(), lit.is_positive());
+    let literal_canonical = abLiteral::from(lit);
 
-    match bundle.core_literals.contains(&literal_canonical) {
+    match bundle.core_literals.contains(&literal_canonical.negate()) {
         true => 1,
         false => 0,
     }

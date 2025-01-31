@@ -135,10 +135,11 @@
 
 use crate::{
     context::{ContextState, GenericContext},
+    db::{consequence_q, ClauseKey},
     dispatch::{
         library::{
             delta::{self, Delta},
-            report::{self, Report},
+            report::{self, Report, SolveReport},
             stat::Stat,
         },
         macros::{self},
@@ -148,13 +149,19 @@ use crate::{
         apply_consequences::{self},
         decision::{self},
     },
-    structures::consequence::{self, Consequence},
-    types::err::{self},
+    structures::{
+        clause::Clause,
+        consequence::{self, Consequence},
+        literal::{cLiteral, Literal},
+    },
+    types::err::{self, ErrorKind},
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn solve(&mut self) -> Result<report::SolveReport, err::ErrorKind> {
         use crate::db::consequence_q::QPosition::{self};
+
+        // return Ok(SolveReport::Satisfiable);
 
         match self.state {
             ContextState::Solving => {
@@ -169,7 +176,23 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             ContextState::Configuration | ContextState::Input => {}
         }
 
+        for clause in self.clause_db.all_clauses() {
+            if clause.unsatisfiable_on(self.atom_db.valuation()) {
+                self.state =
+                    ContextState::Unsatisfiable(ClauseKey::OriginalUnit(cLiteral::from(1)));
+                return Ok(self.report());
+            }
+        }
+
         self.state = ContextState::Solving;
+
+        match self.assert_assumptions() {
+            Ok(_) => {}
+            Err(e) => {
+                println!("Assumption {e:?}");
+                return Ok(SolveReport::Unsatisfiable);
+            }
+        };
 
         let total_time = std::time::Instant::now();
 
@@ -253,5 +276,32 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         macros::dispatch_finish!(self);
         Ok(self.report())
+    }
+
+    fn assert_assumptions(&mut self) -> Result<(), ErrorKind> {
+        if !self.literal_db.assumption_is_made() {
+            return Ok(());
+        }
+
+        let assumption_count = self.literal_db.assumptions().len();
+
+        for index in 0..assumption_count {
+            let assumption = self.literal_db.assumptions()[index];
+            match self.atom_db.value_of(assumption.atom()) {
+                None => match self.value_and_queue(assumption, consequence_q::QPosition::Back, 0) {
+                    Ok(consequence_q::ConsequenceQueueOk::Qd) => continue,
+                    _ => return Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
+                },
+
+                Some(v) if v == assumption.polarity() => {
+                    // Must be at zero for an assumption, so there's nothing to do
+                    continue;
+                }
+
+                Some(_) => return Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
+            }
+        }
+
+        Ok(())
     }
 }

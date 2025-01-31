@@ -32,6 +32,18 @@ pub struct ContextBundle {
     core_literals: HashSet<cLiteral>,
 }
 
+impl ContextBundle {
+    pub fn keep_fresh(&mut self) {
+        match self.context.refresh() {
+            true => {
+                self.core_keys.clear();
+                self.core_literals.clear();
+            }
+            false => {}
+        }
+    }
+}
+
 impl Default for ContextBundle {
     fn default() -> Self {
         ContextBundle {

@@ -61,9 +61,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         0 => panic!("!"),
 
                         1 => {
-                            let the_premise_key = db_clause.premises().iter().next().unwrap();
+                            let the_premise_key = db_clause
+                                .premises()
+                                .iter()
+                                .next()
+                                .expect("Missing premise key");
                             let the_premise =
-                                unsafe { self.clause_db.get_unchecked(the_premise_key) }.unwrap();
+                                unsafe { self.clause_db.get_unchecked(the_premise_key) }
+                                    .expect("Missing premise clause");
 
                             for key in the_premise.premises() {
                                 todo.push_back(*key);
