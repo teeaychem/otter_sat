@@ -1,6 +1,6 @@
 use crate::structures::atom::Atom;
 
-use super::{abLiteral, cLiteral, Literal};
+use super::{abLiteral, Literal};
 
 /// The representation of a literal as an atom paired with a boolean.
 #[allow(non_camel_case_types)]
@@ -27,7 +27,11 @@ impl Literal for iLiteral {
     }
 
     fn canonical(&self) -> super::cLiteral {
-        cLiteral::new(self.atom(), self.polarity())
+        #[cfg(feature = "boolean")]
+        return abLiteral::new(self.atom(), self.polarity());
+
+        #[cfg(not(feature = "boolean"))]
+        return *self;
     }
 
     fn as_int(&self) -> isize {

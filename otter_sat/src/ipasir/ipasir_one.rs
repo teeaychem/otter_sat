@@ -174,7 +174,7 @@ pub unsafe extern "C" fn ipasir_failed(solver: *mut c_void, lit: i32) -> c_int {
         }
     }
 
-    let literal_canonical = abLiteral::from(lit);
+    let literal_canonical = cLiteral::from(lit);
 
     match bundle.core_literals.contains(&literal_canonical.negate()) {
         true => 1,

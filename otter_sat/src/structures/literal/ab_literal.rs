@@ -1,4 +1,7 @@
-use crate::structures::{atom::Atom, clause::cClause};
+use crate::structures::{
+    atom::Atom,
+    clause::{abClause, cClause},
+};
 
 use super::Literal;
 
@@ -34,7 +37,11 @@ impl Literal for abLiteral {
     }
 
     fn canonical(&self) -> super::cLiteral {
-        *self
+        #[cfg(feature = "boolean")]
+        return *self;
+
+        #[cfg(not(feature = "boolean"))]
+        return self.into();
     }
 
     fn as_int(&self) -> isize {
@@ -135,8 +142,8 @@ impl TryFrom<isize> for abLiteral {
 
 // Into
 
-impl Into<cClause> for abLiteral {
-    fn into(self) -> cClause {
+impl Into<abClause> for abLiteral {
+    fn into(self) -> abClause {
         vec![self]
     }
 }

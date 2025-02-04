@@ -6,14 +6,14 @@ use crate::{
     structures::{
         atom::Atom,
         clause::Clause,
-        literal::{cLiteral, Literal},
+        literal::{abLiteral, cLiteral, Literal},
         valuation::Valuation,
     },
 };
 
 /// The implementation of a clause as a vector of literals.
 #[allow(non_camel_case_types)]
-pub type abClause = Vec<cLiteral>;
+pub type abClause = Vec<abLiteral>;
 
 impl Clause for abClause {
     fn as_dimacs(&self, zero: bool) -> String {
@@ -65,7 +65,11 @@ impl Clause for abClause {
     }
 
     fn literals(&self) -> impl std::iter::Iterator<Item = cLiteral> {
-        self.iter().copied()
+        #[cfg(feature = "boolean")]
+        return self.iter().map(|literal| *literal);
+
+        #[cfg(not(feature = "boolean"))]
+        return self.iter().map(|literal| literal.canonical());
     }
 
     fn size(&self) -> usize {
@@ -77,7 +81,14 @@ impl Clause for abClause {
     }
 
     fn canonical(self) -> super::cClause {
-        self
+        #[cfg(feature = "boolean")]
+        return self;
+
+        #[cfg(not(feature = "boolean"))]
+        return self
+            .into_iter()
+            .map(|literal| literal.canonical())
+            .collect();
     }
 
     fn unsatisfiable_on(&self, valuation: &impl Valuation) -> bool {

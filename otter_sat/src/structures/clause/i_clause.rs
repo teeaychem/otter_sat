@@ -4,6 +4,7 @@ use crate::{
     config::LBD,
     db::atom::AtomDB,
     structures::{
+        self,
         atom::Atom,
         clause::Clause,
         literal::{cLiteral, iLiteral, Literal},
@@ -65,7 +66,11 @@ impl Clause for iClause {
     }
 
     fn literals(&self) -> impl Iterator<Item = cLiteral> {
-        self.iter().map(|literal| literal.into())
+        #[cfg(feature = "boolean")]
+        return self.iter().map(|literal| literal.canonical());
+
+        #[cfg(not(feature = "boolean"))]
+        return self.iter().copied();
     }
 
     fn size(&self) -> usize {
@@ -77,9 +82,14 @@ impl Clause for iClause {
     }
 
     fn canonical(self) -> super::cClause {
-        self.into_iter()
-            .map(|literal| literal.canonical())
-            .collect()
+        #[cfg(feature = "boolean")]
+        return self
+            .into_iter()
+            .map(|literal| structures::literal::Literal::canonical(&literal))
+            .collect();
+
+        #[cfg(not(feature = "boolean"))]
+        return self;
     }
 
     fn unsatisfiable_on(&self, valuation: &impl Valuation) -> bool {
