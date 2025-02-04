@@ -90,15 +90,15 @@
 //! # use otter_sat::config::Config;
 //! # use otter_sat::context::Context;
 //! # use otter_sat::dispatch::library::report::{self};
-//! # use otter_sat::structures::literal::{abLiteral, Literal};
+//! # use otter_sat::structures::literal::{cLiteral, Literal};
 //! let config = Config::default();
 //! let mut the_context: Context = Context::from_config(config, None);
 //!
 //! let p = the_context.fresh_atom().unwrap();
 //! let q = the_context.fresh_atom().unwrap();
 //!
-//! let not_p_or_q = vec![abLiteral::new(p, false), abLiteral::new(q, true)];
-//! let p_or_not_q = vec![abLiteral::new(p, true), abLiteral::new(q, false)];
+//! let not_p_or_q = vec![cLiteral::new(p, false), cLiteral::new(q, true)];
+//! let p_or_not_q = vec![cLiteral::new(p, true), cLiteral::new(q, false)];
 //! assert!(the_context.add_clause(not_p_or_q).is_ok());
 //! assert!(the_context.add_clause(p_or_not_q).is_ok());
 //!
@@ -110,10 +110,10 @@
 //!
 //! the_context.clear_decisions();
 //!
-//! let p_clause = abLiteral::new(p, true);
+//! let p_clause = cLiteral::new(p, true);
 //! assert!(the_context.add_clause(p_clause).is_ok());
 //!
-//! let p_clause = vec![abLiteral::new(p, true)];
+//! let p_clause = vec![cLiteral::new(p, true)];
 //! assert!(the_context.add_clause(p_clause).is_ok());
 //!
 //! assert_eq!(the_context.atom_db.value_of(p), Some(true));

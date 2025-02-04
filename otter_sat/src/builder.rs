@@ -55,13 +55,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// # use otter_sat::context::Context;
     /// # use otter_sat::config::Config;
     /// # use otter_sat::dispatch::library::report::{self};
-    /// # use otter_sat::structures::literal::{abLiteral, Literal};
+    /// # use otter_sat::structures::literal::{cLiteral, Literal};
     /// #
     /// let mut the_context = Context::from_config(Config::default(), None);
     /// let p = the_context.fresh_atom().unwrap();
     /// let q = the_context.fresh_atom().unwrap();
     ///
-    /// let clause = vec![abLiteral::new(p, true), abLiteral::new(q, false)];
+    /// let clause = vec![cLiteral::new(p, true), cLiteral::new(q, false)];
     ///
     ///  assert!(the_context.add_clause(clause).is_ok());
     ///  the_context.solve();

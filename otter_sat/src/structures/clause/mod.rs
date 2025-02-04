@@ -3,14 +3,14 @@
 //! The canonical representation of a clause is as a vector of literals.
 //!
 //! ```rust
-//! # use otter_sat::structures::literal::abLiteral;
+//! # use otter_sat::structures::literal::cLiteral;
 //! # use otter_sat::structures::literal::Literal;
 //! # use otter_sat::structures::clause::Clause;
-//! let clause = vec![abLiteral::new(23, true),
-//!                   abLiteral::new(41, false),
-//!                   abLiteral::new(3,  false),
-//!                   abLiteral::new(15, true),
-//!                   abLiteral::new(4,  false)];
+//! let clause = vec![cLiteral::new(23, true),
+//!                   cLiteral::new(41, false),
+//!                   cLiteral::new(3,  false),
+//!                   cLiteral::new(15, true),
+//!                   cLiteral::new(4,  false)];
 //!
 //! assert_eq!(clause.size(), 5);
 //!
@@ -21,7 +21,7 @@
 //! assert!(clause.asserts(&some_valuation).cmp(&None).is_eq());
 //!
 //! some_valuation[41] = None;
-//! assert!(clause.asserts(&some_valuation).cmp(&Some(abLiteral::new(41, false))).is_eq());
+//! assert!(clause.asserts(&some_valuation).cmp(&Some(cLiteral::new(41, false))).is_eq());
 //! ```
 //!
 //! - The empty clause is always false (never true).
@@ -48,9 +48,15 @@ use crate::{
     structures::{atom::Atom, literal::cLiteral, valuation::Valuation},
 };
 
+#[cfg(feature = "boolean")]
 /// The canonical implementation of a clause.
 #[allow(non_camel_case_types)]
 pub type cClause = abClause;
+
+#[cfg(not(feature = "boolean"))]
+/// The canonical implementation of a clause.
+#[allow(non_camel_case_types)]
+pub type cClause = iClause;
 
 /// The clause trait.
 pub trait Clause {

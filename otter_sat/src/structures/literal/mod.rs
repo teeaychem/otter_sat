@@ -64,6 +64,12 @@ pub trait Literal: std::cmp::Ord + std::hash::Hash {
     fn as_int(&self) -> isize;
 }
 
+#[cfg(feature = "boolean")]
 /// The canonical implementation of a literal.
 #[allow(non_camel_case_types)]
 pub type cLiteral = abLiteral;
+
+#[cfg(not(feature = "boolean"))]
+/// The canonical implementation of a literal.
+#[allow(non_camel_case_types)]
+pub type cLiteral = iLiteral;
