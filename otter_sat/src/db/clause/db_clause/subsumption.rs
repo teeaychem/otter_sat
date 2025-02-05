@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use crate::{
     db::atom::AtomDB,
     misc::log::targets,
-    structures::literal::{cLiteral, Literal},
+    structures::literal::{CLiteral, Literal},
     types::err::{self},
 };
 
@@ -38,7 +38,7 @@ impl dbClause {
     /// For example,  subsumption may lead to a binary clause and the watches for the clause may be set elsewhere.
     pub fn subsume(
         &mut self,
-        literal: impl Borrow<cLiteral>,
+        literal: impl Borrow<CLiteral>,
         atom_db: &mut AtomDB,
         fix_watch: bool,
     ) -> Result<usize, err::SubsumptionError> {

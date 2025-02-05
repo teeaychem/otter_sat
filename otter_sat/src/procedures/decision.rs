@@ -20,7 +20,7 @@
 //! ```rust,ignore
 //! let atom = self.atom_db.valuation().unvalued_atoms().next()?;
 //! let value = self.rng.gen_bool(self.config.polarity_lean);
-//! let decision_as_literal = abLiteral::new(atom, value);
+//! let decision_as_literal = CLiteral::new(atom, value);
 //! ```
 //!
 //! # Heuristics
@@ -44,7 +44,7 @@
 //!
 //! ```rust,ignore
 //! let previous_value = self.atom_db.previous_value_of(chosen_atom);
-//! abLiteral::new(chosen_atom, previous_value);
+//! CLiteral::new(chosen_atom, previous_value);
 //! ```
 //!
 //! Note: For efficiency an atom always has a 'previous' value, initialised randomly via [Config::polarity_lean](crate::config::Config::polarity_lean).
@@ -59,7 +59,7 @@ use crate::{
     context::{ContextState, GenericContext},
     structures::{
         atom::Atom,
-        literal::{cLiteral, Literal},
+        literal::{CLiteral, Literal},
         valuation::Valuation,
     },
     types::err,
@@ -68,7 +68,7 @@ use crate::{
 /// Possible 'Ok' results from choosing a truth value to assign an atom.
 pub enum DecisionOk {
     /// Some truth value was assigned to some atom.
-    Literal(cLiteral),
+    Literal(CLiteral),
     /// All atoms had already been assigned truth values, so no decision could be made.
     Exhausted,
 }
@@ -98,11 +98,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 let decision_literal = match self.config.switch.phase_saving {
                     true => {
                         let previous_value = self.atom_db.previous_value_of(chosen_atom);
-                        cLiteral::new(chosen_atom, previous_value)
+                        CLiteral::new(chosen_atom, previous_value)
                     }
                     false => {
                         let random_value = self.rng.gen_bool(self.config.polarity_lean);
-                        cLiteral::new(chosen_atom, random_value)
+                        CLiteral::new(chosen_atom, random_value)
                     }
                 };
                 log::trace!("Decision {decision_literal}");

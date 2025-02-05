@@ -9,8 +9,8 @@ use crate::{
     },
     structures::{
         atom::Atom,
-        clause::{cClause, Clause, ClauseSource},
-        literal::{cLiteral, Literal},
+        clause::{CClause, Clause, ClauseSource},
+        literal::{CLiteral, Literal},
     },
     types::err::{self, PreprocessingError},
 };
@@ -55,13 +55,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// # use otter_sat::context::Context;
     /// # use otter_sat::config::Config;
     /// # use otter_sat::dispatch::library::report::{self};
-    /// # use otter_sat::structures::literal::{cLiteral, Literal};
+    /// # use otter_sat::structures::literal::{CLiteral, Literal};
     /// #
     /// let mut the_context = Context::from_config(Config::default(), None);
     /// let p = the_context.fresh_atom().unwrap();
     /// let q = the_context.fresh_atom().unwrap();
     ///
-    /// let clause = vec![cLiteral::new(p, true), cLiteral::new(q, false)];
+    /// let clause = vec![CLiteral::new(p, true), CLiteral::new(q, false)];
     ///
     ///  assert!(the_context.add_clause(clause).is_ok());
     ///  the_context.solve();
@@ -138,7 +138,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
     /// Adds a clause to the database, regardless of the contextual valuation.
     ///
-    /// The same checks as [add_clause] are made, but are used to immediately sets to the state of the solver to unsatisfiable.
+    /// The same checks as [GenericContext::add_clause] are made, but are used to immediately sets to the state of the solver to unsatisfiable.
     pub fn add_clause_unchecked(
         &mut self,
         clause: impl Clause,
@@ -297,7 +297,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         let mut atom_map = HashMap::<isize, Atom>::default();
         let mut buffer = String::with_capacity(1024);
-        let mut clause_buffer: cClause = Vec::default();
+        let mut clause_buffer: CClause = Vec::default();
 
         let mut line_counter = 0;
         let mut clause_counter = 0;
@@ -394,11 +394,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                     Err(e) => panic!("{e}"),
                                 };
                                 let the_literal = match atom_map.get(&parsed_int.abs()) {
-                                    Some(atom) => cLiteral::new(*atom, parsed_int.is_positive()),
+                                    Some(atom) => CLiteral::new(*atom, parsed_int.is_positive()),
                                     None => {
                                         let fresh_atom = self.fresh_atom().unwrap();
                                         atom_map.insert(parsed_int.abs(), fresh_atom);
-                                        cLiteral::new(fresh_atom, parsed_int.is_positive())
+                                        CLiteral::new(fresh_atom, parsed_int.is_positive())
                                     }
                                 };
 
@@ -450,7 +450,7 @@ enum PreprocessingOk {
 }
 
 /// Preprocess a clause to remove duplicate literals.
-fn preprocess_clause(clause: &mut cClause) -> Result<PreprocessingOk, err::PreprocessingError> {
+fn preprocess_clause(clause: &mut CClause) -> Result<PreprocessingOk, err::PreprocessingError> {
     let mut index = 0;
     let mut max = clause.len();
     'clause_loop: loop {
@@ -487,9 +487,9 @@ mod preprocessing_tests {
     #[test]
     // TODO: test…
     fn pass() {
-        let p = cLiteral::new(1, true);
-        let not_q = cLiteral::new(2, false);
-        let r = cLiteral::new(3, true);
+        let p = CLiteral::new(1, true);
+        let not_q = CLiteral::new(2, false);
+        let r = CLiteral::new(3, true);
 
         let clause = vec![p, not_q, r];
         let mut processed_clause = clause.clone();
@@ -500,9 +500,9 @@ mod preprocessing_tests {
 
     #[test]
     fn duplicate_removal() {
-        let p = cLiteral::new(1, true);
-        let not_q = cLiteral::new(2, false);
-        let r = cLiteral::new(3, true);
+        let p = CLiteral::new(1, true);
+        let not_q = CLiteral::new(2, false);
+        let r = CLiteral::new(3, true);
 
         let clause = vec![p, not_q, r];
         let mut processed_clause = vec![p, not_q, r, r, not_q, p];
@@ -513,8 +513,8 @@ mod preprocessing_tests {
 
     #[test]
     fn contradiction_error() {
-        let p = cLiteral::new(1, true);
-        let not_p = cLiteral::new(1, false);
+        let p = CLiteral::new(1, true);
+        let not_p = CLiteral::new(1, false);
 
         let mut clause = vec![p, not_p];
         let preprocessing_result = preprocess_clause(&mut clause);

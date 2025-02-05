@@ -1,9 +1,9 @@
 //! A struct holding a [clause](Clause) and associated metadata.
 //!
-//! For [clause trait](Clause) see [Clause], and for the canonical representation of a clause see [cClause].
+//! For [clause trait](Clause) see [Clause], and for the canonical representation of a clause see [CClause].
 //!
 //! A [dbClause] contains:
-//! - A [clause](Clause) (represented as a [cClause]).
+//! - A [clause](Clause) (represented as a [CClause]).
 //! - A [key](ClauseKey) used to access the [dbClause]/[clause](Clause).
 //! - Other, useful, metadata.
 //!
@@ -24,8 +24,8 @@
 use crate::{
     db::{atom::AtomDB, keys::ClauseKey},
     structures::{
-        clause::{cClause, Clause},
-        literal::cLiteral,
+        clause::{CClause, Clause},
+        literal::CLiteral,
         valuation::vValuation,
     },
 };
@@ -48,7 +48,7 @@ pub struct dbClause {
     key: ClauseKey,
 
     /// The clause, stored instantiated as a [vClause].
-    clause: cClause,
+    clause: CClause,
 
     /// Whether the clause is active.
     active: bool,
@@ -69,7 +69,7 @@ impl dbClause {
     /// Note:
     /// - This does not store the [dbClause] in the [clause database](crate::db::clause::ClauseDB).
     ///   Instead, this is the canonical way to obtain some thing to be stored in a database.
-    pub fn new_unit(key: ClauseKey, literal: cLiteral, premises: HashSet<ClauseKey>) -> Self {
+    pub fn new_unit(key: ClauseKey, literal: CLiteral, premises: HashSet<ClauseKey>) -> Self {
         Self {
             key,
             clause: vec![literal],
@@ -91,7 +91,7 @@ impl dbClause {
     /// Otherwise, clauses are initialised with respect to the current valuation of the context.
     pub fn new_nonunit(
         key: ClauseKey,
-        clause: cClause,
+        clause: CClause,
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,
         premises: HashSet<ClauseKey>,
@@ -131,7 +131,7 @@ impl dbClause {
     }
 
     /// The clause stored.
-    pub fn clause(&self) -> &cClause {
+    pub fn clause(&self) -> &CClause {
         &self.clause
     }
 
@@ -161,7 +161,7 @@ impl std::fmt::Display for dbClause {
 }
 
 impl Deref for dbClause {
-    type Target = [cLiteral];
+    type Target = [CLiteral];
 
     fn deref(&self) -> &Self::Target {
         &self.clause

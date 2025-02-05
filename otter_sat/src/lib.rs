@@ -47,7 +47,7 @@
 //! # use otter_sat::context::Context;
 //! # use otter_sat::dispatch::library::report::{self};
 //! # use otter_sat::structures::atom::Atom;
-//! use otter_sat::structures::literal::{abLiteral, Literal};
+//! use otter_sat::structures::literal::{CLiteral, Literal};
 //!
 //! let mut the_context: Context = Context::from_config(Config::default(), None);
 //! let mut characters = "model".chars().collect::<Vec<_>>();
@@ -72,7 +72,7 @@
 //!     for (atom, value) in the_context.atom_db.valuation_canonical().iter().enumerate().skip(1) {
 //!        match value {
 //!            Some(v) => {
-//!                clause.push(abLiteral::new(atom as Atom, !v));
+//!                clause.push(CLiteral::new(atom as Atom, !v));
 //!            }
 //!            None => {}
 //!        }

@@ -7,7 +7,7 @@ use otter_sat::{
     structures::{
         atom::Atom,
         clause::Clause,
-        literal::{cLiteral, Literal},
+        literal::{CLiteral, Literal},
     },
 };
 
@@ -57,7 +57,7 @@ fn main() {
             .skip(1)
         {
             if let Some(v) = value {
-                clause.push(cLiteral::new(atom as Atom, !v));
+                clause.push(CLiteral::new(atom as Atom, !v));
             }
         }
 

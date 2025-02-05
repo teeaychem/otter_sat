@@ -5,12 +5,12 @@ use crate::{
     db::atom::AtomDB,
     structures::{
         clause::Clause,
-        literal::{cLiteral, Literal},
+        literal::{CLiteral, Literal},
         valuation::Valuation,
     },
 };
 
-impl Clause for cLiteral {
+impl Clause for CLiteral {
     fn as_dimacs(&self, zero: bool) -> String {
         let mut the_string = String::new();
 
@@ -30,7 +30,7 @@ impl Clause for cLiteral {
     }
 
     /// Returns the literal asserted by the clause on the given valuation
-    fn asserts(&self, _val: &impl Valuation) -> Option<cLiteral> {
+    fn asserts(&self, _val: &impl Valuation) -> Option<CLiteral> {
         Some(*self)
     }
 
@@ -38,7 +38,7 @@ impl Clause for cLiteral {
         0
     }
 
-    fn literals(&self) -> impl Iterator<Item = cLiteral> {
+    fn literals(&self) -> impl Iterator<Item = CLiteral> {
         std::iter::once(self.canonical())
     }
     fn size(&self) -> usize {
@@ -49,7 +49,7 @@ impl Clause for cLiteral {
         std::iter::once(self.atom())
     }
 
-    fn canonical(self) -> super::cClause {
+    fn canonical(self) -> super::CClause {
         vec![self]
     }
 

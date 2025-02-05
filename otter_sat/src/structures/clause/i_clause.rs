@@ -7,16 +7,16 @@ use crate::{
         self,
         atom::Atom,
         clause::Clause,
-        literal::{cLiteral, iLiteral, Literal},
+        literal::{CLiteral, IntLiteral, Literal},
         valuation::Valuation,
     },
 };
 
 /// The implementation of a clause as a vector of integers.
 #[allow(non_camel_case_types)]
-pub type iClause = Vec<iLiteral>;
+pub type IntClause = Vec<IntLiteral>;
 
-impl Clause for iClause {
+impl Clause for IntClause {
     fn as_dimacs(&self, zero: bool) -> String {
         let mut the_string = String::new();
         for literal in self.literals() {
@@ -34,7 +34,7 @@ impl Clause for iClause {
         }
     }
 
-    fn asserts(&self, val: &impl Valuation) -> Option<cLiteral> {
+    fn asserts(&self, val: &impl Valuation) -> Option<CLiteral> {
         let mut asserted_literal = None;
         for lit in self.literals() {
             if let Some(existing_val) = unsafe { val.value_of_unchecked(lit.atom()) } {
@@ -65,7 +65,7 @@ impl Clause for iClause {
         decision_levels.len() as LBD
     }
 
-    fn literals(&self) -> impl Iterator<Item = cLiteral> {
+    fn literals(&self) -> impl Iterator<Item = CLiteral> {
         #[cfg(feature = "boolean")]
         return self.iter().map(|literal| literal.canonical());
 
@@ -81,7 +81,7 @@ impl Clause for iClause {
         self.iter().map(|literal| literal.atom())
     }
 
-    fn canonical(self) -> super::cClause {
+    fn canonical(self) -> super::CClause {
         #[cfg(feature = "boolean")]
         return self
             .into_iter()

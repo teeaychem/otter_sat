@@ -13,8 +13,8 @@ use crate::{
     },
     misc::log::targets,
     structures::{
-        clause::{cClause, iClause, Clause, ClauseSource},
-        literal::cLiteral,
+        clause::{CClause, Clause, ClauseSource, IntClause},
+        literal::CLiteral,
         valuation::vValuation,
     },
     types::err,
@@ -62,11 +62,11 @@ impl ClauseDB {
 }
 
 impl ClauseDB {
-    fn check_callback(&self, clause: &cClause) {
+    fn check_callback(&self, clause: &CClause) {
         if let Some(callbacks) = &self.ipasir_callbacks {
             if let Some(addition_callback) = callbacks.ipasir_addition_callback {
                 if clause.size() <= callbacks.ipasir_addition_callback_length as usize {
-                    let mut i_clause: iClause =
+                    let mut i_clause: IntClause =
                         clause.literals().map(|literal| literal.into()).collect();
 
                     addition_callback(callbacks.ipasir_addition_data, i_clause.as_mut_ptr());
@@ -77,7 +77,7 @@ impl ClauseDB {
 
     fn store_unit(
         &mut self,
-        literal: cLiteral,
+        literal: CLiteral,
         source: ClauseSource,
         premises: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
@@ -118,7 +118,7 @@ impl ClauseDB {
 
     fn store_binary(
         &mut self,
-        clause: cClause,
+        clause: CClause,
         source: ClauseSource,
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,
@@ -154,7 +154,7 @@ impl ClauseDB {
 
     fn store_long(
         &mut self,
-        clause: cClause,
+        clause: CClause,
         source: ClauseSource,
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,

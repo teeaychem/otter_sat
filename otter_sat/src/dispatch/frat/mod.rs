@@ -49,7 +49,7 @@ pub mod transcriber;
 
 use std::{collections::VecDeque, fs::File};
 
-use crate::{db::ClauseKey, structures::literal::cLiteral};
+use crate::{db::ClauseKey, structures::literal::CLiteral};
 
 /// An intermediate struct to support transforming dispatches from a context to steps in an FRAT proof.
 pub struct Transcriber {
@@ -60,7 +60,7 @@ pub struct Transcriber {
     step_buffer: Vec<String>,
 
     /// A buffer holding information about a clause
-    clause_buffer: Vec<cLiteral>,
+    clause_buffer: Vec<CLiteral>,
 
     /// A buffer holding information about clauses used during an instance of resolutions.
     resolution_buffer: Vec<ClauseKey>,
