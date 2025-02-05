@@ -1,14 +1,11 @@
-use crate::structures::{
-    atom::Atom,
-    clause::{abClause, cClause},
-};
+use crate::structures::{atom::Atom, clause::ABClause};
 
-use super::Literal;
+use super::{IntLiteral, Literal};
 
 /// The representation of a literal as an atom paired with a boolean.
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-pub struct abLiteral {
+pub struct ABLiteral {
     /// The atom of a literal.
     atom: Atom,
 
@@ -16,7 +13,7 @@ pub struct abLiteral {
     polarity: bool,
 }
 
-impl Literal for abLiteral {
+impl Literal for ABLiteral {
     fn new(atom: Atom, polarity: bool) -> Self {
         Self { atom, polarity }
     }
@@ -36,7 +33,7 @@ impl Literal for abLiteral {
         self.polarity
     }
 
-    fn canonical(&self) -> super::cLiteral {
+    fn canonical(&self) -> super::CLiteral {
         #[cfg(feature = "boolean")]
         return *self;
 
@@ -54,13 +51,13 @@ impl Literal for abLiteral {
 
 // Traits
 
-impl PartialOrd for abLiteral {
+impl PartialOrd for ABLiteral {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for abLiteral {
+impl Ord for ABLiteral {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         if self.atom == other.atom {
             self.polarity.cmp(&other.polarity)
@@ -70,22 +67,34 @@ impl Ord for abLiteral {
     }
 }
 
-impl PartialEq for abLiteral {
+impl PartialOrd<IntLiteral> for ABLiteral {
+    fn partial_cmp(&self, other: &IntLiteral) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(&ABLiteral::from(other)))
+    }
+}
+
+impl PartialEq for ABLiteral {
     fn eq(&self, other: &Self) -> bool {
         self.atom == other.atom && self.polarity == other.polarity
     }
 }
 
-impl std::hash::Hash for abLiteral {
+impl PartialEq<IntLiteral> for ABLiteral {
+    fn eq(&self, other: &IntLiteral) -> bool {
+        self.atom == other.atom() && self.polarity == other.polarity()
+    }
+}
+
+impl Eq for ABLiteral {}
+
+impl std::hash::Hash for ABLiteral {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.atom.hash(state);
         self.polarity.hash(state);
     }
 }
 
-impl Eq for abLiteral {}
-
-impl std::fmt::Display for abLiteral {
+impl std::fmt::Display for ABLiteral {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.polarity {
             true => write!(f, "{}", self.atom),
@@ -96,44 +105,44 @@ impl std::fmt::Display for abLiteral {
 
 // From
 
-impl From<i16> for abLiteral {
+impl From<i16> for ABLiteral {
     fn from(value: i16) -> Self {
-        abLiteral::new(value.unsigned_abs() as Atom, value.is_positive())
+        ABLiteral::new(value.unsigned_abs() as Atom, value.is_positive())
     }
 }
 
-impl From<i32> for abLiteral {
+impl From<i32> for ABLiteral {
     fn from(value: i32) -> Self {
-        abLiteral::new(value.unsigned_abs(), value.is_positive())
+        ABLiteral::new(value.unsigned_abs(), value.is_positive())
     }
 }
 
-impl From<&i32> for abLiteral {
+impl From<&i32> for ABLiteral {
     fn from(value: &i32) -> Self {
-        abLiteral::new(value.unsigned_abs(), value.is_positive())
+        ABLiteral::new(value.unsigned_abs(), value.is_positive())
     }
 }
 
-impl TryFrom<i64> for abLiteral {
+impl TryFrom<i64> for ABLiteral {
     type Error = ();
 
     fn try_from(value: i64) -> Result<Self, Self::Error> {
         let atom = value.unsigned_abs();
         if atom < Atom::MAX.into() {
-            Ok(abLiteral::new(atom as Atom, value.is_positive()))
+            Ok(ABLiteral::new(atom as Atom, value.is_positive()))
         } else {
             Err(())
         }
     }
 }
 
-impl TryFrom<isize> for abLiteral {
+impl TryFrom<isize> for ABLiteral {
     type Error = ();
 
     fn try_from(value: isize) -> Result<Self, Self::Error> {
         let atom = value.unsigned_abs();
         if Atom::MAX.try_into().is_ok_and(|max| atom < max) {
-            Ok(abLiteral::new(atom as Atom, value.is_positive()))
+            Ok(ABLiteral::new(atom as Atom, value.is_positive()))
         } else {
             Err(())
         }
@@ -142,8 +151,8 @@ impl TryFrom<isize> for abLiteral {
 
 // Into
 
-impl Into<abClause> for abLiteral {
-    fn into(self) -> abClause {
+impl Into<ABClause> for ABLiteral {
+    fn into(self) -> ABClause {
         vec![self]
     }
 }

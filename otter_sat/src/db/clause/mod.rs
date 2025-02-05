@@ -1,6 +1,6 @@
 //! A database of clause related things.
 //!
-//! Records of clauses are distinguished by a mix of [kind](crate::structures::clause::ClauseKind) and/or [source](crate::structures::clause::Source).
+//! Records of clauses are distinguished by a mix of [kind](crate::structures::clause::ClauseKind) and/or [source](crate::structures::clause::ClauseSource).
 //!
 //! Fields of the database are private to ensure the use of methods which may be needed to uphold invariants.
 pub mod activity_glue;
@@ -35,7 +35,7 @@ use crate::{
     generic::index_heap::IndexHeap,
     ipasir::IpasirClauseDBCallbacks,
     misc::log::targets::{self},
-    structures::{clause::Clause, literal::cLiteral},
+    structures::{clause::Clause, literal::CLiteral},
     types::err::{self},
 };
 
@@ -268,34 +268,34 @@ impl ClauseDB {
         self.addition.len()
     }
 
-    /// An iterator over all unit clauses, given as [cLiteral]s.
+    /// An iterator over all unit clauses, given as [CLiteral]s.
     ///
     /// ```rust,ignore
     /// buffer.strengthen_given(self.clause_db.all_unit_clauses());
     /// ```
-    pub fn all_original_unit_clauses(&self) -> impl Iterator<Item = cLiteral> + use<'_> {
+    pub fn all_original_unit_clauses(&self) -> impl Iterator<Item = CLiteral> + use<'_> {
         self.unit_original
             .values()
             .flat_map(|c| c.clause().literals().last())
     }
 
-    /// An iterator over all addition unit clauses, given as [cLiteral]s.
+    /// An iterator over all addition unit clauses, given as [CLiteral]s.
     ///
     /// ```rust,ignore
     /// buffer.strengthen_given(self.clause_db.all_unit_clauses());
     /// ```
-    pub fn all_addition_unit_clauses(&self) -> impl Iterator<Item = cLiteral> + use<'_> {
+    pub fn all_addition_unit_clauses(&self) -> impl Iterator<Item = CLiteral> + use<'_> {
         self.unit_addition
             .values()
             .flat_map(|c| c.clause().literals().last())
     }
 
-    /// An iterator over all unit clauses, given as [cLiteral]s.
+    /// An iterator over all unit clauses, given as [CLiteral]s.
     ///
     /// ```rust,ignore
     /// buffer.strengthen_given(self.clause_db.all_unit_clauses());
     /// ```
-    pub fn all_unit_clauses(&self) -> impl Iterator<Item = cLiteral> + use<'_> {
+    pub fn all_unit_clauses(&self) -> impl Iterator<Item = CLiteral> + use<'_> {
         self.unit_original
             .values()
             .flat_map(|c| c.clause().literals().last())
@@ -402,7 +402,7 @@ impl ClauseDB {
     pub unsafe fn subsume(
         &mut self,
         key: ClauseKey,
-        literal: impl Borrow<cLiteral>,
+        literal: impl Borrow<CLiteral>,
         atom_db: &mut AtomDB,
         premises: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::SubsumptionError> {

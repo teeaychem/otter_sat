@@ -3,7 +3,7 @@
 use crate::{
     config::LBD,
     db::{atom::AtomDB, clause::db_clause::dbClause},
-    structures::{atom::Atom, clause::Clause, literal::cLiteral, valuation::Valuation},
+    structures::{atom::Atom, clause::Clause, literal::CLiteral, valuation::Valuation},
 };
 
 impl Clause for dbClause {
@@ -11,7 +11,7 @@ impl Clause for dbClause {
         self.clause().as_dimacs(zero)
     }
 
-    fn asserts(&self, val: &impl Valuation) -> Option<cLiteral> {
+    fn asserts(&self, val: &impl Valuation) -> Option<CLiteral> {
         self.clause().asserts(val)
     }
 
@@ -19,7 +19,7 @@ impl Clause for dbClause {
         self.clause().lbd(atom_db)
     }
 
-    fn literals(&self) -> impl std::iter::Iterator<Item = cLiteral> {
+    fn literals(&self) -> impl std::iter::Iterator<Item = CLiteral> {
         self.clause().literals()
     }
 
@@ -31,7 +31,7 @@ impl Clause for dbClause {
         self.clause().atoms()
     }
 
-    fn canonical(self) -> super::cClause {
+    fn canonical(self) -> super::CClause {
         self.clause().to_vec()
     }
 

@@ -1,16 +1,16 @@
-use crate::structures::{consequence::Consequence, literal::cLiteral};
+use crate::structures::{consequence::Consequence, literal::CLiteral};
 
 /// A decision level --- the decision and the *observed* consequences of that decision, given prior decisions and observed consequences.
 ///
 /// Note: The consequences relation is reflexive, but no reflexive consequences are observed.
 pub struct DecisionLevel {
-    decision: cLiteral,
+    decision: CLiteral,
     consequences: Vec<Consequence>,
 }
 
 impl DecisionLevel {
     /// A new level from some decision, with no recorded consequences.
-    pub fn new(decision: cLiteral) -> Self {
+    pub fn new(decision: CLiteral) -> Self {
         Self {
             decision,
             consequences: vec![],
@@ -18,7 +18,7 @@ impl DecisionLevel {
     }
 
     /// The decision of a level.
-    pub fn decision(&self) -> cLiteral {
+    pub fn decision(&self) -> CLiteral {
         self.decision
     }
 

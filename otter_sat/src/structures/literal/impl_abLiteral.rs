@@ -1,6 +1,6 @@
-//! Implementation details of the [literal trait](Literal) for the [abLiteral] structure.
+//! Implementation details of the [literal trait](Literal) for the [ABLiteral] structure.
 
 use crate::{
     structures::atom::Atom,
-    structures::literal::{abLiteral, Literal},
+    structures::literal::{ABLiteral, Literal},
 };

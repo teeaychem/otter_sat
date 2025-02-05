@@ -13,16 +13,16 @@
 //! # use otter_sat::context::Context;
 //! # use otter_sat::config::Config;
 //! # use otter_sat::dispatch::library::report::{self};
-//! # use otter_sat::structures::literal::{cLiteral, Literal};
+//! # use otter_sat::structures::literal::{CLiteral, Literal};
 //! let mut the_context = Context::from_config(Config::default(), None);
 //!
 //! let p = the_context.fresh_atom().unwrap();
 //! let q = the_context.fresh_atom().unwrap();
 //!
-//! let p_q_clause = vec![cLiteral::new(p, true), cLiteral::new(q, true)];
+//! let p_q_clause = vec![CLiteral::new(p, true), CLiteral::new(q, true)];
 //! assert!(the_context.add_clause(p_q_clause).is_ok());
 //!
-//! let not_p = cLiteral::new(p, false);
+//! let not_p = CLiteral::new(p, false);
 //!
 //! assert!(the_context.add_clause(not_p).is_ok());
 //! assert!(the_context.solve().is_ok());

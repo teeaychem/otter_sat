@@ -1,10 +1,6 @@
-use std::{
-    io::{BufReader, Read, Write},
-    path::PathBuf,
-    str::FromStr,
-};
+use std::{io::BufReader, path::PathBuf, str::FromStr};
 
-use otter_sat::{config::Config, context::Context, db::ClauseKey, structures::clause::Clause};
+use otter_sat::{config::Config, context::Context};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

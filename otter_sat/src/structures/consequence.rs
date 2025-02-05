@@ -4,7 +4,7 @@ use crate::{
     db::ClauseKey,
     structures::{
         atom::Atom,
-        literal::{cLiteral, Literal},
+        literal::{CLiteral, Literal},
     },
 };
 
@@ -22,7 +22,7 @@ pub enum Source {
 #[derive(Clone)]
 pub struct Consequence {
     /// The atom-value bind which must hold, represented as a literal.
-    pub literal: cLiteral,
+    pub literal: CLiteral,
 
     /// The immediate reason why the atom-value pair must be.
     pub source: Source,
@@ -30,7 +30,7 @@ pub struct Consequence {
 
 impl Consequence {
     /// Creates a consequence from a bind represented as a literal and a source.
-    pub fn from(literal: impl Borrow<cLiteral>, source: Source) -> Self {
+    pub fn from(literal: impl Borrow<CLiteral>, source: Source) -> Self {
         Consequence {
             literal: literal.borrow().canonical(),
             source,
@@ -40,7 +40,7 @@ impl Consequence {
     /// Creates a consequence of the given atom bound to the given value due to the given source.
     pub fn from_bind(atom: Atom, value: bool, source: Source) -> Self {
         Consequence {
-            literal: cLiteral::new(atom, value),
+            literal: CLiteral::new(atom, value),
             source,
         }
     }
@@ -56,7 +56,7 @@ impl Consequence {
     }
 
     /// The atom-value bind, represented as a literal.
-    pub fn literal(&self) -> &cLiteral {
+    pub fn literal(&self) -> &CLiteral {
         &self.literal
     }
 

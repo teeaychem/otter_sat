@@ -12,8 +12,8 @@ use crate::{
         Dispatch,
     },
     structures::{
-        clause::cClause,
-        literal::{cLiteral, Literal},
+        clause::CClause,
+        literal::{CLiteral, Literal},
     },
     types::err::{self},
 };
@@ -110,7 +110,7 @@ impl Transcriber {
 /// FRAT identifiers are of the form [0-9]+, and so a simple 0*x* prefix is sufficient to disambiguate.
 impl Transcriber {
     /// The identifier of the given literal.
-    fn unit_clause_id_original(literal: impl Borrow<cLiteral>) -> String {
+    fn unit_clause_id_original(literal: impl Borrow<CLiteral>) -> String {
         let literal = literal.borrow();
         match literal.polarity() {
             true => format!("0110{}", literal.atom()),
@@ -118,7 +118,7 @@ impl Transcriber {
         }
     }
 
-    fn unit_clause_id_addition(literal: impl Borrow<cLiteral>) -> String {
+    fn unit_clause_id_addition(literal: impl Borrow<CLiteral>) -> String {
         let literal = literal.borrow();
         match literal.polarity() {
             true => format!("0210{}", literal.atom()),
@@ -155,7 +155,7 @@ impl Transcriber {
 /// The name format is: \<*type of step*\>_\<*structure to which function applies*\>.
 impl Transcriber {
     /// Returns the string representation of a literal.
-    fn literal_string(&self, literal: impl Borrow<cLiteral>) -> String {
+    fn literal_string(&self, literal: impl Borrow<CLiteral>) -> String {
         let literal = literal.borrow();
         let atom = literal.atom();
 
@@ -166,7 +166,7 @@ impl Transcriber {
     }
 
     /// Returns the external representation of a clause as a string of literals concatenated by a space (with no closing delimiter).
-    fn clause_string(&self, clause: cClause) -> String {
+    fn clause_string(&self, clause: CClause) -> String {
         clause
             .iter()
             .map(|l| self.literal_string(l))
@@ -213,7 +213,7 @@ impl Transcriber {
     /// Finalises a unit clause.
     ///
     /// Distinguished from finalising a non-unit clause on with respect to paramaters.
-    fn finalise_original_unit_clause(literal: impl Borrow<cLiteral>, external: String) -> String {
+    fn finalise_original_unit_clause(literal: impl Borrow<CLiteral>, external: String) -> String {
         let id_rep = Transcriber::unit_clause_id_original(literal);
         format!("f {id_rep} {external} 0\n")
     }
@@ -221,7 +221,7 @@ impl Transcriber {
     /// Finalises a unit clause.
     ///
     /// Distinguished from finalising a non-unit clause on with respect to paramaters.
-    fn finalise_addition_unit_clause(literal: impl Borrow<cLiteral>, external: String) -> String {
+    fn finalise_addition_unit_clause(literal: impl Borrow<CLiteral>, external: String) -> String {
         let id_rep = Transcriber::unit_clause_id_addition(literal);
         format!("f {id_rep} {external} 0\n")
     }

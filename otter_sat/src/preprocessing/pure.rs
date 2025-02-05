@@ -8,7 +8,7 @@ use crate::{
         atom::Atom,
         clause::Clause,
         consequence::{self, Consequence},
-        literal::{cLiteral, Literal},
+        literal::{CLiteral, Literal},
     },
     types::err::{self},
 };
@@ -18,7 +18,7 @@ use crate::{
 ///
 /// In other words, returns a pair of iterators where the first iterator contains all the literals which occur only with positive polarity and the second iterator contains all the literals which occur only with negative polarity.
 pub fn pure_literals<'l>(
-    clauses: impl Iterator<Item = impl Iterator<Item = cLiteral>>,
+    clauses: impl Iterator<Item = impl Iterator<Item = CLiteral>>,
 ) -> (Vec<Atom>, Vec<Atom>) {
     let mut the_true: HashSet<Atom> = HashSet::new();
     let mut the_false: HashSet<Atom> = HashSet::new();
@@ -49,7 +49,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
     );
 
     for atom in f.into_iter() {
-        let the_literal = cLiteral::new(atom, false);
+        let the_literal = CLiteral::new(atom, false);
         let position = consequence_q::QPosition::Back;
         let level = context.literal_db.decision_count();
 
@@ -65,7 +65,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
     }
 
     for atom in t.into_iter() {
-        let the_literal = cLiteral::new(atom, false);
+        let the_literal = CLiteral::new(atom, false);
         let position = consequence_q::QPosition::Back;
         let level = context.literal_db.decision_count();
 

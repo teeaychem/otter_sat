@@ -9,8 +9,8 @@ use crate::{
     ipasir::{ContextBundle, IPASIR_SIGNATURE},
     structures::{
         atom::Atom,
-        clause::{cClause, Clause},
-        literal::{abLiteral, cLiteral, Literal},
+        clause::{CClause, Clause},
+        literal::{ABLiteral, CLiteral, Literal},
     },
 };
 use std::ffi::{c_char, c_int, c_void};
@@ -67,7 +67,7 @@ pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
             bundle.context.ensure_atom(literal_atom);
             bundle
                 .clause_buffer
-                .push(cLiteral::new(literal_atom, literal.is_positive()));
+                .push(CLiteral::new(literal_atom, literal.is_positive()));
         }
     }
 }
@@ -85,7 +85,7 @@ pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
     let literal_atom = lit.unsigned_abs();
     bundle.context.ensure_atom(literal_atom);
 
-    let assumption = abLiteral::new(literal_atom, lit.is_positive());
+    let assumption = ABLiteral::new(literal_atom, lit.is_positive());
 
     let result = bundle.context.add_assumption_unchecked(assumption);
 }
@@ -174,7 +174,7 @@ pub unsafe extern "C" fn ipasir_failed(solver: *mut c_void, lit: i32) -> c_int {
         }
     }
 
-    let literal_canonical = cLiteral::from(lit);
+    let literal_canonical = CLiteral::from(lit);
 
     match bundle.core_literals.contains(&literal_canonical.negate()) {
         true => 1,

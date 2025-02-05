@@ -7,8 +7,8 @@ use crate::{
     dispatch::library::report::SolveReport,
     ipasir::{ContextBundle, IPASIR_SIGNATURE},
     structures::{
-        clause::cClause,
-        literal::{cLiteral, Literal},
+        clause::CClause,
+        literal::{CLiteral, Literal},
     },
 };
 use std::ffi::{c_char, c_int, c_void};
@@ -135,12 +135,12 @@ pub unsafe extern "C" fn ipasir2_add(
 
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    let mut internal_clause: cClause = vec![];
+    let mut internal_clause: CClause = vec![];
 
     for literal in clause {
         let literal_atom = literal.unsigned_abs();
         bundle.context.ensure_atom(literal_atom);
-        internal_clause.push(cLiteral::new(literal_atom, literal.is_positive()));
+        internal_clause.push(CLiteral::new(literal_atom, literal.is_positive()));
     }
 
     bundle.context.add_clause(internal_clause);
@@ -167,7 +167,7 @@ pub unsafe extern "C" fn ipasir2_solve(
         for assumption in assumption_literals {
             let literal_atom = assumption.unsigned_abs();
             bundle.context.ensure_atom(literal_atom);
-            let assumption = cLiteral::new(literal_atom, assumption.is_positive());
+            let assumption = CLiteral::new(literal_atom, assumption.is_positive());
             bundle.context.add_assumption(assumption);
         }
     }

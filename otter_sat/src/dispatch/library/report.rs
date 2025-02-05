@@ -1,7 +1,7 @@
 //! Details on the result of some procedure.
 use crate::{
     db::ClauseKey,
-    structures::{clause::cClause, literal::cLiteral},
+    structures::{clause::CClause, literal::CLiteral},
 };
 
 /// Reports from the context.
@@ -44,11 +44,11 @@ pub enum SolveReport {
 #[derive(PartialEq, Eq, Clone)]
 pub enum ClauseDBReport {
     /// An active non-unit clause.
-    Active(ClauseKey, cClause),
+    Active(ClauseKey, CClause),
     /// An active unit clause
-    ActiveOriginalUnit(cLiteral),
+    ActiveOriginalUnit(CLiteral),
 
-    ActiveAdditionUnit(cLiteral),
+    ActiveAdditionUnit(CLiteral),
 }
 
 /// Information regarding the parse when building the context.

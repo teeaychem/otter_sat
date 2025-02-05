@@ -62,14 +62,14 @@
 
 use crate::{
     db::{atom::AtomDB, keys::ClauseKey},
-    structures::{atom::Atom, clause::ClauseKind, literal::cLiteral},
+    structures::{atom::Atom, clause::ClauseKind, literal::CLiteral},
     types::err::{self},
 };
 
 /// The watcher of an atom.
 pub enum WatchTag {
     /// A binary clause together with the *other* literal in the clause.
-    Binary(cLiteral, ClauseKey),
+    Binary(CLiteral, ClauseKey),
     /// A long clause.
     Clause(ClauseKey),
 }

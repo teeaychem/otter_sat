@@ -1,6 +1,6 @@
 use crate::{
     misc::log::targets::{self},
-    structures::literal::{cLiteral, Literal},
+    structures::literal::{CLiteral, Literal},
     types::err::{self},
 };
 
@@ -19,12 +19,10 @@ pub type FormulaToken = u16;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ClauseKey {
     /// The key to a unit clause contains the (unit) clause.
-    // Note, the size of an abLiteral is smaller than the key for an addition clause.
-    OriginalUnit(cLiteral),
+    OriginalUnit(CLiteral),
 
     /// The key to a unit clause contains the (unit) clause.
-    // Note, the size of an abLiteral is smaller than the key for an addition clause.
-    AdditionUnit(cLiteral),
+    AdditionUnit(CLiteral),
 
     /// The key to a binary clause.
     OriginalBinary(FormulaIndex),

@@ -22,7 +22,7 @@ use std::rc::Rc;
 use crate::{
     db::DecisionLevelIndex,
     dispatch::Dispatch,
-    structures::{consequence::Consequence, literal::cLiteral},
+    structures::{consequence::Consequence, literal::CLiteral},
 };
 
 #[doc(hidden)]
@@ -40,7 +40,7 @@ pub struct LiteralDB {
     level_stack: Vec<DecisionLevel>,
 
     /// Assumptions
-    assumptions: Vec<cLiteral>,
+    assumptions: Vec<CLiteral>,
 
     /// Consequences of assumptions made
     assumption_consequences: Vec<Consequence>,
@@ -54,7 +54,7 @@ impl LiteralDB {
         !self.assumptions.is_empty()
     }
 
-    pub fn assumption_made(&mut self, assumption: cLiteral) {
+    pub fn assumption_made(&mut self, assumption: CLiteral) {
         self.assumptions.push(assumption);
     }
 
@@ -62,7 +62,7 @@ impl LiteralDB {
         self.assumption_consequences.push(consequence);
     }
 
-    pub fn assumptions(&self) -> &[cLiteral] {
+    pub fn assumptions(&self) -> &[CLiteral] {
         &self.assumptions
     }
 
@@ -99,7 +99,7 @@ impl LiteralDB {
     /// ```rust,ignore
     /// self.literal_db.decision_match(chosen_literal);
     /// ```
-    pub fn decision_made(&mut self, decision: cLiteral) {
+    pub fn decision_made(&mut self, decision: CLiteral) {
         self.level_stack.push(DecisionLevel::new(decision));
     }
 
@@ -107,7 +107,7 @@ impl LiteralDB {
     ///
     /// # Safety
     /// No check is made to ensure the relevant number of decisions have been made.
-    pub unsafe fn decision_unchecked(&self, level: DecisionLevelIndex) -> cLiteral {
+    pub unsafe fn decision_unchecked(&self, level: DecisionLevelIndex) -> CLiteral {
         self.level_stack.get_unchecked(level as usize).decision()
     }
 
@@ -117,7 +117,7 @@ impl LiteralDB {
     /// ```
     /// # Safety
     /// No check is made to ensure a decision has been made.
-    pub unsafe fn top_decision_unchecked(&self) -> cLiteral {
+    pub unsafe fn top_decision_unchecked(&self) -> CLiteral {
         self.level_stack
             .get_unchecked(self.level_stack.len() - 1)
             .decision()

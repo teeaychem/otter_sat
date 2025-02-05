@@ -70,7 +70,7 @@ use crate::{
     structures::{
         clause::ClauseKind,
         consequence::{self, Consequence},
-        literal::{cLiteral, Literal},
+        literal::{CLiteral, Literal},
     },
     types::err::{self},
 };
@@ -82,7 +82,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// <div class="warning">
     /// The literal at index 0 is a watched literal.
     /// </div>
-    pub unsafe fn bcp(&mut self, literal: impl Borrow<cLiteral>) -> Result<(), err::BCPError> {
+    pub unsafe fn bcp(&mut self, literal: impl Borrow<CLiteral>) -> Result<(), err::BCPError> {
         let literal = literal.borrow();
         let decision_level = self.literal_db.decision_count();
 

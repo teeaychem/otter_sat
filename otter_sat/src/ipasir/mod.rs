@@ -7,7 +7,7 @@ use crate::{
     config::Config,
     context::Context,
     db::ClauseKey,
-    structures::{atom::Atom, clause::cClause, literal::cLiteral},
+    structures::{atom::Atom, clause::CClause, literal::CLiteral},
 };
 
 pub mod ipasir_one;
@@ -23,13 +23,13 @@ pub struct ContextBundle {
     context: Context,
 
     /// A buffer for the creation of a clause.
-    clause_buffer: cClause,
+    clause_buffer: CClause,
 
     /// The keys to a an unsatisfiable core of the formula.
     core_keys: Vec<ClauseKey>,
 
     /// The literals which occur in the unsatisfiable core identified by [core_keys].
-    core_literals: HashSet<cLiteral>,
+    core_literals: HashSet<CLiteral>,
 }
 
 impl ContextBundle {
