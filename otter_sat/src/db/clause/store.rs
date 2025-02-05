@@ -62,14 +62,28 @@ impl ClauseDB {
 }
 
 impl ClauseDB {
-    fn check_callback(&self, clause: &CClause) {
+    /// Calls the IPASIR addition callback, if defined.
+    ///
+    /// # Unsafe
+    /// The IPASIR API requires a pointer to the clause.
+    /// And, transmute is used to transmute a const pointer to a mutable pointer, if integer literals are used.
+    /// Safety can be restored by copying the clause, though this seems excessive.
+    #[allow(clippy::useless_conversion)]
+    unsafe fn call_ipasir_addition_callback(&self, clause: &CClause) {
         if let Some(callbacks) = &self.ipasir_callbacks {
             if let Some(addition_callback) = callbacks.ipasir_addition_callback {
                 if clause.size() <= callbacks.ipasir_addition_callback_length as usize {
-                    let mut i_clause: IntClause =
-                        clause.literals().map(|literal| literal.into()).collect();
+                    if cfg!(feature = "boolean") {
+                        let mut int_clause: IntClause =
+                            clause.literals().map(|literal| literal.into()).collect();
+                        let callback_ptr: *mut i32 = int_clause.as_mut_ptr();
 
-                    addition_callback(callbacks.ipasir_addition_data, i_clause.as_mut_ptr());
+                        addition_callback(callbacks.ipasir_addition_data, callback_ptr);
+                    } else {
+                        let clause_ptr: *const i32 = clause.as_ptr();
+                        let callback_ptr: *mut i32 = unsafe { std::mem::transmute(clause_ptr) };
+                        addition_callback(callbacks.ipasir_addition_data, callback_ptr);
+                    };
                 }
             }
         }
@@ -140,7 +154,7 @@ impl ClauseDB {
                 let key = self.fresh_addition_binary_key()?;
 
                 macros::dispatch_clause_addition!(self, clause, Added, key);
-                self.check_callback(&clause);
+                unsafe { self.call_ipasir_addition_callback(&clause) };
 
                 let clause = dbClause::new_nonunit(key, clause, atom_db, valuation, premises);
                 self.binary_addition.push(clause);
@@ -186,7 +200,7 @@ impl ClauseDB {
                 };
 
                 macros::dispatch_clause_addition!(self, clause, Added, key);
-                self.check_callback(&clause);
+                unsafe { self.call_ipasir_addition_callback(&clause) };
 
                 log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
 
