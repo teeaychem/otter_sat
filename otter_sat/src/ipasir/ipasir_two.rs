@@ -15,7 +15,9 @@ use crate::{
     },
 };
 
-use super::ipasir_one::{ipasir_release, ipasir_set_terminate, ipasir_solve, ipasir_val};
+use super::ipasir_one::{
+    ipasir_release, ipasir_set_terminate, ipasir_signature, ipasir_solve, ipasir_val,
+};
 
 use std::ffi::{c_char, c_int, c_void};
 
@@ -58,7 +60,7 @@ pub struct ipasir2_option {
 /// Writes the signature a raw pointer.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir2_signature(signature: *mut *const c_char) -> ipasir2_errorcode {
-    *signature = IPASIR_SIGNATURE.as_ptr();
+    *signature = ipasir_signature();
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
