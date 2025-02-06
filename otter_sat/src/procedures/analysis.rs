@@ -160,6 +160,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     &mut self.atom_db,
                     None,
                     premises,
+                    &self.ipasir_callbacks,
                 )?;
                 Ok(ConflictAnalysisOk::UnitClause { key: literal })
             }
@@ -175,6 +176,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     &mut self.atom_db,
                     None,
                     premises,
+                    &self.ipasir_callbacks,
                 )?;
                 Ok(ConflictAnalysisOk::AssertingClause { key, literal })
             }

@@ -41,8 +41,6 @@ use crate::{
     types::err::{self},
 };
 
-use crate::ipasir::IpasirClauseDBCallbacks;
-
 /// A database of clause related things.
 pub struct ClauseDB {
     /// Clause database specific configuration parameters.
@@ -78,8 +76,6 @@ pub struct ClauseDB {
 
     /// Where to send dispatches.
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
-
-    pub ipasir_callbacks: Option<IpasirClauseDBCallbacks>,
 }
 
 impl ClauseDB {
@@ -99,8 +95,6 @@ impl ClauseDB {
 
             activity_heap: IndexHeap::default(),
             config: config.clause_db.clone(),
-
-            ipasir_callbacks: None,
 
             dispatcher,
         }

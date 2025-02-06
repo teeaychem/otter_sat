@@ -237,7 +237,7 @@ impl Transcriber {
 
 /// Helper methods for transcription.
 impl Transcriber {
-    fn transcribe_atom_db_delta(&mut self, δ: &delta::AtomDB) -> Result<(), err::FRATError> {
+    fn transcribe_atom_db_delta(&mut self, _δ: &delta::AtomDB) -> Result<(), err::FRATError> {
         Ok(())
     }
 

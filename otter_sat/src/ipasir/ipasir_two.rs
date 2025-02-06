@@ -5,12 +5,21 @@
 use crate::{
     context::ContextState,
     dispatch::library::report::SolveReport,
-    ipasir::{ContextBundle, IPASIR_SIGNATURE},
+    ipasir::{
+        ipasir_one::{ipasir_failed, ipasir_init, ipasir_set_learn},
+        ContextBundle, IPASIR_SIGNATURE,
+    },
     structures::{
         clause::CClause,
         literal::{CLiteral, Literal},
     },
 };
+
+use super::{
+    ipasir_one::{ipasir_release, ipasir_set_terminate, ipasir_solve, ipasir_val},
+    IpasirCallbacks,
+};
+
 use std::ffi::{c_char, c_int, c_void};
 
 #[allow(non_camel_case_types)]
@@ -61,11 +70,7 @@ pub unsafe extern "C" fn ipasir2_signature(signature: *mut *const c_char) -> ipa
 /// Releases the initialised solver to a raw pointer.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir2_init(solver: *mut *mut c_void) -> ipasir2_errorcode {
-    let the_bundle = ContextBundle::default();
-    assert!(the_bundle.context.state.eq(&ContextState::Configuration));
-
-    let boxed_context = Box::new(the_bundle);
-    *solver = Box::into_raw(boxed_context) as *mut c_void;
+    *solver = ipasir_init();
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
@@ -75,13 +80,8 @@ pub unsafe extern "C" fn ipasir2_init(solver: *mut *mut c_void) -> ipasir2_error
 /// Recovers a context bundle from a raw pointer.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir2_release(solver: *mut c_void) -> ipasir2_errorcode {
-    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    ipasir_release(solver);
 
-    if bundle.context.state == ContextState::Solving {
-        return ipasir2_errorcode::IPASIR2_E_INVALID_STATE;
-    }
-
-    Box::from_raw(bundle);
     ipasir2_errorcode::IPASIR2_E_OK
 }
 
@@ -134,16 +134,19 @@ pub unsafe extern "C" fn ipasir2_add(
     let clause = std::slice::from_raw_parts(clause, len as usize);
 
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
-
-    let mut internal_clause: CClause = vec![];
+    assert!(bundle.clause_buffer.is_empty());
 
     for literal in clause {
         let literal_atom = literal.unsigned_abs();
         bundle.context.ensure_atom(literal_atom);
-        internal_clause.push(CLiteral::new(literal_atom, literal.is_positive()));
+        bundle
+            .clause_buffer
+            .push(CLiteral::new(literal_atom, literal.is_positive()));
     }
 
-    bundle.context.add_clause(internal_clause);
+    bundle
+        .context
+        .add_clause_unchecked(std::mem::take(&mut bundle.clause_buffer));
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
@@ -167,31 +170,18 @@ pub unsafe extern "C" fn ipasir2_solve(
             let literal_atom = assumption.unsigned_abs();
             bundle.context.ensure_atom(literal_atom);
             let assumption = CLiteral::new(literal_atom, assumption.is_positive());
-            bundle.context.add_assumption(assumption);
+            bundle.context.add_assumption_unchecked(assumption);
         }
     }
 
-    let solve_result = bundle.context.solve();
-
-    // As this is incremental, prepare for another solve.
-    // This clears the *current* valuation, but if a satisfying valuation was found, it will be preserved in the prior valuation.
-    bundle.context.backjump(0);
-    bundle.context.remove_assumptions();
-
-    let result_code = match solve_result {
-        Ok(SolveReport::Satisfiable) => 10,
-        Ok(SolveReport::Unsatisfiable) => 20,
-        _ => 0,
-    };
-
-    *result = result_code;
+    *result = ipasir_solve(solver);
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
 
-/// Returns the literal representing whether the value of the atom of the given literal, if a satisfying valuation has been found.
+/// Returns the literal representing the value of the atom of the given literal, if a satisfying valuation has been found.
 ///
-/// Explicitly, given a literal of the form ±a, `result` is set to:
+/// That is, given a literal of the form ±a, the function returns:
 /// * +a, if a is bound to true on the satisfying valuation.
 /// * -a, if a is bound to false on the satisfying valuation.
 ///
@@ -203,39 +193,35 @@ pub unsafe extern "C" fn ipasir2_value(
     lit: i32,
     result: *mut i32,
 ) -> ipasir2_errorcode {
-    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
-
-    if bundle.context.state != ContextState::Satisfiable {
-        return ipasir2_errorcode::IPASIR2_E_INVALID_STATE;
-    }
-
-    // Following the note on solve, this uses the previous value of the atom as valuations are cleared after a solve completes.
-    *result = match bundle.context.atom_db.previous_value_of(lit.unsigned_abs()) {
-        true => lit,
-        false => -lit,
-    };
+    *result = ipasir_val(solver, lit);
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
 
+/// # Safety
+/// Recovers a context bundle and takes a clause from raw pointers.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir2_failed(
     solver: *mut c_void,
     lit: i32,
     result: *mut c_int,
 ) -> ipasir2_errorcode {
-    todo!()
+    *result = ipasir_failed(solver, lit);
+
+    ipasir2_errorcode::IPASIR2_E_OK
 }
 
+/// # Safety
+/// Recovers a context bundle and takes a clause from raw pointers.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir2_set_terminate(
     solver: *mut c_void,
     data: *mut c_void,
     callback: Option<extern "C" fn(data: *mut c_void) -> c_int>,
 ) -> ipasir2_errorcode {
-    // TODO:
+    ipasir_set_terminate(solver, data, callback);
 
-    ipasir2_errorcode::IPASIR2_E_UNSUPPORTED
+    ipasir2_errorcode::IPASIR2_E_OK
 }
 
 #[no_mangle]
@@ -247,6 +233,8 @@ pub unsafe extern "C" fn ipasir2_set_export(
         extern "C" fn(data: *mut c_void, clause: *const i32, len: i32, proofmeta: *mut c_void),
     >,
 ) -> ipasir2_errorcode {
+    // ipasir_set_learn(solver, data, max_length, callback);
+
     todo!()
 }
 
