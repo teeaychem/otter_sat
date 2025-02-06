@@ -1,3 +1,24 @@
+//! Bindings for the reentrant incremental sat solver API --- the IPASIR C IPA.
+//!
+//! The IPASIR C API defines a handful of functions used for incremental SAT solving.
+//! This module provides bindings to the API.
+//!
+//! Specifically, this module includes a full implementation of bindings for the first version of the IPASIR API and template bindings for the second version of the API.
+//!
+//! Note, 'solver' and 'context' are synonymous in this module.\
+//! Though, strictly, 'solver' is only used as, or when referring to, the parameter of an API function, and 'context' is only used to refer to an instance of the context structure.
+//!
+//! # Compiling a library
+//!
+//! By default, cargo does not build a library suitable for to linking to a C program.\
+//! For details on building a suitable library, see: <https://doc.rust-lang.org/reference/linkage.html>
+//!
+//! # Efficiancy
+//!
+//! At present, the library uses a 'transparent' representation of literals added through the IPASIR API --- whether as part of a clause, as an assumption, etc.
+//! This means if the literal -83 is added through the API all internal data structures will 'grow' to allow for 83 atoms.
+//! In this respect, it is much more efficient to add a clause containing the largest literal first.
+
 use std::{
     collections::{HashMap, HashSet},
     ffi::{c_int, c_void},
@@ -15,14 +36,12 @@ pub mod ipasir_two;
 
 const IPASIR_SIGNATURE: &std::ffi::CStr = c"otter_sat 0.10.0";
 
-/// A struct which bundles a context with structures to support distinct external representations of atoms.
-///
-/// Required, as a context does not support the creation of arbitrary atoms.
+/// A struct which bundles a context with some structures to the IPASIR API.
 pub struct ContextBundle {
     /// A context.
     context: Context,
 
-    /// A buffer for the creation of a clause.
+    /// A buffer to hold the literals of a clause being added to the solver.
     clause_buffer: CClause,
 
     /// The keys to a an unsatisfiable core of the formula.
@@ -33,6 +52,7 @@ pub struct ContextBundle {
 }
 
 impl ContextBundle {
+    /// Refreshes the bundled context and clears bundled structures if the context was not already fresh.
     pub fn keep_fresh(&mut self) {
         match self.context.refresh() {
             true => {
@@ -55,11 +75,13 @@ impl Default for ContextBundle {
     }
 }
 
+/// Information regarding the solve callback.
 pub struct IpasirSolveCallbacks {
     pub ipasir_terminate_callback: Option<extern "C" fn(data: *mut c_void) -> c_int>,
     pub ipasir_terminate_data: *mut c_void,
 }
 
+/// Information regarding the learn callback.
 pub struct IpasirClauseDBCallbacks {
     pub ipasir_addition_callback: Option<extern "C" fn(data: *mut c_void, clause: *mut i32)>,
     pub ipasir_addition_callback_length: u32,

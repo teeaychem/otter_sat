@@ -1,6 +1,4 @@
-//! Template bindings for IPASIR API.
-//!
-//! For the moment partial.
+//! Bindings for version one of the IPASIR C API.
 
 use crate::{
     context::ContextState,
@@ -17,6 +15,8 @@ use std::ffi::{c_char, c_int, c_void};
 
 use super::{IpasirClauseDBCallbacks, IpasirSolveCallbacks};
 
+/// Returns the name and the version of this library.
+///
 /// # Safety
 /// Writes the signature a raw pointer.
 #[no_mangle]
@@ -24,9 +24,13 @@ pub unsafe extern "C" fn ipasir_signature() -> *const c_char {
     IPASIR_SIGNATURE.as_ptr()
 }
 
-/// Initialises a solver a binds the given pointer to it's address.
+/// Initialises a context and returns a pointer to the context bundled with some supporting structures.
+/// This pointer may then be used as a parameter in functions of the API.
+///
+/// After initialisation the context is in configuration state, which is functionally equivalent to being in input state, from the perspective of the API.
+///
 /// # Safety
-/// Releases the initialised solver to a raw pointer.
+/// Returns a raw pointer to the initialised context.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir_init() -> *mut c_void {
     let the_bundle = ContextBundle::default();
@@ -36,7 +40,8 @@ pub unsafe extern "C" fn ipasir_init() -> *mut c_void {
     Box::into_raw(boxed_context) as *mut c_void
 }
 
-/// Releases bound solver.
+/// Releases the pointed instace of the context (and supporting structures).
+///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
 #[no_mangle]
@@ -46,7 +51,10 @@ pub unsafe extern "C" fn ipasir_release(solver: *mut c_void) {
     Box::from_raw(bundle);
 }
 
-/// Adds a clause to the solver.
+/// Adds a literal to, or finalises a, clause under construction.
+/// Literals are non-zero [i32]s, with 0 used to indicate the termination of a clause.
+///
+/// A clause is added to a context when, and only when, it is finalised.
 ///
 /// # Safety
 /// Recovers a context bundle and takes a clause from raw pointers.
@@ -72,10 +80,10 @@ pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
     }
 }
 
-/// Adds an assumption to the solver.
+/// Adds an assumption to the context for the next solve.
 ///
 /// # Safety
-/// Recovers a context bundle and takes a clause from raw pointers.
+/// Recovers a context bundle from a raw pointer.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
@@ -90,7 +98,10 @@ pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
     let result = bundle.context.add_assumption_unchecked(assumption);
 }
 
-/// Calls solve on the context bundle.
+/// Calls solve on the given context and returns an integer corresponding to the result of the solve:
+/// - 10, if the formula was satisfiable.
+/// - 20, if the formulas was unsatisfiable.
+/// - 0, otherwise.
 ///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
@@ -105,13 +116,14 @@ pub unsafe extern "C" fn ipasir_solve(solver: *mut c_void) -> c_int {
     match solve_result {
         Ok(SolveReport::Satisfiable) => 10,
         Ok(SolveReport::Unsatisfiable) => 20,
+        // TODO: Input
         _ => 0,
     }
 }
 
-/// Returns the literal representing whether the value of the atom of the given literal, if a satisfying valuation has been found.
+/// Returns the literal representing the value of the atom of the given literal, if a satisfying valuation has been found.
 ///
-/// Explicitly, given a literal of the form ±a, `result` is set to:
+/// That is, given a literal of the form ±a, the function returns:
 /// * +a, if a is bound to true on the satisfying valuation.
 /// * -a, if a is bound to false on the satisfying valuation.
 ///
@@ -135,14 +147,15 @@ pub unsafe extern "C" fn ipasir_val(solver: *mut c_void, lit: i32) -> i32 {
 }
 
 /// If the formula is unsatisfiable, returns whether a literal is present in the identified unsatisfiable core.
+/// If so, the literal was used to prove the unsatisfiability of the formula.
 ///
 /// Note, this is a strict expansion of the IPASIR API requirement, which is undefined on any `lit` which is not an assumption.
 ///
 /// Specifically:
-/// - If the formula is unsatisfiable:
-///   + Returns 1, if the given literal is present in the unsatisfiable core, and 0 otherwise.
-///   + Returns 0, otherwise.
-/// - Otherwise, returns -1.
+/// - If the formula is unsatisfiable:, the function returns:
+///   + 1, if the given literal is present in the unsatisfiable core, and 0 otherwise.
+///   + 0, otherwise.
+/// - Otherwise, the function returns -1.
 ///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
@@ -184,6 +197,9 @@ pub unsafe extern "C" fn ipasir_failed(solver: *mut c_void, lit: i32) -> c_int {
 
 /// Sets a callback function used to request termination of a solve.
 ///
+/// The IPASIR API requires only that the callback is called 'periodically'.
+/// As implemented, a call back is made at the start of every solve.
+///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
 #[no_mangle]
@@ -203,6 +219,7 @@ pub unsafe extern "C" fn ipasir_set_terminate(
 
             bundle.context.ipasir_callbacks = Some(callbacks);
         }
+
         Some(callbacks) => {
             callbacks.ipasir_terminate_callback = callback;
             callbacks.ipasir_terminate_data = data;
@@ -210,7 +227,7 @@ pub unsafe extern "C" fn ipasir_set_terminate(
     }
 }
 
-/// Sets a callback function used to extract addition clauses up to a given length.
+/// Sets a callback function used to extract addition (learnt) clauses up to the given length.
 ///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
@@ -233,6 +250,7 @@ pub unsafe extern "C" fn ipasir_set_learn(
 
             bundle.context.clause_db.ipasir_callbacks = Some(callbacks);
         }
+
         Some(callbacks) => {
             callbacks.ipasir_addition_callback = learn;
             callbacks.ipasir_addition_callback_length = max_length as u32;

@@ -8,6 +8,8 @@ pub mod backjump;
 pub mod bcp;
 pub mod core;
 pub mod decision;
-pub mod refresh;
 pub mod schedulers;
 pub mod solve;
+
+#[doc(hidden)]
+pub mod refresh;
