@@ -21,7 +21,16 @@ use super::IpasirCallbacks;
 /// Writes the signature a raw pointer.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir_signature() -> *const c_char {
-    IPASIR_SIGNATURE.as_ptr()
+    IPASIR_SIGNATURE
+        .get_or_init(|| {
+            std::ffi::CString::new(format!(
+                "{} {}",
+                env!("CARGO_PKG_NAME"),
+                env!("CARGO_PKG_VERSION")
+            ))
+            .unwrap()
+        })
+        .as_ptr()
 }
 
 /// Initialises a context and returns a pointer to the context bundled with some supporting structures.

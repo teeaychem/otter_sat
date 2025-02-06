@@ -22,6 +22,7 @@
 use std::{
     collections::{HashMap, HashSet},
     ffi::{c_int, c_void},
+    sync::OnceLock,
 };
 
 use crate::{
@@ -41,7 +42,7 @@ pub use callbacks::IpasirCallbacks;
 pub mod ipasir_one;
 pub mod ipasir_two;
 
-const IPASIR_SIGNATURE: &std::ffi::CStr = c"otter_sat 0.10.0";
+static IPASIR_SIGNATURE: OnceLock<std::ffi::CString> = OnceLock::new();
 
 /// A struct which bundles a context with some structures to the IPASIR API.
 pub struct ContextBundle {
