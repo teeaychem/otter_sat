@@ -7,7 +7,7 @@ use crate::{
     dispatch::library::report::SolveReport,
     ipasir::{
         ipasir_one::{ipasir_failed, ipasir_init, ipasir_set_learn},
-        ContextBundle, IPASIR_SIGNATURE,
+        ContextBundle, IpasirCallbacks, IPASIR_SIGNATURE,
     },
     structures::{
         clause::CClause,
@@ -15,10 +15,7 @@ use crate::{
     },
 };
 
-use super::{
-    ipasir_one::{ipasir_release, ipasir_set_terminate, ipasir_solve, ipasir_val},
-    IpasirCallbacks,
-};
+use super::ipasir_one::{ipasir_release, ipasir_set_terminate, ipasir_solve, ipasir_val};
 
 use std::ffi::{c_char, c_int, c_void};
 
@@ -224,6 +221,8 @@ pub unsafe extern "C" fn ipasir2_set_terminate(
     ipasir2_errorcode::IPASIR2_E_OK
 }
 
+/// # Safety
+/// Recovers a context bundle and reads from multiple C pointers.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir2_set_export(
     solver: *mut c_void,
@@ -233,9 +232,28 @@ pub unsafe extern "C" fn ipasir2_set_export(
         extern "C" fn(data: *mut c_void, clause: *const i32, len: i32, proofmeta: *mut c_void),
     >,
 ) -> ipasir2_errorcode {
-    // ipasir_set_learn(solver, data, max_length, callback);
+    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    todo!()
+    match &mut bundle.context.ipasir_callbacks {
+        None => {
+            let callbacks = IpasirCallbacks {
+                export_callback: callback,
+                addition_callback_length: max_length as u32,
+                addition_data: data,
+                ..Default::default()
+            };
+
+            bundle.context.ipasir_callbacks = Some(callbacks);
+        }
+
+        Some(callbacks) => {
+            callbacks.export_callback = callback;
+            callbacks.addition_callback_length = max_length as u32;
+            callbacks.addition_data = data;
+        }
+    }
+
+    ipasir2_errorcode::IPASIR2_E_OK
 }
 
 #[no_mangle]

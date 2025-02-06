@@ -7,9 +7,8 @@ use crate::{
         library::report::{self},
         Dispatch,
     },
+    ipasir::IpasirCallbacks,
 };
-
-use crate::ipasir::IpasirCallbacks;
 
 use std::rc::Rc;
 

@@ -214,8 +214,8 @@ pub unsafe extern "C" fn ipasir_set_terminate(
     match &mut bundle.context.ipasir_callbacks {
         None => {
             let callbacks = IpasirCallbacks {
-                ipasir_terminate_callback: callback,
-                ipasir_terminate_data: data,
+                terminate_callback: callback,
+                terminate_data: data,
                 ..Default::default()
             };
 
@@ -223,8 +223,8 @@ pub unsafe extern "C" fn ipasir_set_terminate(
         }
 
         Some(callbacks) => {
-            callbacks.ipasir_terminate_callback = callback;
-            callbacks.ipasir_terminate_data = data;
+            callbacks.terminate_callback = callback;
+            callbacks.terminate_data = data;
         }
     }
 }
@@ -245,9 +245,9 @@ pub unsafe extern "C" fn ipasir_set_learn(
     match &mut bundle.context.ipasir_callbacks {
         None => {
             let callbacks = IpasirCallbacks {
-                ipasir_addition_callback: learn,
-                ipasir_addition_callback_length: max_length as u32,
-                ipasir_addition_data: data,
+                learn_callback: learn,
+                addition_callback_length: max_length as u32,
+                addition_data: data,
                 ..Default::default()
             };
 
@@ -255,9 +255,9 @@ pub unsafe extern "C" fn ipasir_set_learn(
         }
 
         Some(callbacks) => {
-            callbacks.ipasir_addition_callback = learn;
-            callbacks.ipasir_addition_callback_length = max_length as u32;
-            callbacks.ipasir_addition_data = data;
+            callbacks.learn_callback = learn;
+            callbacks.addition_callback_length = max_length as u32;
+            callbacks.addition_data = data;
         }
     }
 }
