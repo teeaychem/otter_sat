@@ -13,7 +13,7 @@ use crate::{
 };
 use std::ffi::{c_char, c_int, c_void};
 
-use super::{IpasirClauseDBCallbacks, IpasirSolveCallbacks};
+use super::IpasirCallbacks;
 
 /// Returns the name and the version of this library.
 ///
@@ -213,9 +213,10 @@ pub unsafe extern "C" fn ipasir_set_terminate(
 
     match &mut bundle.context.ipasir_callbacks {
         None => {
-            let callbacks = IpasirSolveCallbacks {
+            let callbacks = IpasirCallbacks {
                 ipasir_terminate_callback: callback,
                 ipasir_terminate_data: data,
+                ..Default::default()
             };
 
             bundle.context.ipasir_callbacks = Some(callbacks);
@@ -241,15 +242,16 @@ pub unsafe extern "C" fn ipasir_set_learn(
 ) {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    match &mut bundle.context.clause_db.ipasir_callbacks {
+    match &mut bundle.context.ipasir_callbacks {
         None => {
-            let callbacks = IpasirClauseDBCallbacks {
+            let callbacks = IpasirCallbacks {
                 ipasir_addition_callback: learn,
                 ipasir_addition_callback_length: max_length as u32,
                 ipasir_addition_data: data,
+                ..Default::default()
             };
 
-            bundle.context.clause_db.ipasir_callbacks = Some(callbacks);
+            bundle.context.ipasir_callbacks = Some(callbacks);
         }
 
         Some(callbacks) => {

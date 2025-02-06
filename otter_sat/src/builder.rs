@@ -96,6 +96,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                     &mut self.atom_db,
                                     None,
                                     premises,
+                                    &self.ipasir_callbacks,
                                 );
                                 Ok(ClauseOk::Added)
                             }
@@ -128,6 +129,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     &mut self.atom_db,
                     None,
                     premises,
+                    &self.ipasir_callbacks,
                 )?;
 
                 Ok(ClauseOk::Added)
@@ -166,6 +168,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     &mut self.atom_db,
                     None,
                     premises,
+                    &self.ipasir_callbacks,
                 );
                 match self.value_and_queue(literal.borrow(), consequence_q::QPosition::Back, 0) {
                     Ok(consequence_q::ConsequenceQueueOk::Qd) => {
@@ -176,6 +179,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             &mut self.atom_db,
                             None,
                             premises,
+                            &self.ipasir_callbacks,
                         );
                     }
                     _ => {
@@ -200,6 +204,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     &mut self.atom_db,
                     None,
                     premises,
+                    &self.ipasir_callbacks,
                 );
                 if unsatisfiable {
                     match result {

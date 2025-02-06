@@ -71,6 +71,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         &mut self.atom_db,
                         None,
                         premises,
+                        &self.ipasir_callbacks,
                     );
                 } else {
                     panic!("! Origins")
@@ -102,6 +103,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 &mut self.atom_db,
                                 None,
                                 premises,
+                                &self.ipasir_callbacks,
                             );
                         };
                     }

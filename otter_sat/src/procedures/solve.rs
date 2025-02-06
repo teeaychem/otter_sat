@@ -207,10 +207,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
 
             if let Some(callbacks) = &self.ipasir_callbacks {
-                if let Some(terminate_callback) = callbacks.ipasir_terminate_callback {
-                    if terminate_callback(callbacks.ipasir_terminate_data) != 0 {
-                        break 'solve_loop;
-                    }
+                if unsafe { callbacks.call_ipasir_terminate_callback() } != 0 {
+                    break 'solve_loop;
                 }
             }
 

@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-use crate::ipasir::IpasirSolveCallbacks;
+use crate::ipasir::IpasirCallbacks;
 
 use std::rc::Rc;
 
@@ -62,7 +62,7 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
     /// An optional function to send dispatches with.
     pub dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 
-    pub ipasir_callbacks: Option<IpasirSolveCallbacks>,
+    pub ipasir_callbacks: Option<IpasirCallbacks>,
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
