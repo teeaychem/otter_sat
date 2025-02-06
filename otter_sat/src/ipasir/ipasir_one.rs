@@ -109,15 +109,16 @@ pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
 pub unsafe extern "C" fn ipasir_solve(solver: *mut c_void) -> c_int {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    bundle.keep_fresh();
-
     let solve_result = bundle.context.solve();
 
     match solve_result {
         Ok(SolveReport::Satisfiable) => 10,
         Ok(SolveReport::Unsatisfiable) => 20,
-        // TODO: Input
-        _ => 0,
+        Ok(SolveReport::TimeUp) | Ok(SolveReport::Unknown) => {
+            bundle.keep_fresh();
+            0
+        }
+        Err(e) => panic!("{e:?}"),
     }
 }
 

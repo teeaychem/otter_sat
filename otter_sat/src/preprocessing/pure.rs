@@ -45,7 +45,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         context
             .clause_db
             .all_nonunit_clauses()
-            .map(|sc| sc.literals()),
+            .map(|(_, sc)| sc.literals()),
     );
 
     for atom in f.into_iter() {

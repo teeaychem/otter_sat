@@ -108,10 +108,10 @@
 //! assert_eq!(the_context.atom_db.value_of(p), Some(false));
 //! assert_eq!(the_context.atom_db.value_of(q), Some(false));
 //!
-//! the_context.clear_decisions();
+//! let p_clause = vec![CLiteral::new(p, true)];
+//! assert!(the_context.add_clause(p_clause).is_err());
 //!
-//! let p_clause = CLiteral::new(p, true);
-//! assert!(the_context.add_clause(p_clause).is_ok());
+//! the_context.clear_decisions();
 //!
 //! let p_clause = vec![CLiteral::new(p, true)];
 //! assert!(the_context.add_clause(p_clause).is_ok());
@@ -131,11 +131,10 @@
 //!
 //! [^a]: Specifically, Chapter 2 on decision procedures for propositional logic.
 //! [^b]: Specifcally, chapters 3 and 4 on complete algorithms and CDCL techniques.
-//!
 
 use crate::{
     context::{ContextState, GenericContext},
-    db::{consequence_q, ClauseKey},
+    db::consequence_q,
     dispatch::{
         library::{
             delta::{self, Delta},
@@ -152,7 +151,7 @@ use crate::{
     structures::{
         clause::Clause,
         consequence::{self, Consequence},
-        literal::{CLiteral, Literal},
+        literal::Literal,
     },
     types::err::{self, ErrorKind},
 };
@@ -161,48 +160,47 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn solve(&mut self) -> Result<report::SolveReport, err::ErrorKind> {
         use crate::db::consequence_q::QPosition::{self};
 
-        // return Ok(SolveReport::Satisfiable);
-
         match self.state {
-            ContextState::Solving => {
-                return Err(err::ErrorKind::State(err::StateError::SolveInProgress));
-            }
-            ContextState::Satisfiable => {
-                return Err(err::ErrorKind::State(err::StateError::SatisfiableContext));
-            }
-            ContextState::Unsatisfiable(_) => {
-                return Err(err::ErrorKind::State(err::StateError::UnsatisfiableContext));
-            }
-            ContextState::Configuration | ContextState::Input => {}
-        }
-
-        for clause in self.clause_db.all_clauses() {
-            if clause.unsatisfiable_on(self.atom_db.valuation()) {
-                self.state =
-                    ContextState::Unsatisfiable(ClauseKey::OriginalUnit(CLiteral::from(1)));
+            ContextState::Solving => {}
+            ContextState::Satisfiable | ContextState::Unsatisfiable(_) => {
                 return Ok(self.report());
             }
+            ContextState::Configuration | ContextState::Input => {
+                for (key, clause) in self.clause_db.all_unit_clauses() {
+                    if clause.unsatisfiable_on(self.atom_db.valuation()) {
+                        self.state = ContextState::Unsatisfiable(key);
+                        return Ok(self.report());
+                    }
+                }
+
+                for (key, clause) in self.clause_db.all_nonunit_clauses() {
+                    if clause.unsatisfiable_on(self.atom_db.valuation()) {
+                        self.state = ContextState::Unsatisfiable(key);
+                        return Ok(self.report());
+                    }
+                }
+
+                match self.assert_assumptions() {
+                    Ok(_) => {}
+                    Err(e) => {
+                        log::info!("Failed to assert assumption: {e:?}");
+                        return Ok(SolveReport::Unsatisfiable);
+                    }
+                };
+
+                self.state = ContextState::Solving;
+
+                self.preprocess()?;
+            }
         }
 
-        self.state = ContextState::Solving;
-
-        match self.assert_assumptions() {
-            Ok(_) => {}
-            Err(e) => {
-                println!("Assumption {e:?}");
-                return Ok(SolveReport::Unsatisfiable);
-            }
-        };
-
-        let total_time = std::time::Instant::now();
-
-        self.preprocess()?;
+        let timer = std::time::Instant::now();
 
         'solve_loop: loop {
             self.counters.total_iterations += 1;
             log::trace!("Iteration {}", self.counters.total_iterations);
 
-            self.counters.time = total_time.elapsed();
+            self.counters.time = timer.elapsed();
             let time_limit = self.config.time_limit;
             if time_limit.is_some_and(|limit| self.counters.time > limit) {
                 return Ok(report::SolveReport::TimeUp);

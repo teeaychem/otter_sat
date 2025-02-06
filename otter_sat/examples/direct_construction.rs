@@ -21,49 +21,52 @@ fn main() {
     let not_p_or_q = vec![CLiteral::new(p, false), CLiteral::new(q, true)];
     let p_or_not_q = vec![CLiteral::new(p, true), CLiteral::new(q, false)];
 
-    // made clauses must be added to the context:
-    for (i, clause) in the_context.clause_db.all_nonunit_clauses().enumerate() {
-        println!("  ? {i}: {}", clause.as_dimacs(false))
-    }
-
     let _ = the_context.add_clause(not_p_or_q);
     let _ = the_context.add_clause(p_or_not_q);
 
     println!("The clause database after adding ¬p ∨ q and ¬p ∨ q is:");
-    for clause in the_context.clause_db.all_nonunit_clauses() {
-        println!("  C {}", clause.as_dimacs(false))
+    for (key, clause) in the_context.clause_db.all_nonunit_clauses() {
+        println!("  {} {}", key, clause.as_dimacs(false))
     }
     println!();
 
-    let status = the_context.report();
-    println!("Prior to solving the status of the formula is:  {status}");
-    assert!(the_context.solve().is_ok());
-    let status = the_context.report();
-    let valuation = the_context.atom_db.valuation_string();
     println!(
-        "After solving the status of the formula is:     {status} (with valuation: {valuation})"
+        "Prior to solving the status of the formula is:  {}",
+        the_context.report()
     );
-    println!();
+    assert!(the_context.solve().is_ok());
+    println!(
+        "After solving the status of the formula is:     {} (with valuation: {})
+",
+        the_context.report(),
+        the_context.atom_db.valuation_string()
+    );
 
     assert_eq!(the_context.atom_db.value_of(p), Some(false));
     assert_eq!(the_context.atom_db.value_of(q), Some(false));
 
     let p_error = the_context.add_clause(CLiteral::new(p, true));
 
-    println!("p is incompatible with the valuation as so cannot be added to the context ({p_error:?}) without clearing decisions made…
+    println!("p is consistent with the formula.
+However, p is inconsistent with the valuation as so cannot be added to the context in its current state:
+\t({p_error:?})
+Though, as the formula was satisfiable, the decisions made can be cleared, allowing p to be added.
 ");
 
     the_context.clear_decisions();
 
-    let _p_ok = the_context.add_clause(CLiteral::new(p, true));
+    let p_ok = the_context.add_clause(CLiteral::new(p, true));
 
+    assert!(p_ok.is_ok());
     assert_eq!(the_context.atom_db.value_of(p), Some(true));
 
     assert!(the_context.solve().is_ok());
 
     println!(
-        "After (re)solving the status of the formula is: {status} (with valuation the valuation: {valuation})
-"
+        "After (re)solving the status of the formula is: {} (with valuation the valuation: {})
+",
+        the_context.report(),
+        the_context.atom_db.valuation_string()
     );
 
     assert_eq!(the_context.report(), report::SolveReport::Satisfiable);
@@ -74,10 +77,12 @@ fn main() {
 
     assert_eq!(the_context.report(), report::SolveReport::Satisfiable);
 
-    // todo: update with unit clauses
     println!("The clause database is now:");
-    for clause in the_context.clause_db.all_nonunit_clauses() {
-        println!("  C {}", clause.as_dimacs(false))
+    for (key, clause) in the_context.clause_db.all_unit_clauses() {
+        println!("  {key} {}", clause.as_dimacs(false))
+    }
+    for (key, clause) in the_context.clause_db.all_nonunit_clauses() {
+        println!("  {key} {}", clause.as_dimacs(false))
     }
 
     // It is possible to add p ∨ q to the formula

@@ -35,7 +35,7 @@ pub enum SolveReport {
     /// Satisfiability of the formula of the context could not be determined within the time allowed.
     TimeUp,
 
-    /// Satisfiability of the formula of the context is unkown, for some reason.
+    /// Satisfiability of the formula of the context is unknown, for some reason.
     Unknown,
 }
 
@@ -76,8 +76,8 @@ impl std::fmt::Display for self::SolveReport {
         match self {
             Self::Satisfiable => write!(f, "Satisfiable"),
             Self::Unsatisfiable => write!(f, "Unsatisfiable"),
-            Self::TimeUp => write!(f, "Unkown"),
-            Self::Unknown => write!(f, "Unkown"),
+            Self::TimeUp => write!(f, "Unknown"),
+            Self::Unknown => write!(f, "Unknown"),
         }
     }
 }

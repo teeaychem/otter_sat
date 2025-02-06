@@ -288,8 +288,8 @@ def test_check_iterative():
 
 build_binaries()
 
-test_backbone()
-# test_essentials()
+# test_backbone()
+test_essentials()
 # test_portfolio()
 # test_longest_simple_path()
 # test_reachability()

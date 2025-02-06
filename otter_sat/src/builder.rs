@@ -97,7 +97,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                     None,
                                     premises,
                                 );
-                                Ok(())
+                                Ok(ClauseOk::Added)
                             }
                             _ => Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
                         }
@@ -108,13 +108,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         if self.counters.total_decisions != 0 {
                             Err(err::ErrorKind::from(err::ClauseDBError::DecisionMade))
                         } else {
-                            Ok(())
+                            Ok(ClauseOk::Added)
                         }
                     }
 
                     Some(_) => Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
-                };
-                Ok(ClauseOk::Added)
+                }
             }
 
             [..] => {

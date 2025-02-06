@@ -34,7 +34,10 @@ use crate::{
     },
     generic::index_heap::IndexHeap,
     misc::log::targets::{self},
-    structures::{clause::Clause, literal::CLiteral},
+    structures::{
+        clause::{CClause, Clause},
+        literal::CLiteral,
+    },
     types::err::{self},
 };
 
@@ -269,26 +272,28 @@ impl ClauseDB {
         self.addition.len()
     }
 
-    /// An iterator over all unit clauses, given as [CLiteral]s.
-    ///
-    /// ```rust,ignore
-    /// buffer.strengthen_given(self.clause_db.all_unit_clauses());
-    /// ```
-    pub fn all_original_unit_clauses(&self) -> impl Iterator<Item = CLiteral> + use<'_> {
-        self.unit_original
-            .values()
-            .flat_map(|c| c.clause().literals().last())
+    /// An iterator over all original unit clauses, given as [CLiteral]s.
+    pub fn all_original_unit_clauses(
+        &self,
+    ) -> impl Iterator<Item = (ClauseKey, CLiteral)> + use<'_> {
+        self.unit_original.values().flat_map(|c| {
+            c.clause()
+                .literals()
+                .last()
+                .map(|literal| (ClauseKey::OriginalUnit(literal), literal))
+        })
     }
 
     /// An iterator over all addition unit clauses, given as [CLiteral]s.
-    ///
-    /// ```rust,ignore
-    /// buffer.strengthen_given(self.clause_db.all_unit_clauses());
-    /// ```
-    pub fn all_addition_unit_clauses(&self) -> impl Iterator<Item = CLiteral> + use<'_> {
-        self.unit_addition
-            .values()
-            .flat_map(|c| c.clause().literals().last())
+    pub fn all_addition_unit_clauses(
+        &self,
+    ) -> impl Iterator<Item = (ClauseKey, CLiteral)> + use<'_> {
+        self.unit_addition.values().flat_map(|c| {
+            c.clause()
+                .literals()
+                .last()
+                .map(|literal| (ClauseKey::AdditionUnit(literal), literal))
+        })
     }
 
     /// An iterator over all unit clauses, given as [CLiteral]s.
@@ -296,15 +301,51 @@ impl ClauseDB {
     /// ```rust,ignore
     /// buffer.strengthen_given(self.clause_db.all_unit_clauses());
     /// ```
-    pub fn all_unit_clauses(&self) -> impl Iterator<Item = CLiteral> + use<'_> {
-        self.unit_original
-            .values()
-            .flat_map(|c| c.clause().literals().last())
-            .chain(
-                self.unit_addition
-                    .values()
-                    .flat_map(|c| c.clause().literals().last()),
-            )
+    pub fn all_unit_clauses(&self) -> impl Iterator<Item = (ClauseKey, CLiteral)> + use<'_> {
+        self.all_original_unit_clauses()
+            .chain(self.all_addition_unit_clauses())
+    }
+
+    /// An iterator over all original binary clauses.
+    pub fn all_original_binary_clauses(
+        &self,
+    ) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
+        self.binary_original.iter().map(|c| (*c.key(), c.clause()))
+    }
+
+    /// An iterator over all addition binary clauses.
+    pub fn all_addition_binary_clauses(
+        &self,
+    ) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
+        self.binary_addition.iter().map(|c| (*c.key(), c.clause()))
+    }
+
+    /// An iterator over all addition binary clauses.
+    pub fn all_binary_clauses(&self) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
+        self.all_original_binary_clauses()
+            .chain(self.all_addition_binary_clauses())
+    }
+
+    /// An iterator over all original binary clauses.
+    pub fn all_original_long_clauses(
+        &self,
+    ) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
+        self.original.iter().map(|c| (*c.key(), c.clause()))
+    }
+
+    /// An iterator over all addition binary clauses.
+    pub fn all_addition_long_clauses(
+        &self,
+    ) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
+        self.addition
+            .iter()
+            .flat_map(|c| c.as_ref().map(|db_c| (*db_c.key(), db_c.clause())))
+    }
+
+    /// An iterator over all addition binary clauses.
+    pub fn all_long_clauses(&self) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
+        self.all_original_long_clauses()
+            .chain(self.all_addition_long_clauses())
     }
 
     /// An iterator over all non-unit clauses, given as [impl Clause]s.
@@ -312,46 +353,19 @@ impl ClauseDB {
     /// ```rust,ignore
     /// let mut clause_iter = the_context.clause_db.all_nonunit_clauses();
     /// ```
-    pub fn all_nonunit_clauses(&self) -> impl Iterator<Item = &impl Clause> + '_ {
-        self.original.iter().chain(
-            self.binary_original.iter().chain(
-                self.binary_addition.iter().chain(
-                    self.addition
-                        .iter()
-                        .flat_map(|maybe_clause| maybe_clause.as_ref()),
-                ),
-            ),
-        )
-    }
-
-    pub fn all_clauses(&self) -> impl Iterator<Item = &impl Clause> + '_ {
-        self.original.iter().chain(
-            self.binary_original.iter().chain(
-                self.binary_addition
-                    .iter()
-                    .chain(
-                        self.addition
-                            .iter()
-                            .flat_map(|maybe_clause| maybe_clause.as_ref()),
-                    )
-                    .chain(
-                        self.unit_original
-                            .values()
-                            .chain(self.unit_addition.values()),
-                    ),
-            ),
-        )
+    pub fn all_nonunit_clauses(&self) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
+        self.all_binary_clauses().chain(self.all_long_clauses())
     }
 
     /// Send a dispatch of all active clauses.
     pub fn dispatch_active(&self) {
         if let Some(dispatcher) = &self.dispatcher {
-            for literal in self.all_original_unit_clauses() {
+            for (_, literal) in self.all_original_unit_clauses() {
                 let report = report::ClauseDBReport::ActiveOriginalUnit(literal);
                 dispatcher(Dispatch::Report(report::Report::ClauseDB(report)));
             }
 
-            for literal in self.all_addition_unit_clauses() {
+            for (_, literal) in self.all_addition_unit_clauses() {
                 let report = report::ClauseDBReport::ActiveAdditionUnit(literal);
                 dispatcher(Dispatch::Report(report::Report::ClauseDB(report)));
             }
