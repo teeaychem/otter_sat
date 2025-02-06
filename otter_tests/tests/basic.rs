@@ -93,6 +93,7 @@ mod basic {
         let database = the_context
             .clause_db
             .all_nonunit_clauses()
+            .map(|(_key, clause)| clause)
             .collect::<Vec<_>>();
         assert_eq!(database.len(), 1);
         let the_clause_dimacs = database[0].as_dimacs(true);

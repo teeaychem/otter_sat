@@ -311,9 +311,6 @@ impl ResolutionBuffer {
     }
 
     /// Remove literals which conflict with those at level zero from the clause.
-    /// ```rust,ignore
-    /// resolution_buffer.strengthen_given(self.clause_db.all_unit_clauses());
-    /// ```
     pub fn strengthen_given<'l>(&mut self, literals: impl Iterator<Item = &'l CLiteral>) {
         for literal in literals {
             match unsafe { *self.buffer.get_unchecked(literal.atom() as usize) } {

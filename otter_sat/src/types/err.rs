@@ -243,8 +243,6 @@ impl From<SubsumptionError> for ResolutionBufferError {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StateError {
     SolveInProgress,
-    SatisfiableContext,
-    UnsatisfiableContext,
 }
 
 #[derive(Clone, Copy)]
