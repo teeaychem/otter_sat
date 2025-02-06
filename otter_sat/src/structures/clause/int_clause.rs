@@ -4,7 +4,6 @@ use crate::{
     config::LBD,
     db::atom::AtomDB,
     structures::{
-        self,
         atom::Atom,
         clause::Clause,
         literal::{CLiteral, IntLiteral, Literal},

@@ -151,7 +151,6 @@ pub unsafe extern "C" fn ipasir2_add(
 /// Calls solve on the context bundle.
 ///
 ///
-///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
 #[no_mangle]

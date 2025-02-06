@@ -33,11 +33,12 @@ use crate::{
         Dispatch,
     },
     generic::index_heap::IndexHeap,
-    ipasir::IpasirClauseDBCallbacks,
     misc::log::targets::{self},
     structures::{clause::Clause, literal::CLiteral},
     types::err::{self},
 };
+
+use crate::ipasir::IpasirClauseDBCallbacks;
 
 /// A database of clause related things.
 pub struct ClauseDB {

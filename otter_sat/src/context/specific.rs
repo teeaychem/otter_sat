@@ -25,6 +25,7 @@ impl Context {
             literal_db: LiteralDB::new(dispatcher.clone()),
             rng: crate::generic::minimal_pcg::MinimalPCG32::from_seed(0_u64.to_le_bytes()),
             state: ContextState::Configuration,
+
             ipasir_callbacks: None,
 
             dispatcher,

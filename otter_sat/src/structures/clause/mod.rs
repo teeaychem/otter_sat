@@ -33,8 +33,8 @@ mod literal;
 mod ab_clause;
 pub use ab_clause::ABClause;
 
-mod i_clause;
-pub use i_clause::IntClause;
+mod int_clause;
+pub use int_clause::IntClause;
 
 mod source;
 pub use source::ClauseSource;
@@ -47,10 +47,12 @@ use crate::{
     structures::{atom::Atom, literal::CLiteral, valuation::Valuation},
 };
 
-/// The canonical implementation of a clause.
 #[cfg(feature = "boolean")]
+/// The canonical implementation of a clause.
 pub type CClause = ABClause;
+
 #[cfg(not(feature = "boolean"))]
+/// The canonical implementation of a clause.
 pub type CClause = IntClause;
 
 /// The clause trait.
@@ -87,6 +89,6 @@ pub trait Clause {
     /// Returns whether the clause is unsatisfiable on the given valuation
     ///
     /// # Safety
-    /// Does not check whether the atom is defined on the valuation.
+    /// Is not required to check whether the atom is defined on the valuation.
     unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool;
 }

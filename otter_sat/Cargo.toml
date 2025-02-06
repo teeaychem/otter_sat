@@ -17,7 +17,6 @@ name = "otter_sat"
 path = "src/lib.rs"
 
 [features]
-IPSAIR = []
 boolean = []
 
 [dependencies]
