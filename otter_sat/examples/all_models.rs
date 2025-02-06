@@ -17,9 +17,6 @@ use otter_sat::{
 ///  - The cumulative formula is unsatisfiable
 ///  - It is not possible to add an additional clause as the formula would become unsatisfiable
 ///  - Or, there's some error in the solver.
-///
-/// This is not particularly efficient.
-// TODO: make this efficient…
 fn main() {
     let config = Config::default();
 

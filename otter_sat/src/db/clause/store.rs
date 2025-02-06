@@ -103,7 +103,10 @@ impl ClauseDB {
 
                 macros::dispatch_clause_db_delta!(self, BCP, key);
                 if let Some(callbacks) = callbacks {
-                    unsafe { callbacks.call_ipasir_addition_callback(&vec![literal]) };
+                    unsafe {
+                        callbacks.call_ipasir_addition_callback(&vec![literal]);
+                        callbacks.call_ipasir_fixed_callback(literal);
+                    };
                 }
 
                 Ok(key)
@@ -116,7 +119,10 @@ impl ClauseDB {
 
                 macros::dispatch_clause_db_delta!(self, Added, key);
                 if let Some(callbacks) = callbacks {
-                    unsafe { callbacks.call_ipasir_addition_callback(&vec![literal]) };
+                    unsafe {
+                        callbacks.call_ipasir_addition_callback(&vec![literal]);
+                        callbacks.call_ipasir_fixed_callback(literal);
+                    };
                 }
 
                 Ok(key)
