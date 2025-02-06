@@ -52,7 +52,7 @@ impl SeedableRng for MinimalPCG32 {
     type Seed = [u8; 8];
 
     fn from_seed(seed: Self::Seed) -> Self {
-        /// This increment is entirely unmotivated.
+        /// Entirely unmotivated.
         const INCREMENT: u64 = 3215534235932367344;
         Self {
             state: (u64::from_le_bytes(seed)).wrapping_add(INCREMENT),
@@ -62,15 +62,27 @@ impl SeedableRng for MinimalPCG32 {
 }
 
 #[cfg(test)]
-mod tests {
+mod pcg_tests {
     use super::*;
 
     #[test]
-    // TODO: test…
-    fn random() {
-        let mut x = MinimalPCG32::from_seed(2u64.to_le_bytes());
-        for _ in 0..10 {
-            println!("{}", x.next_u64())
-        }
+    fn two_seed() {
+        let mut two_seed = MinimalPCG32::from_seed(2u64.to_le_bytes());
+        assert_eq!(two_seed.next_u64(), 748672126);
+        assert_eq!(two_seed.next_u64(), 733451027);
+        assert_eq!(two_seed.next_u64(), 448);
+        assert_eq!(two_seed.next_u64(), 1074309680);
+        assert_eq!(two_seed.next_u64(), 2005882);
+    }
+
+    #[test]
+    fn seventy_three_seed() {
+        let mut seventy_three_seed = MinimalPCG32::from_seed(73u64.to_le_bytes());
+
+        assert_eq!(seventy_three_seed.next_u64(), 748672126);
+        assert_eq!(seventy_three_seed.next_u64(), 43634);
+        assert_eq!(seventy_three_seed.next_u64(), 1687);
+        assert_eq!(seventy_three_seed.next_u64(), 775788185);
+        assert_eq!(seventy_three_seed.next_u64(), 752437086);
     }
 }

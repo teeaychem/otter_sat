@@ -45,6 +45,7 @@ pub enum SolveReport {
 pub enum ClauseDBReport {
     /// An active non-unit clause.
     Active(ClauseKey, CClause),
+
     /// An active unit clause
     ActiveOriginalUnit(CLiteral),
 

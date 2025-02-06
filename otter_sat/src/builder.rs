@@ -484,7 +484,6 @@ mod preprocessing_tests {
     use super::*;
 
     #[test]
-    // TODO: test…
     fn pass() {
         let p = CLiteral::new(1, true);
         let not_q = CLiteral::new(2, false);

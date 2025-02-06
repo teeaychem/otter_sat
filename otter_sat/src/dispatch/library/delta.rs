@@ -83,6 +83,9 @@ pub enum ClauseDB {
 
     /// A clause with the detailed key was added (and if a clause is being terminated, the clause has concluded and this is the key used to access the clause).
     Added(ClauseKey),
+
+    /// The formula is unsatisfiable, with the key as a witness.
+    Unsatisfiable(ClauseKey),
 }
 
 /// Changes within the [literal database](LiteralDB).
@@ -91,8 +94,4 @@ pub enum LiteralDB {}
 
 /// Changes within the [atom database](AtomDB).
 #[derive(Clone)]
-pub enum AtomDB {
-    /// The formula is unsatisfiable, with the key as a witness.
-    // TODO: Move this elsewhere.
-    Unsatisfiable(ClauseKey),
-}
+pub enum AtomDB {}
