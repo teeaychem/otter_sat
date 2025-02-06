@@ -261,12 +261,16 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 };
 
                 if self.restart_interrupt() {
-                    self.clause_db
-                        .reduce_by(self.clause_db.current_addition_count() / 2);
+                    self.clause_db.reduce_by(
+                        self.clause_db.current_addition_count() / 2,
+                        &self.ipasir_callbacks,
+                    );
                 }
             } else if self.conflict_total_interrupt() {
-                self.clause_db
-                    .reduce_by(self.clause_db.current_addition_count() / 2)?;
+                self.clause_db.reduce_by(
+                    self.clause_db.current_addition_count() / 2,
+                    &self.ipasir_callbacks,
+                )?;
             }
         }
 

@@ -105,6 +105,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             &self.literal_db,
             &mut self.clause_db,
             &mut self.atom_db,
+            &self.ipasir_callbacks,
         ) {
             Ok(resolution_buffer::ResolutionOk::UnitClause)
             | Ok(resolution_buffer::ResolutionOk::FirstUIP) => {}

@@ -59,6 +59,7 @@ pub struct ipasir2_option {
 #[no_mangle]
 pub unsafe extern "C" fn ipasir2_signature(signature: *mut *const c_char) -> ipasir2_errorcode {
     *signature = IPASIR_SIGNATURE.as_ptr();
+
     ipasir2_errorcode::IPASIR2_E_OK
 }
 
@@ -237,8 +238,39 @@ pub unsafe extern "C" fn ipasir2_set_export(
     match &mut bundle.context.ipasir_callbacks {
         None => {
             let callbacks = IpasirCallbacks {
+                delete_callback: callback,
+                delete_data: data,
+                ..Default::default()
+            };
+
+            bundle.context.ipasir_callbacks = Some(callbacks);
+        }
+
+        Some(callbacks) => {
+            callbacks.delete_callback = callback;
+            callbacks.delete_data = data;
+        }
+    }
+
+    ipasir2_errorcode::IPASIR2_E_OK
+}
+
+/// # Safety
+/// Recovers a context bundle and reads from multiple C pointers.
+#[no_mangle]
+pub unsafe extern "C" fn ipasir2_delete(
+    solver: *mut c_void,
+    data: *mut c_void,
+    callback: Option<
+        extern "C" fn(data: *mut c_void, clause: *const i32, len: i32, proofmeta: *mut c_void),
+    >,
+) -> ipasir2_errorcode {
+    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+
+    match &mut bundle.context.ipasir_callbacks {
+        None => {
+            let callbacks = IpasirCallbacks {
                 export_callback: callback,
-                addition_callback_length: max_length as u32,
                 addition_data: data,
                 ..Default::default()
             };
@@ -248,7 +280,6 @@ pub unsafe extern "C" fn ipasir2_set_export(
 
         Some(callbacks) => {
             callbacks.export_callback = callback;
-            callbacks.addition_callback_length = max_length as u32;
             callbacks.addition_data = data;
         }
     }
@@ -256,31 +287,59 @@ pub unsafe extern "C" fn ipasir2_set_export(
     ipasir2_errorcode::IPASIR2_E_OK
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn ipasir2_delete(
-    solver: *mut c_void,
-    data: *mut c_void,
-    callback: Option<
-        extern "C" fn(data: *mut c_void, clause: *const i32, len: i32, proofmeta: *mut c_void),
-    >,
-) -> ipasir2_errorcode {
-    todo!()
-}
-
+/// # Safety
+/// Recovers a context bundle and reads from multiple C pointers.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir2_set_import(
     solver: *mut c_void,
     data: *mut c_void,
     callback: Option<extern "C" fn(data: *mut c_void)>,
 ) -> ipasir2_errorcode {
-    todo!()
+    /*
+    TODO:
+    From the paper this should be called periodically during a solve (e.g. at the start of a loop, or during an interrupt).
+
+    On calling, a single clause may be added to the solver through the ipasir2_add callback.
+    If multiple clauses are to be added, repeated calls should be made.
+    And, that no further clauses are to be added is indicated by no call to ipasir2_add.
+
+    So, ipasir2_add should set some state, and after the callback solve should branch on the state.
+    As this will introduce some complexity to the solve, it will be implemented when the API is finalised.
+     */
+
+    ipasir2_errorcode::IPASIR2_E_UNSUPPORTED
 }
 
+/// # Safety
+/// Recovers a context bundle and reads from multiple C pointers.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir2_set_fixed(
     solver: *mut c_void,
     data: *mut c_void,
     callback: Option<extern "C" fn(data: *mut c_void, fixed: i32)>,
 ) -> ipasir2_errorcode {
-    todo!()
+    /*
+    TODO: At present the callback is not made for literals fixed relative to assumptions made.
+     */
+
+    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+
+    match &mut bundle.context.ipasir_callbacks {
+        None => {
+            let callbacks = IpasirCallbacks {
+                fixed_callback: callback,
+                fixed_data: data,
+                ..Default::default()
+            };
+
+            bundle.context.ipasir_callbacks = Some(callbacks);
+        }
+
+        Some(callbacks) => {
+            callbacks.fixed_callback = callback;
+            callbacks.fixed_data = data;
+        }
+    }
+
+    ipasir2_errorcode::IPASIR2_E_OK
 }
