@@ -238,10 +238,6 @@ impl Transcriber {
 /// Helper methods for transcription.
 impl Transcriber {
     fn transcribe_atom_db_delta(&mut self, δ: &delta::AtomDB) -> Result<(), err::FRATError> {
-        use delta::AtomDB::*;
-        match δ {
-            Unsatisfiable(_) => self.step_buffer.push(Transcriber::meta_unsatisfiable()),
-        }
         Ok(())
     }
 
@@ -305,6 +301,8 @@ impl Transcriber {
             }
 
             Transfer(_from, _to) => return Err(err::FRATError::TransfersAreTodo),
+
+            Unsatisfiable(_) => self.step_buffer.push(Transcriber::meta_unsatisfiable()),
         };
 
         Ok(())

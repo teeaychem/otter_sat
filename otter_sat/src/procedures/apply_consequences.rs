@@ -140,7 +140,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     if !self.literal_db.is_decision_made() {
                         self.state = ContextState::Unsatisfiable(key);
 
-                        macros::dispatch_atom_db_delta!(self, delta::AtomDB::Unsatisfiable(key));
+                        macros::dispatch_clause_db_delta!(self, Unsatisfiable, key);
 
                         return Ok(ApplyConsequencesOk::FundamentalConflict);
                     }

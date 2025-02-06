@@ -87,7 +87,6 @@ impl AtomDB {
     }
 
     /// A count of atoms in the [AtomDB].
-    // TODO: Maybe something more robust to internal revision
     pub fn count(&self) -> usize {
         self.valuation.len()
     }
