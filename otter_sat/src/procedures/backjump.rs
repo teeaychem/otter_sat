@@ -86,7 +86,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         clause: &impl Clause,
     ) -> Result<DecisionLevelIndex, err::ErrorKind> {
         match clause.size() {
-            0 => panic!("!"),
+            0 => {
+                panic!("! Attempted search for non-chronological backjump level on an empty clause")
+            }
             1 => Ok(self.literal_db.lower_limit()),
             _ => {
                 // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)

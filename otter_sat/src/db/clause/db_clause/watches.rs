@@ -147,7 +147,7 @@ impl dbClause {
     pub fn note_watch(&self, atom: Atom, value: bool, atom_db: &mut AtomDB) {
         match self.key {
             ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) => {
-                panic!("!")
+                panic!("! Attempt to note watches on a unit clause")
             }
 
             ClauseKey::OriginalBinary(_) | ClauseKey::AdditionBinary(_) => unsafe {

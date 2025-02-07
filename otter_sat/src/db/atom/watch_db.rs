@@ -236,8 +236,8 @@ impl AtomDB {
         value: bool,
     ) -> *mut Vec<WatchTag> {
         match kind {
-            ClauseKind::Empty => panic!("!"),
-            ClauseKind::Unit => panic!("!"),
+            ClauseKind::Empty => panic!("! Attempt to retrieve watch list for an empty clause"),
+            ClauseKind::Unit => panic!("! Attempt to retrieve watch list for a unit clause"),
             ClauseKind::Binary => self
                 .watch_dbs
                 .get_unchecked_mut(atom as usize)

@@ -153,7 +153,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             key,
                             literal: asserted_literal,
                         } => {
-                            // panic!("!");
                             let the_clause = unsafe { self.clause_db.get_unchecked(&key)? };
 
                             let index = self.non_chronological_backjump_level(the_clause)?;

@@ -1,3 +1,19 @@
+//! A strcutre holding information for making IPASIR callbacks.
+//!
+//! # IPASIR Versions
+//!
+//! The structure is designed to support both IPASIR and IPASIR2 callbacks.
+//!
+//! In general, IPASIR and IPASIR2 callbacks are either unique or equivalent.
+//! The exception is the callback for addition clauses, which includes additional parameters.
+//! In this case, the addition method attempts the IPASIR callback, and only if this is not defined is the IPASIR2 callback attempted.
+//!
+//! # Implementation details
+//!
+//! The context stores an *optional* instance of the structure, allowing for a quick check of whether specific callbacks should be attempted.
+//! And, if some structure is present in a context, methods associated with the structure are used.
+//!
+//!
 use std::ffi::{c_int, c_void};
 
 use crate::structures::{
@@ -7,60 +23,61 @@ use crate::structures::{
 
 /// Information regarding the solve callback.
 pub struct IpasirCallbacks {
+    /// Proofmeta, for IPASIR2 callbacks.
     pub proofmeta: *mut c_void,
 
+    /// A holder for the IPASIR/2 terminate callback.
     pub terminate_callback: Option<extern "C" fn(data: *mut c_void) -> c_int>,
 
     pub terminate_data: *mut c_void,
 
-    /// IPASIR addition callback
+    /// A holder for the IPASIR addition callback.
     pub learn_callback: Option<extern "C" fn(data: *mut c_void, clause: *mut i32)>,
 
-    /// IPASIR2 addition callback
+    /// A holder for the IPASIR2 addition callback.
     pub export_callback: Option<
         extern "C" fn(data: *mut c_void, clause: *const i32, len: i32, proofmeta: *mut c_void),
     >,
 
-    pub addition_callback_length: usize,
+    /// A holder for the maxumum clause length for application of the IPASIR/2 addition callback.
+    pub addition_length: usize,
 
+    /// A holder for data to be passed to applications of the IPASIR/2 addition callback.
     pub addition_data: *mut c_void,
 
-    /// Delete callback
+    /// A holder for the IPASIR/2 delete callback.
     pub delete_callback: Option<
         extern "C" fn(data: *mut c_void, clause: *const i32, len: i32, proofmeta: *mut c_void),
     >,
 
     pub delete_data: *mut c_void,
 
+    /// A holder for the IPASIR2 fixed callback.
     pub fixed_callback: Option<extern "C" fn(data: *mut c_void, fixed: i32)>,
 
     pub fixed_data: *mut c_void,
 }
 
 impl IpasirCallbacks {
-    /// Calls the IPASIR addition callback, if defined.
+    /// Calls the IPASIR/2 addition callback, if defined.
     ///
     /// # Safety
-    /// The IPASIR API requires a pointer to the clause.
-    /// And, transmute is used to transmute a const pointer to a mutable pointer, if integer literals are used.
-    /// Safety can be restored by copying the clause, though this seems excessive.
-    /// Though, regardless of this, the method calls an external C function.
+    /// Calls an external C function.
     #[allow(clippy::useless_conversion)]
     pub unsafe fn call_ipasir_addition_callback(&self, clause: &CClause) {
         if let Some(addition_callback) = self.learn_callback {
-            if clause.size() <= self.addition_callback_length {
-                let callback_ptr: *mut i32 = if cfg!(feature = "boolean") {
-                    let mut int_clause: IntClause = clause.literals().map(|l| l.into()).collect();
-                    int_clause.as_mut_ptr()
-                } else {
-                    clause.as_ptr() as *mut i32
-                };
+            if clause.size() <= self.addition_length {
+                // The IPASIR callback requires a null terminated integer array.
+                // So, a null terminated copy is made.
+
+                let mut int_clause: Vec<c_int> = clause.literals().map(|l| l.into()).collect();
+                int_clause.push(0);
+                let callback_ptr: *mut i32 = int_clause.as_mut_ptr();
+
                 addition_callback(self.addition_data, callback_ptr);
             }
-        }
-
-        if let Some(addition_callback) = self.export_callback {
-            if clause.size() <= self.addition_callback_length {
+        } else if let Some(addition_callback) = self.export_callback {
+            if clause.size() <= self.addition_length {
                 let callback_ptr: *mut i32 = if cfg!(feature = "boolean") {
                     let mut int_clause: IntClause = clause.literals().map(|l| l.into()).collect();
                     int_clause.as_mut_ptr()
@@ -78,6 +95,8 @@ impl IpasirCallbacks {
         }
     }
 
+    /// Calls the IPASIR terminate callback, if defined.
+    /// Otherwise, returns 0, simulating no termination request from a callback.
     /// # Safety
     /// Calls an external C function.
     pub unsafe fn call_ipasir_terminate_callback(&self) -> i32 {
@@ -88,46 +107,38 @@ impl IpasirCallbacks {
         }
     }
 
+    /// Calls the IPASIR delete callback, if defined.
     /// # Safety
     /// Calls an external C function.
     #[allow(clippy::useless_conversion)]
     pub unsafe fn call_ipasir_delete_callback(&self, clause: &CClause) {
         if let Some(delete_callback) = self.delete_callback {
-            if cfg!(feature = "boolean") {
+            let callback_ptr: *mut i32 = if cfg!(feature = "boolean") {
                 let mut int_clause: IntClause = clause.literals().map(|l| l.into()).collect();
-                let callback_ptr: *mut i32 = int_clause.as_mut_ptr();
-
-                delete_callback(
-                    self.delete_data,
-                    callback_ptr,
-                    clause.size().try_into().unwrap(),
-                    self.proofmeta,
-                );
+                int_clause.as_mut_ptr()
             } else {
-                let clause_ptr: *const i32 = clause.as_ptr();
-                let callback_ptr: *mut i32 = clause_ptr as *mut i32;
-                delete_callback(
-                    self.delete_data,
-                    callback_ptr,
-                    clause.size().try_into().unwrap(),
-                    self.proofmeta,
-                );
-            }
+                clause.as_ptr() as *mut i32
+            };
+
+            delete_callback(
+                self.delete_data,
+                callback_ptr,
+                clause.size().try_into().unwrap(),
+                self.proofmeta,
+            );
         }
     }
 
+    /// Calls the IPASIR2 fixed callback, if defined.
     /// # Safety
     /// Calls an external C function.
     #[allow(clippy::useless_conversion)]
     pub unsafe fn call_ipasir_fixed_callback(&self, literal: CLiteral) {
         if let Some(fixed_callback) = self.fixed_callback {
-            if cfg!(feature = "boolean") {
-                let int_literal: IntLiteral = literal.into();
+            #[cfg(feature = "boolean")]
+            let literal: IntLiteral = literal.into();
 
-                fixed_callback(self.fixed_data, int_literal);
-            } else {
-                fixed_callback(self.fixed_data, literal)
-            }
+            fixed_callback(self.fixed_data, literal)
         }
     }
 }
@@ -142,7 +153,7 @@ impl Default for IpasirCallbacks {
 
             learn_callback: None,
             export_callback: None,
-            addition_callback_length: 0,
+            addition_length: 0,
             addition_data: std::ptr::null_mut(),
 
             delete_callback: None,

@@ -152,7 +152,7 @@ pub unsafe extern "C" fn ipasir_val(solver: *mut c_void, lit: i32) -> i32 {
     match bundle.context.atom_db.value_of(literal_atom) {
         Some(true) => lit,
         Some(false) => -lit,
-        None => panic!("!"),
+        None => panic!("! ipasir_val called with an incomplete valuation"),
     }
 }
 
@@ -255,7 +255,7 @@ pub unsafe extern "C" fn ipasir_set_learn(
         None => {
             let callbacks = IpasirCallbacks {
                 learn_callback: learn,
-                addition_callback_length: max_length as usize,
+                addition_length: max_length as usize,
                 addition_data: data,
                 ..Default::default()
             };
@@ -265,7 +265,7 @@ pub unsafe extern "C" fn ipasir_set_learn(
 
         Some(callbacks) => {
             callbacks.learn_callback = learn;
-            callbacks.addition_callback_length = max_length as usize;
+            callbacks.addition_length = max_length as usize;
             callbacks.addition_data = data;
         }
     }

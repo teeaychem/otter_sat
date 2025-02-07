@@ -254,7 +254,9 @@ impl Transcriber {
                         Transcriber::original_clause(key, self.literal_string(literal))
                     }
 
-                    ClauseKey::AdditionUnit(_) => panic!("!"),
+                    ClauseKey::AdditionUnit(_) => {
+                        panic!("! Original dispatch contains an addition key")
+                    }
 
                     _ => {
                         let clause = std::mem::take(&mut self.clause_buffer);
@@ -269,7 +271,9 @@ impl Transcriber {
                     return Err(err::FRATError::CorruptResolutionQ);
                 };
                 let step = match key {
-                    ClauseKey::OriginalUnit(_) => panic!("!"),
+                    ClauseKey::OriginalUnit(_) => {
+                        panic!("! Added dispatched contains an original key")
+                    }
 
                     ClauseKey::AdditionUnit(literal) => {
                         Transcriber::add_clause(key, self.literal_string(literal), None)
