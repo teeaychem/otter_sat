@@ -1,10 +1,12 @@
-//! Bindings for version one of the IPASIR C API.
+//! Bindings for the IPASIR API.
+//!
+//! For a general overview, see the [ipasir module](crate::ipasir).
 
 use crate::{
     context::ContextState,
     db::ClauseKey,
     dispatch::library::report::SolveReport,
-    ipasir::{ContextBundle, IPASIR_SIGNATURE},
+    ipasir::{ContextBundle, IpasirCallbacks, IPASIR_SIGNATURE},
     structures::{
         atom::Atom,
         clause::{CClause, Clause},
@@ -12,8 +14,6 @@ use crate::{
     },
 };
 use std::ffi::{c_char, c_int, c_void};
-
-use super::IpasirCallbacks;
 
 /// Returns the name and the version of this library.
 ///
@@ -33,7 +33,8 @@ pub unsafe extern "C" fn ipasir_signature() -> *const c_char {
         .as_ptr()
 }
 
-/// Initialises a context and returns a pointer to the context bundled with some supporting structures.
+/// Initialises a context bundle and returns a pointer to it.
+///
 /// This pointer may then be used as a parameter in functions of the API.
 ///
 /// After initialisation the context is in configuration state, which is functionally equivalent to being in input state, from the perspective of the API.
@@ -61,6 +62,7 @@ pub unsafe extern "C" fn ipasir_release(solver: *mut c_void) {
 }
 
 /// Adds a literal to, or finalises a, clause under construction.
+///
 /// Literals are non-zero [i32]s, with 0 used to indicate the termination of a clause.
 ///
 /// A clause is added to a context when, and only when, it is finalised.
@@ -107,7 +109,9 @@ pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
     let result = bundle.context.add_assumption(lit);
 }
 
-/// Calls solve on the given context and returns an integer corresponding to the result of the solve:
+/// Calls solve on the given context and returns an integer detailing to the result of the solve.
+///
+/// The mapping used is:
 /// - 10, if the formula was satisfiable.
 /// - 20, if the formulas was unsatisfiable.
 /// - 0, otherwise.
@@ -131,7 +135,9 @@ pub unsafe extern "C" fn ipasir_solve(solver: *mut c_void) -> c_int {
     }
 }
 
-/// Returns the literal representing the value of the atom of the given literal, if a satisfying valuation has been found.
+/// Returns the literal representing the value of the atom of the given literal.
+///
+/// Though, only if a satisfying valuation has been found.
 ///
 /// That is, given a literal of the form ±a, the function returns:
 /// * +a, if a is bound to true on the satisfying valuation.

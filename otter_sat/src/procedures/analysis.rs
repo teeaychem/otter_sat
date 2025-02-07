@@ -14,26 +14,26 @@
 //! let analysis_result = self.conflict_analysis(&key)?;
 //!
 //! match analysis_result {
-//!     analysis::Ok::FundamentalConflict => {
+//!     analysis::ConflictAnalysisOk::FundamentalConflict => {
 //!         ...
 //!     }
 //!
-//!     analysis::Ok::RepeatImplication {
+//!     analysis::ConflictAnalysisOk::RepeatImplication {
 //!         clause_key: key,
 //!         asserted_literal: literal,
 //!     } => {
-//!         Ok(Ok::AssertingClause(key, literal))
+//!         Ok(AssertingClause(key, literal))
 //!     }
 //!
-//!     analysis::Ok::UnitClause(key) => {
-//!         Ok(Ok::UnitClause(key))
+//!     analysis::ConflictAnalysisOk::UnitClause(key) => {
+//!         Ok(UnitClause(key))
 //!     }
 //!
-//!     analysis::Ok::AssertingClause {
+//!     analysis::ConflictAnalysisOk::AssertingClause {
 //!         clause_key: key,
 //!         asserted_literal: literal,
 //!     } => {
-//!         Ok(Ok::AssertingClause(key, literal))
+//!         Ok(AssertingClause(key, literal))
 //!     }
 //! }
 //! ```
@@ -132,8 +132,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         /*
         TODO: Alternative? Re-enable?
         Strengthening iterates through all the proven literals.
-        This is skipped for a literal whose proof is to be noted
-        This is also skipped for binary clauses, as if the other literal is proven the assertion will also be added as a proof, regardless
+        This is skipped for a literal whose proof is to be noted.
+        This is also skipped for binary clauses, as if the other literal is proven the assertion will also be added as a proof, regardless.
          */
         // if the_buffer.clause_legnth() > 2 {
         //     the_buffer.strengthen_given(self.clause_db.all_unit_clauses());

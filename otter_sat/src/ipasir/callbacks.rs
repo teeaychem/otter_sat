@@ -1,19 +1,3 @@
-//! A strcutre holding information for making IPASIR callbacks.
-//!
-//! # IPASIR Versions
-//!
-//! The structure is designed to support both IPASIR and IPASIR2 callbacks.
-//!
-//! In general, IPASIR and IPASIR2 callbacks are either unique or equivalent.
-//! The exception is the callback for addition clauses, which includes additional parameters.
-//! In this case, the addition method attempts the IPASIR callback, and only if this is not defined is the IPASIR2 callback attempted.
-//!
-//! # Implementation details
-//!
-//! The context stores an *optional* instance of the structure, allowing for a quick check of whether specific callbacks should be attempted.
-//! And, if some structure is present in a context, methods associated with the structure are used.
-//!
-//!
 use std::ffi::{c_int, c_void};
 
 use crate::structures::{
@@ -21,7 +5,11 @@ use crate::structures::{
     literal::{CLiteral, IntLiteral, Literal},
 };
 
-/// Information regarding the solve callback.
+/// A structure designed to support both IPASIR and IPASIR2 callbacks.
+///
+/// In general, IPASIR and IPASIR2 callbacks are either unique or equivalent.
+/// The exception is the callback for addition clauses, which includes additional parameters.
+/// In this case, the addition method attempts the IPASIR callback, and only if this is not defined is the IPASIR2 callback attempted.
 pub struct IpasirCallbacks {
     /// Proofmeta, for IPASIR2 callbacks.
     pub proofmeta: *mut c_void,
