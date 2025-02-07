@@ -8,7 +8,7 @@ def test_longest_simple_path():
     lsp_test_directory = CURRENT_DIR.joinpath(
         pathlib.Path("ipasir", "app", "genipalsp", "inputs")
     )
-    lsp_prefix = "[X.XXX]"
+    lsp_prefix = "[      ]"
     lsp_prefix_len = len(lsp_prefix)
 
     for cnf in sorted(glob.glob(f"{lsp_test_directory}/*.grid")):

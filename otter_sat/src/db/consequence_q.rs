@@ -114,7 +114,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         };
         match valuation_result {
             Ok(super::atom::AtomValue::NotSet) => {
-                // TODO: improvements?
                 match position {
                     QPosition::Front => self.consequence_q.push_front((*literal.borrow(), level)),
                     QPosition::Back => self.consequence_q.push_back((*literal.borrow(), level)),

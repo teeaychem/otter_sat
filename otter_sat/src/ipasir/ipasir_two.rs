@@ -1,6 +1,13 @@
-//! Template bindings for IPASIR2 API.
+//! Partial bindings for IPASIR2 API.
 //!
-//! For the moment partial.
+//! In particular:
+//! - There is no support for options.\
+//!   Support will be added when (or before) the API is finalised.
+//! - There is no support for set_import.
+//! - There is partial support for set_fixed.
+//! - There is no support for noting that an added clause may be forgotten.
+//!
+//! Otherwise, if an IPASIR2 function wraps an IPASIR function, initial support is implemented.
 
 use crate::{
     context::ContextState,
@@ -21,6 +28,7 @@ use super::ipasir_one::{
 
 use std::ffi::{c_char, c_int, c_void};
 
+/// Codes used to indicate the success or failure of a function call.
 #[allow(non_camel_case_types)]
 #[repr(C)]
 pub enum ipasir2_errorcode {
@@ -34,6 +42,7 @@ pub enum ipasir2_errorcode {
     IPASIR2_E_INVALID_OPTION_VALUE,
 }
 
+/// States of the context, these are a subset of [ContextState].
 #[allow(non_camel_case_types)]
 #[repr(C)]
 pub enum ipasir2_state {
@@ -44,18 +53,33 @@ pub enum ipasir2_state {
     IPASIR2_S_SOLVING,
 }
 
+/// IPASIR Configuration Options
 #[allow(non_camel_case_types)]
 #[repr(C)]
 pub struct ipasir2_option {
-    name: *const c_char,
-    min: i64,
-    max: i64,
-    max_state: ipasir2_state,
-    tunable: c_int,
-    indexed: c_int,
-    handle: *const c_void,
+    /// Unique option identifier.
+    pub name: *const c_char,
+
+    /// Minimum allowed value for the option.
+    pub min: i64,
+
+    /// Maximum allowed value for the option.
+    pub max: i64,
+
+    /// Maximal state in which the option may be set.
+    pub max_state: ipasir2_state,
+
+    /// Specifies if the option is eligible for use by automatic tuners.
+    pub tunable: c_int,
+
+    /// Specifies if the option may be set per variable.
+    pub indexed: c_int,
+
+    /// An opaque pointer for internal use in the setter function.
+    pub handle: *const c_void,
 }
 
+/// Bind the name and version of this library to the given pointer.
 /// # Safety
 /// Writes the signature a raw pointer.
 #[no_mangle]
@@ -65,7 +89,7 @@ pub unsafe extern "C" fn ipasir2_signature(signature: *mut *const c_char) -> ipa
     ipasir2_errorcode::IPASIR2_E_OK
 }
 
-/// Initialises a solver a binds the given pointer to it's address.
+/// Initialises a solver a binds the given pointer to its address.
 /// # Safety
 /// Releases the initialised solver to a raw pointer.
 #[no_mangle]
@@ -75,7 +99,7 @@ pub unsafe extern "C" fn ipasir2_init(solver: *mut *mut c_void) -> ipasir2_error
     ipasir2_errorcode::IPASIR2_E_OK
 }
 
-/// Releases bound solver, so long as it is not solving.
+/// Releases the bound solver, so long as it is not solving.
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
 #[no_mangle]
@@ -85,24 +109,33 @@ pub unsafe extern "C" fn ipasir2_release(solver: *mut c_void) -> ipasir2_errorco
     ipasir2_errorcode::IPASIR2_E_OK
 }
 
+/// Returns the supported configuration options.
+/// # Safety
+/// Recovers a context bundle from a raw pointer.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir2_options(
     solver: *mut c_void,
     options: *const *mut ipasir2_option,
     count: *mut c_int,
 ) -> ipasir2_errorcode {
-    todo!()
+    ipasir2_errorcode::IPASIR2_E_UNSUPPORTED
 }
 
+/// Returns the handle to the option with the gien name.
+/// # Safety
+/// Recovers a context bundle from a raw pointer.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir2_get_option_handle(
     solver: *mut c_void,
-    options: *const c_char,
+    name: *const c_char,
     handle: *const ipasir2_option,
 ) -> ipasir2_errorcode {
-    todo!()
+    ipasir2_errorcode::IPASIR2_E_UNSUPPORTED
 }
 
+/// Sets the value of the given option.
+/// # Safety
+/// Recovers a context bundle from a raw pointer.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir2_set_option(
     solver: *mut c_void,
@@ -110,7 +143,7 @@ pub unsafe extern "C" fn ipasir2_set_option(
     value: i64,
     index: i64,
 ) -> ipasir2_errorcode {
-    todo!()
+    ipasir2_errorcode::IPASIR2_E_UNSUPPORTED
 }
 
 /// Adds a clause to the solver.
@@ -151,8 +184,7 @@ pub unsafe extern "C" fn ipasir2_add(
     ipasir2_errorcode::IPASIR2_E_OK
 }
 
-/// Calls solve on the context bundle.
-///
+/// Assumes the given literals and then calls solve on the context.
 ///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
@@ -198,6 +230,7 @@ pub unsafe extern "C" fn ipasir2_value(
     ipasir2_errorcode::IPASIR2_E_OK
 }
 
+/// Checks if the given assumption was used to prove the unsatisfiability in the previous solve.
 /// # Safety
 /// Recovers a context bundle and takes a clause from raw pointers.
 #[no_mangle]
@@ -211,6 +244,10 @@ pub unsafe extern "C" fn ipasir2_failed(
     ipasir2_errorcode::IPASIR2_E_OK
 }
 
+/// Sets a callback function used to request termination of a solve.
+///
+/// For consistency and simplicity, this wraps [ipasir_set_terminate].
+///
 /// # Safety
 /// Recovers a context bundle and takes a clause from raw pointers.
 #[no_mangle]
@@ -224,6 +261,7 @@ pub unsafe extern "C" fn ipasir2_set_terminate(
     ipasir2_errorcode::IPASIR2_E_OK
 }
 
+/// Sets a callback function for receiving addition clauses from the context.
 /// # Safety
 /// Recovers a context bundle and reads from multiple C pointers.
 #[no_mangle]
@@ -257,6 +295,8 @@ pub unsafe extern "C" fn ipasir2_set_export(
     ipasir2_errorcode::IPASIR2_E_OK
 }
 
+/// Sets a callback function to be used when a clause is deleted.
+///
 /// # Safety
 /// Recovers a context bundle and reads from multiple C pointers.
 #[no_mangle]
@@ -289,6 +329,11 @@ pub unsafe extern "C" fn ipasir2_delete(
     ipasir2_errorcode::IPASIR2_E_OK
 }
 
+/// Sets a callback function for importing a clause into the context.
+///
+/// For the moment, unsupported.
+/// See comments for details.
+///
 /// # Safety
 /// Recovers a context bundle and reads from multiple C pointers.
 #[no_mangle]
@@ -298,7 +343,7 @@ pub unsafe extern "C" fn ipasir2_set_import(
     callback: Option<extern "C" fn(data: *mut c_void)>,
 ) -> ipasir2_errorcode {
     /*
-    TODO:
+    TODO: ipasir2_set_import
     From the paper this should be called periodically during a solve (e.g. at the start of a loop, or during an interrupt).
 
     On calling, a single clause may be added to the solver through the ipasir2_add callback.
@@ -312,6 +357,10 @@ pub unsafe extern "C" fn ipasir2_set_import(
     ipasir2_errorcode::IPASIR2_E_UNSUPPORTED
 }
 
+/// Sets a callback for notification of fixed assignments.
+///
+/// For the moment, unsupported.
+///
 /// # Safety
 /// Recovers a context bundle and reads from multiple C pointers.
 #[no_mangle]
@@ -321,7 +370,8 @@ pub unsafe extern "C" fn ipasir2_set_fixed(
     callback: Option<extern "C" fn(data: *mut c_void, fixed: i32)>,
 ) -> ipasir2_errorcode {
     /*
-    TODO: At present the callback is not made for literals fixed relative to assumptions made.
+    TODO: ipasir2_set_fixed
+    At present the callback is not made for literals fixed relative to assumptions made.
      */
 
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);

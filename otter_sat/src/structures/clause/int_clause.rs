@@ -50,8 +50,6 @@ impl Clause for IntClause {
         asserted_literal
     }
 
-    // TODO: consider a different approach to lbd
-    // e.g. an approximate measure of =2, =3, >4 can be settled much more easily
     fn lbd(&self, atom_db: &AtomDB) -> LBD {
         let mut decision_levels = self
             .iter()

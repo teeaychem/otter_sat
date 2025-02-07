@@ -1,9 +1,10 @@
-//! Bindings for the reentrant incremental sat solver API --- the IPASIR C IPA.
+//! C Bindings for the reentrant incremental sat solver API --- the IPASIR IPA.
 //!
-//! The IPASIR C API defines a handful of functions used for incremental SAT solving.
-//! This module provides bindings to the API.
+//! Full bindings for the IPASIR API are given in [ipasir_one], and incomplete bindings for the IPASIR2 API may be found in [ipasir_two].
 //!
-//! Specifically, this module includes a full implementation of bindings for the first version of the IPASIR API and template bindings for the second version of the API.
+//! Information about the APIs may be found at:
+//! - <https://github.com/biotomas/ipasir>, for IPASIR.
+//! - <https://github.com/ipasir2/ipasir2>, for IPASIR2.
 //!
 //! Note, 'solver' and 'context' are synonymous in this module.\
 //! Though, strictly, 'solver' is only used as, or when referring to, the parameter of an API function, and 'context' is only used to refer to an instance of the context structure.
@@ -18,6 +19,19 @@
 //! At present, the library uses a 'transparent' representation of literals added through the IPASIR API --- whether as part of a clause, as an assumption, etc.
 //! This means if the literal -83 is added through the API all internal data structures will 'grow' to allow for 83 atoms.
 //! In this respect, it is much more efficient to add a clause containing the largest literal first.
+//!
+//! # Implementation details
+//!
+//! ## Bundles
+//!
+//! For interaction with the API a context is bundled together with a few API specific structures in a [ContextBundle].
+//! These structs are primarily used to buffer or cache information that a context has no general use for.
+//!
+//! ## Callbacks
+//!
+//! Callbacks are optionally stored as part of a context.
+//! The absence of any callback allows callbacks to be passed over in general, while the presence of at least one callback requires each indivual callback to be checked.
+//! For additional details, see the [IpasirCallbacks] structure.
 
 use std::{
     collections::{HashMap, HashSet},
@@ -39,46 +53,11 @@ use crate::{
 mod callbacks;
 pub use callbacks::IpasirCallbacks;
 
+mod context_bundle;
+pub use context_bundle::ContextBundle;
+
 pub mod ipasir_one;
 pub mod ipasir_two;
 
-static IPASIR_SIGNATURE: OnceLock<std::ffi::CString> = OnceLock::new();
-
-/// A struct which bundles a context with some structures to the IPASIR API.
-pub struct ContextBundle {
-    /// A context.
-    context: Context,
-
-    /// A buffer to hold the literals of a clause being added to the solver.
-    clause_buffer: CClause,
-
-    /// The keys to a an unsatisfiable core of the formula.
-    core_keys: Vec<ClauseKey>,
-
-    /// The literals which occur in the unsatisfiable core identified by [core_keys].
-    core_literals: HashSet<CLiteral>,
-}
-
-impl ContextBundle {
-    /// Refreshes the bundled context and clears bundled structures if the context was not already fresh.
-    pub fn keep_fresh(&mut self) {
-        match self.context.refresh() {
-            true => {
-                self.core_keys.clear();
-                self.core_literals.clear();
-            }
-            false => {}
-        }
-    }
-}
-
-impl Default for ContextBundle {
-    fn default() -> Self {
-        ContextBundle {
-            context: Context::from_config(Config::default(), None),
-            clause_buffer: Vec::default(),
-            core_keys: Vec::default(),
-            core_literals: HashSet::default(),
-        }
-    }
-}
+/// The signature of the solver, written (once) when needed using [env!].
+pub static IPASIR_SIGNATURE: OnceLock<std::ffi::CString> = OnceLock::new();
