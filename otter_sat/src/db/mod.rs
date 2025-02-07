@@ -87,7 +87,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         if self.literal_db.assumption_is_made()
                             && !self.literal_db.decision_is_made()
                         {
-                            self.literal_db.record_assumption_consequence(consequence);
+                            unsafe {
+                                self.literal_db
+                                    .record_top_consequence_unchecked(consequence)
+                            };
                         } else {
                             let unit_clause = *consequence.literal();
 

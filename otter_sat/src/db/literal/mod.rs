@@ -47,57 +47,53 @@ pub struct LiteralDB {
     /// Assumptions
     assumptions: Vec<CLiteral>,
 
-    /// Consequences of assumptions made
-    assumption_consequences: Vec<Consequence>,
-
     /// A dispatcher.
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 }
 
 impl LiteralDB {
+    /// Pushes a fresh level to the top of the level stack with the given decision.
+    /// ```rust,ignore
+    /// self.literal_db.push_fresh_decision(chosen_literal);
+    /// ```
+    pub fn push_fresh_decision(&mut self, decision: CLiteral) {
+        self.level_stack.push(DecisionLevel::new(decision));
+    }
+
+    /// Pushes a fresh level to the top of the level stack with the given assumption.
+    pub fn push_fresh_assumption(&mut self, assumption: CLiteral) {
+        self.level_stack.push(DecisionLevel::new(assumption));
+        self.lower_limit += 1;
+    }
+}
+
+impl LiteralDB {
     pub fn assumption_is_made(&self) -> bool {
-        match self.config.stacked_assumptions {
-            true => self.lower_limit > 0,
-            false => !self.assumptions.is_empty(),
-        }
+        !self.assumptions.is_empty()
     }
 
-    pub fn assumption_made(&mut self, assumption: CLiteral) {
-        match self.config.stacked_assumptions {
-            true => {
-                self.level_stack.push(DecisionLevel::new(assumption));
-                self.lower_limit += 1;
-            }
-
-            false => {
-                self.assumptions.push(assumption);
-            }
-        }
+    pub fn assumption_is_asserted(&self) -> bool {
+        self.lower_limit > 0
     }
 
-    pub fn record_assumption_consequence(&mut self, consequence: Consequence) {
-        match self.config.stacked_assumptions {
-            true => {
-                unsafe { self.record_top_consequence_unchecked(consequence) };
-            }
-
-            false => {
-                self.assumption_consequences.push(consequence);
-            }
-        }
+    /// Notes, but does not assert, the given assumption is to be used during a solve.
+    pub fn note_assumption(&mut self, assumption: CLiteral) {
+        self.assumptions.push(assumption);
     }
 
-    pub fn flat_assumptions(&self) -> &[CLiteral] {
+    pub fn recorded_assumptions(&self) -> &[CLiteral] {
         &self.assumptions
     }
 
-    pub fn flat_assumption_consequences(&self) -> &[Consequence] {
-        &self.assumption_consequences
+    /// Returns the recorded assumption at the given index.
+    /// # Safety
+    /// It is assumed the count of recorded assumptions extends to the given index.
+    pub unsafe fn recorded_assumption(&self, index: usize) -> CLiteral {
+        *self.assumptions.get_unchecked(index)
     }
 
-    pub fn clear_flat_asumptions(&mut self) {
+    pub fn clear_assumptions(&mut self) {
         self.assumptions.clear();
-        self.assumption_consequences.clear();
     }
 }
 
@@ -108,7 +104,6 @@ impl LiteralDB {
             lower_limit: 0,
             level_stack: Vec::default(),
             assumptions: Vec::default(),
-            assumption_consequences: Vec::default(),
             dispatcher,
         }
     }
@@ -119,14 +114,6 @@ impl LiteralDB {
     /// If greater than zero, decisions made prior to the solve would be cleared by backjumping to a level at or lower to the limit.
     pub fn lower_limit(&self) -> DecisionLevelIndex {
         self.lower_limit
-    }
-
-    /// Notes a decision has been made and pushes a new level to the top of the level stack.
-    /// ```rust,ignore
-    /// self.literal_db.decision_match(chosen_literal);
-    /// ```
-    pub fn decision_made(&mut self, decision: CLiteral) {
-        self.level_stack.push(DecisionLevel::new(decision));
     }
 
     /// The decision of the given level index.

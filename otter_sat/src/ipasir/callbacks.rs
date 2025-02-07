@@ -21,7 +21,7 @@ pub struct IpasirCallbacks {
         extern "C" fn(data: *mut c_void, clause: *const i32, len: i32, proofmeta: *mut c_void),
     >,
 
-    pub addition_callback_length: u32,
+    pub addition_callback_length: usize,
 
     pub addition_data: *mut c_void,
 
@@ -48,42 +48,32 @@ impl IpasirCallbacks {
     #[allow(clippy::useless_conversion)]
     pub unsafe fn call_ipasir_addition_callback(&self, clause: &CClause) {
         if let Some(addition_callback) = self.learn_callback {
-            if clause.size() <= self.addition_callback_length as usize {
-                if cfg!(feature = "boolean") {
+            if clause.size() <= self.addition_callback_length {
+                let callback_ptr: *mut i32 = if cfg!(feature = "boolean") {
                     let mut int_clause: IntClause = clause.literals().map(|l| l.into()).collect();
-                    let callback_ptr: *mut i32 = int_clause.as_mut_ptr();
-
-                    addition_callback(self.addition_data, callback_ptr);
+                    int_clause.as_mut_ptr()
                 } else {
-                    let clause_ptr: *const i32 = clause.as_ptr();
-                    let callback_ptr: *mut i32 = clause_ptr as *mut i32;
-                    addition_callback(self.addition_data, callback_ptr);
+                    clause.as_ptr() as *mut i32
                 };
+                addition_callback(self.addition_data, callback_ptr);
             }
         }
 
         if let Some(addition_callback) = self.export_callback {
-            if clause.size() <= self.addition_callback_length as usize {
-                if cfg!(feature = "boolean") {
+            if clause.size() <= self.addition_callback_length {
+                let callback_ptr: *mut i32 = if cfg!(feature = "boolean") {
                     let mut int_clause: IntClause = clause.literals().map(|l| l.into()).collect();
-                    let callback_ptr: *mut i32 = int_clause.as_mut_ptr();
-
-                    addition_callback(
-                        self.addition_data,
-                        callback_ptr,
-                        clause.size().try_into().unwrap(),
-                        self.proofmeta,
-                    );
+                    int_clause.as_mut_ptr()
                 } else {
-                    let clause_ptr: *const i32 = clause.as_ptr();
-                    let callback_ptr: *mut i32 = clause_ptr as *mut i32;
-                    addition_callback(
-                        self.addition_data,
-                        callback_ptr,
-                        clause.size().try_into().unwrap(),
-                        self.proofmeta,
-                    );
+                    clause.as_ptr() as *mut i32
                 };
+
+                addition_callback(
+                    self.addition_data,
+                    callback_ptr,
+                    clause.size().try_into().unwrap(),
+                    self.proofmeta,
+                );
             }
         }
     }
@@ -94,7 +84,7 @@ impl IpasirCallbacks {
         if let Some(terminate_callback) = self.terminate_callback {
             terminate_callback(self.terminate_data)
         } else {
-            1
+            0
         }
     }
 

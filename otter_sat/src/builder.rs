@@ -104,7 +104,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 );
                                 Ok(ClauseOk::Added)
                             }
-                            _ => Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
+                            _ => Err(err::ErrorKind::ValuationConflict),
                         }
                     }
 
@@ -117,13 +117,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         }
                     }
 
-                    Some(_) => Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
+                    Some(_) => Err(err::ErrorKind::ValuationConflict),
                 }
             }
 
             [..] => {
                 if unsafe { clause_vec.unsatisfiable_on_unchecked(self.atom_db.valuation()) } {
-                    return Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict));
+                    return Err(err::ErrorKind::ValuationConflict);
                 }
 
                 let premises = HashSet::default();
@@ -223,40 +223,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Ok(ClauseOk::Added)
             }
         }
-    }
-
-    pub fn add_assumption(&mut self, assumption: CLiteral) -> Result<(), err::ErrorKind> {
-        match self.atom_db.value_of(assumption.atom()) {
-            None => match self.value_and_queue(
-                assumption,
-                consequence_q::QPosition::Back,
-                self.literal_db.lower_limit(),
-            ) {
-                Ok(consequence_q::ConsequenceQueueOk::Qd) => {
-                    self.literal_db.assumption_made(assumption);
-                    Ok(())
-                }
-                _ => Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
-            },
-
-            Some(v) if v == assumption.polarity() => {
-                // Must be at zero for an assumption, so there's nothing to do
-                if self.literal_db.decision_is_made() {
-                    Err(err::ErrorKind::from(err::ClauseDBError::DecisionMade))
-                } else {
-                    log::warn!("Requested assumption {assumption} is already satisfied");
-                    Ok(())
-                }
-            }
-
-            Some(_) => Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
-        }
-    }
-
-    pub fn add_assumption_unchecked(&mut self, assumption: CLiteral) -> Result<(), err::ErrorKind> {
-        self.ensure_atom(assumption.atom());
-        self.literal_db.assumption_made(assumption);
-        Ok(())
     }
 
     /// Reads a DIMACS file into the context.

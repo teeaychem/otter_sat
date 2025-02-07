@@ -170,7 +170,7 @@ pub unsafe extern "C" fn ipasir2_solve(
             let literal_atom = assumption.unsigned_abs();
             bundle.context.ensure_atom(literal_atom);
             let assumption = CLiteral::new(literal_atom, assumption.is_positive());
-            bundle.context.add_assumption_unchecked(assumption);
+            bundle.context.add_assumption(assumption);
         }
     }
 

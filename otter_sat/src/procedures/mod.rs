@@ -4,6 +4,7 @@
 
 pub mod analysis;
 pub mod apply_consequences;
+pub mod assumptions;
 pub mod backjump;
 pub mod bcp;
 pub mod core;

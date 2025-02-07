@@ -100,12 +100,11 @@ pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
     bundle.keep_fresh();
 
     let literal_atom = lit.unsigned_abs();
-    bundle.context.ensure_atom(literal_atom);
 
     #[cfg(feature = "boolean")]
     let lit = CLiteral::new(literal_atom, lit.is_positive());
 
-    let result = bundle.context.add_assumption_unchecked(lit);
+    let result = bundle.context.add_assumption(lit);
 }
 
 /// Calls solve on the given context and returns an integer corresponding to the result of the solve:
@@ -256,7 +255,7 @@ pub unsafe extern "C" fn ipasir_set_learn(
         None => {
             let callbacks = IpasirCallbacks {
                 learn_callback: learn,
-                addition_callback_length: max_length as u32,
+                addition_callback_length: max_length as usize,
                 addition_data: data,
                 ..Default::default()
             };
@@ -266,7 +265,7 @@ pub unsafe extern "C" fn ipasir_set_learn(
 
         Some(callbacks) => {
             callbacks.learn_callback = learn;
-            callbacks.addition_callback_length = max_length as u32;
+            callbacks.addition_callback_length = max_length as usize;
             callbacks.addition_data = data;
         }
     }
