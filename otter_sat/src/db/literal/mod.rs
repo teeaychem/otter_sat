@@ -20,21 +20,26 @@
 use std::rc::Rc;
 
 use crate::{
+    config::Config,
     db::DecisionLevelIndex,
     dispatch::Dispatch,
     structures::{consequence::Consequence, literal::CLiteral},
 };
 
+pub mod config;
 #[doc(hidden)]
 mod decision_level;
+use config::LiteralDBConfig;
 pub use decision_level::*;
 
 #[allow(dead_code)]
 /// A struct abstracting over decision levels.
 pub struct LiteralDB {
+    config: LiteralDBConfig,
+
     /// The lower limit to find a decision made during a solve.
     /// In other words, any decision present *below* the limit was made prior to a call to [solve](crate::procedures::solve).
-    lower_limit: DecisionLevelIndex,
+    pub lower_limit: DecisionLevelIndex,
 
     /// A stack of decision levels.
     level_stack: Vec<DecisionLevel>,
@@ -51,39 +56,60 @@ pub struct LiteralDB {
 
 impl LiteralDB {
     pub fn assumption_is_made(&self) -> bool {
-        !self.assumptions.is_empty()
+        match self.config.stacked_assumptions {
+            true => self.lower_limit > 0,
+            false => !self.assumptions.is_empty(),
+        }
     }
 
     pub fn assumption_made(&mut self, assumption: CLiteral) {
-        self.assumptions.push(assumption);
+        match self.config.stacked_assumptions {
+            true => {
+                self.level_stack.push(DecisionLevel::new(assumption));
+                self.lower_limit += 1;
+            }
+
+            false => {
+                self.assumptions.push(assumption);
+            }
+        }
     }
 
     pub fn record_assumption_consequence(&mut self, consequence: Consequence) {
-        self.assumption_consequences.push(consequence);
+        match self.config.stacked_assumptions {
+            true => {
+                unsafe { self.record_top_consequence_unchecked(consequence) };
+            }
+
+            false => {
+                self.assumption_consequences.push(consequence);
+            }
+        }
     }
 
-    pub fn assumptions(&self) -> &[CLiteral] {
+    pub fn flat_assumptions(&self) -> &[CLiteral] {
         &self.assumptions
     }
 
-    pub fn assumption_consequences(&self) -> &[Consequence] {
+    pub fn flat_assumption_consequences(&self) -> &[Consequence] {
         &self.assumption_consequences
     }
 
-    pub fn clear_assumptions(&mut self) {
+    pub fn clear_flat_asumptions(&mut self) {
         self.assumptions.clear();
         self.assumption_consequences.clear();
     }
 }
 
 impl LiteralDB {
-    pub fn new(tx: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
+    pub fn new(config: &Config, dispatcher: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
         LiteralDB {
+            config: config.literal_db.clone(),
             lower_limit: 0,
             level_stack: Vec::default(),
             assumptions: Vec::default(),
             assumption_consequences: Vec::default(),
-            dispatcher: tx,
+            dispatcher,
         }
     }
 
@@ -145,7 +171,7 @@ impl LiteralDB {
     /// No check is made to ensure a decision has been made.
     pub unsafe fn top_consequences_unchecked(&self) -> &[Consequence] {
         self.level_stack
-            .get_unchecked(self.decision_count().saturating_sub(1) as usize)
+            .get_unchecked(self.decision_level().saturating_sub(1) as usize)
             .consequences()
     }
 
@@ -157,14 +183,18 @@ impl LiteralDB {
     }
 
     /// Returns true if some decision is active, false otherwise.
-    pub fn is_decision_made(&self) -> bool {
-        !self.level_stack.is_empty()
+    pub fn decision_is_made(&self) -> bool {
+        self.decision_count() > 0
     }
 
     /// A count of how many levels are present in the decision stack.
     ///
     /// In other words, a count of how many decisions have been made.
     pub fn decision_count(&self) -> DecisionLevelIndex {
+        (self.level_stack.len() as DecisionLevelIndex) - self.lower_limit
+    }
+
+    pub fn decision_level(&self) -> DecisionLevelIndex {
         self.level_stack.len() as DecisionLevelIndex
     }
 
@@ -183,7 +213,7 @@ impl LiteralDB {
     ///
     /// # Safety
     /// No check is made to ensure a decision has been made.
-    pub(super) unsafe fn record_consequence_unchecked(&mut self, consequence: Consequence) {
+    pub(super) unsafe fn record_top_consequence_unchecked(&mut self, consequence: Consequence) {
         self.top_level_unchecked_mut().push_consequence(consequence);
     }
 }

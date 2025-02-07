@@ -30,6 +30,8 @@ pub use stopping_criteria::StoppingCriteria;
 mod switches;
 pub use switches::Switches;
 
+use crate::db::literal::config::LiteralDBConfig;
+
 /// The primary configuration structure.
 #[derive(Clone)]
 pub struct Config {
@@ -38,6 +40,8 @@ pub struct Config {
 
     /// Configuration of the clause database.
     pub clause_db: ClauseDBConfig,
+
+    pub literal_db: LiteralDBConfig,
 
     /// The `u` value to multiply the luby sequence by when determining whether to perform a restart.
     pub luby_u: crate::generic::luby::LubyRepresentation,
@@ -62,6 +66,8 @@ pub struct Config {
 
     /// Which VSIDS variant to use during resolution based analysis
     pub vsids_variant: VSIDS,
+
+    pub stacked_assumptions: bool,
 }
 
 impl Default for Config {
@@ -70,6 +76,7 @@ impl Default for Config {
         Config {
             atom_db: AtomDBConfig::default(),
             clause_db: ClauseDBConfig::default(),
+            literal_db: LiteralDBConfig::default(),
 
             luby_u: 128,
 
@@ -88,6 +95,8 @@ impl Default for Config {
 
             time_limit: None,
             vsids_variant: VSIDS::MiniSAT,
+
+            stacked_assumptions: true,
         }
     }
 }

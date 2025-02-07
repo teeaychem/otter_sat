@@ -64,7 +64,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             ConsequenceSource::PureLiteral => {
                 let premises = HashSet::default();
                 // Making a free decision is not supported after some other (non-free) decision has been made.
-                if !self.literal_db.is_decision_made() && self.literal_db.decision_count() == 0 {
+                if !self.literal_db.decision_is_made() && self.literal_db.decision_count() == 0 {
                     self.clause_db.store(
                         *consequence.literal(),
                         ClauseSource::PureUnit,
@@ -84,7 +84,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 //
                 match self.literal_db.decision_count() {
                     0 => {
-                        if self.literal_db.assumption_is_made() {
+                        if self.literal_db.assumption_is_made()
+                            && !self.literal_db.decision_is_made()
+                        {
                             self.literal_db.record_assumption_consequence(consequence);
                         } else {
                             let unit_clause = *consequence.literal();
@@ -109,7 +111,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
 
                     _ => unsafe {
-                        self.literal_db.record_consequence_unchecked(consequence);
+                        self.literal_db
+                            .record_top_consequence_unchecked(consequence);
                     },
                 }
                 Ok(())
