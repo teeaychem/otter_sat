@@ -267,13 +267,13 @@ impl ResolutionBuffer {
 
                                 ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
                                     // TODO: Subsumption should use the appropriate valuation
-                                    let origins = self.take_premises();
+                                    let premises = self.take_premises();
 
                                     let k = clause_db.subsume(
                                         *key,
                                         consequence.literal(),
                                         atom_db,
-                                        origins,
+                                        premises,
                                         callbacks,
                                     )?;
 

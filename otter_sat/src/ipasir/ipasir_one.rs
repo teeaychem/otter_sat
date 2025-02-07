@@ -102,9 +102,10 @@ pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
     let literal_atom = lit.unsigned_abs();
     bundle.context.ensure_atom(literal_atom);
 
-    let assumption = ABLiteral::new(literal_atom, lit.is_positive());
+    #[cfg(feature = "boolean")]
+    let lit = CLiteral::new(literal_atom, lit.is_positive());
 
-    let result = bundle.context.add_assumption_unchecked(assumption);
+    let result = bundle.context.add_assumption_unchecked(lit);
 }
 
 /// Calls solve on the given context and returns an integer corresponding to the result of the solve:

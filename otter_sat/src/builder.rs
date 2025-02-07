@@ -87,7 +87,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             [literal] => {
                 match self.atom_db.value_of(literal.atom()) {
                     None => {
-                        match self.value_and_queue(literal, consequence_q::QPosition::Back, 0) {
+                        match self.value_and_queue(
+                            literal,
+                            consequence_q::QPosition::Back,
+                            self.literal_db.lower_limit(),
+                        ) {
                             Ok(consequence_q::ConsequenceQueueOk::Qd) => {
                                 let premises = HashSet::default();
                                 self.clause_db.store(
@@ -170,7 +174,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     premises,
                     &self.ipasir_callbacks,
                 );
-                match self.value_and_queue(literal.borrow(), consequence_q::QPosition::Back, 0) {
+                match self.value_and_queue(
+                    literal.borrow(),
+                    consequence_q::QPosition::Back,
+                    self.literal_db.lower_limit(),
+                ) {
                     Ok(consequence_q::ConsequenceQueueOk::Qd) => {
                         let premises = HashSet::default();
                         self.clause_db.store(
@@ -217,24 +225,26 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
     }
 
-    pub fn add_assumption(&mut self, assumption: impl Literal) -> Result<(), err::ErrorKind> {
-        let literal = assumption.canonical();
-
-        match self.atom_db.value_of(literal.atom()) {
-            None => match self.value_and_queue(literal, consequence_q::QPosition::Back, 0) {
+    pub fn add_assumption(&mut self, assumption: CLiteral) -> Result<(), err::ErrorKind> {
+        match self.atom_db.value_of(assumption.atom()) {
+            None => match self.value_and_queue(
+                assumption,
+                consequence_q::QPosition::Back,
+                self.literal_db.lower_limit(),
+            ) {
                 Ok(consequence_q::ConsequenceQueueOk::Qd) => {
-                    self.literal_db.assumption_made(literal);
+                    self.literal_db.assumption_made(assumption);
                     Ok(())
                 }
                 _ => Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
             },
 
-            Some(v) if v == literal.polarity() => {
+            Some(v) if v == assumption.polarity() => {
                 // Must be at zero for an assumption, so there's nothing to do
-                if self.counters.total_decisions != 0 {
+                if self.literal_db.decision_is_made() {
                     Err(err::ErrorKind::from(err::ClauseDBError::DecisionMade))
                 } else {
-                    println!("Already");
+                    log::warn!("Requested assumption {assumption} is already satisfied");
                     Ok(())
                 }
             }
@@ -243,27 +253,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
     }
 
-    pub fn add_assumption_unchecked(
-        &mut self,
-        assumption: impl Literal,
-    ) -> Result<(), err::ErrorKind> {
-        let literal = assumption;
-        self.ensure_atom(literal.atom());
-        self.literal_db.assumption_made(literal.canonical());
+    pub fn add_assumption_unchecked(&mut self, assumption: CLiteral) -> Result<(), err::ErrorKind> {
+        self.ensure_atom(assumption.atom());
+        self.literal_db.assumption_made(assumption);
         Ok(())
-    }
-
-    /// Removes assumptions from a context by unbinding the value from any atom bound due to an assumption.
-    pub fn remove_assumptions(&mut self) {
-        for assumption in self.literal_db.assumptions() {
-            // The assumption has been added to the context, so the atom exists
-            unsafe { self.atom_db.drop_value(assumption.atom()) };
-        }
-        for consequence in self.literal_db.assumption_consequences() {
-            // The consequence has been observed, so the atom exists
-            unsafe { self.atom_db.drop_value(consequence.atom()) };
-        }
-        self.literal_db.clear_assumptions();
     }
 
     /// Reads a DIMACS file into the context.
@@ -388,11 +381,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 }
                             }
                             _ => {
-                                // let the_literal = match self.literal_from_string(item) {
-                                //     Ok(literal) => literal,
-                                //     Err(e) => return Err(err::BuildErrorKind::Parse(e)),
-                                // };
-
                                 let parsed_int = match item.parse::<isize>() {
                                     Ok(int) => int,
                                     Err(e) => panic!("{e}"),
@@ -427,23 +415,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
         Ok(atom_map)
     }
-
-    // todo: implement this again, sometime
-    // Aka. soft assumption
-    // This will hold until a restart happens
-
-    // pub fn believe(&mut self, literal: impl Borrow<Literal>) -> Result<(), err::Context> {
-    //     if self.literal_db.decision_made() {
-    //         return Err(err::Context::AssumptionAfterDecision);
-    //     }
-    //     match self.value_and_queue(literal.borrow()) {
-    //         Ok(_) => {
-    //             ???
-    //             Ok(n())
-    //         }
-    //         Err(_) => Err(err::Context::AssumptionConflict),
-    //     }
-    // }
 }
 
 /// Primarily to distinguish the case where preprocessing results in an empty clause.

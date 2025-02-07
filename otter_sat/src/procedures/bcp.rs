@@ -84,7 +84,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// </div>
     pub unsafe fn bcp(&mut self, literal: impl Borrow<CLiteral>) -> Result<(), err::BCPError> {
         let literal = literal.borrow();
-        let decision_level = self.literal_db.decision_count();
+        let decision_level = self.literal_db.decision_level();
 
         // Binary clauses block.
         {

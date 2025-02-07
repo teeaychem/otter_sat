@@ -137,7 +137,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
                 Err(err::BCPError::Conflict(key)) => {
                     //
-                    if !self.literal_db.is_decision_made() {
+                    if !self.literal_db.decision_is_made() {
                         self.state = ContextState::Unsatisfiable(key);
 
                         macros::dispatch_clause_db_delta!(self, Unsatisfiable, key);
@@ -162,7 +162,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             self.value_and_queue(
                                 asserted_literal,
                                 QPosition::Front,
-                                self.literal_db.decision_count(),
+                                self.literal_db.decision_level(),
                             )?;
 
                             macros::dispatch_bcp_delta!(self, Instance, asserted_literal, key);

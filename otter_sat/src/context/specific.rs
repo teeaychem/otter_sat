@@ -19,10 +19,13 @@ impl Context {
         Self {
             atom_db: AtomDB::new(&config, dispatcher.clone()),
             clause_db: ClauseDB::new(&config, dispatcher.clone()),
+            literal_db: LiteralDB::new(&config, dispatcher.clone()),
+
             config,
+
             consequence_q: ConsequenceQ::default(),
             counters: Counters::default(),
-            literal_db: LiteralDB::new(dispatcher.clone()),
+
             rng: crate::generic::minimal_pcg::MinimalPCG32::from_seed(0_u64.to_le_bytes()),
             state: ContextState::Configuration,
 

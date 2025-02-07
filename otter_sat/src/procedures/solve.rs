@@ -221,7 +221,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     match self.make_decision()? {
                         decision::DecisionOk::Literal(decision) => {
                             self.literal_db.decision_made(decision);
-                            let level = self.literal_db.decision_count();
+                            let level = self.literal_db.decision_level();
                             self.value_and_queue(decision, QPosition::Back, level)?;
                             continue 'solve_loop;
                         }
@@ -231,7 +231,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 // Conflict variants. These continue to the remaining contents of a loop.
                 apply_consequences::ApplyConsequencesOk::UnitClause { key } => {
-                    self.value_and_queue(key, QPosition::Front, 0)?;
+                    self.value_and_queue(key, QPosition::Front, self.literal_db.lower_limit())?;
                 }
 
                 apply_consequences::ApplyConsequencesOk::AssertingClause { key, literal } => {
@@ -239,7 +239,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     macros::dispatch_bcp_delta!(self, Instance, literal, key);
 
                     let consequence = Consequence::from(literal, consequence::Source::BCP(key));
-                    let level = self.literal_db.decision_count();
+                    let level = self.literal_db.decision_level();
                     self.value_and_queue(literal, QPosition::Front, level)?;
                     self.record_consequence(consequence);
                 }
@@ -254,7 +254,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 macros::dispatch_stats!(self);
 
                 if self.config.switch.restart {
-                    self.backjump(0);
+                    self.backjump(self.literal_db.lower_limit());
                     self.clause_db.refresh_heap();
                     self.counters.fresh_conflicts = 0;
                     self.counters.restarts += 1;
@@ -279,26 +279,71 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     }
 
     fn assert_assumptions(&mut self) -> Result<(), ErrorKind> {
-        if !self.literal_db.assumption_is_made() {
+        if self.literal_db.decision_is_made() {
+            panic!("! Asserting assumptions while a decision has been made.");
             return Ok(());
         }
 
-        let assumption_count = self.literal_db.assumptions().len();
+        match self.config.literal_db.stacked_assumptions {
+            true => {
+                let assumption_count = self.literal_db.lower_limit();
 
-        for index in 0..assumption_count {
-            let assumption = self.literal_db.assumptions()[index];
-            match self.atom_db.value_of(assumption.atom()) {
-                None => match self.value_and_queue(assumption, consequence_q::QPosition::Back, 0) {
-                    Ok(consequence_q::ConsequenceQueueOk::Qd) => continue,
-                    _ => return Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
-                },
+                for index in 0..assumption_count {
+                    let assumption = unsafe { self.literal_db.decision_unchecked(index) };
+                    match self.atom_db.value_of(assumption.atom()) {
+                        None => match self.value_and_queue(
+                            assumption,
+                            consequence_q::QPosition::Back,
+                            index,
+                        ) {
+                            Ok(consequence_q::ConsequenceQueueOk::Qd) => continue,
+                            _ => {
+                                return Err(err::ErrorKind::from(
+                                    err::ClauseDBError::ValuationConflict,
+                                ))
+                            }
+                        },
 
-                Some(v) if v == assumption.polarity() => {
-                    // Must be at zero for an assumption, so there's nothing to do
-                    continue;
+                        Some(v) if v == assumption.polarity() => {
+                            continue;
+                        }
+
+                        Some(_) => {
+                            return Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict))
+                        }
+                    }
                 }
+            }
 
-                Some(_) => return Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict)),
+            false => {
+                let assumption_count = self.literal_db.flat_assumptions().len();
+
+                for index in 0..assumption_count {
+                    let assumption = self.literal_db.flat_assumptions()[index];
+                    match self.atom_db.value_of(assumption.atom()) {
+                        None => match self.value_and_queue(
+                            assumption,
+                            consequence_q::QPosition::Back,
+                            self.literal_db.lower_limit(),
+                        ) {
+                            Ok(consequence_q::ConsequenceQueueOk::Qd) => continue,
+                            _ => {
+                                return Err(err::ErrorKind::from(
+                                    err::ClauseDBError::ValuationConflict,
+                                ))
+                            }
+                        },
+
+                        Some(v) if v == assumption.polarity() => {
+                            // Must be at zero for an assumption, so there's nothing to do
+                            continue;
+                        }
+
+                        Some(_) => {
+                            return Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict))
+                        }
+                    }
+                }
             }
         }
 

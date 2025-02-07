@@ -41,6 +41,8 @@
 //!
 //! See [Chronological Backtracking](https://doi.org/10.1007/978-3-319-94144-8_7) for a discussion of chronological and non-chronological backjumping --- and a follow-up: [Backing Backtracking](https://www.doi.org/10.1007/978-3-030-24258-9_18).
 
+use std::cmp;
+
 use crate::{
     context::GenericContext,
     db::DecisionLevelIndex,
@@ -56,12 +58,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn backjump(&mut self, target: DecisionLevelIndex) {
         // log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.index(), to);
 
-        // Sufficiently safe:
+        // Safety:
         // The pop from the decision stack is fine, as decision_count is the height of the decision stack.
         // So, the elements to pop must exist.
         // And, if an atom is in the decision stack is should certainly be in the atom database.
         unsafe {
-            for _ in 0..(self.literal_db.decision_count().saturating_sub(target)) {
+            for _ in 0..(self.literal_db.decision_level().saturating_sub(target)) {
                 self.atom_db
                     .drop_value(self.literal_db.top_decision_unchecked().atom());
                 for consequence in self.literal_db.top_consequences_unchecked() {
@@ -79,15 +81,15 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// + The *chronological* backjump level is the previous decision level of a context.
     ///
     /// For documentation, see [procedures::backjump](crate::procedures::backjump).
-    // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
     pub fn non_chronological_backjump_level(
         &self,
         clause: &impl Clause,
     ) -> Result<DecisionLevelIndex, err::ErrorKind> {
         match clause.size() {
             0 => panic!("!"),
-            1 => Ok(0),
+            1 => Ok(self.literal_db.lower_limit()),
             _ => {
+                // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
                 let mut top_two = (None, None);
                 for literal in clause.literals() {
                     let Some(dl) = (unsafe { self.atom_db.decision_index_of(literal.atom()) })
@@ -109,9 +111,35 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
 
                 match top_two {
-                    (None, _) => Ok(0),
-                    (Some(second_to_top), _) => Ok(second_to_top),
+                    (None, _) => Ok(self.literal_db.lower_limit()),
+                    (Some(second_to_top), _) => {
+                        Ok(cmp::max(self.literal_db.lower_limit(), second_to_top))
+                    }
                 }
+            }
+        }
+    }
+
+    /// Removes assumptions from a context by unbinding the value from any atom bound due to an assumption.
+    pub fn clear_assumptions(&mut self) {
+        match self.config.literal_db.stacked_assumptions {
+            true => {
+                self.backjump(0);
+                self.literal_db.lower_limit = 0;
+            }
+
+            false => {
+                for assumption in self.literal_db.flat_assumptions() {
+                    // The assumption has been added to the context, so the atom exists
+                    unsafe { self.atom_db.drop_value(assumption.atom()) };
+                }
+
+                for consequence in self.literal_db.flat_assumption_consequences() {
+                    // The consequence has been observed, so the atom exists
+                    unsafe { self.atom_db.drop_value(consequence.atom()) };
+                }
+
+                self.literal_db.clear_flat_asumptions();
             }
         }
     }
