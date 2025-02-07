@@ -134,7 +134,7 @@
 
 use crate::{
     context::{ContextState, GenericContext},
-    db::consequence_q,
+    db::ClauseKey,
     dispatch::{
         library::{
             delta::{self, Delta},
@@ -151,9 +151,9 @@ use crate::{
     structures::{
         clause::Clause,
         consequence::{self, Consequence},
-        literal::Literal,
+        literal::{CLiteral, Literal},
     },
-    types::err::{self, ErrorKind},
+    types::err::{self},
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
@@ -180,10 +180,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
                 }
 
-                match self.assert_assumptions() {
+                match unsafe { self.assert_assumptions() } {
                     Ok(_) => {}
                     Err(e) => {
                         log::info!("Failed to assert assumption: {e:?}");
+                        self.state = ContextState::Unsatisfiable(ClauseKey::OriginalUnit(
+                            CLiteral::new(0, false),
+                        ));
                         return Ok(SolveReport::Unsatisfiable);
                     }
                 };
@@ -220,7 +223,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     //
                     match self.make_decision()? {
                         decision::DecisionOk::Literal(decision) => {
-                            self.literal_db.decision_made(decision);
+                            self.literal_db.push_fresh_decision(decision);
                             let level = self.literal_db.decision_level();
                             self.value_and_queue(decision, QPosition::Back, level)?;
                             continue 'solve_loop;
@@ -276,77 +279,5 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         macros::dispatch_finish!(self);
         Ok(self.report())
-    }
-
-    fn assert_assumptions(&mut self) -> Result<(), ErrorKind> {
-        if self.literal_db.decision_is_made() {
-            panic!("! Asserting assumptions while a decision has been made.");
-            return Ok(());
-        }
-
-        match self.config.literal_db.stacked_assumptions {
-            true => {
-                let assumption_count = self.literal_db.lower_limit();
-
-                for index in 0..assumption_count {
-                    let assumption = unsafe { self.literal_db.decision_unchecked(index) };
-                    match self.atom_db.value_of(assumption.atom()) {
-                        None => match self.value_and_queue(
-                            assumption,
-                            consequence_q::QPosition::Back,
-                            index,
-                        ) {
-                            Ok(consequence_q::ConsequenceQueueOk::Qd) => continue,
-                            _ => {
-                                return Err(err::ErrorKind::from(
-                                    err::ClauseDBError::ValuationConflict,
-                                ))
-                            }
-                        },
-
-                        Some(v) if v == assumption.polarity() => {
-                            continue;
-                        }
-
-                        Some(_) => {
-                            return Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict))
-                        }
-                    }
-                }
-            }
-
-            false => {
-                let assumption_count = self.literal_db.flat_assumptions().len();
-
-                for index in 0..assumption_count {
-                    let assumption = self.literal_db.flat_assumptions()[index];
-                    match self.atom_db.value_of(assumption.atom()) {
-                        None => match self.value_and_queue(
-                            assumption,
-                            consequence_q::QPosition::Back,
-                            self.literal_db.lower_limit(),
-                        ) {
-                            Ok(consequence_q::ConsequenceQueueOk::Qd) => continue,
-                            _ => {
-                                return Err(err::ErrorKind::from(
-                                    err::ClauseDBError::ValuationConflict,
-                                ))
-                            }
-                        },
-
-                        Some(v) if v == assumption.polarity() => {
-                            // Must be at zero for an assumption, so there's nothing to do
-                            continue;
-                        }
-
-                        Some(_) => {
-                            return Err(err::ErrorKind::from(err::ClauseDBError::ValuationConflict))
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(())
     }
 }

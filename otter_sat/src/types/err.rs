@@ -20,10 +20,13 @@ pub enum ErrorKind {
     Preprocessing(PreprocessingError),
     ConsequenceQueue(ConsequenceQueueError),
     BCP(BCPError),
-    Backjump,
     ResolutionBuffer(ResolutionBufferError),
     State(StateError),
     Transfer(TransferError),
+
+    Backjump,
+    InvalidState,
+    ValuationConflict,
 }
 
 /// Noted errors during conflict analysis.
@@ -125,11 +128,6 @@ pub enum ClauseDBError {
     ///
     /// Ideally, this case could be handled and this error removed.
     DecisionMade,
-
-    /// The clause conflicts with the current valuation.
-    ///
-    /// For example, due to assumption made.
-    ValuationConflict,
 }
 
 impl From<ClauseDBError> for ErrorKind {
