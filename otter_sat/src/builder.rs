@@ -82,7 +82,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         };
 
         match clause_vec[..] {
-            [] => panic!("!"),
+            [] => panic!("! Empty clause"),
 
             [literal] => {
                 match self.atom_db.value_of(literal.atom()) {
@@ -162,7 +162,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         };
 
         match clause_vec[..] {
-            [] => panic!("!"),
+            [] => panic!("! Empty clause"),
 
             [literal] => {
                 let premises = HashSet::default();
@@ -217,7 +217,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 if unsatisfiable {
                     match result {
                         Ok(key) => self.state = ContextState::Unsatisfiable(key),
-                        Err(_) => panic!("!"),
+                        Err(_) => panic!("! Unable to store UNSAT clause"),
                     }
                 }
                 Ok(ClauseOk::Added)

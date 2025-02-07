@@ -256,9 +256,10 @@ impl ResolutionBuffer {
 
                                 return Ok(ResolutionOk::UnitClause);
                             }
+
                             _ => match key {
                                 ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) => {
-                                    panic!("!")
+                                    panic!("! Subsumption called on a unit clause")
                                 }
 
                                 ClauseKey::OriginalBinary(_) | ClauseKey::AdditionBinary(_) => {
@@ -294,7 +295,8 @@ impl ResolutionBuffer {
                         clause_db.bump_activity(*index)
                     };
                 }
-                _ => panic!("!"),
+
+                _ => panic!("! The resolution trail contains a literal whose source is not BCP"),
             };
 
             if self.valueless_count == 1 {

@@ -11,7 +11,7 @@ def test_longest_simple_path():
     lsp_prefix = "[X.XXX]"
     lsp_prefix_len = len(lsp_prefix)
 
-    for cnf in glob.glob(f"{lsp_test_directory}/*.grid"):
+    for cnf in sorted(glob.glob(f"{lsp_test_directory}/*.grid")):
         print(f"Checking: {cnf}")
 
         minisat_output = []

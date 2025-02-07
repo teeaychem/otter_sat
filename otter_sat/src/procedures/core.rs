@@ -18,7 +18,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let mut todo: VecDeque<ClauseKey> = VecDeque::default();
 
         match key {
-            ClauseKey::OriginalUnit(_) => panic!("!"),
+            ClauseKey::OriginalUnit(_) => return vec![key],
 
             _ => todo.push_back(key),
         }
@@ -58,7 +58,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     };
 
                     match db_clause.premises().len() {
-                        0 => panic!("!"),
+                        0 => panic!("! A unit addition clause with no premises"),
 
                         1 => {
                             let the_premise_key = db_clause

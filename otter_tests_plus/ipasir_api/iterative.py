@@ -4,10 +4,10 @@ from utils import BUILD_DIR, build_binaries, is_comment
 
 def test_check_iterative():
     arg_lists = [
-        ["100000", "5", "5000"],
-        ["200000", "5", "5000"],
         ["300", "3", "300000"],
         ["2000", "5", "30000"],
+        ["100000", "5", "5000"],
+        ["200000", "5", "5000"],
     ]
 
     for arg_list in arg_lists:

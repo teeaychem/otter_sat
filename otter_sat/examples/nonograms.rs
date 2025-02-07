@@ -129,12 +129,13 @@ fn main() {
             display[idx[0]][idx[1]] = 1;
         }
     }
+
     for row in display {
         for col in row {
             match col {
                 0 => print!(" "),
                 1 => print!("x"),
-                _ => panic!("!"),
+                _ => panic!("! An incomplete nonogram valuation"),
             }
         }
         println!();

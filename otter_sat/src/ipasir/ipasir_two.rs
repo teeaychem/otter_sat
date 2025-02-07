@@ -60,7 +60,7 @@ pub struct ipasir2_option {
 /// Writes the signature a raw pointer.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir2_signature(signature: *mut *const c_char) -> ipasir2_errorcode {
-    *signature = ipasir_signature();
+    std::ptr::write(signature, ipasir_signature());
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
@@ -70,7 +70,7 @@ pub unsafe extern "C" fn ipasir2_signature(signature: *mut *const c_char) -> ipa
 /// Releases the initialised solver to a raw pointer.
 #[no_mangle]
 pub unsafe extern "C" fn ipasir2_init(solver: *mut *mut c_void) -> ipasir2_errorcode {
-    *solver = ipasir_init();
+    std::ptr::write(solver, ipasir_init());
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
@@ -174,7 +174,7 @@ pub unsafe extern "C" fn ipasir2_solve(
         }
     }
 
-    *result = ipasir_solve(solver);
+    std::ptr::write(result, ipasir_solve(solver));
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
@@ -193,7 +193,7 @@ pub unsafe extern "C" fn ipasir2_value(
     lit: i32,
     result: *mut i32,
 ) -> ipasir2_errorcode {
-    *result = ipasir_val(solver, lit);
+    std::ptr::write(result, ipasir_val(solver, lit));
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
@@ -206,7 +206,7 @@ pub unsafe extern "C" fn ipasir2_failed(
     lit: i32,
     result: *mut c_int,
 ) -> ipasir2_errorcode {
-    *result = ipasir_failed(solver, lit);
+    std::ptr::write(result, ipasir_failed(solver, lit));
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
