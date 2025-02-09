@@ -80,18 +80,20 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
 
 fn frat_dir_test(dir: PathBuf) -> usize {
     let mut counter = 0;
-    let dir = dir.to_str().unwrap().to_owned();
 
-    for entry in glob::glob(format!("{dir}/*.xz").as_str()).expect("bad glob") {
-        let formula = entry.unwrap();
-        let mut config = Config::default();
-        config.switch.subsumption = false;
+    if let Some(dir) = dir.to_str() {
+        for entry in glob::glob(format!("{dir}/*.xz").as_str()).expect("bad glob") {
+            let formula = entry.unwrap();
+            let mut config = Config::default();
+            config.switch.subsumption = false;
 
-        match frat_verify(formula, config) {
-            true => counter += 1,
-            false => break,
+            match frat_verify(formula, config) {
+                true => counter += 1,
+                false => break,
+            }
         }
     }
+
     counter
 }
 

@@ -36,7 +36,6 @@ fn main() {
 
     // Each character in some string as a literal.
     for character in character_string.chars() {
-        // let _ = the_context.fresh_atom().unwrap();
         atom_map.push(character);
     }
 
