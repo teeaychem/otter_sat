@@ -10,7 +10,10 @@ fn aim() {
     let mut unsatisfiable = 0;
 
     let aim_path = cnf_lib_subdir(vec!["SATLIB", "DIMACS", "AIM"]);
-    let formulas = std::fs::read_dir(aim_path).unwrap_or_else(|_| panic!("formulas missing"));
+    let formulas = match std::fs::read_dir(aim_path) {
+        Ok(formulas) => formulas,
+        Err(_) => panic!("formulas missing"),
+    };
 
     for formula in formulas.flatten() {
         let formula_path = formula.path();
@@ -20,22 +23,22 @@ fn aim() {
             .is_some_and(|ext| ext == "cnf" || ext == "xz");
 
         if formula_check {
-            let formula_name = formula_path.to_str().unwrap().to_owned();
+            if let Some(formula_name) = formula_path.to_str() {
+                if formula_name.contains("yes") {
+                    assert_eq!(
+                        report::SolveReport::Satisfiable,
+                        silent_formula_report(formula.path(), &Config::default())
+                    );
+                    satisfiable += 1;
+                }
 
-            if formula_name.contains("yes") {
-                assert_eq!(
-                    report::SolveReport::Satisfiable,
-                    silent_formula_report(formula.path(), &Config::default())
-                );
-                satisfiable += 1;
-            }
-
-            if formula_name.contains("no") {
-                assert_eq!(
-                    report::SolveReport::Unsatisfiable,
-                    silent_formula_report(formula.path(), &Config::default())
-                );
-                unsatisfiable += 1;
+                if formula_name.contains("no") {
+                    assert_eq!(
+                        report::SolveReport::Unsatisfiable,
+                        silent_formula_report(formula.path(), &Config::default())
+                    );
+                    unsatisfiable += 1;
+                }
             }
         }
     }
@@ -209,7 +212,10 @@ fn jnh() {
     let mut unsat_count = 0;
 
     let aim_path = cnf_lib_subdir(vec!["SATLIB", "DIMACS", "JNH"]);
-    let formulas = std::fs::read_dir(aim_path).unwrap_or_else(|_| panic!("formulas missing"));
+    let formulas = match std::fs::read_dir(aim_path) {
+        Ok(formulas) => formulas,
+        Err(_) => panic!("formulas missing"),
+    };
 
     for formula in formulas.flatten() {
         match &formula.path().file_name() {

@@ -1,12 +1,9 @@
-use std::collections::HashMap;
-
 use otter_sat::{
     config::Config,
     context::Context,
     dispatch::library::report::{self},
     structures::{
         atom::Atom,
-        clause::Clause,
         literal::{CLiteral, Literal},
     },
 };
@@ -18,35 +15,49 @@ use otter_sat::{
 ///  - It is not possible to add an additional clause as the formula would become unsatisfiable
 ///  - Or, there's some error in the solver.
 fn main() {
-    let config = Config::default();
+    let mut context: Context = Context::from_config(Config::default(), None);
 
-    let mut the_context: Context = Context::from_config(config, None);
-
-    let mut atom_map = HashMap::<char, Atom>::default();
-    // Each character in some string as a literal.
     let characters = "model".chars().collect::<Vec<_>>();
-    for character in characters {
-        atom_map.insert(character, the_context.fresh_or_max_atom());
+    let mut atom_count: u32 = 0;
+    for _character in &characters {
+        match context.fresh_atom() {
+            Ok(_) => atom_count += 1,
+            Err(_) => {
+                panic!("Atom limit exhausted.")
+            }
+        }
     }
 
     let mut count = 0;
 
     loop {
-        assert!(the_context.solve().is_ok());
+        assert!(context.solve().is_ok());
 
-        match the_context.report() {
+        match context.report() {
             report::SolveReport::Satisfiable => {}
             _ => break,
         };
 
         count += 1;
 
-        let last_valuation = the_context.atom_db.valuation_string();
+        let last_valuation = context
+            .atom_db
+            .valuation_isize()
+            .iter()
+            .map(|a| {
+                let c = &characters[a.unsigned_abs() - 1];
+                match a.is_positive() {
+                    true => format!(" {c}"),
+                    false => format!("-{c}"),
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
         println!("v {count}\t {last_valuation}");
 
         let mut clause = Vec::new();
 
-        for (atom, value) in the_context
+        for (atom, value) in context
             .atom_db
             .valuation_canonical()
             .iter()
@@ -58,16 +69,13 @@ fn main() {
             }
         }
 
-        println!("To add: {}", clause.as_dimacs(false));
+        context.clear_decisions();
 
-        the_context.clear_decisions();
-        // std::process::exit(1);
-
-        match the_context.add_clause(clause) {
+        match context.add_clause(clause) {
             Ok(_) => {}
             Err(_) => break,
         };
     }
 
-    assert_eq!(count, 2_usize.pow(atom_map.len().try_into().unwrap()));
+    assert_eq!(count, 2_usize.pow(atom_count));
 }

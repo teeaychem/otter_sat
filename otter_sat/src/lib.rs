@@ -40,53 +40,82 @@
 //!
 //! # Examples
 //!
-//! + Find (a count of) all valuations of some collection of atoms.
+//! + Find a count of all valuations of some collection of atoms, while printing a representation of each model.
 //!
 //! ```rust
-//! # use otter_sat::config::Config;
-//! # use otter_sat::context::Context;
-//! # use otter_sat::dispatch::library::report::{self};
-//! # use otter_sat::structures::atom::Atom;
-//! use otter_sat::structures::literal::{CLiteral, Literal};
+//! use otter_sat::{
+//!     config::Config,
+//!     context::Context,
+//!     dispatch::library::report::{self},
+//!     structures::{
+//!         atom::Atom,
+//!         literal::{CLiteral, Literal},
+//!     },
+//! };
 //!
-//! let mut the_context: Context = Context::from_config(Config::default(), None);
-//! let mut characters = "model".chars().collect::<Vec<_>>();
-//! for character in &characters {
-//!     assert!(the_context.fresh_atom().is_ok())
+//! let mut context: Context = Context::from_config(Config::default(), None);
+//!
+//! let characters = "model".chars().collect::<Vec<_>>();
+//! let mut atom_count: u32 = 0;
+//! for _character in &characters {
+//!     match context.fresh_atom() {
+//!         Ok(_) => atom_count += 1,
+//!         Err(_) => {
+//!             panic!("Atom limit exhausted.")
+//!         }
+//!     }
 //! }
 //!
 //! let mut count = 0;
 //!
 //! loop {
-//!     assert!(the_context.solve().is_ok());
+//!     assert!(context.solve().is_ok());
 //!
-//!     match the_context.report() {
+//!     match context.report() {
 //!         report::SolveReport::Satisfiable => {}
 //!         _ => break,
 //!     };
 //!
 //!     count += 1;
 //!
+//!     let last_valuation = context
+//!         .atom_db
+//!         .valuation_isize()
+//!         .iter()
+//!         .map(|a| {
+//!             let c = &characters[a.unsigned_abs() - 1];
+//!             match a.is_positive() {
+//!                 true => format!(" {c}"),
+//!                 false => format!("-{c}"),
+//!             }
+//!         })
+//!         .collect::<Vec<_>>()
+//!         .join(" ");
+//!     println!("v {count}\t {last_valuation}");
+//!
 //!     let mut clause = Vec::new();
 //!
-//!     for (atom, value) in the_context.atom_db.valuation_canonical().iter().enumerate().skip(1) {
-//!        match value {
-//!            Some(v) => {
-//!                clause.push(CLiteral::new(atom as Atom, !v));
-//!            }
-//!            None => {}
-//!        }
-//!    }
+//!     for (atom, value) in context
+//!         .atom_db
+//!         .valuation_canonical()
+//!         .iter()
+//!         .enumerate()
+//!         .skip(1)
+//!         {
+//!             if let Some(v) = value {
+//!                 clause.push(CLiteral::new(atom as Atom, !v));
+//!             }
+//!         }
 //!
-//!    the_context.clear_decisions();
+//!     context.clear_decisions();
 //!
-//!    match the_context.add_clause(clause) {
-//!        Ok(_) => {}
-//!        Err(_) => break,
-//!    };
+//!     match context.add_clause(clause) {
+//!         Ok(_) => {}
+//!         Err(_) => break,
+//!     };
 //! }
 //!
-//! assert_eq!(count, 2_usize.pow(characters.len().try_into().unwrap()));
+//! assert_eq!(count, 2_usize.pow(atom_count));
 //! ```
 //!
 //! + Parse and solve a DIMACS formula.

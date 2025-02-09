@@ -7,16 +7,22 @@ fn main() {
     for arg in &args {
         println!("{arg}");
     }
-    let path = PathBuf::from_str(&args[1]).unwrap();
-    let cnf_file = std::fs::File::open(path).unwrap();
-    let buf_file = BufReader::new(&cnf_file);
-
-    let config = Config {
-        polarity_lean: 0.0, // Always choose to value a variable false
-        ..Default::default()
+    let path = match PathBuf::from_str(&args[1]) {
+        Ok(path) => path,
+        Err(_) => {
+            panic!("! Path to CNF required");
+        }
+    };
+    let cnf_file = match std::fs::File::open(path) {
+        Ok(path) => path,
+        Err(_) => {
+            panic!("! Failed to open CNF file");
+        }
     };
 
-    let mut the_context: Context = Context::from_config(config, None);
+    let buf_file = BufReader::new(&cnf_file);
+
+    let mut the_context: Context = Context::from_config(Config::default(), None);
 
     let _ = the_context.read_dimacs(buf_file);
 

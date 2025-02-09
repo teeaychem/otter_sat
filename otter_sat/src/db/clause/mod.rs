@@ -205,10 +205,18 @@ impl ClauseDB {
                 for premise_key in the_clause.premises() {
                     match premise_key {
                         ClauseKey::Addition(_, _) => {
-                            let clause = unsafe { self.get_unchecked_mut(premise_key).unwrap() };
-                            clause.decrement_proof_count();
-                            if !clause.is_active() && clause.proof_occurrence_count() == 0 {
-                                self.activity_heap.activate(premise_key.index());
+                            match unsafe { self.get_unchecked_mut(premise_key) } {
+                                Ok(clause) => {
+                                    clause.decrement_proof_count();
+                                    if !clause.is_active() && clause.proof_occurrence_count() == 0 {
+                                        self.activity_heap.activate(premise_key.index());
+                                    }
+                                }
+
+                                Err(_) => {
+                                    log::error!(target: targets::CLAUSE_DB, "Remove called with missing ancestor clause");
+                                    return Err(err::ClauseDBError::Missing);
+                                }
                             }
                         }
 

@@ -13,8 +13,19 @@ fn main() {
     for arg in &args {
         println!("{arg}");
     }
-    let path = PathBuf::from_str(&args[1]).unwrap();
-    let cnf_file = std::fs::File::open(path).unwrap();
+    let path = match PathBuf::from_str(&args[1]) {
+        Ok(path) => path,
+        Err(_) => {
+            panic!("! Path to CNF required");
+        }
+    };
+    let cnf_file = match std::fs::File::open(path) {
+        Ok(path) => path,
+        Err(_) => {
+            panic!("! Failed to open CNF file");
+        }
+    };
+
     let buf_file = BufReader::new(XzDecoder::new(&cnf_file));
 
     let config = Config {

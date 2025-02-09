@@ -164,9 +164,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Ok(ConflictAnalysisOk::UnitClause { key: literal })
             }
             _ => {
-                let index = self
-                    .non_chronological_backjump_level(&resolved_clause)
-                    .unwrap();
+                let index = self.non_chronological_backjump_level(&resolved_clause)?;
+
                 self.backjump(index);
 
                 let key = self.clause_db.store(

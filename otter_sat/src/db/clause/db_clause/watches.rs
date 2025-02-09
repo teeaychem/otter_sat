@@ -124,6 +124,7 @@ impl dbClause {
                     break;
                 }
                 Some(_) => {
+                    // Safety: The clause has a value, which must have been given at some level.
                     let decision_level = unsafe {
                         atom_db
                             .atom_decision_level(literal.atom())
