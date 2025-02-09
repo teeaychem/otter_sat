@@ -98,6 +98,7 @@ pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
 #[no_mangle]
 pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    println!("Assume: {lit}");
 
     bundle.keep_fresh();
 
@@ -204,6 +205,7 @@ pub unsafe extern "C" fn ipasir_failed(solver: *mut c_void, lit: i32) -> c_int {
     }
 
     let literal_canonical = CLiteral::from(lit);
+    println!("{:?}", bundle.core_keys);
 
     match bundle.core_literals.contains(&literal_canonical.negate()) {
         true => 1,
@@ -247,7 +249,7 @@ pub unsafe extern "C" fn ipasir_set_learn(
     if let Some(callback) = learn {
         let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-        let callback = Box::new(move |clause: &CClause| {
+        let callback_addition = Box::new(move |clause: &CClause| {
             if clause.len() <= (max_length as usize) {
                 let mut int_clause: Vec<c_int> = clause.literals().map(|l| l.into()).collect();
                 int_clause.push(0);
@@ -256,6 +258,23 @@ pub unsafe extern "C" fn ipasir_set_learn(
             }
         });
 
-        bundle.context.clause_db.set_callback_addition(callback);
+        bundle
+            .context
+            .clause_db
+            .set_callback_addition(callback_addition);
+
+        let callback_original = Box::new(move |clause: &CClause| {
+            if clause.len() <= (max_length as usize) {
+                let mut int_clause: Vec<c_int> = clause.literals().map(|l| l.into()).collect();
+                int_clause.push(0);
+                let callback_ptr: *mut i32 = int_clause.as_mut_ptr();
+                callback(data, callback_ptr);
+            }
+        });
+
+        bundle
+            .context
+            .clause_db
+            .set_callback_original(callback_original);
     }
 }

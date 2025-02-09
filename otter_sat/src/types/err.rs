@@ -8,7 +8,7 @@
 //! Names of the error enums --- for the most part --- overlap with corresponding structs.
 //  As such, throughout the library err::{self} is often used to prefix use of the types with `err::`.
 
-use crate::db::ClauseKey;
+use crate::{db::ClauseKey, structures::literal::CLiteral};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ErrorKind {
@@ -28,6 +28,7 @@ pub enum ErrorKind {
     Backjump,
     InvalidState,
     ValuationConflict,
+    SpecificValuationConflict(CLiteral),
 }
 
 /// Noted errors during conflict analysis.

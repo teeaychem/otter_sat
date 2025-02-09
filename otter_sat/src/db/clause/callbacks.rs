@@ -2,13 +2,22 @@ use crate::structures::{clause::CClause, literal::CLiteral};
 
 use super::ClauseDB;
 
-pub type CallbackAddition = dyn FnMut(&CClause);
-pub type CallbackDelete = dyn FnMut(&CClause);
-pub type CallbackFixed = dyn FnMut(CLiteral);
+pub type CallbackOnClause = dyn FnMut(&CClause);
+pub type CallbackOnLiteral = dyn FnMut(CLiteral);
 
 impl ClauseDB {
-    pub fn set_callback_addition(&mut self, callback: Box<CallbackAddition>) {
+    pub fn set_callback_original(&mut self, callback: Box<CallbackOnClause>) {
+        self.callback_original = Some(callback);
+    }
+
+    pub fn set_callback_addition(&mut self, callback: Box<CallbackOnClause>) {
         self.callback_addition = Some(callback);
+    }
+
+    pub fn make_callback_original(&mut self, clause: &CClause) {
+        if let Some(callback) = &mut self.callback_original {
+            callback(clause);
+        }
     }
 
     pub fn make_callback_addition(&mut self, clause: &CClause) {
@@ -17,7 +26,7 @@ impl ClauseDB {
         }
     }
 
-    pub fn set_callback_fixed(&mut self, callback: Box<CallbackFixed>) {
+    pub fn set_callback_fixed(&mut self, callback: Box<CallbackOnLiteral>) {
         self.callback_fixed = Some(callback);
     }
 
@@ -27,7 +36,7 @@ impl ClauseDB {
         }
     }
 
-    pub fn set_callback_delete(&mut self, callback: Box<CallbackDelete>) {
+    pub fn set_callback_delete(&mut self, callback: Box<CallbackOnClause>) {
         self.callback_delete = Some(callback);
     }
 

@@ -58,7 +58,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         assumption.polarity(),
                         Some(self.literal_db.decision_level()),
                     ) else {
-                        return Err(ErrorKind::ValuationConflict);
+                        return Err(ErrorKind::SpecificValuationConflict(assumption));
                     };
 
                     // Assumption can be made, so push a fresh level.
@@ -66,7 +66,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     // As assumptions are stacked, immediately call BCP.
                     let Ok(_) = self.bcp(assumption) else {
-                        return Err(ErrorKind::ValuationConflict);
+                        return Err(ErrorKind::SpecificValuationConflict(assumption));
                     };
                 }
 
@@ -81,7 +81,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         assumption.polarity(),
                         Some(self.literal_db.decision_level()),
                     ) else {
-                        return Err(ErrorKind::ValuationConflict);
+                        return Err(ErrorKind::SpecificValuationConflict(assumption));
                     };
                 }
 
@@ -94,7 +94,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 for index in 0..assumption_count {
                     let assumption = self.literal_db.recorded_assumption(index);
                     let Ok(_) = self.bcp(assumption) else {
-                        return Err(ErrorKind::ValuationConflict);
+                        return Err(ErrorKind::SpecificValuationConflict(assumption));
                     };
                 }
 

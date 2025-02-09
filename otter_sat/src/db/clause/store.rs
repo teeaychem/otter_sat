@@ -75,6 +75,7 @@ impl ClauseDB {
                 self.unit_original.insert(key, clause);
 
                 macros::dispatch_clause_db_delta!(self, Original, key);
+                self.make_callback_original(&vec![literal]);
 
                 Ok(key)
             }
@@ -85,7 +86,6 @@ impl ClauseDB {
                 self.unit_addition.insert(key, clause);
 
                 macros::dispatch_clause_db_delta!(self, BCP, key);
-
                 self.make_callback_addition(&vec![literal]);
                 self.make_callback_fixed(literal);
 
@@ -121,8 +121,10 @@ impl ClauseDB {
                 let key = self.fresh_original_binary_key()?;
 
                 macros::dispatch_clause_addition!(self, clause, Original, key);
+                self.make_callback_original(&clause);
 
                 let clause = dbClause::new_nonunit(key, clause, atom_db, valuation, premises);
+
                 self.binary_original.push(clause);
 
                 Ok(key)
@@ -162,6 +164,7 @@ impl ClauseDB {
 
                 macros::dispatch_clause_addition!(self, clause, Original, key);
                 log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
+                self.make_callback_original(&clause);
 
                 let db_clause = dbClause::new_nonunit(key, clause, atom_db, valuation, premises);
 
@@ -178,9 +181,8 @@ impl ClauseDB {
                 };
 
                 macros::dispatch_clause_addition!(self, clause, Added, key);
-                self.make_callback_addition(&clause);
-
                 log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
+                self.make_callback_addition(&clause);
 
                 let stored_form = dbClause::new_nonunit(key, clause, atom_db, valuation, premises);
 
