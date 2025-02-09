@@ -97,9 +97,9 @@ fn main() {
     let clause_count = puzzle.context.clause_db.total_clause_count();
     println!("Context build with {clause_count} clauses",);
 
-    let result = puzzle.context.solve().unwrap();
+    let result = puzzle.context.solve();
 
-    if matches!(result, SolveReport::Unsatisfiable) {
+    if matches!(result, Ok(SolveReport::Unsatisfiable)) {
         println!("No solution");
         std::process::exit(0);
     }
@@ -119,7 +119,7 @@ fn main() {
         .collect::<HashMap<Atom, String>>();
 
     for literal in valuation {
-        let atom_string = reverse_map.get(&(literal.abs() as Atom)).unwrap();
+        let atom_string = reverse_map.get(&(literal.unsigned_abs() as Atom)).unwrap();
 
         if literal.is_positive() && atom_string.starts_with("Fill") {
             let idx = &atom_string[5..atom_string.len() - 1]
@@ -169,7 +169,7 @@ impl Nonogram {
         let atom = match self.atom_map.get(&atom_string) {
             Some(atom) => *atom,
             None => {
-                let atom = self.context.fresh_atom().unwrap();
+                let atom = self.context.fresh_or_max_atom();
                 self.atom_map.insert(atom_string, atom);
                 atom
             }
@@ -189,7 +189,7 @@ impl Nonogram {
         let atom = match self.atom_map.get(&atom_string) {
             Some(atom) => *atom,
             None => {
-                let atom = self.context.fresh_atom().unwrap();
+                let atom = self.context.fresh_or_max_atom();
                 self.atom_map.insert(atom_string, atom);
                 atom
             }
@@ -209,7 +209,7 @@ impl Nonogram {
         let atom = match self.atom_map.get(&atom_string) {
             Some(atom) => *atom,
             None => {
-                let atom = self.context.fresh_atom().unwrap();
+                let atom = self.context.fresh_or_max_atom();
                 self.atom_map.insert(atom_string, atom);
                 atom
             }
@@ -229,7 +229,7 @@ impl Nonogram {
         let atom = match self.atom_map.get(&atom_string) {
             Some(atom) => *atom,
             None => {
-                let atom = self.context.fresh_atom().unwrap();
+                let atom = self.context.fresh_or_max_atom();
                 self.atom_map.insert(atom_string, atom);
                 atom
             }
@@ -249,7 +249,7 @@ impl Nonogram {
         let atom = match self.atom_map.get(&atom_string) {
             Some(atom) => *atom,
             None => {
-                let atom = self.context.fresh_atom().unwrap();
+                let atom = self.context.fresh_or_max_atom();
                 self.atom_map.insert(atom_string, atom);
                 atom
             }
@@ -334,7 +334,7 @@ impl Nonogram {
                 self.block_start_row_literal(row, start_col, block_idx, false);
 
             for length in 1..=(self.row_length - start_col) {
-                let mut the_clause = vec![start_block_literal.clone()];
+                let mut the_clause = vec![start_block_literal];
                 for offset in 1..length {
                     let fill_literal = self.fill_literal(row, start_col + offset, false);
                     the_clause.push(fill_literal);
@@ -576,7 +576,7 @@ impl Nonogram {
                 self.block_start_col_literal(start_row, col, block_idx, false);
 
             for length in 1..=(self.col_length - start_row) {
-                let mut the_clause = vec![start_block_literal.clone()];
+                let mut the_clause = vec![start_block_literal];
                 for offset in 1..length {
                     let fill_literal = self.fill_literal(start_row + offset, col, false);
                     the_clause.push(fill_literal);

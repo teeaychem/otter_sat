@@ -12,7 +12,7 @@ use crate::{
         clause::{CClause, Clause, ClauseSource},
         literal::{CLiteral, Literal},
     },
-    types::err::{self, PreprocessingError},
+    types::err::{self, ErrorKind, PreprocessingError},
 };
 
 use core::panic;
@@ -34,6 +34,15 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn fresh_atom(&mut self) -> Result<Atom, err::AtomDBError> {
         let previous_value = self.rng.gen_bool(self.config.polarity_lean);
         self.re_fresh_atom(previous_value)
+    }
+
+    /// Returns a fresh atom, or the maximum atom.
+    pub fn fresh_or_max_atom(&mut self) -> Atom {
+        let previous_value = self.rng.gen_bool(self.config.polarity_lean);
+        match self.re_fresh_atom(previous_value) {
+            Ok(atom) => atom,
+            Err(_) => Atom::MAX,
+        }
     }
 
     pub fn re_fresh_atom(&mut self, previous_value: bool) -> Result<Atom, err::AtomDBError> {
@@ -58,8 +67,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// # use otter_sat::structures::literal::{CLiteral, Literal};
     /// #
     /// let mut the_context = Context::from_config(Config::default(), None);
-    /// let p = the_context.fresh_atom().unwrap();
-    /// let q = the_context.fresh_atom().unwrap();
+    /// let p = the_context.fresh_or_max_atom();
+    /// let q = the_context.fresh_or_max_atom();
     ///
     /// let clause = vec![CLiteral::new(p, true), CLiteral::new(q, false)];
     ///
@@ -349,7 +358,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 let the_literal = match atom_map.get(&parsed_int.abs()) {
                                     Some(atom) => CLiteral::new(*atom, parsed_int.is_positive()),
                                     None => {
-                                        let fresh_atom = self.fresh_atom().unwrap();
+                                        let fresh_atom = match self.fresh_atom() {
+                                            Ok(atom) => atom,
+                                            Err(_) => return Err(ErrorKind::AtomsExhausted),
+                                        };
                                         atom_map.insert(parsed_int.abs(), fresh_atom);
                                         CLiteral::new(fresh_atom, parsed_int.is_positive())
                                     }

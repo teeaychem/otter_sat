@@ -93,7 +93,7 @@ fn cell_atom(
     match cell_map.get(&the_string) {
         Some(atom) => *atom,
         None => {
-            let atom = context.fresh_atom().unwrap();
+            let atom = context.fresh_or_max_atom();
             cell_map.insert(the_string, atom);
             atom
         }
@@ -273,7 +273,7 @@ fn valuation_to_grid(valuation: Vec<isize>, cell_map: &HashMap<String, Atom>) ->
     for info in valuation {
         if info.is_positive() {
             let parts = inverted_map
-                .get(&(info.abs() as Atom))
+                .get(&(info.unsigned_abs() as Atom))
                 .unwrap()
                 .split('_')
                 .collect::<Vec<_>>();

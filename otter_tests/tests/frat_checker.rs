@@ -78,8 +78,10 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     }
 }
 
-fn frat_dir_test(dir: String) -> usize {
+fn frat_dir_test(dir: PathBuf) -> usize {
     let mut counter = 0;
+    let dir = dir.to_str().unwrap().to_owned();
+
     for entry in glob::glob(format!("{dir}/*.xz").as_str()).expect("bad glob") {
         let formula = entry.unwrap();
         let mut config = Config::default();
@@ -134,28 +136,28 @@ mod frat_tests {
             #[test]
             fn uf50_218_1000() {
                 let dir = uniform_random_dir().join("UF50.218.1000").join("unsat");
-                assert_eq!(frat_dir_test(dir.to_str().unwrap().to_owned()), 1000);
+                assert_eq!(frat_dir_test(dir), 1000);
             }
 
             #[test]
             #[ignore = "expensive"]
             fn uf200_860_100() {
                 let dir = uniform_random_dir().join("UF200.860.100").join("unsat");
-                assert_eq!(frat_dir_test(dir.to_str().unwrap().to_owned()), 99);
+                assert_eq!(frat_dir_test(dir), 99);
             }
 
             #[test]
             #[ignore = "expensive"]
             fn uf225_960_100() {
                 let dir = uniform_random_dir().join("UF225.960.100").join("unsat");
-                assert_eq!(frat_dir_test(dir.to_str().unwrap().to_owned()), 100);
+                assert_eq!(frat_dir_test(dir), 100);
             }
 
             #[test]
             #[ignore = "expensive"]
             fn uf250_1065_100() {
                 let dir = uniform_random_dir().join("UF250.1065.100").join("unsat");
-                assert_eq!(frat_dir_test(dir.to_str().unwrap().to_owned()), 100);
+                assert_eq!(frat_dir_test(dir), 100);
             }
         }
 
@@ -222,7 +224,7 @@ mod frat_tests {
             #[test]
             fn DUBOIS() {
                 let dir = dimacs_dir().join("DUBOIS");
-                assert_eq!(frat_dir_test(dir.to_str().unwrap().to_owned()), 13);
+                assert_eq!(frat_dir_test(dir), 13);
             }
 
             mod curcuit {

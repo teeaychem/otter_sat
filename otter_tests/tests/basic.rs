@@ -16,7 +16,7 @@ mod basic {
     #[test]
     fn one_literal() {
         let mut the_context = Context::from_config(Config::default(), None);
-        let p = the_context.fresh_atom().unwrap();
+        let p = the_context.fresh_or_max_atom();
         let p_clause = CLiteral::new(p, true);
 
         assert_eq!(Ok(ClauseOk::Added), the_context.add_clause(p_clause));
@@ -30,8 +30,8 @@ mod basic {
     fn conflict() {
         let mut the_context = Context::from_config(Config::default(), None);
 
-        let p = the_context.fresh_atom().unwrap();
-        let q = the_context.fresh_atom().unwrap();
+        let p = the_context.fresh_or_max_atom();
+        let q = the_context.fresh_or_max_atom();
 
         let p_q_clause = vec![CLiteral::new(p, true), CLiteral::new(q, true)];
         assert!(the_context.add_clause(p_q_clause).is_ok());
@@ -56,8 +56,8 @@ mod basic {
     fn assumption() {
         let mut the_context = Context::from_config(Config::default(), None);
 
-        let p = the_context.fresh_atom().unwrap();
-        let q = the_context.fresh_atom().unwrap();
+        let p = the_context.fresh_or_max_atom();
+        let q = the_context.fresh_or_max_atom();
 
         let p_q_clause = vec![CLiteral::new(p, true), CLiteral::new(q, true)];
         assert_eq!(Ok(ClauseOk::Added), the_context.add_clause(p_q_clause));
@@ -76,8 +76,8 @@ mod basic {
     fn duplicates() {
         let mut the_context = Context::from_config(Config::default(), None);
 
-        let p = the_context.fresh_atom().unwrap();
-        let q = the_context.fresh_atom().unwrap();
+        let p = the_context.fresh_or_max_atom();
+        let q = the_context.fresh_or_max_atom();
 
         let p_p_q_q_clause = vec![
             CLiteral::new(p, true),
@@ -108,8 +108,8 @@ mod basic {
     fn tautology_skip() {
         let mut the_context = Context::from_config(Config::default(), None);
 
-        let p = the_context.fresh_atom().unwrap();
-        let q = the_context.fresh_atom().unwrap();
+        let p = the_context.fresh_or_max_atom();
+        let q = the_context.fresh_or_max_atom();
 
         let p_q_not_p_clause = vec![
             CLiteral::new(p, true),

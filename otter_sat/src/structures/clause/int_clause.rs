@@ -53,7 +53,7 @@ impl Clause for IntClause {
     fn lbd(&self, atom_db: &AtomDB) -> LBD {
         let mut decision_levels = self
             .iter()
-            .map(|literal| unsafe { atom_db.decision_index_of(literal.atom()) })
+            .map(|literal| unsafe { atom_db.atom_decision_level(literal.atom()) })
             .collect::<Vec<_>>();
 
         decision_levels.sort_unstable();
@@ -64,7 +64,7 @@ impl Clause for IntClause {
 
     fn literals(&self) -> impl Iterator<Item = CLiteral> {
         #[cfg(feature = "boolean")]
-        return self.iter().map(|literal| literal.canonical());
+        return self.iter().map(|l| l.canonical());
 
         #[cfg(not(feature = "boolean"))]
         return self.iter().copied();
@@ -80,10 +80,7 @@ impl Clause for IntClause {
 
     fn canonical(self) -> super::CClause {
         #[cfg(feature = "boolean")]
-        return self
-            .into_iter()
-            .map(|literal| structures::literal::Literal::canonical(&literal))
-            .collect();
+        return self.into_iter().map(|l| CLiteral::canonical(&l)).collect();
 
         #[cfg(not(feature = "boolean"))]
         return self;

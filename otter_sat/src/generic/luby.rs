@@ -63,8 +63,8 @@ mod tests {
     fn luby() {
         let mut l = Luby { curr: 0, next: 0 };
         for known_value in LUBY_SLICE {
-            let next = l.next().unwrap();
-            assert_eq!(next, *known_value)
+            let next = l.next();
+            assert_eq!(next, Some(*known_value))
         }
     }
 

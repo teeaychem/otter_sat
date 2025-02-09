@@ -67,19 +67,23 @@ pub fn silent_on_directory(
 ) -> usize {
     let dir_info = std::fs::read_dir(subdir);
 
-    assert!(dir_info.is_ok(), "Formulas missing");
-
     let mut count = 0;
 
-    for test in dir_info.unwrap().flatten() {
-        if test
-            .path()
-            .extension()
-            .is_some_and(|extension| extension == "xz")
-        {
-            assert_eq!(require, silent_formula_report(test.path(), config));
-            count += 1;
+    match dir_info {
+        Err(_) => panic!("Formulas missing"),
+        Ok(the_gen) => {
+            for test in the_gen.flatten() {
+                if test
+                    .path()
+                    .extension()
+                    .is_some_and(|extension| extension == "xz")
+                {
+                    assert_eq!(require, silent_formula_report(test.path(), config));
+                    count += 1;
+                }
+            }
         }
     }
+
     count
 }

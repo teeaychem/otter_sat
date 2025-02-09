@@ -43,13 +43,10 @@ impl AtomDB {
     pub fn valuation_string(&self) -> String {
         self.valuation()
             .av_pairs()
-            .filter_map(|(i, v)| {
-                let atom = i as Atom;
-                match v {
-                    None => None,
-                    Some(true) => Some(format!(" {atom}")),
-                    Some(false) => Some(format!("-{atom}")),
-                }
+            .filter_map(|(atom, v)| match v {
+                None => None,
+                Some(true) => Some(format!(" {atom}")),
+                Some(false) => Some(format!("-{atom}")),
             })
             .collect::<Vec<_>>()
             .join(" ")
@@ -59,31 +56,23 @@ impl AtomDB {
     pub fn valuation_isize(&self) -> Vec<isize> {
         self.valuation()
             .av_pairs()
-            .filter_map(|(i, v)| {
-                let atom = i as Atom;
-                match v {
-                    None => None,
-                    Some(true) => Some(atom as isize),
-                    Some(false) => Some(-(atom as isize)),
-                }
+            .filter_map(|(atom, v)| match v {
+                None => None,
+                Some(true) => Some(atom as isize),
+                Some(false) => Some(-(atom as isize)),
             })
             .collect()
     }
 
     /// A string representing the current valuation, using the internal representation of atoms.
     pub fn internal_valuation_string(&self) -> String {
-        let mut v = self
-            .valuation()
+        self.valuation()
             .av_pairs()
-            .filter_map(|(i, v)| match v {
+            .filter_map(|(atom, v)| match v {
                 None => None,
-                Some(true) => Some(i as isize),
-                Some(false) => Some(-(i as isize)),
+                Some(true) => Some((atom as isize).to_string()),
+                Some(false) => Some((-(atom as isize)).to_string()),
             })
-            .collect::<Vec<_>>();
-        v.sort_unstable();
-        v.iter()
-            .map(|v| v.to_string())
             .collect::<Vec<_>>()
             .join(" ")
     }
@@ -91,25 +80,19 @@ impl AtomDB {
     /// A string representing the current valuation and the decision levels at which atoms were valued.
     /// The internal representation of atoms is used.
     pub fn internal_valuation_decision_string(&self) -> String {
-        let mut v = self
-            .valuation()
-            .av_pairs()
-            .filter_map(|(i, v)| match v {
-                None => None,
-                Some(true) => Some(i as isize),
-                Some(false) => Some(-(i as isize)),
-            })
-            .collect::<Vec<_>>();
-        v.sort_unstable();
-        v.iter()
-            .map(|v| unsafe {
-                format!(
-                    "{} ({:?})",
-                    v,
-                    self.decision_index_of(v.unsigned_abs() as Atom).unwrap()
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(" ")
+        unsafe {
+            self.valuation()
+                .av_pairs()
+                .filter_map(|(atom, v)| match self.atom_decision_level(atom) {
+                    None => None,
+                    Some(level) => match v {
+                        None => None,
+                        Some(true) => Some(format!("{atom} ({level})",)),
+                        Some(false) => Some(format!("-{atom} ({level})",)),
+                    },
+                })
+                .collect::<Vec<_>>()
+                .join(" ")
+        }
     }
 }

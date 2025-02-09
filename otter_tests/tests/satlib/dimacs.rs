@@ -183,24 +183,26 @@ fn inductive_inference() {
 
 #[test]
 fn jnh() {
+    use std::ffi::OsStr;
+
     let satisfiable = [
-        "jnh1.cnf.xz",
-        "jnh7.cnf.xz",
-        "jnh12.cnf.xz",
-        "jnh17.cnf.xz",
-        "jnh201.cnf.xz",
-        "jnh204.cnf.xz",
-        "jnh205.cnf.xz",
-        "jnh207.cnf.xz",
-        "jnh209.cnf.xz",
-        "jnh210.cnf.xz",
-        "jnh212.cnf.xz",
-        "jnh213.cnf.xz",
-        "jnh217.cnf.xz",
-        "jnh218.cnf.xz",
-        "jnh220.cnf.xz",
-        "jnh301.cnf.xz",
-        "jnh212.cnf.xz",
+        OsStr::new("jnh1.cnf.xz"),
+        OsStr::new("jnh7.cnf.xz"),
+        OsStr::new("jnh12.cnf.xz"),
+        OsStr::new("jnh17.cnf.xz"),
+        OsStr::new("jnh201.cnf.xz"),
+        OsStr::new("jnh204.cnf.xz"),
+        OsStr::new("jnh205.cnf.xz"),
+        OsStr::new("jnh207.cnf.xz"),
+        OsStr::new("jnh209.cnf.xz"),
+        OsStr::new("jnh210.cnf.xz"),
+        OsStr::new("jnh212.cnf.xz"),
+        OsStr::new("jnh213.cnf.xz"),
+        OsStr::new("jnh217.cnf.xz"),
+        OsStr::new("jnh218.cnf.xz"),
+        OsStr::new("jnh220.cnf.xz"),
+        OsStr::new("jnh301.cnf.xz"),
+        OsStr::new("jnh212.cnf.xz"),
     ];
 
     let mut sat_count = 0;
@@ -210,34 +212,30 @@ fn jnh() {
     let formulas = std::fs::read_dir(aim_path).unwrap_or_else(|_| panic!("formulas missing"));
 
     for formula in formulas.flatten() {
-        let formula_path = formula.path();
+        match &formula.path().file_name() {
+            None => {}
+            Some(filename) => {
+                let formula_path = formula.path();
 
-        let formula_check = formula_path
-            .extension()
-            .is_some_and(|ext| ext == "cnf" || ext == "xz");
+                let formula_check = formula_path
+                    .extension()
+                    .is_some_and(|ext| ext == "cnf" || ext == "xz");
 
-        if formula_check {
-            let file = formula
-                .path()
-                .as_path()
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_owned();
-
-            if satisfiable.contains(&file.as_str()) {
-                assert_eq!(
-                    report::SolveReport::Satisfiable,
-                    silent_formula_report(formula.path(), &Config::default())
-                );
-                sat_count += 1;
-            } else {
-                assert_eq!(
-                    report::SolveReport::Unsatisfiable,
-                    silent_formula_report(formula.path(), &Config::default())
-                );
-                unsat_count += 1;
+                if formula_check {
+                    if satisfiable.contains(filename) {
+                        assert_eq!(
+                            report::SolveReport::Satisfiable,
+                            silent_formula_report(formula.path(), &Config::default())
+                        );
+                        sat_count += 1;
+                    } else {
+                        assert_eq!(
+                            report::SolveReport::Unsatisfiable,
+                            silent_formula_report(formula.path(), &Config::default())
+                        );
+                        unsat_count += 1;
+                    }
+                }
             }
         }
     }

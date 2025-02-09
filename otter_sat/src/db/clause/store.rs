@@ -172,9 +172,9 @@ impl ClauseDB {
             ClauseSource::Resolution => {
                 self.addition_count += 1;
 
-                let key = match self.empty_keys.len() {
-                    0 => self.fresh_addition_key()?,
-                    _ => self.empty_keys.pop().unwrap().retoken()?,
+                let key = match self.empty_keys.pop() {
+                    None => self.fresh_addition_key()?,
+                    Some(key) => key.retoken()?,
                 };
 
                 macros::dispatch_clause_addition!(self, clause, Added, key);

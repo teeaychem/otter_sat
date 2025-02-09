@@ -121,7 +121,7 @@ impl AtomDB {
     ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
-    pub unsafe fn decision_index_of(&self, atom: Atom) -> Option<DecisionLevelIndex> {
+    pub unsafe fn atom_decision_level(&self, atom: Atom) -> Option<DecisionLevelIndex> {
         *self.decision_indicies.get_unchecked(atom as usize)
     }
 

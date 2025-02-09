@@ -24,6 +24,7 @@ pub enum ErrorKind {
     State(StateError),
     Transfer(TransferError),
 
+    AtomsExhausted,
     Backjump,
     InvalidState,
     ValuationConflict,
