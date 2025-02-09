@@ -11,7 +11,6 @@ use crate::{
         macros::{self},
         Dispatch,
     },
-    ipasir::IpasirCallbacks,
     misc::log::targets,
     structures::{
         clause::{CClause, Clause, ClauseSource},
@@ -45,7 +44,6 @@ impl ClauseDB {
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,
         premises: HashSet<ClauseKey>,
-        callbacks: &Option<IpasirCallbacks>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match clause.size() {
             0 => Err(err::ClauseDBError::EmptyClause),
@@ -53,26 +51,12 @@ impl ClauseDB {
             // The match ensures there is a next (and then no further) literal in the clause.
             1 => {
                 let literal = unsafe { clause.literals().next().unwrap_unchecked() };
-                self.store_unit(literal, source, premises, callbacks)
+                self.store_unit(literal, source, premises)
             }
 
-            2 => self.store_binary(
-                clause.canonical(),
-                source,
-                atom_db,
-                valuation,
-                premises,
-                callbacks,
-            ),
+            2 => self.store_binary(clause.canonical(), source, atom_db, valuation, premises),
 
-            _ => self.store_long(
-                clause.canonical(),
-                source,
-                atom_db,
-                valuation,
-                premises,
-                callbacks,
-            ),
+            _ => self.store_long(clause.canonical(), source, atom_db, valuation, premises),
         }
     }
 }
@@ -83,7 +67,6 @@ impl ClauseDB {
         literal: CLiteral,
         source: ClauseSource,
         premises: HashSet<ClauseKey>,
-        callbacks: &Option<IpasirCallbacks>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match source {
             ClauseSource::Original => {
@@ -102,12 +85,9 @@ impl ClauseDB {
                 self.unit_addition.insert(key, clause);
 
                 macros::dispatch_clause_db_delta!(self, BCP, key);
-                if let Some(callbacks) = callbacks {
-                    unsafe {
-                        callbacks.call_ipasir_addition_callback(&vec![literal]);
-                        callbacks.call_ipasir_fixed_callback(literal);
-                    };
-                }
+
+                self.make_callback_addition(&vec![literal]);
+                self.make_callback_fixed(literal);
 
                 Ok(key)
             }
@@ -118,12 +98,8 @@ impl ClauseDB {
                 self.unit_addition.insert(key, clause);
 
                 macros::dispatch_clause_db_delta!(self, Added, key);
-                if let Some(callbacks) = callbacks {
-                    unsafe {
-                        callbacks.call_ipasir_addition_callback(&vec![literal]);
-                        callbacks.call_ipasir_fixed_callback(literal);
-                    };
-                }
+                self.make_callback_addition(&vec![literal]);
+                self.make_callback_fixed(literal);
 
                 Ok(key)
             }
@@ -139,7 +115,6 @@ impl ClauseDB {
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,
         premises: HashSet<ClauseKey>,
-        callbacks: &Option<IpasirCallbacks>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match source {
             ClauseSource::Original => {
@@ -157,9 +132,7 @@ impl ClauseDB {
                 let key = self.fresh_addition_binary_key()?;
 
                 macros::dispatch_clause_addition!(self, clause, Added, key);
-                if let Some(callbacks) = callbacks {
-                    unsafe { callbacks.call_ipasir_addition_callback(&clause) };
-                }
+                self.make_callback_addition(&clause);
 
                 let clause = dbClause::new_nonunit(key, clause, atom_db, valuation, premises);
                 self.binary_addition.push(clause);
@@ -178,7 +151,6 @@ impl ClauseDB {
         atom_db: &mut AtomDB,
         valuation: Option<&vValuation>,
         premises: HashSet<ClauseKey>,
-        callbacks: &Option<IpasirCallbacks>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match source {
             ClauseSource::BCP | ClauseSource::PureUnit => {
@@ -206,9 +178,7 @@ impl ClauseDB {
                 };
 
                 macros::dispatch_clause_addition!(self, clause, Added, key);
-                if let Some(callbacks) = callbacks {
-                    unsafe { callbacks.call_ipasir_addition_callback(&clause) };
-                }
+                self.make_callback_addition(&clause);
 
                 log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
 

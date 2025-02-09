@@ -14,10 +14,10 @@ use crate::{
     dispatch::library::report::SolveReport,
     ipasir::{
         ipasir_one::{ipasir_failed, ipasir_init, ipasir_set_learn},
-        ContextBundle, IpasirCallbacks, IPASIR_SIGNATURE,
+        ContextBundle, IPASIR_SIGNATURE,
     },
     structures::{
-        clause::CClause,
+        clause::{CClause, Clause, IntClause},
         literal::{CLiteral, Literal},
     },
 };
@@ -262,9 +262,11 @@ pub unsafe extern "C" fn ipasir2_set_terminate(
 }
 
 /// Sets a callback function for receiving addition clauses from the context.
+/// At present, no metadata is supported.
 /// # Safety
 /// Recovers a context bundle and reads from multiple C pointers.
 #[no_mangle]
+#[allow(clippy::useless_conversion)]
 pub unsafe extern "C" fn ipasir2_set_export(
     solver: *mut c_void,
     data: *mut c_void,
@@ -275,22 +277,21 @@ pub unsafe extern "C" fn ipasir2_set_export(
 ) -> ipasir2_errorcode {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    match &mut bundle.context.ipasir_callbacks {
-        None => {
-            let callbacks = IpasirCallbacks {
-                delete_callback: callback,
-                delete_data: data,
-                ..Default::default()
-            };
+    let callback = Box::new(move |clause: &CClause| {
+        if clause.len() < (max_length as usize) {
+            let mut int_clause: Vec<c_int> = clause.literals().map(|l| l.into()).collect();
+            let callback_ptr: *mut i32 = int_clause.as_mut_ptr();
 
-            bundle.context.ipasir_callbacks = Some(callbacks);
+            callback.unwrap()(
+                data,
+                callback_ptr,
+                clause.len() as i32,
+                std::ptr::null_mut(),
+            );
         }
+    });
 
-        Some(callbacks) => {
-            callbacks.delete_callback = callback;
-            callbacks.delete_data = data;
-        }
-    }
+    bundle.context.clause_db.set_callback_addition(callback);
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
@@ -299,6 +300,7 @@ pub unsafe extern "C" fn ipasir2_set_export(
 ///
 /// # Safety
 /// Recovers a context bundle and reads from multiple C pointers.
+#[allow(clippy::useless_conversion)]
 #[no_mangle]
 pub unsafe extern "C" fn ipasir2_delete(
     solver: *mut c_void,
@@ -309,22 +311,23 @@ pub unsafe extern "C" fn ipasir2_delete(
 ) -> ipasir2_errorcode {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    match &mut bundle.context.ipasir_callbacks {
-        None => {
-            let callbacks = IpasirCallbacks {
-                export_callback: callback,
-                addition_data: data,
-                ..Default::default()
-            };
+    let callback = Box::new(move |clause: &CClause| {
+        let callback_ptr: *mut i32 = if cfg!(feature = "boolean") {
+            let mut int_clause: IntClause = clause.literals().map(|l| l.into()).collect();
+            int_clause.as_mut_ptr()
+        } else {
+            clause.as_ptr() as *mut i32
+        };
 
-            bundle.context.ipasir_callbacks = Some(callbacks);
-        }
+        callback.unwrap()(
+            data,
+            callback_ptr,
+            clause.size().try_into().unwrap(),
+            std::ptr::null_mut(),
+        );
+    });
 
-        Some(callbacks) => {
-            callbacks.export_callback = callback;
-            callbacks.addition_data = data;
-        }
-    }
+    bundle.context.clause_db.set_callback_delete(callback);
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
@@ -376,22 +379,11 @@ pub unsafe extern "C" fn ipasir2_set_fixed(
 
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    match &mut bundle.context.ipasir_callbacks {
-        None => {
-            let callbacks = IpasirCallbacks {
-                fixed_callback: callback,
-                fixed_data: data,
-                ..Default::default()
-            };
+    let callback = Box::new(move |literal: CLiteral| {
+        callback.unwrap()(data, literal);
+    });
 
-            bundle.context.ipasir_callbacks = Some(callbacks);
-        }
-
-        Some(callbacks) => {
-            callbacks.fixed_callback = callback;
-            callbacks.fixed_data = data;
-        }
-    }
+    bundle.context.clause_db.set_callback_fixed(callback);
 
     ipasir2_errorcode::IPASIR2_E_OK
 }

@@ -42,7 +42,6 @@ use crate::{
         macros::{self},
         Dispatch,
     },
-    ipasir::IpasirCallbacks,
     misc::log::targets::{self},
     structures::{
         atom::Atom,
@@ -192,7 +191,6 @@ impl ResolutionBuffer {
         literal_db: &LiteralDB,
         clause_db: &mut ClauseDB,
         atom_db: &mut AtomDB,
-        callbacks: &Option<IpasirCallbacks>,
     ) -> Result<ResolutionOk, err::ResolutionBufferError> {
         // The key has already been used to access the conflicting clause.
         let base_clause = match unsafe { clause_db.get_unchecked_mut(key) } {
@@ -275,7 +273,6 @@ impl ResolutionBuffer {
                                         consequence.literal(),
                                         atom_db,
                                         premises,
-                                        callbacks,
                                     )?;
 
                                     // TODO: Inference counts for subsumption

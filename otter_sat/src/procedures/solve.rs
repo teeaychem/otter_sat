@@ -209,10 +209,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 return Ok(report::SolveReport::TimeUp);
             }
 
-            if let Some(callbacks) = &self.ipasir_callbacks {
-                if unsafe { callbacks.call_ipasir_terminate_callback() } != 0 {
-                    break 'solve_loop;
-                }
+            if self.check_callback_terminate() {
+                break 'solve_loop;
             }
 
             match self.apply_consequences()? {
@@ -264,16 +262,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 };
 
                 if self.restart_interrupt() {
-                    self.clause_db.reduce_by(
-                        self.clause_db.current_addition_count() / 2,
-                        &self.ipasir_callbacks,
-                    );
+                    self.clause_db
+                        .reduce_by(self.clause_db.current_addition_count() / 2);
                 }
             } else if self.conflict_total_interrupt() {
-                self.clause_db.reduce_by(
-                    self.clause_db.current_addition_count() / 2,
-                    &self.ipasir_callbacks,
-                )?;
+                self.clause_db
+                    .reduce_by(self.clause_db.current_addition_count() / 2)?;
             }
         }
 

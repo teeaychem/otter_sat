@@ -8,51 +8,37 @@ The addition_hook prints an ascii character for each clause added to the formula
 To run the example (e.g.): cargo run --profile release --example ipasir_conflict 10
  */
 
-use std::ffi::c_void;
-
 use otter_sat::{
     config::Config,
     context::Context,
     dispatch::library::report,
-    ipasir::IpasirCallbacks,
-    structures::{clause::IntClause, literal::IntLiteral},
+    structures::{
+        clause::{CClause, IntClause},
+        literal::IntLiteral,
+    },
 };
 
-extern "C" fn addition_hook(data: *mut c_void, clause: *mut i32) {
-    let mut length = 0;
-    loop {
-        let literal = unsafe { clause.offset(length) };
-        if unsafe { *literal } == 0 {
-            break;
-        } else {
-            length += 1;
-        }
-    }
+fn addition_hook(clause: &CClause) {
+    let length = clause.len();
 
-    unsafe {
-        if length > (*(data as *mut i32)).try_into().unwrap() {
-            std::ptr::write(data as *mut i32, length.try_into().unwrap());
-        } else {
-            match length {
-                1 => {
-                    print!("!")
-                }
-                2 => {
-                    print!("'")
-                }
-                l if l < 5 => {
-                    print!("*")
-                }
-                l if l < 7 => {
-                    print!(":")
-                }
-                l if l < 9 => {
-                    print!("`")
-                }
-                _ => {
-                    print!(".")
-                }
-            }
+    match length {
+        1 => {
+            print!("!")
+        }
+        2 => {
+            print!("'")
+        }
+        l if l < 5 => {
+            print!("*")
+        }
+        l if l < 7 => {
+            print!(":")
+        }
+        l if l < 9 => {
+            print!("`")
+        }
+        _ => {
+            print!(".")
         }
     }
 }
@@ -69,15 +55,10 @@ fn main() {
 
     let config = Config::default();
 
-    let callbacks = IpasirCallbacks {
-        learn_callback: Some(addition_hook),
-        addition_data: length as *mut c_void,
-        addition_length: atom_count,
-        ..Default::default()
-    };
-
     let mut the_context: Context = Context::from_config(config, None);
-    the_context.ipasir_callbacks = Some(callbacks);
+    the_context
+        .clause_db
+        .set_callback_addition(Box::new(addition_hook));
 
     for _ in 0..atom_count {
         let _ = the_context.fresh_atom();
