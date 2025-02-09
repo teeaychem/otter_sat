@@ -6,7 +6,7 @@ use crate::{
     context::ContextState,
     db::ClauseKey,
     dispatch::library::report::SolveReport,
-    ipasir::{ContextBundle, IpasirCallbacks, IPASIR_SIGNATURE},
+    ipasir::{ContextBundle, IPASIR_SIGNATURE},
     structures::{
         atom::Atom,
         clause::{CClause, Clause},
@@ -226,22 +226,8 @@ pub unsafe extern "C" fn ipasir_set_terminate(
 ) {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    match &mut bundle.context.ipasir_callbacks {
-        None => {
-            let callbacks = IpasirCallbacks {
-                terminate_callback: callback,
-                terminate_data: data,
-                ..Default::default()
-            };
-
-            bundle.context.ipasir_callbacks = Some(callbacks);
-        }
-
-        Some(callbacks) => {
-            callbacks.terminate_callback = callback;
-            callbacks.terminate_data = data;
-        }
-    }
+    let callback = Box::new(move || !matches!(callback.unwrap()(data), 0));
+    bundle.context.set_callback_terminate(callback);
 }
 
 /// Sets a callback function used to extract addition (learnt) clauses up to the given length.
@@ -249,6 +235,7 @@ pub unsafe extern "C" fn ipasir_set_terminate(
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
 #[no_mangle]
+#[allow(clippy::useless_conversion)]
 pub unsafe extern "C" fn ipasir_set_learn(
     solver: *mut c_void,
     data: *mut c_void,
@@ -257,22 +244,15 @@ pub unsafe extern "C" fn ipasir_set_learn(
 ) {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    match &mut bundle.context.ipasir_callbacks {
-        None => {
-            let callbacks = IpasirCallbacks {
-                learn_callback: learn,
-                addition_length: max_length as usize,
-                addition_data: data,
-                ..Default::default()
-            };
+    let callback = Box::new(move |clause: &CClause| {
+        if clause.len() < (max_length as usize) {
+            let mut int_clause: Vec<c_int> = clause.literals().map(|l| l.into()).collect();
+            int_clause.push(0);
+            let callback_ptr: *mut i32 = int_clause.as_mut_ptr();
 
-            bundle.context.ipasir_callbacks = Some(callbacks);
+            learn.unwrap()(data, callback_ptr);
         }
+    });
 
-        Some(callbacks) => {
-            callbacks.learn_callback = learn;
-            callbacks.addition_length = max_length as usize;
-            callbacks.addition_data = data;
-        }
-    }
+    bundle.context.clause_db.set_callback_addition(callback);
 }

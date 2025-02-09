@@ -105,7 +105,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             &self.literal_db,
             &mut self.clause_db,
             &mut self.atom_db,
-            &self.ipasir_callbacks,
         ) {
             Ok(resolution_buffer::ResolutionOk::UnitClause)
             | Ok(resolution_buffer::ResolutionOk::FirstUIP) => {}
@@ -161,7 +160,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     &mut self.atom_db,
                     None,
                     premises,
-                    &self.ipasir_callbacks,
                 )?;
                 Ok(ConflictAnalysisOk::UnitClause { key: literal })
             }
@@ -177,7 +175,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     &mut self.atom_db,
                     None,
                     premises,
-                    &self.ipasir_callbacks,
                 )?;
                 Ok(ConflictAnalysisOk::AssertingClause { key, literal })
             }

@@ -7,12 +7,11 @@ use crate::{
         library::report::{self},
         Dispatch,
     },
-    ipasir::IpasirCallbacks,
 };
 
 use std::rc::Rc;
 
-use super::{ContextState, Counters};
+use super::{callbacks::CallbackTerminate, ContextState, Counters};
 
 /// A generic context, parameratised to a source of randomness.
 ///
@@ -61,7 +60,8 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
     /// An optional function to send dispatches with.
     pub dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 
-    pub ipasir_callbacks: Option<IpasirCallbacks>,
+    /// Terminates procedures, if true.
+    pub(super) callback_terminate: Option<Box<CallbackTerminate>>,
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {

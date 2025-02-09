@@ -4,6 +4,7 @@
 //!
 //! Fields of the database are private to ensure the use of methods which may be needed to uphold invariants.
 pub mod activity_glue;
+pub mod callbacks;
 pub mod db_clause;
 mod get;
 mod store;
@@ -15,6 +16,7 @@ use std::{
     rc::Rc,
 };
 
+use callbacks::{CallbackAddition, CallbackDelete, CallbackFixed};
 use db_clause::dbClause;
 
 use crate::{
@@ -33,7 +35,6 @@ use crate::{
         Dispatch,
     },
     generic::index_heap::IndexHeap,
-    ipasir::IpasirCallbacks,
     misc::log::targets::{self},
     structures::{
         clause::{CClause, Clause},
@@ -77,6 +78,15 @@ pub struct ClauseDB {
 
     /// Where to send dispatches.
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
+
+    /// Addition clauses are passed in.
+    pub(super) callback_addition: Option<Box<CallbackAddition>>,
+
+    /// Deleted clauses are passed in.
+    pub(super) callback_delete: Option<Box<CallbackDelete>>,
+
+    /// Fixed literals are passed in.
+    pub(super) callback_fixed: Option<Box<CallbackFixed>>,
 }
 
 impl ClauseDB {
@@ -98,6 +108,10 @@ impl ClauseDB {
             config: config.clause_db.clone(),
 
             dispatcher,
+
+            callback_addition: None,
+            callback_delete: None,
+            callback_fixed: None,
         }
     }
 }
@@ -149,11 +163,7 @@ impl ClauseDB {
     /// ```
     // TODO: Improvements…?
     // For example, before dropping a clause the lbd could be recalculated…
-    pub fn reduce_by(
-        &mut self,
-        limit: usize,
-        callbacks: &Option<IpasirCallbacks>,
-    ) -> Result<(), err::ClauseDBError> {
+    pub fn reduce_by(&mut self, limit: usize) -> Result<(), err::ClauseDBError> {
         'reduction_loop: for _ in 0..limit {
             if let Some(index) = self.activity_heap.peek_max() {
                 let value = self.activity_heap.value_at(index);
@@ -162,7 +172,7 @@ impl ClauseDB {
                 if value.lbd <= self.config.lbd_bound {
                     break 'reduction_loop;
                 } else {
-                    self.remove_addition(index, callbacks)?;
+                    self.remove_addition(index)?;
                 }
             } else {
                 log::warn!(target: targets::REDUCTION, "Reduction called but there were no candidates");
@@ -178,11 +188,7 @@ impl ClauseDB {
     As the elements are optional for reuse, take places None at the index, as would be needed anyway
      */
     /// Removes an addition clause at the given index, and sends a dispatch if possible.
-    fn remove_addition(
-        &mut self,
-        index: usize,
-        callbacks: &Option<IpasirCallbacks>,
-    ) -> Result<(), err::ClauseDBError> {
+    fn remove_addition(&mut self, index: usize) -> Result<(), err::ClauseDBError> {
         if unsafe { self.addition.get_unchecked(index) }.is_none() {
             log::error!(target: targets::CLAUSE_DB, "Remove called on a missing addition clause");
             Err(err::ClauseDBError::Missing)
@@ -190,9 +196,7 @@ impl ClauseDB {
             let the_clause =
                 std::mem::take(unsafe { self.addition.get_unchecked_mut(index) }).unwrap();
 
-            if let Some(callbacks) = callbacks {
-                unsafe { callbacks.call_ipasir_delete_callback(&the_clause.clause()) };
-            }
+            self.make_callback_delete(the_clause.clause());
 
             for premise_key in the_clause.premises() {
                 match premise_key {
@@ -427,7 +431,6 @@ impl ClauseDB {
         literal: impl Borrow<CLiteral>,
         atom_db: &mut AtomDB,
         premises: HashSet<ClauseKey>,
-        callbacks: &Option<IpasirCallbacks>,
     ) -> Result<ClauseKey, err::SubsumptionError> {
         let the_clause = match self.get_unchecked_mut(&key) {
             Ok(c) => c,
@@ -437,7 +440,7 @@ impl ClauseDB {
             0..=2 => Err(err::SubsumptionError::ClauseTooShort),
             3 => {
                 the_clause.subsume(literal, atom_db, false)?;
-                let Ok(new_key) = self.transfer_to_binary(key, atom_db, premises, callbacks) else {
+                let Ok(new_key) = self.transfer_to_binary(key, atom_db, premises) else {
                     return Err(err::SubsumptionError::TransferFailure);
                 };
                 Ok(new_key)

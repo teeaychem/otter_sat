@@ -29,9 +29,7 @@
 //!
 //! ## Callbacks
 //!
-//! Callbacks are optionally stored as part of a context.
-//! The absence of any callback allows callbacks to be passed over in general, while the presence of at least one callback requires each indivual callback to be checked.
-//! For additional details, see the [IpasirCallbacks] structure.
+//! Each IPASIR callback is implemented as a closure over some native callback.
 
 use std::{
     collections::{HashMap, HashSet},
@@ -49,9 +47,6 @@ use crate::{
         literal::CLiteral,
     },
 };
-
-mod callbacks;
-pub use callbacks::IpasirCallbacks;
 
 mod context_bundle;
 pub use context_bundle::ContextBundle;

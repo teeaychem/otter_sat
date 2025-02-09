@@ -10,7 +10,6 @@ use crate::{
         library::delta::{self, Delta},
         Dispatch,
     },
-    ipasir::IpasirCallbacks,
     misc::log::targets::{self},
     structures::literal::Literal,
     types::err::{self},
@@ -36,7 +35,6 @@ impl ClauseDB {
         key: ClauseKey,
         atom_db: &mut AtomDB,
         premises: HashSet<ClauseKey>,
-        callbacks: &Option<IpasirCallbacks>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match key {
             ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) => {
@@ -86,7 +84,7 @@ impl ClauseDB {
                 self.binary_original.push(binary_clause);
 
                 if matches!(key, ClauseKey::Addition(_, _)) {
-                    self.remove_addition(key.index(), callbacks)?;
+                    self.remove_addition(key.index())?;
                 }
 
                 Ok(binary_key)
@@ -129,7 +127,7 @@ impl ClauseDB {
                 self.binary_addition.push(binary_clause);
 
                 if matches!(key, ClauseKey::Addition(_, _)) {
-                    self.remove_addition(key.index(), callbacks)?;
+                    self.remove_addition(key.index())?;
                 }
 
                 Ok(binary_key)

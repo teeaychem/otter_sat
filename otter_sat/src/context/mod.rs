@@ -32,6 +32,7 @@
 //! assert_eq!(the_context.atom_db.value_of(q), Some(true));
 //! ```
 
+pub mod callbacks;
 mod counters;
 pub use counters::Counters;
 mod generic;
