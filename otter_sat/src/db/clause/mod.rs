@@ -16,7 +16,7 @@ use std::{
     rc::Rc,
 };
 
-use callbacks::{CallbackAddition, CallbackDelete, CallbackFixed};
+use callbacks::{CallbackOnClause, CallbackOnLiteral};
 use db_clause::dbClause;
 
 use crate::{
@@ -80,13 +80,16 @@ pub struct ClauseDB {
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 
     /// Addition clauses are passed in.
-    pub(super) callback_addition: Option<Box<CallbackAddition>>,
+    pub(super) callback_original: Option<Box<CallbackOnClause>>,
+
+    /// Addition clauses are passed in.
+    pub(super) callback_addition: Option<Box<CallbackOnClause>>,
 
     /// Deleted clauses are passed in.
-    pub(super) callback_delete: Option<Box<CallbackDelete>>,
+    pub(super) callback_delete: Option<Box<CallbackOnClause>>,
 
     /// Fixed literals are passed in.
-    pub(super) callback_fixed: Option<Box<CallbackFixed>>,
+    pub(super) callback_fixed: Option<Box<CallbackOnLiteral>>,
 }
 
 impl ClauseDB {
@@ -109,6 +112,7 @@ impl ClauseDB {
 
             dispatcher,
 
+            callback_original: None,
             callback_addition: None,
             callback_delete: None,
             callback_fixed: None,
