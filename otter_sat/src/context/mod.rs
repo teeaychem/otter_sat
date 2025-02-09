@@ -16,8 +16,8 @@
 //! # use otter_sat::structures::literal::{CLiteral, Literal};
 //! let mut the_context = Context::from_config(Config::default(), None);
 //!
-//! let p = the_context.fresh_atom().unwrap();
-//! let q = the_context.fresh_atom().unwrap();
+//! let p = the_context.fresh_or_max_atom();
+//! let q = the_context.fresh_or_max_atom();
 //!
 //! let p_q_clause = vec![CLiteral::new(p, true), CLiteral::new(q, true)];
 //! assert!(the_context.add_clause(p_q_clause).is_ok());

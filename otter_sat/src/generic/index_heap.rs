@@ -123,9 +123,9 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
     }
 
     pub fn peek_max_value(&self) -> Option<&V> {
-        match self.limit {
-            0 => None,
-            _ => Some(self.value_at(self.peek_max().unwrap())),
+        match self.peek_max() {
+            None => None,
+            Some(max) => Some(self.value_at(max)),
         }
     }
 
@@ -280,11 +280,11 @@ mod tests {
         test_heap.activate(1);
         test_heap.activate(0);
 
-        assert_eq!(test_heap.pop_max().unwrap(), 0);
-        assert_eq!(test_heap.pop_max().unwrap(), 1);
-        assert_eq!(test_heap.pop_max().unwrap(), 4);
-        assert_eq!(test_heap.pop_max().unwrap(), 5);
-        assert_eq!(test_heap.pop_max().unwrap(), 6);
+        assert_eq!(test_heap.pop_max(), Some(0));
+        assert_eq!(test_heap.pop_max(), Some(1));
+        assert_eq!(test_heap.pop_max(), Some(4));
+        assert_eq!(test_heap.pop_max(), Some(5));
+        assert_eq!(test_heap.pop_max(), Some(6));
     }
 
     #[test]
@@ -306,10 +306,10 @@ mod tests {
 
         test_heap.reheap();
 
-        assert_eq!(test_heap.pop_max().unwrap(), 6);
-        assert_eq!(test_heap.pop_max().unwrap(), 4);
-        assert_eq!(test_heap.pop_max().unwrap(), 1);
-        assert_eq!(test_heap.pop_max().unwrap(), 0);
+        assert_eq!(test_heap.pop_max(), Some(6));
+        assert_eq!(test_heap.pop_max(), Some(4));
+        assert_eq!(test_heap.pop_max(), Some(1));
+        assert_eq!(test_heap.pop_max(), Some(0));
         assert!(test_heap.pop_max().is_none());
 
         test_heap.reheap();
@@ -325,8 +325,8 @@ mod tests {
 
         assert_eq!(test_heap.values.len(), 601);
         assert_eq!(test_heap.values[5], i32::default());
-        assert_eq!(test_heap.pop_max().unwrap(), 0);
-        assert_eq!(test_heap.pop_max().unwrap(), 600);
+        assert_eq!(test_heap.pop_max(), Some(0));
+        assert_eq!(test_heap.pop_max(), Some(600));
         assert!(test_heap.pop_max().is_none());
     }
 
@@ -351,9 +351,9 @@ mod tests {
         assert!(!test_heap.add(4, 1));
         test_heap.activate(4);
 
-        assert_eq!(test_heap.pop_max().unwrap(), 5);
-        assert_eq!(test_heap.pop_max().unwrap(), 1);
-        assert_eq!(test_heap.pop_max().unwrap(), 4);
-        assert_eq!(test_heap.pop_max().unwrap(), 0);
+        assert_eq!(test_heap.pop_max(), Some(5));
+        assert_eq!(test_heap.pop_max(), Some(1));
+        assert_eq!(test_heap.pop_max(), Some(4));
+        assert_eq!(test_heap.pop_max(), Some(0));
     }
 }

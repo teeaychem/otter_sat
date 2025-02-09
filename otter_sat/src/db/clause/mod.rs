@@ -189,35 +189,36 @@ impl ClauseDB {
      */
     /// Removes an addition clause at the given index, and sends a dispatch if possible.
     fn remove_addition(&mut self, index: usize) -> Result<(), err::ClauseDBError> {
-        if unsafe { self.addition.get_unchecked(index) }.is_none() {
-            log::error!(target: targets::CLAUSE_DB, "Remove called on a missing addition clause");
-            Err(err::ClauseDBError::Missing)
-        } else {
-            let the_clause =
-                std::mem::take(unsafe { self.addition.get_unchecked_mut(index) }).unwrap();
-
-            self.make_callback_delete(the_clause.clause());
-
-            for premise_key in the_clause.premises() {
-                match premise_key {
-                    ClauseKey::Addition(_, _) => {
-                        let clause = unsafe { self.get_unchecked_mut(premise_key).unwrap() };
-                        clause.decrement_proof_count();
-                        if !clause.is_active() && clause.proof_occurrence_count() == 0 {
-                            self.activity_heap.activate(premise_key.index());
-                        }
-                    }
-
-                    _ => {}
-                }
+        let the_clause = std::mem::take(unsafe { self.addition.get_unchecked_mut(index) });
+        match the_clause {
+            None => {
+                log::error!(target: targets::CLAUSE_DB, "Remove called on a missing addition clause");
+                Err(err::ClauseDBError::Missing)
             }
+            Some(the_clause) => {
+                self.make_callback_delete(the_clause.clause());
 
-            macros::dispatch_clause_removal!(self, the_clause);
+                for premise_key in the_clause.premises() {
+                    match premise_key {
+                        ClauseKey::Addition(_, _) => {
+                            let clause = unsafe { self.get_unchecked_mut(premise_key).unwrap() };
+                            clause.decrement_proof_count();
+                            if !clause.is_active() && clause.proof_occurrence_count() == 0 {
+                                self.activity_heap.activate(premise_key.index());
+                            }
+                        }
 
-            self.activity_heap.remove(index);
-            self.empty_keys.push(*the_clause.key());
-            self.addition_count -= 1;
-            Ok(())
+                        _ => {}
+                    }
+                }
+
+                macros::dispatch_clause_removal!(self, the_clause);
+
+                self.activity_heap.remove(index);
+                self.empty_keys.push(*the_clause.key());
+                self.addition_count -= 1;
+                Ok(())
+            }
         }
     }
 

@@ -98,7 +98,7 @@ impl dbClause {
         self.watch_ptr = 1;
         let mut decision_level_b = unsafe {
             let literal = self.clause.get_unchecked(self.watch_ptr);
-            let maybe_decision_level = atom_db.decision_index_of(literal.atom());
+            let maybe_decision_level = atom_db.atom_decision_level(literal.atom());
             maybe_decision_level.unwrap_or(0)
         };
 
@@ -124,8 +124,11 @@ impl dbClause {
                     break;
                 }
                 Some(_) => {
-                    let decision_level =
-                        unsafe { atom_db.decision_index_of(literal.atom()).unwrap_unchecked() };
+                    let decision_level = unsafe {
+                        atom_db
+                            .atom_decision_level(literal.atom())
+                            .unwrap_unchecked()
+                    };
                     if decision_level > decision_level_b {
                         self.watch_ptr = index;
                         decision_level_b = decision_level;

@@ -275,25 +275,29 @@ pub unsafe extern "C" fn ipasir2_set_export(
         extern "C" fn(data: *mut c_void, clause: *const i32, len: i32, proofmeta: *mut c_void),
     >,
 ) -> ipasir2_errorcode {
-    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    if let Some(callback) = callback {
+        let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    let callback = Box::new(move |clause: &CClause| {
-        if clause.len() < (max_length as usize) {
-            let mut int_clause: Vec<c_int> = clause.literals().map(|l| l.into()).collect();
-            let callback_ptr: *mut i32 = int_clause.as_mut_ptr();
+        let callback = Box::new(move |clause: &CClause| {
+            if clause.len() < (max_length as usize) {
+                let mut int_clause: Vec<c_int> = clause.literals().map(|l| l.into()).collect();
+                let callback_ptr: *mut i32 = int_clause.as_mut_ptr();
 
-            callback.unwrap()(
-                data,
-                callback_ptr,
-                clause.len() as i32,
-                std::ptr::null_mut(),
-            );
-        }
-    });
+                callback(
+                    data,
+                    callback_ptr,
+                    clause.len() as i32,
+                    std::ptr::null_mut(),
+                );
+            }
+        });
 
-    bundle.context.clause_db.set_callback_addition(callback);
+        bundle.context.clause_db.set_callback_addition(callback);
 
-    ipasir2_errorcode::IPASIR2_E_OK
+        ipasir2_errorcode::IPASIR2_E_OK
+    } else {
+        ipasir2_errorcode::IPASIR2_E_INVALID_ARGUMENT
+    }
 }
 
 /// Sets a callback function to be used when a clause is deleted.
@@ -309,27 +313,33 @@ pub unsafe extern "C" fn ipasir2_delete(
         extern "C" fn(data: *mut c_void, clause: *const i32, len: i32, proofmeta: *mut c_void),
     >,
 ) -> ipasir2_errorcode {
-    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    if let Some(callback) = callback {
+        let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    let callback = Box::new(move |clause: &CClause| {
-        let callback_ptr: *mut i32 = if cfg!(feature = "boolean") {
-            let mut int_clause: IntClause = clause.literals().map(|l| l.into()).collect();
-            int_clause.as_mut_ptr()
-        } else {
-            clause.as_ptr() as *mut i32
-        };
+        let callback = Box::new(move |clause: &CClause| {
+            let callback_ptr: *mut i32 = if cfg!(feature = "boolean") {
+                let mut int_clause: IntClause = clause.literals().map(|l| l.into()).collect();
+                int_clause.as_mut_ptr()
+            } else {
+                clause.as_ptr() as *mut i32
+            };
 
-        callback.unwrap()(
-            data,
-            callback_ptr,
-            clause.size().try_into().unwrap(),
-            std::ptr::null_mut(),
-        );
-    });
+            match clause.size().try_into() {
+                Ok(clause_size) => {
+                    callback(data, callback_ptr, clause_size, std::ptr::null_mut());
+                }
+                Err(_) => {
+                    log::error!("Clause too large for IPASIR delete callback");
+                }
+            }
+        });
 
-    bundle.context.clause_db.set_callback_delete(callback);
+        bundle.context.clause_db.set_callback_delete(callback);
 
-    ipasir2_errorcode::IPASIR2_E_OK
+        ipasir2_errorcode::IPASIR2_E_OK
+    } else {
+        ipasir2_errorcode::IPASIR2_E_INVALID_ARGUMENT
+    }
 }
 
 /// Sets a callback function for importing a clause into the context.
@@ -376,14 +386,17 @@ pub unsafe extern "C" fn ipasir2_set_fixed(
     TODO: ipasir2_set_fixed
     At present the callback is not made for literals fixed relative to assumptions made.
      */
+    if let Some(callback) = callback {
+        let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+        let callback = Box::new(move |literal: CLiteral| {
+            callback(data, literal);
+        });
 
-    let callback = Box::new(move |literal: CLiteral| {
-        callback.unwrap()(data, literal);
-    });
+        bundle.context.clause_db.set_callback_fixed(callback);
 
-    bundle.context.clause_db.set_callback_fixed(callback);
-
-    ipasir2_errorcode::IPASIR2_E_OK
+        ipasir2_errorcode::IPASIR2_E_OK
+    } else {
+        ipasir2_errorcode::IPASIR2_E_INVALID_ARGUMENT
+    }
 }

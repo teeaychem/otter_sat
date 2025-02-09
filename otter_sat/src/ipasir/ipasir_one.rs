@@ -28,7 +28,7 @@ pub unsafe extern "C" fn ipasir_signature() -> *const c_char {
                 env!("CARGO_PKG_NAME"),
                 env!("CARGO_PKG_VERSION")
             ))
-            .unwrap()
+            .unwrap_or_default()
         })
         .as_ptr()
 }
@@ -224,10 +224,12 @@ pub unsafe extern "C" fn ipasir_set_terminate(
     data: *mut c_void,
     callback: Option<extern "C" fn(data: *mut c_void) -> c_int>,
 ) {
-    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    if let Some(callback) = callback {
+        let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    let callback = Box::new(move || !matches!(callback.unwrap()(data), 0));
-    bundle.context.set_callback_terminate(callback);
+        let callback = Box::new(move || !matches!(callback(data), 0));
+        bundle.context.set_callback_terminate(callback);
+    }
 }
 
 /// Sets a callback function used to extract addition (learnt) clauses up to the given length.
@@ -242,17 +244,18 @@ pub unsafe extern "C" fn ipasir_set_learn(
     max_length: c_int,
     learn: Option<extern "C" fn(data: *mut c_void, clause: *mut i32)>,
 ) {
-    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    if let Some(callback) = learn {
+        let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    let callback = Box::new(move |clause: &CClause| {
-        if clause.len() < (max_length as usize) {
-            let mut int_clause: Vec<c_int> = clause.literals().map(|l| l.into()).collect();
-            int_clause.push(0);
-            let callback_ptr: *mut i32 = int_clause.as_mut_ptr();
+        let callback = Box::new(move |clause: &CClause| {
+            if clause.len() <= (max_length as usize) {
+                let mut int_clause: Vec<c_int> = clause.literals().map(|l| l.into()).collect();
+                int_clause.push(0);
+                let callback_ptr: *mut i32 = int_clause.as_mut_ptr();
+                callback(data, callback_ptr);
+            }
+        });
 
-            learn.unwrap()(data, callback_ptr);
-        }
-    });
-
-    bundle.context.clause_db.set_callback_addition(callback);
+        bundle.context.clause_db.set_callback_addition(callback);
+    }
 }

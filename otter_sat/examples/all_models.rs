@@ -26,7 +26,7 @@ fn main() {
     // Each character in some string as a literal.
     let characters = "model".chars().collect::<Vec<_>>();
     for character in characters {
-        atom_map.insert(character, the_context.fresh_atom().unwrap());
+        atom_map.insert(character, the_context.fresh_or_max_atom());
     }
 
     let mut count = 0;

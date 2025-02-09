@@ -94,8 +94,8 @@
 //! let config = Config::default();
 //! let mut the_context: Context = Context::from_config(config, None);
 //!
-//! let p = the_context.fresh_atom().unwrap();
-//! let q = the_context.fresh_atom().unwrap();
+//! let p = the_context.fresh_or_max_atom();
+//! let q = the_context.fresh_or_max_atom();
 //!
 //! let not_p_or_q = vec![CLiteral::new(p, false), CLiteral::new(q, true)];
 //! let p_or_not_q = vec![CLiteral::new(p, true), CLiteral::new(q, false)];
