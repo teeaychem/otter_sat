@@ -1,19 +1,19 @@
 use crate::{
     context::GenericContext,
     dispatch::{
-        library::report::{self, Report},
-        Dispatch,
+        library::report::{ParserReport, Report},
+        macros, Dispatch,
     },
     structures::{
         atom::Atom,
         clause::CClause,
-        literal::{CLiteral, Literal},
+        literal::{IntLiteral, Literal},
     },
-    types::err::{self, ErrorKind},
+    types::err::{self, ParseError},
 };
 
 use core::panic;
-use std::{collections::HashMap, io::BufRead};
+use std::io::BufRead;
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Reads a DIMACS file into the context.
@@ -43,25 +43,23 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// assert!(the_context.solve().is_ok());
     /// ```
     #[allow(clippy::manual_flatten, unused_labels)]
-    pub fn read_dimacs(
-        &mut self,
-        mut reader: impl BufRead,
-    ) -> Result<HashMap<isize, Atom>, err::ErrorKind> {
+    pub fn read_dimacs(&mut self, mut reader: impl BufRead) -> Result<(), err::ErrorKind> {
         //
-
-        let mut atom_map = HashMap::<isize, Atom>::default();
-        let mut buffer = String::with_capacity(1024);
+        let mut buffer = String::default();
         let mut clause_buffer: CClause = Vec::default();
 
-        let mut line_counter = 0;
-        let mut clause_counter = 0;
+        let mut lines = 0;
+        let mut clauses = 0;
 
         // first phase, read until the formula begins
         'preamble_loop: loop {
             match reader.read_line(&mut buffer) {
-                Ok(0) => break,
-                Ok(_) => line_counter += 1,
-                Err(_) => return Err(err::ErrorKind::from(err::ParseError::Line(line_counter))),
+                Ok(1) if buffer.starts_with('\n') => {
+                    buffer.clear();
+                    continue 'preamble_loop;
+                }
+                Ok(_) => lines += 1,
+                Err(_) => return Err(err::ErrorKind::from(ParseError::Line(lines))),
             }
 
             match buffer.chars().next() {
@@ -72,29 +70,22 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 Some('p') => {
                     let mut problem_details = buffer.split_whitespace();
-                    let atom_count: usize = match problem_details.nth(2) {
-                        None => {
-                            return Err(err::ErrorKind::from(err::ParseError::ProblemSpecification))
-                        }
+                    let atoms: usize = match problem_details.nth(2) {
+                        None => return Err(err::ErrorKind::from(ParseError::ProblemSpecification)),
                         Some(string) => match string.parse() {
                             Err(_) => {
-                                return Err(err::ErrorKind::from(
-                                    err::ParseError::ProblemSpecification,
-                                ))
+                                return Err(err::ErrorKind::from(ParseError::ProblemSpecification))
                             }
+
                             Ok(count) => count,
                         },
                     };
 
-                    let clause_count: usize = match problem_details.next() {
-                        None => {
-                            return Err(err::ErrorKind::from(err::ParseError::ProblemSpecification))
-                        }
+                    let clauses: usize = match problem_details.next() {
+                        None => return Err(err::ErrorKind::from(ParseError::ProblemSpecification)),
                         Some(string) => match string.parse() {
                             Err(_) => {
-                                return Err(err::ErrorKind::from(
-                                    err::ParseError::ProblemSpecification,
-                                ))
+                                return Err(err::ErrorKind::from(ParseError::ProblemSpecification))
                             }
                             Ok(count) => count,
                         },
@@ -102,11 +93,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     buffer.clear();
 
-                    if let Some(dispatcher) = &self.dispatcher {
-                        let expectation = report::ParserReport::Expected(atom_count, clause_count);
-                        dispatcher(Dispatch::Report(Report::Parser(expectation)));
-                    }
-                    break;
+                    self.ensure_atom(atoms as Atom);
+
+                    macros::dispatch_parser_report!(self, ParserReport::Expected(atoms, clauses));
                 }
 
                 _ => break,
@@ -114,12 +103,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
 
         // second phase, read until the formula ends
+        // Here, the line is advanced at the end of the loop, as the preable buffer has already set up a relevant line.
         'formula_loop: loop {
-            match reader.read_line(&mut buffer) {
-                Ok(0) => break,
-                Ok(_) => line_counter += 1,
-                Err(_) => return Err(err::ErrorKind::from(err::ParseError::Line(line_counter))),
-            }
             match buffer.chars().next() {
                 Some('%') => break 'formula_loop,
                 Some('c') => {}
@@ -131,32 +116,19 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     for item in split_buf {
                         match item {
                             "0" => {
-                                let the_clause = std::mem::take(&mut clause_buffer);
-                                match self.add_clause(the_clause) {
-                                    Ok(_) => clause_counter += 1,
-                                    Err(e) => return Err(e),
-                                }
+                                let mut clause = std::mem::take(&mut clause_buffer);
+                                clause.sort_unstable();
+                                clause.dedup();
+                                self.add_clause(clause)?;
+                                clauses += 1;
                             }
                             _ => {
-                                let parsed_int = match item.parse::<isize>() {
-                                    Ok(int) => int,
+                                let literal = match item.parse::<IntLiteral>() {
+                                    Ok(int) => int.canonical(),
                                     Err(e) => panic!("{e}"),
                                 };
-                                let the_literal = match atom_map.get(&parsed_int.abs()) {
-                                    Some(atom) => CLiteral::new(*atom, parsed_int.is_positive()),
-                                    None => {
-                                        let fresh_atom = match self.fresh_atom() {
-                                            Ok(atom) => atom,
-                                            Err(_) => return Err(ErrorKind::AtomsExhausted),
-                                        };
-                                        atom_map.insert(parsed_int.abs(), fresh_atom);
-                                        CLiteral::new(fresh_atom, parsed_int.is_positive())
-                                    }
-                                };
 
-                                if !clause_buffer.iter().any(|l| *l == the_literal) {
-                                    clause_buffer.push(the_literal);
-                                }
+                                clause_buffer.push(literal);
                             }
                         }
                     }
@@ -164,15 +136,94 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
 
             buffer.clear();
+
+            match reader.read_line(&mut buffer) {
+                Ok(0) => break,
+                Ok(_) => lines += 1,
+                Err(_) => return Err(err::ErrorKind::from(ParseError::Line(lines))),
+            }
         }
 
-        if let Some(dispatcher) = &self.dispatcher {
-            let counts = report::ParserReport::Counts(self.atom_db.count(), clause_counter);
-            dispatcher(Dispatch::Report(Report::Parser(counts)));
-            let report_clauses =
-                report::ParserReport::ContextClauses(self.clause_db.total_clause_count());
-            dispatcher(Dispatch::Report(Report::Parser(report_clauses)));
+        if !clause_buffer.is_empty() {
+            return Err(err::ErrorKind::from(ParseError::MissingDelimiter));
         }
-        Ok(atom_map)
+
+        macros::dispatch_parser_report!(self, ParserReport::Counts(self.atom_db.count(), clauses));
+        macros::dispatch_parser_report!(
+            self,
+            ParserReport::ContextClauses(self.clause_db.current_clause_count())
+        );
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod dimacs_parser_tests {
+
+    use std::io::Write;
+
+    use err::ErrorKind;
+
+    use crate::{config::Config, context::Context};
+
+    use super::*;
+
+    #[test]
+    fn bad_delimiter() {
+        let mut the_context = Context::from_config(Config::default(), None);
+
+        let mut dimacs = vec![];
+        let _ = dimacs.write(b"1  2");
+
+        assert_eq!(
+            the_context.read_dimacs(dimacs.as_slice()),
+            Err(ErrorKind::Parse(ParseError::MissingDelimiter))
+        );
+    }
+
+    #[test]
+    fn bad_problem_spec() {
+        let mut the_context = Context::from_config(Config::default(), None);
+
+        let mut dimacs = vec![];
+        let _ = dimacs.write(
+            b"
+p cnf
+  1  2 0",
+        );
+
+        assert_eq!(
+            the_context.read_dimacs(dimacs.as_slice()),
+            Err(ErrorKind::Parse(ParseError::ProblemSpecification))
+        );
+    }
+
+    #[test]
+    fn empty_ok() {
+        let mut the_context = Context::from_config(Config::default(), None);
+
+        let mut dimacs = vec![];
+        let _ = dimacs.write(
+            b"
+
+",
+        );
+
+        assert_eq!(the_context.read_dimacs(dimacs.as_slice()), Ok(()));
+    }
+
+    #[test]
+    fn atoms_ensured() {
+        let mut the_context = Context::from_config(Config::default(), None);
+
+        let required_atoms = 10;
+
+        let mut dimacs = vec![];
+        let _ = dimacs.write(format!("p cnf {required_atoms} 0").as_bytes());
+        let _ = the_context.read_dimacs(dimacs.as_slice());
+
+        // One extra, as the atom database always contains top.
+        assert_eq!(the_context.atom_db.count(), required_atoms + 1);
     }
 }
