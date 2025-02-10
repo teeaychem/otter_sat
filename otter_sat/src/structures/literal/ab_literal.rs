@@ -1,4 +1,7 @@
-use crate::structures::{atom::Atom, clause::ABClause};
+use crate::structures::{
+    atom::{Atom, ATOM_MAX},
+    clause::ABClause,
+};
 
 use super::{IntLiteral, Literal};
 
@@ -128,7 +131,7 @@ impl TryFrom<i64> for ABLiteral {
 
     fn try_from(value: i64) -> Result<Self, Self::Error> {
         let atom = value.unsigned_abs();
-        if atom < Atom::MAX.into() {
+        if atom < ATOM_MAX.into() {
             Ok(ABLiteral::new(atom as Atom, value.is_positive()))
         } else {
             Err(())
@@ -141,7 +144,7 @@ impl TryFrom<isize> for ABLiteral {
 
     fn try_from(value: isize) -> Result<Self, Self::Error> {
         let atom = value.unsigned_abs();
-        if Atom::MAX.try_into().is_ok_and(|max| atom < max) {
+        if ATOM_MAX.try_into().is_ok_and(|max| atom < max) {
             Ok(ABLiteral::new(atom as Atom, value.is_positive()))
         } else {
             Err(())

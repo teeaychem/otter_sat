@@ -24,7 +24,7 @@ use crate::{
     generic::index_heap::IndexHeap,
     misc::log::targets::{self},
     structures::{
-        atom::Atom,
+        atom::{Atom, ATOM_MAX},
         clause::ClauseKind,
         valuation::{vValuation, Valuation},
     },
@@ -84,7 +84,7 @@ impl AtomDB {
             dispatcher,
             config: config.atom_db.clone(),
         };
-        // A fresh atom is created so long as the atom count is within Atom::MAX
+        // A fresh atom is created so long as the atom count is within ATOM_MAX
         // So, this is safe, for any reasonable Atom specification.
         let the_true = unsafe { db.fresh_atom(true).unwrap_unchecked() };
         unsafe { db.set_value(the_true, true, None) };
@@ -110,8 +110,12 @@ impl AtomDB {
     ///
     /// If used, all the relevant data structures are updated to support access via the atom, and the safety of each unchecked is guaranteed.
     pub fn fresh_atom(&mut self, previous_value: bool) -> Result<Atom, AtomDBError> {
-        let Ok(atom) = self.valuation.len().try_into() else {
-            return Err(AtomDBError::AtomsExhausted);
+        let atom = match self.valuation.len().try_into() {
+            // Note, ATOM_MAX over Atom::Max as the former is limited by the representation of literals, if relevant.
+            Ok(atom) if atom <= ATOM_MAX => atom,
+            _ => {
+                return Err(AtomDBError::AtomsExhausted);
+            }
         };
 
         self.activity_heap.add(atom as usize, 1.0);

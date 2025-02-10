@@ -29,3 +29,11 @@
 
 /// An atom, aka. a 'variable'.
 pub type Atom = u32;
+
+/// The maximum instance of an atom.
+#[cfg(feature = "boolean")]
+pub const ATOM_MAX: Atom = Atom::MAX;
+
+/// The maximum instance of an atom.
+#[cfg(not(feature = "boolean"))]
+pub const ATOM_MAX: Atom = i32::MAX.unsigned_abs();
