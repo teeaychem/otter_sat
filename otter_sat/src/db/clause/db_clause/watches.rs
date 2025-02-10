@@ -98,7 +98,7 @@ impl dbClause {
         self.watch_ptr = 1;
         let mut decision_level_b = unsafe {
             let literal = self.clause.get_unchecked(self.watch_ptr);
-            let maybe_decision_level = atom_db.atom_decision_level(literal.atom());
+            let maybe_decision_level = atom_db.atom_decision_level_unchecked(literal.atom());
             maybe_decision_level.unwrap_or(0)
         };
 
@@ -127,7 +127,7 @@ impl dbClause {
                     // Safety: The clause has a value, which must have been given at some level.
                     let decision_level = unsafe {
                         atom_db
-                            .atom_decision_level(literal.atom())
+                            .atom_decision_level_unchecked(literal.atom())
                             .unwrap_unchecked()
                     };
                     if decision_level > decision_level_b {
@@ -162,15 +162,11 @@ impl dbClause {
                     *self.clause.get_unchecked(0)
                 };
 
-                atom_db.add_watch_unchecked(
-                    atom,
-                    value,
-                    WatchTag::Binary(check_literal, *self.key()),
-                );
+                atom_db.watch_unchecked(atom, value, WatchTag::Binary(check_literal, *self.key()));
             },
 
             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
-                atom_db.add_watch_unchecked(atom, value, WatchTag::Clause(*self.key()));
+                atom_db.watch_unchecked(atom, value, WatchTag::Long(*self.key()));
             },
         }
     }

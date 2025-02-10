@@ -48,7 +48,7 @@
 //! Note, a unit clause (a clause containing one literal) never watches any atoms.
 //!
 //! The [WatchDB] structure does not have any associated mutating methods.
-//! Instead, mutation of a [WatchDB] is through methods beloning to the [AtomDB].
+//! Instead, mutation of a [WatchDB] is through methods beloning to the [AtomDB](crate::db::atom::AtomDB).
 //! Those methods are included in this file in order to access private members of the [WatchDB].
 //!
 //! # Use
@@ -56,22 +56,22 @@
 //! Watch lists are inspected and used during [boolean constraint propagation](crate::procedures::bcp).
 //!
 //! # Safety
-//! As the [AtomDB] methods do not perform a check for whether a [WatchDB] exists for a given atom, these are all marked unsafe.
+//! As the [AtomDB](crate::db::atom::AtomDB) methods do not perform a check for whether a [WatchDB] exists for a given atom, these are all marked unsafe.
 //!
 //! At present, this is the only use of *unsafe* with respect to [WatchDB]s.
 
 use crate::{
-    db::{atom::AtomDB, keys::ClauseKey},
-    structures::{atom::Atom, clause::ClauseKind, literal::CLiteral},
-    types::err::{self},
+    db::keys::ClauseKey,
+    structures::{clause::ClauseKind, literal::CLiteral},
 };
 
 /// The watcher of an atom.
 pub enum WatchTag {
     /// A binary clause together with the *other* literal in the clause.
     Binary(CLiteral, ClauseKey),
+
     /// A long clause.
-    Clause(ClauseKey),
+    Long(ClauseKey),
 }
 
 /// The status of a watched literal, relative to some given valuation.
@@ -80,8 +80,10 @@ pub enum WatchStatus {
     /// The polarity of the watched literal matches the valuation of the atom on the given valuation.\
     /// E.g. if the literal is -p, then p is valued 'false' on the given valuation.
     Witness,
+
     /// The watched literal has no value on the given valuation.
     None,
+
     /// The polarity of the watched literal does not match the valuation of the atom on the given valuation.\
     /// E.g. if the literal is -p and p has value 'true' on the given valuation.
     Conflict,
@@ -90,16 +92,16 @@ pub enum WatchStatus {
 /// The watchers of an atom, distinguished by length of clause and which value of the atom is under watch.
 pub struct WatchDB {
     /// A watch from a binary clause for a value of `true`.
-    positive_binary: Vec<WatchTag>,
+    pub(super) positive_binary: Vec<WatchTag>,
 
     /// A watch from a long clause for a value of `true`.
-    positive_long: Vec<WatchTag>,
+    pub(super) positive_long: Vec<WatchTag>,
 
     /// A watch from a binary clause for a value of `false`.
-    negative_binary: Vec<WatchTag>,
+    pub(super) negative_binary: Vec<WatchTag>,
 
     /// A watch from a long clause for a value of `false`.
-    negative_long: Vec<WatchTag>,
+    pub(super) negative_long: Vec<WatchTag>,
 }
 
 impl Default for WatchDB {
@@ -115,137 +117,25 @@ impl Default for WatchDB {
 }
 
 impl WatchDB {
-    /// Returns the binary watchers of the atom for the given value.
-    fn occurrences_binary(&mut self, value: bool) -> &mut Vec<WatchTag> {
-        match value {
-            true => &mut self.positive_binary,
-            false => &mut self.negative_binary,
-        }
-    }
-
-    /// Returns the long watchers of the atom for the given value.
-    fn occurrences_long(&mut self, value: bool) -> &mut Vec<WatchTag> {
-        match value {
-            true => &mut self.positive_long,
-            false => &mut self.negative_long,
-        }
-    }
-}
-
-impl AtomDB {
-    /// Notes the given atom is being watched for being valued with the given value by the given watcher.
-    ///
-    /// # Safety
-    /// No check is made on whether a [WatchDB] exists for the atom.
-    pub unsafe fn add_watch_unchecked(&mut self, atom: Atom, value: bool, watcher: WatchTag) {
-        match watcher {
-            WatchTag::Binary(_, _) => match value {
-                true => self
-                    .watch_dbs
-                    .get_unchecked_mut(atom as usize)
-                    .positive_binary
-                    .push(watcher),
-                false => self
-                    .watch_dbs
-                    .get_unchecked_mut(atom as usize)
-                    .negative_binary
-                    .push(watcher),
-            },
-            WatchTag::Clause(_) => match value {
-                true => self
-                    .watch_dbs
-                    .get_unchecked_mut(atom as usize)
-                    .positive_long
-                    .push(watcher),
-                false => self
-                    .watch_dbs
-                    .get_unchecked_mut(atom as usize)
-                    .negative_long
-                    .push(watcher),
-            },
-        }
-    }
-
-    /// Notes the given atom is *no longer* being watched for being valued with the given value by the given watcher.
-    ///
-    /// # Safety
-    /// No check is made on whether a [WatchDB] exists for the atom.
-    /*
-    If there's a guarantee keys appear at most once, the swap remove on keys could break early.
-    Note also, as this shuffles the list any heuristics on traversal order of watches is void.
-     */
-    pub unsafe fn unwatch_unchecked(
-        &mut self,
-        atom: Atom,
-        value: bool,
-        key: &ClauseKey,
-    ) -> Result<(), err::ClauseDBError> {
-        match key {
-            ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
-                let list = match value {
-                    true => {
-                        &mut self
-                            .watch_dbs
-                            .get_unchecked_mut(atom as usize)
-                            .positive_long
-                    }
-                    false => {
-                        &mut self
-                            .watch_dbs
-                            .get_unchecked_mut(atom as usize)
-                            .negative_long
-                    }
-                };
-                let mut index = 0;
-                let mut limit = list.len();
-                while index < limit {
-                    let WatchTag::Clause(list_key) = list.get_unchecked(index) else {
-                        return Err(err::ClauseDBError::NotLongInLong);
-                    };
-
-                    if list_key == key {
-                        list.swap_remove(index);
-                        limit -= 1;
-                    } else {
-                        index += 1;
-                    }
-                }
-                Ok(())
-            }
-            ClauseKey::OriginalUnit(_)
-            | ClauseKey::AdditionUnit(_)
-            | ClauseKey::OriginalBinary(_)
-            | ClauseKey::AdditionBinary(_) => Err(err::ClauseDBError::NotLongInLong),
-        }
-    }
-
-    /// Returns the relevant collection of watchers for a given atom, clause type, and value.
-    ///
-    /// A pointer is returned --- --- to help simplify [bcp](crate::procedures::bcp) --- and so care should be taken to avoid creating aliases.
-    ///
-    /// ```rust, ignore
-    /// let binary_list = &mut *atom_db.get_watch_list_unchecked(atom, ClauseKind::Binary, false);
-    /// ```
-    ///
-    /// # Safety
-    /// No check is made on whether a [WatchDB] exists for the atom.
-    pub unsafe fn get_watch_list_unchecked(
-        &mut self,
-        atom: Atom,
-        kind: ClauseKind,
-        value: bool,
-    ) -> *mut Vec<WatchTag> {
+    /// Returns the watchers of `kind` for `value`.
+    pub fn watchers(&mut self, kind: ClauseKind, value: bool) -> &[WatchTag] {
         match kind {
-            ClauseKind::Empty => panic!("! Attempt to retrieve watch list for an empty clause"),
-            ClauseKind::Unit => panic!("! Attempt to retrieve watch list for a unit clause"),
-            ClauseKind::Binary => self
-                .watch_dbs
-                .get_unchecked_mut(atom as usize)
-                .occurrences_binary(value),
-            ClauseKind::Long => self
-                .watch_dbs
-                .get_unchecked_mut(atom as usize)
-                .occurrences_long(value),
+            ClauseKind::Empty => panic!("! Attempt to retrieve watch list of empty clauses"),
+            ClauseKind::Unit => panic!("! Attempt to retrieve watch list of unit clauses"),
+            ClauseKind::Binary => {
+                //
+                match value {
+                    true => &mut self.positive_binary,
+                    false => &mut self.negative_binary,
+                }
+            }
+            ClauseKind::Long => {
+                //
+                match value {
+                    true => &mut self.positive_long,
+                    false => &mut self.negative_long,
+                }
+            }
         }
     }
 }

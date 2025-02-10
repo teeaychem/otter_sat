@@ -1,3 +1,4 @@
+#![allow(unused_macros, unused_imports)]
 //! Macros for sending dispatches from a context.
 
 /// A macro to send bcp dispatches.

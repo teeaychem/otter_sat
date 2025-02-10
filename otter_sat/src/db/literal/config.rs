@@ -6,7 +6,7 @@ pub struct LiteralDBConfig {
 impl Default for LiteralDBConfig {
     fn default() -> Self {
         Self {
-            stacked_assumptions: true,
+            stacked_assumptions: false,
         }
     }
 }

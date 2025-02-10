@@ -9,7 +9,7 @@
 //!
 //! # Complications
 //!
-//! Use is made of [get_watch_list_unchecked](crate::db::atom::AtomDB::get_watch_list_unchecked) to obtain a pointer to watch lists.
+//! Use is made of [watchers_unchecked](crate::db::atom::AtomDB::watchers_unchecked) to obtain a pointer to watch lists.
 //! A handful of issues are avoided by doing this:
 //! 1. A mutable borrow of the database for a watch list conflicting with an immutable borrow of the database to obtain the value of an atom.
 //! 2. A mutable borrow of the context conflicting with a mutable borrow to add a literal to the consequence queue.
@@ -77,6 +77,7 @@ use crate::{
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// For documentation see [procedures::bcp](crate::procedures::bcp).
+    ///
     /// # Safety
     /// The implementation of bcp requires a key invariant to be upheld:
     /// <div class="warning">
@@ -89,7 +90,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // Binary clauses block.
         {
             // Note, this does not require updating watches.
-            let binary_list = &mut *self.atom_db.get_watch_list_unchecked(
+            let binary_list = &mut *self.atom_db.watchers_unchecked(
                 literal.atom(),
                 ClauseKind::Binary,
                 !literal.polarity(),
@@ -141,7 +142,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         // Long clause block.
         {
-            let long_list = &mut *self.atom_db.get_watch_list_unchecked(
+            let long_list = &mut *self.atom_db.watchers_unchecked(
                 literal.atom(),
                 ClauseKind::Long,
                 !literal.polarity(),
@@ -151,7 +152,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             let mut length = long_list.len();
 
             'long_loop: while index < length {
-                let WatchTag::Clause(key) = long_list.get_unchecked(index) else {
+                let WatchTag::Long(key) = long_list.get_unchecked(index) else {
                     log::error!(target: targets::PROPAGATION, "Binary clause found in long watch list.");
                     return Err(err::BCPError::CorruptWatch);
                 };
