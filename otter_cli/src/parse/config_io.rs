@@ -55,7 +55,5 @@ fn frat_default(config_io: &ConfigIO) -> PathBuf {
     let mut frat_path = std::env::current_dir().unwrap();
     frat_path.push(frat_file);
 
-    // std::process::exit(2);
-    // frat_path.push_str(".frat");
     PathBuf::from(&frat_path)
 }

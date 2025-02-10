@@ -31,17 +31,26 @@ pub enum ClauseOk {
 /// Methods for building the context.
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Returns a fresh atom.
+    ///
+    /// For a practical alternative, see [fresh_or_max_atom](GenericContext::fresh_or_max_atom).
     pub fn fresh_atom(&mut self) -> Result<Atom, err::AtomDBError> {
         let previous_value = self.rng.gen_bool(self.config.polarity_lean);
         self.re_fresh_atom(previous_value)
     }
 
     /// Returns a fresh atom, or the maximum atom.
+    ///
+    /// In short, a safe alternative to unwrapping the result of [fresh_atom](GenericContext::fresh_atom), by defaulting to the maximum limit of an atom.
+    /// And, as exhausting the atom limit is unlikely in many applications, this may be preferred.
+    ///
+    /// # Panics
+    /// At present, panics are not possible.
+    /// However, in future this method may panic if it is not possible to obtain an atom for any reason other than exhaustion of the atom limit.
     pub fn fresh_or_max_atom(&mut self) -> Atom {
         let previous_value = self.rng.gen_bool(self.config.polarity_lean);
         match self.re_fresh_atom(previous_value) {
             Ok(atom) => atom,
-            Err(_) => Atom::MAX,
+            Err(err::AtomDBError::AtomsExhausted) => Atom::MAX,
         }
     }
 
@@ -393,7 +402,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 /// Primarily to distinguish the case where preprocessing results in an empty clause.
 #[derive(PartialEq, Eq)]
 enum PreprocessingOk {
+    /// A tautology.
     Tautology,
+
+    /// Any clause.
     Clause,
 }
 

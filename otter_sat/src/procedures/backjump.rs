@@ -94,7 +94,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
                 let mut top_two = (None, None);
                 for literal in clause.literals() {
-                    let Some(dl) = (unsafe { self.atom_db.atom_decision_level(literal.atom()) })
+                    let Some(dl) =
+                        (unsafe { self.atom_db.atom_decision_level_unchecked(literal.atom()) })
                     else {
                         log::error!(target: targets::BACKJUMP, "{literal} was not chosen");
                         return Err(err::ErrorKind::Backjump);

@@ -83,7 +83,7 @@ impl AtomDB {
         unsafe {
             self.valuation()
                 .av_pairs()
-                .filter_map(|(atom, v)| match self.atom_decision_level(atom) {
+                .filter_map(|(atom, v)| match self.atom_decision_level_unchecked(atom) {
                     None => None,
                     Some(level) => match v {
                         None => None,

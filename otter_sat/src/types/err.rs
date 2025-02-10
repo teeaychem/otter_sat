@@ -109,7 +109,7 @@ pub enum ClauseDBError {
 
     /// A unit or binary clause was found in a long watch list.
     /// Perhaps an issue during addition during addition or transfer of a clause…?
-    NotLongInLong,
+    CorruptList,
 
     /// A learnt cluase is missing.
     Missing,
