@@ -98,7 +98,6 @@ pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
 #[no_mangle]
 pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
-    println!("Assume: {lit}");
 
     bundle.keep_fresh();
 
@@ -205,7 +204,6 @@ pub unsafe extern "C" fn ipasir_failed(solver: *mut c_void, lit: i32) -> c_int {
     }
 
     let literal_canonical = CLiteral::from(lit);
-    println!("{:?}", bundle.core_keys);
 
     match bundle.core_literals.contains(&literal_canonical.negate()) {
         true => 1,

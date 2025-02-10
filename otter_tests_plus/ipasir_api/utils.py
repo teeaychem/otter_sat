@@ -50,3 +50,8 @@ def build_binaries():
         print(make_result.stderr)
 
     print("Build okay!")
+
+
+def printv(message):
+    if VERBOSE:
+        print(message)
