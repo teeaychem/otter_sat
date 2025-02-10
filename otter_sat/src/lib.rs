@@ -188,7 +188,6 @@
 #![allow(clippy::derivable_impls)]
 // #![allow(unused_imports)]
 
-#[doc(hidden)]
 pub mod builder;
 pub mod procedures;
 
