@@ -192,6 +192,9 @@ pub enum ParseError {
 
     /// An empty string, where some non-empty string was required.
     Empty,
+
+    /// A required delimiter was not found.
+    MissingDelimiter,
 }
 
 impl From<ParseError> for ErrorKind {

@@ -97,6 +97,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             [] => panic!("! Empty clause"),
 
             [literal] => {
+                self.ensure_atom(literal.atom());
                 match self.atom_db.value_of(literal.atom()) {
                     None => {
                         match self.value_and_queue(
@@ -133,6 +134,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
 
             [..] => {
+                for literal in clause_vec.literals() {
+                    self.ensure_atom(literal.atom());
+                }
+
                 if unsafe { clause_vec.unsatisfiable_on_unchecked(self.atom_db.valuation()) } {
                     return Err(err::ErrorKind::ValuationConflict);
                 }
