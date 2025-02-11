@@ -74,8 +74,11 @@ pub trait Valuation {
     /// I.e. the first element is the atom '1' and then *n*th element is atom *n*.
     fn values(&self) -> impl Iterator<Item = Option<bool>>;
 
-    /// An iterator through all (Atom, Value) pairs (excluding falsum).
-    fn av_pairs(&self) -> impl Iterator<Item = (Atom, Option<bool>)>;
+    /// An iterator through all (Atom, Value) pairs (excluding top).
+    fn atom_value_pairs(&self) -> impl Iterator<Item = (Atom, Option<bool>)>;
+
+    /// An iterator through all (Atom, Value) pairs for such that the atom has some value (excluding top).
+    fn atom_valued_pairs(&self) -> impl Iterator<Item = (Atom, bool)>;
 
     /// An iterator through atoms which have some value.
     fn valued_atoms(&self) -> impl Iterator<Item = Atom>;

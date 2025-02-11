@@ -1,4 +1,5 @@
 use crate::structures::atom::Atom;
+use crate::structures::literal::IntLiteral;
 use crate::structures::valuation::Valuation;
 
 use super::AtomDB;
@@ -42,7 +43,7 @@ impl AtomDB {
     /// A string representing the current valuation, using the external representation of atoms.
     pub fn valuation_string(&self) -> String {
         self.valuation()
-            .av_pairs()
+            .atom_value_pairs()
             .filter_map(|(atom, v)| match v {
                 None => None,
                 Some(true) => Some(format!(" {atom}")),
@@ -52,14 +53,14 @@ impl AtomDB {
             .join(" ")
     }
 
-    /// A string representing the current valuation, using the external representation of atoms.
-    pub fn valuation_isize(&self) -> Vec<isize> {
+    /// A string representing the current valuation, using [IntLiteral]s.
+    pub fn valuations_ints(&self) -> Vec<IntLiteral> {
         self.valuation()
-            .av_pairs()
+            .atom_value_pairs()
             .filter_map(|(atom, v)| match v {
                 None => None,
-                Some(true) => Some(atom as isize),
-                Some(false) => Some(-(atom as isize)),
+                Some(true) => Some(atom as IntLiteral),
+                Some(false) => Some(-(atom as IntLiteral)),
             })
             .collect()
     }
@@ -67,7 +68,7 @@ impl AtomDB {
     /// A string representing the current valuation, using the internal representation of atoms.
     pub fn internal_valuation_string(&self) -> String {
         self.valuation()
-            .av_pairs()
+            .atom_value_pairs()
             .filter_map(|(atom, v)| match v {
                 None => None,
                 Some(true) => Some((atom as isize).to_string()),
@@ -82,7 +83,7 @@ impl AtomDB {
     pub fn internal_valuation_decision_string(&self) -> String {
         unsafe {
             self.valuation()
-                .av_pairs()
+                .atom_value_pairs()
                 .filter_map(|(atom, v)| match self.atom_decision_level_unchecked(atom) {
                     None => None,
                     Some(level) => match v {

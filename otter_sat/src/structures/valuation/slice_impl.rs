@@ -14,11 +14,18 @@ impl<T: std::ops::DerefMut<Target = [Option<bool>]>> Valuation for T {
         self.iter().copied()
     }
 
-    fn av_pairs(&self) -> impl Iterator<Item = (Atom, Option<bool>)> {
+    fn atom_value_pairs(&self) -> impl Iterator<Item = (Atom, Option<bool>)> {
         self.iter()
             .enumerate()
             .skip(1)
             .map(|(var, val)| (var as Atom, *val))
+    }
+
+    fn atom_valued_pairs(&self) -> impl Iterator<Item = (Atom, bool)> {
+        self.iter()
+            .enumerate()
+            .skip(1)
+            .flat_map(|(atom, value)| value.as_ref().map(|val| (atom as Atom, *val)))
     }
 
     fn valued_atoms(&self) -> impl Iterator<Item = Atom> {
