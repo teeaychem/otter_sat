@@ -103,7 +103,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         match self.value_and_queue(
                             literal,
                             consequence_q::QPosition::Back,
-                            self.literal_db.lower_limit(),
+                            self.literal_db.lowest_decision_level(),
                         ) {
                             Ok(consequence_q::ConsequenceQueueOk::Qd) => {
                                 let premises = HashSet::default();
@@ -191,7 +191,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 match self.value_and_queue(
                     literal.borrow(),
                     consequence_q::QPosition::Back,
-                    self.literal_db.lower_limit(),
+                    self.literal_db.lowest_decision_level(),
                 ) {
                     Ok(consequence_q::ConsequenceQueueOk::Qd) => {
                         let premises = HashSet::default();

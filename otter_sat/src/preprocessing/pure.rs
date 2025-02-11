@@ -51,7 +51,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
     for atom in f.into_iter() {
         let the_literal = CLiteral::new(atom, false);
         let position = consequence_q::QPosition::Back;
-        let level = context.literal_db.decision_level();
+        let level = context.literal_db.current_level();
 
         match context.value_and_queue(the_literal, position, level) {
             Ok(consequence_q::ConsequenceQueueOk::Qd) => {
@@ -67,7 +67,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
     for atom in t.into_iter() {
         let the_literal = CLiteral::new(atom, false);
         let position = consequence_q::QPosition::Back;
-        let level = context.literal_db.decision_level();
+        let level = context.literal_db.current_level();
 
         match context.value_and_queue(the_literal, position, level) {
             Ok(consequence_q::ConsequenceQueueOk::Qd) => {

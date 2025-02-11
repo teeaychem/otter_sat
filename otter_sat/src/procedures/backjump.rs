@@ -45,7 +45,7 @@ use std::cmp;
 
 use crate::{
     context::GenericContext,
-    db::DecisionLevelIndex,
+    db::LevelIndex,
     misc::log::targets::{self},
     structures::{clause::Clause, literal::Literal},
     types::err,
@@ -55,7 +55,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Backjumps to the given target level.
     ///
     /// For documentation, see [procedures::backjump](crate::procedures::backjump).
-    pub fn backjump(&mut self, target: DecisionLevelIndex) {
+    pub fn backjump(&mut self, target: LevelIndex) {
         // log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.index(), to);
 
         // Safety:
@@ -63,13 +63,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // So, the elements to pop must exist.
         // And, if an atom is in the decision stack is should certainly be in the atom database.
         unsafe {
-            for _ in 0..(self.literal_db.decision_level().saturating_sub(target)) {
+            for _ in 0..(self.literal_db.current_level().saturating_sub(target)) {
                 self.atom_db
                     .drop_value(self.literal_db.top_decision_unchecked().atom());
                 for consequence in self.literal_db.top_consequences_unchecked() {
                     self.atom_db.drop_value(consequence.atom());
                 }
-                self.literal_db.forget_top_decision();
+                self.literal_db.forget_top_level();
             }
         }
         self.clear_q(target);
@@ -84,12 +84,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn non_chronological_backjump_level(
         &self,
         clause: &impl Clause,
-    ) -> Result<DecisionLevelIndex, err::ErrorKind> {
+    ) -> Result<LevelIndex, err::ErrorKind> {
         match clause.size() {
             0 => {
                 panic!("! Attempted search for non-chronological backjump level on an empty clause")
             }
-            1 => Ok(self.literal_db.lower_limit()),
+            1 => Ok(self.literal_db.lowest_decision_level()),
             _ => {
                 // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
                 let mut top_two = (None, None);
@@ -114,10 +114,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
 
                 match top_two {
-                    (None, _) => Ok(self.literal_db.lower_limit()),
-                    (Some(second_to_top), _) => {
-                        Ok(cmp::max(self.literal_db.lower_limit(), second_to_top))
-                    }
+                    (None, _) => Ok(self.literal_db.lowest_decision_level()),
+                    (Some(second_to_top), _) => Ok(cmp::max(
+                        self.literal_db.lowest_decision_level(),
+                        second_to_top,
+                    )),
                 }
             }
         }
@@ -128,12 +129,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         self.backjump(0);
 
         if !self.literal_db.config.stacked_assumptions {
-            for assumption in self.literal_db.recorded_assumptions() {
+            for assumption in self.literal_db.stored_assumptions() {
                 unsafe { self.atom_db.drop_value(assumption.atom()) };
             }
         }
 
-        self.literal_db.lower_limit = 0;
+        self.literal_db.lowest_decision_level = 0;
         self.literal_db.clear_assumptions();
     }
 }

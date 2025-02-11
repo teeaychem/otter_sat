@@ -228,7 +228,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     match self.make_decision()? {
                         decision::DecisionOk::Literal(decision) => {
                             self.literal_db.push_fresh_decision(decision);
-                            let level = self.literal_db.decision_level();
+                            let level = self.literal_db.current_level();
                             self.value_and_queue(decision, QPosition::Back, level)?;
                             continue 'solve_loop;
                         }
@@ -238,7 +238,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 // Conflict variants. These continue to the remaining contents of a loop.
                 apply_consequences::ApplyConsequencesOk::UnitClause { key } => {
-                    self.value_and_queue(key, QPosition::Front, self.literal_db.lower_limit())?;
+                    self.value_and_queue(
+                        key,
+                        QPosition::Front,
+                        self.literal_db.lowest_decision_level(),
+                    )?;
                 }
 
                 apply_consequences::ApplyConsequencesOk::AssertingClause { key, literal } => {
@@ -246,7 +250,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     macros::dispatch_bcp_delta!(self, Instance, literal, key);
 
                     let consequence = Consequence::from(literal, consequence::Source::BCP(key));
-                    let level = self.literal_db.decision_level();
+                    let level = self.literal_db.current_level();
                     self.value_and_queue(literal, QPosition::Front, level)?;
                     self.record_consequence(consequence);
                 }
@@ -261,7 +265,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 macros::dispatch_stats!(self);
 
                 if self.config.switch.restart {
-                    self.backjump(self.literal_db.lower_limit());
+                    self.backjump(self.literal_db.lowest_decision_level());
                     self.clause_db.refresh_heap();
                     self.counters.fresh_conflicts = 0;
                     self.counters.restarts += 1;

@@ -27,7 +27,7 @@ use crate::{
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn add_assumption(&mut self, assumption: CLiteral) -> Result<(), ErrorKind> {
         self.ensure_atom(assumption.atom());
-        self.literal_db.note_assumption(assumption);
+        self.literal_db.store_assumption(assumption);
         Ok(())
     }
 
@@ -42,7 +42,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             return Err(ErrorKind::InvalidState);
         }
 
-        if self.literal_db.recorded_assumptions().is_empty() {
+        if self.literal_db.stored_assumptions().is_empty() {
             return Ok(());
         }
 
@@ -52,16 +52,16 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // This is safe, as no new assumptions will be created when asserting assumptions.
         // Further, the calls to BCP are as safe as can be, as a check is made to ensure the language of the context includes the atom of each assumption added.
 
-        let assumption_count = self.literal_db.recorded_assumptions().len();
+        let assumption_count = self.literal_db.stored_assumptions().len();
 
         match self.config.literal_db.stacked_assumptions {
             true => {
                 for index in 0..assumption_count {
-                    let assumption = self.literal_db.recorded_assumption(index);
+                    let assumption = self.literal_db.stored_assumption(index);
                     let Ok(_) = self.atom_db.set_value(
                         assumption.atom(),
                         assumption.polarity(),
-                        Some(self.literal_db.decision_level() + 1),
+                        Some(self.literal_db.current_level() + 1),
                     ) else {
                         return Err(ErrorKind::SpecificValuationConflict(assumption));
                     };
@@ -81,16 +81,16 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             false => {
                 // All assumption can be made, so push a fresh level.
                 // Levels store a single literal, so Top is used to represent the assumptions.
-                let an_assumption = self.literal_db.recorded_assumption(0);
+                let an_assumption = self.literal_db.stored_assumption(0);
 
                 self.literal_db.push_fresh_assumption(an_assumption);
 
                 for index in 0..assumption_count {
-                    let assumption = self.literal_db.recorded_assumption(index);
+                    let assumption = self.literal_db.stored_assumption(index);
                     let Ok(_) = self.value_and_queue(
                         assumption,
                         QPosition::Back,
-                        self.literal_db.decision_level(),
+                        self.literal_db.current_level(),
                     ) else {
                         return Err(ErrorKind::SpecificValuationConflict(assumption));
                     };

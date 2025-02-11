@@ -76,7 +76,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         &mut self,
         key: &ClauseKey,
     ) -> Result<ConflictAnalysisOk, err::ErrorKind> {
-        log::trace!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.decision_level());
+        log::trace!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.current_level());
 
         if let crate::config::vsids::VSIDS::Chaff = self.config.vsids_variant {
             self.atom_db
@@ -153,7 +153,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         match resolved_clause.len() {
             0 => Err(err::ErrorKind::from(err::AnalysisError::EmptyResolution)),
             1 => {
-                self.backjump(self.literal_db.lower_limit());
+                self.backjump(self.literal_db.lowest_decision_level());
                 self.clause_db.store(
                     literal,
                     ClauseSource::Resolution,

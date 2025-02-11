@@ -141,6 +141,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Note, this does not clear any assumptions made.
     pub fn clear_decisions(&mut self) {
         self.state = ContextState::Input;
-        self.backjump(self.literal_db.lower_limit());
+        self.backjump(self.literal_db.lowest_decision_level());
     }
 }
