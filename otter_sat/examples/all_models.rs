@@ -1,10 +1,11 @@
 use otter_sat::{
     config::Config,
     context::Context,
-    dispatch::library::report::{self},
+    dispatch::library::report::SolveReport,
     structures::{
         atom::Atom,
         literal::{CLiteral, Literal},
+        valuation::Valuation,
     },
 };
 
@@ -15,10 +16,15 @@ use otter_sat::{
 ///  - It is not possible to add an additional clause as the formula would become unsatisfiable
 ///  - Or, there's some error in the solver.
 fn main() {
+    // The context in which a solve takes place.
     let mut context: Context = Context::from_config(Config::default(), None);
 
+    // Atoms will be represented by characters of some string.
     let characters = "model".chars().collect::<Vec<_>>();
     let mut atom_count: u32 = 0;
+
+    // Each call to fresh_atom expands the context to include a fresh (new) atom.
+    // Atoms form a contiguous range from 1 to some limit.
     for _character in &characters {
         match context.fresh_atom() {
             Ok(_) => atom_count += 1,
@@ -28,54 +34,43 @@ fn main() {
         }
     }
 
-    let mut count = 0;
+    let mut model_count = 0;
 
-    loop {
-        assert!(context.solve().is_ok());
+    while let Ok(SolveReport::Satisfiable) = context.solve() {
+        model_count += 1;
 
-        match context.report() {
-            report::SolveReport::Satisfiable => {}
-            _ => break,
-        };
+        let mut valuation_representation = String::new();
 
-        count += 1;
+        // To exclude the current valuation, the negation of the current valuation is added as a clause.
+        // As valuations are conjunctions and clauses disjunctions, this may be done by negating each literal.
+        let mut exclusion_clause = Vec::new();
 
-        let last_valuation = context
-            .atom_db
-            .valuation_isize()
-            .iter()
-            .map(|a| {
-                let c = &characters[a.unsigned_abs() - 1];
-                match a.is_positive() {
-                    true => format!(" {c}"),
-                    false => format!("-{c}"),
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(" ");
-        println!("v {count}\t {last_valuation}");
-
-        let mut clause = Vec::new();
-
-        for (atom, value) in context
-            .atom_db
-            .valuation_canonical()
-            .iter()
-            .enumerate()
-            .skip(1)
-        {
-            if let Some(v) = value {
-                clause.push(CLiteral::new(atom as Atom, !v));
+        // The context provides an iterator over (atom, value) pairs.
+        // Though every non-constant atom has a value in this model, this avoids handling the no value option.
+        for (atom, value) in context.atom_db.valuation().atom_valued_pairs() {
+            // As atoms begin at 1, a step back is required to find the appropriate character.
+            match value {
+                true => valuation_representation.push(' '),
+                false => valuation_representation.push('-'),
             }
+            valuation_representation.push(characters[(atom as usize) - 1]);
+            valuation_representation.push(' ');
+
+            exclusion_clause.push(CLiteral::new(atom as Atom, !value));
         }
 
-        context.clear_decisions();
+        valuation_representation.pop();
+        println!("{model_count}\t {}", valuation_representation);
 
-        match context.add_clause(clause) {
+        // After a solve, the context is refreshed to clear any decisions made.
+        // Learnt clauses remain, though any assumptions made are also removed.
+        context.refresh();
+
+        match context.add_clause(exclusion_clause) {
             Ok(_) => {}
             Err(_) => break,
         };
     }
 
-    assert_eq!(count, 2_usize.pow(atom_count));
+    assert_eq!(model_count, 2_usize.pow(atom_count));
 }

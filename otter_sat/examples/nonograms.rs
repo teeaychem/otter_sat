@@ -108,7 +108,7 @@ fn main() {
 "
     );
 
-    let valuation = puzzle.context.atom_db.valuation_isize();
+    let valuation = puzzle.context.atom_db.valuations_ints();
 
     let mut display = vec![vec![0; puzzle.row_length]; puzzle.col_length];
 

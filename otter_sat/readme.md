@@ -60,54 +60,63 @@ Still, taming idiosyncracies, support for SMT solving, and interest in very larg
 - Find (a count of) all valuations of some collection of atoms
 
 ``` rust
-// setup a context to solve within.
-let mut the_context: Context = Context::from_config(Config::default(), None);
+// The context in which a solve takes place.
+let mut context: Context = Context::from_config(Config::default(), None);
 
-// Each character in the string is interpreted as an atom.
-let atoms = "model";
-for atom in atoms.chars() { // add atoms to the context.
-    assert!(the_context.atom_from_string(&atom.to_string()).is_ok())
+// Atoms will be represented by characters of some string.
+let characters = "model".chars().collect::<Vec<_>>();
+let mut atom_count: u32 = 0;
+
+// Each call to fresh_atom expands the context to include a fresh (new) atom.
+// Atoms form a contiguous range from 1 to some limit.
+for _character in &characters {
+    match context.fresh_atom() {
+        Ok(_) => atom_count += 1,
+        Err(_) => {
+            panic!("Atom limit exhausted.")
+        }
+    }
 }
 
-let mut count = 0;
+let mut model_count = 0;
 
-loop {
-    // Clear any decisions made on a previous solve and
-    the_context.clear_decisions();
-    // Determine the satisfiability of the formula in the context.
-    assert!(the_context.solve().is_ok());
+while let Ok(SolveReport::Satisfiable) = context.solve() {
+    model_count += 1;
 
-    // Break from the loop as soon as the context is unsatisfiable.
-    match the_context.report() {
-        report::SolveReport::Satisfiable => {}
-        _ => break,
-    };
+    let mut valuation_representation = String::new();
 
-    count += 1;
+    // To exclude the current valuation, the negation of the current valuation is added as a clause.
+    // As valuations are conjunctions and clauses disjunctions, this may be done by negating each literal.
+    let mut exclusion_clause = Vec::new();
 
-    // Read the (satisfying) valuation from the present solve.
-    let valuation = the_context.atom_db.valuation_string();
+    // The context provides an iterator over (atom, value) pairs.
+    // Though every non-constant atom has a value in this model, this avoids handling the no value option.
+    for (atom, value) in context.atom_db.valuation().atom_valued_pairs() {
+        // As atoms begin at 1, a step back is required to find the appropriate character.
+        match value {
+            true => valuation_representation.push(' '),
+            false => valuation_representation.push('-'),
+        }
+        valuation_representation.push(characters[(atom as usize) - 1]);
+        valuation_representation.push(' ');
 
-    // Create the string representation of a clause to force a new valuation.
-    let mut new_valuation = String::new();
-    for literal in valuation.split_whitespace() {
-        match literal.chars().next() {
-            Some('-') => new_valuation.push_str(&literal[1..]),
-            Some(_) => new_valuation.push_str(format!("-{literal}").as_str()),
-            None => break,
-        };
-        new_valuation.push(' ');
+        exclusion_clause.push(CLiteral::new(atom as Atom, !value));
     }
 
-    // Transform the string to a clause and add the clause to the solve.
-    let the_clause = the_context.clause_from_string(&new_valuation).unwrap();
-    match the_context.add_clause(the_clause) {
-        Ok(()) => {}
+    valuation_representation.pop();
+    println!("{model_count}\t {}", valuation_representation);
+
+    // After a solve, the context is refreshed to clear any decisions made.
+    // Learnt clauses remain, though any assumptions made are also removed.
+    context.refresh();
+
+    match context.add_clause(exclusion_clause) {
+        Ok(_) => {}
         Err(_) => break,
     };
 }
-// Check the expected number of models were found.
-assert_eq!(count, 2_usize.pow(atoms.len().try_into().unwrap()));
+
+assert_eq!(model_count, 2_usize.pow(atom_count));
 ```
 
 - Parse and solve a DIMACS formula
@@ -117,29 +126,13 @@ let mut the_context = Context::from_config(Config::default(), None);
 
 let mut dimacs = vec![];
 let _ = dimacs.write(b"
- p  q 0
--p  q 0
--p -q 0
- p -q 0
+ 1  2 0
+-1  2 0
+-1 -2 0
+ 1 -2 0
 ");
 
 the_context.read_dimacs(dimacs.as_slice());
 the_context.solve();
 assert_eq!(the_context.report(), report::Solve::Unsatisfiable);
-```
-
-- Identify unsatisfiability of a DIMACS formula during parsing.
-
-``` rust
-let mut the_context = Context::from_config(Config::default(), None);
-
-let mut dimacs = vec![];
-let _ = dimacs.write(b"
- p       0
--p  q    0
--p -q  r 0
-      -r 0
-");
-
-assert_eq!(the_context.read_dimacs(dimacs.as_slice()), Err(err::ErrorKind::Build(err::BuildErrorKind::Unsatisfiable)));
 ```

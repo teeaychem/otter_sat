@@ -57,7 +57,7 @@ fn main() {
 
         let last_valuation = the_context.atom_db.valuation();
         let mut valuation_as_chars = Vec::default();
-        for (atom, value) in last_valuation.av_pairs() {
+        for (atom, value) in last_valuation.atom_value_pairs() {
             let character = atom_map[atom as usize];
             match value {
                 Some(true) => valuation_as_chars.push(format!(" {character}")),
