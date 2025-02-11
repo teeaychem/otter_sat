@@ -22,22 +22,21 @@ def test_lsp(solver, cnf, expected_vertex_count):
     return False
 
 
-class TestReachability(unittest.TestCase):
+class TestLSP(unittest.TestCase):
     solver = "otter_sat"
-    build_binaries()
 
-    lsp_dir = CURRENT_DIR.joinpath(pathlib.Path("ipasir", "app", "genipalsp", "inputs"))
+    cnf_dir = CURRENT_DIR.joinpath(pathlib.Path("ipasir", "app", "genipalsp", "inputs"))
 
     def test_maze_10(self):
-        result = test_lsp(self.solver, self.lsp_dir.joinpath("maze-10-0.5-8.grid"), 25)
+        result = test_lsp(self.solver, self.cnf_dir.joinpath("maze-10-0.5-8.grid"), 25)
         self.assertTrue(result)
 
     def test_maze_12(self):
-        result = test_lsp(self.solver, self.lsp_dir.joinpath("maze-12-0.3-1.grid"), 71)
+        result = test_lsp(self.solver, self.cnf_dir.joinpath("maze-12-0.3-1.grid"), 71)
         self.assertTrue(result)
 
     def test_maze_13(self):
-        result = test_lsp(self.solver, self.lsp_dir.joinpath("maze-13-0.3-1.grid"), 81)
+        result = test_lsp(self.solver, self.cnf_dir.joinpath("maze-13-0.3-1.grid"), 81)
         self.assertTrue(result)
 
 
