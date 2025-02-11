@@ -164,8 +164,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 self.literal_db.current_level(),
                             )?;
 
-                            macros::dispatch_bcp_delta!(self, Instance, asserted_literal, key);
-
                             let consequence =
                                 Consequence::from(asserted_literal, consequence::Source::BCP(key));
                             self.record_consequence(consequence);
