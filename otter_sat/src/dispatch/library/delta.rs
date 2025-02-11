@@ -1,4 +1,6 @@
-//! Details on some change during a procedure or to an interal structure.
+/*!
+Details on some change during a procedure or to an interal structure.
+*/
 use crate::{db::ClauseKey, structures::literal::CLiteral};
 
 /// High level distinction of changes, by 'location' of the change.

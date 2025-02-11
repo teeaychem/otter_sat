@@ -1,5 +1,7 @@
 #![allow(unused_macros, unused_imports)]
-//! Macros for sending dispatches from a context.
+/*!
+Macros for sending dispatches from a context.
+*/
 
 /// A macro to simplify dispatches.
 macro_rules! dispatch_stats {

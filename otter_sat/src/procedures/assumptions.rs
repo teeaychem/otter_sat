@@ -1,21 +1,23 @@
-//! Assumptions
-//!
-//! # Overview
-//!
-//! Assumptions are *added* to a context through the [add_assumption](GenericContext::add_assumption) method. \
-//! Assumptions are *asserted* for a solve through the [assert_assumption](GenericContext::assert_assumptions) method.
-//!
-//! The distinction between adding and asserting assumptions allows for distinct ways of making assumptions (see below).
-//!
-//! # Ways of making assumptions
-//!
-//! Two ways of making assumptions are supported: Stacked and flat.
-//!
-//! # Stacked
-//! A new decision level for each assumption, and immediately applies BCP to an assumption when the level is created.
-//!
-//! # Flat
-//! A single decision level for all assumptions and delay BCP until the valuation has been updated with all valuations.
+/*!
+Assumptions
+
+# Overview
+
+Assumptions are *added* to a context through the [add_assumption](GenericContext::add_assumption) method. \
+Assumptions are *asserted* for a solve through the [assert_assumption](GenericContext::assert_assumptions) method.
+
+The distinction between adding and asserting assumptions allows for distinct ways of making assumptions (see below).
+
+# Ways of making assumptions
+
+Two ways of making assumptions are supported: Stacked and flat.
+
+# Stacked
+A new decision level for each assumption, and immediately applies BCP to an assumption when the level is created.
+
+# Flat
+A single decision level for all assumptions and delay BCP until the valuation has been updated with all valuations.
+*/
 
 use crate::{
     context::GenericContext,

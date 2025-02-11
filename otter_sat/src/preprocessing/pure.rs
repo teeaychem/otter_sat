@@ -1,4 +1,6 @@
-//! Procuedures to identify pure literals.
+/*!
+Procuedures to identify pure literals.
+*/
 use std::collections::HashSet;
 
 use crate::{

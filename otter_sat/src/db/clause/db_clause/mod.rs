@@ -1,25 +1,27 @@
-//! A struct holding a [clause](Clause) and associated metadata.
-//!
-//! For [clause trait](Clause) see [Clause], and for the canonical representation of a clause see [CClause].
-//!
-//! A [dbClause] contains:
-//! - A [clause](Clause) (represented as a [CClause]).
-//! - A [key](ClauseKey) used to access the [dbClause]/[clause](Clause).
-//! - Other, useful, metadata.
-//!
-//! # Terminology
-//! ## Watch candidate
-//!   - A literal with an atom, on the current valuation, that either has no value, or is such that the value of the atom is the same as the polarity of the literal
-//!
-//! ## Watched literals
-//!
-//! Two distinguished watch candidates.
-//!
-//! In particular, watches are initialised for any clause containing two or more literals.
-//!
-//! At present, the literals watched are the *first* literal in the clause and the literal at the position of `watch_ptr`.
-//! In order to preserve this invariant, order of literals in the claue is mutated as nedded.
-//! For details on the way watched literals are updated, see implementations (notably [update_watch](dbClause::update_watch)).
+/*!
+A struct holding a [clause](Clause) and associated metadata.
+
+For [clause trait](Clause) see [Clause], and for the canonical representation of a clause see [CClause].
+
+A [dbClause] contains:
+- A [clause](Clause) (represented as a [CClause]).
+- A [key](ClauseKey) used to access the [dbClause]/[clause](Clause).
+- Other, useful, metadata.
+
+# Terminology
+## Watch candidate
+  - A literal with an atom, on the current valuation, that either has no value, or is such that the value of the atom is the same as the polarity of the literal
+
+## Watched literals
+
+Two distinguished watch candidates.
+
+In particular, watches are initialised for any clause containing two or more literals.
+
+At present, the literals watched are the *first* literal in the clause and the literal at the position of `watch_ptr`.
+In order to preserve this invariant, order of literals in the claue is mutated as nedded.
+For details on the way watched literals are updated, see implementations (notably [update_watch](dbClause::update_watch)).
+*/
 
 use crate::{
     db::{atom::AtomDB, keys::ClauseKey},

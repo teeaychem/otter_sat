@@ -1,20 +1,22 @@
-//! A database of literal indexed things.
-//!
-//! For the moment, this amounts to a stack of all chosen literals.
-//!
-//! # Components
-//!
-//! ## The level stack
-//!
-//! A stack of [ADLevel]s, each of which stores a literal, and the observed consequences of that literal (given prior assumptions, decisions and observed consequences).
-//!
-//! A first (or bottom) decision level exists only after some assumption or decision has been made.
-//! And, so, in particular, observed consequences which do --- or are known to --- *not* rest on some decision are stored as unit clauses in the [clause database](crate::db::clause::ClauseDB).
-//!
-//! # Terminology
-//!
-//! The 'top' level is the level of the most recent decision made.
-//! - For example, after deciding 'p' is true and 'q' is false, the top decision level stores the decision to bind 'q' to false.
+/*!
+A database of literal indexed things.
+
+For the moment, this amounts to a stack of all chosen literals.
+
+# Components
+
+## The level stack
+
+A stack of [ADLevel]s, each of which stores a literal, and the observed consequences of that literal (given prior assumptions, decisions and observed consequences).
+
+A first (or bottom) decision level exists only after some assumption or decision has been made.
+And, so, in particular, observed consequences which do --- or are known to --- *not* rest on some decision are stored as unit clauses in the [clause database](crate::db::clause::ClauseDB).
+
+# Terminology
+
+The 'top' level is the level of the most recent decision made.
+- For example, after deciding 'p' is true and 'q' is false, the top decision level stores the decision to bind 'q' to false.
+*/
 
 use std::rc::Rc;
 

@@ -1,23 +1,25 @@
-//! Databases for holding information relevant to a solve.
-//!
-//!   - [The clause database](crate::db::clause)
-//!     + A collection of clauses, each indexed by a clause key. \
-//!       From an external perspective there are two important kinds of clause:
-//!       * Original clauses \
-//!         Original clauses are added to the context from some external source (e.g. directly or through some DIMACS file). \
-//!         The collection of original clauses together with the collection of original literals are the CNF formula 𝐅 whose satisfiability may be determined.
-//!       * Added clauses \
-//!         Clauses added to the context by some procedure (e.g. via resolution).
-//!         Every added clause is a consequence of the collection of original clauses.
-//!
-//!   - [The literal database](crate::db::literal)
-//!     + The literal database handled structures who primary
-//!       * The decision stack
-//!   - [The atom database](crate::db::atom)
-//!     + Properties of atoms.
-//!       * Valuation
-//!       * Watch database
-//! - [Consequence queue](crate::db::consequence_q)
+/*!
+Databases for holding information relevant to a solve.
+
+  - [The clause database](crate::db::clause)
+    + A collection of clauses, each indexed by a clause key. \
+      From an external perspective there are two important kinds of clause:
+      * Original clauses \
+        Original clauses are added to the context from some external source (e.g. directly or through some DIMACS file). \
+        The collection of original clauses together with the collection of original literals are the CNF formula 𝐅 whose satisfiability may be determined.
+      * Added clauses \
+        Clauses added to the context by some procedure (e.g. via resolution).
+        Every added clause is a consequence of the collection of original clauses.
+
+  - [The literal database](crate::db::literal)
+    + The literal database handled structures who primary
+      * The decision stack
+  - [The atom database](crate::db::atom)
+    + Properties of atoms.
+      * Valuation
+      * Watch database
+- [Consequence queue](crate::db::consequence_q)
+*/
 
 pub mod atom;
 pub mod clause;

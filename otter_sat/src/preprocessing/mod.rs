@@ -1,4 +1,6 @@
-//! Procedures for preprocessing formulas.
+/*!
+Procedures for preprocessing formulas.
+*/
 use pure::set_pure;
 
 use crate::{

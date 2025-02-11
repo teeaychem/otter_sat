@@ -1,56 +1,58 @@
-//! A (partial) function from atoms to truth values.
-//!
-//! If all atoms are assigned a value the valuation is 'full', otherwise the valuation is 'partial'.
-//!
-//! The canonical representation of a valuation as a vector of optional booleans, where:
-//! - The zero index (first) element is true, interpreted as some arbitrary tautology.
-//! - Each non-zero index of the vector is interpreted as an atom, though most interaction is through the valuation trait.
-//!
-//!  In other words, the canonical representation of a valuation 𝐯 is a vector *v* whose length is the number of atoms in the context such that:[^pedantic]
-//!  -  *v*\[a\] = Some(true) *if any only if* 𝐯(𝐚) = true.
-//!  -  *v*\[a\] = Some(false) *if any only if* 𝐯(𝐚) = false.
-//!  -  *v*\[a\] = None *if any only if* 𝐯(𝐚) is undefined.
-//!
-//! The trait is implemented for anything which can be dereferenced to a slice of optional booleans.
-//!
-//! ```rust
-//! # use otter_sat::structures::atom;
-//! # use otter_sat::structures::valuation::Valuation;
-//! let atoms =     vec![0,          1,    2,          3];
-//! let valuation = vec![Some(true), None, Some(true), None];
-//!
-//! assert_eq!(unsafe { valuation.value_of_unchecked(1) }, None);
-//! assert_eq!(valuation.unvalued_atoms().count(), 2);
-//! ```
-//!
-//! Throughout the library the unsafe `value_of_unchecked` is preferred over the safe `value_of`. \
-//! This is because the implementation on vectors 'only' guarantees *memory* safety, while use requires the stronger guarantee that the (optional) value atom of interest is mapped to the index of the atom in the valuation, and with this an additional check that the atom really is there is redundant.
-//!
-//! [^pedantic]: Where 'a' is the internal representation of some atom whose external representation is '𝐚'.
-//!
-//! # Falsum
-//!
-//! The first element of a valuation is designated to be falsum as atoms are positive integers.
-//! And, as the atoms in a solve are a contiguous slice of positive integers starting from 1 -- [1..] -- the value of atom *i* may be identified with the contents of the *i*th index of a vector.
-//!
-//! True is used, in particular, as it allows the literal representation of a valuation to be interpreted as a conjunction.
-//!
-//! # Soundness
-//!
-//! The valuation trait is implemented for any structure which can be dereferenced to a slice of optional booleans.
-//! And, as the value of an atom is determined by using the atom as an index on the dereferenced structure, there is no structural guarantee that the returned value is for the atom.
-//!
-//! In other words, the following is possible, unsound, and by (design/luck) fails:
-//!
-//! ```rust,should_panic
-//! # use otter_sat::structures::atom;
-//! # use otter_sat::structures::valuation::Valuation;
-//! let atoms =     vec![0,          1,    2,          3];
-//! let valuation = vec![Some(true), None, Some(true), None];
-//!
-//! let sub_valuation = valuation[1..].iter().copied().collect::<Vec<_>>();
-//! assert_eq!(sub_valuation.value_of(1), Some(None));
-//! ```
+/*!
+A (partial) function from atoms to truth values.
+
+If all atoms are assigned a value the valuation is 'full', otherwise the valuation is 'partial'.
+
+The canonical representation of a valuation as a vector of optional booleans, where:
+- The zero index (first) element is true, interpreted as some arbitrary tautology.
+- Each non-zero index of the vector is interpreted as an atom, though most interaction is through the valuation trait.
+
+ In other words, the canonical representation of a valuation 𝐯 is a vector *v* whose length is the number of atoms in the context such that:[^pedantic]
+ -  *v*\[a\] = Some(true) *if any only if* 𝐯(𝐚) = true.
+ -  *v*\[a\] = Some(false) *if any only if* 𝐯(𝐚) = false.
+ -  *v*\[a\] = None *if any only if* 𝐯(𝐚) is undefined.
+
+The trait is implemented for anything which can be dereferenced to a slice of optional booleans.
+
+```rust
+# use otter_sat::structures::atom;
+# use otter_sat::structures::valuation::Valuation;
+let atoms =     vec![0,          1,    2,          3];
+let valuation = vec![Some(true), None, Some(true), None];
+
+assert_eq!(unsafe { valuation.value_of_unchecked(1) }, None);
+assert_eq!(valuation.unvalued_atoms().count(), 2);
+```
+
+Throughout the library the unsafe `value_of_unchecked` is preferred over the safe `value_of`. \
+This is because the implementation on vectors 'only' guarantees *memory* safety, while use requires the stronger guarantee that the (optional) value atom of interest is mapped to the index of the atom in the valuation, and with this an additional check that the atom really is there is redundant.
+
+[^pedantic]: Where 'a' is the internal representation of some atom whose external representation is '𝐚'.
+
+# Falsum
+
+The first element of a valuation is designated to be falsum as atoms are positive integers.
+And, as the atoms in a solve are a contiguous slice of positive integers starting from 1 -- [1..] -- the value of atom *i* may be identified with the contents of the *i*th index of a vector.
+
+True is used, in particular, as it allows the literal representation of a valuation to be interpreted as a conjunction.
+
+# Soundness
+
+The valuation trait is implemented for any structure which can be dereferenced to a slice of optional booleans.
+And, as the value of an atom is determined by using the atom as an index on the dereferenced structure, there is no structural guarantee that the returned value is for the atom.
+
+In other words, the following is possible, unsound, and by (design/luck) fails:
+
+```rust,should_panic
+# use otter_sat::structures::atom;
+# use otter_sat::structures::valuation::Valuation;
+let atoms =     vec![0,          1,    2,          3];
+let valuation = vec![Some(true), None, Some(true), None];
+
+let sub_valuation = valuation[1..].iter().copied().collect::<Vec<_>>();
+assert_eq!(sub_valuation.value_of(1), Some(None));
+```
+*/
 
 mod slice_impl;
 

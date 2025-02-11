@@ -1,8 +1,10 @@
-//! A database of clause related things.
-//!
-//! Records of clauses are distinguished by a mix of [kind](crate::structures::clause::ClauseKind) and/or [source](crate::structures::clause::ClauseSource).
-//!
-//! Fields of the database are private to ensure the use of methods which may be needed to uphold invariants.
+/*!
+A database of clause related things.
+
+Records of clauses are distinguished by a mix of [kind](crate::structures::clause::ClauseKind) and/or [source](crate::structures::clause::ClauseSource).
+
+Fields of the database are private to ensure the use of methods which may be needed to uphold invariants.
+*/
 pub mod activity_glue;
 pub mod callbacks;
 pub mod db_clause;
