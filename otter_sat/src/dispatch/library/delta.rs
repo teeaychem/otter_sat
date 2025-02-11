@@ -4,9 +4,6 @@ use crate::{db::ClauseKey, structures::literal::CLiteral};
 /// High level distinction of changes, by 'location' of the change.
 #[derive(Clone)]
 pub enum Delta {
-    /// During [BCP](crate::procedures::bcp).
-    BCP(self::BCP),
-
     /// During resolution
     Resolution(self::Resolution),
 
@@ -18,22 +15,6 @@ pub enum Delta {
 
     /// Within the [atom database](AtomDB).
     AtomDB(self::AtomDB),
-}
-
-/// Changes during [BCP](crate::procedures::bcp).
-#[derive(Clone)]
-pub enum BCP {
-    /// A conflict was found with the detailed clause asserting the detailed literal.
-    Conflict {
-        literal: CLiteral,
-        clause: ClauseKey,
-    },
-
-    /// An instance of BCP took place, with the detailed literal being asserted by the detailed clause.
-    Instance {
-        clause: ClauseKey,
-        literal: CLiteral,
-    },
 }
 
 /// Changes when building a clause.

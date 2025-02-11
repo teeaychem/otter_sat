@@ -51,8 +51,6 @@ impl Transcriber {
                 Delta::Resolution(resolution_δ) => {
                     self.transcribe_resolution_delta(resolution_δ)?
                 }
-
-                Delta::BCP(_) => {}
             },
 
             Dispatch::Report(the_report) => {

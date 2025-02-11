@@ -247,7 +247,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 apply_consequences::ApplyConsequencesOk::AssertingClause { key, literal } => {
                     self.clause_db.note_use(key);
-                    macros::dispatch_bcp_delta!(self, Instance, literal, key);
 
                     let consequence = Consequence::from(literal, consequence::Source::BCP(key));
                     let level = self.literal_db.current_level();

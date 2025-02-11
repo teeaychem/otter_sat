@@ -1,21 +1,6 @@
 #![allow(unused_macros, unused_imports)]
 //! Macros for sending dispatches from a context.
 
-/// A macro to send bcp dispatches.
-/// Requires an optional dispatch method is available via self.
-macro_rules! dispatch_bcp_delta {
-    ($self:ident, $variant:ident, $literal:expr, $clause:expr) => {
-        if let Some(dispatcher) = &$self.dispatcher {
-            let delta = delta::BCP::$variant {
-                literal: $literal,
-                clause: $clause,
-            };
-            dispatcher(Dispatch::Delta(Delta::BCP(delta)));
-        }
-    };
-}
-pub(crate) use dispatch_bcp_delta;
-
 /// A macro to simplify dispatches.
 macro_rules! dispatch_stats {
     ($self:ident) => {

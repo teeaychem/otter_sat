@@ -9,7 +9,7 @@ use otter_sat::{
     dispatch::library::report::SolveReport::{self},
     structures::{
         atom::Atom,
-        literal::{CLiteral, Literal},
+        literal::{CLiteral, IntLiteral, Literal},
     },
 };
 
@@ -265,7 +265,7 @@ fn print_sudoku_grid(grid: &SudokuGrid) {
     }
 }
 
-fn valuation_to_grid(valuation: Vec<isize>, cell_map: &HashMap<String, Atom>) -> SudokuGrid {
+fn valuation_to_grid(valuation: Vec<IntLiteral>, cell_map: &HashMap<String, Atom>) -> SudokuGrid {
     let inverted_map: HashMap<Atom, String> =
         cell_map.iter().map(|(k, v)| (*v, k.clone())).collect();
 

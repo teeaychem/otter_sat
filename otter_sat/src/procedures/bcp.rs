@@ -110,7 +110,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             decision_level,
                         ) {
                             Ok(consequence_q::ConsequenceQueueOk::Qd) => {
-                                macros::dispatch_bcp_delta!(self, Instance, *check, *key);
                                 let consequence =
                                     Consequence::from(check, consequence::Source::BCP(*key));
                                 self.record_consequence(consequence);
@@ -127,7 +126,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     Some(value) if check.polarity() != value => {
                         // Note the conflict
                         log::trace!(target: targets::PROPAGATION, "Consequence of {key} and {literal} is contradiction.");
-                        macros::dispatch_bcp_delta!(self, Conflict, *literal, *key);
 
                         return Err(err::BCPError::Conflict(*key));
                     }
@@ -188,7 +186,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         match watch_value {
                             Some(value) if the_watch.polarity() != value => {
                                 self.clause_db.note_use(*key);
-                                macros::dispatch_bcp_delta!(self, Conflict, *literal, *key);
 
                                 return Err(err::BCPError::Conflict(*key));
                             }
@@ -202,9 +199,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                     decision_level,
                                 ) {
                                     Ok(consequence_q::ConsequenceQueueOk::Qd) => {
-                                        macros::dispatch_bcp_delta!(
-                                            self, Instance, the_watch, *key
-                                        );
                                         let consequence = Consequence::from(
                                             the_watch,
                                             consequence::Source::BCP(*key),
