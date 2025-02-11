@@ -1,15 +1,17 @@
-//! A simple pseudorandom number generator.
-//!
-//! Specifically, a translation of the *really* minimal C PCG32 implementation from <https://www.pcg-random.org/> implemented to satisfy the [Random](std::random) trait.[^note]
-//!
-//! PCG(32) was chosen as the default source of (pseudo)random numbers as it is simple, fast, and has some nice supporting documentation.
-//!
-//! Each [context](crate::context) stores a source of rng as a [counter](crate::context::Counters).
-//! The counter structure is paramaterised to anything which satisfies the [Random](std::random) trait.
-//! Though to keep the rest of the library straightforward the rng is fixed in the [context](crate::context) as [MinimalPCG32].
-//! Still, revising or paramaterising the context is all that's needed for a different source of rng.
-//!
-//! [^note]: At the time of writing, the C implementation is at the top of the [download page](https://www.pcg-random.org/download.html).
+/*!
+A simple pseudorandom number generator.
+
+Specifically, a translation of the *really* minimal C PCG32 implementation from <https://www.pcg-random.org/> implemented to satisfy the [Random](std::random) trait.[^note]
+
+PCG(32) was chosen as the default source of (pseudo)random numbers as it is simple, fast, and has some nice supporting documentation.
+
+Each [context](crate::context) stores a source of rng as a [counter](crate::context::Counters).
+The counter structure is paramaterised to anything which satisfies the [Random](std::random) trait.
+Though to keep the rest of the library straightforward the rng is fixed in the [context](crate::context) as [MinimalPCG32].
+Still, revising or paramaterising the context is all that's needed for a different source of rng.
+
+[^note]: At the time of writing, the C implementation is at the top of the [download page](https://www.pcg-random.org/download.html).
+*/
 
 use rand::SeedableRng;
 use rand_core::{impls, Error, RngCore};

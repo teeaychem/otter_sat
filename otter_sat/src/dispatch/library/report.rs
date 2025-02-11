@@ -1,4 +1,6 @@
-//! Details on the result of some procedure.
+/*!
+Details on the result of some procedure.
+*/
 use crate::{
     db::ClauseKey,
     structures::{clause::CClause, literal::CLiteral},

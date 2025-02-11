@@ -1,11 +1,13 @@
-//! A database of 'atom related' things, accessed via fields on an [AtomDB] struct.
-//!
-//! Things include:
-//! - Watch lists for each atom in the form of [WatchDB] structs, indexed by atoms.
-//! - A current (often partial) [valuation](Valuation) and the previous valuation (or some randomised valuation).
-//! - An [IndexHeap] recording the activty of atoms, where any atom without a value is 'active' on the heap.
-//! - A record of which decision an atom was valued on.
-//! - Internal and external name maps, for reading and writing [Atom]s, [Literal](crate::structures::literal::Literal)s, etc.
+/*!
+A database of 'atom related' things, accessed via fields on an [AtomDB] struct.
+
+Things include:
+- Watch lists for each atom in the form of [WatchDB] structs, indexed by atoms.
+- A current (often partial) [valuation](Valuation) and the previous valuation (or some randomised valuation).
+- An [IndexHeap] recording the activty of atoms, where any atom without a value is 'active' on the heap.
+- A record of which decision an atom was valued on.
+- Internal and external name maps, for reading and writing [Atom]s, [Literal](crate::structures::literal::Literal)s, etc.
+*/
 
 #[doc(hidden)]
 pub mod activity;

@@ -1,6 +1,8 @@
-//! Bindings for the IPASIR API.
-//!
-//! For a general overview, see the [ipasir module](crate::ipasir).
+/*!
+Bindings for the IPASIR API.
+
+For a general overview, see the [ipasir module](crate::ipasir).
+*/
 
 use crate::{
     context::ContextState,

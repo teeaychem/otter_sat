@@ -1,4 +1,6 @@
-//! Generic implementations of some useful things.
+/*!
+Generic implementations of some useful things.
+*/
 
 pub mod index_heap;
 pub mod luby;

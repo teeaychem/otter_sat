@@ -1,42 +1,44 @@
-//! Analysis of an unsatisfiable clause.
-//!
-//! Takes a key to a clause which is unsatisfiable on the current valuation and returns an asserting clause.
-//!
-//! In other words, conflict analysis takes a key to a clause which is unsatisfiable on the current valuation and applies resolution using the clauses used to (eventually) make the observation of a conflict given decisions made.
-//!
-//! For details on resolution, see the [resolution buffer](crate::transient::resolution_buffer).
-//!
-//! For the method, see: [conflict_analysis](GenericContext::conflict_analysis).
-//!
-//! # Example
-//!
-//! ```rust, ignore
-//! let analysis_result = self.conflict_analysis(&key)?;
-//!
-//! match analysis_result {
-//!     analysis::ConflictAnalysisOk::FundamentalConflict => {
-//!         ...
-//!     }
-//!
-//!     analysis::ConflictAnalysisOk::RepeatImplication {
-//!         clause_key: key,
-//!         asserted_literal: literal,
-//!     } => {
-//!         Ok(AssertingClause(key, literal))
-//!     }
-//!
-//!     analysis::ConflictAnalysisOk::UnitClause(key) => {
-//!         Ok(UnitClause(key))
-//!     }
-//!
-//!     analysis::ConflictAnalysisOk::AssertingClause {
-//!         clause_key: key,
-//!         asserted_literal: literal,
-//!     } => {
-//!         Ok(AssertingClause(key, literal))
-//!     }
-//! }
-//! ```
+/*!
+Analysis of an unsatisfiable clause.
+
+Takes a key to a clause which is unsatisfiable on the current valuation and returns an asserting clause.
+
+In other words, conflict analysis takes a key to a clause which is unsatisfiable on the current valuation and applies resolution using the clauses used to (eventually) make the observation of a conflict given decisions made.
+
+For details on resolution, see the [resolution buffer](crate::transient::resolution_buffer).
+
+For the method, see: [conflict_analysis](GenericContext::conflict_analysis).
+
+# Example
+
+```rust, ignore
+let analysis_result = self.conflict_analysis(&key)?;
+
+match analysis_result {
+    analysis::ConflictAnalysisOk::FundamentalConflict => {
+        ...
+    }
+
+    analysis::ConflictAnalysisOk::RepeatImplication {
+        clause_key: key,
+        asserted_literal: literal,
+    } => {
+        Ok(AssertingClause(key, literal))
+    }
+
+    analysis::ConflictAnalysisOk::UnitClause(key) => {
+        Ok(UnitClause(key))
+    }
+
+    analysis::ConflictAnalysisOk::AssertingClause {
+        clause_key: key,
+        asserted_literal: literal,
+    } => {
+        Ok(AssertingClause(key, literal))
+    }
+}
+```
+*/
 
 use crate::{
     config::StoppingCriteria,

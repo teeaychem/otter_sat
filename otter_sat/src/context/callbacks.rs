@@ -1,13 +1,15 @@
-//! General callbacks associated with a context.
-//!
-//! For other callbacks see:
-//! - [crate::db::clause::callbacks]
-//! - [crate::ipasir]
-//!
-//! # Callback types
-//!
-//! Callbacks may be mutable functions.
-//! Still, information passed from the solver is non-mutable.
+/*!
+General callbacks associated with a context.
+
+For other callbacks see:
+- [crate::db::clause::callbacks]
+- [crate::ipasir]
+
+# Callback types
+
+Callbacks may be mutable functions.
+Still, information passed from the solver is non-mutable.
+*/
 
 use super::GenericContext;
 

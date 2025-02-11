@@ -1,36 +1,38 @@
-//! The context --- to which formulas are added and within which solves take place, etc.
-//!
-//! Strictly, a [GenericContext] and a [Context].
-//!
-//! The generic context is designed to be generic over various parameters.
-//! Though, for the moment this is limited to the source of randomness.
-//!
-//! Still, this helps distinguish generic context methods against those intended for external use or a particular application.
-//! In particular, [from_config](Context::from_config) is implemented for a context rather than a generic context to avoid requiring a source of randomness to be supplied alongside a config.
-//!
-//! # Example
-//! ```rust
-//! # use otter_sat::context::Context;
-//! # use otter_sat::config::Config;
-//! # use otter_sat::dispatch::library::report::{self};
-//! # use otter_sat::structures::literal::{CLiteral, Literal};
-//! let mut the_context = Context::from_config(Config::default(), None);
-//!
-//! let p = the_context.fresh_or_max_atom();
-//! let q = the_context.fresh_or_max_atom();
-//!
-//! let p_q_clause = vec![CLiteral::new(p, true), CLiteral::new(q, true)];
-//! assert!(the_context.add_clause(p_q_clause).is_ok());
-//!
-//! let not_p = CLiteral::new(p, false);
-//!
-//! assert!(the_context.add_clause(not_p).is_ok());
-//! assert!(the_context.solve().is_ok());
-//! assert_eq!(the_context.report(), report::SolveReport::Satisfiable);
-//!
-//! assert_eq!(the_context.atom_db.value_of(p), Some(false));
-//! assert_eq!(the_context.atom_db.value_of(q), Some(true));
-//! ```
+/*!
+The context --- to which formulas are added and within which solves take place, etc.
+
+Strictly, a [GenericContext] and a [Context].
+
+The generic context is designed to be generic over various parameters.
+Though, for the moment this is limited to the source of randomness.
+
+Still, this helps distinguish generic context methods against those intended for external use or a particular application.
+In particular, [from_config](Context::from_config) is implemented for a context rather than a generic context to avoid requiring a source of randomness to be supplied alongside a config.
+
+# Example
+```rust
+# use otter_sat::context::Context;
+# use otter_sat::config::Config;
+# use otter_sat::dispatch::library::report::{self};
+# use otter_sat::structures::literal::{CLiteral, Literal};
+let mut the_context = Context::from_config(Config::default(), None);
+
+let p = the_context.fresh_or_max_atom();
+let q = the_context.fresh_or_max_atom();
+
+let p_q_clause = vec![CLiteral::new(p, true), CLiteral::new(q, true)];
+assert!(the_context.add_clause(p_q_clause).is_ok());
+
+let not_p = CLiteral::new(p, false);
+
+assert!(the_context.add_clause(not_p).is_ok());
+assert!(the_context.solve().is_ok());
+assert_eq!(the_context.report(), report::SolveReport::Satisfiable);
+
+assert_eq!(the_context.atom_db.value_of(p), Some(false));
+assert_eq!(the_context.atom_db.value_of(q), Some(true));
+```
+*/
 
 pub mod callbacks;
 mod counters;

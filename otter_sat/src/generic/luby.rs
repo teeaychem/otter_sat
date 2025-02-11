@@ -1,11 +1,13 @@
-//! An iterator to generate the luby sequence.
-//!
-//! See <https://oeis.org/A182105> for details on the luby sequence.
-//!
-//! The current implementation follows [chaotic-evil](https://gitlab.com/chaotic-evil)'s general [implementation](https://gitlab.com/chaotic-evil/luby).[^note]
-//! Though, things are simplified a little as we're only interested in an iterator for the type fixed by [LubyRepresentation].
-//!
-//! [^note]: Another useful resource was [aima-python](https://github.com/aimacode/aima-python)'s [notebook](https://github.com/aimacode/aima-python/blob/master/improving_sat_algorithms.ipynb).
+/*!
+An iterator to generate the luby sequence.
+
+See <https://oeis.org/A182105> for details on the luby sequence.
+
+The current implementation follows [chaotic-evil](https://gitlab.com/chaotic-evil)'s general [implementation](https://gitlab.com/chaotic-evil/luby).[^note]
+Though, things are simplified a little as we're only interested in an iterator for the type fixed by [LubyRepresentation].
+
+[^note]: Another useful resource was [aima-python](https://github.com/aimacode/aima-python)'s [notebook](https://github.com/aimacode/aima-python/blob/master/improving_sat_algorithms.ipynb).
+*/
 
 /// Representation used for numbers in a luby sequence.
 pub type LubyRepresentation = u32;

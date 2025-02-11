@@ -1,3 +1,5 @@
-//! Miscelaneous things
+/*!
+Miscelaneous things
+*/
 
 pub mod log;
