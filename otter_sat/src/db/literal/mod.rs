@@ -35,20 +35,20 @@ pub use decision_level::*;
 #[allow(dead_code)]
 /// A struct abstracting over decision levels.
 pub struct LiteralDB {
-    config: LiteralDBConfig,
+    pub config: LiteralDBConfig,
 
     /// The lower limit to find a decision made during a solve.
     /// In other words, any decision present *below* the limit was made prior to a call to [solve](crate::procedures::solve).
     pub lower_limit: DecisionLevelIndex,
 
     /// A stack of decision levels.
-    level_stack: Vec<DecisionLevel>,
+    pub level_stack: Vec<DecisionLevel>,
 
     /// Assumptions
-    assumptions: Vec<CLiteral>,
+    pub assumptions: Vec<CLiteral>,
 
     /// A dispatcher.
-    dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
+    pub dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 }
 
 impl LiteralDB {
