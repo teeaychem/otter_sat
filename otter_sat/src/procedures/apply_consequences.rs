@@ -161,7 +161,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             self.value_and_queue(
                                 asserted_literal,
                                 QPosition::Front,
-                                self.literal_db.decision_level(),
+                                self.literal_db.current_level(),
                             )?;
 
                             macros::dispatch_bcp_delta!(self, Instance, asserted_literal, key);

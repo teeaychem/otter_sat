@@ -38,7 +38,7 @@ use crate::{
 };
 
 /// The index of a [decision level](crate::db::literal).
-pub type DecisionLevelIndex = u32;
+pub type LevelIndex = u32;
 
 /// Canonical methods to record literals and clauses to the context.
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
@@ -86,10 +86,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         if self.literal_db.assumption_is_made()
                             && !self.literal_db.decision_is_made()
                         {
-                            unsafe {
-                                self.literal_db
-                                    .record_top_consequence_unchecked(consequence)
-                            };
+                            unsafe { self.literal_db.store_top_consequence_unchecked(consequence) };
                         } else {
                             let unit_clause = *consequence.literal();
 
@@ -112,8 +109,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
 
                     _ => unsafe {
-                        self.literal_db
-                            .record_top_consequence_unchecked(consequence);
+                        self.literal_db.store_top_consequence_unchecked(consequence);
                     },
                 }
                 Ok(())

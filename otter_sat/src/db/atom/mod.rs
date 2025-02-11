@@ -19,7 +19,7 @@ use watch_db::WatchTag;
 
 use crate::{
     config::{dbs::AtomDBConfig, Activity, Config},
-    db::{atom::watch_db::WatchDB, DecisionLevelIndex},
+    db::{atom::watch_db::WatchDB, LevelIndex},
     dispatch::Dispatch,
     generic::index_heap::IndexHeap,
     misc::log::targets::{self},
@@ -49,7 +49,7 @@ pub struct AtomDB {
     activity_heap: IndexHeap<Activity>,
 
     /// A record of which decision an atom was valued on.
-    decision_indicies: Vec<Option<DecisionLevelIndex>>,
+    decision_indicies: Vec<Option<LevelIndex>>,
 
     /// An optional function to send dispatches with.
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
@@ -132,7 +132,7 @@ impl AtomDB {
     ///
     /// # Safety
     /// No check is made on whether the decision level of the atom is tracked.
-    pub unsafe fn atom_decision_level_unchecked(&self, atom: Atom) -> Option<DecisionLevelIndex> {
+    pub unsafe fn atom_decision_level_unchecked(&self, atom: Atom) -> Option<LevelIndex> {
         *self.decision_indicies.get_unchecked(atom as usize)
     }
 
@@ -144,7 +144,7 @@ impl AtomDB {
         &mut self,
         atom: Atom,
         value: bool,
-        level: Option<DecisionLevelIndex>,
+        level: Option<LevelIndex>,
     ) -> Result<AtomValue, AtomValue> {
         match self.value_of(atom) {
             None => {
