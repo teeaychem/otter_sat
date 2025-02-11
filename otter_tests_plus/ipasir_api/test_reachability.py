@@ -2,7 +2,7 @@ import unittest
 import pathlib
 import re
 import subprocess
-from utils import BUILD_DIR, CURRENT_DIR, compare_results, build_binaries, is_comment
+from utils import BUILD_DIR, CURRENT_DIR, build_binaries
 
 
 def test_reachability(solver, cnf, step):
@@ -28,17 +28,17 @@ class TestReachability(unittest.TestCase):
         pathlib.Path("ipasir", "app", "genipareach", "inputs")
     )
 
-    def test_maze_10(self):
+    def test_floortile_4_3_2(self):
         path = self.cnf_dir.joinpath("Floortile_p01-4-3-2.dimspec.cnf")
         result = test_reachability(self.solver, path, 8)
         self.assertTrue(result)
 
-    def test_maze_12(self):
+    def test_floortile_5_4_2(self):
         path = self.cnf_dir.joinpath("Floortile_p01-5-4-2.dimspec.cnf")
         result = test_reachability(self.solver, path, 13)
         self.assertTrue(result)
 
-    def test_maze_13(self):
+    def test_maintenance(self):
         path = self.cnf_dir.joinpath(
             "Maintenance_maintenance.1.3.060.180.5-002.dimspec.cnf"
         )

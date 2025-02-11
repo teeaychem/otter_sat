@@ -1,7 +1,8 @@
+import os
 import subprocess
 import unittest
 
-from utils import BUILD_DIR, build_binaries, is_comment, printv
+from utils import BUILD_DIR, build_binaries, is_comment
 
 """
 This test uses harcoded expectations from buidling the satunsat with minisat.
@@ -46,6 +47,7 @@ class TestSatUnsat(unittest.TestCase):
     def test_e(self):
         self.assertTrue(check_sat_unsat(self.solver, 100000, 5, 5000, 2, 99997))
 
+    @unittest.skipIf(int(os.getenv("TEST_LEVEL", 0)) < 1, "Expensive")
     def test_f(self):
         self.assertTrue(check_sat_unsat(self.solver, 200000, 5, 5000, 2, 199997))
 
