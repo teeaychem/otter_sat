@@ -1,4 +1,3 @@
-#![allow(unused_macros, unused_imports)]
 /*!
 Macros for sending dispatches from a context.
 */
@@ -41,18 +40,6 @@ macro_rules! dispatch_resolution_delta {
     };
 }
 pub(crate) use dispatch_resolution_delta;
-
-/// A macro to help send deltas from the resolution buffer.
-///
-/// Deltas are often grouped, and so multiple checks on whether a dispatcher is present may be avoided by a different approach.
-macro_rules! dispatch_atom_db_delta {
-    ( $self:ident, $dispatch:expr ) => {
-        if let Some(dispatcher) = &$self.dispatcher {
-            dispatcher(Dispatch::Delta(delta::Delta::AtomDB($dispatch)));
-        }
-    };
-}
-pub(crate) use dispatch_atom_db_delta;
 
 /// For removing a clause
 ///
