@@ -1,7 +1,8 @@
+import os
 import subprocess
 import unittest
 
-from utils import BUILD_DIR, build_binaries, is_comment, printv
+from utils import BUILD_DIR, build_binaries, is_comment
 
 
 def check_iterative(solver, x, y, z):
@@ -29,9 +30,11 @@ class TestIterative(unittest.TestCase):
     def test_2000_5_30000(self):
         self.assertTrue(check_iterative(self.solver, 2000, 5, 30000))
 
+    @unittest.skipIf(int(os.getenv("TEST_LEVEL", 0)) < 1, "Expensive")
     def test_100000_5_5000(self):
         self.assertTrue(check_iterative(self.solver, 100000, 5, 5000))
 
+    @unittest.skipIf(int(os.getenv("TEST_LEVEL", 0)) < 1, "Expensive")
     def test_200000_5_5000(self):
         self.assertTrue(check_iterative(self.solver, 200000, 5, 5000))
 
