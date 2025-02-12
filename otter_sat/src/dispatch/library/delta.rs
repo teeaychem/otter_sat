@@ -11,12 +11,6 @@ pub enum Delta {
 
     /// Within the [clause database](ClauseDB).
     ClauseDB(self::ClauseDB),
-
-    /// Within the [literal database](LiteralDB).
-    LiteralDB(self::LiteralDB),
-
-    /// Within the [atom database](AtomDB).
-    AtomDB(self::AtomDB),
 }
 
 /// Changes when building a clause.
@@ -70,11 +64,3 @@ pub enum ClauseDB {
     /// The formula is unsatisfiable, with the key as a witness.
     Unsatisfiable(ClauseKey),
 }
-
-/// Changes within the [literal database](LiteralDB).
-#[derive(Clone)]
-pub enum LiteralDB {}
-
-/// Changes within the [atom database](AtomDB).
-#[derive(Clone)]
-pub enum AtomDB {}

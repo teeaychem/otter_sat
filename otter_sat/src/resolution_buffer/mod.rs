@@ -47,15 +47,15 @@ pub struct ResolutionBuffer {
     pub callback_premises: Option<Box<CallbackOnResolution>>,
 }
 
-pub type CallbackOnResolution = dyn Fn(&HashSet<ClauseKey>);
+pub type CallbackOnResolution = dyn FnMut(&HashSet<ClauseKey>);
 
 impl ResolutionBuffer {
     pub fn set_callback_resolution_premises(&mut self, callback: Box<CallbackOnResolution>) {
         self.callback_premises = Some(callback);
     }
 
-    pub fn make_callback_resolution_premises(&self, premises: &HashSet<ClauseKey>) {
-        if let Some(callback) = &self.callback_premises {
+    pub fn make_callback_resolution_premises(&mut self, premises: &HashSet<ClauseKey>) {
+        if let Some(callback) = &mut self.callback_premises {
             callback(premises);
         }
     }

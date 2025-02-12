@@ -45,6 +45,7 @@ mod watches;
 
 /// A clause together with some metadata.
 #[allow(non_camel_case_types)]
+#[derive(Clone)]
 pub struct dbClause {
     /// A key for accessing the clause
     key: ClauseKey,

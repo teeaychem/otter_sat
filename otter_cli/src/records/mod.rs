@@ -8,13 +8,12 @@ use crossbeam::channel::Receiver;
 use crate::{
     config_io::ConfigIO,
     records::{self},
-    report::{self},
     window::ContextWindow,
 };
 
 use otter_sat::{
     config::Config,
-    dispatch::Dispatch,
+    dispatch::{library::report, Dispatch},
     types::err::{self},
 };
 
