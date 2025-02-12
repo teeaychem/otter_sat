@@ -18,12 +18,9 @@ The 'top' level is the level of the most recent decision made.
 - For example, after deciding 'p' is true and 'q' is false, the top decision level stores the decision to bind 'q' to false.
 */
 
-use std::rc::Rc;
-
 use crate::{
     config::Config,
     db::LevelIndex,
-    dispatch::Dispatch,
     structures::{consequence::Consequence, literal::CLiteral},
 };
 
@@ -47,9 +44,6 @@ pub struct LiteralDB {
 
     /// Stored assumptions.
     pub assumptions: Vec<CLiteral>,
-
-    /// A dispatcher.
-    pub dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 }
 
 impl LiteralDB {
@@ -108,13 +102,12 @@ impl LiteralDB {
 
 impl LiteralDB {
     /// A new literal database.
-    pub fn new(config: &Config, dispatcher: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
+    pub fn new(config: &Config) -> Self {
         LiteralDB {
             config: config.literal_db.clone(),
             lowest_decision_level: 0,
             level_stack: Vec::default(),
             assumptions: Vec::default(),
-            dispatcher,
         }
     }
 

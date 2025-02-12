@@ -15,7 +15,7 @@ In particular, [from_config](Context::from_config) is implemented for a context 
 # use otter_sat::config::Config;
 # use otter_sat::dispatch::library::report::{self};
 # use otter_sat::structures::literal::{CLiteral, Literal};
-let mut the_context = Context::from_config(Config::default(), None);
+let mut the_context = Context::from_config(Config::default());
 
 let p = the_context.fresh_or_max_atom();
 let q = the_context.fresh_or_max_atom();

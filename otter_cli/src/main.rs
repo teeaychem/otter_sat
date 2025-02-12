@@ -69,14 +69,9 @@ fn main() {
     let mut the_context = match transmitter {
         Some(tx) => {
             let tx = tx;
-            Context::from_config(
-                config,
-                Some(Rc::new(move |d: Dispatch| {
-                    let _ = tx.send(d);
-                })),
-            )
+            Context::from_config(config)
         }
-        None => Context::from_config(config, Some(Rc::new(hand))),
+        None => Context::from_config(config),
     };
 
     let report = 'report: {
@@ -110,7 +105,7 @@ fn main() {
                 if config_io.show_core {
                     // let _ = self.display_core(clause_key);
                 }
-                the_context.dispatch_active();
+                // the_context.dispatch_active();
             }
             report::SolveReport::Satisfiable => {
                 if config_io.show_valuation {

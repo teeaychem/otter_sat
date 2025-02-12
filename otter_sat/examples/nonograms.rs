@@ -87,7 +87,7 @@ fn main() {
             vec![1],
         ],
         atom_map: HashMap::default(),
-        context: Context::from_config(Config::default(), None),
+        context: Context::from_config(Config::default()),
     };
 
     for clause in puzzle.clauses() {

@@ -3,14 +3,9 @@ use crate::{
     db::{
         atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ, literal::LiteralDB, ClauseKey,
     },
-    dispatch::{
-        library::report::{self},
-        Dispatch,
-    },
+    dispatch::library::report::{self},
     resolution_buffer::ResolutionBuffer,
 };
-
-use std::rc::Rc;
 
 use super::{callbacks::CallbackTerminate, ContextState, Counters};
 
@@ -26,8 +21,7 @@ use super::{callbacks::CallbackTerminate, ContextState, Counters};
 /// # use otter_sat::context::GenericContext;
 /// # use otter_sat::generic::minimal_pcg::MinimalPCG32;
 /// # use otter_sat::config::Config;
-/// let dispatcher = None;
-/// let context = GenericContext::<MinimalPCG32>::from_config(Config::default(), dispatcher);
+/// let context = GenericContext::<MinimalPCG32>::from_config(Config::default());
 /// ```
 pub struct GenericContext<R: rand::Rng + std::default::Default> {
     /// The configuration of a context.
@@ -57,9 +51,6 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
 
     /// The source of rng.
     pub rng: R,
-
-    /// An optional function to send dispatches with.
-    pub dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 
     /// A buffer for resolution
     pub resolution_buffer: ResolutionBuffer,

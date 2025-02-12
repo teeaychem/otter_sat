@@ -67,7 +67,7 @@ fn main() {
 
     let buf_file = BufReader::new(XzDecoder::new(&cnf_file));
 
-    let mut the_context: Context = Context::from_config(Config::default(), None);
+    let mut the_context: Context = Context::from_config(Config::default());
 
     let _ = the_context.read_dimacs(buf_file);
 
@@ -100,7 +100,7 @@ fn main() {
     }
 
     if check {
-        let mut core_context = Context::from_config(Config::default(), None);
+        let mut core_context = Context::from_config(Config::default());
         let mut core_dimacs_buf = vec![];
         let _ = core_dimacs_buf.write(core_dimacs.as_bytes());
         let _ = core_context.read_dimacs(core_dimacs_buf.as_slice());

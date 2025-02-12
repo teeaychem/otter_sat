@@ -38,7 +38,7 @@ impl ContextBundle {
 impl Default for ContextBundle {
     fn default() -> Self {
         ContextBundle {
-            context: Context::from_config(Config::default(), None),
+            context: Context::from_config(Config::default()),
             clause_buffer: Vec::default(),
             core_keys: Vec::default(),
             core_literals: HashSet::default(),

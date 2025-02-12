@@ -30,7 +30,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// # use otter_sat::context::Context;
     /// # use otter_sat::config::Config;
     /// # use std::io::Write;
-    /// let mut the_context = Context::from_config(Config::default(), None);
+    /// let mut the_context = Context::from_config(Config::default());
     ///
     /// let mut dimacs = vec![];
     /// let _ = dimacs.write(b"
@@ -172,7 +172,7 @@ mod dimacs_parser_tests {
 
     #[test]
     fn bad_delimiter() {
-        let mut the_context = Context::from_config(Config::default(), None);
+        let mut the_context = Context::from_config(Config::default());
 
         let mut dimacs = vec![];
         let _ = dimacs.write(b"1  2");
@@ -185,7 +185,7 @@ mod dimacs_parser_tests {
 
     #[test]
     fn bad_problem_spec() {
-        let mut the_context = Context::from_config(Config::default(), None);
+        let mut the_context = Context::from_config(Config::default());
 
         let mut dimacs = vec![];
         let _ = dimacs.write(
@@ -202,7 +202,7 @@ p cnf
 
     #[test]
     fn empty_ok() {
-        let mut the_context = Context::from_config(Config::default(), None);
+        let mut the_context = Context::from_config(Config::default());
 
         let mut dimacs = vec![];
         let _ = dimacs.write(
@@ -216,7 +216,7 @@ p cnf
 
     #[test]
     fn atoms_ensured() {
-        let mut the_context = Context::from_config(Config::default(), None);
+        let mut the_context = Context::from_config(Config::default());
 
         let required_atoms = 10;
 

@@ -20,7 +20,7 @@ use otter_sat::{
 fn main() {
     let config = Config::default();
 
-    let mut the_context: Context = Context::from_config(config, None);
+    let mut the_context: Context = Context::from_config(config);
 
     // The representation of an atom will be given by the corresponding index in this map…
     let mut atom_map = Vec::<char>::default();
