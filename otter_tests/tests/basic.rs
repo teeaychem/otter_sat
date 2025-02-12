@@ -15,7 +15,7 @@ mod basic {
     use super::*;
     #[test]
     fn one_literal() {
-        let mut the_context = Context::from_config(Config::default(), None);
+        let mut the_context = Context::from_config(Config::default());
         let p = the_context.fresh_or_max_atom();
         let p_clause = CLiteral::new(p, true);
 
@@ -28,7 +28,7 @@ mod basic {
 
     #[test]
     fn conflict() {
-        let mut the_context = Context::from_config(Config::default(), None);
+        let mut the_context = Context::from_config(Config::default());
 
         let p = the_context.fresh_or_max_atom();
         let q = the_context.fresh_or_max_atom();
@@ -54,7 +54,7 @@ mod basic {
 
     #[test]
     fn assumption() {
-        let mut the_context = Context::from_config(Config::default(), None);
+        let mut the_context = Context::from_config(Config::default());
 
         let p = the_context.fresh_or_max_atom();
         let q = the_context.fresh_or_max_atom();
@@ -74,7 +74,7 @@ mod basic {
 
     #[test]
     fn duplicates() {
-        let mut the_context = Context::from_config(Config::default(), None);
+        let mut the_context = Context::from_config(Config::default());
 
         let p = the_context.fresh_or_max_atom();
         let q = the_context.fresh_or_max_atom();
@@ -106,7 +106,7 @@ mod basic {
 
     #[test]
     fn tautology_skip() {
-        let mut the_context = Context::from_config(Config::default(), None);
+        let mut the_context = Context::from_config(Config::default());
 
         let p = the_context.fresh_or_max_atom();
         let q = the_context.fresh_or_max_atom();

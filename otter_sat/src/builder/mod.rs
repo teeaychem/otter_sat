@@ -27,7 +27,7 @@ A clause built using basic methods.
 # use otter_sat::dispatch::library::report::{self};
 # use otter_sat::structures::{clause::CClause, literal::{CLiteral, Literal}};
 #
-let mut the_context = Context::from_config(Config::default(), None);
+let mut the_context = Context::from_config(Config::default());
 let p = the_context.fresh_or_max_atom();
 let q = the_context.fresh_or_max_atom();
 
@@ -48,7 +48,7 @@ A simplified build, using canonical structures.
 # use otter_sat::dispatch::library::report::{self};
 # use otter_sat::structures::{clause::CClause, literal::{CLiteral, Literal}};
 #
-let mut the_context = Context::from_config(Config::default(), None);
+let mut the_context = Context::from_config(Config::default());
 let p = the_context.fresh_or_max_literal();
 let q = the_context.fresh_or_max_literal();
 

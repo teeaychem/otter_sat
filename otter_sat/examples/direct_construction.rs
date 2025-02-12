@@ -14,7 +14,7 @@ fn main() {
         ..Default::default()
     };
 
-    let mut the_context: Context = Context::from_config(config, None);
+    let mut the_context: Context = Context::from_config(config);
     let p = the_context.fresh_or_max_atom();
     let q = the_context.fresh_or_max_atom();
 

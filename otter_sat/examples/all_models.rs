@@ -17,7 +17,7 @@ use otter_sat::{
 ///  - Or, there's some error in the solver.
 fn main() {
     // The context in which a solve takes place.
-    let mut context: Context = Context::from_config(Config::default(), None);
+    let mut context: Context = Context::from_config(Config::default());
 
     // Atoms will be represented by characters of some string.
     let characters = "model".chars().collect::<Vec<_>>();

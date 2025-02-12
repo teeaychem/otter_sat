@@ -41,7 +41,7 @@ pub fn cnf_lib_subdir(dirs: Vec<&str>) -> PathBuf {
 }
 
 pub fn silent_formula_report(path: PathBuf, config: &Config) -> report::SolveReport {
-    let mut the_context = Context::from_config(config.clone(), None);
+    let mut the_context = Context::from_config(config.clone());
     match load_dimacs(&mut the_context, &path) {
         Ok(()) => {}
         Err(err::ErrorKind::ClauseDB(err::ClauseDBError::EmptyClause)) => {

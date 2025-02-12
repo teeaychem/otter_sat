@@ -15,14 +15,11 @@ pub mod activity;
 pub mod valuation;
 pub mod watch_db;
 
-use std::rc::Rc;
-
 use watch_db::WatchTag;
 
 use crate::{
     config::{dbs::AtomDBConfig, Activity, Config},
     db::{atom::watch_db::WatchDB, LevelIndex},
-    dispatch::Dispatch,
     generic::index_heap::IndexHeap,
     misc::log::targets::{self},
     structures::{
@@ -53,9 +50,6 @@ pub struct AtomDB {
     /// A record of which decision an atom was valued on.
     decision_indicies: Vec<Option<LevelIndex>>,
 
-    /// An optional function to send dispatches with.
-    dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
-
     /// A local configuration, typically derived from the configuration of a context.
     config: AtomDBConfig,
 }
@@ -73,7 +67,7 @@ pub enum AtomValue {
 }
 
 impl AtomDB {
-    pub fn new(config: &Config, dispatcher: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
+    pub fn new(config: &Config) -> Self {
         let mut db = AtomDB {
             watch_dbs: Vec::default(),
 
@@ -83,7 +77,6 @@ impl AtomDB {
             previous_valuation: Vec::default(),
             decision_indicies: Vec::default(),
 
-            dispatcher,
             config: config.atom_db.clone(),
         };
         // A fresh atom is created so long as the atom count is within ATOM_MAX

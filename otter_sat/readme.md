@@ -61,7 +61,7 @@ Still, taming idiosyncracies, support for SMT solving, and interest in very larg
 
 ``` rust
 // The context in which a solve takes place.
-let mut context: Context = Context::from_config(Config::default(), None);
+let mut context: Context = Context::from_config(Config::default());
 
 // Atoms will be represented by characters of some string.
 let characters = "model".chars().collect::<Vec<_>>();
@@ -122,7 +122,7 @@ assert_eq!(model_count, 2_usize.pow(atom_count));
 - Parse and solve a DIMACS formula
 
 ``` rust
-let mut the_context = Context::from_config(Config::default(), None);
+let mut the_context = Context::from_config(Config::default());
 
 let mut dimacs = vec![];
 let _ = dimacs.write(b"

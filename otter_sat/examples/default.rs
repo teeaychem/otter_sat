@@ -22,7 +22,7 @@ fn main() {
 
     let buf_file = BufReader::new(&cnf_file);
 
-    let mut the_context: Context = Context::from_config(Config::default(), None);
+    let mut the_context: Context = Context::from_config(Config::default());
 
     let _ = the_context.read_dimacs(buf_file);
 

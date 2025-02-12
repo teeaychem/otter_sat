@@ -4,7 +4,7 @@
 //! - Communication after some procedure, e.g. a solve.
 //! - Optional observation of the dynamics of a context and other related structures during some procedure.
 //!
-//! Each dispatch is a small message of some pre-determined type, and structures which may send dispatches optionally take a 'dispatcher' function to post dispatches.
+//! Each dispatch is a small message of some pre-determined type, and may be sent through a callback.
 //!
 //! - [library] contains all dispatch types, arranged in a fixed heirarchy.
 //! - [frat] contains tools for creating FRAT proofs by using dispatches.
@@ -79,11 +79,8 @@
 //! 3. Finalise a record of the buffer using the metadata of it's source in the context and the key used for internal access.
 //!
 
-use crate::context::GenericContext;
-
 pub mod frat;
 pub mod library;
-pub mod macros;
 
 /// Dispatch types.
 #[derive(Clone)]
@@ -96,18 +93,6 @@ pub enum Dispatch {
 
     /// A statistic. E.g. conflicts seen or time taken.
     Stat(library::stat::Stat),
-}
-
-impl<R: rand::Rng + std::default::Default> GenericContext<R> {
-    /// Send a dispatch detailing all active clauses.
-    ///
-    /// Used, e.g., when finalising an FRAT proof.
-    pub fn dispatch_active(&self) {
-        if let Some(dispatcher) = &self.dispatcher {
-            dispatcher(Dispatch::Report(library::report::Report::Finish));
-            self.clause_db.dispatch_active();
-        }
-    }
 }
 
 /// Ignores a dispatch.

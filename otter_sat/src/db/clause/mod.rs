@@ -14,7 +14,6 @@ mod store;
 use std::{
     borrow::Borrow,
     collections::{HashMap, HashSet},
-    rc::Rc,
 };
 
 use callbacks::{CallbackOnClause, CallbackOnClauseSource, CallbackOnLiteral};
@@ -26,10 +25,6 @@ use crate::{
         atom::AtomDB,
         clause::activity_glue::ActivityLBD,
         keys::{ClauseKey, FormulaIndex},
-    },
-    dispatch::{
-        library::report::{self, Report},
-        Dispatch,
     },
     generic::index_heap::IndexHeap,
     misc::log::targets::{self},
@@ -73,9 +68,6 @@ pub struct ClauseDB {
     /// An activity heap of addition clause keys.
     activity_heap: IndexHeap<ActivityLBD>,
 
-    /// Where to send dispatches.
-    dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
-
     /// Original clauses are passed in.
     pub(super) callback_original: Option<Box<CallbackOnClauseSource>>,
 
@@ -93,7 +85,7 @@ pub struct ClauseDB {
 }
 
 impl ClauseDB {
-    pub fn new(config: &Config, dispatcher: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
+    pub fn new(config: &Config) -> Self {
         ClauseDB {
             addition_count: 0,
             empty_keys: Vec::default(),
@@ -109,8 +101,6 @@ impl ClauseDB {
 
             activity_heap: IndexHeap::default(),
             config: config.clause_db.clone(),
-
-            dispatcher,
 
             callback_original: None,
             callback_addition: None,
@@ -202,7 +192,6 @@ impl ClauseDB {
             }
             Some(the_clause) => {
                 self.make_callback_delete(&the_clause);
-                // macros::dispatch_clause_removal!(self, the_clause);
 
                 for premise_key in the_clause.premises() {
                     match premise_key {
@@ -368,6 +357,19 @@ impl ClauseDB {
     }
 
     /// An iterator over all addition binary clauses.
+    pub fn all_active_addition_long_clauses(
+        &self,
+    ) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
+        self.addition.iter().flat_map(|c| match c {
+            Some(db_c) => match db_c.is_active() {
+                true => Some((*db_c.key(), db_c.clause())),
+                false => None,
+            },
+            None => None,
+        })
+    }
+
+    /// An iterator over all addition binary clauses.
     pub fn all_long_clauses(&self) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
         self.all_original_long_clauses()
             .chain(self.all_addition_long_clauses())
@@ -380,43 +382,6 @@ impl ClauseDB {
     /// ```
     pub fn all_nonunit_clauses(&self) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
         self.all_binary_clauses().chain(self.all_long_clauses())
-    }
-
-    /// Send a dispatch of all active clauses.
-    pub fn dispatch_active(&self) {
-        if let Some(dispatcher) = &self.dispatcher {
-            for (_, literal) in self.all_original_unit_clauses() {
-                let report = report::ClauseDBReport::ActiveOriginalUnit(literal);
-                dispatcher(Dispatch::Report(report::Report::ClauseDB(report)));
-            }
-
-            for (_, literal) in self.all_addition_unit_clauses() {
-                let report = report::ClauseDBReport::ActiveAdditionUnit(literal);
-                dispatcher(Dispatch::Report(report::Report::ClauseDB(report)));
-            }
-
-            for clause in &self.binary_original {
-                let report = report::ClauseDBReport::Active(*clause.key(), clause.to_vec());
-                dispatcher(Dispatch::Report(Report::ClauseDB(report)));
-            }
-
-            for clause in &self.binary_addition {
-                let report = report::ClauseDBReport::Active(*clause.key(), clause.to_vec());
-                dispatcher(Dispatch::Report(Report::ClauseDB(report)));
-            }
-
-            for clause in &self.original {
-                let report = report::ClauseDBReport::Active(*clause.key(), clause.to_vec());
-                dispatcher(Dispatch::Report(Report::ClauseDB(report)));
-            }
-
-            for clause in self.addition.iter().flatten() {
-                if clause.is_active() {
-                    let report = report::ClauseDBReport::Active(*clause.key(), clause.to_vec());
-                    dispatcher(Dispatch::Report(Report::ClauseDB(report)));
-                }
-            }
-        }
     }
 
     /// Removes `literal` from the clause indexed by `key`, from a long clause, if possible.

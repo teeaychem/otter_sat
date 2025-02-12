@@ -93,7 +93,7 @@ The distinction between a unit clause and clause being returned from [apply_cons
 # use otter_sat::dispatch::library::report::{self};
 # use otter_sat::structures::literal::{CLiteral, Literal};
 let config = Config::default();
-let mut the_context: Context = Context::from_config(config, None);
+let mut the_context: Context = Context::from_config(config);
 
 let p = the_context.fresh_or_max_atom();
 let q = the_context.fresh_or_max_atom();
@@ -137,14 +137,7 @@ Though, the presentation given is original.
 use crate::{
     context::{ContextState, GenericContext},
     db::ClauseKey,
-    dispatch::{
-        library::{
-            report::{self, SolveReport},
-            stat::Stat,
-        },
-        macros::{self},
-        Dispatch,
-    },
+    dispatch::library::report::{self, SolveReport},
     procedures::{
         apply_consequences::{self},
         decision::{self},
@@ -262,7 +255,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             if self.luby_fresh_conflict_interrupt() {
                 self.counters.luby.next();
 
-                macros::dispatch_stats!(self);
+                // TODO: Dispatch stats?
 
                 if self.config.switch.restart {
                     self.backjump(self.literal_db.lowest_decision_level());

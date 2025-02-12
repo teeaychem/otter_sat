@@ -2,7 +2,6 @@ use std::{
     collections::HashSet,
     path::PathBuf,
     process::{self},
-    rc::Rc,
     thread,
 };
 
@@ -15,7 +14,10 @@ use otter_sat::{
     db::{clause::db_clause::dbClause, ClauseKey},
     dispatch::{
         frat,
-        library::delta::{self, ClauseDB, Delta},
+        library::{
+            delta::{self, ClauseDB, Delta},
+            report::{self, Report},
+        },
         Dispatch,
     },
     structures::clause::{Clause, ClauseSource},
@@ -116,12 +118,7 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
         ));
     };
 
-    let mut the_context = Context::from_config(
-        config,
-        Some(Rc::new(move |d: Dispatch| {
-            let _ = tx.send(d);
-        })),
-    );
+    let mut the_context = Context::from_config(config);
 
     the_context
         .clause_db
@@ -142,10 +139,37 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     };
 
     let _result = the_context.solve();
-    the_context.dispatch_active();
+    let _ = tx.send(Dispatch::Report(
+        otter_sat::dispatch::library::report::Report::Finish,
+    ));
+
+    for (_, literal) in the_context.clause_db.all_original_unit_clauses() {
+        let report = report::ClauseDBReport::ActiveOriginalUnit(literal);
+        let _ = tx.send(Dispatch::Report(report::Report::ClauseDB(report)));
+    }
+
+    for (_, literal) in the_context.clause_db.all_addition_unit_clauses() {
+        let report = report::ClauseDBReport::ActiveAdditionUnit(literal);
+        let _ = tx.send(Dispatch::Report(report::Report::ClauseDB(report)));
+    }
+
+    for (key, clause) in the_context.clause_db.all_binary_clauses() {
+        let report = report::ClauseDBReport::Active(key, clause.to_vec());
+        let _ = tx.send(Dispatch::Report(Report::ClauseDB(report)));
+    }
+
+    for (key, clause) in the_context.clause_db.all_original_long_clauses() {
+        let report = report::ClauseDBReport::Active(key, clause.to_vec());
+        let _ = tx.send(Dispatch::Report(Report::ClauseDB(report)));
+    }
+
+    for (key, clause) in the_context.clause_db.all_active_addition_long_clauses() {
+        let report = report::ClauseDBReport::Active(key, clause.to_vec());
+        let _ = tx.send(Dispatch::Report(Report::ClauseDB(report)));
+    }
 
     drop(the_context);
-    // drop(deletion_clone);
+    drop(tx);
 
     let _ = listener_handle.join();
 

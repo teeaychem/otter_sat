@@ -56,7 +56,7 @@ fn main() {
 
     let config = Config::default();
 
-    let mut the_context: Context = Context::from_config(config, None);
+    let mut the_context: Context = Context::from_config(config);
     the_context
         .clause_db
         .set_callback_addition(Box::new(addition_hook));

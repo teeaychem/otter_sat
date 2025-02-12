@@ -42,7 +42,7 @@ fn main() {
     ];
 
     let config = Config::default();
-    let mut the_context: Context = Context::from_config(config, None);
+    let mut the_context: Context = Context::from_config(config);
     let mut cell_map = HashMap::<String, Atom>::default();
 
     add_clauses_cell_value_choice(&mut the_context, &mut cell_map);
