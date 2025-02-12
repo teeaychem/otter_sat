@@ -1,7 +1,7 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, collections::HashSet};
 
 use crate::{
-    db::atom::AtomDB,
+    db::{atom::AtomDB, ClauseKey},
     misc::log::targets,
     structures::literal::{CLiteral, Literal},
     types::err::{self},
@@ -41,11 +41,14 @@ impl dbClause {
         literal: impl Borrow<CLiteral>,
         atom_db: &mut AtomDB,
         fix_watch: bool,
+        premises: HashSet<ClauseKey>,
+        increment_proof_count: bool,
     ) -> Result<usize, err::SubsumptionError> {
         if self.clause.len() < 3 {
             log::error!(target: targets::SUBSUMPTION, "Subsumption attempted on non-long clause");
             return Err(err::SubsumptionError::ShortClause);
         }
+
         let mut position = {
             let search = self
                 .clause
@@ -98,6 +101,12 @@ impl dbClause {
                 self.clause.swap(0, self.watch_ptr);
             }
         }
+
+        self.premises.extend(premises);
+        if increment_proof_count {
+            self.increment_proof_count();
+        }
+
         Ok(self.clause.len())
     }
 }

@@ -52,16 +52,13 @@ use crate::{
         literal::{CLiteral, Literal},
         valuation::Valuation,
     },
-    types::err::{self},
+    types::err::{self, ResolutionBufferError},
 };
 
 /// Possilbe 'Ok' results from resolution using a resolution buffer.
 pub enum ResolutionOk {
     /// A unique implication point was identified.
-    FirstUIP,
-
-    /// Resolution was applied to every clause used at the given level.
-    Exhausted,
+    UIP,
 
     /// Resolution produced a unit clause.
     UnitClause,
@@ -210,9 +207,6 @@ impl ResolutionBuffer {
             return Ok(ResolutionOk::Repeat(*key, literal));
         };
 
-        macros::dispatch_resolution_delta!(self, Resolution::Begin);
-        macros::dispatch_resolution_delta!(self, Resolution::Used(*key));
-
         // bump clause activity
         if let ClauseKey::Addition(index, _) = key {
             clause_db.bump_activity(*index)
@@ -223,9 +217,12 @@ impl ResolutionBuffer {
         'resolution_loop: for consequence in the_trail {
             match consequence.source() {
                 consequence::Source::BCP(key) => {
-                    let source_clause = match unsafe { clause_db.get_unchecked_mut(key) } {
+                    let mut key = *key;
+
+                    let source_clause = match unsafe { clause_db.get_unchecked_mut(&key) } {
                         Err(_) => {
-                            log::error!(target: targets::RESOLUTION, "Lost resolution clause {key}");
+                            log::error!(target: targets::RESOLUTION, "Lost resolution clause: {key}");
+                            println!("Missing key");
                             return Err(err::ResolutionBufferError::LostClause);
                         }
                         Ok(clause) => clause,
@@ -238,60 +235,49 @@ impl ResolutionBuffer {
                         self.resolve_clause(source_clause, consequence.literal());
 
                     source_clause.increment_proof_count();
-                    clause_db.note_use(*key);
-                    self.premises.insert(*key);
+                    clause_db.note_use(key);
+                    self.premises.insert(key);
 
                     if resolution_result.is_err() {
-                        // the clause wasn't relevant
-                        continue 'resolution_loop;
+                        continue 'resolution_loop; // the clause wasn't relevant
                     }
 
-                    if self.config.subsumption && self.clause_length < source_clause_size {
-                        match self.clause_length {
-                            0 => {}
-
-                            1 => {
-                                macros::dispatch_resolution_delta!(self, Resolution::Used(*key));
-                                macros::dispatch_resolution_delta!(self, Resolution::End);
-
-                                return Ok(ResolutionOk::UnitClause);
-                            }
-
-                            _ => match key {
+                    key = match self.config.subsumption
+                        && self.clause_length > 2
+                        && self.clause_length < source_clause_size
+                    {
+                        false => key,
+                        true => {
+                            match key {
                                 ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) => {
                                     panic!("! Subsumption called on a unit clause")
                                 }
 
                                 ClauseKey::OriginalBinary(_) | ClauseKey::AdditionBinary(_) => {
-                                    todo!("a formula is found which triggers this…");
+                                    panic!("! Subsumption called on a binary clause");
                                 }
 
                                 ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
-                                    // TODO: Subsumption should use the appropriate valuation
                                     let premises = self.take_premises();
 
-                                    let k = clause_db.subsume(
-                                        *key,
+                                    // TODO: Subsumption should use the appropriate valuation
+                                    let rekey = clause_db.subsume(
+                                        key,
                                         consequence.literal(),
                                         atom_db,
                                         premises,
+                                        true, // Increment the proof count as this is self-subsumption.
                                     )?;
-
-                                    // TODO: Inference counts for subsumption
-                                    self.premises.insert(k);
-
-                                    macros::dispatch_resolution_delta!(self, Resolution::End);
-                                    macros::dispatch_resolution_delta!(self, Resolution::Begin);
-                                    macros::dispatch_resolution_delta!(self, Resolution::Used(k));
+                                    self.premises.insert(rekey);
+                                    clause_db.note_use(rekey);
+                                    rekey
                                 },
-                            },
+                            }
                         }
-                    } else {
-                        macros::dispatch_resolution_delta!(self, Resolution::Used(*key));
-                    }
+                    };
 
                     if let ClauseKey::Addition(index, _) = key {
-                        clause_db.bump_activity(*index)
+                        clause_db.bump_activity(index)
                     };
                 }
 
@@ -301,17 +287,26 @@ impl ResolutionBuffer {
             if self.valueless_count == 1 {
                 match self.config.stopping {
                     StoppingCriteria::FirstUIP => {
-                        macros::dispatch_resolution_delta!(self, Resolution::End);
-
-                        return Ok(ResolutionOk::FirstUIP);
+                        break 'resolution_loop;
                     }
-                    StoppingCriteria::None => {}
-                };
+                    _ => {}
+                }
             }
+        }
+
+        macros::dispatch_resolution_delta!(self, Resolution::Begin);
+        for premise in &self.premises {
+            macros::dispatch_resolution_delta!(self, Resolution::Used(*premise));
         }
         macros::dispatch_resolution_delta!(self, Resolution::End);
 
-        Ok(ResolutionOk::Exhausted)
+        match self.valueless_count {
+            1 => Ok(ResolutionOk::UIP),
+            _ => {
+                println!("Exhausted");
+                Err(ResolutionBufferError::Exhausted)
+            }
+        }
     }
 
     /// Remove literals which conflict with those at level zero from the clause.

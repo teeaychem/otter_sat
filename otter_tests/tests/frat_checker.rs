@@ -17,7 +17,7 @@ use otter_sat::{
         library::delta::{self, Delta},
         Dispatch,
     },
-    structures::clause::{CClause, Clause, ClauseSource},
+    structures::clause::{Clause, ClauseSource},
 };
 
 /// Passes dispatches on some channel to a writer for the given FRAT path until the channel closes.
