@@ -9,7 +9,8 @@ use crate::{db::ClauseKey, structures::literal::CLiteral};
 #[doc(hidden)]
 mod cell;
 pub mod config;
-pub mod resolution_buffer;
+#[doc(hidden)]
+pub mod methods;
 
 /// Possilbe 'Ok' results from resolution using a resolution buffer.
 pub enum ResolutionOk {

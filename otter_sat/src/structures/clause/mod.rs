@@ -1,30 +1,32 @@
-//! Clauses, aka. a collection of literals, interpreted as the disjunction of those literals.
-//!
-//! The canonical representation of a clause is as a vector of literals.
-//!
-//! ```rust
-//! # use otter_sat::structures::literal::{CLiteral, Literal};
-//! # use otter_sat::structures::clause::Clause;
-//! let clause = vec![CLiteral::new(23, true),
-//!                   CLiteral::new(41, false),
-//!                   CLiteral::new(3,  false),
-//!                   CLiteral::new(15, true),
-//!                   CLiteral::new(4,  false)];
-//!
-//! assert_eq!(clause.size(), 5);
-//!
-//! let mut some_valuation = vec![Some(true); 42];
-//!
-//! some_valuation[23] = Some(false);
-//! some_valuation[15] = Some(false);
-//! assert!(clause.asserts(&some_valuation).cmp(&None).is_eq());
-//!
-//! some_valuation[41] = None;
-//! assert!(clause.asserts(&some_valuation).cmp(&Some(CLiteral::new(41, false))).is_eq());
-//! ```
-//!
-//! - The empty clause is always false (never true).
-//! - Single literals are identified with the clause containing that literal (aka. a 'unit' clause --- where the 'unit' is the literal).
+/*!
+Clauses, aka. a collection of literals, interpreted as the disjunction of those literals.
+
+The canonical representation of a clause is as a vector of literals.
+
+```rust
+# use otter_sat::structures::literal::{CLiteral, Literal};
+# use otter_sat::structures::clause::Clause;
+let clause = vec![CLiteral::new(23, true),
+                  CLiteral::new(41, false),
+                  CLiteral::new(3,  false),
+                  CLiteral::new(15, true),
+                  CLiteral::new(4,  false)];
+
+assert_eq!(clause.size(), 5);
+
+let mut some_valuation = vec![Some(true); 42];
+
+some_valuation[23] = Some(false);
+some_valuation[15] = Some(false);
+assert!(clause.asserts(&some_valuation).cmp(&None).is_eq());
+
+some_valuation[41] = None;
+assert!(clause.asserts(&some_valuation).cmp(&Some(CLiteral::new(41, false))).is_eq());
+```
+
+- The empty clause is always false (never true).
+- Single literals are identified with the clause containing that literal (aka. a 'unit' clause --- where the 'unit' is the literal).
+*/
 
 mod db_clause;
 mod kind;

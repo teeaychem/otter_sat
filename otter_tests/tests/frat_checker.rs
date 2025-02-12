@@ -10,14 +10,8 @@ use otter_sat::{
     config::Config,
     context::Context,
     db::{clause::db_clause::dbClause, ClauseKey},
-    dispatch::{
-        frat::Transcriber,
-        library::{
-            delta::{self, ClauseDB},
-            report::{self, Report},
-        },
-    },
-    structures::clause::{Clause, ClauseSource},
+    dispatch::frat::Transcriber,
+    structures::clause::ClauseSource,
 };
 
 fn frat_verify(file_path: PathBuf, config: Config) -> bool {
@@ -25,161 +19,98 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     frat_path_string.push_str(".frat");
     let frat_path = PathBuf::from(&frat_path_string);
     let transcriber = Transcriber::new(frat_path.clone()).unwrap();
-    let transcriber_ref = std::rc::Rc::new(std::cell::RefCell::new(transcriber));
+    let tx = std::rc::Rc::new(std::cell::RefCell::new(transcriber));
 
-    let addition_clone = transcriber_ref.clone();
+    let addition_clone = tx.clone();
     let addition_callback = move |clause: &dbClause, source: &ClauseSource| {
         match source {
             ClauseSource::BCP => {
-                let delta = delta::ClauseDB::BCP(*clause.key());
-                let _ = addition_clone
-                    .borrow_mut()
-                    .transcribe_clause_db_delta(&delta);
-            }
-
-            _ => {
-                let delta = delta::ClauseDB::ClauseStart;
-                let _ = addition_clone
-                    .borrow_mut()
-                    .transcribe_clause_db_delta(&delta);
-                for literal in clause.literals() {
-                    let delta = delta::ClauseDB::ClauseLiteral(literal);
-                    let _ = addition_clone
+                if let ClauseKey::AdditionUnit(literal) = clause.key() {
+                    addition_clone
                         .borrow_mut()
-                        .transcribe_clause_db_delta(&delta);
-                }
-
-                match &clause.key() {
-                    ClauseKey::Original(_)
-                    | ClauseKey::OriginalUnit(_)
-                    | ClauseKey::OriginalBinary(_) => {
-                        let delta = delta::ClauseDB::Original(*clause.key());
-                        let _ = addition_clone
-                            .borrow_mut()
-                            .transcribe_clause_db_delta(&delta);
-                    }
-                    ClauseKey::Addition(_, _)
-                    | ClauseKey::AdditionUnit(_)
-                    | ClauseKey::AdditionBinary(_) => {
-                        let delta = delta::ClauseDB::Added(*clause.key());
-                        let _ = addition_clone
-                            .borrow_mut()
-                            .transcribe_clause_db_delta(&delta);
-                    }
+                        .transcribe_bcp(clause.key(), *literal);
+                } else {
+                    panic!("");
                 }
             }
+
+            ClauseSource::Original => addition_clone
+                .borrow_mut()
+                .transcribe_original_clause(clause.key(), clause.to_vec()),
+
+            ClauseSource::Resolution => addition_clone
+                .borrow_mut()
+                .transcribe_addition_clause(clause.key(), clause.to_vec()),
+
+            ClauseSource::PureUnit => panic!("X_X"),
         }
         addition_clone.borrow_mut().flush()
     };
 
-    let deletion_clone = transcriber_ref.clone();
+    let deletion_clone = tx.clone();
     let deletion_callback = move |clause: &dbClause| {
-        let delta = delta::ClauseDB::ClauseStart;
-
-        let _ = deletion_clone
+        deletion_clone
             .borrow_mut()
-            .transcribe_clause_db_delta(&delta);
+            .transcribe_deletion(clause.key(), clause.to_vec());
 
-        for literal in clause.literals() {
-            let delta = delta::ClauseDB::ClauseLiteral(literal);
-            let _ = &mut deletion_clone
-                .borrow_mut()
-                .transcribe_clause_db_delta(&delta);
-        }
-        let delta = delta::ClauseDB::Deletion(*clause.key());
-        let _ = deletion_clone
-            .borrow_mut()
-            .transcribe_clause_db_delta(&delta);
         deletion_clone.borrow_mut().flush()
     };
 
-    let resolution_clone = transcriber_ref.clone();
+    let resolution_clone = tx.clone();
     let resolution_presmises_callback = move |premises: &HashSet<ClauseKey>| {
-        let _ = resolution_clone
+        resolution_clone
             .borrow_mut()
-            .transcribe_resolution_delta(&delta::Resolution::Begin);
-        for premise in premises {
-            let _ = resolution_clone
-                .borrow_mut()
-                .transcribe_resolution_delta(&delta::Resolution::Used(*premise));
-        }
-
-        let _ = resolution_clone
-            .borrow_mut()
-            .transcribe_resolution_delta(&delta::Resolution::End);
+            .transcribe_resolution(premises);
     };
 
-    let unsatisfiable_clone = transcriber_ref.clone();
-    let unsatisfiable_callback = move |clause: dbClause| {
-        let _ = unsatisfiable_clone
+    let unsatisfiable_clone = tx.clone();
+    let unsatisfiable_callback = move |_: dbClause| {
+        unsatisfiable_clone
             .borrow_mut()
-            .transcribe_clause_db_delta(&ClauseDB::Unsatisfiable(*clause.key()));
+            .transcribe_unsatisfiable_clause();
         unsatisfiable_clone.borrow_mut().flush();
     };
 
-    let mut the_context = Context::from_config(config);
+    let mut ctx = Context::from_config(config);
 
-    the_context
-        .clause_db
+    ctx.clause_db
         .set_callback_delete(Box::new(deletion_callback));
-    the_context
-        .clause_db
+    ctx.clause_db
         .set_callback_addition(Box::new(addition_callback));
-    the_context
-        .clause_db
+    ctx.clause_db
         .set_callback_unsatisfiable(Box::new(unsatisfiable_callback));
-    the_context
-        .resolution_buffer
+    ctx.resolution_buffer
         .set_callback_resolution_premises(Box::new(resolution_presmises_callback));
 
-    match load_dimacs(&mut the_context, &file_path) {
+    match load_dimacs(&mut ctx, &file_path) {
         Ok(()) => {}
         Err(e) => panic!("c Error loading file: {e:?}"),
     };
 
-    let _result = the_context.solve();
+    let _result = ctx.solve();
 
-    transcriber_ref
-        .borrow_mut()
-        .transcribe_report(&Report::Finish);
-
-    for (_, literal) in the_context.clause_db.all_original_unit_clauses() {
-        let report = report::ClauseDBReport::ActiveOriginalUnit(literal);
-        transcriber_ref
-            .borrow_mut()
-            .transcribe_report(&report::Report::ClauseDB(report));
+    for (_, literal) in ctx.clause_db.all_original_unit_clauses() {
+        tx.borrow_mut().transcribe_active_original_unit(literal);
     }
 
-    for (_, literal) in the_context.clause_db.all_addition_unit_clauses() {
-        let report = report::ClauseDBReport::ActiveAdditionUnit(literal);
-        transcriber_ref
-            .borrow_mut()
-            .transcribe_report(&report::Report::ClauseDB(report));
+    for (_, literal) in ctx.clause_db.all_addition_unit_clauses() {
+        tx.borrow_mut().transcribe_active_addition_unit(literal);
     }
 
-    for (key, clause) in the_context.clause_db.all_binary_clauses() {
-        let report = report::ClauseDBReport::Active(key, clause.to_vec());
-        transcriber_ref
-            .borrow_mut()
-            .transcribe_report(&report::Report::ClauseDB(report));
+    for (key, clause) in ctx.clause_db.all_binary_clauses() {
+        tx.borrow_mut().transcribe_active(key, clause);
     }
 
-    for (key, clause) in the_context.clause_db.all_original_long_clauses() {
-        let report = report::ClauseDBReport::Active(key, clause.to_vec());
-        transcriber_ref
-            .borrow_mut()
-            .transcribe_report(&report::Report::ClauseDB(report));
+    for (key, clause) in ctx.clause_db.all_original_long_clauses() {
+        tx.borrow_mut().transcribe_active(key, clause);
     }
 
-    for (key, clause) in the_context.clause_db.all_active_addition_long_clauses() {
-        let report = report::ClauseDBReport::Active(key, clause.to_vec());
-        transcriber_ref
-            .borrow_mut()
-            .transcribe_report(&report::Report::ClauseDB(report));
+    for (key, clause) in ctx.clause_db.all_active_addition_long_clauses() {
+        tx.borrow_mut().transcribe_active(key, clause);
     }
-    transcriber_ref.borrow_mut().flush();
+    tx.borrow_mut().flush();
 
-    drop(the_context);
+    drop(ctx);
 
     let mut frat_process = process::Command::new(FRAT_RS_PATH);
     frat_process.arg("elab");

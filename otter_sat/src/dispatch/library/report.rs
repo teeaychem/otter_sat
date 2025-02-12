@@ -15,12 +15,6 @@ pub enum Report {
     /// Information regarding the clause database.
     ClauseDB(self::ClauseDBReport),
 
-    /// Information regarding the literal database.
-    LiteralDB(self::LiteralDBReport),
-
-    /// Information regarding the parse when building the context.
-    Parser(self::ParserReport),
-
     /// No further dispatches will be sent regarding the current solve.
     Finish,
 }
@@ -54,22 +48,6 @@ pub enum ClauseDBReport {
     ActiveAdditionUnit(CLiteral),
 }
 
-/// Information regarding the parse when building the context.
-#[derive(PartialEq, Eq, Clone, Debug)]
-pub enum ParserReport {
-    /// A DIMACS file has been loaded.
-    Load(String),
-
-    /// The expected clause/literal count based on the header of a DIMACS file.
-    Expected(usize, usize),
-
-    /// A count of clauses/literals from parsing a DIMACS file.
-    Counts(usize, usize),
-
-    /// The count of clauses added to the context from parsing a DIMACS file.
-    ContextClauses(usize),
-}
-
 /// Information regarding the literal database.
 #[derive(PartialEq, Eq, Clone)]
 pub enum LiteralDBReport {}
@@ -81,17 +59,6 @@ impl std::fmt::Display for self::SolveReport {
             Self::Unsatisfiable => write!(f, "Unsatisfiable"),
             Self::TimeUp => write!(f, "Unknown"),
             Self::Unknown => write!(f, "Unknown"),
-        }
-    }
-}
-
-impl std::fmt::Display for self::ParserReport {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Load(formula) => write!(f, "Parsing \"{formula}\""),
-            Self::Expected(a, c) => write!(f, "Expected:     {a} atoms and {c} clauses"),
-            Self::Counts(a, c) => write!(f, "Parse result: {a} atoms and {c} clauses"),
-            Self::ContextClauses(c) => write!(f, "{c} clauses are in the context"),
         }
     }
 }

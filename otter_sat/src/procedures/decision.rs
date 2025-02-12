@@ -1,57 +1,59 @@
-//! Methods for choosing the value of an atom.
-//!
-//! # Overview
-//!
-//! The core decision procedure is straightforward:
-//! - Search through all atoms in the context for an atom which is not assigned a value, and assign either true or false.
-//!
-//! ```rust,ignore
-//! self.atom_db.valuation().unvalued_atoms().next();
-//! // Or…
-//! self.atom_db.valuation().unvalued_atoms().choose(rng_source);
-//! ```
-//!
-//! # Decisions as literals
-//!
-//! Strictly a decision is to value some atom *a* with value *v*.
-//! Still, it is convenient to represent such a decision as a literal with atom *a* and polarity *v*.
-//! For example, a decision to value *p* with value *false* can be represented with the literal *-p*.
-//!
-//! ```rust,ignore
-//! let atom = self.atom_db.valuation().unvalued_atoms().next()?;
-//! let value = self.rng.gen_bool(self.config.polarity_lean);
-//! let decision_as_literal = CLiteral::new(atom, value);
-//! ```
-//!
-//! # Heuristics
-//!
-//! # Activity
-//!
-//! Atoms may be selected by activity, and the [atom database](crate::db::atom) stores atoms without a value on a max value activity heap in order to support quick access to the most active atom without a value.
-//! Though, as storing *only* without a value takes considerably more effort than *at least* those atoms without a value, it may take some work to find the relevant atom.
-//!
-//! ```rust,ignore
-//! while let Some(atom) = self.atom_db.heap_pop_most_active() {
-//!     if self.atom_db.value_of(atom as Atom).is_none() {
-//!         return Some(atom);
-//!     }
-//! }
-//! ```
-//!
-//! # Phase saving
-//!
-//! If phase saving is enabled if a chosen atom was previously valued *v* the atom is again valued *v*.
-//!
-//! ```rust,ignore
-//! let previous_value = self.atom_db.previous_value_of(chosen_atom);
-//! CLiteral::new(chosen_atom, previous_value);
-//! ```
-//!
-//! Note: For efficiency an atom always has a 'previous' value, initialised randomly via [Config::polarity_lean](crate::config::Config::polarity_lean).
-//!
-//! # Randomness
-//!
-//! Use of activity, phase saving, or any other heuristic may be probabilistic, and likewise for the decision of atom and the decision of polarity.
+/*!
+Methods for choosing the value of an atom.
+
+# Overview
+
+The core decision procedure is straightforward:
+- Search through all atoms in the context for an atom which is not assigned a value, and assign either true or false.
+
+```rust,ignore
+self.atom_db.valuation().unvalued_atoms().next();
+// Or…
+self.atom_db.valuation().unvalued_atoms().choose(rng_source);
+```
+
+# Decisions as literals
+
+Strictly a decision is to value some atom *a* with value *v*.
+Still, it is convenient to represent such a decision as a literal with atom *a* and polarity *v*.
+For example, a decision to value *p* with value *false* can be represented with the literal *-p*.
+
+```rust,ignore
+let atom = self.atom_db.valuation().unvalued_atoms().next()?;
+let value = self.rng.gen_bool(self.config.polarity_lean);
+let decision_as_literal = CLiteral::new(atom, value);
+```
+
+# Heuristics
+
+# Activity
+
+Atoms may be selected by activity, and the [atom database](crate::db::atom) stores atoms without a value on a max value activity heap in order to support quick access to the most active atom without a value.
+Though, as storing *only* without a value takes considerably more effort than *at least* those atoms without a value, it may take some work to find the relevant atom.
+
+```rust,ignore
+while let Some(atom) = self.atom_db.heap_pop_most_active() {
+    if self.atom_db.value_of(atom as Atom).is_none() {
+        return Some(atom);
+    }
+}
+```
+
+# Phase saving
+
+If phase saving is enabled if a chosen atom was previously valued *v* the atom is again valued *v*.
+
+```rust,ignore
+let previous_value = self.atom_db.previous_value_of(chosen_atom);
+CLiteral::new(chosen_atom, previous_value);
+```
+
+Note: For efficiency an atom always has a 'previous' value, initialised randomly via [Config::polarity_lean](crate::config::Config::polarity_lean).
+
+# Randomness
+
+Use of activity, phase saving, or any other heuristic may be probabilistic, and likewise for the decision of atom and the decision of polarity.
+*/
 
 use rand::{seq::IteratorRandom, Rng};
 
