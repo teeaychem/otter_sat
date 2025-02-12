@@ -7,6 +7,7 @@ use crate::{
         library::report::{self},
         Dispatch,
     },
+    transient::resolution_buffer::ResolutionBuffer,
 };
 
 use std::rc::Rc;
@@ -59,6 +60,9 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
 
     /// An optional function to send dispatches with.
     pub dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
+
+    /// A buffer for resolution
+    pub resolution_buffer: ResolutionBuffer,
 
     /// Terminates procedures, if true.
     pub(super) callback_terminate: Option<Box<CallbackTerminate>>,

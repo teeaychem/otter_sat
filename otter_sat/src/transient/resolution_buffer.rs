@@ -35,7 +35,12 @@ use std::{borrow::Borrow, collections::HashSet, rc::Rc};
 
 use crate::{
     config::{Config, StoppingCriteria},
-    db::{atom::AtomDB, clause::ClauseDB, literal::LiteralDB, ClauseKey},
+    db::{
+        atom::AtomDB,
+        clause::{callbacks::CallbackOnResolution, ClauseDB},
+        literal::LiteralDB,
+        ClauseKey,
+    },
     dispatch::{
         library::delta::{
             self,
@@ -117,44 +122,62 @@ pub struct BufferConfig {
 
     /// The stopping criteria to use during resolution.
     stopping: StoppingCriteria,
+
+    /// The callback used on completion
+    callback: Option<Box<CallbackOnResolution>>,
+}
+
+impl From<&Config> for BufferConfig {
+    fn from(value: &Config) -> Self {
+        Self {
+            subsumption: value.switch.subsumption,
+            stopping: value.stopping_criteria,
+            callback: None,
+        }
+    }
 }
 
 impl ResolutionBuffer {
-    /// The length of the resolved clause.
-    pub fn clause_legnth(&self) -> usize {
-        self.clause_length
-    }
-
-    /// Creates a resolution buffer from a valuation, typically the current valuation.
-    pub fn from_valuation(
-        valuation: &impl Valuation,
-        dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
-        config: &Config,
-    ) -> Self {
-        let valuation_copy = valuation.values().map(Cell::Value).collect();
-
-        ResolutionBuffer {
+    pub fn new(config: &Config, dispatcher: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
+        Self {
             valueless_count: 0,
             clause_length: 0,
             asserts: None,
             premises: HashSet::default(),
-
-            buffer: valuation_copy,
-
+            buffer: Vec::default(),
             dispatcher,
-
-            config: BufferConfig {
-                subsumption: config.switch.subsumption,
-                stopping: config.stopping_criteria,
-            },
+            config: BufferConfig::from(config),
         }
+    }
+
+    pub fn refresh(&mut self, valuation: &impl Valuation) {
+        self.valueless_count = 0;
+        self.clause_length = 0;
+        self.asserts = None;
+        self.premises.clear();
+
+        match self.buffer.len().cmp(&valuation.atom_count()) {
+            std::cmp::Ordering::Less => self.buffer = valuation.values().map(Cell::Value).collect(),
+            std::cmp::Ordering::Equal => unsafe {
+                for index in 0..self.buffer.len() {
+                    *self.buffer.get_unchecked_mut(index) =
+                        Cell::Value(valuation.value_of_unchecked(index as Atom))
+                }
+            },
+            std::cmp::Ordering::Greater => todo!(),
+        }
+    }
+
+    /// The length of the resolved clause.
+    pub fn clause_legnth(&self) -> usize {
+        self.clause_length
     }
 
     /// Returns the resolved clause and an index to where asserted literal is *within the clause*, if one exists.
     /// ```rust,ignore
     /// let (resolved_clause, assertion_index) = the_buffer.to_assertion_clause();
     /// ```
-    pub fn to_assertion_clause(self) -> (CClause, Option<usize>) {
+    pub fn to_assertion_clause(&self) -> (CClause, Option<usize>) {
         let mut the_clause = vec![];
         let mut conflict_index = None;
 

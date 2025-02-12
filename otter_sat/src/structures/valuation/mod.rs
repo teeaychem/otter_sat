@@ -99,4 +99,6 @@ pub trait Valuation {
     /// # Safety
     /// Implementations are not required to check the atom is part of the valuation.
     unsafe fn clear_value_of(&mut self, atom: Atom);
+
+    fn atom_count(&self) -> usize;
 }

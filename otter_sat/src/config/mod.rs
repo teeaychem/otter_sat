@@ -30,7 +30,10 @@ pub use stopping_criteria::StoppingCriteria;
 mod switches;
 pub use switches::Switches;
 
-use crate::db::literal::config::LiteralDBConfig;
+use crate::{
+    db::literal::config::LiteralDBConfig,
+    generic::{self},
+};
 
 /// The primary configuration structure.
 #[derive(Clone)]
@@ -44,7 +47,7 @@ pub struct Config {
     pub literal_db: LiteralDBConfig,
 
     /// The `u` value to multiply the luby sequence by when determining whether to perform a restart.
-    pub luby_u: crate::generic::luby::LubyRepresentation,
+    pub luby_u: generic::luby::LubyRepresentation,
 
     /// The probability of assigning positive polarity to a atom when freely choosing a atom.
     pub polarity_lean: PolarityLean,
