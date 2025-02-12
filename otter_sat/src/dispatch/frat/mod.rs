@@ -39,7 +39,7 @@ A few decisions make this a little more delicate than it otherwise could be
 
 - Atom renaming
   + … when mixed with 0 as a delimiter in the format requires (i think) translating a clause back to it's DIMACS representation
-  - The context stores a translation, but to avoid interacting (and introducing mutexes) the transcriber listens for atoms being //! added to the context and keeps an internal map of their external string
+  - The context stores a translation, but to avoid interacting (and introducing mutexes) the transcriber listens for atoms being added to the context and keeps an internal map of their external string
 
 - Multiple clause databases
   + Requires disambiguating indicies.
@@ -51,7 +51,7 @@ pub mod transcriber;
 
 use std::{collections::VecDeque, fs::File};
 
-use crate::{db::ClauseKey, structures::literal::CLiteral};
+use crate::db::ClauseKey;
 
 /// An intermediate struct to support transforming dispatches from a context to steps in an FRAT proof.
 pub struct Transcriber {
@@ -60,9 +60,6 @@ pub struct Transcriber {
 
     /// A buffer holding steps until they are written to a file.
     step_buffer: Vec<String>,
-
-    /// A buffer holding information about a clause
-    clause_buffer: Vec<CLiteral>,
 
     /// A buffer holding information about clauses used during an instance of resolutions.
     resolution_buffer: Vec<ClauseKey>,

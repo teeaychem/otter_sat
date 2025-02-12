@@ -1,10 +1,12 @@
-//! Configuration of a context.
-//!
-//! Primary configuration is context.
-//! All configuration for a context are contained within context.
-//! Some structures clone parts of the configuration.
-//! Databases.
-//!
+/*!
+Configuration of a context.
+
+Primary configuration is context.
+All configuration for a context are contained within context.
+Some structures clone parts of the configuration.
+Databases.
+
+*/
 use dbs::{AtomDBConfig, ClauseDBConfig};
 use vsids::VSIDS;
 

@@ -1,18 +1,18 @@
 #![allow(clippy::useless_format)]
 
-use std::{borrow::Borrow, collections::VecDeque, io::Write, path::PathBuf};
+use std::{
+    borrow::Borrow,
+    collections::{HashSet, VecDeque},
+    io::Write,
+    path::PathBuf,
+};
 
 use crate::{
     db::ClauseKey,
-    dispatch::library::{
-        delta::{self},
-        report::{self, Report},
-    },
     structures::{
         clause::CClause,
         literal::{CLiteral, Literal},
     },
-    types::err::{self},
 };
 
 use super::Transcriber;
@@ -25,7 +25,6 @@ impl Transcriber {
         let file = std::fs::OpenOptions::new().append(true).open(&path)?;
         let transcriber = Transcriber {
             file,
-            clause_buffer: Vec::default(),
             resolution_buffer: Vec::default(),
             resolution_queue: VecDeque::default(),
             step_buffer: Vec::default(),
@@ -176,128 +175,63 @@ impl Transcriber {
 
 /// Helper methods for transcription.
 impl Transcriber {
-    pub fn transcribe_clause_db_delta(
-        &mut self,
-        δ: &delta::ClauseDB,
-    ) -> Result<(), err::FRATError> {
-        use delta::ClauseDB::*;
-        match δ {
-            ClauseStart => return Err(err::FRATError::CorruptClauseBuffer),
+    pub fn transcribe_unsatisfiable_clause(&mut self) {
+        self.step_buffer.push(Transcriber::meta_unsatisfiable())
+    }
 
-            ClauseLiteral(literal) => self.clause_buffer.push(*literal),
+    pub fn transcribe_bcp(&mut self, key: &ClauseKey, literal: CLiteral) {
+        let step = Transcriber::add_clause(key, self.literal_string(literal), None);
+        self.step_buffer.push(step);
+    }
 
-            Original(key) => {
-                let step = match key {
-                    ClauseKey::OriginalUnit(literal) => {
-                        let _ = std::mem::take(&mut self.clause_buffer);
-                        Transcriber::original_clause(key, self.literal_string(literal))
-                    }
+    pub fn transcribe_original_clause(&mut self, key: &ClauseKey, clause: CClause) {
+        let step = Transcriber::original_clause(key, self.clause_string(clause));
+        self.step_buffer.push(step);
+    }
 
-                    ClauseKey::AdditionUnit(_) => {
-                        panic!("! Original dispatch contains an addition key")
-                    }
-
-                    _ => {
-                        let clause = std::mem::take(&mut self.clause_buffer);
-                        Transcriber::original_clause(key, self.clause_string(clause))
-                    }
-                };
-                self.step_buffer.push(step);
-            }
-
-            Added(key) => {
-                let Some(steps) = self.resolution_queue.pop_front() else {
-                    return Err(err::FRATError::CorruptResolutionQ);
-                };
-                let step = match key {
-                    ClauseKey::OriginalUnit(_) => {
-                        panic!("! Added dispatched contains an original key")
-                    }
-
-                    ClauseKey::AdditionUnit(literal) => {
-                        let _ = std::mem::take(&mut self.clause_buffer);
-                        Transcriber::add_clause(key, self.literal_string(literal), None)
-                    }
-
-                    _ => {
-                        let the_clause = std::mem::take(&mut self.clause_buffer);
-                        Transcriber::add_clause(key, self.clause_string(the_clause), Some(steps))
-                    }
-                };
-                self.step_buffer.push(step);
-            }
-
-            BCP(key) => match key {
-                ClauseKey::OriginalUnit(_) => panic!("! Original BCP"),
-
-                ClauseKey::AdditionUnit(literal) => {
-                    let step = Transcriber::add_clause(key, self.literal_string(literal), None);
-                    self.step_buffer.push(step);
-                }
-
-                _ => panic!("only unit clause keys from BCP"),
-            },
-
-            Deletion(key) => {
-                let the_clause = std::mem::take(&mut self.clause_buffer);
-                let step = Transcriber::delete_clause(key, self.clause_string(the_clause));
-                self.step_buffer.push(step);
-            }
-
-            Transfer(_from, _to) => return Err(err::FRATError::TransfersAreTodo),
-
-            Unsatisfiable(_) => self.step_buffer.push(Transcriber::meta_unsatisfiable()),
+    pub fn transcribe_addition_clause(&mut self, key: &ClauseKey, clause: CClause) {
+        let Some(steps) = self.resolution_queue.pop_front() else {
+            panic!("Err(err::FRATError::CorruptResolutionQ)")
         };
-
-        Ok(())
+        let step = Transcriber::add_clause(key, self.clause_string(clause), Some(steps));
+        self.step_buffer.push(step);
     }
 
-    pub fn transcribe_resolution_delta(
-        &mut self,
-        δ: &delta::Resolution,
-    ) -> Result<(), err::FRATError> {
-        use delta::Resolution::*;
-        match δ {
-            Begin => assert!(self.resolution_buffer.is_empty()),
-
-            End => self
-                .resolution_queue
-                .push_back(std::mem::take(&mut self.resolution_buffer)),
-
-            Used(k) => self.resolution_buffer.push(*k),
-
-            Subsumed(_, _) => {} // TODO: Someday… maybe…
-        }
-        Ok(())
+    pub fn transcribe_deletion(&mut self, key: &ClauseKey, clause: CClause) {
+        let step = Transcriber::delete_clause(key, self.clause_string(clause));
+        self.step_buffer.push(step);
     }
 
-    pub fn transcribe_report(&mut self, report: &Report) {
-        match report {
-            Report::ClauseDB(report) => {
-                //
-                match report {
-                    report::ClauseDBReport::Active(key, clause) => self.step_buffer.push(
-                        Transcriber::finalise_clause(key, self.clause_string(clause.clone())),
-                    ),
-
-                    report::ClauseDBReport::ActiveOriginalUnit(literal) => {
-                        self.step_buffer
-                            .push(Transcriber::finalise_original_unit_clause(
-                                literal,
-                                self.literal_string(literal),
-                            ))
-                    }
-
-                    report::ClauseDBReport::ActiveAdditionUnit(literal) => {
-                        self.step_buffer
-                            .push(Transcriber::finalise_addition_unit_clause(
-                                literal,
-                                self.literal_string(literal),
-                            ))
-                    }
-                }
-            }
-            Report::LiteralDB(_) | Report::Parser(_) | Report::Finish | Report::Solve(_) => {}
+    pub fn transcribe_resolution(&mut self, premises: &HashSet<ClauseKey>) {
+        assert!(self.resolution_buffer.is_empty());
+        for key in premises {
+            self.resolution_buffer.push(*key);
         }
+
+        self.resolution_queue
+            .push_back(std::mem::take(&mut self.resolution_buffer));
+    }
+
+    pub fn transcribe_active_original_unit(&mut self, unit: CLiteral) {
+        self.step_buffer
+            .push(Transcriber::finalise_original_unit_clause(
+                unit,
+                self.literal_string(unit),
+            ))
+    }
+
+    pub fn transcribe_active_addition_unit(&mut self, literal: CLiteral) {
+        self.step_buffer
+            .push(Transcriber::finalise_addition_unit_clause(
+                literal,
+                self.literal_string(literal),
+            ))
+    }
+
+    pub fn transcribe_active(&mut self, key: ClauseKey, clause: &CClause) {
+        self.step_buffer.push(Transcriber::finalise_clause(
+            &key,
+            self.clause_string(clause.clone()),
+        ))
     }
 }

@@ -1,3 +1,5 @@
-//! Various 'informative' enumerations.
-//!
-//! Empty, for now…
+/*!
+Various 'informative' enumerations.
+
+Empty, for now…
+*/

@@ -1,13 +1,15 @@
-//! Partial bindings for IPASIR2 API.
-//!
-//! In particular:
-//! - There is no support for options.\
-//!   Support will be added when (or before) the API is finalised.
-//! - There is no support for set_import.
-//! - There is partial support for set_fixed.
-//! - There is no support for noting that an added clause may be forgotten.
-//!
-//! Otherwise, if an IPASIR2 function wraps an IPASIR function, initial support is implemented.
+/*!
+Partial bindings for IPASIR2 API.
+
+In particular:
+- There is no support for options.\
+  Support will be added when (or before) the API is finalised.
+- There is no support for set_import.
+- There is partial support for set_fixed.
+- There is no support for noting that an added clause may be forgotten.
+
+Otherwise, if an IPASIR2 function wraps an IPASIR function, initial support is implemented.
+*/
 
 use crate::{
     context::ContextState,

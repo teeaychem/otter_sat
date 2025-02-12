@@ -1,8 +1,10 @@
-//! Schedulers, used to interrupt a solve for some task.
-//!
-//! These return true if an interrupt is due, and false otherwise.
-//!
-//! For the moment, scheduling during a solve is experimental.
+/*!
+Schedulers, used to interrupt a solve for some task.
+
+These return true if an interrupt is due, and false otherwise.
+
+For the moment, scheduling during a solve is experimental.
+*/
 
 use crate::context::GenericContext;
 
