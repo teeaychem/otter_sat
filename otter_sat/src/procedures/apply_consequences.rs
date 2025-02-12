@@ -89,11 +89,6 @@ So, caution should be taken to avoid overlooking a failed invariant.
 use crate::{
     context::{ContextState, GenericContext},
     db::ClauseKey,
-    dispatch::{
-        library::delta::{self, Delta},
-        macros::{self},
-        Dispatch,
-    },
     procedures::analysis,
     structures::{
         consequence::{self, Consequence},
@@ -142,7 +137,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     if !self.literal_db.decision_is_made() {
                         self.state = ContextState::Unsatisfiable(key);
 
-                        macros::dispatch_clause_db_delta!(self, Unsatisfiable, key);
+                        let clause = unsafe { self.clause_db.get_unchecked(&key).unwrap() };
+                        self.clause_db.make_callback_unsatisfiable(clause);
 
                         return Ok(ApplyConsequencesOk::FundamentalConflict);
                     }

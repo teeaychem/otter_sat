@@ -76,7 +76,7 @@ pub struct ClauseDB {
     /// Where to send dispatches.
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 
-    /// Addition clauses are passed in.
+    /// Original clauses are passed in.
     pub(super) callback_original: Option<Box<CallbackOnClauseSource>>,
 
     /// Addition clauses are passed in.
@@ -87,6 +87,9 @@ pub struct ClauseDB {
 
     /// Fixed literals are passed in.
     pub(super) callback_fixed: Option<Box<CallbackOnLiteral>>,
+
+    /// The unsatisfiable clause is passed in.
+    pub(super) callback_unsatisfiable: Option<Box<CallbackOnClause>>,
 }
 
 impl ClauseDB {
@@ -113,6 +116,7 @@ impl ClauseDB {
             callback_addition: None,
             callback_delete: None,
             callback_fixed: None,
+            callback_unsatisfiable: None,
         }
     }
 }
