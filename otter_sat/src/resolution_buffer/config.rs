@@ -1,7 +1,4 @@
-use crate::{
-    config::{Config, StoppingCriteria},
-    db::clause::callbacks::CallbackOnResolution,
-};
+use crate::config::{Config, StoppingCriteria};
 
 /// Configuration for a resolution buffer.
 pub struct BufferConfig {
@@ -10,9 +7,6 @@ pub struct BufferConfig {
 
     /// The stopping criteria to use during resolution.
     pub stopping: StoppingCriteria,
-
-    /// The callback used on completion
-    pub callback: Option<Box<CallbackOnResolution>>,
 }
 
 impl From<&Config> for BufferConfig {
@@ -20,7 +14,6 @@ impl From<&Config> for BufferConfig {
         Self {
             subsumption: value.switch.subsumption,
             stopping: value.stopping_criteria,
-            callback: None,
         }
     }
 }

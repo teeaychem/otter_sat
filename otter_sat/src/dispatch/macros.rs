@@ -19,18 +19,6 @@ macro_rules! dispatch_stats {
 }
 pub(crate) use dispatch_stats;
 
-/// A macro to help send deltas from the resolution buffer.
-///
-/// Deltas are often grouped, and so multiple checks on whether a dispatcher is present may be avoided by a different approach.
-macro_rules! dispatch_resolution_delta {
-    ( $self:ident, $dispatch:expr ) => {
-        if let Some(dispatcher) = &$self.dispatcher {
-            dispatcher(Dispatch::Delta(delta::Delta::Resolution($dispatch)));
-        }
-    };
-}
-pub(crate) use dispatch_resolution_delta;
-
 /// Clause db deltas
 macro_rules! dispatch_clause_db_delta {
     ($self:ident, $variant:ident, $key:expr) => {

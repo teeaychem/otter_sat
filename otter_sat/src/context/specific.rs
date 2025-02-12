@@ -3,7 +3,7 @@ use crate::{
     db::{atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ, literal::LiteralDB},
     dispatch::Dispatch,
     generic::minimal_pcg::MinimalPCG32,
-    transient::resolution_buffer::ResolutionBuffer,
+    resolution_buffer::ResolutionBuffer,
 };
 
 use rand::SeedableRng;
@@ -21,7 +21,7 @@ impl Context {
             atom_db: AtomDB::new(&config, dispatcher.clone()),
             clause_db: ClauseDB::new(&config, dispatcher.clone()),
             literal_db: LiteralDB::new(&config, dispatcher.clone()),
-            resolution_buffer: ResolutionBuffer::new(&config, dispatcher.clone()),
+            resolution_buffer: ResolutionBuffer::new(&config),
 
             config,
 

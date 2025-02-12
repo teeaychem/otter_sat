@@ -31,19 +31,11 @@ This allows for a simple implementation, but is likely inefficient for a large c
 Improvement could be made by temporarily mapping relevant atoms to a temporary sub-language derived from the clauses which are candidates for resolution (so long as this is a finite collection…)
 */
 
-use std::{borrow::Borrow, collections::HashSet, rc::Rc};
+use std::{borrow::Borrow, collections::HashSet};
 
 use crate::{
     config::{Config, StoppingCriteria},
     db::{atom::AtomDB, clause::ClauseDB, literal::LiteralDB, ClauseKey},
-    dispatch::{
-        library::delta::{
-            self,
-            Resolution::{self},
-        },
-        macros::{self},
-        Dispatch,
-    },
     misc::log::targets::{self},
     structures::{
         atom::Atom,
@@ -55,42 +47,18 @@ use crate::{
     types::err::{self, ResolutionBufferError},
 };
 
-use super::{cell::Cell, config::BufferConfig, ResolutionOk};
-
-/// A buffer for use when applying resolution to a sequence of clauses.
-pub struct ResolutionBuffer {
-    /// A count of literals in the clause whose atoms do not have a value on the given interpretation.
-    valueless_count: usize,
-
-    /// The length of the clause.
-    clause_length: usize,
-
-    /// The literal asserted by the current resolution candidate, if it exists..
-    asserts: Option<CLiteral>,
-
-    /// The (direct) premises used top derive the clause.
-    premises: HashSet<ClauseKey>,
-
-    /// The buffer.
-    buffer: Vec<Cell>,
-
-    /// Where to send dispatches.
-    dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
-
-    /// A (typically derived) configuration for the instance of resolution.
-    config: BufferConfig,
-}
+use super::{cell::Cell, config::BufferConfig, ResolutionBuffer, ResolutionOk};
 
 impl ResolutionBuffer {
-    pub fn new(config: &Config, dispatcher: Option<Rc<dyn Fn(Dispatch)>>) -> Self {
+    pub fn new(config: &Config) -> Self {
         Self {
             valueless_count: 0,
             clause_length: 0,
             asserts: None,
             premises: HashSet::default(),
             buffer: Vec::default(),
-            dispatcher,
             config: BufferConfig::from(config),
+            callback_premises: None,
         }
     }
 
@@ -261,11 +229,7 @@ impl ResolutionBuffer {
             }
         }
 
-        macros::dispatch_resolution_delta!(self, Resolution::Begin);
-        for premise in &self.premises {
-            macros::dispatch_resolution_delta!(self, Resolution::Used(*premise));
-        }
-        macros::dispatch_resolution_delta!(self, Resolution::End);
+        self.make_callback_resolution_premises(&self.premises);
 
         match self.valueless_count {
             1 => Ok(ResolutionOk::UIP),
