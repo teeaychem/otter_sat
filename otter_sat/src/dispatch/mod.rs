@@ -103,7 +103,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// Used, e.g., when finalising an FRAT proof.
     pub fn dispatch_active(&self) {
-        if let Some(_d) = &self.dispatcher {
+        if let Some(dispatcher) = &self.dispatcher {
+            dispatcher(Dispatch::Report(library::report::Report::Finish));
             self.clause_db.dispatch_active();
         }
     }

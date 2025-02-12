@@ -1,9 +1,5 @@
 use crate::{
     context::GenericContext,
-    dispatch::{
-        library::report::{ParserReport, Report},
-        macros, Dispatch,
-    },
     structures::{
         atom::Atom,
         clause::CClause,
@@ -14,6 +10,14 @@ use crate::{
 
 use core::panic;
 use std::io::BufRead;
+
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct ParserInfo {
+    expected_atoms: Option<usize>,
+    expected_clauses: Option<usize>,
+    added_atoms: Option<usize>,
+    added_clauses: Option<usize>,
+}
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Reads a DIMACS file into the context.
@@ -43,13 +47,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// assert!(the_context.solve().is_ok());
     /// ```
     #[allow(clippy::manual_flatten, unused_labels)]
-    pub fn read_dimacs(&mut self, mut reader: impl BufRead) -> Result<(), err::ErrorKind> {
+    pub fn read_dimacs(&mut self, mut reader: impl BufRead) -> Result<ParserInfo, err::ErrorKind> {
         //
         let mut buffer = String::default();
         let mut clause_buffer: CClause = Vec::default();
+        let mut info = ParserInfo::default();
 
         let mut lines = 0;
-        let mut clauses = 0;
 
         // first phase, read until the formula begins
         'preamble_loop: loop {
@@ -95,7 +99,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     self.ensure_atom(atoms as Atom);
 
-                    macros::dispatch_parser_report!(self, ParserReport::Expected(atoms, clauses));
+                    info.expected_atoms = Some(atoms);
+                    info.expected_clauses = Some(clauses);
                 }
 
                 _ => break,
@@ -120,7 +125,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 clause.sort_unstable();
                                 clause.dedup();
                                 self.add_clause(clause)?;
-                                clauses += 1;
                             }
                             _ => {
                                 let literal = match item.parse::<IntLiteral>() {
@@ -148,13 +152,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             return Err(err::ErrorKind::from(ParseError::MissingDelimiter));
         }
 
-        macros::dispatch_parser_report!(self, ParserReport::Counts(self.atom_db.count(), clauses));
-        macros::dispatch_parser_report!(
-            self,
-            ParserReport::ContextClauses(self.clause_db.current_clause_count())
-        );
+        info.added_atoms = Some(self.atom_db.count());
+        info.added_clauses = Some(self.clause_db.current_clause_count());
 
-        Ok(())
+        Ok(info)
     }
 }
 
@@ -210,7 +211,7 @@ p cnf
 ",
         );
 
-        assert_eq!(the_context.read_dimacs(dimacs.as_slice()), Ok(()));
+        assert!(the_context.read_dimacs(dimacs.as_slice()).is_ok());
     }
 
     #[test]
