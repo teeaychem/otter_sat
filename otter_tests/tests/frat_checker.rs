@@ -2,120 +2,119 @@ use std::{
     collections::HashSet,
     path::PathBuf,
     process::{self},
-    thread,
 };
 
 const FRAT_RS_PATH: &str = "./frat-rs";
 
-use crossbeam::channel::{unbounded, Receiver};
 use otter_sat::{
     config::Config,
     context::Context,
     db::{clause::db_clause::dbClause, ClauseKey},
     dispatch::{
-        frat,
+        frat::Transcriber,
         library::{
-            delta::{self, ClauseDB, Delta},
+            delta::{self, ClauseDB},
             report::{self, Report},
         },
-        Dispatch,
     },
     structures::clause::{Clause, ClauseSource},
 };
-
-/// Passes dispatches on some channel to a writer for the given FRAT path until the channel closes.
-pub fn frat_receiver(rx: Receiver<Dispatch>, frat_path: PathBuf) {
-    let mut transcriber = frat::Transcriber::new(frat_path).unwrap();
-    let mut handler = move |dispatch: &Dispatch| {
-        let _ = transcriber.transcribe(dispatch);
-        transcriber.flush()
-    };
-
-    while let Ok(dispatch) = rx.recv() {
-        handler(&dispatch);
-    }
-}
 
 fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     let mut frat_path_string = file_path.clone().to_str().unwrap().to_owned();
     frat_path_string.push_str(".frat");
     let frat_path = PathBuf::from(&frat_path_string);
+    let transcriber = Transcriber::new(frat_path.clone()).unwrap();
+    let transcriber_ref = std::rc::Rc::new(std::cell::RefCell::new(transcriber));
 
-    let (tx, rx) = unbounded::<Dispatch>();
-    let addition_tx = tx.clone();
-    let deletion_tx = tx.clone();
-    let resolution_tx = tx.clone();
-    let unsatisfiable_tx = tx.clone();
-
-    let listener_handle = {
-        let frat_path = frat_path.clone();
-        thread::spawn(|| frat_receiver(rx, frat_path))
-    };
-
-    let addition_callback = move |clause: &dbClause, source: &ClauseSource| match source {
-        ClauseSource::BCP => {
-            let delta = delta::ClauseDB::BCP(*clause.key());
-            let _ = addition_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
-        }
-
-        _ => {
-            let delta = delta::ClauseDB::ClauseStart;
-            let _ = addition_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
-            for literal in clause.literals() {
-                let delta = delta::ClauseDB::ClauseLiteral(literal);
-                let _ = addition_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+    let addition_clone = transcriber_ref.clone();
+    let addition_callback = move |clause: &dbClause, source: &ClauseSource| {
+        match source {
+            ClauseSource::BCP => {
+                let delta = delta::ClauseDB::BCP(*clause.key());
+                let _ = addition_clone
+                    .borrow_mut()
+                    .transcribe_clause_db_delta(&delta);
             }
 
-            match &clause.key() {
-                ClauseKey::Original(_)
-                | ClauseKey::OriginalUnit(_)
-                | ClauseKey::OriginalBinary(_) => {
-                    let delta = delta::ClauseDB::Original(*clause.key());
-                    let _ = addition_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+            _ => {
+                let delta = delta::ClauseDB::ClauseStart;
+                let _ = addition_clone
+                    .borrow_mut()
+                    .transcribe_clause_db_delta(&delta);
+                for literal in clause.literals() {
+                    let delta = delta::ClauseDB::ClauseLiteral(literal);
+                    let _ = addition_clone
+                        .borrow_mut()
+                        .transcribe_clause_db_delta(&delta);
                 }
-                ClauseKey::Addition(_, _)
-                | ClauseKey::AdditionUnit(_)
-                | ClauseKey::AdditionBinary(_) => {
-                    let delta = delta::ClauseDB::Added(*clause.key());
-                    let _ = addition_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+
+                match &clause.key() {
+                    ClauseKey::Original(_)
+                    | ClauseKey::OriginalUnit(_)
+                    | ClauseKey::OriginalBinary(_) => {
+                        let delta = delta::ClauseDB::Original(*clause.key());
+                        let _ = addition_clone
+                            .borrow_mut()
+                            .transcribe_clause_db_delta(&delta);
+                    }
+                    ClauseKey::Addition(_, _)
+                    | ClauseKey::AdditionUnit(_)
+                    | ClauseKey::AdditionBinary(_) => {
+                        let delta = delta::ClauseDB::Added(*clause.key());
+                        let _ = addition_clone
+                            .borrow_mut()
+                            .transcribe_clause_db_delta(&delta);
+                    }
                 }
             }
         }
+        addition_clone.borrow_mut().flush()
     };
 
+    let deletion_clone = transcriber_ref.clone();
     let deletion_callback = move |clause: &dbClause| {
         let delta = delta::ClauseDB::ClauseStart;
-        let _ = deletion_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+
+        let _ = deletion_clone
+            .borrow_mut()
+            .transcribe_clause_db_delta(&delta);
 
         for literal in clause.literals() {
             let delta = delta::ClauseDB::ClauseLiteral(literal);
-            let _ = deletion_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+            let _ = &mut deletion_clone
+                .borrow_mut()
+                .transcribe_clause_db_delta(&delta);
         }
         let delta = delta::ClauseDB::Deletion(*clause.key());
-        let _ = deletion_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+        let _ = deletion_clone
+            .borrow_mut()
+            .transcribe_clause_db_delta(&delta);
+        deletion_clone.borrow_mut().flush()
     };
 
+    let resolution_clone = transcriber_ref.clone();
     let resolution_presmises_callback = move |premises: &HashSet<ClauseKey>| {
-        let _ = resolution_tx.send(Dispatch::Delta(delta::Delta::Resolution(
-            delta::Resolution::Begin,
-        )));
+        let _ = resolution_clone
+            .borrow_mut()
+            .transcribe_resolution_delta(&delta::Resolution::Begin);
         for premise in premises {
-            let _ = resolution_tx.send(Dispatch::Delta(delta::Delta::Resolution(
-                delta::Resolution::Used(*premise),
-            )));
+            let _ = resolution_clone
+                .borrow_mut()
+                .transcribe_resolution_delta(&delta::Resolution::Used(*premise));
         }
 
-        let _ = resolution_tx.send(Dispatch::Delta(delta::Delta::Resolution(
-            delta::Resolution::End,
-        )));
+        let _ = resolution_clone
+            .borrow_mut()
+            .transcribe_resolution_delta(&delta::Resolution::End);
     };
 
-    let unsatisfiable_callback = move |clause: &dbClause| {
-        let _ = unsatisfiable_tx.send(Dispatch::Delta(
-            otter_sat::dispatch::library::delta::Delta::ClauseDB(ClauseDB::Unsatisfiable(
-                *clause.key(),
-            )),
-        ));
+    let unsatisfiable_clone = transcriber_ref.clone();
+    let unsatisfiable_callback = move |clause: dbClause| {
+        let _ = unsatisfiable_clone
+            .borrow_mut()
+            .transcribe_clause_db_delta(&ClauseDB::Unsatisfiable(*clause.key()));
+        unsatisfiable_clone.borrow_mut().flush();
     };
 
     let mut the_context = Context::from_config(config);
@@ -139,39 +138,48 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     };
 
     let _result = the_context.solve();
-    let _ = tx.send(Dispatch::Report(
-        otter_sat::dispatch::library::report::Report::Finish,
-    ));
+
+    transcriber_ref
+        .borrow_mut()
+        .transcribe_report(&Report::Finish);
 
     for (_, literal) in the_context.clause_db.all_original_unit_clauses() {
         let report = report::ClauseDBReport::ActiveOriginalUnit(literal);
-        let _ = tx.send(Dispatch::Report(report::Report::ClauseDB(report)));
+        transcriber_ref
+            .borrow_mut()
+            .transcribe_report(&report::Report::ClauseDB(report));
     }
 
     for (_, literal) in the_context.clause_db.all_addition_unit_clauses() {
         let report = report::ClauseDBReport::ActiveAdditionUnit(literal);
-        let _ = tx.send(Dispatch::Report(report::Report::ClauseDB(report)));
+        transcriber_ref
+            .borrow_mut()
+            .transcribe_report(&report::Report::ClauseDB(report));
     }
 
     for (key, clause) in the_context.clause_db.all_binary_clauses() {
         let report = report::ClauseDBReport::Active(key, clause.to_vec());
-        let _ = tx.send(Dispatch::Report(Report::ClauseDB(report)));
+        transcriber_ref
+            .borrow_mut()
+            .transcribe_report(&report::Report::ClauseDB(report));
     }
 
     for (key, clause) in the_context.clause_db.all_original_long_clauses() {
         let report = report::ClauseDBReport::Active(key, clause.to_vec());
-        let _ = tx.send(Dispatch::Report(Report::ClauseDB(report)));
+        transcriber_ref
+            .borrow_mut()
+            .transcribe_report(&report::Report::ClauseDB(report));
     }
 
     for (key, clause) in the_context.clause_db.all_active_addition_long_clauses() {
         let report = report::ClauseDBReport::Active(key, clause.to_vec());
-        let _ = tx.send(Dispatch::Report(Report::ClauseDB(report)));
+        transcriber_ref
+            .borrow_mut()
+            .transcribe_report(&report::Report::ClauseDB(report));
     }
+    transcriber_ref.borrow_mut().flush();
 
     drop(the_context);
-    drop(tx);
-
-    let _ = listener_handle.join();
 
     let mut frat_process = process::Command::new(FRAT_RS_PATH);
     frat_process.arg("elab");

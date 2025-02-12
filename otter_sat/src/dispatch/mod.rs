@@ -94,6 +94,3 @@ pub enum Dispatch {
     /// A statistic. E.g. conflicts seen or time taken.
     Stat(library::stat::Stat),
 }
-
-/// Ignores a dispatch.
-pub fn hand(_: Dispatch) {}

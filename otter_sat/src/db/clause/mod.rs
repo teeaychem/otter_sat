@@ -16,7 +16,9 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
-use callbacks::{CallbackOnClause, CallbackOnClauseSource, CallbackOnLiteral};
+use callbacks::{
+    CallbackOnClause, CallbackOnClauseSource, CallbackOnLiteral, CallbackOnOwnedClause,
+};
 use db_clause::dbClause;
 
 use crate::{
@@ -81,7 +83,7 @@ pub struct ClauseDB {
     pub(super) callback_fixed: Option<Box<CallbackOnLiteral>>,
 
     /// The unsatisfiable clause is passed in.
-    pub(super) callback_unsatisfiable: Option<Box<CallbackOnClause>>,
+    pub(super) callback_unsatisfiable: Option<Box<CallbackOnOwnedClause>>,
 }
 
 impl ClauseDB {

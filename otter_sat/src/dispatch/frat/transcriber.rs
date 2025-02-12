@@ -4,12 +4,9 @@ use std::{borrow::Borrow, collections::VecDeque, io::Write, path::PathBuf};
 
 use crate::{
     db::ClauseKey,
-    dispatch::{
-        library::{
-            delta::{self, Delta},
-            report::{self, Report},
-        },
-        Dispatch,
+    dispatch::library::{
+        delta::{self},
+        report::{self, Report},
     },
     structures::{
         clause::CClause,
@@ -34,62 +31,6 @@ impl Transcriber {
             step_buffer: Vec::default(),
         };
         Ok(transcriber)
-    }
-
-    /// Transcribes a dispatch.
-    pub fn transcribe(&mut self, dispatch: &Dispatch) -> Result<(), err::FRATError> {
-        match dispatch {
-            Dispatch::Delta(δ) => match δ {
-                Delta::AtomDB(atom_db_δ) => self.transcribe_atom_db_delta(atom_db_δ)?,
-
-                Delta::ClauseDB(clause_db_δ) => self.transcribe_clause_db_delta(clause_db_δ)?,
-
-                Delta::LiteralDB(literal_db_δ) => {
-                    self.transcribe_literal_db_delta(literal_db_δ)?
-                }
-
-                Delta::Resolution(resolution_δ) => {
-                    self.transcribe_resolution_delta(resolution_δ)?
-                }
-            },
-
-            Dispatch::Report(the_report) => {
-                match the_report {
-                    Report::ClauseDB(report) => {
-                        //
-                        match report {
-                            report::ClauseDBReport::Active(key, clause) => {
-                                self.step_buffer.push(Transcriber::finalise_clause(
-                                    key,
-                                    self.clause_string(clause.clone()),
-                                ))
-                            }
-
-                            report::ClauseDBReport::ActiveOriginalUnit(literal) => self
-                                .step_buffer
-                                .push(Transcriber::finalise_original_unit_clause(
-                                    literal,
-                                    self.literal_string(literal),
-                                )),
-
-                            report::ClauseDBReport::ActiveAdditionUnit(literal) => self
-                                .step_buffer
-                                .push(Transcriber::finalise_addition_unit_clause(
-                                    literal,
-                                    self.literal_string(literal),
-                                )),
-                        }
-                    }
-                    Report::LiteralDB(_)
-                    | Report::Parser(_)
-                    | Report::Finish
-                    | Report::Solve(_) => {}
-                }
-            }
-
-            Dispatch::Stat(_) => {}
-        };
-        Ok(())
     }
 
     /// Flushes any buffered steps to the proof file.
@@ -235,11 +176,10 @@ impl Transcriber {
 
 /// Helper methods for transcription.
 impl Transcriber {
-    fn transcribe_atom_db_delta(&mut self, _δ: &delta::AtomDB) -> Result<(), err::FRATError> {
-        Ok(())
-    }
-
-    fn transcribe_clause_db_delta(&mut self, δ: &delta::ClauseDB) -> Result<(), err::FRATError> {
+    pub fn transcribe_clause_db_delta(
+        &mut self,
+        δ: &delta::ClauseDB,
+    ) -> Result<(), err::FRATError> {
         use delta::ClauseDB::*;
         match δ {
             ClauseStart => return Err(err::FRATError::CorruptClauseBuffer),
@@ -312,14 +252,9 @@ impl Transcriber {
         Ok(())
     }
 
-    fn transcribe_literal_db_delta(
-        &mut self, _δ: &delta::LiteralDB
-    ) -> Result<(), err::FRATError> {
-        Ok(())
-    }
-
-    fn transcribe_resolution_delta(
-        &mut self, δ: &delta::Resolution
+    pub fn transcribe_resolution_delta(
+        &mut self,
+        δ: &delta::Resolution,
     ) -> Result<(), err::FRATError> {
         use delta::Resolution::*;
         match δ {
@@ -334,5 +269,35 @@ impl Transcriber {
             Subsumed(_, _) => {} // TODO: Someday… maybe…
         }
         Ok(())
+    }
+
+    pub fn transcribe_report(&mut self, report: &Report) {
+        match report {
+            Report::ClauseDB(report) => {
+                //
+                match report {
+                    report::ClauseDBReport::Active(key, clause) => self.step_buffer.push(
+                        Transcriber::finalise_clause(key, self.clause_string(clause.clone())),
+                    ),
+
+                    report::ClauseDBReport::ActiveOriginalUnit(literal) => {
+                        self.step_buffer
+                            .push(Transcriber::finalise_original_unit_clause(
+                                literal,
+                                self.literal_string(literal),
+                            ))
+                    }
+
+                    report::ClauseDBReport::ActiveAdditionUnit(literal) => {
+                        self.step_buffer
+                            .push(Transcriber::finalise_addition_unit_clause(
+                                literal,
+                                self.literal_string(literal),
+                            ))
+                    }
+                }
+            }
+            Report::LiteralDB(_) | Report::Parser(_) | Report::Finish | Report::Solve(_) => {}
+        }
     }
 }

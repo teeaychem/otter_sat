@@ -137,7 +137,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     if !self.literal_db.decision_is_made() {
                         self.state = ContextState::Unsatisfiable(key);
 
-                        let clause = unsafe { self.clause_db.get_unchecked(&key).unwrap() };
+                        let clause = unsafe { self.clause_db.get_unchecked(&key).unwrap().clone() };
                         self.clause_db.make_callback_unsatisfiable(clause);
 
                         return Ok(ApplyConsequencesOk::FundamentalConflict);

@@ -287,7 +287,6 @@ dependencies = [
 name = "otter_tests"
 version = "0.1.0"
 dependencies = [
- "crossbeam",
  "env_logger",
  "glob",
  "log",
