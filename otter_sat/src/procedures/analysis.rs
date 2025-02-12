@@ -41,15 +41,15 @@ match analysis_result {
 */
 
 use crate::{
+    config,
     context::GenericContext,
     db::ClauseKey,
     misc::log::targets::{self},
     structures::{
         clause::{Clause, ClauseSource},
         literal::{CLiteral, Literal},
-        valuation::Valuation,
     },
-    transient::resolution_buffer::{self},
+    transient::ResolutionOk,
     types::err::{self},
 };
 
@@ -79,29 +79,20 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ) -> Result<ConflictAnalysisOk, err::ErrorKind> {
         log::trace!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.current_level());
 
-        if let crate::config::vsids::VSIDS::Chaff = self.config.vsids_variant {
+        if let config::vsids::VSIDS::Chaff = self.config.vsids_variant {
             self.atom_db
                 .bump_relative(unsafe { self.clause_db.get_unchecked(key)?.atoms() });
         }
 
-        let mut backstep_valuation = self.atom_db.valuation_canonical().clone();
+        self.resolution_buffer.refresh(self.atom_db.valuation());
+        // Safety: Some decision must have been made for conflict analysis to take place.
         unsafe {
-            backstep_valuation.clear_value_of(self.literal_db.top_decision_unchecked().atom());
+            self.resolution_buffer
+                .clear_atom_value(self.literal_db.top_decision_unchecked().atom());
             for assertion in self.literal_db.top_consequences_unchecked() {
-                backstep_valuation.clear_value_of(assertion.atom());
+                self.resolution_buffer.clear_atom_value(assertion.atom());
             }
         }
-
-        // TODO: As the previous valuation is stored, it'd make sense to use that instead of rolling back the current valuation.
-        self.resolution_buffer.refresh(&backstep_valuation);
-
-        // let mut the_buffer = ResolutionBuffer::from_valuation(
-        //     &backstep_valuation,
-        //     self.dispatcher.clone(),
-        //     &self.config,
-        // );
-
-        // Some decision must have been made for conflict analysis to take place.
 
         match self.resolution_buffer.resolve_through_current_level(
             key,
@@ -109,9 +100,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             &mut self.clause_db,
             &mut self.atom_db,
         ) {
-            Ok(resolution_buffer::ResolutionOk::UnitClause)
-            | Ok(resolution_buffer::ResolutionOk::UIP) => {}
-            Ok(resolution_buffer::ResolutionOk::Repeat(k, l)) => {
+            Ok(ResolutionOk::UnitClause) | Ok(ResolutionOk::UIP) => {}
+            Ok(ResolutionOk::Repeat(k, l)) => {
                 return Ok(ConflictAnalysisOk::MissedPropagation { key: k, literal: l });
             }
             Err(buffer_error) => {
@@ -119,7 +109,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
         }
 
-        if let crate::config::vsids::VSIDS::MiniSAT = self.config.vsids_variant {
+        if let config::vsids::VSIDS::MiniSAT = self.config.vsids_variant {
             self.atom_db
                 .bump_relative(self.resolution_buffer.atoms_used());
         }
