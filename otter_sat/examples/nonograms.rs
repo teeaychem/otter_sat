@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use otter_sat::{
     config::Config,
     context::Context,
-    dispatch::library::report::SolveReport::{self},
+    dispatch::SolveReport::{self},
     structures::{
         atom::Atom,
         clause::CClause,

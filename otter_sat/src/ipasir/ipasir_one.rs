@@ -7,7 +7,7 @@ For a general overview, see the [ipasir module](crate::ipasir).
 use crate::{
     context::ContextState,
     db::{clause::db_clause::dbClause, ClauseKey},
-    dispatch::library::report::SolveReport,
+    dispatch::SolveReport,
     ipasir::{ContextBundle, IPASIR_SIGNATURE},
     structures::{
         atom::Atom,

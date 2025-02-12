@@ -14,7 +14,7 @@ Otherwise, if an IPASIR2 function wraps an IPASIR function, initial support is i
 use crate::{
     context::ContextState,
     db::clause::db_clause::dbClause,
-    dispatch::library::report::SolveReport,
+    dispatch::SolveReport,
     ipasir::{
         ipasir_one::{ipasir_failed, ipasir_init, ipasir_set_learn},
         ContextBundle, IPASIR_SIGNATURE,
