@@ -139,7 +139,7 @@ use crate::{
     db::ClauseKey,
     dispatch::{
         library::{
-            report::{self, Report, SolveReport},
+            report::{self, SolveReport},
             stat::Stat,
         },
         macros::{self},

@@ -1,7 +1,4 @@
-use crate::structures::{
-    clause::{CClause, ClauseSource},
-    literal::CLiteral,
-};
+use crate::structures::{clause::ClauseSource, literal::CLiteral};
 
 use super::{db_clause::dbClause, ClauseDB};
 

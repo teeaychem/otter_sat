@@ -10,7 +10,6 @@ pub mod callbacks;
 pub mod db_clause;
 mod get;
 mod store;
-mod transfer;
 
 use std::{
     borrow::Borrow,
@@ -214,6 +213,7 @@ impl ClauseDB {
 
                                 Err(_) => {
                                     log::error!(target: targets::CLAUSE_DB, "Remove called with missing ancestor clause");
+                                    println!("Remove called with missing ancestor clause");
                                     return Err(err::ClauseDBError::Missing);
                                 }
                             }
@@ -415,32 +415,26 @@ impl ClauseDB {
         }
     }
 
-    /// Removed the given literal from the clause indexed by the given key, if possible.
+    /// Removes `literal` from the clause indexed by `key`, from a long clause, if possible.
     ///
-    /// As the clause may become binary, the returned key should be used.
+    /// Subsumption cannot be applied to unit clauses, and there is little reason to apply subsumption to binary clauses as these will never be (re-)inspected.
+    ///
+    /// At present there is no change to the clause database when a literal is subsumed.
+    /// However, in principle a long clause of three literals may be transfered to a binary clause of two literals after subsumption.
+    /// To anticipate this possibility, the returned key on successful subsumption should be used when handling an ok result.
     ///
     /// ```rust, ignore
     /// let new_key = clause_db.subsume(old_key, literal, atom_db)?;
     /// ```
-    ///
-    /// At present, this is limited to clauses with three or more literals.
-    ///
     /// # Safety
     /// Assumes a clause is indexed by the key.
-    /*
-    If the resolved clause is binary then subsumption transfers the clause to the store for binary clauses
-    This is safe to do as:
-    - After backjumping all the observations at the current level will be forgotten
-    - The clause does not appear in the observations of any previous stage
-      + As, if the clause appeared in some previous stage then use of the clause would be a repeat implication
-      + And, repeat implications are checked prior to conflicts
-     */
     pub unsafe fn subsume(
         &mut self,
         key: ClauseKey,
         literal: impl Borrow<CLiteral>,
         atom_db: &mut AtomDB,
         premises: HashSet<ClauseKey>,
+        increment_proof_count: bool,
     ) -> Result<ClauseKey, err::SubsumptionError> {
         let the_clause = match self.get_unchecked_mut(&key) {
             Ok(c) => c,
@@ -448,18 +442,8 @@ impl ClauseDB {
         };
         match the_clause.len() {
             0..=2 => Err(err::SubsumptionError::ClauseTooShort),
-            3 => {
-                the_clause.subsume(literal, atom_db, false)?;
-                let Ok(new_key) = self.transfer_to_binary(key, atom_db, premises) else {
-                    return Err(err::SubsumptionError::TransferFailure);
-                };
-                Ok(new_key)
-            }
             _ => {
-                the_clause.subsume(literal, atom_db, true)?;
-                // TODO: Dispatches for subsumption…
-                // let delta = delta::Resolution::Subsumed(key, literal);
-                // (Dispatch::Resolution(delta));
+                the_clause.subsume(literal, atom_db, true, premises, increment_proof_count)?;
                 Ok(key)
             }
         }

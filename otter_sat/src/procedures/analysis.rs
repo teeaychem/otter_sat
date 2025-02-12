@@ -41,7 +41,6 @@ match analysis_result {
 */
 
 use crate::{
-    config::StoppingCriteria,
     context::GenericContext,
     db::ClauseKey,
     misc::log::targets::{self},
@@ -109,15 +108,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             &mut self.atom_db,
         ) {
             Ok(resolution_buffer::ResolutionOk::UnitClause)
-            | Ok(resolution_buffer::ResolutionOk::FirstUIP) => {}
-            Ok(resolution_buffer::ResolutionOk::Exhausted) => {
-                if self.config.stopping_criteria == StoppingCriteria::FirstUIP {
-                    log::error!(target: targets::ANALYSIS, "Wrong stopping criteria.");
-                    return Err(err::ErrorKind::from(
-                        err::AnalysisError::FailedStoppingCriteria,
-                    ));
-                }
-            }
+            | Ok(resolution_buffer::ResolutionOk::UIP) => {}
             Ok(resolution_buffer::ResolutionOk::Repeat(k, l)) => {
                 return Ok(ConflictAnalysisOk::MissedPropagation { key: k, literal: l });
             }

@@ -224,13 +224,14 @@ pub enum ResolutionBufferError {
     LostClause,
 
     /// A minor headache… this can be disabled!
-    Subsumption,
+    Subsumption(SubsumptionError),
 
     /// Somehow the resolved clause is satisfied on the valuation used for assertion checking.
     /// This is quite serious, unless the wrong valuation has been used…
     SatisfiedClause,
     Transfer,
     MissingClause,
+    Exhausted,
 }
 
 impl From<ResolutionBufferError> for ErrorKind {
@@ -239,18 +240,12 @@ impl From<ResolutionBufferError> for ErrorKind {
     }
 }
 
-impl From<SubsumptionError> for ResolutionBufferError {
-    fn from(_value: SubsumptionError) -> Self {
-        Self::Subsumption
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StateError {
     SolveInProgress,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SubsumptionError {
     ShortClause,
     NoPivot,
@@ -258,6 +253,12 @@ pub enum SubsumptionError {
     TransferFailure,
     ClauseTooShort,
     ClauseDB,
+}
+
+impl From<SubsumptionError> for ResolutionBufferError {
+    fn from(e: SubsumptionError) -> Self {
+        ResolutionBufferError::Subsumption(e)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
