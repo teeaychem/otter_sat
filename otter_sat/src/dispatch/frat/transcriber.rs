@@ -249,6 +249,7 @@ impl Transcriber {
             Original(key) => {
                 let step = match key {
                     ClauseKey::OriginalUnit(literal) => {
+                        let _ = std::mem::take(&mut self.clause_buffer);
                         Transcriber::original_clause(key, self.literal_string(literal))
                     }
 
@@ -274,6 +275,7 @@ impl Transcriber {
                     }
 
                     ClauseKey::AdditionUnit(literal) => {
+                        let _ = std::mem::take(&mut self.clause_buffer);
                         Transcriber::add_clause(key, self.literal_string(literal), None)
                     }
 

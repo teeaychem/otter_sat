@@ -6,12 +6,12 @@ For a general overview, see the [ipasir module](crate::ipasir).
 
 use crate::{
     context::ContextState,
-    db::ClauseKey,
+    db::{clause::db_clause::dbClause, ClauseKey},
     dispatch::library::report::SolveReport,
     ipasir::{ContextBundle, IPASIR_SIGNATURE},
     structures::{
         atom::Atom,
-        clause::{CClause, Clause},
+        clause::{CClause, Clause, ClauseSource},
         literal::{ABLiteral, CLiteral, Literal},
     },
 };
@@ -249,7 +249,7 @@ pub unsafe extern "C" fn ipasir_set_learn(
     if let Some(callback) = learn {
         let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-        let callback_addition = Box::new(move |clause: &CClause| {
+        let callback_addition = Box::new(move |clause: &dbClause, _: &ClauseSource| {
             if clause.len() <= (max_length as usize) {
                 let mut int_clause: Vec<c_int> = clause.literals().map(|l| l.into()).collect();
                 int_clause.push(0);
@@ -263,7 +263,7 @@ pub unsafe extern "C" fn ipasir_set_learn(
             .clause_db
             .set_callback_addition(callback_addition);
 
-        let callback_original = Box::new(move |clause: &CClause| {
+        let callback_original = Box::new(move |clause: &dbClause, _: &ClauseSource| {
             if clause.len() <= (max_length as usize) {
                 let mut int_clause: Vec<c_int> = clause.literals().map(|l| l.into()).collect();
                 int_clause.push(0);

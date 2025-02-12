@@ -11,13 +11,14 @@
 
 use crate::{
     context::ContextState,
+    db::clause::db_clause::dbClause,
     dispatch::library::report::SolveReport,
     ipasir::{
         ipasir_one::{ipasir_failed, ipasir_init, ipasir_set_learn},
         ContextBundle, IPASIR_SIGNATURE,
     },
     structures::{
-        clause::{CClause, Clause, IntClause},
+        clause::{CClause, Clause, ClauseSource, IntClause},
         literal::{CLiteral, Literal},
     },
 };
@@ -278,7 +279,7 @@ pub unsafe extern "C" fn ipasir2_set_export(
     if let Some(callback) = callback {
         let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-        let callback = Box::new(move |clause: &CClause| {
+        let callback = Box::new(move |clause: &dbClause, _: &ClauseSource| {
             if clause.len() < (max_length as usize) {
                 let mut int_clause: Vec<c_int> = clause.literals().map(|l| l.into()).collect();
                 let callback_ptr: *mut i32 = int_clause.as_mut_ptr();
@@ -316,7 +317,7 @@ pub unsafe extern "C" fn ipasir2_delete(
     if let Some(callback) = callback {
         let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-        let callback = Box::new(move |clause: &CClause| {
+        let callback = Box::new(move |clause: &dbClause| {
             let callback_ptr: *mut i32 = if cfg!(feature = "boolean") {
                 let mut int_clause: IntClause = clause.literals().map(|l| l.into()).collect();
                 int_clause.as_mut_ptr()

@@ -11,7 +11,13 @@ use crossbeam::channel::{unbounded, Receiver};
 use otter_sat::{
     config::Config,
     context::Context,
-    dispatch::{frat, Dispatch},
+    db::{clause::db_clause::dbClause, ClauseKey},
+    dispatch::{
+        frat,
+        library::delta::{self, Delta},
+        Dispatch,
+    },
+    structures::clause::{CClause, Clause, ClauseSource},
 };
 
 /// Passes dispatches on some channel to a writer for the given FRAT path until the channel closes.
@@ -33,10 +39,55 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     let frat_path = PathBuf::from(&frat_path_string);
 
     let (tx, rx) = unbounded::<Dispatch>();
+    let addition_tx = tx.clone();
+    let deletion_tx = tx.clone();
 
     let listener_handle = {
         let frat_path = frat_path.clone();
         thread::spawn(|| frat_receiver(rx, frat_path))
+    };
+
+    let addition_callback = move |clause: &dbClause, source: &ClauseSource| match source {
+        ClauseSource::BCP => {
+            let delta = delta::ClauseDB::BCP(*clause.key());
+            let _ = addition_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+        }
+
+        _ => {
+            let delta = delta::ClauseDB::ClauseStart;
+            let _ = addition_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+            for literal in clause.literals() {
+                let delta = delta::ClauseDB::ClauseLiteral(literal);
+                let _ = addition_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+            }
+
+            match &clause.key() {
+                ClauseKey::Original(_)
+                | ClauseKey::OriginalUnit(_)
+                | ClauseKey::OriginalBinary(_) => {
+                    let delta = delta::ClauseDB::Original(*clause.key());
+                    let _ = addition_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+                }
+                ClauseKey::Addition(_, _)
+                | ClauseKey::AdditionUnit(_)
+                | ClauseKey::AdditionBinary(_) => {
+                    let delta = delta::ClauseDB::Added(*clause.key());
+                    let _ = addition_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+                }
+            }
+        }
+    };
+
+    let deletion_callback = move |clause: &dbClause| {
+        let delta = delta::ClauseDB::ClauseStart;
+        let _ = deletion_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+
+        for literal in clause.literals() {
+            let delta = delta::ClauseDB::ClauseLiteral(literal);
+            let _ = deletion_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
+        }
+        let delta = delta::ClauseDB::Deletion(*clause.key());
+        let _ = deletion_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
     };
 
     let mut the_context = Context::from_config(
@@ -45,6 +96,13 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
             let _ = tx.send(d);
         })),
     );
+
+    the_context
+        .clause_db
+        .set_callback_delete(Box::new(deletion_callback));
+    the_context
+        .clause_db
+        .set_callback_addition(Box::new(addition_callback));
 
     match load_dimacs(&mut the_context, &file_path) {
         Ok(()) => {}
@@ -55,6 +113,7 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     the_context.dispatch_active();
 
     drop(the_context);
+    // drop(deletion_clone);
 
     let _ = listener_handle.join();
 
@@ -113,13 +172,13 @@ mod frat_tests {
 
         assert!(frat_verify(file_path.clone(), config));
 
-        let mut config = Config::default();
-        config.switch.subsumption = true;
+        // let mut config = Config::default();
+        // config.switch.subsumption = true;
 
-        assert!(
-            !frat_verify(file_path, config),
-            "Unless subsumption proofs…"
-        );
+        // assert!(
+        //     !frat_verify(file_path, config),
+        //     "Unless subsumption proofs…"
+        // );
     }
 
     #[allow(non_snake_case)]

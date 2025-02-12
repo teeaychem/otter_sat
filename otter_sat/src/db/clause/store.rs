@@ -6,11 +6,6 @@ use crate::{
         clause::{activity_glue::ActivityLBD, db_clause::dbClause},
         ClauseKey, FormulaIndex,
     },
-    dispatch::{
-        library::delta::{self, Delta},
-        macros::{self},
-        Dispatch,
-    },
     misc::log::targets,
     structures::{
         clause::{CClause, Clause, ClauseSource},
@@ -72,10 +67,8 @@ impl ClauseDB {
             ClauseSource::Original => {
                 let key = ClauseKey::OriginalUnit(literal);
                 let clause = dbClause::new_unit(key, literal, premises);
+                self.make_callback_original(&clause, &source);
                 self.unit_original.insert(key, clause);
-
-                macros::dispatch_clause_db_delta!(self, Original, key);
-                self.make_callback_original(&vec![literal]);
 
                 Ok(key)
             }
@@ -83,10 +76,9 @@ impl ClauseDB {
             ClauseSource::BCP => {
                 let key = ClauseKey::AdditionUnit(literal);
                 let clause = dbClause::new_unit(key, literal, premises);
+                self.make_callback_addition(&clause, &source);
                 self.unit_addition.insert(key, clause);
 
-                macros::dispatch_clause_db_delta!(self, BCP, key);
-                self.make_callback_addition(&vec![literal]);
                 self.make_callback_fixed(literal);
 
                 Ok(key)
@@ -95,10 +87,9 @@ impl ClauseDB {
             ClauseSource::Resolution => {
                 let key = ClauseKey::AdditionUnit(literal);
                 let clause = dbClause::new_unit(key, literal, premises);
+                self.make_callback_addition(&clause, &source);
                 self.unit_addition.insert(key, clause);
 
-                macros::dispatch_clause_db_delta!(self, Added, key);
-                self.make_callback_addition(&vec![literal]);
                 self.make_callback_fixed(literal);
 
                 Ok(key)
@@ -120,10 +111,8 @@ impl ClauseDB {
             ClauseSource::Original => {
                 let key = self.fresh_original_binary_key()?;
 
-                macros::dispatch_clause_addition!(self, clause, Original, key);
-                self.make_callback_original(&clause);
-
                 let clause = dbClause::new_nonunit(key, clause, atom_db, valuation, premises);
+                self.make_callback_original(&clause, &source);
 
                 self.binary_original.push(clause);
 
@@ -133,10 +122,9 @@ impl ClauseDB {
             ClauseSource::BCP | ClauseSource::Resolution => {
                 let key = self.fresh_addition_binary_key()?;
 
-                macros::dispatch_clause_addition!(self, clause, Added, key);
-                self.make_callback_addition(&clause);
-
                 let clause = dbClause::new_nonunit(key, clause, atom_db, valuation, premises);
+                self.make_callback_addition(&clause, &source);
+
                 self.binary_addition.push(clause);
 
                 Ok(key)
@@ -162,11 +150,10 @@ impl ClauseDB {
             ClauseSource::Original => {
                 let key = self.fresh_original_key()?;
 
-                macros::dispatch_clause_addition!(self, clause, Original, key);
                 log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
-                self.make_callback_original(&clause);
 
                 let db_clause = dbClause::new_nonunit(key, clause, atom_db, valuation, premises);
+                self.make_callback_original(&db_clause, &source);
 
                 self.original.push(db_clause);
                 Ok(key)
@@ -180,11 +167,10 @@ impl ClauseDB {
                     Some(key) => key.retoken()?,
                 };
 
-                macros::dispatch_clause_addition!(self, clause, Added, key);
                 log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
-                self.make_callback_addition(&clause);
 
                 let stored_form = dbClause::new_nonunit(key, clause, atom_db, valuation, premises);
+                self.make_callback_addition(&stored_form, &source);
 
                 let value = ActivityLBD {
                     activity: 1.0,
