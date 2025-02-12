@@ -198,7 +198,7 @@ pub mod dispatch;
 pub mod db;
 
 pub mod misc;
-pub mod transient;
+pub mod resolution_buffer;
 
 pub mod preprocessing;
 

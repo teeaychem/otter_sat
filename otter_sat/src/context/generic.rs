@@ -7,7 +7,7 @@ use crate::{
         library::report::{self},
         Dispatch,
     },
-    transient::resolution_buffer::ResolutionBuffer,
+    resolution_buffer::ResolutionBuffer,
 };
 
 use std::rc::Rc;

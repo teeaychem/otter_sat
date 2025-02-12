@@ -1,4 +1,5 @@
 use std::{
+    collections::HashSet,
     path::PathBuf,
     process::{self},
     rc::Rc,
@@ -41,6 +42,7 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     let (tx, rx) = unbounded::<Dispatch>();
     let addition_tx = tx.clone();
     let deletion_tx = tx.clone();
+    let resolution_tx = tx.clone();
 
     let listener_handle = {
         let frat_path = frat_path.clone();
@@ -90,6 +92,21 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
         let _ = deletion_tx.send(Dispatch::Delta(Delta::ClauseDB(delta)));
     };
 
+    let resolution_presmises_callback = move |premises: &HashSet<ClauseKey>| {
+        let _ = resolution_tx.send(Dispatch::Delta(delta::Delta::Resolution(
+            delta::Resolution::Begin,
+        )));
+        for premise in premises {
+            let _ = resolution_tx.send(Dispatch::Delta(delta::Delta::Resolution(
+                delta::Resolution::Used(*premise),
+            )));
+        }
+
+        let _ = resolution_tx.send(Dispatch::Delta(delta::Delta::Resolution(
+            delta::Resolution::End,
+        )));
+    };
+
     let mut the_context = Context::from_config(
         config,
         Some(Rc::new(move |d: Dispatch| {
@@ -103,6 +120,9 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     the_context
         .clause_db
         .set_callback_addition(Box::new(addition_callback));
+    the_context
+        .resolution_buffer
+        .set_callback_resolution_premises(Box::new(resolution_presmises_callback));
 
     match load_dimacs(&mut the_context, &file_path) {
         Ok(()) => {}

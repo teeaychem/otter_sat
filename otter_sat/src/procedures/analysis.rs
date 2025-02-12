@@ -5,7 +5,7 @@ Takes a key to a clause which is unsatisfiable on the current valuation and retu
 
 In other words, conflict analysis takes a key to a clause which is unsatisfiable on the current valuation and applies resolution using the clauses used to (eventually) make the observation of a conflict given decisions made.
 
-For details on resolution, see the [resolution buffer](crate::transient::resolution_buffer).
+For details on resolution, see the [resolution buffer](crate::resolution_buffer).
 
 For the method, see: [conflict_analysis](GenericContext::conflict_analysis).
 
@@ -45,11 +45,11 @@ use crate::{
     context::GenericContext,
     db::ClauseKey,
     misc::log::targets::{self},
+    resolution_buffer::ResolutionOk,
     structures::{
         clause::{Clause, ClauseSource},
         literal::{CLiteral, Literal},
     },
-    transient::ResolutionOk,
     types::err::{self},
 };
 
