@@ -14,7 +14,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 use otter_sat::{
     config::Config,
     context::Context,
-    dispatch::{library::report::SolveReport, Dispatch},
+    dispatch::{Dispatch, SolveReport},
     structures::clause::Clause,
     types::err::{self},
 };

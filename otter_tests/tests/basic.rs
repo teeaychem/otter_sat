@@ -1,6 +1,4 @@
-use otter_sat::{
-    builder::ClauseOk, config::Config, context::Context, dispatch::library::report::SolveReport,
-};
+use otter_sat::{builder::ClauseOk, config::Config, context::Context, dispatch::SolveReport};
 
 mod basic {
 

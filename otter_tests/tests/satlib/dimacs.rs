@@ -1,7 +1,4 @@
-use otter_sat::{
-    config::Config,
-    dispatch::library::report::{self},
-};
+use otter_sat::{config::Config, dispatch::SolveReport};
 use otter_tests::{cnf_lib_subdir, silent_formula_report, silent_on_directory};
 
 #[test]
@@ -26,7 +23,7 @@ fn aim() {
             if let Some(formula_name) = formula_path.to_str() {
                 if formula_name.contains("yes") {
                     assert_eq!(
-                        report::SolveReport::Satisfiable,
+                        SolveReport::Satisfiable,
                         silent_formula_report(formula.path(), &Config::default())
                     );
                     satisfiable += 1;
@@ -34,7 +31,7 @@ fn aim() {
 
                 if formula_name.contains("no") {
                     assert_eq!(
-                        report::SolveReport::Unsatisfiable,
+                        SolveReport::Unsatisfiable,
                         silent_formula_report(formula.path(), &Config::default())
                     );
                     unsatisfiable += 1;
@@ -58,7 +55,7 @@ mod cfa {
         silent_on_directory(
             cnf_lib_subdir(vec!["SATLIB", "DIMACS", "CFA", "BF"]),
             &Config::default(),
-            report::SolveReport::Unsatisfiable,
+            SolveReport::Unsatisfiable,
         );
     }
 
@@ -74,7 +71,7 @@ mod cfa {
         let mut unsat_count = 0;
         for formula in unsatisfiable {
             assert_eq!(
-                report::SolveReport::Unsatisfiable,
+                SolveReport::Unsatisfiable,
                 silent_formula_report(
                     cnf_lib_subdir(vec!["SATLIB", "DIMACS", "CFA", "SSA"]).join(formula),
                     &Config::default()
@@ -93,7 +90,7 @@ mod cfa {
         let mut sat_count = 0;
         for formula in satisfiable {
             assert_eq!(
-                report::SolveReport::Satisfiable,
+                SolveReport::Satisfiable,
                 silent_formula_report(
                     cnf_lib_subdir(vec!["SATLIB", "DIMACS", "CFA", "SSA"]).join(formula),
                     &Config::default()
@@ -110,7 +107,7 @@ fn dubois() {
     silent_on_directory(
         cnf_lib_subdir(vec!["SATLIB", "DIMACS", "DUBOIS"]),
         &Config::default(),
-        report::SolveReport::Unsatisfiable,
+        SolveReport::Unsatisfiable,
     );
 }
 
@@ -121,7 +118,7 @@ mod graph_colouring {
     #[ignore = "expensive"]
     fn one_two_five_one_seven() {
         assert_eq!(
-            report::SolveReport::Satisfiable,
+            SolveReport::Satisfiable,
             silent_formula_report(
                 cnf_lib_subdir(vec!["SATLIB", "DIMACS", "GCP", "g125.17.cnf.xz"]),
                 &Config::default()
@@ -133,7 +130,7 @@ mod graph_colouring {
     #[ignore = "expensive"]
     fn one_two_five_one_eight() {
         assert_eq!(
-            report::SolveReport::Satisfiable,
+            SolveReport::Satisfiable,
             silent_formula_report(
                 cnf_lib_subdir(vec!["SATLIB", "DIMACS", "GCP", "g125.18.cnf.xz"]),
                 &Config::default()
@@ -145,7 +142,7 @@ mod graph_colouring {
     #[ignore = "expensive"]
     fn two_five_zero_one_five() {
         assert_eq!(
-            report::SolveReport::Satisfiable,
+            SolveReport::Satisfiable,
             silent_formula_report(
                 cnf_lib_subdir(vec!["SATLIB", "DIMACS", "GCP", "g250.15.cnf.xz"]),
                 &Config::default()
@@ -157,7 +154,7 @@ mod graph_colouring {
     #[ignore = "expensive"]
     fn two_five_zero_two_nine() {
         assert_eq!(
-            report::SolveReport::Satisfiable,
+            SolveReport::Satisfiable,
             silent_formula_report(
                 cnf_lib_subdir(vec!["SATLIB", "DIMACS", "GCP", "g250.29.cnf.xz"]),
                 &Config::default()
@@ -171,7 +168,7 @@ fn hanoi() {
     silent_on_directory(
         cnf_lib_subdir(vec!["SATLIB", "DIMACS", "HANOI"]),
         &Config::default(),
-        report::SolveReport::Satisfiable,
+        SolveReport::Satisfiable,
     );
 }
 
@@ -180,7 +177,7 @@ fn inductive_inference() {
     silent_on_directory(
         cnf_lib_subdir(vec!["SATLIB", "DIMACS", "II"]),
         &Config::default(),
-        report::SolveReport::Satisfiable,
+        SolveReport::Satisfiable,
     );
 }
 
@@ -230,13 +227,13 @@ fn jnh() {
                 if formula_check {
                     if satisfiable.contains(filename) {
                         assert_eq!(
-                            report::SolveReport::Satisfiable,
+                            SolveReport::Satisfiable,
                             silent_formula_report(formula.path(), &Config::default())
                         );
                         sat_count += 1;
                     } else {
                         assert_eq!(
-                            report::SolveReport::Unsatisfiable,
+                            SolveReport::Unsatisfiable,
                             silent_formula_report(formula.path(), &Config::default())
                         );
                         unsat_count += 1;
@@ -256,7 +253,7 @@ fn jnh() {
 //         cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN"]).join("f600.cnf.xz"),
 //         &Config::default(),
 //     );
-//     assert_eq!(report, report::SolveReport::Satisfiable);
+//     assert_eq!(report, SolveReport::Satisfiable);
 // }
 
 // #[test]
@@ -266,7 +263,7 @@ fn jnh() {
 //         cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN"]).join("f1000.cnf.xz"),
 //         &Config::default(),
 //     );
-//     assert_eq!(report, report::SolveReport::Satisfiable);
+//     assert_eq!(report, SolveReport::Satisfiable);
 // }
 
 // #[test]
@@ -276,7 +273,7 @@ fn jnh() {
 //         cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN"]).join("f2000.cnf.xz"),
 //         &Config::default(),
 //     );
-//     assert_eq!(report, report::SolveReport::Satisfiable);
+//     assert_eq!(report, SolveReport::Satisfiable);
 // }
 
 #[test]
@@ -285,7 +282,7 @@ fn lran() {
     silent_on_directory(
         cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN"]),
         &Config::default(),
-        report::SolveReport::Satisfiable,
+        SolveReport::Satisfiable,
     );
 }
 
@@ -302,7 +299,7 @@ mod partiy {
         let mut ok_count = 0;
         for formula in &formulas {
             assert_eq!(
-                report::SolveReport::Satisfiable,
+                SolveReport::Satisfiable,
                 silent_formula_report(
                     cnf_lib_subdir(vec!["SATLIB", "DIMACS", "PARITY"]).join(formula),
                     &Config::default()
@@ -323,7 +320,7 @@ mod partiy {
         let mut ok_count = 0;
         for formula in &formulas {
             assert_eq!(
-                report::SolveReport::Satisfiable,
+                SolveReport::Satisfiable,
                 silent_formula_report(
                     cnf_lib_subdir(vec!["SATLIB", "DIMACS", "PARITY"]).join(formula),
                     &Config::default()
@@ -345,7 +342,7 @@ mod partiy {
         let mut ok_count = 0;
         for formula in &formulas {
             assert_eq!(
-                report::SolveReport::Satisfiable,
+                SolveReport::Satisfiable,
                 silent_formula_report(
                     cnf_lib_subdir(vec!["SATLIB", "DIMACS", "PARITY"]).join(formula),
                     &Config::default()
@@ -367,7 +364,7 @@ mod phole {
         let mut ok_count = 0;
         for formula in formulas {
             assert_eq!(
-                report::SolveReport::Unsatisfiable,
+                SolveReport::Unsatisfiable,
                 silent_formula_report(
                     cnf_lib_subdir(vec!["SATLIB", "DIMACS", "PHOLE"]).join(formula),
                     &Config::default()
@@ -386,7 +383,7 @@ mod phole {
         let mut ok_count = 0;
         for formula in formulas {
             assert_eq!(
-                report::SolveReport::Unsatisfiable,
+                SolveReport::Unsatisfiable,
                 silent_formula_report(
                     cnf_lib_subdir(vec!["SATLIB", "DIMACS", "PHOLE"]).join(formula),
                     &Config::default()
@@ -403,6 +400,6 @@ fn pret() {
     silent_on_directory(
         cnf_lib_subdir(vec!["SATLIB", "DIMACS", "PRET"]),
         &Config::default(),
-        report::SolveReport::Unsatisfiable,
+        SolveReport::Unsatisfiable,
     );
 }

@@ -4,12 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use otter_sat::{
-    config::Config,
-    context::Context,
-    dispatch::library::report::{self},
-    types::err,
-};
+use otter_sat::{config::Config, context::Context, dispatch::SolveReport, types::err};
 use xz2::read::XzDecoder;
 
 pub fn load_dimacs(context: &mut Context, path: &PathBuf) -> Result<(), err::ErrorKind> {
@@ -40,12 +35,12 @@ pub fn cnf_lib_subdir(dirs: Vec<&str>) -> PathBuf {
     the_path
 }
 
-pub fn silent_formula_report(path: PathBuf, config: &Config) -> report::SolveReport {
+pub fn silent_formula_report(path: PathBuf, config: &Config) -> SolveReport {
     let mut the_context = Context::from_config(config.clone());
     match load_dimacs(&mut the_context, &path) {
         Ok(()) => {}
         Err(err::ErrorKind::ClauseDB(err::ClauseDBError::EmptyClause)) => {
-            return report::SolveReport::Unsatisfiable;
+            return SolveReport::Unsatisfiable;
         }
         Err(_) => {
             panic!("c Error loading file.")
@@ -60,11 +55,7 @@ pub fn silent_formula_report(path: PathBuf, config: &Config) -> report::SolveRep
     the_context.report()
 }
 
-pub fn silent_on_directory(
-    subdir: PathBuf,
-    config: &Config,
-    require: report::SolveReport,
-) -> usize {
+pub fn silent_on_directory(subdir: PathBuf, config: &Config, require: SolveReport) -> usize {
     let dir_info = std::fs::read_dir(subdir);
 
     let mut count = 0;

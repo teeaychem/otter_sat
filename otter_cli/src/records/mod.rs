@@ -13,7 +13,7 @@ use crate::{
 
 use otter_sat::{
     config::Config,
-    dispatch::{library::report, Dispatch},
+    dispatch::{Dispatch, Report},
     types::err::{self},
 };
 
@@ -39,16 +39,14 @@ pub fn general_recorder(
 
     'reception: while let Ok(dispatch) = rx.recv() {
         match &dispatch {
-            Dispatch::Delta(_) => {}
-            Dispatch::Stat(_) => {}
             Dispatch::Report(the_report) => {
                 //
                 match the_report {
-                    report::Report::Solve(report) => {
+                    Report::Solve(report) => {
                         println!("s {}", report.to_string().to_uppercase())
                     }
 
-                    report::Report::Finish => break 'reception,
+                    Report::Finish => break 'reception,
                     _ => {}
                 }
             }

@@ -47,7 +47,7 @@ If you're in search of cnf formulas consider:
 # use otter_sat::{
 #    config::Config,
 #    context::Context,
-#    dispatch::library::report::SolveReport,
+#    dispatch::SolveReport,
 #    structures::{
 #        atom::Atom,
 #        literal::{CLiteral, Literal},
@@ -118,7 +118,7 @@ assert_eq!(model_count, 2_usize.pow(atom_count));
 # use otter_sat::context::Context;
 # use otter_sat::config::Config;
 # use std::io::Write;
-# use otter_sat::dispatch::library::report::{self};
+# use otter_sat::dispatch::SolveReport;
 # use otter_sat::types::err::{self};
 let mut the_context = Context::from_config(Config::default());
 
@@ -132,7 +132,7 @@ let _ = dimacs.write(b"
 
 the_context.read_dimacs(dimacs.as_slice());
 the_context.solve();
-assert_eq!(the_context.report(), report::SolveReport::Unsatisfiable);
+assert_eq!(the_context.report(), SolveReport::Unsatisfiable);
 ```
 
 # Guiding principles

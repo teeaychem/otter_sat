@@ -1,7 +1,7 @@
 use otter_sat::{
     config::Config,
     context::Context,
-    dispatch::library::report,
+    dispatch::SolveReport,
     structures::{
         clause::Clause,
         literal::{CLiteral, Literal},
@@ -69,13 +69,13 @@ Though, as the formula was satisfiable, the decisions made can be cleared, allow
         the_context.atom_db.valuation_string()
     );
 
-    assert_eq!(the_context.report(), report::SolveReport::Satisfiable);
+    assert_eq!(the_context.report(), SolveReport::Satisfiable);
 
     // Likewise it is not possible to add ¬p ∨ ¬q to the formula
     let not_p_or_not_q = vec![CLiteral::new(p, false), CLiteral::new(q, false)];
     assert!(the_context.add_clause(not_p_or_not_q).is_err());
 
-    assert_eq!(the_context.report(), report::SolveReport::Satisfiable);
+    assert_eq!(the_context.report(), SolveReport::Satisfiable);
 
     println!("The clause database is now:");
     for (key, clause) in the_context.clause_db.all_unit_clauses() {

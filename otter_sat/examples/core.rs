@@ -8,7 +8,7 @@ use std::{
 use xz2::read::XzDecoder;
 
 use otter_sat::{
-    config::Config, context::Context, db::ClauseKey, dispatch::library::report::SolveReport,
+    config::Config, context::Context, db::ClauseKey, dispatch::SolveReport,
     structures::clause::Clause,
 };
 

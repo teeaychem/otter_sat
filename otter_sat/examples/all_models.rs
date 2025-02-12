@@ -1,7 +1,7 @@
 use otter_sat::{
     config::Config,
     context::Context,
-    dispatch::library::report::SolveReport,
+    dispatch::SolveReport,
     structures::{
         atom::Atom,
         literal::{CLiteral, Literal},
