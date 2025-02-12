@@ -19,16 +19,6 @@ macro_rules! dispatch_stats {
 }
 pub(crate) use dispatch_stats;
 
-/// A macro to signify a solve has finished.
-macro_rules! dispatch_finish {
-    ($self:ident) => {
-        if let Some(dispatcher) = &$self.dispatcher {
-            dispatcher(Dispatch::Report(Report::Finish));
-        }
-    };
-}
-pub(crate) use dispatch_finish;
-
 /// A macro to help send deltas from the resolution buffer.
 ///
 /// Deltas are often grouped, and so multiple checks on whether a dispatcher is present may be avoided by a different approach.
@@ -51,15 +41,3 @@ macro_rules! dispatch_clause_db_delta {
     };
 }
 pub(crate) use dispatch_clause_db_delta;
-
-/// A macro to help send deltas from the resolution buffer.
-///
-/// Deltas are often grouped, and so multiple checks on whether a dispatcher is present may be avoided by a different approach.
-macro_rules! dispatch_parser_report {
-    ( $self:ident, $dispatch:expr ) => {
-        if let Some(dispatcher) = &$self.dispatcher {
-            dispatcher(Dispatch::Report(Report::Parser($dispatch)));
-        }
-    };
-}
-pub(crate) use dispatch_parser_report;

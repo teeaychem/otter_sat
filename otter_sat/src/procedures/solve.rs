@@ -281,7 +281,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
         }
 
-        macros::dispatch_finish!(self);
         Ok(self.report())
     }
 }
