@@ -18,14 +18,3 @@ macro_rules! dispatch_stats {
     };
 }
 pub(crate) use dispatch_stats;
-
-/// Clause db deltas
-macro_rules! dispatch_clause_db_delta {
-    ($self:ident, $variant:ident, $key:expr) => {
-        if let Some(dispatcher) = &$self.dispatcher {
-            let delta = delta::ClauseDB::$variant($key);
-            dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-        }
-    };
-}
-pub(crate) use dispatch_clause_db_delta;

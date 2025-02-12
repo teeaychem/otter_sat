@@ -9,7 +9,7 @@ use super::{db_clause::dbClause, ClauseDB};
 
 pub type CallbackOnResolution = dyn FnMut(&HashSet<ClauseKey>, CLiteral);
 pub type CallbackOnClauseSource = dyn FnMut(&dbClause, &ClauseSource);
-pub type CallbackOnClause = dyn FnMut(&dbClause);
+pub type CallbackOnClause = dyn Fn(&dbClause);
 pub type CallbackOnLiteral = dyn FnMut(CLiteral);
 
 impl ClauseDB {
@@ -49,6 +49,16 @@ impl ClauseDB {
 
     pub fn make_callback_delete(&mut self, clause: &dbClause) {
         if let Some(callback) = &mut self.callback_delete {
+            callback(clause);
+        }
+    }
+
+    pub fn set_callback_unsatisfiable(&mut self, callback: Box<CallbackOnClause>) {
+        self.callback_unsatisfiable = Some(callback);
+    }
+
+    pub fn make_callback_unsatisfiable(&self, clause: &dbClause) {
+        if let Some(callback) = &self.callback_unsatisfiable {
             callback(clause);
         }
     }

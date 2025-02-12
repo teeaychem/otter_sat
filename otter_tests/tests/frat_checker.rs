@@ -15,7 +15,7 @@ use otter_sat::{
     db::{clause::db_clause::dbClause, ClauseKey},
     dispatch::{
         frat,
-        library::delta::{self, Delta},
+        library::delta::{self, ClauseDB, Delta},
         Dispatch,
     },
     structures::clause::{Clause, ClauseSource},
@@ -43,6 +43,7 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     let addition_tx = tx.clone();
     let deletion_tx = tx.clone();
     let resolution_tx = tx.clone();
+    let unsatisfiable_tx = tx.clone();
 
     let listener_handle = {
         let frat_path = frat_path.clone();
@@ -107,6 +108,14 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
         )));
     };
 
+    let unsatisfiable_callback = move |clause: &dbClause| {
+        let _ = unsatisfiable_tx.send(Dispatch::Delta(
+            otter_sat::dispatch::library::delta::Delta::ClauseDB(ClauseDB::Unsatisfiable(
+                *clause.key(),
+            )),
+        ));
+    };
+
     let mut the_context = Context::from_config(
         config,
         Some(Rc::new(move |d: Dispatch| {
@@ -120,6 +129,9 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     the_context
         .clause_db
         .set_callback_addition(Box::new(addition_callback));
+    the_context
+        .clause_db
+        .set_callback_unsatisfiable(Box::new(unsatisfiable_callback));
     the_context
         .resolution_buffer
         .set_callback_resolution_premises(Box::new(resolution_presmises_callback));
