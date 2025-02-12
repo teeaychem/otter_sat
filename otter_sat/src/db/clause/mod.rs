@@ -18,7 +18,7 @@ use std::{
     rc::Rc,
 };
 
-use callbacks::{CallbackOnClause, CallbackOnLiteral};
+use callbacks::{CallbackOnClause, CallbackOnClauseSource, CallbackOnLiteral};
 use db_clause::dbClause;
 
 use crate::{
@@ -29,11 +29,7 @@ use crate::{
         keys::{ClauseKey, FormulaIndex},
     },
     dispatch::{
-        library::{
-            delta::{self, Delta},
-            report::{self, Report},
-        },
-        macros::{self},
+        library::report::{self, Report},
         Dispatch,
     },
     generic::index_heap::IndexHeap,
@@ -82,10 +78,10 @@ pub struct ClauseDB {
     dispatcher: Option<Rc<dyn Fn(Dispatch)>>,
 
     /// Addition clauses are passed in.
-    pub(super) callback_original: Option<Box<CallbackOnClause>>,
+    pub(super) callback_original: Option<Box<CallbackOnClauseSource>>,
 
     /// Addition clauses are passed in.
-    pub(super) callback_addition: Option<Box<CallbackOnClause>>,
+    pub(super) callback_addition: Option<Box<CallbackOnClauseSource>>,
 
     /// Deleted clauses are passed in.
     pub(super) callback_delete: Option<Box<CallbackOnClause>>,
@@ -202,7 +198,8 @@ impl ClauseDB {
                 Err(err::ClauseDBError::Missing)
             }
             Some(the_clause) => {
-                self.make_callback_delete(the_clause.clause());
+                self.make_callback_delete(&the_clause);
+                // macros::dispatch_clause_removal!(self, the_clause);
 
                 for premise_key in the_clause.premises() {
                     match premise_key {
@@ -225,8 +222,6 @@ impl ClauseDB {
                         _ => {}
                     }
                 }
-
-                macros::dispatch_clause_removal!(self, the_clause);
 
                 self.activity_heap.remove(index);
                 self.empty_keys.push(*the_clause.key());

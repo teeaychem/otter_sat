@@ -41,25 +41,6 @@ macro_rules! dispatch_resolution_delta {
 }
 pub(crate) use dispatch_resolution_delta;
 
-/// For removing a clause
-///
-/// Assumes no further use will be made of the clause and calls `into_iter` to access the literals of the clause.
-macro_rules! dispatch_clause_removal {
-    ($self:ident, $clause:expr) => {
-        if let Some(dispatcher) = &$self.dispatcher {
-            let delta = delta::ClauseDB::ClauseStart;
-            dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-            for literal in $clause.into_iter() {
-                let delta = delta::ClauseDB::ClauseLiteral(*literal);
-                dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-            }
-            let delta = delta::ClauseDB::Deletion(*$clause.key());
-            dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-        }
-    };
-}
-pub(crate) use dispatch_clause_removal;
-
 /// Clause db deltas
 macro_rules! dispatch_clause_db_delta {
     ($self:ident, $variant:ident, $key:expr) => {
@@ -70,25 +51,6 @@ macro_rules! dispatch_clause_db_delta {
     };
 }
 pub(crate) use dispatch_clause_db_delta;
-
-/// For adding a clause
-///
-/// Assumes no further use will be made of the clause and calls `into_iter` to access the literals of the clause.
-macro_rules! dispatch_clause_addition {
-    ($self:ident, $clause:expr, $variant:ident, $key:ident) => {
-        if let Some(dispatcher) = &$self.dispatcher {
-            let delta = delta::ClauseDB::ClauseStart;
-            dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-            for literal in $clause.literals() {
-                let delta = delta::ClauseDB::ClauseLiteral(literal);
-                dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-            }
-            let delta = delta::ClauseDB::$variant($key);
-            dispatcher(Dispatch::Delta(Delta::ClauseDB(delta)));
-        }
-    };
-}
-pub(crate) use dispatch_clause_addition;
 
 /// A macro to help send deltas from the resolution buffer.
 ///

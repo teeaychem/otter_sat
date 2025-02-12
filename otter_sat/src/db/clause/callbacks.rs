@@ -1,28 +1,32 @@
-use crate::structures::{clause::CClause, literal::CLiteral};
+use crate::structures::{
+    clause::{CClause, ClauseSource},
+    literal::CLiteral,
+};
 
-use super::ClauseDB;
+use super::{db_clause::dbClause, ClauseDB};
 
-pub type CallbackOnClause = dyn FnMut(&CClause);
+pub type CallbackOnClauseSource = dyn FnMut(&dbClause, &ClauseSource);
+pub type CallbackOnClause = dyn FnMut(&dbClause);
 pub type CallbackOnLiteral = dyn FnMut(CLiteral);
 
 impl ClauseDB {
-    pub fn set_callback_original(&mut self, callback: Box<CallbackOnClause>) {
+    pub fn set_callback_original(&mut self, callback: Box<CallbackOnClauseSource>) {
         self.callback_original = Some(callback);
     }
 
-    pub fn set_callback_addition(&mut self, callback: Box<CallbackOnClause>) {
+    pub fn set_callback_addition(&mut self, callback: Box<CallbackOnClauseSource>) {
         self.callback_addition = Some(callback);
     }
 
-    pub fn make_callback_original(&mut self, clause: &CClause) {
+    pub fn make_callback_original(&mut self, clause: &dbClause, source: &ClauseSource) {
         if let Some(callback) = &mut self.callback_original {
-            callback(clause);
+            callback(clause, source);
         }
     }
 
-    pub fn make_callback_addition(&mut self, clause: &CClause) {
+    pub fn make_callback_addition(&mut self, clause: &dbClause, source: &ClauseSource) {
         if let Some(callback) = &mut self.callback_addition {
-            callback(clause);
+            callback(clause, source);
         }
     }
 
@@ -40,7 +44,7 @@ impl ClauseDB {
         self.callback_delete = Some(callback);
     }
 
-    pub fn make_callback_delete(&mut self, clause: &CClause) {
+    pub fn make_callback_delete(&mut self, clause: &dbClause) {
         if let Some(callback) = &mut self.callback_delete {
             callback(clause);
         }
