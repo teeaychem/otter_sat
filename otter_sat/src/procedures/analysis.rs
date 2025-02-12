@@ -49,7 +49,7 @@ use crate::{
         literal::{CLiteral, Literal},
         valuation::Valuation,
     },
-    transient::resolution_buffer::{self, ResolutionBuffer},
+    transient::resolution_buffer::{self},
     types::err::{self},
 };
 
@@ -93,15 +93,17 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
 
         // TODO: As the previous valuation is stored, it'd make sense to use that instead of rolling back the current valuation.
-        let mut the_buffer = ResolutionBuffer::from_valuation(
-            &backstep_valuation,
-            self.dispatcher.clone(),
-            &self.config,
-        );
+        self.resolution_buffer.refresh(&backstep_valuation);
+
+        // let mut the_buffer = ResolutionBuffer::from_valuation(
+        //     &backstep_valuation,
+        //     self.dispatcher.clone(),
+        //     &self.config,
+        // );
 
         // Some decision must have been made for conflict analysis to take place.
 
-        match the_buffer.resolve_through_current_level(
+        match self.resolution_buffer.resolve_through_current_level(
             key,
             &self.literal_db,
             &mut self.clause_db,
@@ -118,7 +120,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
 
         if let crate::config::vsids::VSIDS::MiniSAT = self.config.vsids_variant {
-            self.atom_db.bump_relative(the_buffer.atoms_used());
+            self.atom_db
+                .bump_relative(self.resolution_buffer.atoms_used());
         }
 
         /*
@@ -131,8 +134,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         //     the_buffer.strengthen_given(self.clause_db.all_unit_clauses());
         // }
 
-        let premises = the_buffer.take_premises();
-        let (resolved_clause, assertion_index) = the_buffer.to_assertion_clause();
+        let premises = self.resolution_buffer.take_premises();
+        let (resolved_clause, assertion_index) = self.resolution_buffer.to_assertion_clause();
 
         let literal = match assertion_index {
             None => {

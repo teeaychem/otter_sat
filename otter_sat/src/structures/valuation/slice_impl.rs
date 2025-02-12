@@ -53,4 +53,8 @@ impl<T: std::ops::DerefMut<Target = [Option<bool>]>> Valuation for T {
     fn true_check(&self) -> bool {
         self.first().is_some_and(|v| v == &Some(true))
     }
+
+    fn atom_count(&self) -> usize {
+        self.len()
+    }
 }

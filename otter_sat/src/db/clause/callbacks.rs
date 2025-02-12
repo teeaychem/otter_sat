@@ -1,7 +1,13 @@
-use crate::structures::{clause::ClauseSource, literal::CLiteral};
+use std::collections::HashSet;
+
+use crate::{
+    db::ClauseKey,
+    structures::{clause::ClauseSource, literal::CLiteral},
+};
 
 use super::{db_clause::dbClause, ClauseDB};
 
+pub type CallbackOnResolution = dyn FnMut(&HashSet<ClauseKey>, CLiteral);
 pub type CallbackOnClauseSource = dyn FnMut(&dbClause, &ClauseSource);
 pub type CallbackOnClause = dyn FnMut(&dbClause);
 pub type CallbackOnLiteral = dyn FnMut(CLiteral);
