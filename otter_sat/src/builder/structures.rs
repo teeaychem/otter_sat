@@ -21,7 +21,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// For a practical alternative, see [fresh_or_max_atom](GenericContext::fresh_or_max_atom).
     pub fn fresh_atom(&mut self) -> Result<Atom, err::AtomDBError> {
-        let previous_value = self.rng.gen_bool(self.config.polarity_lean);
+        let previous_value = self.rng.gen_bool(self.config.polarity_lean.value);
         self.re_fresh_atom(previous_value)
     }
 
@@ -34,7 +34,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// At present, panics are not possible.
     /// However, in future this method may panic if it is not possible to obtain an atom for any reason other than exhaustion of the atom limit.
     pub fn fresh_or_max_atom(&mut self) -> Atom {
-        let previous_value = self.rng.gen_bool(self.config.polarity_lean);
+        let previous_value = self.rng.gen_bool(self.config.polarity_lean.value);
         match self.re_fresh_atom(previous_value) {
             Ok(atom) => atom,
             Err(err::AtomDBError::AtomsExhausted) => ATOM_MAX,

@@ -14,7 +14,7 @@ pub mod pure;
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Applies preprocessing in accordance with the configuration of the context.
     pub fn preprocess(&mut self) -> Result<(), err::PreprocessingError> {
-        if self.config.preprocessing {
+        if self.config.preprocessing.value {
             match set_pure(self) {
                 Ok(()) => {}
                 Err(_) => {

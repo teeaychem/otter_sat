@@ -9,10 +9,8 @@ use otter_sat::{
 };
 
 fn main() {
-    let config = Config {
-        polarity_lean: 0.0, // Always choose to value a variable false
-        ..Default::default()
-    };
+    let mut config = Config::default();
+    config.polarity_lean.value = 0.0;
 
     let mut the_context: Context = Context::from_config(config);
     let p = the_context.fresh_or_max_atom();

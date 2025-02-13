@@ -4,7 +4,7 @@ pub enum StoppingCriteria {
     /// Stop at the first unique implication point.
     ///
     /// In other words, apply resolution until the clause obtained by resolution is asserting on the current valuation without the last decision made, and any consequences of that decision.
-    FirstUIP,
+    FirstUIP = 0,
 
     /// Apply resolution to each clause in the sequence of clauses.
     None,
@@ -17,4 +17,9 @@ impl std::fmt::Display for StoppingCriteria {
             Self::None => write!(f, "None"),
         }
     }
+}
+
+impl StoppingCriteria {
+    pub const MIN: StoppingCriteria = StoppingCriteria::FirstUIP;
+    pub const MAX: StoppingCriteria = StoppingCriteria::None;
 }

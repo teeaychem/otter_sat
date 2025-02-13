@@ -11,7 +11,8 @@ use crate::context::GenericContext;
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Returns whether it is time for a interrupt based on whether fresh conflicts are a multiple of the current luby element.
     pub fn luby_fresh_conflict_interrupt(&self) -> bool {
-        self.counters.fresh_conflicts % (self.config.luby_u * self.counters.luby.current()) == 0
+        self.counters.fresh_conflicts % (self.config.luby_u.value * self.counters.luby.current())
+            == 0
     }
 
     /// Returns whether it is time for a interrupt based on whether total conflicts is multiple of the configured interval.

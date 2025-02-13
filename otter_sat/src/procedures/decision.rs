@@ -98,13 +98,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             Some(chosen_atom) => {
                 self.counters.total_decisions += 1;
 
-                let decision_literal = match self.config.phase_saving {
+                let decision_literal = match self.config.phase_saving.value {
                     true => {
                         let previous_value = self.atom_db.previous_value_of(chosen_atom);
                         CLiteral::new(chosen_atom, previous_value)
                     }
                     false => {
-                        let random_value = self.rng.gen_bool(self.config.polarity_lean);
+                        let random_value = self.rng.gen_bool(self.config.polarity_lean.value);
                         CLiteral::new(chosen_atom, random_value)
                     }
                 };
@@ -125,7 +125,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// let atom = self.atom_without_value(MinimalPCG32::default())?;
     /// ```
     pub fn atom_without_value(&mut self, rng: &mut impl Rng) -> Option<Atom> {
-        match rng.gen_bool(self.config.random_decision_bias) {
+        match rng.gen_bool(self.config.random_decision_bias.value) {
             true => self.atom_db.valuation().unvalued_atoms().choose(rng),
             false => {
                 while let Some(atom) = self.atom_db.heap_pop_most_active() {

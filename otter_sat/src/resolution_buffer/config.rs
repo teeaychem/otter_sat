@@ -12,8 +12,8 @@ pub struct BufferConfig {
 impl From<&Config> for BufferConfig {
     fn from(value: &Config) -> Self {
         Self {
-            subsumption: value.subsumption,
-            stopping: value.stopping_criteria,
+            subsumption: value.subsumption.value,
+            stopping: value.stopping_criteria.value,
         }
     }
 }
