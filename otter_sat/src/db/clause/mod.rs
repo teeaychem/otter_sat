@@ -384,6 +384,15 @@ impl ClauseDB {
         self.all_binary_clauses().chain(self.all_long_clauses())
     }
 
+    /// An iterator over all active non-unit clauses, given as [impl Clause]s.
+    pub fn all_active_nonunit_clauses(
+        &self,
+    ) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
+        self.all_binary_clauses()
+            .chain(self.all_original_long_clauses())
+            .chain(self.all_active_addition_long_clauses())
+    }
+
     /// Removes `literal` from the clause indexed by `key`, from a long clause, if possible.
     ///
     /// Subsumption cannot be applied to unit clauses, and there is little reason to apply subsumption to binary clauses as these will never be (re-)inspected.

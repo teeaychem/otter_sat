@@ -11,15 +11,15 @@ pub fn transcribe_addition(tx: &mut Transcriber, clause: &dbClause, source: &Cla
     match source {
         ClauseSource::BCP => {
             if let ClauseKey::AdditionUnit(literal) = clause.key() {
-                tx.transcribe_bcp(clause.key(), *literal);
+                tx.transcribe_clause('a', clause.key(), literal, false);
             } else {
                 panic!("");
             }
         }
 
-        ClauseSource::Original => tx.transcribe_original_clause(clause.key(), clause.clause()),
+        ClauseSource::Original => tx.transcribe_clause('o', clause.key(), clause.clause(), false),
 
-        ClauseSource::Resolution => tx.transcribe_addition_clause(clause.key(), clause.clause()),
+        ClauseSource::Resolution => tx.transcribe_clause('a', clause.key(), clause.clause(), true),
 
         ClauseSource::PureUnit => panic!("X_X"),
     }
@@ -27,13 +27,13 @@ pub fn transcribe_addition(tx: &mut Transcriber, clause: &dbClause, source: &Cla
 }
 
 pub fn transcribe_deletion(tx: &mut Transcriber, clause: &dbClause) {
-    tx.transcribe_deletion(clause.key(), clause.clause());
+    tx.transcribe_clause('d', clause.key(), clause, false);
 
     tx.flush()
 }
 
 pub fn transcribe_premises(tx: &mut Transcriber, premises: &HashSet<ClauseKey>) {
-    tx.transcribe_resolution(premises);
+    tx.note_resolution(premises);
 }
 
 pub fn transcribe_unsatisfiable(tx: &mut Transcriber, _clause: &dbClause) {
