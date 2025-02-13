@@ -29,10 +29,8 @@ pub use scheduler::Scheduler;
 mod stopping_criteria;
 pub use stopping_criteria::StoppingCriteria;
 
-mod switches;
-pub use switches::Switches;
-
 use crate::{
+    context::ContextState,
     db::literal::config::LiteralDBConfig,
     generic::{self},
 };
@@ -63,8 +61,17 @@ pub struct Config {
     /// Which stopping criteria to use during resolution based analysis
     pub stopping_criteria: StoppingCriteria,
 
-    /// Configurations switched on (or off).
-    pub switch: Switches,
+    /// Default to th last set value of a atom when choosing  a value for the atom, otherwise decision with specified probability.
+    pub phase_saving: bool,
+
+    /// Enable preprocessing of 𝐅.
+    pub preprocessing: bool,
+
+    /// Permit (scheduled) restarts.
+    pub restart: bool,
+
+    /// Permit subsumption of formulas.
+    pub subsumption: bool,
 
     /// The time limit for a solve.
     pub time_limit: Option<std::time::Duration>,
@@ -96,7 +103,10 @@ impl Default for Config {
 
             stopping_criteria: StoppingCriteria::FirstUIP,
 
-            switch: Switches::default(),
+            phase_saving: true,
+            preprocessing: false,
+            restart: true,
+            subsumption: false,
 
             time_limit: None,
             vsids_variant: VSIDS::MiniSAT,

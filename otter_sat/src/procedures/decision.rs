@@ -98,7 +98,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             Some(chosen_atom) => {
                 self.counters.total_decisions += 1;
 
-                let decision_literal = match self.config.switch.phase_saving {
+                let decision_literal = match self.config.phase_saving {
                     true => {
                         let previous_value = self.atom_db.previous_value_of(chosen_atom);
                         CLiteral::new(chosen_atom, previous_value)

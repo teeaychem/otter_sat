@@ -159,11 +159,11 @@ fn config_preprocessing(config: &mut Config, config_io: &mut ConfigIO) {
     }
 
     if config_io.frat {
-        if config.switch.subsumption {
+        if config.subsumption {
             if config_io.detail > 1 {
                 println!("c Subsumption is disabled for FRAT proofs");
             }
-            config.switch.subsumption = false;
+            config.subsumption = false;
         }
     }
 }
