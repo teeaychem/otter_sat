@@ -110,7 +110,7 @@ impl Transcriber {
     pub fn transcribe_active(&mut self, key: ClauseKey, clause: &impl Clause) {
         let mut step = format!("f ");
         Transcriber::write_id_to_string(&key, &mut step);
-        writeln!(step, " ");
+        write!(step, " ");
         self.write_clause_to_string(clause, &mut step);
         writeln!(step, "0");
 

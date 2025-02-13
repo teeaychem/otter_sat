@@ -8,7 +8,7 @@ pub fn parse_args(ctx: &mut Context, args: &mut [String], cli_options: &mut CliO
         match split.next() {
             Some("--frat") => {
                 //frat setup
-                println!("c An FRAT proof will be generated");
+                println!("c FRAT proof will be generated aside the cnf file.");
                 cli_options.frat = true;
             }
 

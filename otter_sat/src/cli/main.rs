@@ -1,11 +1,13 @@
 use std::{io::BufReader, path::PathBuf, str::FromStr};
 
+use frat::{frat_finalise, frat_setup};
 use misc::examine_parser_report;
 use otter_sat::{
     config::Config, context::Context, db::ClauseKey, reports::Report, structures::clause::Clause,
 };
 use parse_args::parse_args;
 
+mod frat;
 mod misc;
 mod parse_args;
 
@@ -27,9 +29,11 @@ fn main() {
     let path = match PathBuf::from_str(args.last().unwrap()) {
         Ok(path) => path,
         Err(_) => {
-            panic!("! Path to CNF required");
+            println!("c Path to CNF required");
+            std::process::exit(1);
         }
     };
+
     println!("Reading DIMACS file from {path:?}");
 
     let file = match std::fs::File::open(&path) {
@@ -38,6 +42,11 @@ fn main() {
             println!("Failed to open CNF file");
             std::process::exit(1);
         }
+    };
+
+    let tx = match cli_options.frat {
+        true => Some(frat_setup(&path, &mut ctx)),
+        false => None,
     };
 
     let parse_report = match &path.extension() {
@@ -60,6 +69,11 @@ fn main() {
             std::process::exit(2);
         }
     };
+
+    if let Some(tx) = tx {
+        frat_finalise(tx, &mut ctx);
+    }
+
     println!("{}", ctx.report());
 
     if result == Report::Unsatisfiable && cli_options.core {
@@ -71,8 +85,11 @@ fn main() {
                 }
 
                 _ => {
-                    let clause =
-                        unsafe { ctx.clause_db.get_unchecked(&key).expect("Core key missing") };
+                    let clause = unsafe {
+                        ctx.clause_db
+                            .get_unchecked(&key)
+                            .expect("c Core key missing")
+                    };
                     println!("{}", clause.as_dimacs(true));
                 }
             }
