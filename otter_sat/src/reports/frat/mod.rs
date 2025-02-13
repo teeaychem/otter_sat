@@ -65,7 +65,7 @@ pub mod callback_templates;
 #[doc(hidden)]
 pub mod transcriber;
 
-use std::{collections::VecDeque, fs::File};
+use std::{collections::VecDeque, fs::File, path::PathBuf};
 
 use crate::db::ClauseKey;
 
@@ -77,9 +77,20 @@ pub struct Transcriber {
     /// A buffer holding steps until they are written to a file.
     step_buffer: Vec<String>,
 
-    /// A buffer holding information about clauses used during an instance of resolutions.
-    resolution_buffer: Vec<ClauseKey>,
-
     /// A queue of resolution buffers.
     resolution_queue: VecDeque<Vec<ClauseKey>>,
+}
+
+impl Transcriber {
+    /// A new transcriber which will write a proof to the given path, if some proof exists.
+    pub fn new(path: PathBuf) -> Result<Self, std::io::Error> {
+        std::fs::File::create(&path);
+        let file = std::fs::OpenOptions::new().append(true).open(&path)?;
+        let transcriber = Transcriber {
+            file,
+            resolution_queue: VecDeque::default(),
+            step_buffer: Vec::default(),
+        };
+        Ok(transcriber)
+    }
 }

@@ -30,30 +30,29 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     let transcriber = Transcriber::new(frat_path.clone()).unwrap();
     let tx = std::rc::Rc::new(std::cell::RefCell::new(transcriber));
 
-    let addition_clone = tx.clone();
-    let addition_callback = move |clause: &dbClause, source: &ClauseSource| {
-        transcribe_addition(&mut addition_clone.borrow_mut(), clause, source)
+    let addition_tx = tx.clone();
+    let addition_cb = move |clause: &dbClause, source: &ClauseSource| {
+        transcribe_addition(&mut addition_tx.borrow_mut(), clause, source)
     };
-    ctx.set_callback_addition(Box::new(addition_callback));
+    ctx.set_callback_addition(Box::new(addition_cb));
 
-    let deletion_clone = tx.clone();
-    let deletion_callback = move |clause: &dbClause| {
-        transcribe_deletion(&mut deletion_clone.borrow_mut(), clause);
-    };
-    ctx.set_callback_delete(Box::new(deletion_callback));
+    let deletion_tx = tx.clone();
+    let deletion_cb =
+        move |clause: &dbClause| transcribe_deletion(&mut deletion_tx.borrow_mut(), clause);
+    ctx.set_callback_delete(Box::new(deletion_cb));
 
-    let resolution_clone = tx.clone();
-    let resolution_presmises_callback = move |premises: &HashSet<ClauseKey>| {
-        transcribe_premises(&mut resolution_clone.borrow_mut(), premises);
+    let resolution_tx = tx.clone();
+    let resolution_cb = move |premises: &HashSet<ClauseKey>| {
+        transcribe_premises(&mut resolution_tx.borrow_mut(), premises)
     };
     ctx.resolution_buffer
-        .set_callback_resolution_premises(Box::new(resolution_presmises_callback));
+        .set_callback_resolution_premises(Box::new(resolution_cb));
 
-    let unsatisfiable_clone = tx.clone();
-    let unsatisfiable_callback = move |clause: &dbClause| {
-        transcribe_unsatisfiable(&mut unsatisfiable_clone.borrow_mut(), clause);
+    let unsatisfiable_tx = tx.clone();
+    let unsatisfiable_cb = move |clause: &dbClause| {
+        transcribe_unsatisfiable(&mut unsatisfiable_tx.borrow_mut(), clause)
     };
-    ctx.set_callback_unsatisfiable(Box::new(unsatisfiable_callback));
+    ctx.set_callback_unsatisfiable(Box::new(unsatisfiable_cb));
 
     match load_dimacs(&mut ctx, &file_path) {
         Ok(()) => {}
@@ -62,28 +61,15 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
 
     let _result = ctx.solve();
 
-    for (_, literal) in ctx.clause_db.all_original_unit_clauses() {
-        tx.borrow_mut().transcribe_active_original_unit(literal);
+    for (key, literal) in ctx.clause_db.all_unit_clauses() {
+        tx.borrow_mut().transcribe_active(key, &literal);
     }
 
-    for (_, literal) in ctx.clause_db.all_addition_unit_clauses() {
-        tx.borrow_mut().transcribe_active_addition_unit(literal);
-    }
-
-    for (key, clause) in ctx.clause_db.all_binary_clauses() {
+    for (key, clause) in ctx.clause_db.all_active_nonunit_clauses() {
         tx.borrow_mut().transcribe_active(key, clause);
     }
 
-    for (key, clause) in ctx.clause_db.all_original_long_clauses() {
-        tx.borrow_mut().transcribe_active(key, clause);
-    }
-
-    for (key, clause) in ctx.clause_db.all_active_addition_long_clauses() {
-        tx.borrow_mut().transcribe_active(key, clause);
-    }
     tx.borrow_mut().flush();
-
-    drop(ctx);
 
     let mut frat_process = process::Command::new(FRAT_RS_PATH);
     frat_process.arg("elab");
