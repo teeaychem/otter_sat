@@ -13,10 +13,10 @@ use std::io::BufRead;
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ParserInfo {
-    expected_atoms: Option<usize>,
-    expected_clauses: Option<usize>,
-    added_atoms: Option<usize>,
-    added_clauses: Option<usize>,
+    pub expected_atoms: Option<usize>,
+    pub expected_clauses: Option<usize>,
+    pub added_atoms: usize,
+    pub added_clauses: usize,
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
@@ -152,8 +152,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             return Err(err::ErrorKind::from(ParseError::MissingDelimiter));
         }
 
-        info.added_atoms = Some(self.atom_db.count());
-        info.added_clauses = Some(self.clause_db.current_clause_count());
+        info.added_atoms = self.atom_db.count().saturating_sub(1);
+        info.added_clauses = self.clause_db.current_clause_count();
 
         Ok(info)
     }
