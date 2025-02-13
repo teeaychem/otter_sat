@@ -12,10 +12,7 @@ Steps:
 - Finalisation
 
 <div class="warning">
-
-- Transcription is sensitive to the order in which dispatches are received.
-
-- Further, transcription is not supported for solves which make use of subsumption.
+- Transcription is not supported for solves which make use of subsumption.
   + More generally, unless noted it is safe to assume transcription is not supported for any solve which makes use of clause derivation/mutation techniques other than resolution.
 </div>
 

@@ -12,7 +12,7 @@ use otter_sat::{
     config::Config,
     context::Context,
     db::clause::db_clause::dbClause,
-    dispatch::SolveReport,
+    reports::Report,
     structures::{
         clause::{ClauseSource, IntClause},
         literal::IntLiteral,
@@ -71,7 +71,7 @@ fn main() {
         assert!(the_context.solve().is_ok());
 
         match the_context.report() {
-            SolveReport::Satisfiable => {}
+            Report::Satisfiable => {}
             _ => break,
         };
 

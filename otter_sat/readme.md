@@ -80,7 +80,7 @@ for _character in &characters {
 
 let mut model_count = 0;
 
-while let Ok(SolveReport::Satisfiable) = context.solve() {
+while let Ok(Report::Satisfiable) = context.solve() {
     model_count += 1;
 
     let mut valuation_representation = String::new();

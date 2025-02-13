@@ -34,27 +34,29 @@ pub fn general_recorder(
         window.draw_window(&config);
     }
 
-    let mut windower = records::window::window_writer(&mut window);
-    let mut frat_writer = records::frat::build_frat_writer(config_io.frat_path.clone());
+    let windower = records::window::window_writer(&mut window);
+    let frat_writer = records::frat::build_frat_writer(config_io.frat_path.clone());
 
-    'reception: while let Ok(dispatch) = rx.recv() {
-        match &dispatch {
-            Dispatch::Report(the_report) => {
-                //
-                match the_report {
-                    Report::Solve(report) => {
-                        println!("s {}", report.to_string().to_uppercase())
+    while let Ok(dispatch) = rx.recv() {
+        /*
+                match &dispatch {
+                    Dispatch::Report(the_report) => {
+                        //
+                        match the_report {
+                            Report::Solve(report) => {
+                                println!("s {}", report.to_string().to_uppercase())
+                            }
+
+                            // Report::Finish => break 'reception,
+                            _ => {}
+                        }
                     }
-
-                    Report::Finish => break 'reception,
-                    _ => {}
                 }
-            }
-        }
-        if config_io.show_stats {
-            windower(&dispatch);
-        }
-        frat_writer(&dispatch);
+                if config_io.show_stats {
+                    windower(&dispatch);
+                }
+                frat_writer(&dispatch);
+        */
     }
 
     Ok(())

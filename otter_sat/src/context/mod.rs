@@ -13,7 +13,7 @@ In particular, [from_config](Context::from_config) is implemented for a context 
 ```rust
 # use otter_sat::context::Context;
 # use otter_sat::config::Config;
-# use otter_sat::dispatch::SolveReport;
+# use otter_sat::reports::Report;
 # use otter_sat::structures::literal::{CLiteral, Literal};
 let mut the_context = Context::from_config(Config::default());
 
@@ -27,7 +27,7 @@ let not_p = CLiteral::new(p, false);
 
 assert!(the_context.add_clause(not_p).is_ok());
 assert!(the_context.solve().is_ok());
-assert_eq!(the_context.report(), SolveReport::Satisfiable);
+assert_eq!(the_context.report(), Report::Satisfiable);
 
 assert_eq!(the_context.atom_db.value_of(p), Some(false));
 assert_eq!(the_context.atom_db.value_of(q), Some(true));

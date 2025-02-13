@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use otter_sat::{
     config::Config,
     context::Context,
-    dispatch::SolveReport::{self},
+    reports::Report::{self},
     structures::{
         atom::Atom,
         literal::{CLiteral, IntLiteral, Literal},
@@ -60,7 +60,7 @@ fn main() {
     let valuation = the_context.atom_db.valuations_ints();
 
     match the_context.report() {
-        SolveReport::Satisfiable => {
+        Report::Satisfiable => {
             println!(
                 "A solution was found!
 "
@@ -73,7 +73,7 @@ fn main() {
                 false => println!("Validation: NOK"),
             }
         }
-        SolveReport::Unsatisfiable => {
+        Report::Unsatisfiable => {
             println!("It is not possible to solve the puzzle.")
         }
         _ => {}

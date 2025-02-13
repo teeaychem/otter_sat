@@ -1,4 +1,4 @@
-use otter_sat::{builder::ClauseOk, config::Config, context::Context, dispatch::SolveReport};
+use otter_sat::{builder::ClauseOk, config::Config, context::Context, reports::Report};
 
 mod basic {
 
@@ -18,7 +18,7 @@ mod basic {
 
         assert!(the_context.solve().is_ok());
 
-        assert_eq!(the_context.report(), SolveReport::Satisfiable)
+        assert_eq!(the_context.report(), Report::Satisfiable)
     }
 
     #[test]
@@ -41,7 +41,7 @@ mod basic {
         assert!(the_context.add_clause(not_p_q_clause).is_ok());
 
         assert!(the_context.solve().is_ok());
-        assert!(matches!(the_context.report(), SolveReport::Unsatisfiable))
+        assert!(matches!(the_context.report(), Report::Unsatisfiable))
     }
 
     #[test]
@@ -58,7 +58,7 @@ mod basic {
 
         assert!(the_context.add_clause(not_p).is_ok());
         assert!(the_context.solve().is_ok());
-        assert_eq!(the_context.report(), SolveReport::Satisfiable);
+        assert_eq!(the_context.report(), Report::Satisfiable);
 
         assert_eq!(the_context.atom_db.value_of(p), Some(false));
         assert_eq!(the_context.atom_db.value_of(q), Some(true));

@@ -8,8 +8,7 @@ use std::{
 use xz2::read::XzDecoder;
 
 use otter_sat::{
-    config::Config, context::Context, db::ClauseKey, dispatch::SolveReport,
-    structures::clause::Clause,
+    config::Config, context::Context, db::ClauseKey, reports::Report, structures::clause::Clause,
 };
 
 static USAGE: OnceLock<String> = OnceLock::new();
@@ -72,7 +71,7 @@ fn main() {
     let _ = the_context.read_dimacs(buf_file);
 
     let result = the_context.solve();
-    assert_eq!(result, Ok(SolveReport::Unsatisfiable));
+    assert_eq!(result, Ok(Report::Unsatisfiable));
 
     let mut core_dimacs = String::default();
 
@@ -106,7 +105,7 @@ fn main() {
         let _ = core_context.read_dimacs(core_dimacs_buf.as_slice());
         let core_result = core_context.solve();
 
-        assert_eq!(core_result, Ok(SolveReport::Unsatisfiable));
+        assert_eq!(core_result, Ok(Report::Unsatisfiable));
         println!("c Check ok!")
     }
 }

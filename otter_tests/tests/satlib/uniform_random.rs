@@ -1,4 +1,4 @@
-use otter_sat::{config::Config, dispatch::SolveReport};
+use otter_sat::{config::Config, reports::Report};
 
 use otter_tests::{cnf_lib_subdir, silent_on_directory};
 
@@ -11,7 +11,7 @@ mod three_sat {
         silent_on_directory(
             cnf_lib_subdir(vec!["SATLIB", "uniform_random", "UF20.91"]),
             &Config::default(),
-            SolveReport::Satisfiable,
+            Report::Satisfiable,
         );
     }
 
@@ -22,7 +22,7 @@ mod three_sat {
             silent_on_directory(
                 cnf_lib_subdir(vec!["SATLIB", "uniform_random", "UF50.218.1000", "sat"]),
                 &Config::default(),
-                SolveReport::Satisfiable,
+                Report::Satisfiable,
             );
         }
 
@@ -31,7 +31,7 @@ mod three_sat {
             silent_on_directory(
                 cnf_lib_subdir(vec!["SATLIB", "uniform_random", "UF50.218.1000", "unsat"]),
                 &Config::default(),
-                SolveReport::Unsatisfiable,
+                Report::Unsatisfiable,
             );
         }
     }
@@ -44,7 +44,7 @@ mod three_sat {
             silent_on_directory(
                 cnf_lib_subdir(vec!["SATLIB", "uniform_random", "UF225.960.100", "sat"]),
                 &Config::default(),
-                SolveReport::Satisfiable,
+                Report::Satisfiable,
             );
         }
 
@@ -54,7 +54,7 @@ mod three_sat {
             silent_on_directory(
                 cnf_lib_subdir(vec!["SATLIB", "uniform_random", "UF225.960.100", "unsat"]),
                 &Config::default(),
-                SolveReport::Unsatisfiable,
+                Report::Unsatisfiable,
             );
         }
     }
@@ -67,7 +67,7 @@ mod three_sat {
             silent_on_directory(
                 cnf_lib_subdir(vec!["SATLIB", "uniform_random", "UF250.1065.100", "sat"]),
                 &Config::default(),
-                SolveReport::Satisfiable,
+                Report::Satisfiable,
             );
         }
 
@@ -77,7 +77,7 @@ mod three_sat {
             silent_on_directory(
                 cnf_lib_subdir(vec!["SATLIB", "uniform_random", "UF250.1065.100", "unsat"]),
                 &Config::default(),
-                SolveReport::Unsatisfiable,
+                Report::Unsatisfiable,
             );
         }
     }
@@ -94,7 +94,7 @@ mod three_sat_and_backbone_minimal_subinstances {
         silent_on_directory(
             cnf_lib_subdir(vec!["SATLIB", "backbone", "RTI_k3_n100_m429"]),
             &Config::default(),
-            SolveReport::Satisfiable,
+            Report::Satisfiable,
         );
     }
 
@@ -103,7 +103,7 @@ mod three_sat_and_backbone_minimal_subinstances {
         silent_on_directory(
             cnf_lib_subdir(vec!["SATLIB", "backbone", "BMS_k3_n100_m429"]),
             &Config::default(),
-            SolveReport::Satisfiable,
+            Report::Satisfiable,
         );
     }
 }

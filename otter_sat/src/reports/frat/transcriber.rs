@@ -104,7 +104,7 @@ impl Transcriber {
     }
 
     /// Returns the external representation of a clause as a string of literals concatenated by a space (with no closing delimiter).
-    fn clause_string(&self, clause: CClause) -> String {
+    fn clause_string(&self, clause: &CClause) -> String {
         clause
             .iter()
             .map(|l| self.literal_string(l))
@@ -184,12 +184,12 @@ impl Transcriber {
         self.step_buffer.push(step);
     }
 
-    pub fn transcribe_original_clause(&mut self, key: &ClauseKey, clause: CClause) {
+    pub fn transcribe_original_clause(&mut self, key: &ClauseKey, clause: &CClause) {
         let step = Transcriber::original_clause(key, self.clause_string(clause));
         self.step_buffer.push(step);
     }
 
-    pub fn transcribe_addition_clause(&mut self, key: &ClauseKey, clause: CClause) {
+    pub fn transcribe_addition_clause(&mut self, key: &ClauseKey, clause: &CClause) {
         let Some(steps) = self.resolution_queue.pop_front() else {
             panic!("Err(err::FRATError::CorruptResolutionQ)")
         };
@@ -197,7 +197,7 @@ impl Transcriber {
         self.step_buffer.push(step);
     }
 
-    pub fn transcribe_deletion(&mut self, key: &ClauseKey, clause: CClause) {
+    pub fn transcribe_deletion(&mut self, key: &ClauseKey, clause: &CClause) {
         let step = Transcriber::delete_clause(key, self.clause_string(clause));
         self.step_buffer.push(step);
     }
@@ -231,7 +231,7 @@ impl Transcriber {
     pub fn transcribe_active(&mut self, key: ClauseKey, clause: &CClause) {
         self.step_buffer.push(Transcriber::finalise_clause(
             &key,
-            self.clause_string(clause.clone()),
+            self.clause_string(clause),
         ))
     }
 }

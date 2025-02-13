@@ -14,7 +14,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = Jemalloc;
 use otter_sat::{
     config::Config,
     context::Context,
-    dispatch::{Dispatch, SolveReport},
+    reports::Report,
     structures::clause::Clause,
     types::err::{self},
 };
@@ -36,7 +36,7 @@ use config_io::ConfigIO;
 
 use crate::misc::load_dimacs;
 
-fn hand(_: Dispatch) {}
+fn hand() {}
 
 fn main() {
     #[cfg(feature = "log")]
@@ -54,7 +54,7 @@ fn main() {
     let (transmitter, receiver) =
         match config_io.show_core || config_io.show_stats || config_io.frat {
             true => {
-                let (tx, rx) = unbounded::<Dispatch>();
+                let (tx, rx) = unbounded::<>();
                 let config = config.clone();
                 let config_io = config_io.clone();
                 (Some(tx), Some(rx))
@@ -86,7 +86,7 @@ fn main() {
         }
 
         if the_context.clause_db.total_clause_count() == 0 {
-            break 'report SolveReport::Satisfiable;
+            break 'report Report::Satisfiable;
         }
 
         let the_report = match the_context.solve() {
@@ -98,13 +98,13 @@ fn main() {
         };
 
         match the_report {
-            SolveReport::Unsatisfiable => {
+            Report::Unsatisfiable => {
                 if config_io.show_core {
                     // let _ = self.display_core(clause_key);
                 }
                 // the_context.dispatch_active();
             }
-            SolveReport::Satisfiable => {
+            Report::Satisfiable => {
                 if config_io.show_valuation {
                     println!("v {}", the_context.atom_db.valuation_string());
                 }
@@ -115,7 +115,7 @@ fn main() {
     };
 
     match report {
-        SolveReport::Satisfiable => {
+        Report::Satisfiable => {
             if let Some(path) = config_io.frat_path {
                 let _ = std::fs::remove_file(path);
             }
@@ -124,7 +124,7 @@ fn main() {
             println!("s SATISFIABLE");
             std::process::exit(10)
         }
-        SolveReport::Unsatisfiable => {
+        Report::Unsatisfiable => {
             if config_io.frat_path.is_some() {
                 println!("c Finalising FRAT proof…");
             }
@@ -137,7 +137,7 @@ fn main() {
             println!("s UNSATISFIABLE");
             std::process::exit(20)
         }
-        SolveReport::TimeUp => {
+        Report::TimeUp => {
             drop(the_context);
             if config_io.detail > 0 {
                 println!("c Time up");
@@ -145,7 +145,7 @@ fn main() {
             println!("s UNKNOWN");
             std::process::exit(30)
         }
-        SolveReport::Unknown => {
+        Report::Unknown => {
             drop(the_context);
             println!("s UNKNOWN");
             std::process::exit(30)
