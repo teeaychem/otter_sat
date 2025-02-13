@@ -1,30 +1,48 @@
 //! Configuration of databases, typically derived from the configuration of a context.
 
-use super::{Activity, LBD};
+use crate::context::ContextState;
+
+use super::{Activity, ConfigOption, LBD};
 
 /// Configuration for the clause database.
 #[derive(Clone)]
 pub struct ClauseDBConfig {
     /// The activity with which the next atom bumped will be bumped by, dynamically adjusted.
-    pub bump: Activity,
+    pub bump: ConfigOption<Activity>,
 
     /// The decay to the activity of a atom each conflict.
-    pub decay: Activity,
-
-    /// The maximum activity any atom may have before the activity of all atoms is compressed.
-    pub max_bump: Activity,
+    pub decay: ConfigOption<Activity>,
 
     /// Any clauses with lbd within the lbd bound (lbd ≤ bound) will not be removed from the clause database.
-    pub lbd_bound: LBD,
+    pub lbd_bound: ConfigOption<LBD>,
 }
 
 impl Default for ClauseDBConfig {
     fn default() -> Self {
         ClauseDBConfig {
-            bump: 1.0,
-            decay: 50.0 * 1e-3,
-            max_bump: (2.0 as Activity).powi(512),
-            lbd_bound: 2,
+            bump: ConfigOption {
+                name: "clause_bump",
+                min: Activity::MIN,
+                max: (2.0 as Activity).powi(512),
+                max_state: ContextState::Configuration,
+                value: 1.0,
+            },
+
+            decay: ConfigOption {
+                name: "clause_decay",
+                min: Activity::MIN,
+                max: Activity::MAX,
+                max_state: ContextState::Configuration,
+                value: 50.0 * 1e-3,
+            },
+
+            lbd_bound: ConfigOption {
+                name: "lbd_bound",
+                min: LBD::MIN,
+                max: LBD::MAX,
+                max_state: ContextState::Configuration,
+                value: 2,
+            },
         }
     }
 }
@@ -33,21 +51,30 @@ impl Default for ClauseDBConfig {
 #[derive(Clone)]
 pub struct AtomDBConfig {
     /// The amount with which to bump a atom by when applying [VSIDS](crate::config::vsids).
-    pub bump: Activity,
+    pub bump: ConfigOption<Activity>,
 
     /// After a conflict increase the atom bump by a value (proportional to) 1 / (1 - `FACTOR`^-3)
-    pub decay: Activity,
-
-    /// The maximum value to which the activity a atom can rise before rescoring the activity of all atoms.
-    pub max_activity: Activity,
+    pub decay: ConfigOption<Activity>,
 }
 
 impl Default for AtomDBConfig {
     fn default() -> Self {
         AtomDBConfig {
-            bump: 1.0,
-            decay: 50.0 * 1e-3,
-            max_activity: (2.0 as Activity).powi(512), // activity_max: 1e150,
+            bump: ConfigOption {
+                name: "atom_bump",
+                min: Activity::MIN,
+                max: (2.0 as Activity).powi(512),
+                max_state: ContextState::Configuration,
+                value: 1.0,
+            },
+
+            decay: ConfigOption {
+                name: "atom_decay",
+                min: Activity::MIN,
+                max: Activity::MAX,
+                max_state: ContextState::Configuration,
+                value: 50.0 * 1e-3,
+            },
         }
     }
 }

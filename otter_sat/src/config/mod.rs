@@ -26,9 +26,6 @@ pub use lbd::LBD;
 mod rng;
 pub use rng::{PolarityLean, RandomDecisionBias};
 
-mod scheduler;
-pub use scheduler::Scheduler;
-
 mod stopping_criteria;
 pub use stopping_criteria::StoppingCriteria;
 
@@ -58,9 +55,6 @@ pub struct Config {
     /// Preprocessing configuration
     pub random_decision_bias: ConfigOption<RandomDecisionBias>,
 
-    /// A scheduler for things such as restarts and reductions.
-    pub scheduler: Scheduler,
-
     /// Which stopping criteria to use during resolution based analysis
     pub stopping_criteria: ConfigOption<StoppingCriteria>,
 
@@ -82,7 +76,11 @@ pub struct Config {
     /// Which VSIDS variant to use during resolution based analysis
     pub vsids_variant: ConfigOption<VSIDS>,
 
-    pub stacked_assumptions: ConfigOption<bool>,
+    /// Reuce the clause database every `luby` times a luby interrupt happens.
+    pub luby_mod: ConfigOption<u32>,
+
+    /// Reuce the clause database every `conflict` conflicts.
+    pub conflict_mod: ConfigOption<u32>,
 }
 
 impl Default for Config {
@@ -115,11 +113,6 @@ impl Default for Config {
                 max: PolarityLean::MAX,
                 max_state: ContextState::Configuration,
                 value: 0.0,
-            },
-
-            scheduler: Scheduler {
-                luby: Some(2),
-                conflict: Some(50_000),
             },
 
             stopping_criteria: ConfigOption {
@@ -178,12 +171,20 @@ impl Default for Config {
                 value: VSIDS::MiniSAT,
             },
 
-            stacked_assumptions: ConfigOption {
-                name: "stacked_assumptions",
-                min: false,
-                max: true,
+            luby_mod: ConfigOption {
+                name: "luby_mod",
+                min: u32::MIN,
+                max: u32::MAX,
                 max_state: ContextState::Configuration,
-                value: false,
+                value: 2,
+            },
+
+            conflict_mod: ConfigOption {
+                name: "conflict_mod",
+                min: u32::MIN,
+                max: u32::MAX,
+                max_state: ContextState::Configuration,
+                value: 50_000,
             },
         }
     }

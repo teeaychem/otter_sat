@@ -128,7 +128,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
     /// Removes assumptions from a context by unbinding the value from any atom bound due to an assumption.
     pub fn clear_assumptions(&mut self) {
-        if !self.literal_db.config.stacked_assumptions {
+        if !self.literal_db.config.stacked_assumptions.value {
             for assumption in self.literal_db.stored_assumptions() {
                 unsafe { self.atom_db.drop_value(assumption.atom()) };
             }
