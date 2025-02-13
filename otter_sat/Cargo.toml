@@ -26,5 +26,8 @@ rand = { version = "0.8.5", default-features = false }
 rand_core = "0.6.4"
 
 [dev-dependencies]
-crossbeam = "0.8.4" # Used to run examples.
 xz2 = "0.1.7" # Use to load cnf files
+
+[[example]]
+name = "otter_cli"
+path = "src/cli/main.rs"

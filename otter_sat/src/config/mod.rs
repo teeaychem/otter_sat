@@ -93,7 +93,7 @@ impl Default for Config {
 
             luby_u: ConfigOption {
                 name: "luby",
-                min: generic::luby::LubyRepresentation::MIN,
+                min: 1,
                 max: generic::luby::LubyRepresentation::MAX,
                 max_state: ContextState::Configuration,
                 value: 128,
