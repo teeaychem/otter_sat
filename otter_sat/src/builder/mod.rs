@@ -62,6 +62,8 @@ let clause_b = vec![-p, q];
 ```
 */
 mod dimacs;
+pub use dimacs::ParserInfo;
+
 mod preprocess;
 mod structures;
 

@@ -1,10 +1,12 @@
 use std::{io::BufReader, path::PathBuf, str::FromStr};
 
+use misc::examine_parser_report;
 use otter_sat::{
     config::Config, context::Context, db::ClauseKey, reports::Report, structures::clause::Clause,
 };
 use parse_args::parse_args;
 
+mod misc;
 mod parse_args;
 
 #[derive(Default)]
@@ -33,11 +35,12 @@ fn main() {
     let file = match std::fs::File::open(&path) {
         Ok(path) => path,
         Err(_) => {
-            panic!("! Failed to open CNF file");
+            println!("Failed to open CNF file");
+            std::process::exit(1);
         }
     };
 
-    let _ = match &path.extension() {
+    let parse_report = match &path.extension() {
         None => ctx.read_dimacs(BufReader::new(&file)),
 
         Some(extension) if *extension == "xz" => {
@@ -47,9 +50,15 @@ fn main() {
         Some(_) => ctx.read_dimacs(BufReader::new(&file)),
     };
 
-    let Ok(result) = ctx.solve() else {
-        println!("hm");
-        std::process::exit(2);
+    examine_parser_report(parse_report);
+
+    let result = match ctx.solve() {
+        Ok(yes) => yes,
+
+        Err(e) => {
+            println!("c Solve error: {e:?}");
+            std::process::exit(2);
+        }
     };
     println!("{}", ctx.report());
 
