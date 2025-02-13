@@ -17,7 +17,25 @@ Steps:
 </div>
 
 # Use
-Use by creating a listener for dispatches from a context and passing each dispatch to the transcriber.
+Though callbacks available during a solve.
+
+```rust,ignore
+let addition_callback = move |clause: &dbClause, source: &ClauseSource| {
+    match source {
+        ClauseSource::BCP => {
+            if let ClauseKey::AdditionUnit(literal) = clause.key() {
+                tx.transcribe_bcp(clause.key(), *literal);
+                }
+            }
+
+            ClauseSource::Original => tx.transcribe_original_clause(clause.key(), clause.clause()),
+
+            ClauseSource::Resolution => tx.transcribe_addition_clause(clause.key(), clause.clause()),
+
+        }
+        tx.flush()
+    };
+```
 
 # Notes
 
@@ -43,6 +61,7 @@ A few decisions make this a little more delicate than it otherwise could be
     As there are no explicit limits on indicies in the FRAT document, simple ASCII prefixes are used.
 */
 
+pub mod callback_templates;
 #[doc(hidden)]
 pub mod transcriber;
 

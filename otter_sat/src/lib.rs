@@ -16,7 +16,6 @@ Some guiding principles of otter_sat are (see [below](#guiding-principles) for f
 
 The library is design around the core structure of a [context].
 
-Contexts are built with a configuration and optional method for recording [dispatches](crate::dispatch) from a solve.
 Clauses may be added though the [DIMACS](crate::context::GenericContext::read_dimacs) representation of a formula or [programatically](crate::context::GenericContext::add_clause).
 
 Internally, and at a high-level, a solve is viewed in terms of manipulation of, and relationships between, a handful of databases which instantiate core theoretical objects.

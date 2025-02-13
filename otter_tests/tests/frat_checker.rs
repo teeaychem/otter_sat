@@ -2,6 +2,7 @@ use std::{
     collections::HashSet,
     path::PathBuf,
     process::{self},
+    // borrow::BorrowMut
 };
 
 const FRAT_RS_PATH: &str = "./frat-rs";
@@ -10,7 +11,12 @@ use otter_sat::{
     config::Config,
     context::Context,
     db::{clause::db_clause::dbClause, ClauseKey},
-    reports::frat::Transcriber,
+    reports::frat::{
+        callback_templates::{
+            transcribe_addition, transcribe_deletion, transcribe_premises, transcribe_unsatisfiable,
+        },
+        Transcriber,
+    },
     structures::clause::ClauseSource,
 };
 
@@ -18,69 +24,36 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     let mut frat_path_string = file_path.clone().to_str().unwrap().to_owned();
     frat_path_string.push_str(".frat");
     let frat_path = PathBuf::from(&frat_path_string);
+
+    let mut ctx = Context::from_config(config);
+
     let transcriber = Transcriber::new(frat_path.clone()).unwrap();
     let tx = std::rc::Rc::new(std::cell::RefCell::new(transcriber));
 
     let addition_clone = tx.clone();
     let addition_callback = move |clause: &dbClause, source: &ClauseSource| {
-        match source {
-            ClauseSource::BCP => {
-                if let ClauseKey::AdditionUnit(literal) = clause.key() {
-                    addition_clone
-                        .borrow_mut()
-                        .transcribe_bcp(clause.key(), *literal);
-                } else {
-                    panic!("");
-                }
-            }
-
-            ClauseSource::Original => addition_clone
-                .borrow_mut()
-                .transcribe_original_clause(clause.key(), clause.clause()),
-
-            ClauseSource::Resolution => addition_clone
-                .borrow_mut()
-                .transcribe_addition_clause(clause.key(), clause.clause()),
-
-            ClauseSource::PureUnit => panic!("X_X"),
-        }
-        addition_clone.borrow_mut().flush()
+        transcribe_addition(&mut addition_clone.borrow_mut(), clause, source)
     };
+    ctx.set_callback_addition(Box::new(addition_callback));
 
     let deletion_clone = tx.clone();
     let deletion_callback = move |clause: &dbClause| {
-        deletion_clone
-            .borrow_mut()
-            .transcribe_deletion(clause.key(), clause.clause());
-
-        deletion_clone.borrow_mut().flush()
+        transcribe_deletion(&mut deletion_clone.borrow_mut(), clause);
     };
+    ctx.set_callback_delete(Box::new(deletion_callback));
 
     let resolution_clone = tx.clone();
     let resolution_presmises_callback = move |premises: &HashSet<ClauseKey>| {
-        resolution_clone
-            .borrow_mut()
-            .transcribe_resolution(premises);
+        transcribe_premises(&mut resolution_clone.borrow_mut(), premises);
     };
-
-    let unsatisfiable_clone = tx.clone();
-    let unsatisfiable_callback = move |_: dbClause| {
-        unsatisfiable_clone
-            .borrow_mut()
-            .transcribe_unsatisfiable_clause();
-        unsatisfiable_clone.borrow_mut().flush();
-    };
-
-    let mut ctx = Context::from_config(config);
-
-    ctx.clause_db
-        .set_callback_delete(Box::new(deletion_callback));
-    ctx.clause_db
-        .set_callback_addition(Box::new(addition_callback));
-    ctx.clause_db
-        .set_callback_unsatisfiable(Box::new(unsatisfiable_callback));
     ctx.resolution_buffer
         .set_callback_resolution_premises(Box::new(resolution_presmises_callback));
+
+    let unsatisfiable_clone = tx.clone();
+    let unsatisfiable_callback = move |clause: &dbClause| {
+        transcribe_unsatisfiable(&mut unsatisfiable_clone.borrow_mut(), clause);
+    };
+    ctx.set_callback_unsatisfiable(Box::new(unsatisfiable_callback));
 
     match load_dimacs(&mut ctx, &file_path) {
         Ok(()) => {}

@@ -71,6 +71,7 @@ use crate::{
 pub enum DecisionOk {
     /// Some truth value was assigned to some atom.
     Literal(CLiteral),
+
     /// All atoms had already been assigned truth values, so no decision could be made.
     Exhausted,
 }

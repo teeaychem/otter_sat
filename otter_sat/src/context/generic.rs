@@ -5,6 +5,7 @@ use crate::{
     },
     reports::Report,
     resolution_buffer::ResolutionBuffer,
+    types::err::ErrorKind,
 };
 
 use super::{callbacks::CallbackTerminate, ContextState, Counters};
@@ -71,10 +72,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
     }
 
-    pub fn unsatisfiable_clause(&self) -> Result<ClauseKey, ()> {
+    pub fn unsatisfiable_clause(&self) -> Result<ClauseKey, ErrorKind> {
         match self.state {
             ContextState::Unsatisfiable(key) => Ok(key),
-            _ => Err(()),
+            _ => Err(ErrorKind::InvalidState),
         }
     }
 }

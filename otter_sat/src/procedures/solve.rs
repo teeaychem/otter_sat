@@ -206,7 +206,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             self.counters.time = timer.elapsed();
             let time_limit = self.config.time_limit;
             if time_limit.is_some_and(|limit| self.counters.time > limit) {
-                return Ok(Report::TimeUp);
+                return Ok(self.report());
             }
 
             if self.check_callback_terminate() {

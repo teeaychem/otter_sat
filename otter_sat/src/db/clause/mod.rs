@@ -6,7 +6,7 @@ Records of clauses are distinguished by a mix of [kind](crate::structures::claus
 Fields of the database are private to ensure the use of methods which may be needed to uphold invariants.
 */
 pub mod activity_glue;
-pub mod callbacks;
+mod callbacks;
 pub mod db_clause;
 mod get;
 mod store;
@@ -16,13 +16,11 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
-use callbacks::{
-    CallbackOnClause, CallbackOnClauseSource, CallbackOnLiteral, CallbackOnOwnedClause,
-};
 use db_clause::dbClause;
 
 use crate::{
     config::{dbs::ClauseDBConfig, Config},
+    context::callbacks::{CallbackOnClause, CallbackOnClauseSource, CallbackOnLiteral},
     db::{
         atom::AtomDB,
         clause::activity_glue::ActivityLBD,
@@ -71,19 +69,19 @@ pub struct ClauseDB {
     activity_heap: IndexHeap<ActivityLBD>,
 
     /// Original clauses are passed in.
-    pub(super) callback_original: Option<Box<CallbackOnClauseSource>>,
+    callback_original: Option<Box<CallbackOnClauseSource>>,
 
     /// Addition clauses are passed in.
-    pub(super) callback_addition: Option<Box<CallbackOnClauseSource>>,
+    callback_addition: Option<Box<CallbackOnClauseSource>>,
 
     /// Deleted clauses are passed in.
-    pub(super) callback_delete: Option<Box<CallbackOnClause>>,
+    callback_delete: Option<Box<CallbackOnClause>>,
 
     /// Fixed literals are passed in.
-    pub(super) callback_fixed: Option<Box<CallbackOnLiteral>>,
+    callback_fixed: Option<Box<CallbackOnLiteral>>,
 
     /// The unsatisfiable clause is passed in.
-    pub(super) callback_unsatisfiable: Option<Box<CallbackOnOwnedClause>>,
+    callback_unsatisfiable: Option<Box<CallbackOnClause>>,
 }
 
 impl ClauseDB {
