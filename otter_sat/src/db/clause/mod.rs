@@ -164,7 +164,7 @@ impl ClauseDB {
                 let value = self.activity_heap.value_at(index);
                 log::debug!(target: targets::REDUCTION, "Took ~ Activity: {} LBD: {}", value.activity, value.lbd);
 
-                if value.lbd <= self.config.lbd_bound {
+                if value.lbd <= self.config.lbd_bound.value {
                     break 'reduction_loop;
                 } else {
                     self.remove_addition(index)?;
@@ -234,19 +234,19 @@ impl ClauseDB {
     /// See the corresponding method with respect to atoms for more detials.
     pub fn bump_activity(&mut self, index: FormulaIndex) {
         if let Some(max) = self.activity_heap.peek_max_value() {
-            if max.activity + self.config.bump > self.config.max_bump {
+            if max.activity + self.config.bump.value > self.config.bump.max {
                 let factor = 1.0 / max.activity;
                 let decay_activity = |s: &ActivityLBD| ActivityLBD {
                     activity: s.activity * factor,
                     lbd: s.lbd,
                 };
                 self.activity_heap.apply_to_all(decay_activity);
-                self.config.bump *= factor
+                self.config.bump.value *= factor
             }
         }
 
         let bump_activity = |s: &ActivityLBD| ActivityLBD {
-            activity: s.activity + self.config.bump,
+            activity: s.activity + self.config.bump.value,
             lbd: s.lbd,
         };
 
@@ -254,7 +254,7 @@ impl ClauseDB {
         self.activity_heap.apply_to_index(index, bump_activity);
         self.activity_heap.heapify_if_active(index);
 
-        self.config.bump *= 1.0 / (1.0 - self.config.decay);
+        self.config.bump.value *= 1.0 / (1.0 - self.config.decay.value);
     }
 
     /// The count of all clauses encountered, including removed clauses.

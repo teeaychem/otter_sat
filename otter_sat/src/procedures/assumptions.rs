@@ -56,7 +56,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         let assumption_count = self.literal_db.stored_assumptions().len();
 
-        match self.config.literal_db.stacked_assumptions {
+        match self.config.literal_db.stacked_assumptions.value {
             true => {
                 for index in 0..assumption_count {
                     let assumption = self.literal_db.stored_assumption(index);
