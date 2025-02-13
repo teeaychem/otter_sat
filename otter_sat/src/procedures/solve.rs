@@ -204,8 +204,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             log::trace!("Iteration {}", self.counters.total_iterations);
 
             self.counters.time = timer.elapsed();
-            let time_limit = self.config.time_limit;
-            if time_limit.is_some_and(|limit| self.counters.time > limit) {
+            let time_limit = self.config.time_limit.value;
+            if !time_limit.is_zero() && self.counters.time > time_limit {
                 return Ok(self.report());
             }
 
@@ -257,7 +257,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 // TODO: Dispatch stats?
 
-                if self.config.restart {
+                if self.config.restart.value {
                     self.backjump(self.literal_db.lowest_decision_level());
                     self.clause_db.refresh_heap();
                     self.counters.fresh_conflicts = 0;

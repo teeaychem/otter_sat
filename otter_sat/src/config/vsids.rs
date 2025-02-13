@@ -5,12 +5,13 @@ See [Understanding VSIDS branching heuristics in conflict-driven clause-learning
 */
 
 /// Supported VSIDS variants.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum VSIDS {
     /// A variant which mimics the VSIDS used by [Chaff](https://dl.acm.org/doi/10.1145/378239.379017).\
     /// When learning a clause by applying resolution to a sequence of clauses every atom occurring in the learnt clause is bumped.
-    Chaff,
+    Chaff = 0,
+
     /// A variant which mimics the VSIDS used by [MiniSAT](https://link.springer.com/chapter/10.1007/978-3-540-24605-3_37).\
     /// When learning a clause by applying resolution to a sequence of clauses every atom occurring in some clause used during resolution (including the learnt clause) is bumped.
     MiniSAT,
@@ -23,4 +24,9 @@ impl std::fmt::Display for VSIDS {
             Self::MiniSAT => write!(f, "MiniSAT"),
         }
     }
+}
+
+impl VSIDS {
+    pub const MIN: VSIDS = VSIDS::Chaff;
+    pub const MAX: VSIDS = VSIDS::MiniSAT;
 }
