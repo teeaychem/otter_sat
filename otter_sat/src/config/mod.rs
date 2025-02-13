@@ -5,8 +5,8 @@ Primary configuration is context.
 All configuration for a context are contained within context.
 Some structures clone parts of the configuration.
 Databases.
-
 */
+
 use dbs::{AtomDBConfig, ClauseDBConfig};
 use vsids::VSIDS;
 
@@ -58,10 +58,10 @@ pub struct Config {
     /// Which stopping criteria to use during resolution based analysis
     pub stopping_criteria: ConfigOption<StoppingCriteria>,
 
-    /// Default to th last set value of a atom when choosing  a value for the atom, otherwise decision with specified probability.
+    /// Default to the last set value of a atom when choosing  a value for the atom, otherwise decision with specified probability.
     pub phase_saving: ConfigOption<bool>,
 
-    /// Enable preprocessing of 𝐅.
+    /// Enable preprocessing of the formula.
     pub preprocessing: ConfigOption<bool>,
 
     /// Permit (scheduled) restarts.
