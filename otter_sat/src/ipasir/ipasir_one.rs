@@ -129,7 +129,7 @@ pub unsafe extern "C" fn ipasir_solve(solver: *mut c_void) -> c_int {
     match solve_result {
         Ok(Report::Satisfiable) => 10,
         Ok(Report::Unsatisfiable) => 20,
-        Ok(Report::TimeUp) | Ok(Report::Unknown) => {
+        Ok(Report::Unknown) => {
             bundle.keep_fresh();
             0
         }
@@ -258,10 +258,7 @@ pub unsafe extern "C" fn ipasir_set_learn(
             }
         });
 
-        bundle
-            .context
-            .clause_db
-            .set_callback_addition(callback_addition);
+        bundle.context.set_callback_addition(callback_addition);
 
         let callback_original = Box::new(move |clause: &dbClause, _: &ClauseSource| {
             if clause.len() <= (max_length as usize) {
@@ -272,9 +269,6 @@ pub unsafe extern "C" fn ipasir_set_learn(
             }
         });
 
-        bundle
-            .context
-            .clause_db
-            .set_callback_original(callback_original);
+        bundle.context.set_callback_original(callback_original);
     }
 }

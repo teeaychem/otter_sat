@@ -27,25 +27,25 @@ pub enum ResolutionOk {
 /// A buffer for use when applying resolution to a sequence of clauses.
 pub struct ResolutionBuffer {
     /// A count of literals in the clause whose atoms do not have a value on the given interpretation.
-    pub valueless_count: usize,
+    valueless_count: usize,
 
     /// The length of the clause.
-    pub clause_length: usize,
+    clause_length: usize,
 
     /// The literal asserted by the current resolution candidate, if it exists..
-    pub asserts: Option<CLiteral>,
+    asserts: Option<CLiteral>,
 
     /// The (direct) premises used top derive the clause.
-    pub premises: HashSet<ClauseKey>,
+    premises: HashSet<ClauseKey>,
 
     /// The buffer.
-    pub buffer: Vec<Cell>,
+    buffer: Vec<Cell>,
 
     /// A (typically derived) configuration for the instance of resolution.
-    pub config: BufferConfig,
+    config: BufferConfig,
 
     /// The callback used on completion
-    pub callback_premises: Option<Box<CallbackOnResolution>>,
+    callback_premises: Option<Box<CallbackOnResolution>>,
 }
 
 pub type CallbackOnResolution = dyn FnMut(&HashSet<ClauseKey>);

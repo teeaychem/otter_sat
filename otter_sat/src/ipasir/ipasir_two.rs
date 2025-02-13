@@ -295,7 +295,7 @@ pub unsafe extern "C" fn ipasir2_set_export(
             }
         });
 
-        bundle.context.clause_db.set_callback_addition(callback);
+        bundle.context.set_callback_addition(callback);
 
         ipasir2_errorcode::IPASIR2_E_OK
     } else {
@@ -337,7 +337,7 @@ pub unsafe extern "C" fn ipasir2_delete(
             }
         });
 
-        bundle.context.clause_db.set_callback_delete(callback);
+        bundle.context.set_callback_delete(callback);
 
         ipasir2_errorcode::IPASIR2_E_OK
     } else {
@@ -396,7 +396,7 @@ pub unsafe extern "C" fn ipasir2_set_fixed(
             callback(data, literal);
         });
 
-        bundle.context.clause_db.set_callback_fixed(callback);
+        bundle.context.set_callback_fixed(callback);
 
         ipasir2_errorcode::IPASIR2_E_OK
     } else {
