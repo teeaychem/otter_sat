@@ -10,7 +10,7 @@ use otter_sat::{
     config::Config,
     context::Context,
     db::{clause::db_clause::dbClause, ClauseKey},
-    dispatch::frat::Transcriber,
+    reports::frat::Transcriber,
     structures::clause::ClauseSource,
 };
 
@@ -36,11 +36,11 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
 
             ClauseSource::Original => addition_clone
                 .borrow_mut()
-                .transcribe_original_clause(clause.key(), clause.to_vec()),
+                .transcribe_original_clause(clause.key(), clause.clause()),
 
             ClauseSource::Resolution => addition_clone
                 .borrow_mut()
-                .transcribe_addition_clause(clause.key(), clause.to_vec()),
+                .transcribe_addition_clause(clause.key(), clause.clause()),
 
             ClauseSource::PureUnit => panic!("X_X"),
         }
@@ -51,7 +51,7 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     let deletion_callback = move |clause: &dbClause| {
         deletion_clone
             .borrow_mut()
-            .transcribe_deletion(clause.key(), clause.to_vec());
+            .transcribe_deletion(clause.key(), clause.clause());
 
         deletion_clone.borrow_mut().flush()
     };

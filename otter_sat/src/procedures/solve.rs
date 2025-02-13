@@ -90,7 +90,7 @@ The distinction between a unit clause and clause being returned from [apply_cons
 ```rust
 # use otter_sat::config::Config;
 # use otter_sat::context::Context;
-# use otter_sat::dispatch::SolveReport;
+# use otter_sat::reports::Report;
 # use otter_sat::structures::literal::{CLiteral, Literal};
 let config = Config::default();
 let mut the_context: Context = Context::from_config(config);
@@ -121,7 +121,7 @@ assert_eq!(the_context.atom_db.value_of(p), Some(true));
 
 assert!(the_context.solve().is_ok());
 
-assert_eq!(the_context.report(), SolveReport::Satisfiable);
+assert_eq!(the_context.report(), Report::Satisfiable);
 ```
 
 # Literature
@@ -137,11 +137,11 @@ Though, the presentation given is original.
 use crate::{
     context::{ContextState, GenericContext},
     db::ClauseKey,
-    dispatch::SolveReport,
     procedures::{
         apply_consequences::{self},
         decision::{self},
     },
+    reports::Report,
     structures::{
         clause::Clause,
         consequence::{self, Consequence},
@@ -151,7 +151,7 @@ use crate::{
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
-    pub fn solve(&mut self) -> Result<SolveReport, err::ErrorKind> {
+    pub fn solve(&mut self) -> Result<Report, err::ErrorKind> {
         use crate::db::consequence_q::QPosition::{self};
 
         match self.state {
@@ -180,14 +180,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         log::info!("Failed to assert assumption: {assumption}");
                         self.state =
                             ContextState::Unsatisfiable(ClauseKey::OriginalUnit(assumption));
-                        return Ok(SolveReport::Unsatisfiable);
+                        return Ok(Report::Unsatisfiable);
                     }
                     Err(e) => {
                         log::info!("Failed to assert assumption: {e:?}");
                         self.state = ContextState::Unsatisfiable(ClauseKey::OriginalUnit(
                             CLiteral::new(0, false),
                         ));
-                        return Ok(SolveReport::Unsatisfiable);
+                        return Ok(Report::Unsatisfiable);
                     }
                 };
 
@@ -206,7 +206,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             self.counters.time = timer.elapsed();
             let time_limit = self.config.time_limit;
             if time_limit.is_some_and(|limit| self.counters.time > limit) {
-                return Ok(SolveReport::TimeUp);
+                return Ok(Report::TimeUp);
             }
 
             if self.check_callback_terminate() {

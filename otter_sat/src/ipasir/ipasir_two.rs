@@ -14,11 +14,11 @@ Otherwise, if an IPASIR2 function wraps an IPASIR function, initial support is i
 use crate::{
     context::ContextState,
     db::clause::db_clause::dbClause,
-    dispatch::SolveReport,
     ipasir::{
         ipasir_one::{ipasir_failed, ipasir_init, ipasir_set_learn},
         ContextBundle, IPASIR_SIGNATURE,
     },
+    reports::Report,
     structures::{
         clause::{CClause, Clause, ClauseSource, IntClause},
         literal::{CLiteral, Literal},

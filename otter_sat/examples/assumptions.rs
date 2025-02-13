@@ -1,7 +1,7 @@
 use otter_sat::{
     config::Config,
     context::Context,
-    dispatch::SolveReport,
+    reports::Report,
     structures::{
         atom::Atom,
         literal::{CLiteral, Literal},
@@ -49,7 +49,7 @@ fn main() {
         assert!(the_context.solve().is_ok());
 
         match the_context.report() {
-            SolveReport::Satisfiable => {}
+            Report::Satisfiable => {}
             _ => break,
         };
 

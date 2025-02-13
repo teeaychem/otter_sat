@@ -7,8 +7,8 @@ For a general overview, see the [ipasir module](crate::ipasir).
 use crate::{
     context::ContextState,
     db::{clause::db_clause::dbClause, ClauseKey},
-    dispatch::SolveReport,
     ipasir::{ContextBundle, IPASIR_SIGNATURE},
+    reports::Report,
     structures::{
         atom::Atom,
         clause::{CClause, Clause, ClauseSource},
@@ -127,9 +127,9 @@ pub unsafe extern "C" fn ipasir_solve(solver: *mut c_void) -> c_int {
     let solve_result = bundle.context.solve();
 
     match solve_result {
-        Ok(SolveReport::Satisfiable) => 10,
-        Ok(SolveReport::Unsatisfiable) => 20,
-        Ok(SolveReport::TimeUp) | Ok(SolveReport::Unknown) => {
+        Ok(Report::Satisfiable) => 10,
+        Ok(Report::Unsatisfiable) => 20,
+        Ok(Report::TimeUp) | Ok(Report::Unknown) => {
             bundle.keep_fresh();
             0
         }

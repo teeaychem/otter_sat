@@ -24,7 +24,7 @@ A clause built using basic methods.
 ```rust
 # use otter_sat::context::Context;
 # use otter_sat::config::Config;
-# use otter_sat::dispatch::SolveReport;
+# use otter_sat::reports::Report;
 # use otter_sat::structures::{clause::CClause, literal::{CLiteral, Literal}};
 #
 let mut the_context = Context::from_config(Config::default());
@@ -37,7 +37,7 @@ let clause_b = CClause::from([CLiteral::new(p, false), CLiteral::new(q, true)]);
  assert!(the_context.add_clause(clause_a).is_ok());
  assert!(the_context.add_clause(clause_b).is_ok());
  the_context.solve();
- assert_eq!(the_context.report(), SolveReport::Satisfiable)
+ assert_eq!(the_context.report(), Report::Satisfiable)
 ```
 
 A simplified build, using canonical structures.
@@ -45,7 +45,7 @@ A simplified build, using canonical structures.
 ```rust
 # use otter_sat::context::Context;
 # use otter_sat::config::Config;
-# use otter_sat::dispatch::SolveReport;
+# use otter_sat::reports::Report;
 # use otter_sat::structures::{clause::CClause, literal::{CLiteral, Literal}};
 #
 let mut the_context = Context::from_config(Config::default());
@@ -58,7 +58,7 @@ let clause_b = vec![-p, q];
  assert!(the_context.add_clause(clause_a).is_ok());
  assert!(the_context.add_clause(clause_b).is_ok());
  the_context.solve();
- assert_eq!(the_context.report(), SolveReport::Satisfiable)
+ assert_eq!(the_context.report(), Report::Satisfiable)
 ```
 */
 mod dimacs;

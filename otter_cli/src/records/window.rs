@@ -1,9 +1,15 @@
 use crate::window::ContextWindow;
 
-use otter_sat::dispatch::{Dispatch, Report};
+use otter_sat::dispatch::{
+    Dispatch,
+    // Report
+};
 
 pub fn window_writer<'w>(window: &'w mut ContextWindow) -> Box<dyn FnMut(&Dispatch) + 'w> {
-    let handler = |dispatch: &Dispatch| match &dispatch {
+    let handler = |dispatch: &Dispatch| {
+        /*
+        match &dispatch {
+
         Dispatch::Report(the_report) => {
             //
             match the_report {
@@ -11,10 +17,10 @@ pub fn window_writer<'w>(window: &'w mut ContextWindow) -> Box<dyn FnMut(&Dispat
                     println!("s {}", report.to_string().to_uppercase())
                 }
 
-                Report::Finish => {}
+                // Report::Finish => {}
                 _ => {}
             }
-        } /*
+        }
                   Dispatch::Stat(the_stat) => {
                       //
                       use crate::window::WindowItem;

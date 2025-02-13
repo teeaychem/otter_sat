@@ -3,7 +3,7 @@ use crate::{
     db::{
         atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ, literal::LiteralDB, ClauseKey,
     },
-    dispatch::SolveReport,
+    reports::Report,
     resolution_buffer::ResolutionBuffer,
 };
 
@@ -60,14 +60,14 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
-    pub fn report(&self) -> SolveReport {
+    pub fn report(&self) -> Report {
         use crate::context::ContextState;
         match self.state {
             ContextState::Configuration | ContextState::Input | ContextState::Solving => {
-                SolveReport::Unknown
+                Report::Unknown
             }
-            ContextState::Satisfiable => SolveReport::Satisfiable,
-            ContextState::Unsatisfiable(_) => SolveReport::Unsatisfiable,
+            ContextState::Satisfiable => Report::Satisfiable,
+            ContextState::Unsatisfiable(_) => Report::Unsatisfiable,
         }
     }
 

@@ -47,7 +47,7 @@ If you're in search of cnf formulas consider:
 # use otter_sat::{
 #    config::Config,
 #    context::Context,
-#    dispatch::SolveReport,
+#    reports::Report,
 #    structures::{
 #        atom::Atom,
 #        literal::{CLiteral, Literal},
@@ -73,7 +73,7 @@ for _character in &characters {
 }
 let mut model_count = 0;
 
-while let Ok(SolveReport::Satisfiable) = context.solve() {
+while let Ok(Report::Satisfiable) = context.solve() {
     model_count += 1;
 
     let mut valuation_representation = String::new();
@@ -118,7 +118,7 @@ assert_eq!(model_count, 2_usize.pow(atom_count));
 # use otter_sat::context::Context;
 # use otter_sat::config::Config;
 # use std::io::Write;
-# use otter_sat::dispatch::SolveReport;
+# use otter_sat::reports::Report;
 # use otter_sat::types::err::{self};
 let mut the_context = Context::from_config(Config::default());
 
@@ -132,7 +132,7 @@ let _ = dimacs.write(b"
 
 the_context.read_dimacs(dimacs.as_slice());
 the_context.solve();
-assert_eq!(the_context.report(), SolveReport::Unsatisfiable);
+assert_eq!(the_context.report(), Report::Unsatisfiable);
 ```
 
 # Guiding principles
@@ -193,7 +193,7 @@ pub mod types;
 
 pub mod generic;
 
-pub mod dispatch;
+pub mod reports;
 
 pub mod db;
 
