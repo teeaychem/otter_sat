@@ -20,7 +20,7 @@ For example, a decision to value *p* with value *false* can be represented with 
 
 ```rust,ignore
 let atom = self.atom_db.valuation().unvalued_atoms().next()?;
-let value = self.rng.gen_bool(self.config.polarity_lean);
+let value = self.rng.random_bool(self.config.polarity_lean);
 let decision_as_literal = CLiteral::new(atom, value);
 ```
 
@@ -104,7 +104,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         CLiteral::new(chosen_atom, previous_value)
                     }
                     false => {
-                        let random_value = self.rng.gen_bool(self.config.polarity_lean.value);
+                        let random_value = self.rng.random_bool(self.config.polarity_lean.value);
                         CLiteral::new(chosen_atom, random_value)
                     }
                 };
@@ -125,7 +125,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// let atom = self.atom_without_value(MinimalPCG32::default())?;
     /// ```
     pub fn atom_without_value(&mut self, rng: &mut impl Rng) -> Option<Atom> {
-        match rng.gen_bool(self.config.random_decision_bias.value) {
+        match rng.random_bool(self.config.random_decision_bias.value) {
             true => self.atom_db.valuation().unvalued_atoms().choose(rng),
             false => {
                 while let Some(atom) = self.atom_db.heap_pop_most_active() {

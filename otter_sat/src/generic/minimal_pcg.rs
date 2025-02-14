@@ -14,7 +14,7 @@ Still, revising or paramaterising the context is all that's needed for a differe
 */
 
 use rand::SeedableRng;
-use rand_core::{impls, Error, RngCore};
+use rand_core::{impls, RngCore};
 
 /// State and increment
 #[derive(Default)]
@@ -42,11 +42,6 @@ impl RngCore for MinimalPCG32 {
 
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         impls::fill_bytes_via_next(self, dest)
-    }
-
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
-        self.fill_bytes(dest);
-        Ok(())
     }
 }
 
