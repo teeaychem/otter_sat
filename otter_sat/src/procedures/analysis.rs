@@ -56,10 +56,18 @@ use crate::{
 /// Possible 'Ok' results from conflict analysis.
 pub enum ConflictAnalysisOk {
     /// The conflict clause was asserting at some previous decision level.
-    MissedPropagation { key: ClauseKey, literal: CLiteral },
+    MissedPropagation {
+        /// The key to the clause.
+        key: ClauseKey,
+        /// The literal asserted by the clause.
+        literal: CLiteral,
+    },
 
     /// The result of analysis is a unit clause.
-    UnitClause { key: CLiteral },
+    UnitClause {
+        /// The literal of the clause.
+        literal: CLiteral,
+    },
 
     /// A fundamental conflict is identified, and so the current formula is unsatisfiable.
     ///
@@ -68,7 +76,13 @@ pub enum ConflictAnalysisOk {
     FundamentalConflict,
 
     /// The result of analysis is a (non-unit) asserting clause.
-    AssertingClause { key: ClauseKey, literal: CLiteral },
+    AssertingClause {
+        /// The key of the asserting clause.
+        key: ClauseKey,
+
+        /// The literal asserted by the clause.
+        literal: CLiteral,
+    },
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
@@ -147,7 +161,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     None,
                     premises,
                 )?;
-                Ok(ConflictAnalysisOk::UnitClause { key: literal })
+                Ok(ConflictAnalysisOk::UnitClause { literal })
             }
             _ => {
                 let index = self.non_chronological_backjump_level(&resolved_clause)?;

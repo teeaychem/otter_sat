@@ -230,7 +230,7 @@ pub unsafe extern "C" fn ipasir_set_terminate(
         let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
         let callback = Box::new(move || !matches!(callback(data), 0));
-        bundle.context.set_callback_terminate(callback);
+        bundle.context.set_callback_terminate_solve(callback);
     }
 }
 

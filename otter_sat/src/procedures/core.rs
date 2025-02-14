@@ -1,3 +1,6 @@
+/*!
+A procedure to obtain the unsatisfiable core of a(n unsatisfiable) clause.
+ */
 use std::collections::{HashSet, VecDeque};
 
 use crate::{
@@ -7,6 +10,7 @@ use crate::{
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
+    /// A collection of keys which identify an unsatisfiable core of a(n unsatisfiable) clause.
     pub fn core_keys(&self) -> Vec<ClauseKey> {
         let ContextState::Unsatisfiable(key) = self.state else {
             todo!("Error path");

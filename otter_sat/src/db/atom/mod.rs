@@ -67,6 +67,7 @@ pub enum AtomValue {
 }
 
 impl AtomDB {
+    /// A new [AtomDB] with local configuration options derived from `config`.
     pub fn new(config: &Config) -> Self {
         let mut db = AtomDB {
             watch_dbs: Vec::default(),

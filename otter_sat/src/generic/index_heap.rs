@@ -20,7 +20,7 @@ let mut test_heap = IndexHeap::default();
         test_heap.activate(600);
         test_heap.activate(0);
 
- assert_eq!(test_heap.len(), 601);
+ assert_eq!(test_heap.count(), 601);
  assert_eq!(test_heap.value_at(5), &i32::default());
 
  assert_eq!(test_heap.pop_max(), Some(0));
@@ -29,6 +29,7 @@ let mut test_heap = IndexHeap::default();
  assert!(test_heap.pop_max().is_none());
 */
 
+/// The index heap struct.
 pub struct IndexHeap<V: PartialOrd + Default> {
     values: Vec<V>,
     position_in_heap: Vec<Option<usize>>,
@@ -49,6 +50,7 @@ impl<V: Default + PartialOrd + Default> Default for IndexHeap<V> {
 }
 
 impl<V: PartialOrd + Default> IndexHeap<V> {
+    /// Add `value` to the heap at `index`.
     pub fn add(&mut self, index: usize, value: V) -> bool {
         if self.heap.is_empty() || index > self.heap.len() - 1 {
             let required = (index - self.heap.len()) + 1;
@@ -69,6 +71,7 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
         }
     }
 
+    /// Remove the value from the heap at `index`.
     pub fn remove(&mut self, index: usize) -> bool {
         unsafe {
             if let Some(heap_position) = self.position(index) {
@@ -89,6 +92,7 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
         }
     }
 
+    /// Activate the value on the heap at `index`.
     pub fn activate(&mut self, index: usize) -> bool {
         unsafe {
             match self.position(index) {
@@ -108,6 +112,7 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
         }
     }
 
+    /// Heapify (ensure invariants of the heap are upheld) if `index` is active.
     pub fn heapify_if_active(&mut self, index: usize) {
         unsafe {
             if let Some(heap_index) = self.position(index) {
@@ -117,6 +122,7 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
         }
     }
 
+    /// Peak at the maximum index of the heap.
     pub fn peek_max(&self) -> Option<usize> {
         match self.limit {
             0 => None,
@@ -124,6 +130,7 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
         }
     }
 
+    /// Peak at the maximum value of the heap.
     pub fn peek_max_value(&self) -> Option<&V> {
         match self.peek_max() {
             None => None,
@@ -131,6 +138,7 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
         }
     }
 
+    /// Pop at the maximum index off the heap.
     pub fn pop_max(&mut self) -> Option<usize> {
         match self.limit {
             0 => None,
@@ -142,34 +150,41 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
         }
     }
 
-    pub fn reheap(&mut self) {
+    /// Heapify (ensure invariants of the heap are upheld) the heap.
+    pub fn heapify(&mut self) {
         for index in (0..self.limit / 2).rev() {
             unsafe { self.heapify_down(index) }
         }
     }
 
+    /// Return the value at `index`.
     pub fn value_at(&self, index: usize) -> &V {
         unsafe { self.values.get_unchecked(index) }
     }
 
+    /// Apply `f` to the value at `index`.
     pub fn apply_to_index(&mut self, index: usize, f: impl Fn(&V) -> V) {
         unsafe { *self.values.get_unchecked_mut(index) = f(self.values.get_unchecked(index)) }
     }
 
+    /// Apply `f` to all indexed values.
     pub fn apply_to_all(&mut self, f: impl Fn(&V) -> V) {
         for value in &mut self.values {
             *value = f(value)
         }
     }
 
+    /// Set the value of `index` to `value.
     pub fn revalue(&mut self, index: usize, value: V) {
         unsafe { *self.values.get_unchecked_mut(index) = value }
     }
 
-    pub fn len(&self) -> usize {
+    /// A count of values indexed by the structure.
+    pub fn count(&self) -> usize {
         self.values.len()
     }
 
+    /// True if the heap is empty, false otherwise.
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
     }
@@ -306,7 +321,7 @@ mod tests {
         test_heap.values[4] = 4;
         test_heap.values[6] = 6;
 
-        test_heap.reheap();
+        test_heap.heapify();
 
         assert_eq!(test_heap.pop_max(), Some(6));
         assert_eq!(test_heap.pop_max(), Some(4));
@@ -314,7 +329,7 @@ mod tests {
         assert_eq!(test_heap.pop_max(), Some(0));
         assert!(test_heap.pop_max().is_none());
 
-        test_heap.reheap();
+        test_heap.heapify();
     }
 
     #[test]

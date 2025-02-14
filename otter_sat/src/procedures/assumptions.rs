@@ -27,6 +27,9 @@ use crate::{
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
+    /// Adds `assumption` to the context.
+    ///
+    /// Note, to ensure the assumption is asserted, [assert_assumptions](GenericContext::assert_assumptions) should be called.
     pub fn add_assumption(&mut self, assumption: CLiteral) -> Result<(), ErrorKind> {
         self.ensure_atom(assumption.atom());
         self.literal_db.store_assumption(assumption);

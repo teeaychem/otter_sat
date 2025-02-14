@@ -35,13 +35,28 @@ use std::ffi::{c_char, c_int, c_void};
 #[allow(non_camel_case_types)]
 #[repr(C)]
 pub enum ipasir2_errorcode {
+    /// The call succeeded.
     IPASIR2_E_OK = 0,
+
+    /// The call failed for an unknown reason.
     IPASIR2_E_UNKNOWN = 1,
+
+    /// The function is not implemented.
     IPASIR2_E_UNSUPPORTED,
+
+    /// The function does not suport the given argument value.
     IPASIR2_E_UNSUPPORTED_ARGUMENT,
+
+    /// The function does not suport the given option.
     IPASIR2_E_UNSUPPORTED_OPTION,
+
+    /// The function is not permitted given the current state of the solver.
     IPASIR2_E_INVALID_STATE,
+
+    /// The call failed due to an invalid argument.
     IPASIR2_E_INVALID_ARGUMENT,
+
+    /// The option value is outside the allowed range.
     IPASIR2_E_INVALID_OPTION_VALUE,
 }
 
@@ -49,10 +64,19 @@ pub enum ipasir2_errorcode {
 #[allow(non_camel_case_types)]
 #[repr(C)]
 pub enum ipasir2_state {
+    /// The context allows for configuration.
     IPASIR2_S_CONFIG = 0,
+
+    /// The context allows input.
     IPASIR2_S_INPUT = 1,
+
+    /// The database is known to be consistent, e.g. with a complete valuation.
     IPASIR2_S_SAT,
+
+    /// The database is known to be inconsistnet, e.g. with an unsatisfiable clause identified.
     IPASIR2_S_UNSAT,
+
+    /// The consistency of the database is unknown.
     IPASIR2_S_SOLVING,
 }
 

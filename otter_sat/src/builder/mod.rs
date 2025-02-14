@@ -67,6 +67,7 @@ pub use dimacs::ParserInfo;
 mod preprocess;
 mod structures;
 
+/// Ok results when adding a clause to the context.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ClauseOk {
     /// The clause was added to the context.

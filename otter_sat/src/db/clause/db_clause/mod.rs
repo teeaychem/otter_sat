@@ -138,18 +138,28 @@ impl dbClause {
         &self.clause
     }
 
+    /// The clauses used to derive this clause through resolution.
     pub fn premises(&self) -> &HashSet<ClauseKey> {
         &self.premises
     }
 
+    /// A count of proofs the clause appears in.
+    ///
+    /// In other words, a count of the clauses currently in the database whose derivation by resolution used this clause.
     pub fn proof_occurrence_count(&self) -> usize {
         self.inferences
     }
 
+    /// Increment the proof count.
+    ///
+    /// Should be called when the derivation of a clause via resolution uses this clause.
     pub fn increment_proof_count(&mut self) {
         self.inferences += 1
     }
 
+    /// Decrement the proof count.
+    ///
+    /// Should be called when a clause derived via resolution through this clause is removed from the context.
     pub fn decrement_proof_count(&mut self) {
         self.inferences -= 1
     }

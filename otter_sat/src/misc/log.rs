@@ -10,15 +10,33 @@ For more details, see [log].
 
 /// Targets to be used within a [log]! macro.
 pub mod targets {
+    /// Logs related to [BCP](crate::procedures::bcp)
     pub const PROPAGATION: &str = "propagation";
+
+    /// Logs related to [analysis](crate::procedures::analysis)
     pub const ANALYSIS: &str = "analysis";
+
+    /// Logs related to clause deletion
     pub const REDUCTION: &str = "reduction";
+
+    /// Logs related to the [clause database](crate::db::clause)
     pub const CLAUSE_DB: &str = "clause_db";
+
+    /// Logs related to a valuation
     pub const VALUATION: &str = "valuation";
+
+    /// Logs related to [backjumping](crate::procedures::backjump)
     pub const BACKJUMP: &str = "backjump";
+
+    /// Logs related to preprocessing
     pub const PREPROCESSING: &str = "preprocessing";
+
+    /// Logs related to [resolution](crate::resolution_buffer)
     pub const RESOLUTION: &str = "resolution";
+
+    /// Logs related to subsumption
     pub const SUBSUMPTION: &str = "subsumption";
-    pub const TRANSFER: &str = "transfer";
+
+    /// Logs related to the [consequence queue](crate::db::consequence_q)
     pub const QUEUE: &str = "queue";
 }

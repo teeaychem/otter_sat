@@ -103,10 +103,19 @@ pub enum ApplyConsequencesOk {
     FundamentalConflict,
 
     /// A unit clause was derived from some conflict.
-    UnitClause { key: CLiteral },
+    UnitClause {
+        /// The literal of the clause.
+        literal: CLiteral,
+    },
 
     /// A non-unit asserting clause was derived from some conflict.
-    AssertingClause { key: ClauseKey, literal: CLiteral },
+    AssertingClause {
+        /// The key to the clause.
+        key: ClauseKey,
+
+        /// The literal asserted by the clause.
+        literal: CLiteral,
+    },
 
     /// There were no (further) consequences to apply.
     Exhausted,
@@ -169,8 +178,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             continue 'application;
                         }
 
-                        analysis::ConflictAnalysisOk::UnitClause { key } => {
-                            return Ok(ApplyConsequencesOk::UnitClause { key });
+                        analysis::ConflictAnalysisOk::UnitClause { literal: key } => {
+                            return Ok(ApplyConsequencesOk::UnitClause { literal: key });
                         }
 
                         analysis::ConflictAnalysisOk::AssertingClause { key, literal } => {

@@ -61,6 +61,7 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
+    /// A report on the state of the context.
     pub fn report(&self) -> Report {
         use crate::context::ContextState;
         match self.state {
@@ -72,6 +73,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
     }
 
+    /// The clause with which unsatisfiability of the context was determined by.
     pub fn unsatisfiable_clause(&self) -> Result<ClauseKey, ErrorKind> {
         match self.state {
             ContextState::Unsatisfiable(key) => Ok(key),

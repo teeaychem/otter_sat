@@ -5,9 +5,10 @@ use std::collections::HashSet;
 use cell::Cell;
 use config::BufferConfig;
 
-use crate::{db::ClauseKey, structures::literal::CLiteral};
+use crate::{context::callbacks::CallbackOnPremises, db::ClauseKey, structures::literal::CLiteral};
 #[doc(hidden)]
 mod cell;
+
 pub mod config;
 #[doc(hidden)]
 pub mod methods;
@@ -45,16 +46,16 @@ pub struct ResolutionBuffer {
     config: BufferConfig,
 
     /// The callback used on completion
-    callback_premises: Option<Box<CallbackOnResolution>>,
+    callback_premises: Option<Box<CallbackOnPremises>>,
 }
 
-pub type CallbackOnResolution = dyn FnMut(&HashSet<ClauseKey>);
-
 impl ResolutionBuffer {
-    pub fn set_callback_resolution_premises(&mut self, callback: Box<CallbackOnResolution>) {
+    /// Set the callback made when an instance of resolution completes and returns premises used to `callback`.
+    pub fn set_callback_resolution_premises(&mut self, callback: Box<CallbackOnPremises>) {
         self.callback_premises = Some(callback);
     }
 
+    /// Make the callback requested when an instance of resolution completes and returns premises used, if defined.
     pub fn make_callback_resolution_premises(&mut self, premises: &HashSet<ClauseKey>) {
         if let Some(callback) = &mut self.callback_premises {
             callback(premises);
