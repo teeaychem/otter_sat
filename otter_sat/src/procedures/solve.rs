@@ -257,7 +257,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 // TODO: Dispatch stats?
 
-                if self.config.restart.value {
+                if self.config.restarts.value {
                     self.backjump(self.literal_db.lowest_decision_level());
                     self.clause_db.refresh_heap();
                     self.counters.fresh_conflicts = 0;

@@ -79,7 +79,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ) -> Result<ConflictAnalysisOk, err::ErrorKind> {
         log::trace!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.current_level());
 
-        if let config::vsids::VSIDS::Chaff = self.config.vsids_variant.value {
+        if let config::vsids::VSIDS::Chaff = self.config.vsids.value {
             self.atom_db
                 .bump_relative(unsafe { self.clause_db.get_unchecked(key)?.atoms() });
         }
@@ -109,7 +109,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
         }
 
-        if let config::vsids::VSIDS::MiniSAT = self.config.vsids_variant.value {
+        if let config::vsids::VSIDS::MiniSAT = self.config.vsids.value {
             self.atom_db
                 .bump_relative(self.resolution_buffer.atoms_used());
         }

@@ -65,7 +65,7 @@ pub struct Config {
     pub preprocessing: ConfigOption<bool>,
 
     /// Permit (scheduled) restarts.
-    pub restart: ConfigOption<bool>,
+    pub restarts: ConfigOption<bool>,
 
     /// Permit subsumption of formulas.
     pub subsumption: ConfigOption<bool>,
@@ -74,7 +74,7 @@ pub struct Config {
     pub time_limit: ConfigOption<std::time::Duration>,
 
     /// Which VSIDS variant to use during resolution based analysis
-    pub vsids_variant: ConfigOption<VSIDS>,
+    pub vsids: ConfigOption<VSIDS>,
 
     /// Reuce the clause database every `luby` times a luby interrupt happens.
     pub luby_mod: ConfigOption<u32>,
@@ -101,16 +101,16 @@ impl Default for Config {
 
             polarity_lean: ConfigOption {
                 name: "polarity_lean",
-                min: PolarityLean::MIN,
-                max: PolarityLean::MAX,
+                min: 0.0,
+                max: 1.0,
                 max_state: ContextState::Configuration,
                 value: 0.0,
             },
 
             random_decision_bias: ConfigOption {
                 name: "random_decision_bias",
-                min: PolarityLean::MIN,
-                max: PolarityLean::MAX,
+                min: 0.0,
+                max: 1.0,
                 max_state: ContextState::Configuration,
                 value: 0.0,
             },
@@ -139,7 +139,7 @@ impl Default for Config {
                 value: false,
             },
 
-            restart: ConfigOption {
+            restarts: ConfigOption {
                 name: "restart",
                 min: false,
                 max: true,
@@ -163,7 +163,7 @@ impl Default for Config {
                 value: std::time::Duration::from_secs(0),
             },
 
-            vsids_variant: ConfigOption {
+            vsids: ConfigOption {
                 name: "vsids",
                 min: VSIDS::MIN,
                 max: VSIDS::MAX,
