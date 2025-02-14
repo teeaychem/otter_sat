@@ -21,6 +21,11 @@ pub fn parse_args(ctx: &mut Context, args: &mut [String], cli_options: &mut CliO
                 cli_options.core = true;
             }
 
+            Some("--model") | Some("--valuation") => {
+                println!("c A model will be written, if one exists.");
+                cli_options.model = true;
+            }
+
             Some("--atom_bump") => {
                 let (min, max) = ctx.config.atom_db.bump.min_max();
 
