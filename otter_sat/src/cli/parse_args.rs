@@ -5,7 +5,7 @@ use otter_sat::{
 
 use crate::CliConfig;
 
-/// Parse CLI arguments to a [Config] struct or a [CliOptions] struct.
+/// Parse CLI arguments to a [Config] struct or a [CliConfig] struct.
 ///
 /// If an unrecognised argument or invalid option is found an message is sent and the process is terminated.
 pub fn parse_args(args: &mut [String], cfg: &mut Config, cli_options: &mut CliConfig) {
