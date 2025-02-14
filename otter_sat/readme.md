@@ -3,6 +3,7 @@
 Otter… other… odder… otter_sat is a library for determining the satisfiability of boolean formulas written in conjunctive normal form.
 
 otter_sat uses a variety of techniques from the literature on conflict-driven clause-learning solving, and with support for incremental solves.
+In particular, otter_sat supports the IPASIR API (see below).
 
 otter_sat is developed to help researchers, developers, or anyone curious, to investigate satisfiability solvers, whether as a novice or through implementing novel ideas.
 
@@ -25,20 +26,21 @@ Some guiding principles of the library are:
 - [otter_tests](https://github.com/teeaychem/otter_sat/tree/main/otter_tests) is a crate to test the library against known problems, and to verify produced FRAT proofs and as such contains a variety of illustrative functions to help achieve these tasks.
 - [otter_cli](https://github.com/teeaychem/otter_sat/tree/main/otter_cli) is a cli frontend to the library, which supports DIMACS encoded CNFs.
 
-## IPASIR
+# CLI Binary
 
-C bindings are included.
+otter_sat includes a (simple) CLI.
+Files are contained in the `cli` directory, and the binary is built as `otter_cli`.
 
-- Compile the crate as a dynamic library
+The source of the binary functions as examples of how to identify unsatisfiable cores, write FRAT proofs, and set callbacks.
+
+# IPASIR
+
+C bindings for the IPASIR API are included.
+To use these bindings otter_sat should be compiled in a suitable way, e.g. as a cdylib.
+For example, via:
 
 ```sh
 cargo rustc --crate-type=cdylib
-```
-
-Generate a header file using [cbindgen](https://github.com/mozilla/cbindgen)
-
-```sh
-cbindgen --config cbindgen.toml --crate otter_sat --output otter_ipasir.h
 ```
 
 # Caveats
