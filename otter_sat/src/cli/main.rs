@@ -15,6 +15,7 @@ mod parse_args;
 struct CliOptions {
     core: bool,
     frat: bool,
+    model: bool,
 }
 
 fn main() {
@@ -34,7 +35,7 @@ fn main() {
         }
     };
 
-    println!("Reading DIMACS file from {path:?}");
+    println!("c Reading DIMACS file from {path:?}");
 
     let file = match std::fs::File::open(&path) {
         Ok(path) => path,
@@ -74,7 +75,11 @@ fn main() {
         frat_finalise(tx, &mut ctx);
     }
 
-    println!("{}", ctx.report());
+    println!("s {}", ctx.report());
+
+    if result == Report::Satisfiable && cli_options.model {
+        println!("v {}", ctx.atom_db.valuation_string())
+    }
 
     if result == Report::Unsatisfiable && cli_options.core {
         let core = ctx.core_keys();
