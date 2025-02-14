@@ -216,7 +216,7 @@ fn read_dimacs(path: &str, context: &mut Context) -> PathBuf {
     let parse_report = match &path.extension() {
         #[cfg(feature = "xz")]
         Some(extension) if *extension == "xz" => {
-            context.read_dimacs(BufReader::new(xz2::read::XzDecoder::new(&file)))
+            context.read_dimacs(std::io::BufReader::new(xz2::read::XzDecoder::new(&file)))
         }
 
         Some(extension) if *extension == "cnf" => {
