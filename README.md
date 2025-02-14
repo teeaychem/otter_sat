@@ -2,11 +2,13 @@
 
 Otter… other… odder… a library for determining the satisfiability of boolean formulas written in conjunctive normal form, using a variety of techniques from the literature on conflict-driven clause-learning solving, and with support for incremental solves.
 
-At present, this repository contains three interrelated crates:
+At present, this repository contains three key interrelated sub-directories:
 
 - `otter_sat` the library, available as a crate from [crates.io](https://crates.io/crates/otter_sat) and with docs at [docs.rs/otter_sat](https://docs.rs/otter_sat).
-- `otter_cli` a command line interface to `otter_sat`, to be built locally.
-- `otter_tests` a collection of tests to ensure the soundness of `otter_sat`.
+  The library includes a (simple) cli interface.
+- `otter_tests` a collection of tests to ensure the soundness of `otter_sat`, built as a crate.
+- `otter_tests_plus` a collection of additional tests to ensure the soundness of `otter_sat`, which do not reasonably fit in a crate.
+  For example, tests to ensure the library conforms to the IPASIR API.
 
 # Features
 
@@ -25,19 +27,30 @@ At present, features include:
 - On-the-fly self-subsumption.
 - And more… (!)
 
+# The CLI
+
+The CLI is built as `otter_cli` in the target directory when compiling the library.
+
+Alterantively, `cargo run` may be used.
+For example:
+
+``` shell
+cargo run --profile release --features xz -- --model --atom_bump=1.3 --clause_decay=0.3 CNF_FILE.cnf.xz
+```
+
 # Examples
 
 Some small examples of using the crate as a library are included in `examples/`.
 Examples can be ran by passing the `example` flag and the name of the example to `cargo run`.
 The general pattern is:
 
-```
+``` shell
 cargo run [--profile <PROFILE>] --example <EXAMPLE NAME>
 ```
 
 Specific examples are:
 
-```
+``` shell
 cargo run --example sudoku
 cargo run --example nonograms --profile release
 cargo run --example all_models

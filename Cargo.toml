@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
    "otter_sat",
-   # "otter_cli",
    "otter_tests",
 ]
 
