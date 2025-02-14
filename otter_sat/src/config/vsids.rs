@@ -4,6 +4,8 @@ Ways to apply VSIDS (variable state independent decay sum) during during resolut
 See [Understanding VSIDS branching heuristics in conflict-driven clause-learning sat solvers](https://arxiv.org/abs/1506.08905) for an overview of VSIDS .
 */
 
+use std::str::FromStr;
+
 /// Supported VSIDS variants.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[allow(clippy::upper_case_acronyms)]
@@ -29,4 +31,16 @@ impl std::fmt::Display for VSIDS {
 impl VSIDS {
     pub const MIN: VSIDS = VSIDS::Chaff;
     pub const MAX: VSIDS = VSIDS::MiniSAT;
+}
+
+impl FromStr for VSIDS {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Chaff" => Ok(Self::Chaff),
+            "MiniSAT" => Ok(Self::MiniSAT),
+            _ => Err(()),
+        }
+    }
 }

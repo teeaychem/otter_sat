@@ -1,5 +1,7 @@
+use std::str::FromStr;
+
 /// Variant stopping criterias to use during resolution-based analysis.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StoppingCriteria {
     /// Stop at the first unique implication point.
     ///
@@ -22,4 +24,16 @@ impl std::fmt::Display for StoppingCriteria {
 impl StoppingCriteria {
     pub const MIN: StoppingCriteria = StoppingCriteria::FirstUIP;
     pub const MAX: StoppingCriteria = StoppingCriteria::None;
+}
+
+impl FromStr for StoppingCriteria {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "FirstUIP" => Ok(Self::FirstUIP),
+            "None" => Ok(Self::None),
+            _ => Err(()),
+        }
+    }
 }
