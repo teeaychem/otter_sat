@@ -17,7 +17,8 @@ name = "otter_sat"
 path = "src/lib.rs"
 
 [features]
-boolean = []
+boolean = [] # Use 'boolean' literals --- (Atom, Polarity) pairs, as opposed to integers.
+xz = ["dep:xz2"] # Enable loading xz compressed cnf file through the cli.
 
 [dependencies]
 log = { version = "0.4.22", features = ["max_level_trace", "release_max_level_off"] }
@@ -25,9 +26,8 @@ log = { version = "0.4.22", features = ["max_level_trace", "release_max_level_of
 rand = { version = "0.8.5", default-features = false }
 rand_core = "0.6.4"
 
-[dev-dependencies]
-xz2 = "0.1.7" # Use to load cnf files
+xz2 = { version = "0.1.7", default-features = false, optional = true }
 
-[[example]]
+[[bin]]
 name = "otter_cli"
 path = "src/cli/main.rs"
