@@ -11,11 +11,19 @@ use crate::{
 use core::panic;
 use std::io::BufRead;
 
+/// Information about a parse.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ParserInfo {
+    /// A count of expected atoms from the problem specification, if given.
     pub expected_atoms: Option<usize>,
+
+    /// A count of expected clauses from the problem specification, if given.
     pub expected_clauses: Option<usize>,
+
+    /// A count of atoms added.
     pub added_atoms: usize,
+
+    /// A count of clauses added.
     pub added_clauses: usize,
 }
 

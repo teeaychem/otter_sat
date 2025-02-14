@@ -1,3 +1,6 @@
+/*!
+Configuration of the resolution buffer.
+*/
 use crate::config::{Config, StoppingCriteria};
 
 /// Configuration for a resolution buffer.

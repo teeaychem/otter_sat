@@ -1,3 +1,12 @@
+/*!
+Consequences of the context in some state.
+
+Each consequence is recorded as a [CLiteral] and [Source] pair, with the literal representing an atom-value bind which must hold and the source noting the direct ancestor of the consequence.
+
+If any assumptions or decisions have been made, the consequence is established only relative to those assumptions or decisions.
+However, it does not follow the consequence *requires* those assumptions or decisions.
+
+*/
 use std::borrow::Borrow;
 
 use crate::{
@@ -20,6 +29,7 @@ pub enum Source {
 }
 
 #[derive(Clone)]
+/// A consequence of the context in some state.
 pub struct Consequence {
     /// The atom-value bind which must hold, represented as a literal.
     pub literal: CLiteral,

@@ -44,6 +44,7 @@ pub struct Config {
     /// Configuration of the clause database.
     pub clause_db: ClauseDBConfig,
 
+    /// Configuration of the literal database.
     pub literal_db: LiteralDBConfig,
 
     /// The `u` value to multiply the luby sequence by when determining whether to perform a restart.

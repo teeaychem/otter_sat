@@ -22,7 +22,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// For a practical alternative, see [fresh_or_max_atom](GenericContext::fresh_or_max_atom).
     pub fn fresh_atom(&mut self) -> Result<Atom, err::AtomDBError> {
         let previous_value = self.rng.gen_bool(self.config.polarity_lean.value);
-        self.re_fresh_atom(previous_value)
+        self.fresh_atom_specifying_previous_value(previous_value)
     }
 
     /// Returns a fresh atom, or the maximum atom.
@@ -35,16 +35,21 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// However, in future this method may panic if it is not possible to obtain an atom for any reason other than exhaustion of the atom limit.
     pub fn fresh_or_max_atom(&mut self) -> Atom {
         let previous_value = self.rng.gen_bool(self.config.polarity_lean.value);
-        match self.re_fresh_atom(previous_value) {
+        match self.fresh_atom_specifying_previous_value(previous_value) {
             Ok(atom) => atom,
             Err(err::AtomDBError::AtomsExhausted) => ATOM_MAX,
         }
     }
 
-    pub fn re_fresh_atom(&mut self, previous_value: bool) -> Result<Atom, err::AtomDBError> {
+    /// A fresh atom with a specified previous value.
+    pub fn fresh_atom_specifying_previous_value(
+        &mut self,
+        previous_value: bool,
+    ) -> Result<Atom, err::AtomDBError> {
         self.atom_db.fresh_atom(previous_value)
     }
 
+    /// Ensure `atom` is present in the context.
     pub fn ensure_atom(&mut self, atom: Atom) -> Result<(), err::AtomDBError> {
         if self.atom_db.count() <= (atom as usize) {
             for _ in 0..((atom as usize) - self.atom_db.count()) + 1 {

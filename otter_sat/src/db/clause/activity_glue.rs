@@ -1,3 +1,7 @@
+/*!
+A combination of [clause activity](crate::config::Activity) and [lbd](LBD), used to sort clauses on an activity heap.
+*/
+
 use crate::config::{Activity, LBD};
 
 /// A combination of [clause activity](crate::config::Activity) and [lbd](LBD), used to sort clauses on an activity heap.

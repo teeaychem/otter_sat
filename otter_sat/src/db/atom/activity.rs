@@ -57,6 +57,6 @@ impl AtomDB {
         let rescale = |v: &Activity| v * factor;
         self.activity_heap.apply_to_all(rescale);
         self.config.bump.value *= factor;
-        self.activity_heap.reheap();
+        self.activity_heap.heapify();
     }
 }

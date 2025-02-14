@@ -22,7 +22,10 @@ impl std::fmt::Display for StoppingCriteria {
 }
 
 impl StoppingCriteria {
+    /// The minimum StoppingCriteria type.
     pub const MIN: StoppingCriteria = StoppingCriteria::FirstUIP;
+
+    /// The maximum StoppingCriteria type.
     pub const MAX: StoppingCriteria = StoppingCriteria::None;
 }
 

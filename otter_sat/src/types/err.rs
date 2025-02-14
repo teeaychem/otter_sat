@@ -12,28 +12,53 @@ Names of the error enums --- for the most part --- overlap with corresponding st
 
 use crate::{db::ClauseKey, structures::literal::CLiteral};
 
+/// A union of varied error kinds.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ErrorKind {
+    /// An error during conflict analysis.
     Analysis(AnalysisError),
-    Build(BuildError),
-    ClauseDB(ClauseDBError),
-    AtomDB(AtomDBError),
-    Parse(ParseError),
-    Preprocessing(PreprocessingError),
-    ConsequenceQueue(ConsequenceQueueError),
-    BCP(BCPError),
-    ResolutionBuffer(ResolutionBufferError),
-    State(StateError),
-    Transfer(TransferError),
 
-    AtomsExhausted,
+    /// An error when building a context.
+    Build(BuildError),
+
+    /// An error in the clause database.
+    ClauseDB(ClauseDBError),
+
+    /// An error in the atom database.
+    AtomDB(AtomDBError),
+
+    /// An related to parsing.
+    Parse(ParseError),
+
+    /// An related to preprocessing.
+    Preprocessing(PreprocessingError),
+
+    /// An related to the consequence queue.
+    ConsequenceQueue(ConsequenceQueueError),
+
+    /// An related to BCP.
+    BCP(BCPError),
+
+    /// An related to the resolution buffer.
+    ResolutionBuffer(ResolutionBufferError),
+
+    /// An related to the state of the context.
+    State(StateError),
+
+    /// An related to backjumping.
     Backjump,
+
+    /// The attempted action could not be completed given the state of the context.
     InvalidState,
+
+    /// The attempted action could not be completed given the valuation of the context.
     ValuationConflict,
+
+    /// The attempted action could not be completed given the valuation of the context, specifically due to the noted literal.
     SpecificValuationConflict(CLiteral),
 }
 
-/// Noted errors during conflict analysis.
+/// An error during conflict analysis.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AnalysisError {
     /// Somehow resolution resolved to an empty clause.
@@ -52,6 +77,7 @@ impl From<AnalysisError> for ErrorKind {
     }
 }
 
+/// An error from the clause database.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AtomDBError {
     /// There are no more fresh atoms.
@@ -140,8 +166,10 @@ impl From<ClauseDBError> for ErrorKind {
     }
 }
 
+/// Consequence queue errors.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ConsequenceQueueError {
+    /// Queuing a literal was not possible, as the literal would conflict with the current valuation.
     Conflict,
 }
 
@@ -149,15 +177,6 @@ impl From<ConsequenceQueueError> for ErrorKind {
     fn from(e: ConsequenceQueueError) -> Self {
         ErrorKind::ConsequenceQueue(e)
     }
-}
-
-#[derive(Debug)]
-pub enum CoreError {
-    QueueMiss,
-    EmptyBCPBuffer,
-    CorruptClauseBuffer,
-    MissedKey,
-    NoConflict,
 }
 
 /// Errors with the writer for FRAT proofs.
@@ -205,9 +224,10 @@ impl From<ParseError> for ErrorKind {
     }
 }
 
+/// An errror during preprocessing.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PreprocessingError {
-    Pure,
+    /// The formula was identified as unsatisfiable.
     Unsatisfiable,
 }
 
@@ -229,8 +249,11 @@ pub enum ResolutionBufferError {
     /// Somehow the resolved clause is satisfied on the valuation used for assertion checking.
     /// This is quite serious, unless the wrong valuation has been used…
     SatisfiedClause,
-    Transfer,
+
+    /// A key failed to unlock a clause.
     MissingClause,
+
+    /// The trail was exhausted without finding a unique implication point.
     Exhausted,
 }
 
@@ -240,18 +263,26 @@ impl From<ResolutionBufferError> for ErrorKind {
     }
 }
 
+/// Errors due to the state of the solver.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StateError {
+    /// A solve is in progress.
     SolveInProgress,
 }
 
+/// Errors during [subsumption](crate::db::clause::db_clause::dbClause::subsume).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SubsumptionError {
+    /// The clause was too short for subsumption to.
     ShortClause,
+
+    /// The pivot for subsumption was not found.
     NoPivot,
+
+    /// Watches for the subsumed atom were not found.
     WatchError,
-    TransferFailure,
-    ClauseTooShort,
+
+    /// Unable to retreive a clause from the clause database.
     ClauseDB,
 }
 
@@ -260,6 +291,3 @@ impl From<SubsumptionError> for ResolutionBufferError {
         ResolutionBufferError::Subsumption(e)
     }
 }
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TransferError {}

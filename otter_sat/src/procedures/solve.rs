@@ -151,6 +151,7 @@ use crate::{
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
+    /// Determines the satisfiability of the context, unless interrupted.
     pub fn solve(&mut self) -> Result<Report, err::ErrorKind> {
         use crate::db::consequence_q::QPosition::{self};
 
@@ -209,7 +210,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 return Ok(self.report());
             }
 
-            if self.check_callback_terminate() {
+            if self.check_callback_terminate_solve() {
                 break 'solve_loop;
             }
 
@@ -231,7 +232,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
 
                 // Conflict variants. These continue to the remaining contents of a loop.
-                apply_consequences::ApplyConsequencesOk::UnitClause { key } => {
+                apply_consequences::ApplyConsequencesOk::UnitClause { literal: key } => {
                     self.value_and_queue(
                         key,
                         QPosition::Front,

@@ -85,6 +85,7 @@ pub struct ClauseDB {
 }
 
 impl ClauseDB {
+    /// A new [ClauseDB] with local configuration options derived from `config`.
     pub fn new(config: &Config) -> Self {
         ClauseDB {
             addition_count: 0,
@@ -142,7 +143,7 @@ impl ClauseDB {
                 }
             }
         }
-        self.activity_heap.reheap();
+        self.activity_heap.heapify();
     }
 
     /*
@@ -419,7 +420,7 @@ impl ClauseDB {
             Err(_) => return Err(err::SubsumptionError::ClauseDB),
         };
         match the_clause.len() {
-            0..=2 => Err(err::SubsumptionError::ClauseTooShort),
+            0..=2 => Err(err::SubsumptionError::ShortClause),
             _ => {
                 the_clause.subsume(literal, atom_db, true, premises, increment_proof_count)?;
                 Ok(key)

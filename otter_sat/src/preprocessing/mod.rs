@@ -19,7 +19,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Ok(()) => {}
                 Err(_) => {
                     log::error!(target: targets::PREPROCESSING, "Failed to set pure literals");
-                    return Err(err::PreprocessingError::Pure);
+                    return Err(err::PreprocessingError::Unsatisfiable);
                 }
             };
         }

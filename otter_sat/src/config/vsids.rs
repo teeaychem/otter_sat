@@ -29,7 +29,10 @@ impl std::fmt::Display for VSIDS {
 }
 
 impl VSIDS {
+    /// The minimum VSIDS type.
     pub const MIN: VSIDS = VSIDS::Chaff;
+
+    /// The maximum VSIDS type.
     pub const MAX: VSIDS = VSIDS::MiniSAT;
 }
 

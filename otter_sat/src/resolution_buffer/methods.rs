@@ -229,12 +229,14 @@ impl ResolutionBuffer {
             }
         }
 
-        let premises_switch = std::mem::take(&mut self.premises);
-        self.make_callback_resolution_premises(&premises_switch);
-        self.premises = premises_switch;
-
         match self.valueless_count {
-            1 => Ok(ResolutionOk::UIP),
+            1 => {
+                let premises_switch = std::mem::take(&mut self.premises);
+                self.make_callback_resolution_premises(&premises_switch);
+                self.premises = premises_switch;
+
+                Ok(ResolutionOk::UIP)
+            }
             _ => {
                 println!("Exhausted");
                 Err(ResolutionBufferError::Exhausted)

@@ -26,13 +26,17 @@ use crate::{
 
 #[doc(hidden)]
 mod ad_level;
+
+#[doc(hidden)]
 pub mod config;
+pub use config::LiteralDBConfig;
+
 pub use ad_level::*;
-use config::LiteralDBConfig;
 
 #[allow(dead_code)]
 /// A struct abstracting over assumption/decision levels.
 pub struct LiteralDB {
+    /// Configuration of the literal database.
     pub config: LiteralDBConfig,
 
     /// The first level of a decision in a solve.
@@ -101,7 +105,7 @@ impl LiteralDB {
 }
 
 impl LiteralDB {
-    /// A new literal database.
+    /// A new [LiteralDB] with local configuration options derived from `config`.
     pub fn new(config: &Config) -> Self {
         LiteralDB {
             config: config.literal_db.clone(),

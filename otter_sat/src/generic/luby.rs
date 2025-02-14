@@ -44,6 +44,7 @@ impl Iterator for Luby {
 }
 
 impl Luby {
+    /// The current element of the luby sequence.
     pub fn current(&self) -> LubyRepresentation {
         self.curr
     }
