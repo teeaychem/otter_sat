@@ -28,9 +28,6 @@ rand_core = "0.9.0"
 
 xz2 = { version = "0.1.7", default-features = false, optional = true }
 
-[dev-dependencies]
-xz2 = "0.1.7" # Use to load cnf files
-
 [[bin]]
 name = "otter_cli"
 path = "src/cli/main.rs"
