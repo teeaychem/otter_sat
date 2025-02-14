@@ -1,5 +1,5 @@
 use otter_sat::{
-    config::{vsids::VSIDS, PolarityLean, StoppingCriteria},
+    config::{vsids::VSIDS, Activity, PolarityLean, StoppingCriteria},
     context::Context,
     generic::luby::LubyRepresentation,
 };
@@ -21,7 +21,92 @@ pub fn parse_args(ctx: &mut Context, args: &mut [String], cli_options: &mut CliO
                 cli_options.core = true;
             }
 
-            Some("--luby") => {
+            Some("--atom_bump") => {
+                let (min, max) = ctx.config.atom_db.bump.min_max();
+
+                if let Some(request) = split.next() {
+                    if let Ok(value) = request.parse::<Activity>() {
+                        if min <= value && value <= max {
+                            println!("c atom_bump set to: {value}");
+                            ctx.config.atom_db.bump.value = value;
+                            continue 'arg_examination;
+                        }
+                    }
+                }
+
+                println!("atom_bump requires a value between {min} and {max}",);
+                std::process::exit(1);
+            }
+
+            Some("--atom_decay") => {
+                let (min, max) = ctx.config.atom_db.decay.min_max();
+
+                if let Some(request) = split.next() {
+                    if let Ok(value) = request.parse::<Activity>() {
+                        if min <= value && value <= max {
+                            println!("c atom_decay set to: {value}");
+                            ctx.config.atom_db.decay.value = value;
+                            continue 'arg_examination;
+                        }
+                    }
+                }
+
+                println!("atom_decay requires a value between {min} and {max}",);
+                std::process::exit(1);
+            }
+
+            Some("--clause_bump") => {
+                let (min, max) = ctx.config.clause_db.bump.min_max();
+
+                if let Some(request) = split.next() {
+                    if let Ok(value) = request.parse::<Activity>() {
+                        if min <= value && value <= max {
+                            println!("c clause_bump set to: {value}");
+                            ctx.config.clause_db.bump.value = value;
+                            continue 'arg_examination;
+                        }
+                    }
+                }
+
+                println!("clause_bump requires a value between {min} and {max}",);
+                std::process::exit(1);
+            }
+
+            Some("--clause_decay") => {
+                let (min, max) = ctx.config.clause_db.decay.min_max();
+
+                if let Some(request) = split.next() {
+                    if let Ok(value) = request.parse::<Activity>() {
+                        if min <= value && value <= max {
+                            println!("c clause_decay set to: {value}");
+                            ctx.config.clause_db.decay.value = value;
+                            continue 'arg_examination;
+                        }
+                    }
+                }
+
+                println!("clause_decay requires a value between {min} and {max}",);
+                std::process::exit(1);
+            }
+
+            Some("--lbd_bound") => {
+                let (min, max) = ctx.config.clause_db.lbd_bound.min_max();
+
+                if let Some(request) = split.next() {
+                    if let Ok(value) = request.parse::<u8>() {
+                        if min <= value && value <= max {
+                            println!("c lbd_bound set to: {value}");
+                            ctx.config.clause_db.lbd_bound.value = value;
+                            continue 'arg_examination;
+                        }
+                    }
+                }
+
+                println!("lbd_bound requires a value between {min} and {max}",);
+                std::process::exit(1);
+            }
+
+            Some("--luby_u") => {
                 let (min, max) = ctx.config.luby_u.min_max();
 
                 if let Some(request) = split.next() {
@@ -216,7 +301,7 @@ pub fn parse_args(ctx: &mut Context, args: &mut [String], cli_options: &mut CliO
                 if let Some(request) = split.next() {
                     if let Ok(value) = request.parse::<u32>() {
                         if min <= value && value <= max {
-                            println!("c luby__mod set to: {value}");
+                            println!("c conflict_mod set to: {value}");
                             ctx.config.conflict_mod.value = value;
                             continue 'arg_examination;
                         }
