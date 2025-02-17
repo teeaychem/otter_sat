@@ -171,8 +171,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 self.literal_db.current_level(),
                             )?;
 
-                            let consequence =
-                                Consequence::from(asserted_literal, consequence::Source::BCP(key));
+                            let consequence = Consequence::from(
+                                asserted_literal,
+                                consequence::ConsequenceSource::BCP(key),
+                            );
                             self.record_consequence(consequence);
 
                             continue 'application;

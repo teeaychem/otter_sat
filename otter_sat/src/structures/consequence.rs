@@ -20,7 +20,7 @@ use crate::{
 /// The source of a bind.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[allow(clippy::upper_case_acronyms)]
-pub enum Source {
+pub enum ConsequenceSource {
     /// A decision was made where the alternative the alternative would make no difference to satisfiability.
     PureLiteral,
 
@@ -35,12 +35,12 @@ pub struct Consequence {
     pub literal: CLiteral,
 
     /// The immediate reason why the atom-value pair must be.
-    pub source: Source,
+    pub source: ConsequenceSource,
 }
 
 impl Consequence {
     /// Creates a consequence from a bind represented as a literal and a source.
-    pub fn from(literal: impl Borrow<CLiteral>, source: Source) -> Self {
+    pub fn from(literal: impl Borrow<CLiteral>, source: ConsequenceSource) -> Self {
         Consequence {
             literal: literal.borrow().canonical(),
             source,
@@ -48,7 +48,7 @@ impl Consequence {
     }
 
     /// Creates a consequence of the given atom bound to the given value due to the given source.
-    pub fn from_bind(atom: Atom, value: bool, source: Source) -> Self {
+    pub fn from_bind(atom: Atom, value: bool, source: ConsequenceSource) -> Self {
         Consequence {
             literal: CLiteral::new(atom, value),
             source,
@@ -71,7 +71,7 @@ impl Consequence {
     }
 
     /// The (immediate) reason why the atom-value bind must hold.
-    pub fn source(&self) -> &Source {
+    pub fn source(&self) -> &ConsequenceSource {
         &self.source
     }
 }

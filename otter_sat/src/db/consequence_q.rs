@@ -63,7 +63,7 @@ use crate::{
 pub type ConsequenceQ = std::collections::VecDeque<(CLiteral, LevelIndex)>;
 
 /// Possible 'Ok' results of queuing a literal.
-pub enum ConsequenceQueueOk {
+pub enum ConsequenceOk {
     /// The literal was (successfully) queued.
     Qd,
 
@@ -106,7 +106,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         literal: impl Borrow<CLiteral>,
         position: QPosition,
         level: LevelIndex,
-    ) -> Result<ConsequenceQueueOk, err::ConsequenceQueueError> {
+    ) -> Result<ConsequenceOk, err::ConsequenceQueueError> {
         let valuation_result = unsafe {
             self.atom_db.set_value(
                 literal.borrow().atom(),
@@ -121,9 +121,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     QPosition::Back => self.consequence_q.push_back((*literal.borrow(), level)),
                 }
                 log::trace!(target: targets::QUEUE, "Queued {} at level {level}.", literal.borrow());
-                Ok(ConsequenceQueueOk::Qd)
+                Ok(ConsequenceOk::Qd)
             }
-            Ok(_) => Ok(ConsequenceQueueOk::Skip),
+            Ok(_) => Ok(ConsequenceOk::Skip),
             Err(_) => {
                 log::trace!(target: targets::QUEUE, "Queueing {} failed.", literal.borrow());
                 Err(err::ConsequenceQueueError::Conflict)

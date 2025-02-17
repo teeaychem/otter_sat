@@ -34,7 +34,7 @@ use crate::{
     context::GenericContext,
     structures::{
         clause::ClauseSource,
-        consequence::{Consequence, Source as ConsequenceSource},
+        consequence::{Consequence, ConsequenceSource},
     },
     types::err::ErrorKind,
 };
