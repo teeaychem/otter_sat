@@ -24,6 +24,7 @@ use crate::{
     misc::log::targets::{self},
     structures::{
         atom::{Atom, ATOM_MAX},
+        literal::{CLiteral, Literal},
         valuation::{vValuation, Valuation},
     },
     types::err::{self, AtomDBError},
@@ -168,9 +169,9 @@ impl AtomDB {
     ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
-    pub unsafe fn watch_binary_unchecked(&mut self, atom: Atom, value: bool, watch: BinaryWatch) {
-        let atom = self.watch_dbs.get_unchecked_mut(atom as usize);
-        match value {
+    pub unsafe fn watch_binary_unchecked(&mut self, literal: &CLiteral, watch: BinaryWatch) {
+        let atom = self.watch_dbs.get_unchecked_mut(literal.atom() as usize);
+        match literal.polarity() {
             true => atom.positive_binary.push(watch),
             false => atom.negative_binary.push(watch),
         }
@@ -182,9 +183,9 @@ impl AtomDB {
     ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
-    pub unsafe fn watch_long_unchecked(&mut self, atom: Atom, value: bool, watch: LongWatch) {
-        let atom = self.watch_dbs.get_unchecked_mut(atom as usize);
-        let list = match value {
+    pub unsafe fn watch_long_unchecked(&mut self, literal: &CLiteral, watch: LongWatch) {
+        let atom = self.watch_dbs.get_unchecked_mut(literal.atom() as usize);
+        let list = match literal.polarity() {
             true => &mut atom.positive_long,
             false => &mut atom.negative_long,
         };
@@ -204,14 +205,13 @@ impl AtomDB {
      */
     pub unsafe fn unwatch_long_unchecked(
         &mut self,
-        atom: Atom,
-        value: bool,
+        literal: CLiteral,
         key: &ClauseKey,
     ) -> Result<(), err::ClauseDBError> {
-        let atom = self.watch_dbs.get_unchecked_mut(atom as usize);
+        let atom = self.watch_dbs.get_unchecked_mut(literal.atom() as usize);
         match key {
             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
-                let list = match value {
+                let list = match literal.polarity() {
                     true => &mut atom.positive_long,
                     false => &mut atom.negative_long,
                 };
@@ -244,14 +244,10 @@ impl AtomDB {
     ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
-    pub unsafe fn watchers_binary_unchecked(
-        &self,
-        atom: Atom,
-        value: bool,
-    ) -> *const Vec<BinaryWatch> {
-        let atom = self.watch_dbs.get_unchecked(atom as usize);
+    pub unsafe fn watchers_binary_unchecked(&self, literal: &CLiteral) -> *const Vec<BinaryWatch> {
+        let atom = self.watch_dbs.get_unchecked(literal.atom() as usize);
 
-        match value {
+        match !literal.polarity() {
             true => &atom.positive_binary,
             false => &atom.negative_binary,
         }
@@ -265,14 +261,10 @@ impl AtomDB {
     ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
-    pub unsafe fn watchers_long_unchecked(
-        &mut self,
-        atom: Atom,
-        value: bool,
-    ) -> *mut Vec<LongWatch> {
-        let atom = self.watch_dbs.get_unchecked_mut(atom as usize);
+    pub unsafe fn watchers_long_unchecked(&mut self, literal: &CLiteral) -> *mut Vec<LongWatch> {
+        let atom = self.watch_dbs.get_unchecked_mut(literal.atom() as usize);
 
-        match value {
+        match !literal.polarity() {
             true => &mut atom.positive_long,
             false => &mut atom.negative_long,
         }

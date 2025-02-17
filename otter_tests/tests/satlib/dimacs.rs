@@ -46,10 +46,6 @@ fn aim() {
 mod cfa {
     use super::*;
 
-    // fn cfa_path(dir: &str) -> PathBuf {
-    //     dimacs_path().join(Path::new("CFA").join(dir))
-    // }
-
     #[test]
     fn bf() {
         silent_on_directory(
@@ -246,44 +242,34 @@ fn jnh() {
     assert_eq!(unsat_count, 34);
 }
 
-// #[test]
-// #[ignore = "expensive"]
-// fn lran600() {
-//     let report = silent_formula_report(
-//         cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN"]).join("f600.cnf.xz"),
-//         &Config::default(),
-//     );
-//     assert_eq!(report, Report::Satisfiable);
-// }
-
-// #[test]
-// #[ignore = "expensive"]
-// fn lran1000() {
-//     let report = silent_formula_report(
-//         cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN"]).join("f1000.cnf.xz"),
-//         &Config::default(),
-//     );
-//     assert_eq!(report, Report::Satisfiable);
-// }
-
-// #[test]
-// #[ignore = "expensive"]
-// fn lran2000() {
-//     let report = silent_formula_report(
-//         cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN"]).join("f2000.cnf.xz"),
-//         &Config::default(),
-//     );
-//     assert_eq!(report, Report::Satisfiable);
-// }
+#[test]
+#[ignore = "expensive"]
+fn lran600() {
+    let report = silent_formula_report(
+        cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN", "f600.cnf.xz"]),
+        &Config::default(),
+    );
+    assert_eq!(report, Report::Satisfiable);
+}
 
 #[test]
 #[ignore = "expensive"]
-fn lran() {
-    silent_on_directory(
-        cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN"]),
+fn lran1000() {
+    let report = silent_formula_report(
+        cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN", "f1000.cnf.xz"]),
         &Config::default(),
-        Report::Satisfiable,
     );
+    assert_eq!(report, Report::Satisfiable);
+}
+
+#[test]
+#[ignore = "expensive"]
+fn lran2000() {
+    let report = silent_formula_report(
+        cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN", "f2000.cnf.xz"]),
+        &Config::default(),
+    );
+    assert_eq!(report, Report::Satisfiable);
 }
 
 mod partiy {
@@ -377,21 +363,26 @@ mod phole {
 
     #[test]
     #[ignore = "expensive"]
-    fn tough() {
-        let formulas = ["hole9.cnf.xz", "hole10.cnf.xz"];
+    fn tough_nine() {
+        assert_eq!(
+            Report::Unsatisfiable,
+            silent_formula_report(
+                cnf_lib_subdir(vec!["SATLIB", "DIMACS", "PHOLE", "hole9.cnf.xz"]),
+                &Config::default()
+            )
+        );
+    }
 
-        let mut ok_count = 0;
-        for formula in formulas {
-            assert_eq!(
-                Report::Unsatisfiable,
-                silent_formula_report(
-                    cnf_lib_subdir(vec!["SATLIB", "DIMACS", "PHOLE"]).join(formula),
-                    &Config::default()
-                )
-            );
-            ok_count += 1;
-        }
-        assert_eq!(ok_count, formulas.len());
+    #[test]
+    #[ignore = "expensive"]
+    fn tough_ten() {
+        assert_eq!(
+            Report::Unsatisfiable,
+            silent_formula_report(
+                cnf_lib_subdir(vec!["SATLIB", "DIMACS", "PHOLE", "hole10.cnf.xz"]),
+                &Config::default()
+            )
+        );
     }
 }
 

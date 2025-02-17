@@ -73,7 +73,7 @@ impl dbClause {
         let removed = self.clause.swap_remove(position);
 
         // Safe, as the atom is contained in a clause, and so is surely part of the database.
-        match unsafe { atom_db.unwatch_long_unchecked(removed.atom(), removed.polarity(), &self.key) } {
+        match unsafe { atom_db.unwatch_long_unchecked(removed, &self.key) } {
             Ok(()) => {}
             Err(_) => return Err(err::SubsumptionError::WatchError),
         };
@@ -95,7 +95,7 @@ impl dbClause {
             }
             // Safe, by above construction.
             let watched_literal = unsafe { self.clause.get_unchecked(self.watch_ptr) };
-            self.note_watch(watched_literal.atom(), watched_literal.polarity(), atom_db);
+            self.note_watch(watched_literal, atom_db);
             // TODO: Is this sufficient to uphold the required invariant?
             if zero_swap && atom_db.value_of(watched_literal.atom()).is_none() {
                 self.clause.swap(0, self.watch_ptr);
