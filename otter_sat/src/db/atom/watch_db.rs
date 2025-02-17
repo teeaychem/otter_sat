@@ -62,18 +62,30 @@ As the [AtomDB](crate::db::atom::AtomDB) methods do not perform a check for whet
 At present, this is the only use of *unsafe* with respect to [WatchDB]s.
 */
 
-use crate::{
-    db::keys::ClauseKey,
-    structures::{clause::ClauseKind, literal::CLiteral},
-};
+use crate::{db::keys::ClauseKey, structures::literal::CLiteral};
+
+/// A binary clause together with the *other* literal in the clause.
+pub struct BinaryWatch {
+    pub literal: CLiteral,
+    pub key: ClauseKey,
+}
+
+impl BinaryWatch {
+    pub fn new(literal: CLiteral, key: ClauseKey) -> Self {
+        Self { literal, key }
+    }
+}
 
 /// The watcher of an atom.
-pub enum WatchTag {
-    /// A binary clause together with the *other* literal in the clause.
-    Binary(CLiteral, ClauseKey),
+#[derive(PartialEq, Eq)]
+pub struct LongWatch {
+    pub key: ClauseKey,
+}
 
-    /// A long clause.
-    Long(ClauseKey),
+impl LongWatch {
+    pub fn new(key: ClauseKey) -> Self {
+        LongWatch { key }
+    }
 }
 
 /// The status of a watched literal, relative to some given valuation.
@@ -94,50 +106,26 @@ pub enum WatchStatus {
 /// The watchers of an atom, distinguished by length of clause and which value of the atom is under watch.
 pub struct WatchDB {
     /// A watch from a binary clause for a value of `true`.
-    pub(super) positive_binary: Vec<WatchTag>,
-
-    /// A watch from a long clause for a value of `true`.
-    pub(super) positive_long: Vec<WatchTag>,
+    pub(super) positive_binary: Vec<BinaryWatch>,
 
     /// A watch from a binary clause for a value of `false`.
-    pub(super) negative_binary: Vec<WatchTag>,
+    pub(super) negative_binary: Vec<BinaryWatch>,
+
+    /// A watch from a long clause for a value of `true`.
+    pub(super) positive_long: Vec<LongWatch>,
 
     /// A watch from a long clause for a value of `false`.
-    pub(super) negative_long: Vec<WatchTag>,
+    pub(super) negative_long: Vec<LongWatch>,
 }
 
 impl Default for WatchDB {
     fn default() -> Self {
         Self {
             positive_binary: Vec::default(),
-            positive_long: Vec::default(),
-
             negative_binary: Vec::default(),
-            negative_long: Vec::default(),
-        }
-    }
-}
 
-impl WatchDB {
-    /// Returns the watchers of `kind` for `value`.
-    pub fn watchers(&mut self, kind: ClauseKind, value: bool) -> &[WatchTag] {
-        match kind {
-            ClauseKind::Empty => panic!("! Attempt to retrieve watch list of empty clauses"),
-            ClauseKind::Unit => panic!("! Attempt to retrieve watch list of unit clauses"),
-            ClauseKind::Binary => {
-                //
-                match value {
-                    true => &mut self.positive_binary,
-                    false => &mut self.negative_binary,
-                }
-            }
-            ClauseKind::Long => {
-                //
-                match value {
-                    true => &mut self.positive_long,
-                    false => &mut self.negative_long,
-                }
-            }
+            positive_long: Vec::default(),
+            negative_long: Vec::default(),
         }
     }
 }

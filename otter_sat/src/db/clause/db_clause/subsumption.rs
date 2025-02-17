@@ -73,7 +73,7 @@ impl dbClause {
         let removed = self.clause.swap_remove(position);
 
         // Safe, as the atom is contained in a clause, and so is surely part of the database.
-        match unsafe { atom_db.unwatch_unchecked(removed.atom(), removed.polarity(), &self.key) } {
+        match unsafe { atom_db.unwatch_long_unchecked(removed.atom(), removed.polarity(), &self.key) } {
             Ok(()) => {}
             Err(_) => return Err(err::SubsumptionError::WatchError),
         };

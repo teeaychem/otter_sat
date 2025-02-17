@@ -15,7 +15,7 @@ pub mod activity;
 pub mod valuation;
 pub mod watch_db;
 
-use watch_db::WatchTag;
+use watch_db::{BinaryWatch, LongWatch};
 
 use crate::{
     config::{dbs::AtomDBConfig, Activity, Config},
@@ -24,7 +24,6 @@ use crate::{
     misc::log::targets::{self},
     structures::{
         atom::{Atom, ATOM_MAX},
-        clause::ClauseKind,
         valuation::{vValuation, Valuation},
     },
     types::err::{self, AtomDBError},
@@ -163,25 +162,34 @@ impl AtomDB {
         self.activity_heap.activate(atom as usize);
     }
 
+    /// Adds `atom` being valued `value` to the binary clause wrapped in `watch_tag`.
+    ///
+    /// The counterpart of [unwatch_unchecked](AtomDB::unwatch_unchecked).
+    ///
+    /// # Safety
+    /// No check is made on whether a [WatchDB] exists for the atom.
+    pub unsafe fn watch_binary_unchecked(&mut self, atom: Atom, value: bool, watch: BinaryWatch) {
+        let atom = self.watch_dbs.get_unchecked_mut(atom as usize);
+        match value {
+            true => atom.positive_binary.push(watch),
+            false => atom.negative_binary.push(watch),
+        }
+    }
+
     /// Adds `atom` being valued `value` to the clause wrapped in `watch_tag`.
     ///
     /// The counterpart of [unwatch_unchecked](AtomDB::unwatch_unchecked).
     ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
-    pub unsafe fn watch_unchecked(&mut self, atom: Atom, value: bool, watch_tag: WatchTag) {
+    pub unsafe fn watch_long_unchecked(&mut self, atom: Atom, value: bool, watch: LongWatch) {
         let atom = self.watch_dbs.get_unchecked_mut(atom as usize);
-        match watch_tag {
-            WatchTag::Binary(_, _) => match value {
-                true => atom.positive_binary.push(watch_tag),
-                false => atom.negative_binary.push(watch_tag),
-            },
+        let list = match value {
+            true => &mut atom.positive_long,
+            false => &mut atom.negative_long,
+        };
 
-            WatchTag::Long(_) => match value {
-                true => atom.positive_long.push(watch_tag),
-                false => atom.negative_long.push(watch_tag),
-            },
-        }
+        list.push(watch);
     }
 
     /// Removes `atom` being valued `value` to the clause wrapped in `watch_tag`.
@@ -194,7 +202,7 @@ impl AtomDB {
     If there's a guarantee keys appear at most once, the swap remove on keys could break early.
     Note also, as this shuffles the list any heuristics on traversal order of watches is void.
      */
-    pub unsafe fn unwatch_unchecked(
+    pub unsafe fn unwatch_long_unchecked(
         &mut self,
         atom: Atom,
         value: bool,
@@ -212,11 +220,9 @@ impl AtomDB {
                 let mut limit = list.len();
 
                 while index < limit {
-                    let WatchTag::Long(list_key) = list.get_unchecked(index) else {
-                        return Err(err::ClauseDBError::CorruptList);
-                    };
+                    let list_key = list.get_unchecked(index).key;
 
-                    if list_key == key {
+                    if &list_key == key {
                         list.swap_remove(index);
                         limit -= 1;
                     } else {
@@ -232,37 +238,43 @@ impl AtomDB {
         }
     }
 
-    /// Returns the collection of watchers of `kind` watching for `atom` to be valued with `value`.
+    /// Returns the collection of binary watched clauses for `atom` to be valued with `value`.
     ///
-    /// Equivalent to [watchers](WatchDB::watchers) on the given [WatchDB] entry for `atom.
-    /// Though, with a pointer returned (rather than a slice) to help simplify [BCP](crate::procedures::bcp).
-    /// As such, care should be taken to avoid creating aliases!
-    ///
-    /// ```rust, ignore
-    /// let binary_list = &mut *atom_db.get_watch_list_unchecked(atom, ClauseKind::Binary, false);
-    /// ```
+    /// A pointer returned to help simplify [BCP](crate::procedures::bcp), though as BCP does not mutate the list of binary clauses, the pointer is marked const.
     ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
-    pub unsafe fn watchers_unchecked(
+    pub unsafe fn watchers_binary_unchecked(
+        &self,
+        atom: Atom,
+        value: bool,
+    ) -> *const Vec<BinaryWatch> {
+        let atom = self.watch_dbs.get_unchecked(atom as usize);
+
+        match value {
+            true => &atom.positive_binary,
+            false => &atom.negative_binary,
+        }
+    }
+
+    /// Returns the collection of long watched clauses for `atom` to be valued with `value`.
+    ///
+    /// A mutable pointer returned to help simplify [BCP](crate::procedures::bcp).
+    /// Specifically, to allow for multiple mutable borrows.
+    /// As, both the watch list and valuation may be mutated during BCP.
+    ///
+    /// # Safety
+    /// No check is made on whether a [WatchDB] exists for the atom.
+    pub unsafe fn watchers_long_unchecked(
         &mut self,
         atom: Atom,
-        kind: ClauseKind,
         value: bool,
-    ) -> *mut Vec<WatchTag> {
+    ) -> *mut Vec<LongWatch> {
         let atom = self.watch_dbs.get_unchecked_mut(atom as usize);
 
-        match kind {
-            ClauseKind::Empty => panic!("! Attempt to retrieve watch list for an empty clause"),
-            ClauseKind::Unit => panic!("! Attempt to retrieve watch list for a unit clause"),
-            ClauseKind::Binary => match value {
-                true => &mut atom.positive_binary,
-                false => &mut atom.negative_binary,
-            },
-            ClauseKind::Long => match value {
-                true => &mut atom.positive_long,
-                false => &mut atom.negative_long,
-            },
+        match value {
+            true => &mut atom.positive_long,
+            false => &mut atom.negative_long,
         }
     }
 }

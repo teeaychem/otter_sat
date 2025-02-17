@@ -243,7 +243,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 apply_consequences::ApplyConsequencesOk::AssertingClause { key, literal } => {
                     self.clause_db.note_use(key);
 
-                    let consequence = Consequence::from(literal, consequence::Source::BCP(key));
+                    let consequence =
+                        Consequence::from(literal, consequence::ConsequenceSource::BCP(key));
                     let level = self.literal_db.current_level();
                     self.value_and_queue(literal, QPosition::Front, level)?;
                     self.record_consequence(consequence);

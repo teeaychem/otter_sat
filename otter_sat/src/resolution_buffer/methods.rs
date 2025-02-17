@@ -151,7 +151,7 @@ impl ResolutionBuffer {
         let the_trail = unsafe { literal_db.top_consequences_unchecked().iter().rev() };
         'resolution_loop: for consequence in the_trail {
             match consequence.source() {
-                consequence::Source::BCP(key) => {
+                consequence::ConsequenceSource::BCP(key) => {
                     let mut key = *key;
 
                     let source_clause = match unsafe { clause_db.get_unchecked_mut(&key) } {

@@ -1,7 +1,7 @@
 use crate::{
     db::{
         atom::{
-            watch_db::{WatchStatus, WatchTag},
+            watch_db::{BinaryWatch, LongWatch, WatchStatus},
             AtomDB,
         },
         keys::ClauseKey,
@@ -162,11 +162,15 @@ impl dbClause {
                     *self.clause.get_unchecked(0)
                 };
 
-                atom_db.watch_unchecked(atom, value, WatchTag::Binary(check_literal, *self.key()));
+                atom_db.watch_binary_unchecked(
+                    atom,
+                    value,
+                    BinaryWatch::new(check_literal, *self.key()),
+                );
             },
 
             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
-                atom_db.watch_unchecked(atom, value, WatchTag::Long(*self.key()));
+                atom_db.watch_long_unchecked(atom, value, LongWatch::new(*self.key()));
             },
         }
     }

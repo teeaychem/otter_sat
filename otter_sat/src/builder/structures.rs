@@ -110,7 +110,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             consequence_q::QPosition::Back,
                             self.literal_db.lowest_decision_level(),
                         ) {
-                            Ok(consequence_q::ConsequenceQueueOk::Qd) => {
+                            Ok(consequence_q::ConsequenceOk::Qd) => {
                                 let premises = HashSet::default();
                                 self.clause_db.store(
                                     literal,
@@ -198,7 +198,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     consequence_q::QPosition::Back,
                     self.literal_db.lowest_decision_level(),
                 ) {
-                    Ok(consequence_q::ConsequenceQueueOk::Qd) => {
+                    Ok(consequence_q::ConsequenceOk::Qd) => {
                         let premises = HashSet::default();
                         self.clause_db.store(
                             literal,

@@ -56,11 +56,12 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         let level = context.literal_db.current_level();
 
         match context.value_and_queue(the_literal, position, level) {
-            Ok(consequence_q::ConsequenceQueueOk::Qd) => {
-                let consequence = Consequence::from(the_literal, consequence::Source::PureLiteral);
+            Ok(consequence_q::ConsequenceOk::Qd) => {
+                let consequence =
+                    Consequence::from(the_literal, consequence::ConsequenceSource::PureLiteral);
                 context.record_consequence(consequence);
             }
-            Ok(consequence_q::ConsequenceQueueOk::Skip) => {}
+            Ok(consequence_q::ConsequenceOk::Skip) => {}
 
             Err(e) => return Err(e),
         }
@@ -72,11 +73,12 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         let level = context.literal_db.current_level();
 
         match context.value_and_queue(the_literal, position, level) {
-            Ok(consequence_q::ConsequenceQueueOk::Qd) => {
-                let consequence = Consequence::from(the_literal, consequence::Source::PureLiteral);
+            Ok(consequence_q::ConsequenceOk::Qd) => {
+                let consequence =
+                    Consequence::from(the_literal, consequence::ConsequenceSource::PureLiteral);
                 context.record_consequence(consequence);
             }
-            Ok(consequence_q::ConsequenceQueueOk::Skip) => {}
+            Ok(consequence_q::ConsequenceOk::Skip) => {}
 
             Err(e) => return Err(e),
         }

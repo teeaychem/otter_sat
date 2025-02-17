@@ -60,13 +60,12 @@ use std::borrow::Borrow;
 use crate::{
     context::GenericContext,
     db::{
-        atom::watch_db::{self, WatchTag},
-        consequence_q::{self},
+        atom::watch_db::{self},
+        consequence_q::{ConsequenceOk, QPosition},
     },
     misc::log::targets::{self},
     structures::{
-        clause::ClauseKind,
-        consequence::{self, Consequence},
+        consequence::{Consequence, ConsequenceSource},
         literal::{CLiteral, Literal},
     },
     types::err::{self},
@@ -87,44 +86,33 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // Binary clauses block.
         {
             // Note, this does not require updating watches.
-            let binary_list = &mut *self.atom_db.watchers_unchecked(
-                literal.atom(),
-                ClauseKind::Binary,
-                !literal.polarity(),
-            );
+            let binary_list = self
+                .atom_db
+                .watchers_binary_unchecked(literal.atom(), !literal.polarity());
 
-            for element in binary_list {
-                let WatchTag::Binary(check, key) = element else {
-                    log::error!(target: targets::PROPAGATION, "Long clause found in binary watch list.");
-                    return Err(err::BCPError::CorruptWatch);
-                };
+            for element in &*binary_list {
+                let check = element.literal;
+                let key = element.key;
 
                 match self.atom_db.value_of(check.atom()) {
-                    None => {
-                        match self.value_and_queue(
-                            *check,
-                            consequence_q::QPosition::Back,
-                            decision_level,
-                        ) {
-                            Ok(consequence_q::ConsequenceQueueOk::Qd) => {
-                                let consequence =
-                                    Consequence::from(check, consequence::Source::BCP(*key));
-                                self.record_consequence(consequence);
-                            }
-
-                            Ok(consequence_q::ConsequenceQueueOk::Skip) => {}
-
-                            Err(_key) => {
-                                return Err(err::BCPError::Conflict(*key));
-                            }
+                    None => match self.value_and_queue(check, QPosition::Back, decision_level) {
+                        Ok(ConsequenceOk::Qd) => {
+                            let consequence = Consequence::from(check, ConsequenceSource::BCP(key));
+                            self.record_consequence(consequence);
                         }
-                    }
+
+                        Ok(ConsequenceOk::Skip) => {}
+
+                        Err(_key) => {
+                            return Err(err::BCPError::Conflict(key));
+                        }
+                    },
 
                     Some(value) if check.polarity() != value => {
                         // Note the conflict
                         log::trace!(target: targets::PROPAGATION, "Consequence of {key} and {literal} is contradiction.");
 
-                        return Err(err::BCPError::Conflict(*key));
+                        return Err(err::BCPError::Conflict(key));
                     }
 
                     Some(_) => {
@@ -137,24 +125,19 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         // Long clause block.
         {
-            let long_list = &mut *self.atom_db.watchers_unchecked(
-                literal.atom(),
-                ClauseKind::Long,
-                !literal.polarity(),
-            );
+            let long_list = &mut *self
+                .atom_db
+                .watchers_long_unchecked(literal.atom(), !literal.polarity());
 
             let mut index = 0;
             let mut length = long_list.len();
 
             'long_loop: while index < length {
-                let WatchTag::Long(key) = long_list.get_unchecked(index) else {
-                    log::error!(target: targets::PROPAGATION, "Binary clause found in long watch list.");
-                    return Err(err::BCPError::CorruptWatch);
-                };
+                let key = long_list.get_unchecked(index).key;
 
                 // TODO: From the FRAT paper neither MiniSAT nor CaDiCaL store clause identifiers.
                 // So, there may be some way to avoid this… unless there's a NULLPTR check or…
-                let db_clause = match self.clause_db.get_mut(key) {
+                let db_clause = match self.clause_db.get_mut(&key) {
                     Ok(stored_clause) => stored_clause,
                     Err(_) => {
                         long_list.swap_remove(index);
@@ -182,29 +165,29 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                         match watch_value {
                             Some(value) if the_watch.polarity() != value => {
-                                self.clause_db.note_use(*key);
+                                self.clause_db.note_use(key);
 
-                                return Err(err::BCPError::Conflict(*key));
+                                return Err(err::BCPError::Conflict(key));
                             }
 
                             None => {
-                                self.clause_db.note_use(*key);
+                                self.clause_db.note_use(key);
 
                                 match self.value_and_queue(
                                     the_watch,
-                                    consequence_q::QPosition::Back,
+                                    QPosition::Back,
                                     decision_level,
                                 ) {
-                                    Ok(consequence_q::ConsequenceQueueOk::Qd) => {
+                                    Ok(ConsequenceOk::Qd) => {
                                         let consequence = Consequence::from(
                                             the_watch,
-                                            consequence::Source::BCP(*key),
+                                            ConsequenceSource::BCP(key),
                                         );
                                         self.record_consequence(consequence);
                                     }
-                                    Ok(consequence_q::ConsequenceQueueOk::Skip) => {}
+                                    Ok(ConsequenceOk::Skip) => {}
 
-                                    Err(_) => return Err(err::BCPError::Conflict(*key)),
+                                    Err(_) => return Err(err::BCPError::Conflict(key)),
                                 };
                             }
 
