@@ -86,9 +86,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // Binary clauses block.
         {
             // Note, this does not require updating watches.
-            let binary_list = self
-                .atom_db
-                .watchers_binary_unchecked(literal.atom(), !literal.polarity());
+            let binary_list = self.atom_db.watchers_binary_unchecked(literal);
 
             for element in &*binary_list {
                 let check = element.literal;
@@ -125,9 +123,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         // Long clause block.
         {
-            let long_list = &mut *self
-                .atom_db
-                .watchers_long_unchecked(literal.atom(), !literal.polarity());
+            let long_list = &mut *self.atom_db.watchers_long_unchecked(literal);
 
             let mut index = 0;
             let mut length = long_list.len();
@@ -160,11 +156,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     Err(()) => {
                         // After the call to update_watch, any atom without a value will be in position 0.
-                        let the_watch = *db_clause.get_unchecked(0);
-                        let watch_value = self.atom_db.value_of(the_watch.atom());
+                        let watch = *db_clause.get_unchecked(0);
 
-                        match watch_value {
-                            Some(value) if the_watch.polarity() != value => {
+                        match self.atom_db.value_of(watch.atom()) {
+                            Some(value) if watch.polarity() != value => {
                                 self.clause_db.note_use(key);
 
                                 return Err(err::BCPError::Conflict(key));
@@ -173,16 +168,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             None => {
                                 self.clause_db.note_use(key);
 
-                                match self.value_and_queue(
-                                    the_watch,
-                                    QPosition::Back,
-                                    decision_level,
-                                ) {
+                                match self.value_and_queue(watch, QPosition::Back, decision_level) {
                                     Ok(ConsequenceOk::Qd) => {
-                                        let consequence = Consequence::from(
-                                            the_watch,
-                                            ConsequenceSource::BCP(key),
-                                        );
+                                        let consequence =
+                                            Consequence::from(watch, ConsequenceSource::BCP(key));
                                         self.record_consequence(consequence);
                                     }
                                     Ok(ConsequenceOk::Skip) => {}
