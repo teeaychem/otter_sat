@@ -6,7 +6,7 @@ Things include:
 - A current (often partial) [valuation](Valuation) and the previous valuation (or some randomised valuation).
 - An [IndexHeap] recording the activty of atoms, where any atom without a value is 'active' on the heap.
 - A record of which decision an atom was valued on.
-- Internal and external name maps, for reading and writing [Atom]s, [Literal](crate::structures::literal::Literal)s, etc.
+- Internal and external name maps, for reading and writing [Atom]s, [Literal]s, etc.
 */
 
 #[doc(hidden)]
@@ -165,8 +165,6 @@ impl AtomDB {
 
     /// Adds `atom` being valued `value` to the binary clause wrapped in `watch_tag`.
     ///
-    /// The counterpart of [unwatch_unchecked](AtomDB::unwatch_unchecked).
-    ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
     pub unsafe fn watch_binary_unchecked(&mut self, literal: &CLiteral, watch: BinaryWatch) {
@@ -179,7 +177,7 @@ impl AtomDB {
 
     /// Adds `atom` being valued `value` to the clause wrapped in `watch_tag`.
     ///
-    /// The counterpart of [unwatch_unchecked](AtomDB::unwatch_unchecked).
+    /// The counterpart of [unwatch_long_unchecked](AtomDB::unwatch_long_unchecked).
     ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
@@ -195,7 +193,7 @@ impl AtomDB {
 
     /// Removes `atom` being valued `value` to the clause wrapped in `watch_tag`.
     ///
-    /// The counterpart of [watch_unchecked](AtomDB::watch_unchecked).
+    /// The counterpart of [watch_long_unchecked](AtomDB::watch_long_unchecked).
     ///
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.

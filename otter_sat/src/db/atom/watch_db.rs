@@ -31,7 +31,7 @@ The given implentation of watch literals follows [Optimal implementation of watc
 
 # Implementation
 
-The clauses watching an atom are distinguished by type, with the relevant distinctions set in the [WatchTag] enum.
+The clauses watching an atom are distinguished by type.
 
 At present two distinctions are made:
 
@@ -56,6 +56,30 @@ Those methods are included in this file in order to access private members of th
 
 Watch lists are inspected and used during [boolean constraint propagation](crate::procedures::bcp).
 
+# Watches and witnesses
+
+The list of long clauses watchers of an atom contains, at present, only the keys of the watching clauses.
+
+In principle, this list could be enhanced, I believe a technique like the following is employed by MiniSAT:
+
+- For each watch, include the *other* watched literal at the time the watch was made.
+- BCP then examines the value of thie literal before requesting the update to a watched literal.
+- And, if the literal witnesses satisfiability of the clause, no update to watches is made.
+
+This is sound, as a satisfied clause can never be used for propagation.
+And, so in particular, a backjump must be made before the witness was set in order for the clause to be of interest.
+
+The technique can be implemented with minimal changes.
+For example:
+
+- Update the [LongWatch] structure is updated to contain a field for the literal.
+- On creation of a long watch, add the literal at the watched indexed to the watch.
+- During BCP, first check the value of the other literal.
+
+In principle, this may save unnecessary access to the clause database (as there may be no need to examine the clause).
+Though, at the cost of fragmenting access to the atom database (as a check of the other literal is separate from checks after accessing the clause).
+And, in practice, it seems the cost of fragmentation is greater than that of unnecessary access.
+
 # Safety
 As the [AtomDB](crate::db::atom::AtomDB) methods do not perform a check for whether a [WatchDB] exists for a given atom, these are all marked unsafe.
 
@@ -76,7 +100,7 @@ impl BinaryWatch {
     }
 }
 
-/// The watcher of an atom.
+/// A long clause watch of an atom.
 #[derive(PartialEq, Eq)]
 pub struct LongWatch {
     pub key: ClauseKey,
