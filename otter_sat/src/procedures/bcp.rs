@@ -10,7 +10,7 @@ This is done by examining clauses watching the atom with the opposite polarity a
 
 # Complications
 
-Use is made of [watchers_unchecked](crate::db::atom::AtomDB::watchers_unchecked) to obtain a pointer to watch lists.
+Use is made of [watchers_binary_unchecked](crate::db::atom::AtomDB::watchers_binary_unchecked) and [watchers_long_unchecked](crate::db::atom::AtomDB::watchers_long_unchecked) to obtain pointers to watch lists of interest.
 A handful of issues are avoided by doing this:
 1. A mutable borrow of the database for a watch list conflicting with an immutable borrow of the database to obtain the value of an atom.
 2. A mutable borrow of the context conflicting with a mutable borrow to add a literal to the consequence queue.
