@@ -16,7 +16,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     }
 
     /// Returns whether it is time for a interrupt based on whether total conflicts is multiple of the configured interval.
-    #[inline(always)]
     pub fn conflict_total_interrupt(&self) -> bool {
         (self.counters.total_conflicts % (self.config.conflict_mod.value as usize)) == 0
     }
