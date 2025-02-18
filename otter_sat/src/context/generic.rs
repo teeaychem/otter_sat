@@ -20,7 +20,7 @@ use super::{callbacks::CallbackTerminate, ContextState, Counters};
 ///
 /// ```rust
 /// # use otter_sat::context::GenericContext;
-/// # use otter_sat::generic::minimal_pcg::MinimalPCG32;
+/// # use otter_sat::generic::random::MinimalPCG32;
 /// # use otter_sat::config::Config;
 /// let context = GenericContext::<MinimalPCG32>::from_config(Config::default());
 /// ```
