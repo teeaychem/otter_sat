@@ -101,13 +101,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                         Ok(ConsequenceOk::Skip) => {}
 
-                        Err(_key) => {
+                        Err(_) => {
                             return Err(err::BCPError::Conflict(key));
                         }
                     },
 
                     Some(value) if check.polarity() != value => {
-                        // Note the conflict
                         log::trace!(target: targets::PROPAGATION, "Consequence of {key} and {literal} is contradiction.");
 
                         return Err(err::BCPError::Conflict(key));

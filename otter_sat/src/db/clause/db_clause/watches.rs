@@ -172,22 +172,20 @@ impl dbClause {
         }
     }
 
-    /// On the assumption that the given atom corresponds to a watched literal which as been assigned some value, updates the watched literals.
-    ///
-    /// As a guarantee of the above assumption would require inspection of both watched literals before any other action is taken, it is assumed.
-    ///
-    /// # Safety
-    /// No checks on atom as index.
-    #[inline(always)]
+    /// Updates the watched literals, given an atom whose value has been set.
     #[allow(clippy::result_unit_err)]
-    pub unsafe fn update_watch(
-        &mut self,
-        atom: Atom,
-        atom_db: &mut AtomDB,
-    ) -> Result<WatchStatus, ()> {
-        // assert!(self.clause.len() > 2);
+    pub fn update_watch(&mut self, atom: Atom, atom_db: &mut AtomDB) -> Result<WatchStatus, ()> {
+        let watch_ptr_cache = self.watch_ptr;
+        let clause_length = self.clause.len();
 
-        if self.clause.get_unchecked(0).atom() == atom {
+        // # Safety
+        // The procedure makes unchecked access to literals in the clause.
+        // Either direct to the initial clause, or indirect via watch_ptr.
+        // Asserting watch_ptr < clause length ensure each use of watch_ptr is safe.
+        // And, as watch_ptr is unsigned, this also ensure direct access to the first literal is safe.
+        assert!(watch_ptr_cache < clause_length);
+
+        if unsafe { self.clause.get_unchecked(0).atom() } == atom {
             self.clause.swap(0, self.watch_ptr)
         }
 
@@ -196,18 +194,8 @@ impl dbClause {
         This would avoid the need to check whether the search pointer is equal to where the last search pointer stopped.
         Still, it seems the single loop is easier to handle for the compiler.
          */
-        let watch_ptr_cache = self.watch_ptr;
-        let clause_length = self.clause.len();
+
         loop {
-            self.watch_ptr += 1;
-            if self.watch_ptr == clause_length {
-                self.watch_ptr = 1 // skip 0
-            }
-
-            if self.watch_ptr == watch_ptr_cache {
-                break Err(());
-            }
-
             let literal = unsafe { self.clause.get_unchecked(self.watch_ptr) };
             match atom_db.value_of(literal.atom()) {
                 None => {
@@ -219,6 +207,16 @@ impl dbClause {
                     break Ok(WatchStatus::Witness);
                 }
                 Some(_) => {}
+            }
+
+            self.watch_ptr += 1;
+
+            if self.watch_ptr == clause_length {
+                self.watch_ptr = 1 // skip 0
+            }
+
+            if self.watch_ptr == watch_ptr_cache {
+                break Err(());
             }
         }
     }

@@ -94,12 +94,21 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         self.consequence_q.retain(|(_, c)| *c <= from);
     }
 
-    /// Assigns the given value to the given atom, if possible, and places the pair (represented as a literal) on the consequence queue.
-    /// Otherwise, returns an error.
+    /// Assigns the given value to the given atom, if possible.
+    /// If the atom had no value, the pair is pushed to the consequence queue.
+    /// If valuation fails, an error is returned.
     ///
-    /// A literal can be queued so long as it does not conflict with the current valuation.
-    /// ```rust,ignore
-    /// context.value_and_queue(CLiteral::new(atom, value));
+    /// ```rust
+    /// # use otter_sat::config::Config;
+    /// # use otter_sat::context::Context;
+    /// # use otter_sat::reports::Report;
+    /// # use otter_sat::structures::literal::{CLiteral, Literal};
+    /// # use otter_sat::db::consequence_q::QPosition::Back;
+    /// let mut ctx: Context = Context::from_config(Config::default());
+    /// let p = ctx.fresh_or_max_atom();
+    /// assert!(ctx.value_and_queue(CLiteral::new(p, true), Back, 1).is_ok());
+    /// assert!(ctx.value_and_queue(CLiteral::new(p, false), Back, 1).is_err());
+    /// assert!(ctx.value_and_queue(CLiteral::new(p, true), Back, 1).is_ok());
     /// ```
     pub fn value_and_queue(
         &mut self,
