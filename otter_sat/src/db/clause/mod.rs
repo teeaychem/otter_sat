@@ -252,7 +252,8 @@ impl ClauseDB {
         };
 
         let index = index as usize;
-        self.activity_heap.apply_to_index(index, bump_activity);
+        self.activity_heap
+            .apply_to_value_at_value_index(index, bump_activity);
         self.activity_heap.heapify_if_active(index);
 
         self.config.bump.value *= 1.0 / (1.0 - self.config.decay.value);
