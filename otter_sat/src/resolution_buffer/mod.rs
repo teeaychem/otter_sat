@@ -33,9 +33,6 @@ pub struct ResolutionBuffer {
     /// The length of the clause.
     clause_length: usize,
 
-    /// The literal asserted by the current resolution candidate, if it exists..
-    asserts: Option<CLiteral>,
-
     /// The (direct) premises used top derive the clause.
     premises: HashSet<ClauseKey>,
 
