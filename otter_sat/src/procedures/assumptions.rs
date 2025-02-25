@@ -19,8 +19,10 @@ A new decision level for each assumption, and immediately applies BCP to an assu
 A single decision level for all assumptions and delay BCP until the valuation has been updated with all valuations.
 */
 
+use std::collections::HashSet;
+
 use crate::{
-    context::GenericContext,
+    context::{ContextState, GenericContext},
     db::consequence_q::QPosition,
     structures::literal::{CLiteral, Literal},
     types::err::ErrorKind,
@@ -105,4 +107,17 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
         }
     }
+
+    // /// Identifies the assumptions used to derive `conflict`.
+    // pub fn failed_assumpions(self, conflict: CLiteral) {
+    //     let ContextState::Unsatisfiable(key) = self.state  else {
+    //         panic!("! Unsatisfiability required to determine failed assumptions");
+    //     };
+
+    //     let mut level_index = self.literal_db.current_level();
+
+    //     let mut seen: HashSet<CLiteral> = HashSet::default();
+    //     seen.insert(conflict);
+
+    // }
 }

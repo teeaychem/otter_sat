@@ -110,13 +110,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             consequence_q::QPosition::Back,
                             self.literal_db.lowest_decision_level(),
                         ) {
-                            Ok(consequence_q::ConsequenceOk::Qd) => {
+                            Ok(consequence_q::QueueResult::Qd) => {
                                 let premises = HashSet::default();
                                 self.clause_db.store(
                                     literal,
                                     ClauseSource::Original,
                                     &mut self.atom_db,
-                                    None,
                                     premises,
                                 );
                                 Ok(ClauseOk::Added)
@@ -152,7 +151,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     clause_vec,
                     ClauseSource::Original,
                     &mut self.atom_db,
-                    None,
                     premises,
                 )?;
 
@@ -186,25 +184,19 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
             [literal] => {
                 let premises = HashSet::default();
-                self.clause_db.store(
-                    literal,
-                    ClauseSource::Original,
-                    &mut self.atom_db,
-                    None,
-                    premises,
-                );
+                self.clause_db
+                    .store(literal, ClauseSource::Original, &mut self.atom_db, premises);
                 match self.value_and_queue(
                     literal.borrow(),
                     consequence_q::QPosition::Back,
                     self.literal_db.lowest_decision_level(),
                 ) {
-                    Ok(consequence_q::ConsequenceOk::Qd) => {
+                    Ok(consequence_q::QueueResult::Qd) => {
                         let premises = HashSet::default();
                         self.clause_db.store(
                             literal,
                             ClauseSource::Original,
                             &mut self.atom_db,
-                            None,
                             premises,
                         );
                     }
@@ -228,7 +220,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     clause_vec,
                     ClauseSource::Original,
                     &mut self.atom_db,
-                    None,
                     premises,
                 );
                 if unsatisfiable {

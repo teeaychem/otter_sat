@@ -96,7 +96,6 @@ impl dbClause {
         key: ClauseKey,
         clause: CClause,
         atom_db: &mut AtomDB,
-        valuation: Option<&vValuation>,
         premises: HashSet<ClauseKey>,
     ) -> Self {
         let mut db_clause = dbClause {
@@ -108,7 +107,7 @@ impl dbClause {
             inferences: 0,
         };
 
-        db_clause.initialise_watches(atom_db, valuation);
+        db_clause.initialise_watches(atom_db, None);
 
         db_clause
     }

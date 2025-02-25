@@ -89,7 +89,7 @@ So, caution should be taken to avoid overlooking a failed invariant.
 use crate::{
     context::{ContextState, GenericContext},
     db::ClauseKey,
-    procedures::analysis,
+    procedures::analysis::AnalysisResult,
     structures::{
         consequence::{self, Consequence},
         literal::CLiteral,
@@ -154,9 +154,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     match self.conflict_analysis(&key)? {
                         // Analysis is only called when some decision has been made.
-                        analysis::ConflictAnalysisOk::FundamentalConflict => panic!("!"),
+                        AnalysisResult::FundamentalConflict => panic!("!"),
 
-                        analysis::ConflictAnalysisOk::MissedPropagation {
+                        AnalysisResult::MissedPropagation {
                             key,
                             literal: asserted_literal,
                         } => {
@@ -175,16 +175,16 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 asserted_literal,
                                 consequence::ConsequenceSource::BCP(key),
                             );
-                            self.record_consequence(consequence);
+                            unsafe { self.record_consequence(consequence) };
 
                             continue 'application;
                         }
 
-                        analysis::ConflictAnalysisOk::UnitClause { literal: key } => {
+                        AnalysisResult::UnitClause { literal: key } => {
                             return Ok(ApplyConsequencesOk::UnitClause { literal: key });
                         }
 
-                        analysis::ConflictAnalysisOk::AssertingClause { key, literal } => {
+                        AnalysisResult::AssertingClause { key, literal } => {
                             return Ok(ApplyConsequencesOk::AssertingClause { key, literal });
                         }
                     }

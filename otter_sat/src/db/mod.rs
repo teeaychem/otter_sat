@@ -36,7 +36,6 @@ use crate::{
         clause::ClauseSource,
         consequence::{Consequence, ConsequenceSource},
     },
-    types::err::ErrorKind,
 };
 
 /// The index of a [decision level](crate::db::literal).
@@ -57,10 +56,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// # Premises
     /// If a propagation occurs without any decision having been made, then the valuation must conflict with each other literal in the clause.
     /// So, the origin of the unit is the clause used and each literal, and the literals are easily identified by examining the clause.
-    pub fn record_consequence(
-        &mut self,
-        consequence: impl Borrow<Consequence>,
-    ) -> Result<(), ErrorKind> {
+    pub unsafe fn record_consequence(&mut self, consequence: impl Borrow<Consequence>) {
         let consequence = consequence.borrow().clone();
         match consequence.source() {
             ConsequenceSource::PureLiteral => {
@@ -71,13 +67,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         *consequence.literal(),
                         ClauseSource::PureUnit,
                         &mut self.atom_db,
-                        None,
                         premises,
                     );
                 } else {
                     panic!("! Origins")
                 }
-                Ok(())
             }
 
             ConsequenceSource::BCP(key) => {
@@ -95,16 +89,16 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let mut premises = HashSet::default();
                             premises.insert(*key);
 
-                            let direct_origin_clause =
-                                unsafe { self.clause_db.get_unchecked_mut(&key) }?;
-                            direct_origin_clause.increment_proof_count();
+                            match self.clause_db.get_unchecked_mut(&key) {
+                                Ok(clause) => clause.increment_proof_count(),
+                                Err(_) => {}
+                            };
                             self.clause_db.note_use(*key);
 
                             self.clause_db.store(
                                 unit_clause,
                                 ClauseSource::BCP,
                                 &mut self.atom_db,
-                                None,
                                 premises,
                             );
                         };
@@ -114,7 +108,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         self.literal_db.store_top_consequence_unchecked(consequence);
                     },
                 }
-                Ok(())
             }
         }
     }
