@@ -56,12 +56,12 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         let level = context.literal_db.current_level();
 
         match context.value_and_queue(the_literal, position, level) {
-            Ok(consequence_q::ConsequenceOk::Qd) => {
+            Ok(consequence_q::QueueResult::Qd) => {
                 let consequence =
                     Consequence::from(the_literal, consequence::ConsequenceSource::PureLiteral);
-                context.record_consequence(consequence);
+                unsafe { context.record_consequence(consequence) };
             }
-            Ok(consequence_q::ConsequenceOk::Skip) => {}
+            Ok(consequence_q::QueueResult::Skip) => {}
 
             Err(e) => return Err(e),
         }
@@ -73,12 +73,12 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         let level = context.literal_db.current_level();
 
         match context.value_and_queue(the_literal, position, level) {
-            Ok(consequence_q::ConsequenceOk::Qd) => {
+            Ok(consequence_q::QueueResult::Qd) => {
                 let consequence =
                     Consequence::from(the_literal, consequence::ConsequenceSource::PureLiteral);
-                context.record_consequence(consequence);
+                unsafe { context.record_consequence(consequence) };
             }
-            Ok(consequence_q::ConsequenceOk::Skip) => {}
+            Ok(consequence_q::QueueResult::Skip) => {}
 
             Err(e) => return Err(e),
         }

@@ -61,7 +61,7 @@ use crate::{
     context::GenericContext,
     db::{
         atom::watch_db::{self},
-        consequence_q::{ConsequenceOk, QPosition},
+        consequence_q::{QPosition, QueueResult},
     },
     misc::log::targets::{self},
     structures::{
@@ -74,17 +74,37 @@ use crate::{
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// For documentation see [procedures::bcp](crate::procedures::bcp).
     ///
-    /// # Safety
-    /// The implementation of bcp requires a key invariant to be upheld:
+    /// # Soundness
+    /// The implementation of BCP requires a key invariant to be upheld:
     /// <div class="warning">
     /// The literal at index 0 is a watched literal.
     /// </div>
-    pub unsafe fn bcp(&mut self, literal: impl Borrow<CLiteral>) -> Result<(), err::BCPError> {
+    ///
+    /// # Safety
+    pub fn bcp(&mut self, literal: impl Borrow<CLiteral>) -> Result<(), err::BCPError> {
         let literal = literal.borrow();
         let decision_level = self.literal_db.current_level();
 
-        // Binary clauses block.
-        {
+        /*
+        # Safety
+
+        The binary and long blocks are both wrapped in unsafe to keep specific unsafe instances simple.
+
+        Use of unsafe operations is motivated by two isses:
+
+        - When traversing through a list, watches may be dropped.
+          For this an index to the current element is used, and the element retreived when needed.
+          As custom checks are made to ensure this traveral works, accessing the element is unchecked.
+
+        - When updating a watch the consequence queue may be updated, requiring a split borrow of a context.
+          As the consequence queue is not examined until after the current instance of BCP is complete, this is safe.
+
+        Note, further, that even if BCP were applied aggressively, with each propagation immediately calling BCP, the implementation would remain safe.
+        For, the literal under consideration has been set, and as such is not a candidate for an updated watch.
+        */
+
+        // Binary clause block.
+        unsafe {
             // Note, this does not require updating watches.
             let binary_list = self.atom_db.watchers_binary_unchecked(literal);
 
@@ -94,21 +114,18 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 match self.atom_db.value_of(check.atom()) {
                     None => match self.value_and_queue(check, QPosition::Back, decision_level) {
-                        Ok(ConsequenceOk::Qd) => {
+                        Ok(QueueResult::Qd) => {
                             let consequence = Consequence::from(check, ConsequenceSource::BCP(key));
                             self.record_consequence(consequence);
                         }
 
-                        Ok(ConsequenceOk::Skip) => {}
+                        Ok(QueueResult::Skip) => {}
 
-                        Err(_) => {
-                            return Err(err::BCPError::Conflict(key));
-                        }
+                        Err(_) => return Err(err::BCPError::Conflict(key)),
                     },
 
                     Some(value) if check.polarity() != value => {
                         log::trace!(target: targets::PROPAGATION, "Consequence of {key} and {literal} is contradiction.");
-
                         return Err(err::BCPError::Conflict(key));
                     }
 
@@ -121,7 +138,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
 
         // Long clause block.
-        {
+        unsafe {
             let long_list = &mut *self.atom_db.watchers_long_unchecked(literal);
 
             let mut index = 0;
@@ -130,26 +147,25 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             'long_loop: while index < length {
                 let key = long_list.get_unchecked(index).key;
 
-                // TODO: From the FRAT paper neither MiniSAT nor CaDiCaL store clause identifiers.
-                // So, there may be some way to avoid this… unless there's a NULLPTR check or…
                 let db_clause = match self.clause_db.get_mut(&key) {
-                    Ok(stored_clause) => stored_clause,
+                    Ok(stored) => stored,
                     Err(_) => {
-                        long_list.swap_remove(index);
                         length -= 1;
+                        long_list.swap(index, length);
                         continue 'long_loop;
                     }
                 };
 
                 match db_clause.update_watch(literal.atom(), &mut self.atom_db) {
                     Ok(watch_db::WatchStatus::Witness) | Ok(watch_db::WatchStatus::None) => {
-                        long_list.swap_remove(index);
                         length -= 1;
+                        long_list.swap(index, length);
                         continue 'long_loop;
                     }
 
                     Ok(watch_db::WatchStatus::Conflict) => {
                         log::error!(target: targets::PROPAGATION, "Conflict from updating watch during propagation.");
+                        long_list.split_off(length);
                         return Err(err::BCPError::CorruptWatch);
                     }
 
@@ -161,6 +177,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             Some(value) if watch.polarity() != value => {
                                 self.clause_db.note_use(key);
 
+                                long_list.split_off(length);
                                 return Err(err::BCPError::Conflict(key));
                             }
 
@@ -168,14 +185,18 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 self.clause_db.note_use(key);
 
                                 match self.value_and_queue(watch, QPosition::Back, decision_level) {
-                                    Ok(ConsequenceOk::Qd) => {
+                                    Ok(QueueResult::Qd) => {
                                         let consequence =
                                             Consequence::from(watch, ConsequenceSource::BCP(key));
                                         self.record_consequence(consequence);
                                     }
-                                    Ok(ConsequenceOk::Skip) => {}
 
-                                    Err(_) => return Err(err::BCPError::Conflict(key)),
+                                    Ok(QueueResult::Skip) => {}
+
+                                    Err(_) => {
+                                        long_list.split_off(length);
+                                        return Err(err::BCPError::Conflict(key));
+                                    }
                                 };
                             }
 
@@ -187,6 +208,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 index += 1;
                 continue 'long_loop;
             }
+
+            long_list.split_off(length);
         }
         Ok(())
     }

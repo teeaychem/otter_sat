@@ -54,7 +54,7 @@ use crate::{
 };
 
 /// Possible 'Ok' results from conflict analysis.
-pub enum ConflictAnalysisOk {
+pub enum AnalysisResult {
     /// The conflict clause was asserting at some previous decision level.
     MissedPropagation {
         /// The key to the clause.
@@ -87,10 +87,7 @@ pub enum ConflictAnalysisOk {
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// For details on conflict analysis see the [analysis](crate::procedures::analysis) procedure.
-    pub fn conflict_analysis(
-        &mut self,
-        key: &ClauseKey,
-    ) -> Result<ConflictAnalysisOk, err::ErrorKind> {
+    pub fn conflict_analysis(&mut self, key: &ClauseKey) -> Result<AnalysisResult, err::ErrorKind> {
         log::trace!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.current_level());
 
         if let config::vsids::VSIDS::Chaff = self.config.vsids.value {
@@ -102,9 +99,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // Safety: Some decision must have been made for conflict analysis to take place.
         unsafe {
             self.resolution_buffer
-                .clear_atom_value(self.literal_db.top_decision_unchecked().atom());
+                .clear_value(self.literal_db.top_decision_unchecked().atom());
             for assertion in self.literal_db.top_consequences_unchecked() {
-                self.resolution_buffer.clear_atom_value(assertion.atom());
+                self.resolution_buffer.clear_value(assertion.atom());
             }
         }
 
@@ -115,8 +112,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             &mut self.atom_db,
         ) {
             Ok(ResolutionOk::UnitClause) | Ok(ResolutionOk::UIP) => {}
-            Ok(ResolutionOk::Repeat(k, l)) => {
-                return Ok(ConflictAnalysisOk::MissedPropagation { key: k, literal: l });
+            Ok(ResolutionOk::Repeat(key, literal)) => {
+                return Ok(AnalysisResult::MissedPropagation { key, literal });
             }
             Err(buffer_error) => {
                 return Err(err::ErrorKind::ResolutionBuffer(buffer_error));
@@ -150,10 +147,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     literal,
                     ClauseSource::Resolution,
                     &mut self.atom_db,
-                    None,
                     premises,
                 )?;
-                Ok(ConflictAnalysisOk::UnitClause { literal })
+                Ok(AnalysisResult::UnitClause { literal })
             }
             _ => {
                 let index = self.non_chronological_backjump_level(&clause)?;
@@ -164,10 +160,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     clause,
                     ClauseSource::Resolution,
                     &mut self.atom_db,
-                    None,
                     premises,
                 )?;
-                Ok(ConflictAnalysisOk::AssertingClause { key, literal })
+                Ok(AnalysisResult::AssertingClause { key, literal })
             }
         }
     }

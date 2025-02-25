@@ -247,7 +247,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         Consequence::from(literal, consequence::ConsequenceSource::BCP(key));
                     let level = self.literal_db.current_level();
                     self.value_and_queue(literal, QPosition::Front, level)?;
-                    self.record_consequence(consequence);
+                    unsafe { self.record_consequence(consequence) };
                 }
             }
 

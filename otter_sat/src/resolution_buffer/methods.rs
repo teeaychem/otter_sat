@@ -116,7 +116,7 @@ impl ResolutionBuffer {
     /// Sets an atom to have no valuation in the resolution buffer.
     ///
     /// Useful to initialise the resolution buffer with the current valuation and then to 'roll it back' to the previous valuation.
-    pub fn clear_atom_value(&mut self, atom: Atom) {
+    pub fn clear_value(&mut self, atom: Atom) {
         unsafe { self.set(atom, Cell::Value(None)) }
     }
 
