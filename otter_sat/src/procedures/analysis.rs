@@ -139,18 +139,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // }
 
         let premises = self.resolution_buffer.take_premises();
-        let (resolved_clause, assertion_index) = self.resolution_buffer.to_assertion_clause();
+        let clause = self.resolution_buffer.to_assertion_clause();
+        let literal = *unsafe { clause.get_unchecked(0) };
 
-        let literal = match assertion_index {
-            None => {
-                log::error!(target: targets::ANALYSIS, "Failed to resolve to an asserting clause");
-                return Err(err::ErrorKind::from(err::AnalysisError::NoAssertion));
-            }
-            // Safe, by operation of the resolution buffer.
-            Some(index) => *unsafe { resolved_clause.get_unchecked(index) },
-        };
-
-        match resolved_clause.len() {
+        match clause.len() {
             0 => Err(err::ErrorKind::from(err::AnalysisError::EmptyResolution)),
             1 => {
                 self.backjump(self.literal_db.lowest_decision_level());
@@ -164,12 +156,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Ok(ConflictAnalysisOk::UnitClause { literal })
             }
             _ => {
-                let index = self.non_chronological_backjump_level(&resolved_clause)?;
+                let index = self.non_chronological_backjump_level(&clause)?;
 
                 self.backjump(index);
 
                 let key = self.clause_db.store(
-                    resolved_clause,
+                    clause,
                     ClauseSource::Resolution,
                     &mut self.atom_db,
                     None,

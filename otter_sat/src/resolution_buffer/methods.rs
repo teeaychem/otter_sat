@@ -54,7 +54,6 @@ impl ResolutionBuffer {
         Self {
             valueless_count: 0,
             clause_length: 0,
-            asserts: None,
             premises: HashSet::default(),
             buffer: Vec::default(),
             config: BufferConfig::from(config),
@@ -65,7 +64,6 @@ impl ResolutionBuffer {
     pub fn refresh(&mut self, valuation: &impl Valuation) {
         self.valueless_count = 0;
         self.clause_length = 0;
-        self.asserts = None;
         self.premises.clear();
 
         match self.buffer.len().cmp(&valuation.atom_count()) {
@@ -85,28 +83,34 @@ impl ResolutionBuffer {
         self.clause_length
     }
 
-    /// Returns the resolved clause and an index to where asserted literal is *within the clause*, if one exists.
+    /// Returns the resolved clause with the asserted literal as the first literal of the clause.
     /// ```rust,ignore
-    /// let (resolved_clause, assertion_index) = the_buffer.to_assertion_clause();
+    /// let clause = buffer.to_assertion_clause();
+    /// let literal = *unsafe { clause.get_unchecked(0) };
     /// ```
-    pub fn to_assertion_clause(&self) -> (CClause, Option<usize>) {
-        let mut the_clause = vec![];
-        let mut conflict_index = None;
+    pub fn to_assertion_clause(&self) -> CClause {
+        if self.valueless_count != 1 {
+            log::error!(target: targets::ANALYSIS, "Failed to resolve to an asserting clause");
+            panic!("! A clause which does not assert");
+        }
+
+        let mut clause = Vec::with_capacity(self.clause_length);
+        let mut conflict_index = 0;
 
         for item in &self.buffer {
             match item {
                 Cell::Strengthened | Cell::Value(_) | Cell::Pivot => {}
-                Cell::Conflict(literal) => the_clause.push(*literal),
+                Cell::Conflict(literal) => clause.push(*literal),
                 Cell::None(literal) => {
-                    if self.valueless_count == 1 {
-                        conflict_index = Some(the_clause.size())
-                    }
-                    the_clause.push(*literal)
+                    conflict_index = clause.size();
+                    clause.push(*literal)
                 }
             }
         }
 
-        (the_clause, conflict_index)
+        clause.swap(0, conflict_index);
+
+        clause
     }
 
     /// Sets an atom to have no valuation in the resolution buffer.
@@ -136,11 +140,6 @@ impl ResolutionBuffer {
         base_clause.increment_proof_count();
         clause_db.note_use(*key);
         self.premises.insert(*key);
-
-        // Maybe the conflit clause was already asserting after the previous decision…
-        if let Some(literal) = self.asserted_literal() {
-            return Ok(ResolutionOk::Repeat(*key, literal));
-        };
 
         // bump clause activity
         if let ClauseKey::Addition(index, _) = key {
@@ -297,9 +296,6 @@ impl ResolutionBuffer {
                         self.clause_length += 1;
                         self.valueless_count += 1;
                         unsafe { self.set(literal.atom(), Cell::None(literal)) };
-                        if self.asserts.is_none() {
-                            self.asserts = Some(literal);
-                        }
                     }
                     Some(value) if *value != literal.polarity() => {
                         self.clause_length += 1;
@@ -352,14 +348,5 @@ impl ResolutionBuffer {
     /// Sets a cell corresponding to an atoms to the given enum case.
     unsafe fn set(&mut self, atom: Atom, to: Cell) {
         *self.buffer.get_unchecked_mut(atom as usize) = to
-    }
-
-    /// The literal asserted by the resolved clause, if it exists.
-    fn asserted_literal(&self) -> Option<CLiteral> {
-        if self.valueless_count == 1 {
-            self.asserts
-        } else {
-            None
-        }
     }
 }
