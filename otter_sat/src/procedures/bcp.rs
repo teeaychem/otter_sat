@@ -65,7 +65,7 @@ use crate::{
     },
     misc::log::targets::{self},
     structures::{
-        consequence::{Consequence, ConsequenceSource},
+        consequence::{Assignment, AssignmentSource},
         literal::{CLiteral, Literal},
     },
     types::err::{self},
@@ -115,7 +115,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 match self.atom_db.value_of(check.atom()) {
                     None => match self.value_and_queue(check, QPosition::Back, decision_level) {
                         Ok(QueueResult::Qd) => {
-                            let consequence = Consequence::from(check, ConsequenceSource::BCP(key));
+                            let consequence = Assignment::from(check, AssignmentSource::BCP(key));
                             self.record_consequence(consequence);
                         }
 
@@ -187,7 +187,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 match self.value_and_queue(watch, QPosition::Back, decision_level) {
                                     Ok(QueueResult::Qd) => {
                                         let consequence =
-                                            Consequence::from(watch, ConsequenceSource::BCP(key));
+                                            Assignment::from(watch, AssignmentSource::BCP(key));
                                         self.record_consequence(consequence);
                                     }
 

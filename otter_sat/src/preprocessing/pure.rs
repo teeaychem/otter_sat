@@ -9,7 +9,7 @@ use crate::{
     structures::{
         atom::Atom,
         clause::Clause,
-        consequence::{self, Consequence},
+        consequence::{self, Assignment},
         literal::{CLiteral, Literal},
     },
     types::err::{self},
@@ -58,7 +58,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         match context.value_and_queue(the_literal, position, level) {
             Ok(consequence_q::QueueResult::Qd) => {
                 let consequence =
-                    Consequence::from(the_literal, consequence::ConsequenceSource::PureLiteral);
+                    Assignment::from(the_literal, consequence::AssignmentSource::PureLiteral);
                 unsafe { context.record_consequence(consequence) };
             }
             Ok(consequence_q::QueueResult::Skip) => {}
@@ -75,7 +75,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         match context.value_and_queue(the_literal, position, level) {
             Ok(consequence_q::QueueResult::Qd) => {
                 let consequence =
-                    Consequence::from(the_literal, consequence::ConsequenceSource::PureLiteral);
+                    Assignment::from(the_literal, consequence::AssignmentSource::PureLiteral);
                 unsafe { context.record_consequence(consequence) };
             }
             Ok(consequence_q::QueueResult::Skip) => {}

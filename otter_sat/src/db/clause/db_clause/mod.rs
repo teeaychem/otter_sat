@@ -28,7 +28,6 @@ use crate::{
     structures::{
         clause::{CClause, Clause},
         literal::CLiteral,
-        valuation::vValuation,
     },
 };
 

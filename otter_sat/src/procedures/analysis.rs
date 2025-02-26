@@ -48,6 +48,7 @@ use crate::{
     resolution_buffer::ResolutionOk,
     structures::{
         clause::{Clause, ClauseSource},
+        consequence::Assignment,
         literal::{CLiteral, Literal},
     },
     types::err::{self},
@@ -98,10 +99,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         self.resolution_buffer.refresh(self.atom_db.valuation());
         // Safety: Some decision must have been made for conflict analysis to take place.
         unsafe {
-            self.resolution_buffer
-                .clear_value(self.literal_db.top_decision_unchecked().atom());
-            for assertion in self.literal_db.top_consequences_unchecked() {
-                self.resolution_buffer.clear_value(assertion.atom());
+            for Assignment { literal, source: _ } in self.literal_db.top_assignments_unchecked() {
+                self.resolution_buffer.clear_value(literal.atom());
             }
         }
 
