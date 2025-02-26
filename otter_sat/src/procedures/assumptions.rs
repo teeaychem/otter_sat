@@ -24,7 +24,12 @@ use std::collections::HashSet;
 use crate::{
     context::{ContextState, GenericContext},
     db::consequence_q::QPosition,
-    structures::literal::{CLiteral, Literal},
+    structures::{
+        atom::Atom,
+        clause::Clause,
+        consequence::AssignmentSource,
+        literal::{CLiteral, Literal},
+    },
     types::err::ErrorKind,
 };
 
@@ -108,16 +113,69 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
     }
 
-    // /// Identifies the assumptions used to derive `conflict`.
-    // pub fn failed_assumpions(self, conflict: CLiteral) {
-    //     let ContextState::Unsatisfiable(key) = self.state  else {
-    //         panic!("! Unsatisfiability required to determine failed assumptions");
-    //     };
+    /// Identifies the assumptions used to derive `conflict`.
+    /*
+    The implementation is derived from reading MiniSATs `analyzeFinal`.
 
-    //     let mut level_index = self.literal_db.current_level();
+    The conflict, if it exists, is due to some chain of BCP.
+    And, so long as an assumption was used in some part of the chain, it was used to derive the conflict.
 
-    //     let mut seen: HashSet<CLiteral> = HashSet::default();
-    //     seen.insert(conflict);
+    Each part of the chain can be examined by walking through each level, of which at least one must exist if an assumption has been made.
+    And, so long as the walk is made backwards a literal is used before it is assumed or derived.
+    So, by keeping track of use through a reverse walk, use of an assumption is noted before the assumption is made.
+    And, likewise for use of any derived literal, allowing a note to be made on the literals used to derive that (derived) literal.
 
-    // }
+    Note, this does not require all clauses in a core are preserved, as an assumption is never 'used' during resolution.
+
+    In the implementation, atoms are used in place of literals, as a literal and it's negation will not appear in the trail (else there was a previous conflict to that identified).
+     */
+    pub fn failed_assumpions(&self) -> Vec<CLiteral> {
+        let ContextState::Unsatisfiable(key) = self.state else {
+            panic!("! Unsatisfiability required to determine failed assumptions");
+        };
+
+        let mut assumptions: Vec<CLiteral> = Vec::default();
+
+        if !self.literal_db.assumption_is_made() {
+            return assumptions;
+        }
+
+        let mut used_atoms: HashSet<Atom> = HashSet::default();
+        // Safe, as the relevant key is kept as proof of unsatisfiability.
+        for literal in unsafe { self.clause_db.get_unchecked(&key).unwrap().literals() } {
+            used_atoms.insert(literal.atom());
+        }
+
+        for level in (0..self.literal_db.current_level()).rev() {
+            // Safe, as the level is bound by the current_level method.
+            let assignments = unsafe { self.literal_db.assignments_unchecked(level) };
+
+            for assignment in assignments.iter().rev() {
+                if used_atoms.contains(&assignment.literal().atom()) {
+                    match assignment.source() {
+                        AssignmentSource::Assumption => {
+                            assumptions.push(*assignment.literal());
+                        }
+
+                        AssignmentSource::BCP(key) => {
+                            //
+                            match self.clause_db.get(key) {
+                                Ok(clause) => {
+                                    for literal in clause.literals() {
+                                        used_atoms.insert(literal.atom());
+                                    }
+                                }
+
+                                Err(_) => {}
+                            }
+                        }
+
+                        AssignmentSource::Decision | AssignmentSource::PureLiteral => {}
+                    }
+                }
+            }
+        }
+
+        assumptions
+    }
 }

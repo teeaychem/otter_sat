@@ -61,10 +61,10 @@ impl LiteralDB {
     pub fn push_fresh_decision(&mut self, decision: CLiteral) {
         self.level_stack.push(Level::default());
         unsafe {
-            self.store_top_assignment_unchecked(Assignment {
-                literal: decision,
-                source: AssignmentSource::Decision,
-            })
+            self.store_top_assignment_unchecked(Assignment::from(
+                decision,
+                AssignmentSource::Decision,
+            ))
         };
     }
 
@@ -72,10 +72,10 @@ impl LiteralDB {
     pub fn push_fresh_assumption(&mut self, assumption: CLiteral) {
         self.level_stack.push(Level::default());
         unsafe {
-            self.store_top_assignment_unchecked(Assignment {
-                literal: assumption,
-                source: AssignmentSource::Assumption,
-            })
+            self.store_top_assignment_unchecked(Assignment::from(
+                assumption,
+                AssignmentSource::Assumption,
+            ))
         };
         self.lowest_decision_level += 1;
     }

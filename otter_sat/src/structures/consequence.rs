@@ -18,7 +18,7 @@ use crate::{
 };
 
 /// The source of a bind.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum AssignmentSource {
     /// A decision was made where the alternative the alternative would make no difference to satisfiability.
@@ -32,7 +32,7 @@ pub enum AssignmentSource {
     Assumption,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 /// A consequence of the context in some state.
 pub struct Assignment {
     /// The atom-value bind which must hold, represented as a literal.
