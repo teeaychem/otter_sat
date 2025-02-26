@@ -34,7 +34,7 @@ use crate::{
     context::GenericContext,
     structures::{
         clause::ClauseSource,
-        consequence::{Consequence, ConsequenceSource},
+        consequence::{Assignment, AssignmentSource},
     },
 };
 
@@ -56,10 +56,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// # Premises
     /// If a propagation occurs without any decision having been made, then the valuation must conflict with each other literal in the clause.
     /// So, the origin of the unit is the clause used and each literal, and the literals are easily identified by examining the clause.
-    pub unsafe fn record_consequence(&mut self, consequence: impl Borrow<Consequence>) {
+    ///
+    /// # Safety
+    /// If the source of the consequence references a clause stored by a key, the clause must be present in the clause database.
+    pub unsafe fn record_consequence(&mut self, consequence: impl Borrow<Assignment>) {
         let consequence = consequence.borrow().clone();
         match consequence.source() {
-            ConsequenceSource::PureLiteral => {
+            AssignmentSource::PureLiteral => {
                 let premises = HashSet::default();
                 // Making a free decision is not supported after some other (non-free) decision has been made.
                 if !self.literal_db.decision_is_made() && self.literal_db.decision_count() == 0 {
@@ -74,7 +77,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
             }
 
-            ConsequenceSource::BCP(key) => {
+            AssignmentSource::BCP(key) => {
                 log::info!("BCP Consequence: {key}: {}", consequence.literal());
                 //
                 match self.literal_db.decision_count() {
@@ -82,7 +85,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         if self.literal_db.assumption_is_made()
                             && !self.literal_db.decision_is_made()
                         {
-                            unsafe { self.literal_db.store_top_consequence_unchecked(consequence) };
+                            unsafe { self.literal_db.store_top_assignment_unchecked(consequence) };
                         } else {
                             let unit_clause = *consequence.literal();
 
@@ -105,9 +108,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
 
                     _ => unsafe {
-                        self.literal_db.store_top_consequence_unchecked(consequence);
+                        self.literal_db.store_top_assignment_unchecked(consequence);
                     },
                 }
+            }
+
+            AssignmentSource::Decision | AssignmentSource::Assumption => {
+                panic!("! Store of a non-consequence")
             }
         }
     }

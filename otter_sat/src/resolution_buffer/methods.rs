@@ -40,7 +40,7 @@ use crate::{
     structures::{
         atom::Atom,
         clause::{CClause, Clause},
-        consequence,
+        consequence::AssignmentSource,
         literal::{CLiteral, Literal},
         valuation::Valuation,
     },
@@ -147,10 +147,10 @@ impl ResolutionBuffer {
         };
 
         // Resolution buffer is only used by analysis, which is only called after some decision has been made
-        let the_trail = unsafe { literal_db.top_consequences_unchecked().iter().rev() };
+        let the_trail = unsafe { literal_db.top_assignments_unchecked().iter().rev() };
         'resolution_loop: for consequence in the_trail {
             match consequence.source() {
-                consequence::ConsequenceSource::BCP(key) => {
+                AssignmentSource::BCP(key) => {
                     let mut key = *key;
 
                     let source_clause = match unsafe { clause_db.get_unchecked_mut(&key) } {

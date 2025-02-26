@@ -144,7 +144,7 @@ use crate::{
     reports::Report,
     structures::{
         clause::Clause,
-        consequence::{self, Consequence},
+        consequence::{self, Assignment},
         literal::{CLiteral, Literal},
     },
     types::err::{self},
@@ -244,7 +244,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     self.clause_db.note_use(key);
 
                     let consequence =
-                        Consequence::from(literal, consequence::ConsequenceSource::BCP(key));
+                        Assignment::from(literal, consequence::AssignmentSource::BCP(key));
                     let level = self.literal_db.current_level();
                     self.value_and_queue(literal, QPosition::Front, level)?;
                     unsafe { self.record_consequence(consequence) };

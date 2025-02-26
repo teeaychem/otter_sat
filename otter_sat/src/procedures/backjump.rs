@@ -49,7 +49,7 @@ use crate::{
     context::GenericContext,
     db::LevelIndex,
     misc::log::targets::{self},
-    structures::{clause::Clause, literal::Literal},
+    structures::{clause::Clause, consequence::Assignment, literal::Literal},
     types::err,
 };
 
@@ -66,10 +66,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // And, if an atom is in the decision stack is should certainly be in the atom database.
         unsafe {
             for _ in 0..(self.literal_db.current_level().saturating_sub(target)) {
-                self.atom_db
-                    .drop_value(self.literal_db.top_decision_unchecked().atom());
-                for consequence in self.literal_db.top_consequences_unchecked() {
-                    self.atom_db.drop_value(consequence.atom());
+                for Assignment { literal, source: _ } in self.literal_db.top_assignments_unchecked()
+                {
+                    self.atom_db.drop_value(literal.atom())
                 }
                 self.literal_db.forget_top_level();
             }

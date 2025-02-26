@@ -91,7 +91,7 @@ use crate::{
     db::ClauseKey,
     procedures::analysis::AnalysisResult,
     structures::{
-        consequence::{self, Consequence},
+        consequence::{self, Assignment},
         literal::CLiteral,
     },
     types::err::{self, ErrorKind},
@@ -137,7 +137,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 return Ok(ApplyConsequencesOk::Exhausted);
             };
 
-            match unsafe { self.bcp(literal) } {
+            match self.bcp(literal) {
                 Ok(()) => {
                     self.consequence_q.pop_front();
                 }
@@ -171,9 +171,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 self.literal_db.current_level(),
                             )?;
 
-                            let consequence = Consequence::from(
+                            let consequence = Assignment::from(
                                 asserted_literal,
-                                consequence::ConsequenceSource::BCP(key),
+                                consequence::AssignmentSource::BCP(key),
                             );
                             unsafe { self.record_consequence(consequence) };
 

@@ -20,36 +20,40 @@ use crate::{
 /// The source of a bind.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[allow(clippy::upper_case_acronyms)]
-pub enum ConsequenceSource {
+pub enum AssignmentSource {
     /// A decision was made where the alternative the alternative would make no difference to satisfiability.
     PureLiteral,
 
     /// A consequence of boolean constraint propagation.
     BCP(ClauseKey),
+
+    Decision,
+
+    Assumption,
 }
 
 #[derive(Clone)]
 /// A consequence of the context in some state.
-pub struct Consequence {
+pub struct Assignment {
     /// The atom-value bind which must hold, represented as a literal.
     pub literal: CLiteral,
 
     /// The immediate reason why the atom-value pair must be.
-    pub source: ConsequenceSource,
+    pub source: AssignmentSource,
 }
 
-impl Consequence {
+impl Assignment {
     /// Creates a consequence from a bind represented as a literal and a source.
-    pub fn from(literal: impl Borrow<CLiteral>, source: ConsequenceSource) -> Self {
-        Consequence {
+    pub fn from(literal: impl Borrow<CLiteral>, source: AssignmentSource) -> Self {
+        Assignment {
             literal: literal.borrow().canonical(),
             source,
         }
     }
 
     /// Creates a consequence of the given atom bound to the given value due to the given source.
-    pub fn from_bind(atom: Atom, value: bool, source: ConsequenceSource) -> Self {
-        Consequence {
+    pub fn from_bind(atom: Atom, value: bool, source: AssignmentSource) -> Self {
+        Assignment {
             literal: CLiteral::new(atom, value),
             source,
         }
@@ -71,7 +75,7 @@ impl Consequence {
     }
 
     /// The (immediate) reason why the atom-value bind must hold.
-    pub fn source(&self) -> &ConsequenceSource {
+    pub fn source(&self) -> &AssignmentSource {
         &self.source
     }
 }
