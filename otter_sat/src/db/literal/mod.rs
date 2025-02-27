@@ -1,22 +1,25 @@
 /*!
 A database of literal indexed things.
 
-For the moment, this amounts to a stack of all chosen literals.
+For the moment, this amounts to a stack of assignments.
+These include decisions, assumptions, consequences of BCP, and so on.
 
-# Components
-
-## The level stack
-
-A stack of [Level]s, each of which stores assignemnts detailing a literal and the source of the literal.
-The source may be (e.g.) a decision, assumption, or a key to a clause used to derive the literal (and as such the literal is an observed consequence of the formula together with prior assumptions, decisions and observed consequences).
-
-A bottom (or first) decision level exists only after some assumption or decision has been made.
-And, so, in particular, observed consequences which do --- or are known to --- *not* rest on some decision are stored as unit clauses in the [clause database](crate::db::clause::ClauseDB).
-
-# Terminology
+The assignments are split into 'levels', with a decision or set of assumption marking the start of a level and the remaining assignments of the level are (observed) consequences of (perhaps all) previous assignments.
 
 The 'top' level is the level of the most recent decision made.
 - For example, after deciding 'p' is true and 'q' is false, the top decision level stores the decision to bind 'q' to false.
+
+A bottom (or first) level exists only after some assumption or decision has been made.
+And, so, in particular, observed consequences which do --- or are known to --- *not* rest on some decision are stored as unit clauses in the [clause database](crate::db::clause::ClauseDB).
+
+
+# Implementation
+
+The split of assignemnts into levels through marks is inspired by MiniSAT.
+
+The primary motivation for using a single vector of assignments over, say, a vector of levels (as in earlier implementations), is (far) fewer allocations.
+
+In addition, a single collection of assignments significantly simplies traversing the assignments.
 */
 
 use crate::{
@@ -32,10 +35,6 @@ use crate::{
 pub mod config;
 pub use config::LiteralDBConfig;
 
-/// A level storing a literal and its *observed* consequences (given prior assumptions, decisions and observed consequences).
-/// As the literal is intended to be a decision or (representative) assumption, the prefix 'AD' is used.
-pub type Level = Vec<Assignment>;
-
 #[allow(dead_code)]
 /// A struct abstracting over assumption/decision levels.
 pub struct LiteralDB {
@@ -47,7 +46,10 @@ pub struct LiteralDB {
     pub lowest_decision_level: LevelIndex,
 
     /// A stack of levels.
-    pub level_stack: Vec<Level>,
+    pub assignments: Vec<Assignment>,
+
+    /// Indicies at which a new level begins.
+    pub level_indicies: Vec<usize>,
 
     /// Stored assumptions.
     pub assumptions: Vec<CLiteral>,
@@ -59,7 +61,8 @@ impl LiteralDB {
     /// self.literal_db.push_fresh_decision(chosen_literal);
     /// ```
     pub fn push_fresh_decision(&mut self, decision: CLiteral) {
-        self.level_stack.push(Level::default());
+        self.level_indicies.push(self.assignments.len());
+        // self.level_stack.push(Level::default());
         unsafe {
             self.store_top_assignment_unchecked(Assignment::from(
                 decision,
@@ -70,7 +73,8 @@ impl LiteralDB {
 
     /// Pushes a fresh level to the top of the level stack with the given assumption.
     pub fn push_fresh_assumption(&mut self, assumption: CLiteral) {
-        self.level_stack.push(Level::default());
+        // self.level_stack.push(Level::default());
+        self.level_indicies.push(self.assignments.len());
         unsafe {
             self.store_top_assignment_unchecked(Assignment::from(
                 assumption,
@@ -125,8 +129,9 @@ impl LiteralDB {
         LiteralDB {
             config: config.literal_db.clone(),
             lowest_decision_level: 0,
-            level_stack: Vec::default(),
+            assignments: Vec::default(),
             assumptions: Vec::default(),
+            level_indicies: Vec::default(),
         }
     }
 
@@ -141,7 +146,14 @@ impl LiteralDB {
     /// # Safety
     /// No check is made to ensure the relevant number of assignments have been made.
     pub unsafe fn assignments_unchecked(&self, level: LevelIndex) -> &[Assignment] {
-        self.level_stack.get_unchecked(level as usize)
+        let level_start = self.level_indicies[level as usize];
+        let level_end: usize = if ((level + 1) as usize) < self.level_indicies.len() {
+            self.level_indicies[(level + 1) as usize]
+        } else {
+            self.assignments.len()
+        };
+
+        &self.assignments[level_start..level_end]
     }
 
     /// The assignments made at the (current) top level, in order of assignment.
@@ -149,16 +161,16 @@ impl LiteralDB {
     /// # Safety
     /// No check is made to ensure any assignments have been made.
     pub unsafe fn top_assignments_unchecked(&self) -> &[Assignment] {
-        self.level_stack
-            .get_unchecked(self.level_stack.len().saturating_sub(1))
+        &self.assignments[*self.level_indicies.last().unwrap()..]
     }
 
     /// Removes the top decision level.
     ///
     /// # Soundness
     /// Does not clear the *valuation* of the decision.
-    pub fn forget_top_level(&mut self) {
-        self.level_stack.pop();
+    pub fn forget_top_level(&mut self) -> Vec<Assignment> {
+        let top_start = self.level_indicies.pop().unwrap();
+        self.assignments.split_off(top_start)
     }
 
     /// A count of how many decisions have been made.
@@ -166,7 +178,7 @@ impl LiteralDB {
     ///
     /// In other words, a count of how many decisions have been made.
     pub fn decision_count(&self) -> LevelIndex {
-        (self.level_stack.len() as LevelIndex) - self.lowest_decision_level
+        (self.level_indicies.len() as LevelIndex) - self.lowest_decision_level
     }
 
     /// Returns true if some decision is active, false otherwise (regardless of whether an assumption has been made).
@@ -176,16 +188,7 @@ impl LiteralDB {
 
     /// The current level.
     pub fn current_level(&self) -> LevelIndex {
-        self.level_stack.len() as LevelIndex
-    }
-
-    /// A mutable borrow of the top decision level.
-    ///
-    /// # Safety
-    /// No check is made to ensure a decision has been made.
-    pub unsafe fn top_level_unchecked_mut(&mut self) -> &mut Level {
-        let top_decision_index = self.level_stack.len().saturating_sub(1);
-        self.level_stack.get_unchecked_mut(top_decision_index)
+        self.level_indicies.len() as LevelIndex
     }
 }
 
@@ -195,6 +198,6 @@ impl LiteralDB {
     /// # Safety
     /// No check is made to ensure a decision has been made.
     pub(super) unsafe fn store_top_assignment_unchecked(&mut self, assignment: Assignment) {
-        self.top_level_unchecked_mut().push(assignment);
+        self.assignments.push(assignment);
     }
 }

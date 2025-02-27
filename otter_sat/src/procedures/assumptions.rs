@@ -113,9 +113,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
     }
 
-    /// Identifies the assumptions used to derive `conflict`.
-    /*
-    The implementation is derived from reading MiniSATs `analyzeFinal`.
+    /**
+    Identifies the assumptions used to derive `conflict`.
+
+    Derived from reading MiniSATs `analyzeFinal`.
 
     The conflict, if it exists, is due to some chain of BCP.
     And, so long as an assumption was used in some part of the chain, it was used to derive the conflict.
@@ -124,10 +125,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     And, so long as the walk is made backwards a literal is used before it is assumed or derived.
     So, by keeping track of use through a reverse walk, use of an assumption is noted before the assumption is made.
     And, likewise for use of any derived literal, allowing a note to be made on the literals used to derive that (derived) literal.
-
-    Note, this does not require all clauses in a core are preserved, as an assumption is never 'used' during resolution.
-
-    In the implementation, atoms are used in place of literals, as a literal and it's negation will not appear in the trail (else there was a previous conflict to that identified).
      */
     pub fn failed_assumpions(&self) -> Vec<CLiteral> {
         let ContextState::Unsatisfiable(key) = self.state else {
@@ -140,7 +137,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             return assumptions;
         }
 
+        // Atoms are used in place of literals, as a literal and it's negation will not appear in the trail.
+        // Else, there was a previous conflict to that identified…
         let mut used_atoms: HashSet<Atom> = HashSet::default();
+
         // Safe, as the relevant key is kept as proof of unsatisfiability.
         for literal in unsafe { self.clause_db.get_unchecked(&key).unwrap().literals() } {
             used_atoms.insert(literal.atom());
@@ -158,7 +158,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         }
 
                         AssignmentSource::BCP(key) => {
-                            //
+                            // The method does not require all clauses in a core are preserved, as an assumption is never 'used' during resolution.
                             match self.clause_db.get(key) {
                                 Ok(clause) => {
                                     for literal in clause.literals() {

@@ -177,12 +177,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 match unsafe { self.assert_assumptions() } {
                     Ok(_) => {}
+
                     Err(err::ErrorKind::SpecificValuationConflict(assumption)) => {
                         log::info!("Failed to assert assumption: {assumption}");
                         self.state =
                             ContextState::Unsatisfiable(ClauseKey::OriginalUnit(assumption));
                         return Ok(Report::Unsatisfiable);
                     }
+
                     Err(e) => {
                         log::info!("Failed to assert assumption: {e:?}");
                         self.state = ContextState::Unsatisfiable(ClauseKey::OriginalUnit(

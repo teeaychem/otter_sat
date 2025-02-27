@@ -75,10 +75,10 @@ pub enum QueueResult {
 
 /// Relative positions to place a literal on the consequence queue.
 pub enum QPosition {
-    /// The front of the queue
+    /// The front of the queue.
     Front,
 
-    /// The back of the queue
+    /// The back of the queue.
     Back,
 }
 

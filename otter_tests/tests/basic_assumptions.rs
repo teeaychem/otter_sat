@@ -58,9 +58,9 @@ mod basic_assumptions {
 
         assert!(ctx.add_assumption(p_assumption).is_ok());
 
-        assert!(ctx.solve().is_ok());
+        let result = ctx.solve();
 
-        println!("{:?}", ctx.failed_assumpions());
+        assert!(result.is_ok());
 
         assert!(ctx.failed_assumpions().contains(&p_assumption));
 
