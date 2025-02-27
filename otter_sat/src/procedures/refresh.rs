@@ -10,7 +10,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
             ContextState::Satisfiable | ContextState::Unsatisfiable(_) | ContextState::Solving => {
                 self.backjump(0);
-                self.clear_assumptions();
+                self.literal_db.clear_assumptions();
                 self.consequence_q.clear();
                 self.state = ContextState::Input;
                 true

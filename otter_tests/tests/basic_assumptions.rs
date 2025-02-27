@@ -7,7 +7,8 @@ mod basic_assumptions {
 
     #[test]
     fn direct() {
-        let mut ctx = Context::from_config(Config::default());
+        let cfg = Config::default();
+        let mut ctx = Context::from_config(cfg);
 
         let p = ctx.fresh_or_max_atom();
         let q = ctx.fresh_or_max_atom();

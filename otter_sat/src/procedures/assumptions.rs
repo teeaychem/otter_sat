@@ -19,7 +19,7 @@ A new decision level for each assumption, and immediately applies BCP to an assu
 A single decision level for all assumptions and delay BCP until the valuation has been updated with all valuations.
 */
 
-use std::collections::HashSet;
+use std::{any::Any, collections::HashSet};
 
 use crate::{
     context::{ContextState, GenericContext},
@@ -30,7 +30,7 @@ use crate::{
         consequence::AssignmentSource,
         literal::{CLiteral, Literal},
     },
-    types::err::ErrorKind,
+    types::err::{self, ErrorKind},
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
@@ -70,21 +70,40 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             true => {
                 for index in 0..assumption_count {
                     let assumption = self.literal_db.stored_assumption(index);
-                    let Ok(_) = self.atom_db.set_value(
-                        assumption.atom(),
-                        assumption.polarity(),
-                        Some(self.literal_db.current_level() + 1),
-                    ) else {
-                        return Err(ErrorKind::SpecificValuationConflict(assumption));
-                    };
 
-                    // Assumption can be made, so push a fresh level.
                     self.literal_db.push_fresh_assumption(assumption);
 
-                    // As assumptions are stacked, immediately call BCP.
-                    let Ok(_) = self.bcp(assumption) else {
-                        return Err(ErrorKind::SpecificValuationConflict(assumption));
-                    };
+                    match self.atom_db.set_value(
+                        assumption.atom(),
+                        assumption.polarity(),
+                        Some(self.literal_db.current_level()),
+                    ) {
+                        Ok(_) => {
+                            // As assumptions are stacked, immediately call BCP.
+                            match self.bcp(assumption) {
+                                Ok(_) => {}
+
+                                Err(err::BCPError::Conflict(key)) => {
+                                    // TODO: Unify re-use of BCP result parsing.
+
+                                    self.state = ContextState::Unsatisfiable(key);
+
+                                    let clause = unsafe {
+                                        self.clause_db.get_unchecked(&key).unwrap().clone()
+                                    };
+                                    self.clause_db.make_callback_unsatisfiable(&clause);
+
+                                    return Err(ErrorKind::SpecificValuationConflict(assumption));
+                                }
+
+                                Err(err::BCPError::CorruptWatch) => {
+                                    panic!("! Corrupt watch with assumptions")
+                                }
+                            }
+                        }
+
+                        Err(_) => return Err(ErrorKind::SpecificValuationConflict(assumption)),
+                    }
                 }
 
                 Ok(())
@@ -93,19 +112,37 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             false => {
                 // All assumption can be made, so push a fresh level.
                 // Levels store a single literal, so Top is used to represent the assumptions.
-                let an_assumption = self.literal_db.stored_assumption(0);
+                let assumption = self.literal_db.stored_assumption(0);
 
-                self.literal_db.push_fresh_assumption(an_assumption);
+                self.literal_db.push_fresh_assumption(assumption);
 
-                for index in 0..assumption_count {
+                match self.value_and_queue(
+                    assumption,
+                    QPosition::Back,
+                    self.literal_db.current_level(),
+                ) {
+                    Ok(_) => {}
+                    Err(_) => return Err(ErrorKind::SpecificValuationConflict(assumption)),
+                }
+
+                for index in 1..assumption_count {
                     let assumption = self.literal_db.stored_assumption(index);
-                    let Ok(_) = self.value_and_queue(
+                    match self.value_and_queue(
                         assumption,
                         QPosition::Back,
                         self.literal_db.current_level(),
-                    ) else {
-                        return Err(ErrorKind::SpecificValuationConflict(assumption));
-                    };
+                    ) {
+                        Ok(_) => {
+                            self.literal_db.store_top_assignment_unchecked(
+                                crate::structures::consequence::Assignment {
+                                    literal: assumption,
+                                    source: AssignmentSource::Assumption,
+                                },
+                            );
+                        }
+
+                        Err(_) => return Err(ErrorKind::SpecificValuationConflict(assumption)),
+                    }
                 }
 
                 Ok(())
