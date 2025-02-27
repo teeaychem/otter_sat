@@ -18,7 +18,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 include_directories(${CMAKE_SOURCE_DIR}/../../target/release/)
 
 message("Calling cargo")
-execute_process(COMMAND "cargo" "rustc" "-r" "--crate-type=cdylib" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/../../otter_sat")
+execute_process(COMMAND "cargo" "rustc" "-r" "--lib" "--crate-type=cdylib" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/../../otter_sat")
 
 if (NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/minisat220")
   message("Building minisat220")

@@ -58,9 +58,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// For documentation, see [procedures::backjump](crate::procedures::backjump).
     pub fn backjump(&mut self, target: LevelIndex) {
-        // log::trace!(target: crate::log::targets::BACKJUMP, "Backjump from {} to {}", self.levels.index(), to);
+        log::trace!(target: targets::BACKJUMP, "Backjump from {} to {}", self.literal_db.current_level(), target);
 
-        // Safety:
+        // # Safety
         // The pop from the decision stack is fine, as decision_count is the height of the decision stack.
         // So, the elements to pop must exist.
         // And, if an atom is in the decision stack is should certainly be in the atom database.
@@ -73,6 +73,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 self.literal_db.forget_top_level();
             }
         }
+
+        if target <= self.literal_db.lowest_decision_level {
+            self.literal_db.lowest_decision_level = target;
+        }
+
         self.clear_q(target);
     }
 
@@ -123,17 +128,5 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
             }
         }
-    }
-
-    /// Removes assumptions from a context by unbinding the value from any atom bound due to an assumption.
-    pub fn clear_assumptions(&mut self) {
-        if !self.literal_db.config.stacked_assumptions.value {
-            for assumption in self.literal_db.stored_assumptions() {
-                unsafe { self.atom_db.drop_value(assumption.atom()) };
-            }
-        }
-
-        self.literal_db.lowest_decision_level = 0;
-        self.literal_db.clear_assumptions();
     }
 }

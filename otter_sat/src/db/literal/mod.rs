@@ -62,7 +62,6 @@ impl LiteralDB {
     /// ```
     pub fn push_fresh_decision(&mut self, decision: CLiteral) {
         self.level_indicies.push(self.assignments.len());
-        // self.level_stack.push(Level::default());
         unsafe {
             self.store_top_assignment_unchecked(Assignment::from(
                 decision,
@@ -73,7 +72,6 @@ impl LiteralDB {
 
     /// Pushes a fresh level to the top of the level stack with the given assumption.
     pub fn push_fresh_assumption(&mut self, assumption: CLiteral) {
-        // self.level_stack.push(Level::default());
         self.level_indicies.push(self.assignments.len());
         unsafe {
             self.store_top_assignment_unchecked(Assignment::from(
@@ -197,7 +195,7 @@ impl LiteralDB {
     ///
     /// # Safety
     /// No check is made to ensure a decision has been made.
-    pub(super) unsafe fn store_top_assignment_unchecked(&mut self, assignment: Assignment) {
+    pub unsafe fn store_top_assignment_unchecked(&mut self, assignment: Assignment) {
         self.assignments.push(assignment);
     }
 }
