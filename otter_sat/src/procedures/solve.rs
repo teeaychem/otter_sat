@@ -143,7 +143,7 @@ use crate::{
     },
     reports::Report,
     structures::{
-        clause::Clause,
+        clause::{CClause, Clause},
         consequence::{self, Assignment},
         literal::{CLiteral, Literal},
     },
@@ -151,15 +151,24 @@ use crate::{
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
-    /// Determines the satisfiability of the context, unless interrupted.
     pub fn solve(&mut self) -> Result<Report, err::ErrorKind> {
+        self.solve_given(None)
+    }
+
+    /// Determines the satisfiability of the context, unless interrupted.
+    pub fn solve_given(
+        &mut self,
+        assumptions: Option<Vec<CLiteral>>,
+    ) -> Result<Report, err::ErrorKind> {
         use crate::db::consequence_q::QPosition::{self};
 
         match self.state {
             ContextState::Solving => {}
+
             ContextState::Satisfiable | ContextState::Unsatisfiable(_) => {
                 return Ok(self.report());
             }
+
             ContextState::Configuration | ContextState::Input => {
                 for (key, clause) in self.clause_db.all_unit_clauses() {
                     if clause.unsatisfiable_on(self.atom_db.valuation()) {
@@ -175,22 +184,24 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
                 }
 
-                match unsafe { self.assert_assumptions() } {
-                    Ok(_) => {}
+                if let Some(assumptions) = assumptions {
+                    match unsafe { self.assert_assumptions(assumptions) } {
+                        Ok(_) => {}
 
-                    Err(err::ErrorKind::SpecificValuationConflict(assumption)) => {
-                        log::info!("Failed to assert assumption: {assumption}");
-                        return Ok(Report::Unsatisfiable);
-                    }
+                        Err(err::ErrorKind::SpecificValuationConflict(assumption)) => {
+                            log::info!("Failed to assert assumption: {assumption}");
+                            return Ok(Report::Unsatisfiable);
+                        }
 
-                    Err(e) => {
-                        log::info!("Failed to assert assumption: {e:?}");
-                        self.state = ContextState::Unsatisfiable(ClauseKey::OriginalUnit(
-                            CLiteral::new(0, false),
-                        ));
-                        return Ok(Report::Unsatisfiable);
-                    }
-                };
+                        Err(e) => {
+                            log::info!("Failed to assert assumption: {e:?}");
+                            self.state = ContextState::Unsatisfiable(ClauseKey::OriginalUnit(
+                                CLiteral::new(0, false),
+                            ));
+                            return Ok(Report::Unsatisfiable);
+                        }
+                    };
+                }
 
                 self.state = ContextState::Solving;
 
@@ -224,6 +235,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         decision::DecisionOk::Literal(decision) => {
                             self.literal_db.push_fresh_decision(decision);
                             let level = self.literal_db.current_level();
+                            log::info!("Decided on {decision} at level {level}");
                             self.value_and_queue(decision, QPosition::Back, level)?;
                             continue 'solve_loop;
                         }
@@ -233,11 +245,22 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 // Conflict variants. These continue to the remaining contents of a loop.
                 apply_consequences::ApplyConsequencesOk::UnitClause { literal: key } => {
-                    self.value_and_queue(
+                    match self.value_and_queue(
                         key,
                         QPosition::Front,
-                        self.literal_db.lowest_decision_level(),
-                    )?;
+                        self.literal_db.current_level(),
+                    ) {
+                        Ok(_) => {}
+
+                        Err(_) => {
+                            self.state = ContextState::Unsatisfiable(ClauseKey::AdditionUnit(key));
+
+                            // let clause = vec![key];
+                            // self.clause_db.make_callback_unsatisfiable(&clause);
+
+                            break 'solve_loop;
+                        }
+                    };
                 }
 
                 apply_consequences::ApplyConsequencesOk::AssertingClause { key, literal } => {
@@ -245,9 +268,22 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     let consequence =
                         Assignment::from(literal, consequence::AssignmentSource::BCP(key));
-                    let level = self.literal_db.current_level();
-                    self.value_and_queue(literal, QPosition::Front, level)?;
                     unsafe { self.record_consequence(consequence) };
+                    let level = self.literal_db.current_level();
+
+                    match self.value_and_queue(literal, QPosition::Front, level) {
+                        Ok(_) => {}
+
+                        Err(_) => {
+                            self.state = ContextState::Unsatisfiable(key);
+
+                            let clause =
+                                unsafe { self.clause_db.get_unchecked_mut(&key).unwrap().clone() };
+                            self.clause_db.make_callback_unsatisfiable(&clause);
+
+                            break 'solve_loop;
+                        }
+                    };
                 }
             }
 

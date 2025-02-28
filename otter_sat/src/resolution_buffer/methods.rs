@@ -68,12 +68,14 @@ impl ResolutionBuffer {
 
         match self.buffer.len().cmp(&valuation.atom_count()) {
             std::cmp::Ordering::Less => self.buffer = valuation.values().map(Cell::Value).collect(),
+
             std::cmp::Ordering::Equal => unsafe {
                 for index in 0..self.buffer.len() {
                     *self.buffer.get_unchecked_mut(index) =
                         Cell::Value(valuation.value_of_unchecked(index as Atom))
                 }
             },
+
             std::cmp::Ordering::Greater => todo!(),
         }
     }
@@ -89,18 +91,15 @@ impl ResolutionBuffer {
     /// let literal = *unsafe { clause.get_unchecked(0) };
     /// ```
     pub fn to_assertion_clause(&self) -> CClause {
-        if self.valueless_count != 1 {
-            log::error!(target: targets::ANALYSIS, "Failed to resolve to an asserting clause");
-            panic!("! A clause which does not assert");
-        }
-
         let mut clause = Vec::with_capacity(self.clause_length);
         let mut conflict_index = 0;
 
         for item in &self.buffer {
             match item {
                 Cell::Strengthened | Cell::Value(_) | Cell::Pivot => {}
+
                 Cell::Conflict(literal) => clause.push(*literal),
+
                 Cell::None(literal) => {
                     conflict_index = clause.size();
                     clause.push(*literal)
@@ -108,7 +107,9 @@ impl ResolutionBuffer {
             }
         }
 
-        clause.swap(0, conflict_index);
+        if !clause.is_empty() {
+            clause.swap(0, conflict_index);
+        }
 
         clause
     }
@@ -147,8 +148,9 @@ impl ResolutionBuffer {
         };
 
         // Resolution buffer is only used by analysis, which is only called after some decision has been made
-        let the_trail = unsafe { literal_db.top_assignments_unchecked().iter().rev() };
+        let the_trail = literal_db.top_assignments_unchecked().iter().rev();
         'resolution_loop: for consequence in the_trail {
+            log::info!(target: targets::RESOLUTION, "Examining trail item {consequence:?}");
             match consequence.source() {
                 AssignmentSource::BCP(key) => {
                     let mut key = *key;
@@ -215,7 +217,12 @@ impl ResolutionBuffer {
                     };
                 }
 
-                _ => panic!("! The resolution trail contains a literal whose source is not BCP"),
+                _ => {
+                    log::error!(target: targets::RESOLUTION, "Trail exhausted without assertion");
+                    log::error!(target: targets::RESOLUTION, "Clause: {:?}", self.to_assertion_clause());
+                    log::error!(target: targets::RESOLUTION, "Valueless count: {}", self.valueless_count);
+                    // panic!("! The resolution trail hit a decision")
+                }
             };
 
             if self.valueless_count == 1 {
@@ -229,15 +236,19 @@ impl ResolutionBuffer {
         }
 
         match self.valueless_count {
-            1 => {
+            0 | 1 => {
                 let premises_switch = std::mem::take(&mut self.premises);
                 self.make_callback_resolution_premises(&premises_switch);
                 self.premises = premises_switch;
 
                 Ok(ResolutionOk::UIP)
             }
+
             _ => {
-                println!("Exhausted");
+                log::error!(target: targets::RESOLUTION, "Trail exhausted without assertion");
+                log::error!(target: targets::RESOLUTION, "Clause: {:?}", self.to_assertion_clause());
+                log::error!(target: targets::RESOLUTION, "Valueless count: {}", self.valueless_count);
+                panic!("! A clause which does not assert");
                 Err(ResolutionBufferError::Exhausted)
             }
         }
@@ -288,19 +299,23 @@ impl ResolutionBuffer {
     ///
     /// If the clause is satisfied and error is returned.
     fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), err::ResolutionBufferError> {
+        log::info!(target: targets::RESOLUTION, "Merging clause: {:?}", clause.as_dimacs(false));
         for literal in clause.literals() {
             match unsafe { self.buffer.get_unchecked(literal.atom() as usize) } {
                 Cell::Conflict(_) | Cell::None(_) | Cell::Pivot => {}
+
                 Cell::Value(maybe) => match maybe {
                     None => {
                         self.clause_length += 1;
                         self.valueless_count += 1;
                         unsafe { self.set(literal.atom(), Cell::None(literal)) };
                     }
+
                     Some(value) if *value != literal.polarity() => {
                         self.clause_length += 1;
                         unsafe { self.set(literal.atom(), Cell::Conflict(literal)) };
                     }
+
                     Some(_) => {
                         log::error!(target: targets::RESOLUTION, "Satisfied clause");
                         return Err(err::ResolutionBufferError::SatisfiedClause);
@@ -331,6 +346,7 @@ impl ResolutionBuffer {
 
                 Ok(())
             }
+
             Cell::Conflict(literal) if pivot == &literal.negate() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
@@ -338,6 +354,7 @@ impl ResolutionBuffer {
 
                 Ok(())
             }
+
             _ => {
                 // Skip over any clauses which are not involved in the current resolution trail
                 Err(err::ResolutionBufferError::LostClause)

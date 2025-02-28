@@ -19,7 +19,7 @@ A new decision level for each assumption, and immediately applies BCP to an assu
 A single decision level for all assumptions and delay BCP until the valuation has been updated with all valuations.
 */
 
-use std::{any::Any, collections::HashSet};
+use std::collections::HashSet;
 
 use crate::{
     context::{ContextState, GenericContext},
@@ -34,28 +34,18 @@ use crate::{
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
-    /// Adds `assumption` to the context.
-    ///
-    /// Note, to ensure the assumption is asserted, [assert_assumptions](GenericContext::assert_assumptions) should be called.
-    pub fn add_assumption(&mut self, assumption: CLiteral) -> Result<(), ErrorKind> {
-        self.ensure_atom(assumption.atom());
-        self.literal_db.store_assumption(assumption);
-        Ok(())
-    }
-
     /// Asserts all assumptions recorded in the literal database.
     /// Returns ok if asserting assumptions as successful, and an error otherwise.
     ///
     /// # Safety
     /// Calls to [BCP](GenericContext::bcp) are made.
-    pub unsafe fn assert_assumptions(&mut self) -> Result<(), ErrorKind> {
+    pub unsafe fn assert_assumptions(
+        &mut self,
+        assumptions: Vec<CLiteral>,
+    ) -> Result<(), ErrorKind> {
         if self.literal_db.decision_is_made() {
             log::error!("! Asserting assumptions while a decision has been made.");
             return Err(ErrorKind::InvalidState);
-        }
-
-        if self.literal_db.stored_assumptions().is_empty() {
-            return Ok(());
         }
 
         // Additional safety notes:
@@ -64,12 +54,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // This is safe, as no new assumptions will be created when asserting assumptions.
         // Further, the calls to BCP are as safe as can be, as a check is made to ensure the language of the context includes the atom of each assumption added.
 
-        let assumption_count = self.literal_db.stored_assumptions().len();
-
         match self.config.literal_db.stacked_assumptions.value {
             true => {
-                for index in 0..assumption_count {
-                    let assumption = self.literal_db.stored_assumption(index);
+                for assumption in assumptions {
+                    self.ensure_atom(assumption.atom());
 
                     self.literal_db.push_fresh_assumption(assumption);
 
@@ -112,7 +100,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             false => {
                 // All assumption can be made, so push a fresh level.
                 // Levels store a single literal, so Top is used to represent the assumptions.
-                let assumption = self.literal_db.stored_assumption(0);
+                let assumption = *assumptions.first().unwrap();
+                self.ensure_atom(assumption.atom());
 
                 self.literal_db.push_fresh_assumption(assumption);
 
@@ -125,21 +114,22 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     Err(_) => return Err(ErrorKind::SpecificValuationConflict(assumption)),
                 }
 
-                for index in 1..assumption_count {
-                    let assumption = self.literal_db.stored_assumption(index);
+                for assumption in assumptions.into_iter().skip(1) {
+                    self.ensure_atom(assumption.atom());
+
+                    self.literal_db.store_top_assignment_unchecked(
+                        crate::structures::consequence::Assignment {
+                            literal: assumption,
+                            source: AssignmentSource::Assumption,
+                        },
+                    );
+
                     match self.value_and_queue(
                         assumption,
                         QPosition::Back,
                         self.literal_db.current_level(),
                     ) {
-                        Ok(_) => {
-                            self.literal_db.store_top_assignment_unchecked(
-                                crate::structures::consequence::Assignment {
-                                    literal: assumption,
-                                    source: AssignmentSource::Assumption,
-                                },
-                            );
-                        }
+                        Ok(_) => {}
 
                         Err(_) => return Err(ErrorKind::SpecificValuationConflict(assumption)),
                     }
@@ -185,7 +175,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         for level in (0..self.literal_db.current_level()).rev() {
             // Safe, as the level is bound by the current_level method.
-            let assignments = unsafe { self.literal_db.assignments_unchecked(level) };
+            let assignments = unsafe { self.literal_db.assignments_at_unchecked(level) };
 
             for assignment in assignments.iter().rev() {
                 if used_atoms.contains(&assignment.literal().atom()) {

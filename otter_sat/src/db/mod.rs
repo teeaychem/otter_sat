@@ -85,7 +85,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         if self.literal_db.assumption_is_made()
                             && !self.literal_db.decision_is_made()
                         {
-                            unsafe { self.literal_db.store_top_assignment_unchecked(consequence) };
+                            self.literal_db.store_top_assignment_unchecked(consequence);
                         } else {
                             let unit_clause = *consequence.literal();
 
@@ -107,9 +107,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         };
                     }
 
-                    _ => unsafe {
-                        self.literal_db.store_top_assignment_unchecked(consequence);
-                    },
+                    _ => self.literal_db.store_top_assignment_unchecked(consequence),
                 }
             }
 
