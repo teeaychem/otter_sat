@@ -100,38 +100,29 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             false => {
                 // All assumption can be made, so push a fresh level.
                 // Levels store a single literal, so Top is used to represent the assumptions.
-                let assumption = *assumptions.first().unwrap();
-                self.ensure_atom(assumption.atom());
+                self.literal_db.initial_decision_level += 1;
+                self.literal_db
+                    .level_indicies
+                    .push(self.literal_db.assignments.len());
 
-                self.literal_db.push_fresh_assumption(assumption);
-
-                match self.value_and_queue(
-                    assumption,
-                    QPosition::Back,
-                    self.literal_db.current_level(),
-                ) {
-                    Ok(_) => {}
-                    Err(_) => return Err(ErrorKind::SpecificValuationConflict(assumption)),
-                }
-
-                for assumption in assumptions.into_iter().skip(1) {
-                    self.ensure_atom(assumption.atom());
+                for literal in assumptions.into_iter() {
+                    self.ensure_atom(literal.atom());
 
                     self.literal_db.store_top_assignment_unchecked(
                         crate::structures::consequence::Assignment {
-                            literal: assumption,
+                            literal,
                             source: AssignmentSource::Assumption,
                         },
                     );
 
                     match self.value_and_queue(
-                        assumption,
+                        literal,
                         QPosition::Back,
                         self.literal_db.current_level(),
                     ) {
                         Ok(_) => {}
 
-                        Err(_) => return Err(ErrorKind::SpecificValuationConflict(assumption)),
+                        Err(_) => return Err(ErrorKind::SpecificValuationConflict(literal)),
                     }
                 }
 
