@@ -103,12 +103,9 @@ pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
 
     bundle.keep_fresh();
 
-    let literal_atom = lit.unsigned_abs();
+    let lit = CLiteral::from(lit);
 
-    #[cfg(feature = "boolean")]
-    let lit = CLiteral::new(literal_atom, lit.is_positive());
-
-    let result = bundle.context.add_assumption(lit);
+    bundle.assumptions.push(lit);
 }
 
 /// Calls solve on the given context and returns an integer detailing to the result of the solve.
@@ -124,7 +121,8 @@ pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
 pub unsafe extern "C" fn ipasir_solve(solver: *mut c_void) -> c_int {
     let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    let solve_result = bundle.context.solve();
+    let assumptions = std::mem::take(&mut bundle.assumptions);
+    let solve_result = bundle.context.solve_given(Some(assumptions));
 
     match solve_result {
         Ok(Report::Satisfiable) => 10,

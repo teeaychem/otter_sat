@@ -141,6 +141,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Ok(()) => {
                     self.consequence_q.pop_front();
                 }
+
                 Err(err::BCPError::Conflict(key)) => {
                     //
                     if !self.literal_db.decision_is_made() {
@@ -189,6 +190,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         }
                     }
                 }
+
                 Err(non_conflict_bcp_error) => return Err(ErrorKind::BCP(non_conflict_bcp_error)),
             }
         }

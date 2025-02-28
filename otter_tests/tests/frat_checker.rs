@@ -21,6 +21,9 @@ use otter_sat::{
 };
 
 fn frat_verify(file_path: PathBuf, config: Config) -> bool {
+    #[cfg(feature = "log")]
+    env_logger::init();
+
     let mut frat_path_string = file_path.clone().to_str().unwrap().to_owned();
     frat_path_string.push_str(".frat");
     let frat_path = PathBuf::from(&frat_path_string);

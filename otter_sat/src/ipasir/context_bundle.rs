@@ -12,6 +12,8 @@ pub struct ContextBundle {
     /// A context.
     pub context: Context,
 
+    pub assumptions: Vec<CLiteral>,
+
     /// A buffer to hold the literals of a clause being added to the solver.
     pub clause_buffer: CClause,
 
@@ -39,6 +41,7 @@ impl Default for ContextBundle {
     fn default() -> Self {
         ContextBundle {
             context: Context::from_config(Config::default()),
+            assumptions: Vec::default(),
             clause_buffer: Vec::default(),
             core_keys: Vec::default(),
             core_literals: HashSet::default(),

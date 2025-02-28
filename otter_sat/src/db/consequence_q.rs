@@ -132,7 +132,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 log::trace!(target: targets::QUEUE, "Queued {} at level {level}.", literal.borrow());
                 Ok(QueueResult::Qd)
             }
+
             Ok(_) => Ok(QueueResult::Skip),
+
             Err(_) => {
                 log::trace!(target: targets::QUEUE, "Queueing {} failed.", literal.borrow());
                 Err(err::ConsequenceQueueError::Conflict)

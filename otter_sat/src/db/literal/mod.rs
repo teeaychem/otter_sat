@@ -41,18 +41,15 @@ pub struct LiteralDB {
     /// Configuration of the literal database.
     pub config: LiteralDBConfig,
 
-    /// The first level of a decision in a solve.
+    /// The level of the initial decision during a solve.
     /// In other words, any level present *below* the limit contains assumptions.
-    pub lowest_decision_level: LevelIndex,
+    pub initial_decision_level: LevelIndex,
 
     /// A stack of levels.
     pub assignments: Vec<Assignment>,
 
     /// Indicies at which a new level begins.
     pub level_indicies: Vec<usize>,
-
-    /// Stored assumptions.
-    pub assumptions: Vec<CLiteral>,
 }
 
 impl LiteralDB {
@@ -62,73 +59,34 @@ impl LiteralDB {
     /// ```
     pub fn push_fresh_decision(&mut self, decision: CLiteral) {
         self.level_indicies.push(self.assignments.len());
-        unsafe {
-            self.store_top_assignment_unchecked(Assignment::from(
-                decision,
-                AssignmentSource::Decision,
-            ))
-        };
+
+        self.store_top_assignment_unchecked(Assignment::from(decision, AssignmentSource::Decision));
     }
 
     /// Pushes a fresh level to the top of the level stack with the given assumption.
     pub fn push_fresh_assumption(&mut self, assumption: CLiteral) {
         self.level_indicies.push(self.assignments.len());
-        unsafe {
-            self.store_top_assignment_unchecked(Assignment::from(
-                assumption,
-                AssignmentSource::Assumption,
-            ))
-        };
-        self.lowest_decision_level += 1;
+
+        self.store_top_assignment_unchecked(Assignment::from(
+            assumption,
+            AssignmentSource::Assumption,
+        ));
+        self.initial_decision_level += 1;
     }
 }
 
 impl LiteralDB {
     /// True if some assumption has been made, false otherwise.
     pub fn assumption_is_made(&self) -> bool {
-        self.lowest_decision_level > 0
+        self.initial_decision_level > 0
     }
 
-    /// Stores an assumption to be used (e.g., during the next solve).
-    ///
-    /// # Soundness
-    /// Assumptions must be asserted to take effect.
-    /// See [assert_assumptions](crate::context::GenericContext::assert_assumptions).
-    pub fn store_assumption(&mut self, assumption: CLiteral) {
-        self.assumptions.push(assumption);
-    }
-
-    /// The assumptions stored, as a slice.
-    pub fn stored_assumptions(&self) -> &[CLiteral] {
-        &self.assumptions
-    }
-
-    /// Returns the assumption stored at the given index.
-    /// Indicies are fixed relative to a single use (e.g. a solve) but should otherwise be considered random.
-    ///
-    /// # Safety
-    /// It is assumed the count of stored assumptions extends to the given index.
-    pub unsafe fn stored_assumption(&self, index: usize) -> CLiteral {
-        *self.assumptions.get_unchecked(index)
-    }
-
-    /// Clears any stored assumptions.
-    ///
-    /// # Soundness
-    /// Does not clear the *valuation* of any assumption.
-    pub fn clear_assumptions(&mut self) {
-        self.assumptions.clear();
-    }
-}
-
-impl LiteralDB {
     /// A new [LiteralDB] with local configuration options derived from `config`.
     pub fn new(config: &Config) -> Self {
         LiteralDB {
             config: config.literal_db.clone(),
-            lowest_decision_level: 0,
+            initial_decision_level: 0,
             assignments: Vec::default(),
-            assumptions: Vec::default(),
             level_indicies: Vec::default(),
         }
     }
@@ -136,17 +94,18 @@ impl LiteralDB {
     /// Returns the lowest decision level.
     /// Zero, if no assumptions has been made, otherwise some higher level.
     pub fn lowest_decision_level(&self) -> LevelIndex {
-        self.lowest_decision_level
+        self.initial_decision_level
     }
 
     /// The assignments made at `level`, in order of assignment.
     ///
     /// # Safety
     /// No check is made to ensure the relevant number of assignments have been made.
-    pub unsafe fn assignments_unchecked(&self, level: LevelIndex) -> &[Assignment] {
-        let level_start = self.level_indicies[level as usize];
-        let level_end: usize = if ((level + 1) as usize) < self.level_indicies.len() {
-            self.level_indicies[(level + 1) as usize]
+    pub unsafe fn assignments_at_unchecked(&self, level: LevelIndex) -> &[Assignment] {
+        let level_start = *self.level_indicies.get_unchecked(level as usize);
+
+        let level_end = if ((level + 1) as usize) < self.level_indicies.len() {
+            *self.level_indicies.get_unchecked((level + 1) as usize)
         } else {
             self.assignments.len()
         };
@@ -154,12 +113,22 @@ impl LiteralDB {
         &self.assignments[level_start..level_end]
     }
 
+    /// The assignments made at `level`, in order of assignment.
+    pub fn assignments_at_and_after_unchecked(&self, level: LevelIndex) -> &[Assignment] {
+        if let Some(&level_start) = self.level_indicies.get(level as usize) {
+            &self.assignments[level_start..]
+        } else {
+            &[]
+        }
+    }
+
     /// The assignments made at the (current) top level, in order of assignment.
-    ///
-    /// # Safety
-    /// No check is made to ensure any assignments have been made.
-    pub unsafe fn top_assignments_unchecked(&self) -> &[Assignment] {
-        &self.assignments[*self.level_indicies.last().unwrap()..]
+    pub fn top_assignments_unchecked(&self) -> &[Assignment] {
+        if let Some(&level_start) = self.level_indicies.last() {
+            &self.assignments[level_start..]
+        } else {
+            &[]
+        }
     }
 
     /// Removes the top decision level.
@@ -167,8 +136,24 @@ impl LiteralDB {
     /// # Soundness
     /// Does not clear the *valuation* of the decision.
     pub fn forget_top_level(&mut self) -> Vec<Assignment> {
-        let top_start = self.level_indicies.pop().unwrap();
-        self.assignments.split_off(top_start)
+        if let Some(top_start) = self.level_indicies.pop() {
+            self.assignments.split_off(top_start)
+        } else {
+            Vec::default()
+        }
+    }
+
+    /// Removes the top decision level.
+    ///
+    /// # Soundness
+    /// Does not clear the *valuation* of the decision.
+    pub fn forget_at_and_after(&mut self, level: LevelIndex) -> Vec<Assignment> {
+        if let Some(&level_start) = self.level_indicies.get(level as usize) {
+            self.level_indicies.split_off(level as usize);
+            self.assignments.split_off(level_start)
+        } else {
+            Vec::default()
+        }
     }
 
     /// A count of how many decisions have been made.
@@ -176,7 +161,7 @@ impl LiteralDB {
     ///
     /// In other words, a count of how many decisions have been made.
     pub fn decision_count(&self) -> LevelIndex {
-        (self.level_indicies.len() as LevelIndex) - self.lowest_decision_level
+        (self.level_indicies.len() as LevelIndex) - self.initial_decision_level
     }
 
     /// Returns true if some decision is active, false otherwise (regardless of whether an assumption has been made).
@@ -192,10 +177,7 @@ impl LiteralDB {
 
 impl LiteralDB {
     /// Stores a consequence of the top decision level.
-    ///
-    /// # Safety
-    /// No check is made to ensure a decision has been made.
-    pub unsafe fn store_top_assignment_unchecked(&mut self, assignment: Assignment) {
+    pub fn store_top_assignment_unchecked(&mut self, assignment: Assignment) {
         self.assignments.push(assignment);
     }
 }

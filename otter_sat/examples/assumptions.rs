@@ -40,13 +40,13 @@ fn main() {
     }
 
     let plural_atom = the_context.fresh_atom().unwrap();
-    let _ = the_context.add_assumption(CLiteral::new(plural_atom, true));
+    let assumptions = vec![CLiteral::new(plural_atom, true)];
     atom_map.push('s');
 
     let mut count = 0;
 
     loop {
-        assert!(the_context.solve().is_ok());
+        assert!(the_context.solve_given(Some(assumptions.clone())).is_ok());
 
         match the_context.report() {
             Report::Satisfiable => {}

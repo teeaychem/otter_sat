@@ -65,17 +65,16 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // So, the elements to pop must exist.
         // And, if an atom is in the decision stack is should certainly be in the atom database.
         unsafe {
-            for _ in 0..(self.literal_db.current_level().saturating_sub(target)) {
-                for Assignment { literal, source: _ } in self.literal_db.top_assignments_unchecked()
-                {
-                    self.atom_db.drop_value(literal.atom())
-                }
-                self.literal_db.forget_top_level();
+            for Assignment { literal, source: _ } in
+                self.literal_db.assignments_at_and_after_unchecked(target)
+            {
+                self.atom_db.drop_value(literal.atom())
             }
+            self.literal_db.forget_at_and_after(target);
         }
 
-        if target <= self.literal_db.lowest_decision_level {
-            self.literal_db.lowest_decision_level = target;
+        if target <= self.literal_db.initial_decision_level {
+            self.literal_db.initial_decision_level = target;
         }
 
         self.clear_q(target);
@@ -121,10 +120,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 match top_two {
                     (None, _) => Ok(self.literal_db.lowest_decision_level()),
-                    (Some(second_to_top), _) => Ok(cmp::max(
+                    (Some(second_to_top), Some(top)) => Ok(cmp::max(
                         self.literal_db.lowest_decision_level(),
                         second_to_top,
                     )),
+
+                    _ => panic!("!"),
                 }
             }
         }

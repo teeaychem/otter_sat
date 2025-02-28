@@ -21,9 +21,7 @@ mod basic_assumptions {
 
         let p_assumption = CLiteral::new(p, true);
 
-        assert!(ctx.add_assumption(p_assumption).is_ok());
-
-        assert!(ctx.solve().is_ok());
+        assert!(ctx.solve_given(Some(vec![p_assumption])).is_ok());
 
         assert!(ctx.failed_assumpions().contains(&p_assumption));
 
@@ -57,9 +55,7 @@ mod basic_assumptions {
 
         let p_assumption = CLiteral::new(p, true);
 
-        assert!(ctx.add_assumption(p_assumption).is_ok());
-
-        let result = ctx.solve();
+        let result = ctx.solve_given(Some(vec![p_assumption]));
 
         assert!(result.is_ok());
 

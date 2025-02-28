@@ -89,7 +89,9 @@ pub enum AnalysisResult {
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// For details on conflict analysis see the [analysis](crate::procedures::analysis) procedure.
     pub fn conflict_analysis(&mut self, key: &ClauseKey) -> Result<AnalysisResult, err::ErrorKind> {
-        log::trace!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.current_level());
+        log::info!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.current_level());
+        log::info!(target: targets::ANALYSIS, "Level: {:?}", self.literal_db.top_assignments_unchecked());
+        log::info!(target: targets::ANALYSIS, "Valuation: {}", self.atom_db.valuation_string());
 
         if let config::vsids::VSIDS::Chaff = self.config.vsids.value {
             self.atom_db
@@ -98,10 +100,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         self.resolution_buffer.refresh(self.atom_db.valuation());
         // Safety: Some decision must have been made for conflict analysis to take place.
-        unsafe {
-            for Assignment { literal, source: _ } in self.literal_db.top_assignments_unchecked() {
-                self.resolution_buffer.clear_value(literal.atom());
-            }
+
+        for Assignment { literal, source: _ } in self.literal_db.top_assignments_unchecked() {
+            self.resolution_buffer.clear_value(literal.atom());
         }
 
         match self.resolution_buffer.resolve_through_current_level(
@@ -111,9 +112,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             &mut self.atom_db,
         ) {
             Ok(ResolutionOk::UnitClause) | Ok(ResolutionOk::UIP) => {}
+
             Ok(ResolutionOk::Repeat(key, literal)) => {
                 return Ok(AnalysisResult::MissedPropagation { key, literal });
             }
+
             Err(buffer_error) => {
                 return Err(err::ErrorKind::ResolutionBuffer(buffer_error));
             }
@@ -137,6 +140,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let premises = self.resolution_buffer.take_premises();
         let clause = self.resolution_buffer.to_assertion_clause();
         let literal = *unsafe { clause.get_unchecked(0) };
+        log::info!(target: targets::ANALYSIS, "Addition clause: {:?}", clause);
 
         match clause.len() {
             0 => Err(err::ErrorKind::from(err::AnalysisError::EmptyResolution)),
