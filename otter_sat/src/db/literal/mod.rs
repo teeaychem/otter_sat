@@ -65,13 +65,13 @@ impl LiteralDB {
 
     /// Pushes a fresh level to the top of the level stack with the given assumption.
     pub fn push_fresh_assumption(&mut self, assumption: CLiteral) {
+        self.initial_decision_level += 1;
         self.level_indicies.push(self.assignments.len());
 
         self.store_top_assignment_unchecked(Assignment::from(
             assumption,
             AssignmentSource::Assumption,
         ));
-        self.initial_decision_level += 1;
     }
 }
 

@@ -143,7 +143,7 @@ use crate::{
     },
     reports::Report,
     structures::{
-        clause::{CClause, Clause},
+        clause::Clause,
         consequence::{self, Assignment},
         literal::{CLiteral, Literal},
     },
