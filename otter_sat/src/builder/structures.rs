@@ -1,6 +1,9 @@
 use crate::{
     context::{ContextState, GenericContext},
-    db::consequence_q::{self},
+    db::{
+        atom::AtomValue,
+        consequence_q::{self},
+    },
     structures::{
         atom::{Atom, ATOM_MAX},
         clause::{Clause, ClauseSource},
@@ -110,7 +113,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             consequence_q::QPosition::Back,
                             self.literal_db.lowest_decision_level(),
                         ) {
-                            Ok(consequence_q::QueueResult::Qd) => {
+                            AtomValue::NotSet => {
                                 let premises = HashSet::default();
                                 self.clause_db.store(
                                     literal,
@@ -120,7 +123,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 );
                                 Ok(ClauseOk::Added)
                             }
-                            _ => Err(err::ErrorKind::ValuationConflict),
+
+                            AtomValue::Same => Ok(ClauseOk::Added),
+
+                            AtomValue::Different => Err(err::ErrorKind::ValuationConflict),
                         }
                     }
 
@@ -191,7 +197,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     consequence_q::QPosition::Back,
                     self.literal_db.lowest_decision_level(),
                 ) {
-                    Ok(consequence_q::QueueResult::Qd) => {
+                    AtomValue::NotSet => {
                         let premises = HashSet::default();
                         self.clause_db.store(
                             literal,
@@ -200,7 +206,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             premises,
                         );
                     }
-                    _ => {
+
+                    AtomValue::Same => {}
+
+                    AtomValue::Different => {
                         println!("Conflict adding clause {literal}");
                         self.state = ContextState::Unsatisfiable(
                             crate::db::ClauseKey::OriginalUnit(literal),

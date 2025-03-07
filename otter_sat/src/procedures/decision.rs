@@ -64,7 +64,6 @@ use crate::{
         literal::{CLiteral, Literal},
         valuation::Valuation,
     },
-    types::err,
 };
 
 /// Possible 'Ok' results from choosing a truth value to assign an atom.
@@ -88,7 +87,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///     decision::Ok::Exhausted => break,
     /// }
     /// ```
-    pub fn make_decision(&mut self) -> Result<DecisionOk, err::ConsequenceQueueError> {
+    pub fn make_decision(&mut self) -> DecisionOk {
         // Takes ownership of rng to satisfy the borrow checker.
         // Avoidable, at the cost of a less generic atom method.
         let mut rng = std::mem::take(&mut self.rng);
@@ -110,11 +109,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 };
                 log::trace!("Decision {decision_literal}");
 
-                Ok(DecisionOk::Literal(decision_literal))
+                DecisionOk::Literal(decision_literal)
             }
             None => {
                 self.state = ContextState::Satisfiable;
-                Ok(DecisionOk::Exhausted)
+                DecisionOk::Exhausted
             }
         }
     }

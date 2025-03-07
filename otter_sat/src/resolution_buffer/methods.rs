@@ -158,9 +158,9 @@ impl ResolutionBuffer {
                     let source_clause = match unsafe { clause_db.get_unchecked_mut(&key) } {
                         Err(_) => {
                             log::error!(target: targets::RESOLUTION, "Lost resolution clause: {key}");
-                            println!("Missing key");
                             return Err(err::ResolutionBufferError::LostClause);
                         }
+
                         Ok(clause) => clause,
                     };
 
@@ -179,8 +179,8 @@ impl ResolutionBuffer {
                     }
 
                     key = match self.config.subsumption
-                        && self.clause_length > 2
                         && self.clause_length < source_clause_size
+                        && self.clause_length > 2
                     {
                         false => key,
                         true => {
@@ -221,11 +221,12 @@ impl ResolutionBuffer {
                     log::error!(target: targets::RESOLUTION, "Trail exhausted without assertion");
                     log::error!(target: targets::RESOLUTION, "Clause: {:?}", self.to_assertion_clause());
                     log::error!(target: targets::RESOLUTION, "Valueless count: {}", self.valueless_count);
-                    // panic!("! The resolution trail hit a decision")
+                    // break 'resolution_loop;
+                    panic!("! Resolution hit a decision/assumption")
                 }
             };
 
-            if self.valueless_count == 1 {
+            if self.valueless_count <= 1 {
                 match self.config.stopping {
                     StoppingCriteria::FirstUIP => {
                         break 'resolution_loop;
