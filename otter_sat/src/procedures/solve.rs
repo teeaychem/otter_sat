@@ -136,10 +136,10 @@ Though, the presentation given is original.
 
 use crate::{
     context::{ContextState, GenericContext},
-    db::ClauseKey,
+    db::{atom::AtomValue, ClauseKey},
     procedures::{
         apply_consequences::{self},
-        decision::{self},
+        decision::{self, DecisionOk},
     },
     reports::Report,
     structures::{
@@ -147,7 +147,7 @@ use crate::{
         consequence::{self, Assignment},
         literal::{CLiteral, Literal},
     },
-    types::err::{self},
+    types::err::{self, ErrorKind},
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
@@ -231,15 +231,21 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 apply_consequences::ApplyConsequencesOk::Exhausted => {
                     //
-                    match self.make_decision()? {
-                        decision::DecisionOk::Literal(decision) => {
+                    match self.make_decision() {
+                        DecisionOk::Literal(decision) => {
                             self.literal_db.push_fresh_decision(decision);
                             let level = self.literal_db.current_level();
                             log::info!("Decided on {decision} at level {level}");
-                            self.value_and_queue(decision, QPosition::Back, level)?;
+
+                            if let AtomValue::Different =
+                                self.value_and_queue(decision, QPosition::Back, level)
+                            {
+                                return Err(ErrorKind::ValuationConflict);
+                            }
+
                             continue 'solve_loop;
                         }
-                        decision::DecisionOk::Exhausted => break 'solve_loop,
+                        DecisionOk::Exhausted => break 'solve_loop,
                     }
                 }
 
@@ -250,9 +256,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         QPosition::Front,
                         self.literal_db.current_level(),
                     ) {
-                        Ok(_) => {}
+                        AtomValue::NotSet | AtomValue::Same => {}
 
-                        Err(_) => {
+                        AtomValue::Different => {
                             self.state = ContextState::Unsatisfiable(ClauseKey::AdditionUnit(key));
 
                             // let clause = vec![key];
@@ -272,9 +278,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     let level = self.literal_db.current_level();
 
                     match self.value_and_queue(literal, QPosition::Front, level) {
-                        Ok(_) => {}
+                        AtomValue::NotSet | AtomValue::Same => {}
 
-                        Err(_) => {
+                        AtomValue::Different => {
                             self.state = ContextState::Unsatisfiable(key);
 
                             let clause =

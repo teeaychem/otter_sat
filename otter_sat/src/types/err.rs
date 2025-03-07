@@ -33,9 +33,6 @@ pub enum ErrorKind {
     /// An related to preprocessing.
     Preprocessing(PreprocessingError),
 
-    /// An related to the consequence queue.
-    ConsequenceQueue(ConsequenceQueueError),
-
     /// An related to BCP.
     BCP(BCPError),
 
@@ -163,19 +160,6 @@ pub enum ClauseDBError {
 impl From<ClauseDBError> for ErrorKind {
     fn from(e: ClauseDBError) -> Self {
         ErrorKind::ClauseDB(e)
-    }
-}
-
-/// Consequence queue errors.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ConsequenceQueueError {
-    /// Queuing a literal was not possible, as the literal would conflict with the current valuation.
-    Conflict,
-}
-
-impl From<ConsequenceQueueError> for ErrorKind {
-    fn from(e: ConsequenceQueueError) -> Self {
-        ErrorKind::ConsequenceQueue(e)
     }
 }
 

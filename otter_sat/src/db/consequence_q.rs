@@ -56,8 +56,9 @@ use crate::{
     db::LevelIndex,
     misc::log::targets::{self},
     structures::literal::{CLiteral, Literal},
-    types::err::{self},
 };
+
+use super::atom::AtomValue;
 
 /// A queue of observed consequences and the level at which the consequence was observed.
 pub type ConsequenceQ = std::collections::VecDeque<(CLiteral, LevelIndex)>;
@@ -115,7 +116,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         literal: impl Borrow<CLiteral>,
         position: QPosition,
         level: LevelIndex,
-    ) -> Result<QueueResult, err::ConsequenceQueueError> {
+    ) -> AtomValue {
         let valuation_result = unsafe {
             self.atom_db.set_value(
                 literal.borrow().atom(),
@@ -124,22 +125,22 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             )
         };
         match valuation_result {
-            Ok(super::atom::AtomValue::NotSet) => {
+            AtomValue::NotSet => {
                 match position {
                     QPosition::Front => self.consequence_q.push_front((*literal.borrow(), level)),
                     QPosition::Back => self.consequence_q.push_back((*literal.borrow(), level)),
                 }
                 log::trace!(target: targets::QUEUE, "Queued {} at level {level}.", literal.borrow());
-                Ok(QueueResult::Qd)
             }
 
-            Ok(_) => Ok(QueueResult::Skip),
+            AtomValue::Same => {}
 
-            Err(_) => {
+            AtomValue::Different => {
                 log::trace!(target: targets::QUEUE, "Queueing {} failed.", literal.borrow());
-                Err(err::ConsequenceQueueError::Conflict)
             }
         }
+
+        valuation_result
     }
 
     /// Places an atom-value (represented as a literal) consequence on the consequence queue, always.

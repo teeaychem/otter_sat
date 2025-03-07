@@ -141,15 +141,15 @@ impl AtomDB {
         atom: Atom,
         value: bool,
         level: Option<LevelIndex>,
-    ) -> Result<AtomValue, AtomValue> {
+    ) -> AtomValue {
         match self.value_of(atom) {
             None => {
                 *self.valuation.get_unchecked_mut(atom as usize) = Some(value);
                 *self.decision_indicies.get_unchecked_mut(atom as usize) = level;
-                Ok(AtomValue::NotSet)
+                AtomValue::NotSet
             }
-            Some(v) if v == value => Ok(AtomValue::Same),
-            Some(_) => Err(AtomValue::Different),
+            Some(v) if v == value => AtomValue::Same,
+            Some(_) => AtomValue::Different,
         }
     }
 

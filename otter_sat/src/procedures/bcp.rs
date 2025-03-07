@@ -60,7 +60,10 @@ use std::borrow::Borrow;
 use crate::{
     context::GenericContext,
     db::{
-        atom::watch_db::{self},
+        atom::{
+            watch_db::{self},
+            AtomValue,
+        },
         consequence_q::{QPosition, QueueResult},
     },
     misc::log::targets::{self},
@@ -114,14 +117,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 match self.atom_db.value_of(check.atom()) {
                     None => match self.value_and_queue(check, QPosition::Back, decision_level) {
-                        Ok(QueueResult::Qd) => {
+                        AtomValue::NotSet => {
                             let consequence = Assignment::from(check, AssignmentSource::BCP(key));
                             self.record_consequence(consequence);
                         }
 
-                        Ok(QueueResult::Skip) => {}
+                        AtomValue::Same => {}
 
-                        Err(_) => return Err(err::BCPError::Conflict(key)),
+                        AtomValue::Different => return Err(err::BCPError::Conflict(key)),
                     },
 
                     Some(value) if check.polarity() != value => {
@@ -185,15 +188,15 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 self.clause_db.note_use(key);
 
                                 match self.value_and_queue(watch, QPosition::Back, decision_level) {
-                                    Ok(QueueResult::Qd) => {
+                                    AtomValue::NotSet => {
                                         let consequence =
                                             Assignment::from(watch, AssignmentSource::BCP(key));
                                         self.record_consequence(consequence);
                                     }
 
-                                    Ok(QueueResult::Skip) => {}
+                                    AtomValue::Same => {}
 
-                                    Err(_) => {
+                                    AtomValue::Different => {
                                         long_list.split_off(length);
                                         return Err(err::BCPError::Conflict(key));
                                     }

@@ -23,7 +23,10 @@ use std::collections::HashSet;
 
 use crate::{
     context::{ContextState, GenericContext},
-    db::consequence_q::QPosition,
+    db::{
+        atom::AtomValue,
+        consequence_q::{QPosition, QueueResult},
+    },
     structures::{
         atom::Atom,
         clause::Clause,
@@ -66,7 +69,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         assumption.polarity(),
                         Some(self.literal_db.current_level()),
                     ) {
-                        Ok(_) => {
+                        AtomValue::NotSet => {
                             // As assumptions are stacked, immediately call BCP.
                             match self.bcp(assumption) {
                                 Ok(_) => {}
@@ -90,7 +93,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             }
                         }
 
-                        Err(_) => return Err(ErrorKind::SpecificValuationConflict(assumption)),
+                        AtomValue::Same => panic!("! Assumption of an atom with some value"),
+
+                        AtomValue::Different => {
+                            return Err(ErrorKind::SpecificValuationConflict(assumption))
+                        }
                     }
                 }
 
@@ -120,9 +127,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         QPosition::Back,
                         self.literal_db.current_level(),
                     ) {
-                        Ok(_) => {}
+                        AtomValue::NotSet => {}
 
-                        Err(_) => return Err(ErrorKind::SpecificValuationConflict(literal)),
+                        AtomValue::Same => panic!("! Assumption of an atom with some value"),
+
+                        AtomValue::Different => {
+                            return Err(ErrorKind::SpecificValuationConflict(literal))
+                        }
                     }
                 }
 

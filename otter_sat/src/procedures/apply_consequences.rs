@@ -88,7 +88,7 @@ So, caution should be taken to avoid overlooking a failed invariant.
 
 use crate::{
     context::{ContextState, GenericContext},
-    db::ClauseKey,
+    db::{atom::AtomValue, ClauseKey},
     procedures::analysis::AnalysisResult,
     structures::{
         consequence::{self, Assignment},
@@ -166,11 +166,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let index = self.non_chronological_backjump_level(the_clause)?;
                             self.backjump(index);
 
-                            self.value_and_queue(
+                            if let AtomValue::Different = self.value_and_queue(
                                 asserted_literal,
                                 QPosition::Front,
                                 self.literal_db.current_level(),
-                            )?;
+                            ) {
+                                return Err(ErrorKind::ValuationConflict);
+                            };
 
                             let consequence = Assignment::from(
                                 asserted_literal,

@@ -5,14 +5,16 @@ use std::collections::HashSet;
 
 use crate::{
     context::GenericContext,
-    db::consequence_q::{self},
+    db::{
+        atom::AtomValue,
+        consequence_q::{self},
+    },
     structures::{
         atom::Atom,
         clause::Clause,
         consequence::{self, Assignment},
         literal::{CLiteral, Literal},
     },
-    types::err::{self},
 };
 
 // General order for pairs related to booleans is 0 is false, 1 is true
@@ -42,7 +44,7 @@ pub fn pure_literals<'l>(
 /// Finds all pure literals with respect to non-unit clauses and sets the value of the relevant atom to match the polarity of the literal.
 pub fn set_pure<R: rand::Rng + std::default::Default>(
     context: &mut GenericContext<R>,
-) -> Result<(), err::ConsequenceQueueError> {
+) -> Result<(), ()> {
     let (f, t) = pure_literals(
         context
             .clause_db
@@ -56,14 +58,15 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         let level = context.literal_db.current_level();
 
         match context.value_and_queue(the_literal, position, level) {
-            Ok(consequence_q::QueueResult::Qd) => {
+            AtomValue::NotSet => {
                 let consequence =
                     Assignment::from(the_literal, consequence::AssignmentSource::PureLiteral);
                 unsafe { context.record_consequence(consequence) };
             }
-            Ok(consequence_q::QueueResult::Skip) => {}
 
-            Err(e) => return Err(e),
+            AtomValue::Same => {}
+
+            AtomValue::Different => return Err(()),
         }
     }
 
@@ -73,14 +76,15 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         let level = context.literal_db.current_level();
 
         match context.value_and_queue(the_literal, position, level) {
-            Ok(consequence_q::QueueResult::Qd) => {
+            AtomValue::NotSet => {
                 let consequence =
                     Assignment::from(the_literal, consequence::AssignmentSource::PureLiteral);
                 unsafe { context.record_consequence(consequence) };
             }
-            Ok(consequence_q::QueueResult::Skip) => {}
 
-            Err(e) => return Err(e),
+            AtomValue::Same => {}
+
+            AtomValue::Different => return Err(()),
         }
     }
 
