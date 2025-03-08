@@ -95,7 +95,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         if let config::vsids::VSIDS::Chaff = self.config.vsids.value {
             self.atom_db
-                .bump_relative(unsafe { self.clause_db.get_unchecked(key)?.atoms() });
+                .bump_relative(unsafe { self.clause_db.get_unchecked(key).atoms() });
         }
 
         self.resolution_buffer.refresh(self.atom_db.valuation());

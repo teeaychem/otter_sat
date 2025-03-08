@@ -120,11 +120,7 @@ fn main() {
                         }
 
                         _ => {
-                            let clause = unsafe {
-                                ctx.clause_db
-                                    .get_unchecked(&key)
-                                    .expect("c Core key missing")
-                            };
+                            let clause = unsafe { ctx.clause_db.get_unchecked(&key) };
                             println!("{}", clause.as_dimacs(true));
                         }
                     }

@@ -55,11 +55,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
 
                 ClauseKey::AdditionUnit(unit) => {
-                    let db_clause = unsafe {
-                        self.clause_db
-                            .get_unchecked(&key)
-                            .expect("Missing core clause")
-                    };
+                    let db_clause = unsafe { self.clause_db.get_unchecked(&key) };
 
                     match db_clause.premises().len() {
                         0 => panic!("! A unit addition clause with no premises"),
@@ -71,8 +67,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 .next()
                                 .expect("Missing premise key");
                             let the_premise =
-                                unsafe { self.clause_db.get_unchecked(the_premise_key) }
-                                    .expect("Missing premise clause");
+                                unsafe { self.clause_db.get_unchecked(the_premise_key) };
 
                             for key in the_premise.premises() {
                                 todo.push_back(*key);
@@ -109,22 +104,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 ClauseKey::OriginalBinary(_) => {
                     core.insert(key);
-                    let clause = unsafe {
-                        self.clause_db
-                            .get_unchecked(&key)
-                            .expect("Missing core clause")
-                    };
+                    let clause = unsafe { self.clause_db.get_unchecked(&key) };
                     for key in clause.premises() {
                         todo.push_back(*key);
                     }
                 }
 
                 ClauseKey::AdditionBinary(_) => {
-                    let clause = unsafe {
-                        self.clause_db
-                            .get_unchecked(&key)
-                            .expect("Missing core clause")
-                    };
+                    let clause = unsafe { self.clause_db.get_unchecked(&key) };
                     for key in clause.premises() {
                         todo.push_back(*key);
                     }
@@ -135,11 +122,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
 
                 ClauseKey::Addition(_, _) => {
-                    let clause = unsafe {
-                        self.clause_db
-                            .get_unchecked(&key)
-                            .expect("Missing core clause")
-                    };
+                    let clause = unsafe { self.clause_db.get_unchecked(&key) };
                     for key in clause.premises() {
                         todo.push_back(*key);
                     }

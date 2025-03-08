@@ -64,7 +64,7 @@ use crate::{
             watch_db::{self},
             AtomValue,
         },
-        consequence_q::{QPosition, QueueResult},
+        consequence_q::QPosition,
     },
     misc::log::targets::{self},
     structures::{
@@ -78,12 +78,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// For documentation see [procedures::bcp](crate::procedures::bcp).
     ///
     /// # Soundness
-    /// The implementation of BCP requires a key invariant to be upheld:
-    /// <div class="warning">
+    /// The implementation of BCP requires -
     /// The literal at index 0 is a watched literal.
     /// </div>
-    ///
-    /// # Safety
     pub fn bcp(&mut self, literal: impl Borrow<CLiteral>) -> Result<(), err::BCPError> {
         let literal = literal.borrow();
         let decision_level = self.literal_db.current_level();

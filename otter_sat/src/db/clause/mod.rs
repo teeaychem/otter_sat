@@ -196,22 +196,20 @@ impl ClauseDB {
 
                 for premise_key in the_clause.premises() {
                     match premise_key {
-                        ClauseKey::Addition(_, _) => {
-                            match unsafe { self.get_unchecked_mut(premise_key) } {
-                                Ok(clause) => {
-                                    clause.decrement_proof_count();
-                                    if !clause.is_active() && clause.proof_occurrence_count() == 0 {
-                                        self.activity_heap.activate(premise_key.index());
-                                    }
-                                }
-
-                                Err(_) => {
-                                    log::error!(target: targets::CLAUSE_DB, "Remove called with missing ancestor clause");
-                                    println!("Remove called with missing ancestor clause");
-                                    return Err(err::ClauseDBError::Missing);
+                        ClauseKey::Addition(_, _) => match self.get_mut(premise_key) {
+                            Ok(clause) => {
+                                clause.decrement_proof_count();
+                                if !clause.is_active() && clause.proof_occurrence_count() == 0 {
+                                    self.activity_heap.activate(premise_key.index());
                                 }
                             }
-                        }
+
+                            Err(_) => {
+                                log::error!(target: targets::CLAUSE_DB, "Remove called with missing ancestor clause");
+                                println!("Remove called with missing ancestor clause");
+                                return Err(err::ClauseDBError::Missing);
+                            }
+                        },
 
                         _ => {}
                     }
@@ -416,14 +414,12 @@ impl ClauseDB {
         premises: HashSet<ClauseKey>,
         increment_proof_count: bool,
     ) -> Result<ClauseKey, err::SubsumptionError> {
-        let the_clause = match self.get_unchecked_mut(&key) {
-            Ok(c) => c,
-            Err(_) => return Err(err::SubsumptionError::ClauseDB),
-        };
-        match the_clause.len() {
+        let clause = self.get_unchecked_mut(&key);
+
+        match clause.len() {
             0..=2 => Err(err::SubsumptionError::ShortClause),
             _ => {
-                the_clause.subsume(literal, atom_db, true, premises, increment_proof_count)?;
+                clause.subsume(literal, atom_db, true, premises, increment_proof_count)?;
                 Ok(key)
             }
         }

@@ -116,43 +116,37 @@ impl ClauseDB {
 
     /// Returns a result of the clause for a given key.
     ///
-    /// No check is made on whether a clause is stored by the key.
-    /// ```rust, ignore
-    /// self.clause_db.get_db_clause_unchecked(&key)?
-    /// ```
     /// # Safety
-    /// To be used only when there is a guarantee that the clause has not been removed.
-    ///
-    /// E.g., this is safe to use with binary clauses, but not with addition clauses.
-    pub unsafe fn get_unchecked(&self, key: &ClauseKey) -> Result<&dbClause, err::ClauseDBError> {
+    /// No check is made on whether a clause is stored by the key.
+    /// So, to be used only when there is a guarantee that the clause has not been removed.
+    /// E.g., It is always safe to use with binary clauses, but not with long addition clauses, as these may be removed.
+    pub unsafe fn get_unchecked(&self, key: &ClauseKey) -> &dbClause {
         match key {
-            ClauseKey::OriginalUnit(_) => Err(err::ClauseDBError::GetOriginalUnitKey),
+            ClauseKey::OriginalUnit(_) => match self.unit_original.get(key) {
+                Some(clause) => clause,
+                None => panic!("! Missing clause"),
+            },
 
             ClauseKey::AdditionUnit(_) => {
                 //
                 match self.unit_addition.get(key) {
-                    Some(clause) => Ok(clause),
-                    None => Err(err::ClauseDBError::Missing),
+                    Some(clause) => clause,
+                    None => panic!("! Missing clause"),
                 }
             }
-            ClauseKey::Original(index) => Ok(self.original.get_unchecked(*index as usize)),
 
-            ClauseKey::OriginalBinary(index) => {
-                Ok(self.binary_original.get_unchecked(*index as usize))
-            }
+            ClauseKey::Original(index) => self.original.get_unchecked(*index as usize),
 
-            ClauseKey::AdditionBinary(index) => {
-                Ok(self.binary_addition.get_unchecked(*index as usize))
-            }
+            ClauseKey::OriginalBinary(index) => self.binary_original.get_unchecked(*index as usize),
 
-            ClauseKey::Addition(index, token) => {
+            ClauseKey::AdditionBinary(index) => self.binary_addition.get_unchecked(*index as usize),
+
+            ClauseKey::Addition(index, _) => {
                 //
                 match self.addition.get_unchecked(*index as usize) {
-                    Some(clause) => match clause.key() {
-                        ClauseKey::Addition(_, clause_token) if clause_token == token => Ok(clause),
-                        _ => Err(err::ClauseDBError::InvalidKeyToken),
-                    },
-                    None => Err(err::ClauseDBError::InvalidKeyIndex),
+                    Some(clause) => clause,
+
+                    None => panic!("! Missing clause"),
                 }
             }
         }
@@ -160,41 +154,41 @@ impl ClauseDB {
 
     /// Returns Ok(mutable clause) corresponding to the given key, or an Err(issue) otherwise.
     ///
-    /// ```rust, ignore
-    /// self.clause_db.get_db_clause_mut(&key)?
-    /// ```
     /// # Safety
     /// Does not check for a clause, nor the token of a addition key.
-    pub unsafe fn get_unchecked_mut(
-        &mut self,
-        key: &ClauseKey,
-    ) -> Result<&mut dbClause, err::ClauseDBError> {
+    pub unsafe fn get_unchecked_mut(&mut self, key: &ClauseKey) -> &mut dbClause {
         match key {
-            ClauseKey::OriginalUnit(_) => Err(err::ClauseDBError::GetOriginalUnitKey),
+            ClauseKey::OriginalUnit(_) => {
+                //
+                match self.unit_original.get_mut(key) {
+                    Some(clause) => clause,
+                    None => panic!("! Missing clause"),
+                }
+            }
 
             ClauseKey::AdditionUnit(_) => {
                 //
                 match self.unit_addition.get_mut(key) {
-                    Some(clause) => Ok(clause),
-                    None => Err(err::ClauseDBError::Missing),
+                    Some(clause) => clause,
+                    None => panic!("! Missing clause"),
                 }
             }
-            ClauseKey::Original(index) => Ok(self.original.get_unchecked_mut(*index as usize)),
+            ClauseKey::Original(index) => self.original.get_unchecked_mut(*index as usize),
 
             ClauseKey::OriginalBinary(index) => {
-                Ok(self.binary_original.get_unchecked_mut(*index as usize))
+                self.binary_original.get_unchecked_mut(*index as usize)
             }
 
             ClauseKey::AdditionBinary(index) => {
-                Ok(self.binary_addition.get_unchecked_mut(*index as usize))
+                self.binary_addition.get_unchecked_mut(*index as usize)
             }
 
             ClauseKey::Addition(index, _) => {
                 //
                 match self.addition.get_unchecked_mut(*index as usize) {
-                    Some(clause) => Ok(clause),
+                    Some(clause) => clause,
 
-                    None => Err(err::ClauseDBError::InvalidKeyIndex),
+                    None => panic!("! Missing clause"),
                 }
             }
         }

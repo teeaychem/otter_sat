@@ -92,10 +92,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let mut premises = HashSet::default();
                             premises.insert(*key);
 
-                            match self.clause_db.get_unchecked_mut(&key) {
-                                Ok(clause) => clause.increment_proof_count(),
-                                Err(_) => {}
-                            };
+                            self.clause_db
+                                .get_unchecked_mut(&key)
+                                .increment_proof_count();
                             self.clause_db.note_use(*key);
 
                             self.clause_db.store(

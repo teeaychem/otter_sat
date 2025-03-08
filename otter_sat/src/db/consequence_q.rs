@@ -63,17 +63,6 @@ use super::atom::AtomValue;
 /// A queue of observed consequences and the level at which the consequence was observed.
 pub type ConsequenceQ = std::collections::VecDeque<(CLiteral, LevelIndex)>;
 
-/// Possible 'Ok' results of queuing a literal.
-pub enum QueueResult {
-    /// The literal was (successfully) queued.
-    Qd,
-
-    /// The literal was skipped.
-    ///
-    /// This may happen, e.g., if the consequences of the literal are (set to be) applied.
-    Skip,
-}
-
 /// Relative positions to place a literal on the consequence queue.
 pub enum QPosition {
     /// The front of the queue.
@@ -124,6 +113,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Some(level),
             )
         };
+
         match valuation_result {
             AtomValue::NotSet => {
                 match position {
