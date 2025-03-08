@@ -23,10 +23,7 @@ use std::collections::HashSet;
 
 use crate::{
     context::{ContextState, GenericContext},
-    db::{
-        atom::AtomValue,
-        consequence_q::{QPosition, QueueResult},
-    },
+    db::{atom::AtomValue, consequence_q::QPosition},
     structures::{
         atom::Atom,
         clause::Clause,
@@ -39,13 +36,7 @@ use crate::{
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Asserts all assumptions recorded in the literal database.
     /// Returns ok if asserting assumptions as successful, and an error otherwise.
-    ///
-    /// # Safety
-    /// Calls to [BCP](GenericContext::bcp) are made.
-    pub unsafe fn assert_assumptions(
-        &mut self,
-        assumptions: Vec<CLiteral>,
-    ) -> Result<(), ErrorKind> {
+    pub fn assert_assumptions(&mut self, assumptions: Vec<CLiteral>) -> Result<(), ErrorKind> {
         if self.literal_db.decision_is_made() {
             log::error!("! Asserting assumptions while a decision has been made.");
             return Err(ErrorKind::InvalidState);
@@ -64,11 +55,15 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     self.literal_db.push_fresh_assumption(assumption);
 
-                    match self.atom_db.set_value(
-                        assumption.atom(),
-                        assumption.polarity(),
-                        Some(self.literal_db.current_level()),
-                    ) {
+                    // # Safety
+                    // The atom has been ensured, above.
+                    match unsafe {
+                        self.atom_db.set_value(
+                            assumption.atom(),
+                            assumption.polarity(),
+                            Some(self.literal_db.current_level()),
+                        )
+                    } {
                         AtomValue::NotSet => {
                             // As assumptions are stacked, immediately call BCP.
                             match self.bcp(assumption) {
@@ -79,9 +74,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                                     self.state = ContextState::Unsatisfiable(key);
 
-                                    let clause = unsafe {
-                                        self.clause_db.get_unchecked(&key).unwrap().clone()
-                                    };
+                                    let clause =
+                                        unsafe { self.clause_db.get_unchecked(&key).clone() };
                                     self.clause_db.make_callback_unsatisfiable(&clause);
 
                                     return Err(ErrorKind::SpecificValuationConflict(assumption));
@@ -171,7 +165,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let mut used_atoms: HashSet<Atom> = HashSet::default();
 
         // Safe, as the relevant key is kept as proof of unsatisfiability.
-        for literal in unsafe { self.clause_db.get_unchecked(&key).unwrap().literals() } {
+        for literal in unsafe { self.clause_db.get_unchecked(&key).literals() } {
             used_atoms.insert(literal.atom());
         }
 

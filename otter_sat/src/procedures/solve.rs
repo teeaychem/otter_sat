@@ -139,7 +139,7 @@ use crate::{
     db::{atom::AtomValue, ClauseKey},
     procedures::{
         apply_consequences::{self},
-        decision::{self, DecisionOk},
+        decision::DecisionOk,
     },
     reports::Report,
     structures::{
@@ -185,7 +185,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
 
                 if let Some(assumptions) = assumptions {
-                    match unsafe { self.assert_assumptions(assumptions) } {
+                    match self.assert_assumptions(assumptions) {
                         Ok(_) => {}
 
                         Err(err::ErrorKind::SpecificValuationConflict(assumption)) => {
@@ -283,8 +283,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         AtomValue::Different => {
                             self.state = ContextState::Unsatisfiable(key);
 
-                            let clause =
-                                unsafe { self.clause_db.get_unchecked_mut(&key).unwrap().clone() };
+                            let clause = unsafe { self.clause_db.get_unchecked_mut(&key).clone() };
                             self.clause_db.make_callback_unsatisfiable(&clause);
 
                             break 'solve_loop;

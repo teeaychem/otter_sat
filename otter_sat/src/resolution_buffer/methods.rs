@@ -44,7 +44,7 @@ use crate::{
         literal::{CLiteral, Literal},
         valuation::Valuation,
     },
-    types::err::{self, ResolutionBufferError},
+    types::err::{self},
 };
 
 use super::{cell::Cell, config::BufferConfig, ResolutionBuffer, ResolutionOk};
@@ -132,10 +132,7 @@ impl ResolutionBuffer {
         atom_db: &mut AtomDB,
     ) -> Result<ResolutionOk, err::ResolutionBufferError> {
         // The key has already been used to access the conflicting clause.
-        let base_clause = match unsafe { clause_db.get_unchecked_mut(key) } {
-            Ok(clause) => clause,
-            Err(_) => return Err(err::ResolutionBufferError::MissingClause),
-        };
+        let base_clause = unsafe { clause_db.get_unchecked_mut(key) };
 
         self.merge_clause(base_clause);
         base_clause.increment_proof_count();
@@ -155,14 +152,7 @@ impl ResolutionBuffer {
                 AssignmentSource::BCP(key) => {
                     let mut key = *key;
 
-                    let source_clause = match unsafe { clause_db.get_unchecked_mut(&key) } {
-                        Err(_) => {
-                            log::error!(target: targets::RESOLUTION, "Lost resolution clause: {key}");
-                            return Err(err::ResolutionBufferError::LostClause);
-                        }
-
-                        Ok(clause) => clause,
-                    };
+                    let source_clause = unsafe { clause_db.get_unchecked_mut(&key) };
 
                     // Recorded here to avoid multiple mutable borrows of clause_db
                     let source_clause_size = source_clause.size();
@@ -250,7 +240,6 @@ impl ResolutionBuffer {
                 log::error!(target: targets::RESOLUTION, "Clause: {:?}", self.to_assertion_clause());
                 log::error!(target: targets::RESOLUTION, "Valueless count: {}", self.valueless_count);
                 panic!("! A clause which does not assert");
-                Err(ResolutionBufferError::Exhausted)
             }
         }
     }

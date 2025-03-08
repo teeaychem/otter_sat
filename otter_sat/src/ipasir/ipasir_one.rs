@@ -189,15 +189,11 @@ pub unsafe extern "C" fn ipasir_failed(solver: *mut c_void, lit: i32) -> c_int {
                 ClauseKey::OriginalUnit(literal) => {
                     bundle.core_literals.insert(*literal);
                 }
+
                 _ => {
-                    match bundle.context.clause_db.get_unchecked(key) {
-                        Ok(clause) => {
-                            for literal in clause.literals() {
-                                bundle.core_literals.insert(literal);
-                            }
-                        }
-                        Err(e) => panic!("{e:?}"),
-                    };
+                    for literal in bundle.context.clause_db.get_unchecked(key).literals() {
+                        bundle.core_literals.insert(literal);
+                    }
                 }
             }
         }
