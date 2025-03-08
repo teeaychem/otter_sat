@@ -59,8 +59,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// # Safety
     /// If the source of the consequence references a clause stored by a key, the clause must be present in the clause database.
-    pub unsafe fn record_consequence(&mut self, consequence: impl Borrow<Assignment>) {
-        let consequence = consequence.borrow().clone();
+    pub unsafe fn record_consequence(&mut self, consequence: Assignment) {
         match consequence.source() {
             AssignmentSource::PureLiteral => {
                 let premises = HashSet::default();
@@ -85,9 +84,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         if self.literal_db.assumption_is_made()
                             && !self.literal_db.decision_is_made()
                         {
-                            self.literal_db.store_top_assignment_unchecked(consequence);
+                            self.literal_db.store_assignment(consequence);
                         } else {
-                            let unit_clause = *consequence.literal();
+                            let unit_clause = consequence.literal();
 
                             let mut premises = HashSet::default();
                             premises.insert(*key);
@@ -98,15 +97,17 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             self.clause_db.note_use(*key);
 
                             self.clause_db.store(
-                                unit_clause,
+                                *unit_clause,
                                 ClauseSource::BCP,
                                 &mut self.atom_db,
                                 premises,
                             );
+
+                            self.literal_db.store_assignment(consequence)
                         };
                     }
 
-                    _ => self.literal_db.store_top_assignment_unchecked(consequence),
+                    _ => self.literal_db.store_assignment(consequence),
                 }
             }
 

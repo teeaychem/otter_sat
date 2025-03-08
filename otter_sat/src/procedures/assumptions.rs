@@ -109,12 +109,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 for literal in assumptions.into_iter() {
                     self.ensure_atom(literal.atom());
 
-                    self.literal_db.store_top_assignment_unchecked(
-                        crate::structures::consequence::Assignment {
+                    self.literal_db
+                        .store_assignment(crate::structures::consequence::Assignment {
                             literal,
                             source: AssignmentSource::Assumption,
-                        },
-                    );
+                        });
 
                     match self.value_and_queue(
                         literal,
