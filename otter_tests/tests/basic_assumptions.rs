@@ -10,20 +10,19 @@ mod basic_assumptions {
         let cfg = Config::default();
         let mut ctx = Context::from_config(cfg);
 
-        let p = ctx.fresh_or_max_atom();
-        let q = ctx.fresh_or_max_atom();
+        let p = CLiteral::new(ctx.fresh_or_max_atom(), true);
+        let q = CLiteral::new(ctx.fresh_or_max_atom(), true);
 
-        let not_p_q_clause = vec![CLiteral::new(p, false), CLiteral::new(q, true)];
-        assert!(ctx.add_clause(not_p_q_clause).is_ok());
+        assert!(ctx.add_clause(vec![-p, q]).is_ok());
 
-        let not_q_clause = vec![CLiteral::new(q, false)];
-        assert!(ctx.add_clause(not_q_clause).is_ok());
+        assert!(ctx.add_clause(vec![-q]).is_ok());
 
-        let p_assumption = CLiteral::new(p, true);
+        let result = ctx.solve_given(Some(vec![p]));
+        println!("{result:?}");
 
-        assert!(ctx.solve_given(Some(vec![p_assumption])).is_ok());
+        assert!(result.is_ok());
 
-        assert!(ctx.failed_assumpions().contains(&p_assumption));
+        assert!(ctx.failed_assumpions().contains(&p));
 
         assert!(matches!(ctx.report(), Report::Unsatisfiable))
     }

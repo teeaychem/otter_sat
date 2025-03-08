@@ -133,11 +133,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         use crate::db::consequence_q::QPosition::{self};
 
         'application: loop {
-            let Some((literal, _)) = self.consequence_q.front().cloned() else {
+            let Some((literal, _)) = self.consequence_q.front() else {
                 return Ok(ApplyConsequencesOk::Exhausted);
             };
 
-            match self.bcp(literal) {
+            match self.bcp(*literal) {
                 Ok(()) => {
                     self.consequence_q.pop_front();
                 }
@@ -157,34 +157,29 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         // Analysis is only called when some decision has been made.
                         AnalysisResult::FundamentalConflict => panic!("!"),
 
-                        AnalysisResult::MissedPropagation {
-                            key,
-                            literal: asserted_literal,
-                        } => {
-                            let the_clause = unsafe { self.clause_db.get_unchecked(&key) };
+                        AnalysisResult::MissedPropagation { key, literal } => {
+                            let clause = unsafe { self.clause_db.get_unchecked(&key) };
 
-                            let index = self.non_chronological_backjump_level(the_clause)?;
+                            let index = self.non_chronological_backjump_level(clause)?;
                             self.backjump(index);
 
                             if let AtomValue::Different = self.value_and_queue(
-                                asserted_literal,
+                                literal,
                                 QPosition::Front,
                                 self.literal_db.current_level(),
                             ) {
                                 return Err(ErrorKind::ValuationConflict);
                             };
 
-                            let consequence = Assignment::from(
-                                asserted_literal,
-                                consequence::AssignmentSource::BCP(key),
-                            );
+                            let consequence =
+                                Assignment::from(literal, consequence::AssignmentSource::BCP(key));
                             unsafe { self.record_consequence(consequence) };
 
                             continue 'application;
                         }
 
-                        AnalysisResult::UnitClause { literal: key } => {
-                            return Ok(ApplyConsequencesOk::UnitClause { literal: key });
+                        AnalysisResult::UnitClause { literal } => {
+                            return Ok(ApplyConsequencesOk::UnitClause { literal });
                         }
 
                         AnalysisResult::AssertingClause { key, literal } => {

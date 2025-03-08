@@ -60,7 +60,7 @@ impl LiteralDB {
     pub fn push_fresh_decision(&mut self, decision: CLiteral) {
         self.level_indicies.push(self.assignments.len());
 
-        self.store_top_assignment_unchecked(Assignment::from(decision, AssignmentSource::Decision));
+        self.store_assignment(Assignment::from(decision, AssignmentSource::Decision));
     }
 
     /// Pushes a fresh level to the top of the level stack with the given assumption.
@@ -68,10 +68,7 @@ impl LiteralDB {
         self.initial_decision_level += 1;
         self.level_indicies.push(self.assignments.len());
 
-        self.store_top_assignment_unchecked(Assignment::from(
-            assumption,
-            AssignmentSource::Assumption,
-        ));
+        self.store_assignment(Assignment::from(assumption, AssignmentSource::Assumption));
     }
 }
 
@@ -177,7 +174,7 @@ impl LiteralDB {
 
 impl LiteralDB {
     /// Stores a consequence of the top decision level.
-    pub fn store_top_assignment_unchecked(&mut self, assignment: Assignment) {
+    pub fn store_assignment(&mut self, assignment: Assignment) {
         self.assignments.push(assignment);
     }
 }

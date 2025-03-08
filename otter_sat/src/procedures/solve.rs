@@ -170,6 +170,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
 
             ContextState::Configuration | ContextState::Input => {
+                self.preprocess()?;
+
                 for (key, clause) in self.clause_db.all_unit_clauses() {
                     if clause.unsatisfiable_on(self.atom_db.valuation()) {
                         self.state = ContextState::Unsatisfiable(key);
@@ -185,16 +187,70 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
 
                 if let Some(assumptions) = assumptions {
+                    // Initial BCP, prior to assumptions.
+                    while let Some((literal, _)) = self.consequence_q.front() {
+                        match self.bcp(*literal) {
+                            Ok(()) => {
+                                self.consequence_q.pop_front();
+                            }
+
+                            Err(err::BCPError::Conflict(key)) => {
+                                //
+                                self.state = ContextState::Unsatisfiable(key);
+                                let clause =
+                                    unsafe { self.clause_db.get_unchecked_mut(&key).clone() };
+                                self.clause_db.make_callback_unsatisfiable(&clause);
+                                return Ok(self.report());
+                            }
+
+                            Err(non_conflict_bcp_error) => {
+                                return Err(ErrorKind::BCP(non_conflict_bcp_error))
+                            }
+                        }
+                    }
+
                     match self.assert_assumptions(assumptions) {
                         Ok(_) => {}
 
                         Err(err::ErrorKind::SpecificValuationConflict(assumption)) => {
-                            log::info!("Failed to assert assumption: {assumption}");
-                            return Ok(Report::Unsatisfiable);
+                            let assignment = self
+                                .literal_db
+                                .assignments
+                                .iter()
+                                .find(|a| a.literal == assumption.negate());
+
+                            let source = assignment.expect("! Conflict failure").source;
+
+                            match source {
+                                consequence::AssignmentSource::PureLiteral => todo!(),
+
+                                consequence::AssignmentSource::Decision => {
+                                    panic!("! Decision prior to main solve loop")
+                                }
+
+                                consequence::AssignmentSource::BCP(key) => {
+                                    self.state = ContextState::Unsatisfiable(key);
+                                    let clause =
+                                        unsafe { self.clause_db.get_unchecked_mut(&key).clone() };
+                                    self.clause_db.make_callback_unsatisfiable(&clause);
+
+                                    return Ok(self.report());
+                                }
+
+                                consequence::AssignmentSource::Assumption => {
+                                    println!("! ???");
+                                    let q_key = ClauseKey::OriginalUnit(CLiteral::new(0, false));
+
+                                    self.state = ContextState::Unsatisfiable(q_key);
+                                    return Ok(self.report());
+                                }
+                            }
                         }
 
                         Err(e) => {
                             log::info!("Failed to assert assumption: {e:?}");
+                            panic!("! Unexpected error when asserting assumptions");
+
                             self.state = ContextState::Unsatisfiable(ClauseKey::OriginalUnit(
                                 CLiteral::new(0, false),
                             ));
@@ -204,8 +260,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
 
                 self.state = ContextState::Solving;
-
-                self.preprocess()?;
             }
         }
 
