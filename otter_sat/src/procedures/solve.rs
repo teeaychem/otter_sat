@@ -250,23 +250,19 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         }
 
                         Err(err::ErrorKind::AssumptionConflict(literal)) => {
-                            if self
-                                .clause_db
-                                .get(&ClauseKey::OriginalUnit(-literal))
-                                .is_ok()
-                            {
-                                self.state =
-                                    ContextState::Unsatisfiable(ClauseKey::OriginalUnit(-literal));
-                            } else if self
-                                .clause_db
-                                .get(&ClauseKey::AdditionUnit(-literal))
-                                .is_ok()
-                            {
-                                self.state =
-                                    ContextState::Unsatisfiable(ClauseKey::AdditionUnit(-literal));
-                            } else {
-                                panic!("!");
+                            let original = ClauseKey::OriginalUnit(-literal);
+                            if self.clause_db.get(&original).is_ok() {
+                                self.state = ContextState::Unsatisfiable(original);
+                                return Ok(self.report());
                             }
+
+                            let addition = ClauseKey::AdditionUnit(-literal);
+                            if self.clause_db.get(&addition).is_ok() {
+                                self.state = ContextState::Unsatisfiable(addition);
+                                return Ok(self.report());
+                            }
+
+                            self.state = ContextState::Unsatisfiable(ClauseKey::OriginalUnit(0));
 
                             return Ok(self.report());
                         }

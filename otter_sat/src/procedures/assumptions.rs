@@ -27,7 +27,7 @@ use crate::{
     structures::{
         atom::Atom,
         clause::Clause,
-        consequence::AssignmentSource,
+        consequence::{Assignment, AssignmentSource},
         literal::{CLiteral, Literal},
     },
     types::err::{self, ErrorKind},
@@ -106,11 +106,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 for literal in assumptions.into_iter() {
                     self.ensure_atom(literal.atom());
 
-                    self.literal_db
-                        .store_assignment(crate::structures::consequence::Assignment {
-                            literal,
-                            source: AssignmentSource::Assumption,
-                        });
+                    self.literal_db.store_assignment(Assignment {
+                        literal,
+                        source: AssignmentSource::Assumption,
+                    });
 
                     let q_result = self.value_and_queue(
                         literal,
