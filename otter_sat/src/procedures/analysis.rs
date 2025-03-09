@@ -90,7 +90,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// For details on conflict analysis see the [analysis](crate::procedures::analysis) procedure.
     pub fn conflict_analysis(&mut self, key: &ClauseKey) -> Result<AnalysisResult, err::ErrorKind> {
         log::info!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.current_level());
-        log::info!(target: targets::ANALYSIS, "Level: {:?}", self.literal_db.top_assignments_unchecked());
+        log::info!(target: targets::ANALYSIS, "Level: {:?}", self.literal_db.top_level_assignments());
         log::info!(target: targets::ANALYSIS, "Valuation: {}", self.atom_db.valuation_string());
 
         if let config::vsids::VSIDS::Chaff = self.config.vsids.value {
@@ -101,7 +101,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         self.resolution_buffer.refresh(self.atom_db.valuation());
         // Safety: Some decision must have been made for conflict analysis to take place.
 
-        for Assignment { literal, source: _ } in self.literal_db.top_assignments_unchecked() {
+        for Assignment { literal, source: _ } in self.literal_db.top_level_assignments() {
             self.resolution_buffer.clear_value(literal.atom());
         }
 
