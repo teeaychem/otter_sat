@@ -65,18 +65,18 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // So, the elements to pop must exist.
         // And, if an atom is in the decision stack is should certainly be in the atom database.
 
-        for assignment in self.literal_db.assignments_at_and_after(target) {
+        for assignment in self.literal_db.assignments_above(target) {
             unsafe { self.atom_db.drop_value(assignment.atom()) }
         }
 
-        self.literal_db.forget_at_and_after(target);
+        self.literal_db.clear_assigments_above(target);
 
         if target <= self.literal_db.initial_decision_level {
             self.literal_db.initial_decision_level = target;
         }
 
         // Retain queued consequences of the level backjumping to.
-        self.clear_greater_than(target);
+        self.clear_above(target);
     }
 
     /// The non-chronological backjump level of a unsatisfiable clause.

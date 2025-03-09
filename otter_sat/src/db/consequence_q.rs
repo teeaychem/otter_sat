@@ -52,10 +52,8 @@ Further, as a conflict requires immediate backjumping, this use may avoid redund
 use std::borrow::Borrow;
 
 use crate::{
-    context::GenericContext,
-    db::LevelIndex,
-    misc::log::targets::{self},
-    structures::literal::{CLiteral, Literal},
+    context::GenericContext, db::LevelIndex, misc::log::targets::QUEUE,
+    structures::literal::CLiteral,
 };
 
 use super::atom::AtomValue;
@@ -74,7 +72,7 @@ pub enum QPosition {
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Clears all queued consequences from levels greater than `level`.`
-    pub fn clear_greater_than(&mut self, level: LevelIndex) {
+    pub fn clear_above(&mut self, level: LevelIndex) {
         self.consequence_q.retain(|(_, q_level)| *q_level <= level);
     }
 
@@ -88,11 +86,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// # use otter_sat::reports::Report;
     /// # use otter_sat::structures::literal::{CLiteral, Literal};
     /// # use otter_sat::db::consequence_q::QPosition::Back;
+    /// # use otter_sat::db::atom::AtomValue;
     /// let mut ctx: Context = Context::from_config(Config::default());
     /// let p = CLiteral::new(ctx.fresh_or_max_atom(), true);
-    /// assert!(ctx.value_and_queue(p, Back, 1).is_ok());
-    /// assert!(ctx.value_and_queue(-p, Back, 1).is_err());
-    /// assert!(ctx.value_and_queue(p, Back, 1).is_ok());
+    /// assert_eq!(ctx.value_and_queue(p, Back, 1), AtomValue::NotSet);
+    /// assert_eq!(ctx.value_and_queue(-p, Back, 1), AtomValue::Different);
+    /// assert_eq!(ctx.value_and_queue(p, Back, 1), AtomValue::Same);
     /// ```
     pub fn value_and_queue(
         &mut self,
@@ -102,10 +101,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ) -> AtomValue {
         let literal = literal.borrow();
 
-        let valuation_result = unsafe {
-            self.atom_db
-                .set_value(literal.atom(), literal.polarity(), Some(level))
-        };
+        let valuation_result = unsafe { self.atom_db.set_value(literal, Some(level)) };
 
         match valuation_result {
             AtomValue::NotSet => {
@@ -113,14 +109,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     QPosition::Front => self.consequence_q.push_front((*literal, level)),
                     QPosition::Back => self.consequence_q.push_back((*literal, level)),
                 }
-                log::trace!(target: targets::QUEUE, "Queued {} at level {level}.", literal);
+                log::trace!(target: QUEUE, "Queued {literal} at level {level}.")
             }
 
             AtomValue::Same => {}
 
-            AtomValue::Different => {
-                log::trace!(target: targets::QUEUE, "Queueing {} failed.", literal);
-            }
+            AtomValue::Different => log::trace!(target: QUEUE, "Queueing {literal} failed."),
         }
 
         valuation_result

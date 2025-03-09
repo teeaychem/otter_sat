@@ -15,6 +15,8 @@ pub mod activity;
 pub mod valuation;
 pub mod watch_db;
 
+use std::borrow::Borrow;
+
 use watch_db::{BinaryWatch, LongWatch};
 
 use crate::{
@@ -54,6 +56,7 @@ pub struct AtomDB {
     config: AtomDBConfig,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 /// The status of the valuation of an atom, relative to some known valuation or literal.
 pub enum AtomValue {
     /// The atom has no value.
@@ -83,7 +86,7 @@ impl AtomDB {
         // A fresh atom is created so long as the atom count is within ATOM_MAX
         // So, this is safe, for any reasonable Atom specification.
         let the_true = unsafe { db.fresh_atom(true).unwrap_unchecked() };
-        unsafe { db.set_value(the_true, true, None) };
+        unsafe { db.set_value(CLiteral::new(the_true, true), None) };
         db
     }
 
@@ -138,10 +141,13 @@ impl AtomDB {
     /// No check is made on whether the atom is part of the valuation.
     pub unsafe fn set_value(
         &mut self,
-        atom: Atom,
-        value: bool,
+        literal: impl Borrow<CLiteral>,
         level: Option<LevelIndex>,
     ) -> AtomValue {
+        let literal = literal.borrow();
+        let atom = literal.atom();
+        let value = literal.polarity();
+
         match self.value_of(atom) {
             None => {
                 *self.valuation.get_unchecked_mut(atom as usize) = Some(value);
@@ -149,6 +155,7 @@ impl AtomDB {
                 AtomValue::NotSet
             }
             Some(v) if v == value => AtomValue::Same,
+
             Some(_) => AtomValue::Different,
         }
     }

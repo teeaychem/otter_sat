@@ -145,7 +145,7 @@ impl ResolutionBuffer {
         };
 
         // Resolution buffer is only used by analysis, which is only called after some decision has been made
-        let the_trail = literal_db.top_assignments_unchecked().iter().rev();
+        let the_trail = literal_db.top_level_assignments().iter().rev();
         'resolution_loop: for consequence in the_trail {
             log::info!(target: targets::RESOLUTION, "Examining trail item {consequence:?}");
             match consequence.source() {

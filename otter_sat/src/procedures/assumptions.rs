@@ -58,11 +58,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     // # Safety
                     // The atom has been ensured, above.
                     match unsafe {
-                        self.atom_db.set_value(
-                            assumption.atom(),
-                            assumption.polarity(),
-                            Some(self.literal_db.current_level()),
-                        )
+                        self.atom_db
+                            .set_value(assumption, Some(self.literal_db.current_level()))
                     } {
                         AtomValue::NotSet => {
                             // As assumptions are stacked, immediately call BCP.

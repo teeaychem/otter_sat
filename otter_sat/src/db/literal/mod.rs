@@ -111,7 +111,7 @@ impl LiteralDB {
     }
 
     /// The assignments made at `level`, in order of assignment.
-    pub fn assignments_at_and_after(&self, level: LevelIndex) -> &[Assignment] {
+    pub fn assignments_above(&self, level: LevelIndex) -> &[Assignment] {
         if let Some(&level_start) = self.level_indicies.get(level as usize) {
             &self.assignments[level_start..]
         } else {
@@ -120,7 +120,7 @@ impl LiteralDB {
     }
 
     /// The assignments made at the (current) top level, in order of assignment.
-    pub fn top_assignments_unchecked(&self) -> &[Assignment] {
+    pub fn top_level_assignments(&self) -> &[Assignment] {
         if let Some(&level_start) = self.level_indicies.last() {
             &self.assignments[level_start..]
         } else {
@@ -128,7 +128,7 @@ impl LiteralDB {
         }
     }
 
-    /// Removes the top decision level.
+    /// Removes the top level, if it exists.
     ///
     /// # Soundness
     /// Does not clear the *valuation* of the decision.
@@ -140,11 +140,16 @@ impl LiteralDB {
         }
     }
 
-    /// Removes the top decision level.
+    /// Removes levels above the given level index, if they exist.
     ///
     /// # Soundness
     /// Does not clear the *valuation* of the decision.
-    pub fn forget_at_and_after(&mut self, level: LevelIndex) -> Vec<Assignment> {
+    pub fn clear_assigments_above(&mut self, level: LevelIndex) -> Vec<Assignment> {
+        // level_indicies stores with zero-indexing.
+        // So, for example, the first assignment is accessed by assignments[level_indicies[0]].
+        // This means, in particular, that all assignments made after level i can be cleared by clearing any assignment at and after assignments[level_indicies[0]].
+        // And, as a corollary, that this method can not be used to clear any assignments at level zero.
+
         if let Some(&level_start) = self.level_indicies.get(level as usize) {
             self.level_indicies.split_off(level as usize);
             self.assignments.split_off(level_start)
