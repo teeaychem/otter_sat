@@ -137,10 +137,7 @@ Though, the presentation given is original.
 use crate::{
     context::{ContextState, GenericContext},
     db::{atom::AtomValue, ClauseKey},
-    procedures::{
-        apply_consequences::{self, ApplyConsequencesOk},
-        decision::DecisionOk,
-    },
+    procedures::{apply_consequences::ApplyConsequencesOk, decision::DecisionOk},
     reports::Report,
     structures::{
         clause::Clause,
@@ -246,6 +243,32 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                     return Ok(self.report());
                                 }
                             }
+                        }
+
+                        Err(err::ErrorKind::FundamentalConflict) => {
+                            return Ok(self.report());
+                        }
+
+                        Err(err::ErrorKind::AssumptionConflict(literal)) => {
+                            if self
+                                .clause_db
+                                .get(&ClauseKey::OriginalUnit(-literal))
+                                .is_ok()
+                            {
+                                self.state =
+                                    ContextState::Unsatisfiable(ClauseKey::OriginalUnit(-literal));
+                            } else if self
+                                .clause_db
+                                .get(&ClauseKey::AdditionUnit(-literal))
+                                .is_ok()
+                            {
+                                self.state =
+                                    ContextState::Unsatisfiable(ClauseKey::AdditionUnit(-literal));
+                            } else {
+                                panic!("!");
+                            }
+
+                            return Ok(self.report());
                         }
 
                         Err(e) => {
