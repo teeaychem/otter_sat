@@ -84,7 +84,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             }
                         }
 
-                        AtomValue::Same => panic!("! Assumption of an atom with some value"),
+                        AtomValue::Same => log::info!("! Assumption of an atom with that value"),
 
                         AtomValue::Different => {
                             return Err(ErrorKind::SpecificValuationConflict(assumption))
@@ -119,7 +119,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     ) {
                         AtomValue::NotSet => {}
 
-                        AtomValue::Same => panic!("! Assumption of an atom with some value"),
+                        AtomValue::Same => log::info!("! Assumption of an atom with that value"),
 
                         AtomValue::Different => {
                             return Err(ErrorKind::SpecificValuationConflict(literal))

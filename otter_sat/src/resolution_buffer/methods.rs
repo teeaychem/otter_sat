@@ -147,7 +147,17 @@ impl ResolutionBuffer {
         // Resolution buffer is only used by analysis, which is only called after some decision has been made
         let the_trail = literal_db.top_level_assignments().iter().rev();
         'resolution_loop: for consequence in the_trail {
+            if self.valueless_count <= 1 {
+                match self.config.stopping {
+                    StoppingCriteria::FirstUIP => {
+                        break 'resolution_loop;
+                    }
+                    _ => {}
+                }
+            }
+
             log::info!(target: targets::RESOLUTION, "Examining trail item {consequence:?}");
+
             match consequence.source() {
                 AssignmentSource::BCP(key) => {
                     let mut key = *key;
@@ -211,19 +221,10 @@ impl ResolutionBuffer {
                     log::error!(target: targets::RESOLUTION, "Trail exhausted without assertion");
                     log::error!(target: targets::RESOLUTION, "Clause: {:?}", self.to_assertion_clause());
                     log::error!(target: targets::RESOLUTION, "Valueless count: {}", self.valueless_count);
-                    // break 'resolution_loop;
+
                     panic!("! Resolution hit a decision/assumption")
                 }
             };
-
-            if self.valueless_count <= 1 {
-                match self.config.stopping {
-                    StoppingCriteria::FirstUIP => {
-                        break 'resolution_loop;
-                    }
-                    _ => {}
-                }
-            }
         }
 
         match self.valueless_count {

@@ -57,9 +57,9 @@ And, abstracting from various other bookkeeping tasks and optional actions after
 loop {
 
     match self.apply_consequences()? {
-        apply_consequences::ApplyConsequencesOk::FundamentalConflict => break,
+        ApplyConsequencesOk::FundamentalConflict => break,
 
-        apply_consequences::ApplyConsequencesOk::Exhausted => {
+        ApplyConsequencesOk::Exhausted => {
             //
             match self.make_decision()? {
                 decision::Ok::Made => continue,
@@ -67,7 +67,7 @@ loop {
             }
         }
 
-        apply_consequences::ApplyConsequencesOk::UnitClause(literal) => {
+        ApplyConsequencesOk::UnitClause(literal) => {
             self.backjump(0);
             self.q_literal(literal)?;
         }
@@ -138,13 +138,13 @@ use crate::{
     context::{ContextState, GenericContext},
     db::{atom::AtomValue, ClauseKey},
     procedures::{
-        apply_consequences::{self},
+        apply_consequences::{self, ApplyConsequencesOk},
         decision::DecisionOk,
     },
     reports::Report,
     structures::{
         clause::Clause,
-        consequence::{self, Assignment},
+        consequence::{Assignment, AssignmentSource},
         literal::{CLiteral, Literal},
     },
     types::err::{self, ErrorKind},
@@ -213,22 +213,24 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         Ok(_) => {}
 
                         Err(err::ErrorKind::SpecificValuationConflict(assumption)) => {
+                            println!("! Specific valuation conflict: {assumption}");
+
                             let assignment = self
                                 .literal_db
                                 .assignments
                                 .iter()
-                                .find(|a| a.literal == assumption.negate());
+                                .find(|a| a.literal == assumption);
 
                             let source = assignment.expect("! Conflict failure").source;
 
                             match source {
-                                consequence::AssignmentSource::PureLiteral => todo!(),
+                                AssignmentSource::PureLiteral => todo!(),
 
-                                consequence::AssignmentSource::Decision => {
+                                AssignmentSource::Decision => {
                                     panic!("! Decision prior to main solve loop")
                                 }
 
-                                consequence::AssignmentSource::BCP(key) => {
+                                AssignmentSource::BCP(key) => {
                                     self.state = ContextState::Unsatisfiable(key);
                                     let clause =
                                         unsafe { self.clause_db.get_unchecked_mut(&key).clone() };
@@ -237,9 +239,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                     return Ok(self.report());
                                 }
 
-                                consequence::AssignmentSource::Assumption => {
-                                    println!("! ???");
-                                    let q_key = ClauseKey::OriginalUnit(CLiteral::new(0, false));
+                                AssignmentSource::Assumption => {
+                                    let q_key = ClauseKey::OriginalUnit(assumption);
 
                                     self.state = ContextState::Unsatisfiable(q_key);
                                     return Ok(self.report());
@@ -281,9 +282,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
             match self.apply_consequences()? {
                 // Non-conflict variants. These variants break or continue the solve loop.
-                apply_consequences::ApplyConsequencesOk::FundamentalConflict => break 'solve_loop,
+                ApplyConsequencesOk::FundamentalConflict => break 'solve_loop,
 
-                apply_consequences::ApplyConsequencesOk::Exhausted => {
+                ApplyConsequencesOk::Exhausted => {
                     //
                     match self.make_decision() {
                         DecisionOk::Literal(decision) => {
@@ -291,10 +292,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let level = self.literal_db.current_level();
                             log::info!("Decided on {decision} at level {level}");
 
-                            if let AtomValue::Different =
-                                self.value_and_queue(decision, QPosition::Back, level)
-                            {
-                                return Err(ErrorKind::ValuationConflict);
+                            match self.value_and_queue(decision, QPosition::Back, level) {
+                                AtomValue::Different => return Err(ErrorKind::ValuationConflict),
+                                _ => {}
                             }
 
                             continue 'solve_loop;
@@ -304,9 +304,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
 
                 // Conflict variants. These continue to the remaining contents of a loop.
-                apply_consequences::ApplyConsequencesOk::UnitClause { literal: key } => {
+                ApplyConsequencesOk::UnitClause { literal } => {
                     let q_result = self.value_and_queue(
-                        key,
+                        literal,
                         QPosition::Front,
                         self.literal_db.current_level(),
                     );
@@ -315,7 +315,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         AtomValue::NotSet | AtomValue::Same => {}
 
                         AtomValue::Different => {
-                            self.state = ContextState::Unsatisfiable(ClauseKey::AdditionUnit(key));
+                            self.state =
+                                ContextState::Unsatisfiable(ClauseKey::AdditionUnit(literal));
 
                             // let clause = vec![key];
                             // self.clause_db.make_callback_unsatisfiable(&clause);
@@ -325,11 +326,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     };
                 }
 
-                apply_consequences::ApplyConsequencesOk::AssertingClause { key, literal } => {
+                ApplyConsequencesOk::AssertingClause { key, literal } => {
                     self.clause_db.note_use(key);
 
-                    let consequence =
-                        Assignment::from(literal, consequence::AssignmentSource::BCP(key));
+                    let consequence = Assignment::from(literal, AssignmentSource::BCP(key));
                     unsafe { self.record_consequence(consequence) };
                     let level = self.literal_db.current_level();
 

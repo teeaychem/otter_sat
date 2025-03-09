@@ -71,12 +71,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         self.literal_db.clear_assigments_above(target);
 
+        // Retain queued consequences of the level backjumping to.
+        self.clear_above(target);
+
         if target <= self.literal_db.initial_decision_level {
             self.literal_db.initial_decision_level = target;
         }
-
-        // Retain queued consequences of the level backjumping to.
-        self.clear_above(target);
     }
 
     /// The non-chronological backjump level of a unsatisfiable clause.
