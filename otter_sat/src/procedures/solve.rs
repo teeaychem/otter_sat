@@ -305,11 +305,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 // Conflict variants. These continue to the remaining contents of a loop.
                 apply_consequences::ApplyConsequencesOk::UnitClause { literal: key } => {
-                    match self.value_and_queue(
+                    let q_result = self.value_and_queue(
                         key,
                         QPosition::Front,
                         self.literal_db.current_level(),
-                    ) {
+                    );
+
+                    match q_result {
                         AtomValue::NotSet | AtomValue::Same => {}
 
                         AtomValue::Different => {

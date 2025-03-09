@@ -53,7 +53,7 @@ impl Clause for ABClause {
     fn lbd(&self, atom_db: &AtomDB) -> LBD {
         let mut decision_levels = self
             .iter()
-            .map(|literal| unsafe { atom_db.atom_decision_level_unchecked(literal.atom()) })
+            .map(|literal| unsafe { atom_db.level_unchecked(literal.atom()) })
             .collect::<Vec<_>>();
 
         decision_levels.sort_unstable();

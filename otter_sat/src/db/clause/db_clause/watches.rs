@@ -98,8 +98,8 @@ impl dbClause {
         self.watch_ptr = 1;
         let mut decision_level_b = unsafe {
             let literal = self.clause.get_unchecked(self.watch_ptr);
-            let maybe_decision_level = atom_db.atom_decision_level_unchecked(literal.atom());
-            maybe_decision_level.unwrap_or(0)
+            let maybe_decision_level = atom_db.level_unchecked(literal.atom());
+            maybe_decision_level
         };
 
         for index in 1..self.clause.len() {
@@ -117,22 +117,24 @@ impl dbClause {
                     watch_b_set = true;
                     break;
                 }
+
                 Some(value) if value == literal.polarity() => {
                     self.watch_ptr = index;
                     self.note_watch(literal, atom_db);
                     watch_b_set = true;
                     break;
                 }
+
                 Some(_) => {
                     // Safety: The clause has a value, which must have been given at some level.
-                    let decision_level = unsafe {
-                        atom_db
-                            .atom_decision_level_unchecked(literal.atom())
-                            .unwrap_unchecked()
-                    };
-                    if decision_level > decision_level_b {
+                    let decision_level =
+                        unsafe { atom_db.level_unchecked(literal.atom()).unwrap_unchecked() };
+
+                    if decision_level_b.is_none()
+                        || decision_level_b.is_some_and(|l| decision_level > l)
+                    {
                         self.watch_ptr = index;
-                        decision_level_b = decision_level;
+                        decision_level_b = Some(decision_level);
                     }
                 }
             }

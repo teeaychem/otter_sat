@@ -73,15 +73,9 @@ pub enum QPosition {
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
-    /// Clears all queued consequences from the given level index up to the current level index.
-    /// ```rust,ignore
-    /// pub fn backjump(&mut self, to: LevelIndex) {
-    ///     ...
-    ///     self.clear_consequences(to);
-    /// }
-    /// ```
-    pub fn clear_q(&mut self, from: LevelIndex) {
-        self.consequence_q.retain(|(_, c)| *c <= from);
+    /// Clears all queued consequences from levels greater than `level`.`
+    pub fn clear_greater_than(&mut self, level: LevelIndex) {
+        self.consequence_q.retain(|(_, q_level)| *q_level <= level);
     }
 
     /// Assigns the given value to the given atom, if possible.
@@ -95,10 +89,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// # use otter_sat::structures::literal::{CLiteral, Literal};
     /// # use otter_sat::db::consequence_q::QPosition::Back;
     /// let mut ctx: Context = Context::from_config(Config::default());
-    /// let p = ctx.fresh_or_max_atom();
-    /// assert!(ctx.value_and_queue(CLiteral::new(p, true), Back, 1).is_ok());
-    /// assert!(ctx.value_and_queue(CLiteral::new(p, false), Back, 1).is_err());
-    /// assert!(ctx.value_and_queue(CLiteral::new(p, true), Back, 1).is_ok());
+    /// let p = CLiteral::new(ctx.fresh_or_max_atom(), true);
+    /// assert!(ctx.value_and_queue(p, Back, 1).is_ok());
+    /// assert!(ctx.value_and_queue(-p, Back, 1).is_err());
+    /// assert!(ctx.value_and_queue(p, Back, 1).is_ok());
     /// ```
     pub fn value_and_queue(
         &mut self,
@@ -106,34 +100,33 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         position: QPosition,
         level: LevelIndex,
     ) -> AtomValue {
+        let literal = literal.borrow();
+
         let valuation_result = unsafe {
-            self.atom_db.set_value(
-                literal.borrow().atom(),
-                literal.borrow().polarity(),
-                Some(level),
-            )
+            self.atom_db
+                .set_value(literal.atom(), literal.polarity(), Some(level))
         };
 
         match valuation_result {
             AtomValue::NotSet => {
                 match position {
-                    QPosition::Front => self.consequence_q.push_front((*literal.borrow(), level)),
-                    QPosition::Back => self.consequence_q.push_back((*literal.borrow(), level)),
+                    QPosition::Front => self.consequence_q.push_front((*literal, level)),
+                    QPosition::Back => self.consequence_q.push_back((*literal, level)),
                 }
-                log::trace!(target: targets::QUEUE, "Queued {} at level {level}.", literal.borrow());
+                log::trace!(target: targets::QUEUE, "Queued {} at level {level}.", literal);
             }
 
             AtomValue::Same => {}
 
             AtomValue::Different => {
-                log::trace!(target: targets::QUEUE, "Queueing {} failed.", literal.borrow());
+                log::trace!(target: targets::QUEUE, "Queueing {} failed.", literal);
             }
         }
 
         valuation_result
     }
 
-    /// Places an atom-value (represented as a literal) consequence on the consequence queue, always.
+    /// Pushes an atom-value (represented as a literal) consequence on the consequence queue, always.
     ///
     /// # Soundness
     /// This does not check to ensure the literal is not (already) unsatisfiable on the current valuation.
@@ -145,9 +138,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         level: LevelIndex,
         position: QPosition,
     ) {
+        let literal = literal.borrow();
+
         match position {
-            QPosition::Front => self.consequence_q.push_front((*literal.borrow(), level)),
-            QPosition::Back => self.consequence_q.push_back((*literal.borrow(), level)),
+            QPosition::Front => self.consequence_q.push_front((*literal, level)),
+            QPosition::Back => self.consequence_q.push_back((*literal, level)),
         }
     }
 }

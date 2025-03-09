@@ -53,11 +53,14 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
     );
 
     for atom in f.into_iter() {
-        let the_literal = CLiteral::new(atom, false);
-        let position = consequence_q::QPosition::Back;
-        let level = context.literal_db.current_level();
+        let the_literal = CLiteral::new(atom, true);
+        let q_result = context.value_and_queue(
+            the_literal,
+            consequence_q::QPosition::Back,
+            context.literal_db.current_level(),
+        );
 
-        match context.value_and_queue(the_literal, position, level) {
+        match q_result {
             AtomValue::NotSet => {
                 let consequence =
                     Assignment::from(the_literal, consequence::AssignmentSource::PureLiteral);
@@ -71,11 +74,14 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
     }
 
     for atom in t.into_iter() {
-        let the_literal = CLiteral::new(atom, false);
-        let position = consequence_q::QPosition::Back;
-        let level = context.literal_db.current_level();
+        let the_literal = CLiteral::new(atom, true);
+        let q_result = context.value_and_queue(
+            the_literal,
+            consequence_q::QPosition::Back,
+            context.literal_db.current_level(),
+        );
 
-        match context.value_and_queue(the_literal, position, level) {
+        match q_result {
             AtomValue::NotSet => {
                 let consequence =
                     Assignment::from(the_literal, consequence::AssignmentSource::PureLiteral);

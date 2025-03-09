@@ -84,7 +84,7 @@ impl AtomDB {
         unsafe {
             self.valuation()
                 .atom_value_pairs()
-                .filter_map(|(atom, v)| match self.atom_decision_level_unchecked(atom) {
+                .filter_map(|(atom, v)| match self.level_unchecked(atom) {
                     None => None,
                     Some(level) => match v {
                         None => None,
