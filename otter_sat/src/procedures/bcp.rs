@@ -83,7 +83,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// </div>
     pub fn bcp(&mut self, literal: impl Borrow<CLiteral>) -> Result<(), err::BCPError> {
         let literal = literal.borrow();
-        let decision_level = self.literal_db.current_level();
 
         /*
         # Safety
@@ -113,16 +112,24 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 let key = element.key;
 
                 match self.atom_db.value_of(check.atom()) {
-                    None => match self.value_and_queue(check, QPosition::Back, decision_level) {
-                        AtomValue::NotSet => {
-                            let consequence = Assignment::from(check, AssignmentSource::BCP(key));
-                            self.record_consequence(consequence);
+                    None => {
+                        let q_result = self.value_and_queue(
+                            check,
+                            QPosition::Back,
+                            self.literal_db.current_level(),
+                        );
+                        match q_result {
+                            AtomValue::NotSet => {
+                                let consequence =
+                                    Assignment::from(check, AssignmentSource::BCP(key));
+                                self.record_consequence(consequence);
+                            }
+
+                            AtomValue::Same => {}
+
+                            AtomValue::Different => return Err(err::BCPError::Conflict(key)),
                         }
-
-                        AtomValue::Same => {}
-
-                        AtomValue::Different => return Err(err::BCPError::Conflict(key)),
-                    },
+                    }
 
                     Some(value) if check.polarity() != value => {
                         log::trace!(target: targets::PROPAGATION, "Consequence of {key} and {literal} is contradiction.");
@@ -184,7 +191,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             None => {
                                 self.clause_db.note_use(key);
 
-                                match self.value_and_queue(watch, QPosition::Back, decision_level) {
+                                let q_result = self.value_and_queue(
+                                    watch,
+                                    QPosition::Back,
+                                    self.literal_db.current_level(),
+                                );
+
+                                match q_result {
                                     AtomValue::NotSet => {
                                         let consequence =
                                             Assignment::from(watch, AssignmentSource::BCP(key));

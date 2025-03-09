@@ -128,7 +128,7 @@ impl AtomDB {
     ///
     /// # Safety
     /// No check is made on whether the decision level of the atom is tracked.
-    pub unsafe fn atom_decision_level_unchecked(&self, atom: Atom) -> Option<LevelIndex> {
+    pub unsafe fn level_unchecked(&self, atom: Atom) -> Option<LevelIndex> {
         *self.decision_indicies.get_unchecked(atom as usize)
     }
 

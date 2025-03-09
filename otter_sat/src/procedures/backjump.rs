@@ -49,7 +49,7 @@ use crate::{
     context::GenericContext,
     db::LevelIndex,
     misc::log::targets::{self},
-    structures::{clause::Clause, consequence::Assignment, literal::Literal},
+    structures::{clause::Clause, literal::Literal},
     types::err,
 };
 
@@ -64,20 +64,19 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // The pop from the decision stack is fine, as decision_count is the height of the decision stack.
         // So, the elements to pop must exist.
         // And, if an atom is in the decision stack is should certainly be in the atom database.
-        unsafe {
-            for Assignment { literal, source: _ } in
-                self.literal_db.assignments_at_and_after_unchecked(target)
-            {
-                self.atom_db.drop_value(literal.atom())
-            }
-            self.literal_db.forget_at_and_after(target);
+
+        for assignment in self.literal_db.assignments_at_and_after(target) {
+            unsafe { self.atom_db.drop_value(assignment.atom()) }
         }
+
+        self.literal_db.forget_at_and_after(target);
 
         if target <= self.literal_db.initial_decision_level {
             self.literal_db.initial_decision_level = target;
         }
 
-        self.clear_q(target);
+        // Retain queued consequences of the level backjumping to.
+        self.clear_greater_than(target);
     }
 
     /// The non-chronological backjump level of a unsatisfiable clause.
@@ -94,33 +93,45 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             0 => {
                 panic!("! Attempted search for non-chronological backjump level on an empty clause")
             }
+
             1 => Ok(self.literal_db.lowest_decision_level()),
+
             _ => {
                 // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
                 let mut top_two = (None, None);
+
                 for literal in clause.literals() {
-                    let Some(dl) =
-                        (unsafe { self.atom_db.atom_decision_level_unchecked(literal.atom()) })
-                    else {
-                        log::error!(target: targets::BACKJUMP, "{literal} was not chosen");
-                        return Err(err::ErrorKind::Backjump);
+                    let level = match unsafe { self.atom_db.level_unchecked(literal.atom()) } {
+                        Some(level) => level,
+
+                        None => {
+                            log::error!(target: targets::BACKJUMP, "{literal} was not set");
+                            return Err(err::ErrorKind::Backjump);
+                        }
                     };
 
                     match top_two {
-                        (_, None) => top_two.1 = Some(dl),
-                        (_, Some(the_top)) if dl > the_top => {
+                        (_, None) => top_two.1 = Some(level),
+
+                        (_, Some(top)) if level > top => {
                             top_two.0 = top_two.1;
-                            top_two.1 = Some(dl);
+                            top_two.1 = Some(level);
                         }
-                        (None, _) => top_two.0 = Some(dl),
-                        (Some(second_to_top), _) if dl > second_to_top => top_two.0 = Some(dl),
+
+                        (None, _) => top_two.0 = Some(level),
+
+                        (Some(second_to_top), _) if level > second_to_top => {
+                            top_two.0 = Some(level)
+                        }
+
                         _ => {}
                     }
                 }
 
                 match top_two {
                     (None, _) => Ok(self.literal_db.lowest_decision_level()),
-                    (Some(second_to_top), Some(top)) => Ok(cmp::max(
+
+                    (Some(second_to_top), Some(_top)) => Ok(cmp::max(
                         self.literal_db.lowest_decision_level(),
                         second_to_top,
                     )),

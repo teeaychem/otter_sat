@@ -111,7 +111,7 @@ impl LiteralDB {
     }
 
     /// The assignments made at `level`, in order of assignment.
-    pub fn assignments_at_and_after_unchecked(&self, level: LevelIndex) -> &[Assignment] {
+    pub fn assignments_at_and_after(&self, level: LevelIndex) -> &[Assignment] {
         if let Some(&level_start) = self.level_indicies.get(level as usize) {
             &self.assignments[level_start..]
         } else {
