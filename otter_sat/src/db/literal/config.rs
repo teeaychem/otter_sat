@@ -15,7 +15,7 @@ impl Default for LiteralDBConfig {
                 min: false,
                 max: true,
                 max_state: ContextState::Configuration,
-                value: false,
+                value: true,
             },
         }
     }

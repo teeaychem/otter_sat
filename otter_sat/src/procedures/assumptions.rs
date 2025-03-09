@@ -75,7 +75,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                         unsafe { self.clause_db.get_unchecked(&key).clone() };
                                     self.clause_db.make_callback_unsatisfiable(&clause);
 
-                                    return Err(ErrorKind::SpecificValuationConflict(assumption));
+                                    return Err(ErrorKind::FundamentalConflict);
                                 }
 
                                 Err(err::BCPError::CorruptWatch) => {
@@ -87,7 +87,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         AtomValue::Same => log::info!("! Assumption of an atom with that value"),
 
                         AtomValue::Different => {
-                            return Err(ErrorKind::SpecificValuationConflict(assumption))
+                            return Err(ErrorKind::AssumptionConflict(assumption))
                         }
                     }
                 }
@@ -112,18 +112,18 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             source: AssignmentSource::Assumption,
                         });
 
-                    match self.value_and_queue(
+                    let q_result = self.value_and_queue(
                         literal,
                         QPosition::Back,
                         self.literal_db.current_level(),
-                    ) {
+                    );
+
+                    match q_result {
                         AtomValue::NotSet => {}
 
                         AtomValue::Same => log::info!("! Assumption of an atom with that value"),
 
-                        AtomValue::Different => {
-                            return Err(ErrorKind::SpecificValuationConflict(literal))
-                        }
+                        AtomValue::Different => return Err(ErrorKind::AssumptionConflict(literal)),
                     }
                 }
 

@@ -53,6 +53,12 @@ pub enum ErrorKind {
 
     /// The attempted action could not be completed given the valuation of the context, specifically due to the noted literal.
     SpecificValuationConflict(CLiteral),
+
+    /// The assumption conflicts with a proven literal.
+    AssumptionConflict(CLiteral),
+
+    /// A fundamental conflict has been observed (and recorded)
+    FundamentalConflict,
 }
 
 /// An error during conflict analysis.
