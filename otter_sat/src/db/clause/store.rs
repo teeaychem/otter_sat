@@ -38,8 +38,6 @@ impl ClauseDB {
         atom_db: &mut AtomDB,
         premises: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
-        let tmp_premises = premises.clone();
-
         let key = match clause.size() {
             0 => Err(err::ClauseDBError::EmptyClause),
 
@@ -55,7 +53,8 @@ impl ClauseDB {
         };
 
         if let Ok(key) = key {
-            self.resolution_graph.insert(key, tmp_premises);
+            self.resolution_graph
+                .insert(key, premises.into_iter().collect());
         }
 
         key

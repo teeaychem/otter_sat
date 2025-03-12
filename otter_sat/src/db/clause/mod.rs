@@ -69,7 +69,7 @@ pub struct ClauseDB {
     activity_heap: IndexHeap<ActivityLBD>,
 
     /// Resolution graph
-    pub resolution_graph: HashMap<ClauseKey, HashSet<ClauseKey>>,
+    pub resolution_graph: HashMap<ClauseKey, Vec<ClauseKey>>,
 
     /// Original clauses are passed in.
     callback_original: Option<Box<CallbackOnClauseSource>>,
