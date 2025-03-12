@@ -135,7 +135,6 @@ impl ResolutionBuffer {
         let base_clause = unsafe { clause_db.get_unchecked_mut(key) };
 
         self.merge_clause(base_clause);
-        base_clause.increment_proof_count();
         clause_db.note_use(*key);
         self.premises.insert(*key);
 
@@ -170,7 +169,6 @@ impl ResolutionBuffer {
                     let resolution_result =
                         self.resolve_clause(source_clause, consequence.literal());
 
-                    source_clause.increment_proof_count();
                     clause_db.note_use(key);
                     self.premises.insert(key);
 
@@ -194,16 +192,9 @@ impl ResolutionBuffer {
                                 }
 
                                 ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
-                                    let premises = self.take_premises();
-
                                     // TODO: Subsumption should use the appropriate valuation
-                                    let rekey = clause_db.subsume(
-                                        key,
-                                        consequence.literal(),
-                                        atom_db,
-                                        premises,
-                                        true, // Increment the proof count as this is self-subsumption.
-                                    )?;
+                                    let rekey =
+                                        clause_db.subsume(key, consequence.literal(), atom_db)?;
                                     self.premises.insert(rekey);
                                     clause_db.note_use(rekey);
                                     rekey

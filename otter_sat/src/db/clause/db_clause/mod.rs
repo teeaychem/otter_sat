@@ -32,7 +32,6 @@ use crate::{
 };
 
 use std::{
-    collections::HashSet,
     hash::{Hash, Hasher},
     ops::Deref,
 };
@@ -57,12 +56,6 @@ pub struct dbClause {
 
     /// The 'other' watched literal.
     watch_ptr: usize,
-
-    /// Original clauses used to obtain the clause
-    premises: HashSet<ClauseKey>,
-
-    /// A count of the inferences the clause occurs in.
-    inferences: usize,
 }
 
 impl dbClause {
@@ -71,14 +64,12 @@ impl dbClause {
     /// Note:
     /// - This does not store the [dbClause] in the [clause database](crate::db::clause::ClauseDB).
     ///   Instead, this is the canonical way to obtain some thing to be stored in a database.
-    pub fn new_unit(key: ClauseKey, literal: CLiteral, premises: HashSet<ClauseKey>) -> Self {
+    pub fn new_unit(key: ClauseKey, literal: CLiteral) -> Self {
         Self {
             key,
             clause: vec![literal],
             active: true,
             watch_ptr: 0,
-            premises,
-            inferences: 0,
         }
     }
 
@@ -91,19 +82,12 @@ impl dbClause {
     /// A valuation is optional.
     /// If given, clauses are initialised with respect to the given valuation.
     /// Otherwise, clauses are initialised with respect to the current valuation of the context.
-    pub fn new_nonunit(
-        key: ClauseKey,
-        clause: CClause,
-        atom_db: &mut AtomDB,
-        premises: HashSet<ClauseKey>,
-    ) -> Self {
+    pub fn new_nonunit(key: ClauseKey, clause: CClause, atom_db: &mut AtomDB) -> Self {
         let mut db_clause = dbClause {
             key,
             clause,
             active: true,
             watch_ptr: 0,
-            premises,
-            inferences: 0,
         };
 
         db_clause.initialise_watches(atom_db, None);
@@ -134,32 +118,6 @@ impl dbClause {
     /// The clause stored.
     pub fn clause(&self) -> &CClause {
         &self.clause
-    }
-
-    /// The clauses used to derive this clause through resolution.
-    pub fn premises(&self) -> &HashSet<ClauseKey> {
-        &self.premises
-    }
-
-    /// A count of proofs the clause appears in.
-    ///
-    /// In other words, a count of the clauses currently in the database whose derivation by resolution used this clause.
-    pub fn proof_occurrence_count(&self) -> usize {
-        self.inferences
-    }
-
-    /// Increment the proof count.
-    ///
-    /// Should be called when the derivation of a clause via resolution uses this clause.
-    pub fn increment_proof_count(&mut self) {
-        self.inferences += 1
-    }
-
-    /// Decrement the proof count.
-    ///
-    /// Should be called when a clause derived via resolution through this clause is removed from the context.
-    pub fn decrement_proof_count(&mut self) {
-        self.inferences -= 1
     }
 }
 
