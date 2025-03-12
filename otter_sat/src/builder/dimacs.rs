@@ -86,7 +86,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         None => return Err(err::ErrorKind::from(ParseError::ProblemSpecification)),
                         Some(string) => match string.parse() {
                             Err(_) => {
-                                return Err(err::ErrorKind::from(ParseError::ProblemSpecification))
+                                return Err(err::ErrorKind::from(ParseError::ProblemSpecification));
                             }
 
                             Ok(count) => count,
@@ -97,7 +97,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         None => return Err(err::ErrorKind::from(ParseError::ProblemSpecification)),
                         Some(string) => match string.parse() {
                             Err(_) => {
-                                return Err(err::ErrorKind::from(ParseError::ProblemSpecification))
+                                return Err(err::ErrorKind::from(ParseError::ProblemSpecification));
                             }
                             Ok(count) => count,
                         },

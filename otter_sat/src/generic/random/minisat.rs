@@ -3,7 +3,7 @@ The pseudorandom number generator used in MiniSAT 2.1.
 */
 
 use rand::SeedableRng;
-use rand_core::{impls, RngCore};
+use rand_core::{RngCore, impls};
 
 /// State and increment
 #[derive(Default)]

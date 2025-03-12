@@ -6,7 +6,7 @@ For a general overview, see the [ipasir module](crate::ipasir).
 
 use crate::{
     context::ContextState,
-    db::{clause::db_clause::dbClause, ClauseKey},
+    db::{ClauseKey, clause::db_clause::dbClause},
     ipasir::{ContextBundle, IPASIR_SIGNATURE},
     reports::Report,
     structures::{
@@ -21,7 +21,7 @@ use std::ffi::{c_char, c_int, c_void};
 ///
 /// # Safety
 /// Writes the signature a raw pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir_signature() -> *const c_char {
     IPASIR_SIGNATURE
         .get_or_init(|| {
@@ -43,7 +43,7 @@ pub unsafe extern "C" fn ipasir_signature() -> *const c_char {
 ///
 /// # Safety
 /// Returns a raw pointer to the initialised context.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir_init() -> *mut c_void {
     let the_bundle = ContextBundle::default();
     assert!(the_bundle.context.state.eq(&ContextState::Configuration));
@@ -56,11 +56,13 @@ pub unsafe extern "C" fn ipasir_init() -> *mut c_void {
 ///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir_release(solver: *mut c_void) {
-    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    unsafe {
+        let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
 
-    Box::from_raw(bundle);
+        Box::from_raw(bundle);
+    }
 }
 
 /// Adds a literal to, or finalises a, clause under construction.
@@ -72,9 +74,9 @@ pub unsafe extern "C" fn ipasir_release(solver: *mut c_void) {
 /// # Safety
 /// Recovers a context bundle and takes a clause from raw pointers.
 #[allow(unused_variables)]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
-    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    let bundle: &mut ContextBundle = unsafe { &mut *(solver as *mut ContextBundle) };
 
     bundle.keep_fresh();
 
@@ -97,9 +99,9 @@ pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
 ///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
-    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    let bundle: &mut ContextBundle = unsafe { &mut *(solver as *mut ContextBundle) };
 
     bundle.keep_fresh();
 
@@ -117,9 +119,9 @@ pub unsafe extern "C" fn ipasir_assume(solver: *mut c_void, lit: c_int) {
 ///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir_solve(solver: *mut c_void) -> c_int {
-    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    let bundle: &mut ContextBundle = unsafe { &mut *(solver as *mut ContextBundle) };
 
     let assumptions = std::mem::take(&mut bundle.assumptions);
     let solve_result = bundle.context.solve_given(Some(assumptions));
@@ -145,9 +147,9 @@ pub unsafe extern "C" fn ipasir_solve(solver: *mut c_void) -> c_int {
 ///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir_val(solver: *mut c_void, lit: i32) -> i32 {
-    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    let bundle: &mut ContextBundle = unsafe { &mut *(solver as *mut ContextBundle) };
 
     if bundle.context.state != ContextState::Satisfiable {
         return 0;
@@ -175,9 +177,9 @@ pub unsafe extern "C" fn ipasir_val(solver: *mut c_void, lit: i32) -> i32 {
 ///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir_failed(solver: *mut c_void, lit: i32) -> c_int {
-    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    let bundle: &mut ContextBundle = unsafe { &mut *(solver as *mut ContextBundle) };
     let ContextState::Unsatisfiable(_) = bundle.context.state else {
         return -1;
     };
@@ -191,7 +193,8 @@ pub unsafe extern "C" fn ipasir_failed(solver: *mut c_void, lit: i32) -> c_int {
                 }
 
                 _ => {
-                    for literal in bundle.context.clause_db.get_unchecked(key).literals() {
+                    for literal in unsafe { bundle.context.clause_db.get_unchecked(key).literals() }
+                    {
                         bundle.core_literals.insert(literal);
                     }
                 }
@@ -214,14 +217,14 @@ pub unsafe extern "C" fn ipasir_failed(solver: *mut c_void, lit: i32) -> c_int {
 ///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir_set_terminate(
     solver: *mut c_void,
     data: *mut c_void,
     callback: Option<extern "C" fn(data: *mut c_void) -> c_int>,
 ) {
     if let Some(callback) = callback {
-        let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+        let bundle: &mut ContextBundle = unsafe { &mut *(solver as *mut ContextBundle) };
 
         let callback = Box::new(move || !matches!(callback(data), 0));
         bundle.context.set_callback_terminate_solve(callback);
@@ -232,7 +235,7 @@ pub unsafe extern "C" fn ipasir_set_terminate(
 ///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(clippy::useless_conversion)]
 pub unsafe extern "C" fn ipasir_set_learn(
     solver: *mut c_void,
@@ -241,7 +244,7 @@ pub unsafe extern "C" fn ipasir_set_learn(
     learn: Option<extern "C" fn(data: *mut c_void, clause: *mut i32)>,
 ) {
     if let Some(callback) = learn {
-        let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+        let bundle: &mut ContextBundle = unsafe { &mut *(solver as *mut ContextBundle) };
 
         let callback_addition = Box::new(move |clause: &dbClause, _: &ClauseSource| {
             if clause.len() <= (max_length as usize) {

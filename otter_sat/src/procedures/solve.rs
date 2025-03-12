@@ -136,7 +136,7 @@ Though, the presentation given is original.
 
 use crate::{
     context::{ContextState, GenericContext},
-    db::{atom::AtomValue, ClauseKey},
+    db::{ClauseKey, atom::AtomValue},
     procedures::{apply_consequences::ApplyConsequencesOk, decision::DecisionOk},
     reports::Report,
     structures::{

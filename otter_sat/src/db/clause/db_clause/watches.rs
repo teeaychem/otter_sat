@@ -1,15 +1,15 @@
 use crate::{
     db::{
         atom::{
-            watch_db::{BinaryWatch, LongWatch, WatchStatus},
             AtomDB,
+            watch_db::{BinaryWatch, LongWatch, WatchStatus},
         },
         keys::ClauseKey,
     },
     structures::{
         atom::Atom,
         literal::{CLiteral, Literal},
-        valuation::{vValuation, Valuation},
+        valuation::{Valuation, vValuation},
     },
 };
 
@@ -43,12 +43,12 @@ use super::dbClause;
 impl dbClause {
     /// Returns the first watched literal (of two).
     pub unsafe fn get_watch_a(&self) -> &CLiteral {
-        self.get_unchecked(0)
+        unsafe { self.get_unchecked(0) }
     }
 
     /// Returns the second watched literal (of two).
     pub unsafe fn get_watch_b(&self) -> &CLiteral {
-        self.get_unchecked(self.watch_ptr)
+        unsafe { self.get_unchecked(self.watch_ptr) }
     }
 
     /// Initialises watches with respect to the given valuation, or otherwise to the current valuation of the context.

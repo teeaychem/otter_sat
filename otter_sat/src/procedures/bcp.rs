@@ -61,8 +61,8 @@ use crate::{
     context::GenericContext,
     db::{
         atom::{
-            watch_db::{self},
             AtomValue,
+            watch_db::{self},
         },
         consequence_q::QPosition,
     },

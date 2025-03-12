@@ -23,7 +23,7 @@ use std::collections::HashSet;
 
 use crate::{
     context::{ContextState, GenericContext},
-    db::{atom::AtomValue, consequence_q::QPosition, ClauseKey},
+    db::{ClauseKey, atom::AtomValue, consequence_q::QPosition},
     structures::{
         atom::Atom,
         clause::Clause,

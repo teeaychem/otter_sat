@@ -7,7 +7,7 @@ impl<T: std::ops::DerefMut<Target = [Option<bool>]>> Valuation for T {
     }
 
     unsafe fn value_of_unchecked(&self, atom: Atom) -> Option<bool> {
-        *self.get_unchecked(atom as usize)
+        *unsafe { self.get_unchecked(atom as usize) }
     }
 
     fn values(&self) -> impl Iterator<Item = Option<bool>> {
@@ -47,7 +47,7 @@ impl<T: std::ops::DerefMut<Target = [Option<bool>]>> Valuation for T {
     }
 
     unsafe fn clear_value_of(&mut self, atom: Atom) {
-        *self.get_unchecked_mut(atom as usize) = None
+        *unsafe { self.get_unchecked_mut(atom as usize) } = None
     }
 
     fn true_check(&self) -> bool {
