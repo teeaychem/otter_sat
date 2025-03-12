@@ -117,9 +117,6 @@ impl ClauseDB {
 impl ClauseDB {
     /// Notes the use of a clause.
     ///
-    /// ```rust,ignore
-    /// self.clause_db.note_use(key);
-    /// ```
     /// In particular, the removal of an addition clause from the activity heap to prevent it's removal.
     pub fn note_use(&mut self, key: ClauseKey) {
         match key {
@@ -151,12 +148,6 @@ impl ClauseDB {
     */
 
     /// Removed addition clauses from the database up to the given limit (to remove) by taking keys from the activity heap.
-    ///
-    /// ```rust,ignore
-    /// if self.scheduled_by_luby() {
-    ///     self.clause_db.reduce_by(self.clause_db.current_addition_count() / 2);
-    /// }
-    /// ```
     // TODO: Improvements…?
     // For example, before dropping a clause the lbd could be recalculated…
     pub fn reduce_by(&mut self, limit: usize) -> Result<(), err::ClauseDBError> {
@@ -204,11 +195,6 @@ impl ClauseDB {
 
     /// Bumps the acitivty of a clause, rescoring all acitivies if needed.
     ///
-    /// ```rust,ignore
-    /// if let ClauseKey::Addition(index, _) = conflict {
-    ///     clause_db.bump_activity(*index)
-    /// };
-    /// ```
     /// See the corresponding method with respect to atoms for more detials.
     pub fn bump_activity(&mut self, index: FormulaIndex) {
         if let Some(max) = self.activity_heap.peek_max_value() {
@@ -257,10 +243,6 @@ impl ClauseDB {
     }
 
     /// The count of the current addition clauses in the context.
-    ///
-    /// ```rust,ignore
-    /// self.clause_db.reduce_by(self.clause_db.current_addition_count() / 2);
-    /// ```
     pub fn current_addition_count(&self) -> usize {
         self.addition.len()
     }
@@ -290,10 +272,6 @@ impl ClauseDB {
     }
 
     /// An iterator over all unit clauses, given as [CLiteral]s.
-    ///
-    /// ```rust,ignore
-    /// buffer.strengthen_given(self.clause_db.all_unit_clauses());
-    /// ```
     pub fn all_unit_clauses(&self) -> impl Iterator<Item = (ClauseKey, CLiteral)> + use<'_> {
         self.all_original_unit_clauses()
             .chain(self.all_addition_unit_clauses())
@@ -355,10 +333,6 @@ impl ClauseDB {
     }
 
     /// An iterator over all non-unit clauses, given as [impl Clause]s.
-    ///
-    /// ```rust,ignore
-    /// let mut clause_iter = the_context.clause_db.all_nonunit_clauses();
-    /// ```
     pub fn all_nonunit_clauses(&self) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
         self.all_binary_clauses().chain(self.all_long_clauses())
     }
@@ -380,9 +354,6 @@ impl ClauseDB {
     /// However, in principle a long clause of three literals may be transfered to a binary clause of two literals after subsumption.
     /// To anticipate this possibility, the returned key on successful subsumption should be used when handling an ok result.
     ///
-    /// ```rust, ignore
-    /// let new_key = clause_db.subsume(old_key, literal, atom_db)?;
-    /// ```
     /// # Safety
     /// Assumes a clause is indexed by the key.
     pub unsafe fn subsume(

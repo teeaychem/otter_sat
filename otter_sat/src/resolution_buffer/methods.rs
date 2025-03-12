@@ -86,10 +86,6 @@ impl ResolutionBuffer {
     }
 
     /// Returns the resolved clause with the asserted literal as the first literal of the clause.
-    /// ```rust,ignore
-    /// let clause = buffer.to_assertion_clause();
-    /// let literal = *unsafe { clause.get_unchecked(0) };
-    /// ```
     pub fn to_assertion_clause(&self) -> CClause {
         let mut clause = Vec::with_capacity(self.clause_length);
         let mut conflict_index = 0;
@@ -252,9 +248,6 @@ impl ResolutionBuffer {
     }
 
     /// The atoms used during resolution.
-    /// ```rust,ignore
-    /// self.atom_db.bump_relative(resolution_buffer.atoms_used());
-    /// ```
     pub fn atoms_used(&self) -> impl Iterator<Item = Atom> + '_ {
         self.buffer
             .iter()

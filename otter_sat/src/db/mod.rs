@@ -44,11 +44,6 @@ pub type LevelIndex = u32;
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Records a literal in the appropriate database.
     ///
-    /// ```rust, ignore
-    /// let consequence = Consequence::from(literal, literal::Source::BCP(key));
-    /// self.record_consequence(consequence);
-    /// ```
-    ///
     /// If no decisions have been made, literals are added to the clause database as unit clauses.
     /// Otherwise, literals are recorded as consequences of the current decision.
     ///

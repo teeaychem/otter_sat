@@ -104,13 +104,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let valuation_result = unsafe { self.atom_db.set_value(literal, Some(level)) };
 
         match valuation_result {
-            AtomValue::NotSet => {
-                match position {
-                    QPosition::Front => self.consequence_q.push_front((*literal, level)),
-                    QPosition::Back => self.consequence_q.push_back((*literal, level)),
-                }
-                log::trace!(target: QUEUE, "Queued {literal} at level {level}.")
-            }
+            AtomValue::NotSet => self.push_to_consequence_queue(literal, level, position),
 
             AtomValue::Same => {}
 
@@ -138,5 +132,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             QPosition::Front => self.consequence_q.push_front((*literal, level)),
             QPosition::Back => self.consequence_q.push_back((*literal, level)),
         }
+        log::trace!(target: QUEUE, "Queued {literal} at level {level}.")
     }
 }
