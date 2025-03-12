@@ -11,10 +11,7 @@ pub mod db_clause;
 mod get;
 mod store;
 
-use std::{
-    borrow::Borrow,
-    collections::{HashMap, HashSet},
-};
+use std::{borrow::Borrow, collections::HashMap};
 
 use db_clause::dbClause;
 

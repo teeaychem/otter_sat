@@ -206,7 +206,7 @@ pub unsafe extern "C" fn ipasir2_add(
 
     bundle
         .context
-        .add_clause_unchecked(std::mem::take(&mut bundle.clause_buffer));
+        .add_clause(std::mem::take(&mut bundle.clause_buffer));
 
     ipasir2_errorcode::IPASIR2_E_OK
 }

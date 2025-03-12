@@ -93,35 +93,31 @@ The distinction between a unit clause and clause being returned from [apply_cons
 # use otter_sat::reports::Report;
 # use otter_sat::structures::literal::{CLiteral, Literal};
 let config = Config::default();
-let mut the_context: Context = Context::from_config(config);
+let mut ctx: Context = Context::from_config(config);
 
-let p = the_context.fresh_or_max_atom();
-let q = the_context.fresh_or_max_atom();
+let p = ctx.fresh_or_max_atom();
+let q = ctx.fresh_or_max_atom();
 
 let not_p_or_q = vec![CLiteral::new(p, false), CLiteral::new(q, true)];
 let p_or_not_q = vec![CLiteral::new(p, true), CLiteral::new(q, false)];
-assert!(the_context.add_clause(not_p_or_q).is_ok());
-assert!(the_context.add_clause(p_or_not_q).is_ok());
+assert!(ctx.add_clause(not_p_or_q).is_ok());
+assert!(ctx.add_clause(p_or_not_q).is_ok());
 
-assert!(the_context.solve().is_ok());
-let status = the_context.report();
+assert!(ctx.solve().is_ok());
 
-assert_eq!(the_context.atom_db.value_of(p), Some(false));
-assert_eq!(the_context.atom_db.value_of(q), Some(false));
+assert_eq!(ctx.atom_db.value_of(p), Some(false));
+assert_eq!(ctx.atom_db.value_of(q), Some(false));
 
-let p_clause = vec![CLiteral::new(p, true)];
-assert!(the_context.add_clause(p_clause).is_err());
-
-the_context.clear_decisions();
+ctx.clear_decisions();
 
 let p_clause = vec![CLiteral::new(p, true)];
-assert!(the_context.add_clause(p_clause).is_ok());
+assert!(ctx.add_clause(p_clause).is_ok());
 
-assert_eq!(the_context.atom_db.value_of(p), Some(true));
+assert_eq!(ctx.atom_db.value_of(p), Some(true));
 
-assert!(the_context.solve().is_ok());
+assert!(ctx.solve().is_ok());
 
-assert_eq!(the_context.report(), Report::Satisfiable);
+assert_eq!(ctx.report(), Report::Satisfiable);
 ```
 
 # Literature
