@@ -50,28 +50,22 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
 
             match key {
-                ClauseKey::OriginalUnit(_) => {
+                ClauseKey::OriginalUnit(_)
+                | ClauseKey::OriginalBinary(_)
+                | ClauseKey::Original(_) => {
                     core.insert(key);
                 }
 
                 ClauseKey::AdditionUnit(unit) => {
                     let premises = self.clause_db.resolution_graph.get(&key).expect("Hm");
 
-                    match premises.len() {
-                        0 => panic!("! A unit addition clause with no premises"),
+                    match &premises[..] {
+                        [] => panic!("! A unit addition clause with no premises"),
 
-                        1 => {
-                            let the_premise_key =
-                                premises.iter().next().expect("Missing premise key");
-                            let the_premise =
-                                unsafe { self.clause_db.get_unchecked(the_premise_key) };
+                        [key] => {
+                            let the_premise = unsafe { self.clause_db.get_unchecked(key) };
 
-                            for key in self
-                                .clause_db
-                                .resolution_graph
-                                .get(&the_premise_key)
-                                .unwrap()
-                            {
+                            for key in self.clause_db.resolution_graph.get(key).unwrap() {
                                 todo.push_back(*key);
                             }
 
@@ -96,7 +90,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             }
                         }
 
-                        _ => {
+                        [..] => {
                             for key in premises {
                                 todo.push_back(*key);
                             }
@@ -104,24 +98,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
                 }
 
-                ClauseKey::OriginalBinary(_) => {
-                    core.insert(key);
-                    for key in self.clause_db.resolution_graph.get(&key).expect("Hm") {
-                        todo.push_back(*key);
-                    }
-                }
-
-                ClauseKey::AdditionBinary(_) => {
-                    for key in self.clause_db.resolution_graph.get(&key).expect("Hm") {
-                        todo.push_back(*key);
-                    }
-                }
-
-                ClauseKey::Original(_) => {
-                    core.insert(key);
-                }
-
-                ClauseKey::Addition(_, _) => {
+                ClauseKey::AdditionBinary(_) | ClauseKey::Addition(_, _) => {
                     for key in self.clause_db.resolution_graph.get(&key).expect("Hm") {
                         todo.push_back(*key);
                     }
@@ -129,6 +106,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
         }
 
-        core.iter().cloned().collect::<Vec<_>>()
+        core.into_iter().collect::<Vec<_>>()
     }
 }
