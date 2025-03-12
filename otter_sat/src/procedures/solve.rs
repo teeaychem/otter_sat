@@ -288,11 +288,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         AtomValue::NotSet | AtomValue::Same => {}
 
                         AtomValue::Different => {
-                            self.state =
-                                ContextState::Unsatisfiable(ClauseKey::AdditionUnit(literal));
-
-                            // let clause = vec![key];
-                            // self.clause_db.make_callback_unsatisfiable(&clause);
+                            self.note_conflict(ClauseKey::AdditionUnit(literal));
 
                             break 'solve_loop;
                         }
