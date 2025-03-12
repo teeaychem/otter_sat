@@ -18,9 +18,13 @@ def check_sat_unsat(solver, x, y, z, sat, unsat):
         capture_output=True,
         text=True,
     )
+
+    print(solver.stderr)
+
     for line in solver.stdout.split("\n"):
         if not is_comment(line):
             solver_output.append(line)
+    # print(solver_output)
 
     result_info = solver_output[-2].split(",")
     sat_info = result_info[1].split()[0]

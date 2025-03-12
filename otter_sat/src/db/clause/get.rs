@@ -66,7 +66,10 @@ impl ClauseDB {
     /// ```
     pub fn get_mut(&mut self, key: &ClauseKey) -> Result<&mut dbClause, err::ClauseDBError> {
         match key {
-            ClauseKey::OriginalUnit(_) => Err(err::ClauseDBError::GetOriginalUnitKey),
+            ClauseKey::OriginalUnit(_) => match self.unit_original.get_mut(key) {
+                Some(clause) => Ok(clause),
+                None => Err(err::ClauseDBError::Missing),
+            },
 
             ClauseKey::AdditionUnit(_) => {
                 //
@@ -124,14 +127,14 @@ impl ClauseDB {
         match key {
             ClauseKey::OriginalUnit(_) => match self.unit_original.get(key) {
                 Some(clause) => clause,
-                None => panic!("! Missing clause"),
+                None => panic!("! Missing OriginalUnit"),
             },
 
             ClauseKey::AdditionUnit(_) => {
                 //
                 match self.unit_addition.get(key) {
                     Some(clause) => clause,
-                    None => panic!("! Missing clause"),
+                    None => panic!("! Missing AdditionUnit"),
                 }
             }
 
@@ -150,7 +153,7 @@ impl ClauseDB {
                 match unsafe { self.addition.get_unchecked(*index as usize) } {
                     Some(clause) => clause,
 
-                    None => panic!("! Missing clause"),
+                    None => panic!("! Missing Addition"),
                 }
             }
         }
@@ -166,7 +169,7 @@ impl ClauseDB {
                 //
                 match self.unit_original.get_mut(key) {
                     Some(clause) => clause,
-                    None => panic!("! Missing clause"),
+                    None => panic!("! Missing unchecked OriginalUnit"),
                 }
             }
 
@@ -174,7 +177,7 @@ impl ClauseDB {
                 //
                 match self.unit_addition.get_mut(key) {
                     Some(clause) => clause,
-                    None => panic!("! Missing clause"),
+                    None => panic!("! Missing unchecked AdditionUnit"),
                 }
             }
             ClauseKey::Original(index) => unsafe {
@@ -194,7 +197,7 @@ impl ClauseDB {
                 match unsafe { self.addition.get_unchecked_mut(*index as usize) } {
                     Some(clause) => clause,
 
-                    None => panic!("! Missing clause"),
+                    None => panic!("! Missing unchecked Addition"),
                 }
             }
         }

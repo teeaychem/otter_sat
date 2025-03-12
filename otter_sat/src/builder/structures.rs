@@ -1,9 +1,6 @@
 use crate::{
-    context::{ContextState, GenericContext},
-    db::{
-        atom::AtomValue,
-        consequence_q::{self},
-    },
+    context::GenericContext,
+    db::consequence_q::{self},
     structures::{
         atom::{ATOM_MAX, Atom},
         clause::{Clause, ClauseSource},
@@ -12,7 +9,7 @@ use crate::{
     types::err::{self, PreprocessingError},
 };
 
-use std::{borrow::Borrow, collections::HashSet};
+use std::collections::HashSet;
 
 use super::{
     ClauseOk,
@@ -114,41 +111,15 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
             [literal] => {
                 self.ensure_atom(literal.atom());
-                match self.atom_db.value_of(literal.atom()) {
-                    None => {
-                        match self.value_and_queue(
-                            literal,
-                            consequence_q::QPosition::Back,
-                            self.atom_db.lowest_decision_level(),
-                        ) {
-                            AtomValue::NotSet => {
-                                let premises = HashSet::default();
-                                self.clause_db.store(
-                                    literal,
-                                    ClauseSource::Original,
-                                    &mut self.atom_db,
-                                    premises,
-                                );
-                                Ok(ClauseOk::Added)
-                            }
+                self.clause_db.store(
+                    literal,
+                    ClauseSource::Original,
+                    &mut self.atom_db,
+                    HashSet::default(),
+                );
+                self.value_and_queue(literal, consequence_q::QPosition::Back, 0);
 
-                            AtomValue::Same => Ok(ClauseOk::Added),
-
-                            AtomValue::Different => Err(err::ErrorKind::ValuationConflict),
-                        }
-                    }
-
-                    Some(v) if v == literal.polarity() => {
-                        // Must be at zero for an assumption, so there's nothing to do
-                        if self.counters.total_decisions != 0 {
-                            Err(err::ErrorKind::from(err::ClauseDBError::DecisionMade))
-                        } else {
-                            Ok(ClauseOk::Added)
-                        }
-                    }
-
-                    Some(_) => Err(err::ErrorKind::ValuationConflict),
-                }
+                Ok(ClauseOk::Added)
             }
 
             [..] => {
@@ -156,98 +127,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     self.ensure_atom(literal.atom());
                 }
 
-                if unsafe { clause_vec.unsatisfiable_on_unchecked(self.atom_db.valuation()) } {
-                    return Err(err::ErrorKind::ValuationConflict);
-                }
-
-                let premises = HashSet::default();
                 self.clause_db.store(
                     clause_vec,
                     ClauseSource::Original,
                     &mut self.atom_db,
-                    premises,
+                    HashSet::default(),
                 )?;
 
-                Ok(ClauseOk::Added)
-            }
-        }
-    }
-
-    /// Adds a clause to the database, regardless of the contextual valuation.
-    ///
-    /// The same checks as [GenericContext::add_clause] are made, but are used to immediately sets to the state of the solver to unsatisfiable.
-    pub fn add_clause_unchecked(
-        &mut self,
-        clause: impl Clause,
-    ) -> Result<ClauseOk, err::ErrorKind> {
-        if clause.size() == 0 {
-            return Err(err::ErrorKind::from(err::ClauseDBError::EmptyClause));
-        }
-        let mut clause_vec = clause.canonical();
-
-        match preprocess_clause(&mut clause_vec) {
-            Ok(PreprocessingOk::Tautology) => return Ok(ClauseOk::Tautology),
-            Err(PreprocessingError::Unsatisfiable) => {
-                return Err(err::ErrorKind::from(err::BuildError::Unsatisfiable));
-            }
-            _ => {}
-        };
-
-        match clause_vec[..] {
-            [] => panic!("! Empty clause"),
-
-            [literal] => {
-                let premises = HashSet::default();
-                self.clause_db
-                    .store(literal, ClauseSource::Original, &mut self.atom_db, premises);
-
-                let q_result = self.value_and_queue(
-                    literal.borrow(),
-                    consequence_q::QPosition::Back,
-                    self.atom_db.lowest_decision_level(),
-                );
-
-                match q_result {
-                    AtomValue::NotSet => {
-                        let premises = HashSet::default();
-                        self.clause_db.store(
-                            literal,
-                            ClauseSource::Original,
-                            &mut self.atom_db,
-                            premises,
-                        );
-                    }
-
-                    AtomValue::Same => {}
-
-                    AtomValue::Different => {
-                        println!("Conflict adding clause {literal}");
-                        self.state = ContextState::Unsatisfiable(
-                            crate::db::ClauseKey::OriginalUnit(literal),
-                        );
-                    }
-                }
-
-                Ok(ClauseOk::Added)
-            }
-
-            [..] => {
-                let unsatisfiable =
-                    unsafe { clause_vec.unsatisfiable_on_unchecked(self.atom_db.valuation()) };
-
-                let premises = HashSet::default();
-                let result = self.clause_db.store(
-                    clause_vec,
-                    ClauseSource::Original,
-                    &mut self.atom_db,
-                    premises,
-                );
-                if unsatisfiable {
-                    match result {
-                        Ok(key) => self.state = ContextState::Unsatisfiable(key),
-                        Err(_) => panic!("! Unable to store UNSAT clause"),
-                    }
-                }
                 Ok(ClauseOk::Added)
             }
         }

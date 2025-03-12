@@ -83,7 +83,7 @@ pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
     match lit_or_zero {
         0 => {
             let clause = std::mem::take(&mut bundle.clause_buffer);
-            bundle.context.add_clause_unchecked(clause);
+            bundle.context.add_clause(clause);
         }
         literal => {
             let literal_atom = literal.unsigned_abs();
