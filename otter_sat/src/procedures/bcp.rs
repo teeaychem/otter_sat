@@ -71,7 +71,7 @@ use crate::{
         consequence::{Assignment, AssignmentSource},
         literal::{CLiteral, Literal},
     },
-    types::err::{self},
+    types::err::{self, ErrorKind},
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
@@ -223,6 +223,29 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
 
             long_list.split_off(length);
+        }
+        Ok(())
+    }
+}
+
+impl<R: rand::Rng + std::default::Default> GenericContext<R> {
+    /// Propagates literals in the queue until the queue is exhausted or a conflict is found.
+    /// In the case of conflict, a [FundamentalConflict](ErrorKind::FundamentalConflict) is returned.
+    pub fn propagate_queue(&mut self) -> Result<(), ErrorKind> {
+        log::info!("Initial BCP");
+        while let Some((literal, _)) = self.consequence_q.front() {
+            match self.bcp(*literal) {
+                Ok(()) => {
+                    self.consequence_q.pop_front();
+                }
+
+                Err(err::BCPError::Conflict(key)) => {
+                    self.note_conflict(key);
+                    return Err(ErrorKind::FundamentalConflict);
+                }
+
+                Err(non_conflict_bcp_error) => return Err(ErrorKind::BCP(non_conflict_bcp_error)),
+            }
         }
         Ok(())
     }

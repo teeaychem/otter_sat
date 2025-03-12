@@ -2,8 +2,8 @@
 Error types used in the library.
 
 - Most of these are very unlikely to occur during use.
-- Some of these are internally expected but --- e.g. BCP errors are used to control the flow of a solve.
-- Some are external --- e.g. a comtext may return an `AssumptionConflict` error to highlight a request to assume a literal would results in an unsatisfiable formula.
+- Some of these are internally expected --- e.g. BCP errors are used to control the flow of a solve.
+- Others are external --- e.g. a comtext may return an `AssumptionConflict` error to highlight a request to assume a literal would results in an unsatisfiable formula.
   In this case information about satisfiability is obtained and the solver may (if satsfiable) continue to be used for further queries.
 
 Names of the error enums --- for the most part --- overlap with corresponding structs.

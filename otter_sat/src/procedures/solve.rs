@@ -140,9 +140,8 @@ use crate::{
     procedures::{apply_consequences::ApplyConsequencesOk, decision::DecisionOk},
     reports::Report,
     structures::{
-        clause::Clause,
         consequence::{Assignment, AssignmentSource},
-        literal::{CLiteral, Literal},
+        literal::CLiteral,
     },
     types::err::{self, ErrorKind},
 };
@@ -169,49 +168,27 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             ContextState::Configuration | ContextState::Input => {
                 self.preprocess()?;
 
-                for (key, clause) in self.clause_db.all_unit_clauses() {
-                    if clause.unsatisfiable_on(self.atom_db.valuation()) {
-                        self.state = ContextState::Unsatisfiable(key);
-                        return Ok(self.report());
-                    }
-                }
+                // Initial BCP, this:
+                // - Verifies clauses are satisfiable.
+                // - Proves any available unit clauses prior to asserting assumptions.
+                match self.propagate_queue() {
+                    Ok(_) => {}
 
-                for (key, clause) in self.clause_db.all_nonunit_clauses() {
-                    if clause.unsatisfiable_on(self.atom_db.valuation()) {
-                        self.state = ContextState::Unsatisfiable(key);
+                    Err(ErrorKind::FundamentalConflict) => {
                         return Ok(self.report());
                     }
-                }
+
+                    Err(e) => return Err(e),
+                };
 
                 if let Some(assumptions) = assumptions {
-                    // Initial BCP, prior to assumptions.
-                    while let Some((literal, _)) = self.consequence_q.front() {
-                        match self.bcp(*literal) {
-                            Ok(()) => {
-                                self.consequence_q.pop_front();
-                            }
+                    let assumption_result = self.assert_assumptions(assumptions);
 
-                            Err(err::BCPError::Conflict(key)) => {
-                                //
-                                self.state = ContextState::Unsatisfiable(key);
-                                let clause =
-                                    unsafe { self.clause_db.get_unchecked_mut(&key).clone() };
-                                self.clause_db.make_callback_unsatisfiable(&clause);
-                                return Ok(self.report());
-                            }
-
-                            Err(non_conflict_bcp_error) => {
-                                return Err(ErrorKind::BCP(non_conflict_bcp_error))
-                            }
-                        }
-                    }
-
-                    match self.assert_assumptions(assumptions) {
+                    match assumption_result {
                         Ok(_) => {}
 
+                        // Each error lead to a return of some form…
                         Err(err::ErrorKind::SpecificValuationConflict(assumption)) => {
-                            println!("! Specific valuation conflict: {assumption}");
-
                             let assignment = self
                                 .literal_db
                                 .assignments
@@ -228,18 +205,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 }
 
                                 AssignmentSource::BCP(key) => {
-                                    self.state = ContextState::Unsatisfiable(key);
-                                    let clause =
-                                        unsafe { self.clause_db.get_unchecked_mut(&key).clone() };
-                                    self.clause_db.make_callback_unsatisfiable(&clause);
-
+                                    self.note_conflict(key);
                                     return Ok(self.report());
                                 }
 
                                 AssignmentSource::Assumption => {
-                                    let q_key = ClauseKey::OriginalUnit(assumption);
-
-                                    self.state = ContextState::Unsatisfiable(q_key);
+                                    self.note_conflict(ClauseKey::OriginalUnit(assumption));
                                     return Ok(self.report());
                                 }
                             }
@@ -250,31 +221,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         }
 
                         Err(err::ErrorKind::AssumptionConflict(literal)) => {
-                            let original = ClauseKey::OriginalUnit(-literal);
-                            if self.clause_db.get(&original).is_ok() {
-                                self.state = ContextState::Unsatisfiable(original);
-                                return Ok(self.report());
-                            }
-
-                            let addition = ClauseKey::AdditionUnit(-literal);
-                            if self.clause_db.get(&addition).is_ok() {
-                                self.state = ContextState::Unsatisfiable(addition);
-                                return Ok(self.report());
-                            }
-
-                            self.state = ContextState::Unsatisfiable(ClauseKey::OriginalUnit(0));
-
+                            self.state =
+                                ContextState::Unsatisfiable(ClauseKey::AdditionUnit(literal));
                             return Ok(self.report());
                         }
 
                         Err(e) => {
                             log::info!("Failed to assert assumption: {e:?}");
                             panic!("! Unexpected error when asserting assumptions");
-
-                            self.state = ContextState::Unsatisfiable(ClauseKey::OriginalUnit(
-                                CLiteral::new(0, false),
-                            ));
-                            return Ok(Report::Unsatisfiable);
                         }
                     };
                 }
@@ -356,10 +310,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         AtomValue::NotSet | AtomValue::Same => {}
 
                         AtomValue::Different => {
-                            self.state = ContextState::Unsatisfiable(key);
-
-                            let clause = unsafe { self.clause_db.get_unchecked_mut(&key).clone() };
-                            self.clause_db.make_callback_unsatisfiable(&clause);
+                            self.note_conflict(key);
 
                             break 'solve_loop;
                         }

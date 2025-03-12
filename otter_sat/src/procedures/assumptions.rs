@@ -23,7 +23,7 @@ use std::collections::HashSet;
 
 use crate::{
     context::{ContextState, GenericContext},
-    db::{atom::AtomValue, consequence_q::QPosition},
+    db::{atom::AtomValue, consequence_q::QPosition, ClauseKey},
     structures::{
         atom::Atom,
         clause::Clause,
@@ -62,18 +62,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             .set_value(assumption, Some(self.literal_db.current_level()))
                     } {
                         AtomValue::NotSet => {
+                            log::info!("BCP of assumption: {assumption}");
                             // As assumptions are stacked, immediately call BCP.
                             match self.bcp(assumption) {
                                 Ok(_) => {}
 
                                 Err(err::BCPError::Conflict(key)) => {
                                     // TODO: Unify re-use of BCP result parsing.
-
-                                    self.state = ContextState::Unsatisfiable(key);
-
-                                    let clause =
-                                        unsafe { self.clause_db.get_unchecked(&key).clone() };
-                                    self.clause_db.make_callback_unsatisfiable(&clause);
+                                    self.note_conflict(key);
 
                                     return Err(ErrorKind::FundamentalConflict);
                                 }
@@ -87,7 +83,21 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         AtomValue::Same => log::info!("! Assumption of an atom with that value"),
 
                         AtomValue::Different => {
-                            return Err(ErrorKind::AssumptionConflict(assumption))
+                            let key = {
+                                let original = ClauseKey::OriginalUnit(-assumption);
+                                let addition = ClauseKey::AdditionUnit(-assumption);
+
+                                if self.clause_db.get(&original).is_ok() {
+                                    original
+                                } else if self.clause_db.get(&addition).is_ok() {
+                                    addition
+                                } else {
+                                    ClauseKey::OriginalUnit(0)
+                                }
+                            };
+
+                            self.note_conflict(key);
+                            return Err(ErrorKind::FundamentalConflict);
                         }
                     }
                 }

@@ -87,7 +87,7 @@ So, caution should be taken to avoid overlooking a failed invariant.
 */
 
 use crate::{
-    context::{ContextState, GenericContext},
+    context::GenericContext,
     db::{atom::AtomValue, ClauseKey},
     procedures::analysis::AnalysisResult,
     structures::{
@@ -145,10 +145,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Err(err::BCPError::Conflict(key)) => {
                     //
                     if !self.literal_db.decision_is_made() {
-                        self.state = ContextState::Unsatisfiable(key);
-
-                        let clause = unsafe { self.clause_db.get_unchecked(&key).clone() };
-                        self.clause_db.make_callback_unsatisfiable(&clause);
+                        self.note_conflict(key);
 
                         return Ok(ApplyConsequencesOk::FundamentalConflict);
                     }

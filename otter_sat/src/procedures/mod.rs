@@ -9,6 +9,7 @@ pub mod apply_consequences;
 pub mod assumptions;
 pub mod backjump;
 pub mod bcp;
+pub mod conflict;
 pub mod core;
 pub mod decision;
 pub mod schedulers;

@@ -83,6 +83,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             Err(err::AtomDBError::AtomsExhausted) => CLiteral::new(ATOM_MAX, true),
         }
     }
+
+    pub fn fresh_or_max_literals(&mut self, count: usize) -> Vec<CLiteral> {
+        let mut literals = Vec::default();
+        for _ in 0..count {
+            literals.push(self.fresh_or_max_literal());
+        }
+        literals
+    }
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
