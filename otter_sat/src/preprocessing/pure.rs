@@ -57,7 +57,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         let q_result = context.value_and_queue(
             the_literal,
             consequence_q::QPosition::Back,
-            context.literal_db.current_level(),
+            context.atom_db.current_level(),
         );
 
         match q_result {
@@ -78,7 +78,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         let q_result = context.value_and_queue(
             the_literal,
             consequence_q::QPosition::Back,
-            context.literal_db.current_level(),
+            context.atom_db.current_level(),
         );
 
         match q_result {

@@ -1,6 +1,6 @@
 use crate::{
     config::Config,
-    db::{atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ, literal::LiteralDB},
+    db::{atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ},
     generic::random::MinimalPCG32,
     resolution_buffer::ResolutionBuffer,
 };
@@ -18,7 +18,6 @@ impl Context {
         Self {
             atom_db: AtomDB::new(&config),
             clause_db: ClauseDB::new(&config),
-            literal_db: LiteralDB::new(&config),
             resolution_buffer: ResolutionBuffer::new(&config),
 
             config,

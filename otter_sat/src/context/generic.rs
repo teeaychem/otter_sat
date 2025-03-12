@@ -1,8 +1,6 @@
 use crate::{
     config::Config,
-    db::{
-        ClauseKey, atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ, literal::LiteralDB,
-    },
+    db::{ClauseKey, atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ},
     reports::Report,
     resolution_buffer::ResolutionBuffer,
     types::err::ErrorKind,
@@ -38,10 +36,6 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
     /// The clause database.
     /// See [db::clause](crate::db::clause) for details.
     pub clause_db: ClauseDB,
-
-    /// The literal database.
-    /// See [db::literal](crate::db::literal) for details.
-    pub literal_db: LiteralDB,
 
     /// The consequence queue.
     /// See [db::consequence_q](crate::db::consequence_q) for details.

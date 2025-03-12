@@ -55,6 +55,9 @@ pub struct AtomDBConfig {
 
     /// After a conflict increase the atom bump by a value (proportional to) 1 / (1 - `FACTOR`^-3)
     pub decay: ConfigOption<Activity>,
+
+    /// Whether to stack assumptions on individual levels, or combine all assumptions on a single level.
+    pub stacked_assumptions: ConfigOption<bool>,
 }
 
 impl Default for AtomDBConfig {
@@ -74,6 +77,14 @@ impl Default for AtomDBConfig {
                 max: Activity::MAX,
                 max_state: ContextState::Configuration,
                 value: 50.0 * 1e-3,
+            },
+
+            stacked_assumptions: ConfigOption {
+                name: "stacked_assumptions",
+                min: false,
+                max: true,
+                max_state: ContextState::Configuration,
+                value: true,
             },
         }
     }

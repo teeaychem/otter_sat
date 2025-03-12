@@ -26,6 +26,7 @@ use crate::{
     misc::log::targets::{self},
     structures::{
         atom::{ATOM_MAX, Atom},
+        consequence::{Assignment, AssignmentSource},
         literal::{CLiteral, Literal},
         valuation::{Valuation, vValuation},
     },
@@ -51,6 +52,16 @@ pub struct AtomDB {
 
     /// A record of which decision an atom was valued on.
     decision_indicies: Vec<Option<LevelIndex>>,
+
+    /// The level of the initial decision during a solve.
+    /// In other words, any level present *below* the limit contains assumptions.
+    pub initial_decision_level: LevelIndex,
+
+    /// A stack of levels.
+    pub assignments: Vec<Assignment>,
+
+    /// Indicies at which a new level begins.
+    pub level_indicies: Vec<usize>,
 
     /// A local configuration, typically derived from the configuration of a context.
     config: AtomDBConfig,
@@ -80,6 +91,10 @@ impl AtomDB {
             valuation: Vec::default(),
             previous_valuation: Vec::default(),
             decision_indicies: Vec::default(),
+
+            initial_decision_level: 0,
+            assignments: Vec::default(),
+            level_indicies: Vec::default(),
 
             config: config.atom_db.clone(),
         };
@@ -275,5 +290,128 @@ impl AtomDB {
             true => &mut atom.positive_long,
             false => &mut atom.negative_long,
         }
+    }
+}
+
+impl AtomDB {
+    /// Pushes a fresh level to the top of the level stack with the given decision.
+    pub fn push_fresh_decision(&mut self, decision: CLiteral) {
+        self.level_indicies.push(self.assignments.len());
+
+        self.store_assignment(Assignment::from(decision, AssignmentSource::Decision));
+    }
+
+    /// Pushes a fresh level to the top of the level stack with the given assumption.
+    pub fn push_fresh_assumption(&mut self, assumption: CLiteral) {
+        self.initial_decision_level += 1;
+        self.level_indicies.push(self.assignments.len());
+
+        self.store_assignment(Assignment::from(assumption, AssignmentSource::Assumption));
+    }
+}
+
+impl AtomDB {
+    /// True if some assumption has been made, false otherwise.
+    pub fn assumption_is_made(&self) -> bool {
+        self.initial_decision_level > 0
+    }
+
+    /// Returns the lowest decision level.
+    /// Zero, if no assumptions has been made, otherwise some higher level.
+    pub fn lowest_decision_level(&self) -> LevelIndex {
+        self.initial_decision_level
+    }
+
+    /// The assignments made at `level`, in order of assignment.
+    ///
+    /// # Safety
+    /// No check is made to ensure the relevant number of assignments have been made.
+    pub unsafe fn assignments_at_unchecked(&self, level: LevelIndex) -> &[Assignment] {
+        let level_start = *unsafe { self.level_indicies.get_unchecked(level as usize) };
+
+        let level_end = if ((level + 1) as usize) < self.level_indicies.len() {
+            *unsafe { self.level_indicies.get_unchecked((level + 1) as usize) }
+        } else {
+            self.assignments.len()
+        };
+
+        &self.assignments[level_start..level_end]
+    }
+
+    /// The assignments made at `level`, in order of assignment.
+    pub fn assignments_above(&self, level: LevelIndex) -> &[Assignment] {
+        if let Some(&level_start) = self.level_indicies.get(level as usize) {
+            &self.assignments[level_start..]
+        } else {
+            &[]
+        }
+    }
+
+    /// The assignments made at the (current) top level, in order of assignment.
+    pub fn top_level_assignments(&self) -> &[Assignment] {
+        if let Some(&level_start) = self.level_indicies.last() {
+            &self.assignments[level_start..]
+        } else {
+            &[]
+        }
+    }
+
+    /// Removes the top level, if it exists.
+    ///
+    /// # Soundness
+    /// Does not clear the *valuation* of the decision.
+    pub fn forget_top_level(&mut self) -> Vec<Assignment> {
+        if let Some(top_start) = self.level_indicies.pop() {
+            self.assignments.split_off(top_start)
+        } else {
+            Vec::default()
+        }
+    }
+
+    /// Removes levels above the given level index, if they exist.
+    ///
+    /// # Soundness
+    /// Does not clear the *valuation* of the decision.
+    pub fn clear_assigments_above(&mut self, level: LevelIndex) -> Vec<Assignment> {
+        // level_indicies stores with zero-indexing.
+        // So, for example, the first assignment is accessed by assignments[level_indicies[0]].
+        // This means, in particular, that all assignments made after level i can be cleared by clearing any assignment at and after assignments[level_indicies[0]].
+        // And, as a corollary, that this method can not be used to clear any assignments at level zero.
+
+        if let Some(&level_start) = self.level_indicies.get(level as usize) {
+            self.level_indicies.split_off(level as usize);
+            let assignments = self.assignments.split_off(level_start);
+            for assignment in &assignments {
+                unsafe { self.drop_value(assignment.atom()) }
+            }
+            assignments
+        } else {
+            Vec::default()
+        }
+    }
+
+    /// A count of how many decisions have been made.
+    /// That is, the count of only those levels containing decisions (as opposed to assumptions).
+    ///
+    /// In other words, a count of how many decisions have been made.
+    pub fn decision_count(&self) -> LevelIndex {
+        (self.level_indicies.len() as LevelIndex) - self.initial_decision_level
+    }
+
+    /// Returns true if some decision is active, false otherwise (regardless of whether an assumption has been made).
+    pub fn decision_is_made(&self) -> bool {
+        self.decision_count() > 0
+    }
+
+    /// The current level.
+    pub fn current_level(&self) -> LevelIndex {
+        self.level_indicies.len() as LevelIndex
+    }
+}
+
+impl AtomDB {
+    /// Stores a consequence of the top decision level.
+    pub fn store_assignment(&mut self, assignment: Assignment) {
+        self.assignments.push(assignment);
     }
 }

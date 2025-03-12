@@ -190,7 +190,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         // Each error lead to a return of some form…
                         Err(err::ErrorKind::SpecificValuationConflict(assumption)) => {
                             let assignment = self
-                                .literal_db
+                                .atom_db
                                 .assignments
                                 .iter()
                                 .find(|a| a.literal == assumption);
@@ -261,8 +261,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     //
                     match self.make_decision() {
                         DecisionOk::Literal(decision) => {
-                            self.literal_db.push_fresh_decision(decision);
-                            let level = self.literal_db.current_level();
+                            self.atom_db.push_fresh_decision(decision);
+                            let level = self.atom_db.current_level();
                             log::info!("Decided on {decision} at level {level}");
 
                             match self.value_and_queue(decision, QPosition::Back, level) {
@@ -281,7 +281,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     let q_result = self.value_and_queue(
                         literal,
                         QPosition::Front,
-                        self.literal_db.current_level(),
+                        self.atom_db.current_level(),
                     );
 
                     match q_result {
@@ -300,7 +300,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     let consequence = Assignment::from(literal, AssignmentSource::BCP(key));
                     unsafe { self.record_consequence(consequence) };
-                    let level = self.literal_db.current_level();
+                    let level = self.atom_db.current_level();
 
                     match self.value_and_queue(literal, QPosition::Front, level) {
                         AtomValue::NotSet | AtomValue::Same => {}
@@ -323,7 +323,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 // TODO: Dispatch stats?
 
                 if self.config.restarts.value {
-                    self.backjump(self.literal_db.lowest_decision_level());
+                    self.backjump(self.atom_db.lowest_decision_level());
                     self.clause_db.refresh_heap();
                     self.counters.fresh_conflicts = 0;
                     self.counters.restarts += 1;

@@ -35,7 +35,7 @@ use std::{borrow::Borrow, collections::HashSet};
 
 use crate::{
     config::{Config, StoppingCriteria},
-    db::{ClauseKey, atom::AtomDB, clause::ClauseDB, literal::LiteralDB},
+    db::{ClauseKey, atom::AtomDB, clause::ClauseDB},
     misc::log::targets::{self},
     structures::{
         atom::Atom,
@@ -127,7 +127,6 @@ impl ResolutionBuffer {
     pub fn resolve_through_current_level(
         &mut self,
         key: &ClauseKey,
-        literal_db: &LiteralDB,
         clause_db: &mut ClauseDB,
         atom_db: &mut AtomDB,
     ) -> Result<ResolutionOk, err::ResolutionBufferError> {
@@ -144,7 +143,7 @@ impl ResolutionBuffer {
         };
 
         // Resolution buffer is only used by analysis, which is only called after some decision has been made
-        let the_trail = literal_db.top_level_assignments().iter().rev();
+        let the_trail = atom_db.top_level_assignments().iter().rev();
         'resolution_loop: for consequence in the_trail {
             if self.valueless_count <= 1 {
                 match self.config.stopping {
@@ -193,11 +192,12 @@ impl ResolutionBuffer {
 
                                 ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
                                     // TODO: Subsumption should use the appropriate valuation
-                                    let rekey =
-                                        clause_db.subsume(key, consequence.literal(), atom_db)?;
-                                    self.premises.insert(rekey);
-                                    clause_db.note_use(rekey);
-                                    rekey
+                                    // let rekey =
+                                    //     clause_db.subsume(key, consequence.literal(), atom_db)?;
+                                    // self.premises.insert(rekey);
+                                    // clause_db.note_use(rekey);
+                                    // rekey
+                                    key
                                 },
                             }
                         }

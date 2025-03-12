@@ -37,7 +37,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Asserts all assumptions recorded in the literal database.
     /// Returns ok if asserting assumptions as successful, and an error otherwise.
     pub fn assert_assumptions(&mut self, assumptions: Vec<CLiteral>) -> Result<(), ErrorKind> {
-        if self.literal_db.decision_is_made() {
+        if self.atom_db.decision_is_made() {
             log::error!("! Asserting assumptions while a decision has been made.");
             return Err(ErrorKind::InvalidState);
         }
@@ -48,18 +48,18 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // This is safe, as no new assumptions will be created when asserting assumptions.
         // Further, the calls to BCP are as safe as can be, as a check is made to ensure the language of the context includes the atom of each assumption added.
 
-        match self.config.literal_db.stacked_assumptions.value {
+        match self.config.atom_db.stacked_assumptions.value {
             true => {
                 for assumption in assumptions {
                     self.ensure_atom(assumption.atom());
 
-                    self.literal_db.push_fresh_assumption(assumption);
+                    self.atom_db.push_fresh_assumption(assumption);
 
                     // # Safety
                     // The atom has been ensured, above.
                     match unsafe {
                         self.atom_db
-                            .set_value(assumption, Some(self.literal_db.current_level()))
+                            .set_value(assumption, Some(self.atom_db.current_level()))
                     } {
                         AtomValue::NotSet => {
                             log::info!("BCP of assumption: {assumption}");
@@ -108,15 +108,15 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             false => {
                 // All assumption can be made, so push a fresh level.
                 // Levels store a single literal, so Top is used to represent the assumptions.
-                self.literal_db.initial_decision_level += 1;
-                self.literal_db
+                self.atom_db.initial_decision_level += 1;
+                self.atom_db
                     .level_indicies
-                    .push(self.literal_db.assignments.len());
+                    .push(self.atom_db.assignments.len());
 
                 for literal in assumptions.into_iter() {
                     self.ensure_atom(literal.atom());
 
-                    self.literal_db.store_assignment(Assignment {
+                    self.atom_db.store_assignment(Assignment {
                         literal,
                         source: AssignmentSource::Assumption,
                     });
@@ -124,7 +124,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     let q_result = self.value_and_queue(
                         literal,
                         QPosition::Back,
-                        self.literal_db.current_level(),
+                        self.atom_db.current_level(),
                     );
 
                     match q_result {
@@ -161,7 +161,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         let mut assumptions: Vec<CLiteral> = Vec::default();
 
-        if !self.literal_db.assumption_is_made() {
+        if !self.atom_db.assumption_is_made() {
             return assumptions;
         }
 
@@ -174,9 +174,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             used_atoms.insert(literal.atom());
         }
 
-        for level in (0..self.literal_db.current_level()).rev() {
+        for level in (0..self.atom_db.current_level()).rev() {
             // Safe, as the level is bound by the current_level method.
-            let assignments = unsafe { self.literal_db.assignments_at_unchecked(level) };
+            let assignments = unsafe { self.atom_db.assignments_at_unchecked(level) };
 
             for assignment in assignments.iter().rev() {
                 if used_atoms.contains(&assignment.literal().atom()) {

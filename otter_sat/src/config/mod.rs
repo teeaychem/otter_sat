@@ -31,7 +31,6 @@ pub use stopping_criteria::StoppingCriteria;
 
 use crate::{
     context::ContextState,
-    db::literal::config::LiteralDBConfig,
     generic::{self},
 };
 
@@ -43,9 +42,6 @@ pub struct Config {
 
     /// Configuration of the clause database.
     pub clause_db: ClauseDBConfig,
-
-    /// Configuration of the literal database.
-    pub literal_db: LiteralDBConfig,
 
     /// The `u` value to multiply the luby sequence by when determining whether to perform a restart.
     pub luby_u: ConfigOption<generic::luby::LubyRepresentation>,
@@ -90,7 +86,6 @@ impl Default for Config {
         Config {
             atom_db: AtomDBConfig::default(),
             clause_db: ClauseDBConfig::default(),
-            literal_db: LiteralDBConfig::default(),
 
             luby_u: ConfigOption {
                 name: "luby",

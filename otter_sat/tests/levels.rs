@@ -4,7 +4,7 @@ mod decision_levels {
     #[test]
     fn two_stacked() {
         let mut cfg = Config::default();
-        cfg.literal_db.stacked_assumptions.value = true;
+        cfg.atom_db.stacked_assumptions.value = true;
         let mut ctx = Context::from_config(cfg);
 
         let [p, q, r, s] = *ctx.fresh_or_max_literals(4).as_slice() else {
@@ -16,8 +16,8 @@ mod decision_levels {
 
         let _ = ctx.assert_assumptions(vec![p, r]);
 
-        assert!(ctx.literal_db.assumption_is_made());
-        assert!(ctx.literal_db.initial_decision_level == 2);
+        assert!(ctx.atom_db.assumption_is_made());
+        assert!(ctx.atom_db.initial_decision_level == 2);
 
         assert!(ctx.atom_db.value_of(q.atom()) == Some(true));
         assert!(ctx.atom_db.value_of(s.atom()) == Some(false));
@@ -26,7 +26,7 @@ mod decision_levels {
     #[test]
     fn two_unstacked() {
         let mut cfg = Config::default();
-        cfg.literal_db.stacked_assumptions.value = false;
+        cfg.atom_db.stacked_assumptions.value = false;
         let mut ctx = Context::from_config(cfg);
 
         let [p, q, r, s] = *ctx.fresh_or_max_literals(4).as_slice() else {
@@ -38,8 +38,8 @@ mod decision_levels {
 
         let _ = ctx.assert_assumptions(vec![p, r]);
 
-        assert!(ctx.literal_db.assumption_is_made());
-        assert!(ctx.literal_db.initial_decision_level == 1);
+        assert!(ctx.atom_db.assumption_is_made());
+        assert!(ctx.atom_db.initial_decision_level == 1);
 
         assert!(ctx.atom_db.value_of(q.atom()).is_none());
         assert!(ctx.atom_db.value_of(s.atom()).is_none());
@@ -62,8 +62,8 @@ mod decision_levels {
 
         let _ = ctx.assert_assumptions(vec![r]);
 
-        assert!(ctx.literal_db.assumption_is_made());
-        assert!(ctx.literal_db.initial_decision_level == 1);
+        assert!(ctx.atom_db.assumption_is_made());
+        assert!(ctx.atom_db.initial_decision_level == 1);
 
         assert!(ctx.atom_db.value_of(q.atom()) == Some(true));
         assert!(ctx.atom_db.value_of(s.atom()) == Some(false));

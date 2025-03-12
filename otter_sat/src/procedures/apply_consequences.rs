@@ -39,7 +39,7 @@ while let Some((literal, _)) = self.consequence_q.front() {
     match self.bcp(literal) {
         Ok(()) => self.consequence_q.pop_front(), // continue applying consequences
         Err(err::BCP::Conflict(key)) => {
-            if !self.literal_db.decision_made() {
+            if !self.atom_db.decision_made() {
                 return Ok(FundamentalConflict);
             }
 
@@ -144,7 +144,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 Err(err::BCPError::Conflict(key)) => {
                     //
-                    if !self.literal_db.decision_is_made() {
+                    if !self.atom_db.decision_is_made() {
                         self.note_conflict(key);
 
                         return Ok(ApplyConsequencesOk::FundamentalConflict);
@@ -163,7 +163,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             if let AtomValue::Different = self.value_and_queue(
                                 literal,
                                 QPosition::Front,
-                                self.literal_db.current_level(),
+                                self.atom_db.current_level(),
                             ) {
                                 return Err(ErrorKind::ValuationConflict);
                             };
