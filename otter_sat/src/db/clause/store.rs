@@ -38,19 +38,27 @@ impl ClauseDB {
         atom_db: &mut AtomDB,
         premises: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
-        match clause.size() {
+        let tmp_premises = premises.clone();
+
+        let key = match clause.size() {
             0 => Err(err::ClauseDBError::EmptyClause),
 
             // The match ensures there is a next (and then no further) literal in the clause.
             1 => {
                 let literal = unsafe { clause.literals().next().unwrap_unchecked() };
-                self.store_unit(literal, source, premises)
+                self.store_unit(literal, source)
             }
 
-            2 => self.store_binary(clause.canonical(), source, atom_db, premises),
+            2 => self.store_binary(clause.canonical(), source, atom_db),
 
-            _ => self.store_long(clause.canonical(), source, atom_db, premises),
+            _ => self.store_long(clause.canonical(), source, atom_db),
+        };
+
+        if let Ok(key) = key {
+            self.resolution_graph.insert(key, tmp_premises);
         }
+
+        key
     }
 }
 
@@ -59,12 +67,11 @@ impl ClauseDB {
         &mut self,
         literal: CLiteral,
         source: ClauseSource,
-        premises: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match source {
             ClauseSource::Original => {
                 let key = ClauseKey::OriginalUnit(literal);
-                let clause = dbClause::new_unit(key, literal, premises);
+                let clause = dbClause::new_unit(key, literal);
 
                 self.make_callback_original(&clause, &source);
                 self.unit_original.insert(key, clause);
@@ -74,7 +81,7 @@ impl ClauseDB {
 
             ClauseSource::BCP => {
                 let key = ClauseKey::AdditionUnit(literal);
-                let clause = dbClause::new_unit(key, literal, premises);
+                let clause = dbClause::new_unit(key, literal);
 
                 self.make_callback_addition(&clause, &source);
                 self.unit_addition.insert(key, clause);
@@ -86,7 +93,7 @@ impl ClauseDB {
 
             ClauseSource::Resolution => {
                 let key = ClauseKey::AdditionUnit(literal);
-                let clause = dbClause::new_unit(key, literal, premises);
+                let clause = dbClause::new_unit(key, literal);
                 self.make_callback_addition(&clause, &source);
                 self.unit_addition.insert(key, clause);
 
@@ -104,12 +111,11 @@ impl ClauseDB {
         clause: CClause,
         source: ClauseSource,
         atom_db: &mut AtomDB,
-        premises: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match source {
             ClauseSource::Original => {
                 let key = self.fresh_original_binary_key()?;
-                let clause = dbClause::new_nonunit(key, clause, atom_db, premises);
+                let clause = dbClause::new_nonunit(key, clause, atom_db);
 
                 self.make_callback_original(&clause, &source);
                 self.binary_original.push(clause);
@@ -119,7 +125,7 @@ impl ClauseDB {
 
             ClauseSource::BCP | ClauseSource::Resolution => {
                 let key = self.fresh_addition_binary_key()?;
-                let clause = dbClause::new_nonunit(key, clause, atom_db, premises);
+                let clause = dbClause::new_nonunit(key, clause, atom_db);
 
                 self.make_callback_addition(&clause, &source);
                 self.binary_addition.push(clause);
@@ -136,7 +142,6 @@ impl ClauseDB {
         clause: CClause,
         source: ClauseSource,
         atom_db: &mut AtomDB,
-        premises: HashSet<ClauseKey>,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match source {
             ClauseSource::BCP | ClauseSource::PureUnit => {
@@ -148,7 +153,7 @@ impl ClauseDB {
 
                 log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
 
-                let db_clause = dbClause::new_nonunit(key, clause, atom_db, premises);
+                let db_clause = dbClause::new_nonunit(key, clause, atom_db);
                 self.make_callback_original(&db_clause, &source);
 
                 self.original.push(db_clause);
@@ -165,7 +170,7 @@ impl ClauseDB {
 
                 log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
 
-                let stored_form = dbClause::new_nonunit(key, clause, atom_db, premises);
+                let stored_form = dbClause::new_nonunit(key, clause, atom_db);
                 self.make_callback_addition(&stored_form, &source);
 
                 let value = ActivityLBD {

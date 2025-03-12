@@ -68,6 +68,9 @@ pub struct ClauseDB {
     /// An activity heap of addition clause keys.
     activity_heap: IndexHeap<ActivityLBD>,
 
+    /// Resolution graph
+    pub resolution_graph: HashMap<ClauseKey, HashSet<ClauseKey>>,
+
     /// Original clauses are passed in.
     callback_original: Option<Box<CallbackOnClauseSource>>,
 
@@ -101,6 +104,8 @@ impl ClauseDB {
             addition: Vec::default(),
 
             activity_heap: IndexHeap::default(),
+            resolution_graph: HashMap::default(),
+
             config: config.clause_db.clone(),
 
             callback_original: None,
@@ -137,10 +142,8 @@ impl ClauseDB {
     /// After this is called every addition clause is a candidate for deletion.
     pub fn refresh_heap(&mut self) {
         for (index, slot) in self.addition.iter().enumerate() {
-            if let Some(clause) = slot {
-                if clause.proof_occurrence_count() == 0 {
-                    self.activity_heap.activate(index);
-                }
+            if slot.is_some() {
+                self.activity_heap.activate(index);
             }
         }
         self.activity_heap.heapify();
@@ -193,27 +196,6 @@ impl ClauseDB {
             }
             Some(the_clause) => {
                 self.make_callback_delete(&the_clause);
-
-                for premise_key in the_clause.premises() {
-                    match premise_key {
-                        ClauseKey::Addition(_, _) => match self.get_mut(premise_key) {
-                            Ok(clause) => {
-                                clause.decrement_proof_count();
-                                if !clause.is_active() && clause.proof_occurrence_count() == 0 {
-                                    self.activity_heap.activate(premise_key.index());
-                                }
-                            }
-
-                            Err(_) => {
-                                log::error!(target: targets::CLAUSE_DB, "Remove called with missing ancestor clause");
-                                println!("Remove called with missing ancestor clause");
-                                return Err(err::ClauseDBError::Missing);
-                            }
-                        },
-
-                        _ => {}
-                    }
-                }
 
                 self.activity_heap.remove(index);
                 self.empty_keys.push(*the_clause.key());
@@ -411,15 +393,13 @@ impl ClauseDB {
         key: ClauseKey,
         literal: impl Borrow<CLiteral>,
         atom_db: &mut AtomDB,
-        premises: HashSet<ClauseKey>,
-        increment_proof_count: bool,
     ) -> Result<ClauseKey, err::SubsumptionError> {
         let clause = unsafe { self.get_unchecked_mut(&key) };
 
         match clause.len() {
             0..=2 => Err(err::SubsumptionError::ShortClause),
             _ => {
-                clause.subsume(literal, atom_db, true, premises, increment_proof_count)?;
+                clause.subsume(literal, atom_db, true)?;
                 Ok(key)
             }
         }
