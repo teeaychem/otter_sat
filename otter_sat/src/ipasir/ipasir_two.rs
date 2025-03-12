@@ -15,8 +15,8 @@ use crate::{
     context::ContextState,
     db::clause::db_clause::dbClause,
     ipasir::{
-        ipasir_one::{ipasir_failed, ipasir_init, ipasir_set_learn},
         ContextBundle, IPASIR_SIGNATURE,
+        ipasir_one::{ipasir_failed, ipasir_init, ipasir_set_learn},
     },
     reports::Report,
     structures::{
@@ -109,9 +109,9 @@ pub struct ipasir2_option {
 /// Bind the name and version of this library to the given pointer.
 /// # Safety
 /// Writes the signature a raw pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir2_signature(signature: *mut *const c_char) -> ipasir2_errorcode {
-    std::ptr::write(signature, ipasir_signature());
+    unsafe { std::ptr::write(signature, ipasir_signature()) };
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
@@ -119,9 +119,9 @@ pub unsafe extern "C" fn ipasir2_signature(signature: *mut *const c_char) -> ipa
 /// Initialises a solver a binds the given pointer to its address.
 /// # Safety
 /// Releases the initialised solver to a raw pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir2_init(solver: *mut *mut c_void) -> ipasir2_errorcode {
-    std::ptr::write(solver, ipasir_init());
+    unsafe { std::ptr::write(solver, ipasir_init()) };
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
@@ -129,9 +129,9 @@ pub unsafe extern "C" fn ipasir2_init(solver: *mut *mut c_void) -> ipasir2_error
 /// Releases the bound solver, so long as it is not solving.
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir2_release(solver: *mut c_void) -> ipasir2_errorcode {
-    ipasir_release(solver);
+    unsafe { ipasir_release(solver) };
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
@@ -139,7 +139,7 @@ pub unsafe extern "C" fn ipasir2_release(solver: *mut c_void) -> ipasir2_errorco
 /// Returns the supported configuration options.
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir2_options(
     solver: *mut c_void,
     options: *const *mut ipasir2_option,
@@ -151,7 +151,7 @@ pub unsafe extern "C" fn ipasir2_options(
 /// Returns the handle to the option with the gien name.
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir2_get_option_handle(
     solver: *mut c_void,
     name: *const c_char,
@@ -163,7 +163,7 @@ pub unsafe extern "C" fn ipasir2_get_option_handle(
 /// Sets the value of the given option.
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir2_set_option(
     solver: *mut c_void,
     handle: *const ipasir2_option,
@@ -179,7 +179,7 @@ pub unsafe extern "C" fn ipasir2_set_option(
 /// # Safety
 /// Recovers a context bundle and takes a clause from raw pointers.
 #[allow(unused_variables)]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir2_add(
     solver: *mut c_void,
     clause: *const i32,
@@ -191,9 +191,9 @@ pub unsafe extern "C" fn ipasir2_add(
         return ipasir2_errorcode::IPASIR2_E_UNSUPPORTED_ARGUMENT;
     }
 
-    let clause = std::slice::from_raw_parts(clause, len as usize);
+    let clause = unsafe { std::slice::from_raw_parts(clause, len as usize) };
 
-    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    let bundle: &mut ContextBundle = unsafe { &mut *(solver as *mut ContextBundle) };
     assert!(bundle.clause_buffer.is_empty());
 
     for literal in clause {
@@ -215,23 +215,23 @@ pub unsafe extern "C" fn ipasir2_add(
 ///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir2_solve(
     solver: *mut c_void,
     result: *mut c_int,
     literals: *const i32,
     len: i32,
 ) -> ipasir2_errorcode {
-    let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+    let bundle: &mut ContextBundle = unsafe { &mut *(solver as *mut ContextBundle) };
     if len != 0 {
-        let assumption_literals = std::slice::from_raw_parts(literals, len as usize);
+        let assumption_literals = unsafe { std::slice::from_raw_parts(literals, len as usize) };
         for assumption in assumption_literals {
             let assumption = CLiteral::from(*assumption);
             bundle.assumptions.push(assumption);
         }
     }
 
-    std::ptr::write(result, ipasir_solve(solver));
+    unsafe { std::ptr::write(result, ipasir_solve(solver)) };
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
@@ -244,13 +244,13 @@ pub unsafe extern "C" fn ipasir2_solve(
 ///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir2_value(
     solver: *mut c_void,
     lit: i32,
     result: *mut i32,
 ) -> ipasir2_errorcode {
-    std::ptr::write(result, ipasir_val(solver, lit));
+    unsafe { std::ptr::write(result, ipasir_val(solver, lit)) };
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
@@ -258,13 +258,13 @@ pub unsafe extern "C" fn ipasir2_value(
 /// Checks if the given assumption was used to prove the unsatisfiability in the previous solve.
 /// # Safety
 /// Recovers a context bundle and takes a clause from raw pointers.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir2_failed(
     solver: *mut c_void,
     lit: i32,
     result: *mut c_int,
 ) -> ipasir2_errorcode {
-    std::ptr::write(result, ipasir_failed(solver, lit));
+    unsafe { std::ptr::write(result, ipasir_failed(solver, lit)) };
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
@@ -275,13 +275,13 @@ pub unsafe extern "C" fn ipasir2_failed(
 ///
 /// # Safety
 /// Recovers a context bundle and takes a clause from raw pointers.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir2_set_terminate(
     solver: *mut c_void,
     data: *mut c_void,
     callback: Option<extern "C" fn(data: *mut c_void) -> c_int>,
 ) -> ipasir2_errorcode {
-    ipasir_set_terminate(solver, data, callback);
+    unsafe { ipasir_set_terminate(solver, data, callback) };
 
     ipasir2_errorcode::IPASIR2_E_OK
 }
@@ -290,7 +290,7 @@ pub unsafe extern "C" fn ipasir2_set_terminate(
 /// At present, no metadata is supported.
 /// # Safety
 /// Recovers a context bundle and reads from multiple C pointers.
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(clippy::useless_conversion)]
 pub unsafe extern "C" fn ipasir2_set_export(
     solver: *mut c_void,
@@ -301,7 +301,7 @@ pub unsafe extern "C" fn ipasir2_set_export(
     >,
 ) -> ipasir2_errorcode {
     if let Some(callback) = callback {
-        let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+        let bundle: &mut ContextBundle = unsafe { &mut *(solver as *mut ContextBundle) };
 
         let callback = Box::new(move |clause: &dbClause, _: &ClauseSource| {
             if clause.len() < (max_length as usize) {
@@ -330,7 +330,7 @@ pub unsafe extern "C" fn ipasir2_set_export(
 /// # Safety
 /// Recovers a context bundle and reads from multiple C pointers.
 #[allow(clippy::useless_conversion)]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir2_delete(
     solver: *mut c_void,
     data: *mut c_void,
@@ -339,7 +339,7 @@ pub unsafe extern "C" fn ipasir2_delete(
     >,
 ) -> ipasir2_errorcode {
     if let Some(callback) = callback {
-        let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+        let bundle: &mut ContextBundle = unsafe { &mut *(solver as *mut ContextBundle) };
 
         let callback = Box::new(move |clause: &dbClause| {
             let callback_ptr: *mut i32 = if cfg!(feature = "boolean") {
@@ -374,7 +374,7 @@ pub unsafe extern "C" fn ipasir2_delete(
 ///
 /// # Safety
 /// Recovers a context bundle and reads from multiple C pointers.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir2_set_import(
     solver: *mut c_void,
     data: *mut c_void,
@@ -401,7 +401,7 @@ pub unsafe extern "C" fn ipasir2_set_import(
 ///
 /// # Safety
 /// Recovers a context bundle and reads from multiple C pointers.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir2_set_fixed(
     solver: *mut c_void,
     data: *mut c_void,
@@ -412,7 +412,7 @@ pub unsafe extern "C" fn ipasir2_set_fixed(
     At present the callback is not made for literals fixed relative to assumptions made.
      */
     if let Some(callback) = callback {
-        let bundle: &mut ContextBundle = &mut *(solver as *mut ContextBundle);
+        let bundle: &mut ContextBundle = unsafe { &mut *(solver as *mut ContextBundle) };
 
         let callback = Box::new(move |literal: CLiteral| {
             callback(data, literal);

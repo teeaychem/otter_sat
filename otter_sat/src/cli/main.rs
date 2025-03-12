@@ -34,19 +34,19 @@ use std::{
 };
 
 use otter_sat::{
-    config::{vsids::VSIDS, Activity, Config, PolarityLean, StoppingCriteria},
+    config::{Activity, Config, PolarityLean, StoppingCriteria, vsids::VSIDS},
     context::Context,
-    db::{clause::db_clause::dbClause, ClauseKey},
+    db::{ClauseKey, clause::db_clause::dbClause},
     generic::luby::LubyRepresentation,
     reports::{
+        Report,
         frat::{
+            Transcriber,
             callback_templates::{
                 transcribe_addition, transcribe_deletion, transcribe_premises,
                 transcribe_unsatisfiable,
             },
-            Transcriber,
         },
-        Report,
     },
     structures::clause::{Clause, ClauseSource},
 };

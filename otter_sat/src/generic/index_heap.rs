@@ -36,7 +36,7 @@ pub struct IndexHeap<V: PartialOrd + Default> {
     heap: Vec<usize>,
     limit: usize,
 }
-use std::{cmp::Ordering, usize};
+use std::cmp::Ordering;
 
 impl<V: Default + PartialOrd + Default> Default for IndexHeap<V> {
     fn default() -> Self {
@@ -213,17 +213,17 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
     /// # Safety
     /// Assumes `heap_index` is some location on the heap.
     unsafe fn value_index(&self, heap_index: usize) -> usize {
-        *self.heap.get_unchecked(heap_index)
+        *unsafe { self.heap.get_unchecked(heap_index) }
     }
 
     /// Where `value_index` is stored on the heap, if present.
     unsafe fn heap_index(&self, value_index: usize) -> Option<usize> {
-        *self.position_in_heap.get_unchecked(value_index)
+        *unsafe { self.position_in_heap.get_unchecked(value_index) }
     }
 
     /// Updates the position in the heap of `value_index` to `heap_index`.
     unsafe fn reposition(&mut self, value_index: usize, heap_index: Option<usize>) {
-        *self.position_in_heap.get_unchecked_mut(value_index) = heap_index;
+        *unsafe { self.position_in_heap.get_unchecked_mut(value_index) } = heap_index;
     }
 
     /// The (heap) index of the left child of `heap_index`.
@@ -273,10 +273,10 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
             if left_index >= self.limit {
                 break;
             }
-            left_value = self.values.get_unchecked(self.value_index(left_index));
+            left_value = unsafe { self.values.get_unchecked(self.value_index(left_index)) };
 
             update_index = heap_index;
-            update_value = self.values.get_unchecked(self.value_index(update_index));
+            update_value = unsafe { self.values.get_unchecked(self.value_index(update_index)) };
 
             if left_value > update_value {
                 update_index = left_index;
@@ -286,14 +286,15 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
             right_index = self.heap_right(heap_index);
 
             if right_index < self.limit
-                && self.values.get_unchecked(self.value_index(right_index)) > update_value
+                && unsafe { self.values.get_unchecked(self.value_index(right_index)) }
+                    > update_value
             {
                 update_index = right_index;
             }
 
             if update_index != heap_index {
-                a = self.value_index(heap_index);
-                b = self.value_index(update_index);
+                a = unsafe { self.value_index(heap_index) };
+                b = unsafe { self.value_index(update_index) };
 
                 self.position_in_heap.swap(a, b);
                 self.heap.swap(heap_index, update_index);
@@ -324,14 +325,14 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
             }
             parent_heap = self.heap_parent(heap_index);
 
-            index_value = self.values.get_unchecked(self.value_index(heap_index));
-            parent_value = self.values.get_unchecked(self.value_index(parent_heap));
+            index_value = unsafe { self.values.get_unchecked(self.value_index(heap_index)) };
+            parent_value = unsafe { self.values.get_unchecked(self.value_index(parent_heap)) };
 
             match parent_value.partial_cmp(index_value) {
                 Some(Ordering::Greater) => break 'up_loop,
                 _ => {
-                    a = self.value_index(heap_index);
-                    b = self.value_index(parent_heap);
+                    a = unsafe { self.value_index(heap_index) };
+                    b = unsafe { self.value_index(parent_heap) };
 
                     self.position_in_heap.swap(a, b);
                     self.heap.swap(heap_index, parent_heap);

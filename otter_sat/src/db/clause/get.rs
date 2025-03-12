@@ -1,6 +1,6 @@
 use crate::{db::ClauseKey, types::err};
 
-use super::{db_clause::dbClause, ClauseDB};
+use super::{ClauseDB, db_clause::dbClause};
 
 /// Methods to get clauses stored in the database.
 impl ClauseDB {
@@ -135,15 +135,19 @@ impl ClauseDB {
                 }
             }
 
-            ClauseKey::Original(index) => self.original.get_unchecked(*index as usize),
+            ClauseKey::Original(index) => unsafe { self.original.get_unchecked(*index as usize) },
 
-            ClauseKey::OriginalBinary(index) => self.binary_original.get_unchecked(*index as usize),
+            ClauseKey::OriginalBinary(index) => unsafe {
+                self.binary_original.get_unchecked(*index as usize)
+            },
 
-            ClauseKey::AdditionBinary(index) => self.binary_addition.get_unchecked(*index as usize),
+            ClauseKey::AdditionBinary(index) => unsafe {
+                self.binary_addition.get_unchecked(*index as usize)
+            },
 
             ClauseKey::Addition(index, _) => {
                 //
-                match self.addition.get_unchecked(*index as usize) {
+                match unsafe { self.addition.get_unchecked(*index as usize) } {
                     Some(clause) => clause,
 
                     None => panic!("! Missing clause"),
@@ -173,19 +177,21 @@ impl ClauseDB {
                     None => panic!("! Missing clause"),
                 }
             }
-            ClauseKey::Original(index) => self.original.get_unchecked_mut(*index as usize),
+            ClauseKey::Original(index) => unsafe {
+                self.original.get_unchecked_mut(*index as usize)
+            },
 
-            ClauseKey::OriginalBinary(index) => {
+            ClauseKey::OriginalBinary(index) => unsafe {
                 self.binary_original.get_unchecked_mut(*index as usize)
-            }
+            },
 
-            ClauseKey::AdditionBinary(index) => {
+            ClauseKey::AdditionBinary(index) => unsafe {
                 self.binary_addition.get_unchecked_mut(*index as usize)
-            }
+            },
 
             ClauseKey::Addition(index, _) => {
                 //
-                match self.addition.get_unchecked_mut(*index as usize) {
+                match unsafe { self.addition.get_unchecked_mut(*index as usize) } {
                     Some(clause) => clause,
 
                     None => panic!("! Missing clause"),

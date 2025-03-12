@@ -1,14 +1,14 @@
 use crate::{
     config::Config,
     db::{
-        atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ, literal::LiteralDB, ClauseKey,
+        ClauseKey, atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ, literal::LiteralDB,
     },
     reports::Report,
     resolution_buffer::ResolutionBuffer,
     types::err::ErrorKind,
 };
 
-use super::{callbacks::CallbackTerminate, ContextState, Counters};
+use super::{ContextState, Counters, callbacks::CallbackTerminate};
 
 /// A generic context, parameratised to a source of randomness.
 ///

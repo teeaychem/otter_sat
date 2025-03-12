@@ -7,7 +7,7 @@ use std::collections::HashSet;
 
 use super::GenericContext;
 use crate::{
-    db::{clause::db_clause::dbClause, ClauseKey},
+    db::{ClauseKey, clause::db_clause::dbClause},
     structures::{clause::ClauseSource, literal::CLiteral},
 };
 

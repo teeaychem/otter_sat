@@ -14,7 +14,7 @@ Still, revising or paramaterising the context is all that's needed for a differe
 */
 
 use rand::SeedableRng;
-use rand_core::{impls, RngCore};
+use rand_core::{RngCore, impls};
 
 /// State and increment
 #[derive(Default)]

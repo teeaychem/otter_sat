@@ -62,8 +62,10 @@ impl Clause for CLiteral {
     }
 
     unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool {
-        valuation
-            .value_of_unchecked(self.atom())
-            .is_some_and(|v| v != self.polarity())
+        unsafe {
+            valuation
+                .value_of_unchecked(self.atom())
+                .is_some_and(|v| v != self.polarity())
+        }
     }
 }

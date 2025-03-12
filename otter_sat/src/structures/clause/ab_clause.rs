@@ -100,7 +100,7 @@ impl Clause for ABClause {
     }
 
     unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool {
-        self.literals().all(|literal| {
+        self.literals().all(|literal| unsafe {
             valuation
                 .value_of_unchecked(literal.atom())
                 .is_some_and(|value| value != literal.polarity())

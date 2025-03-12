@@ -87,9 +87,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let mut premises = HashSet::default();
                             premises.insert(*key);
 
-                            self.clause_db
-                                .get_unchecked_mut(&key)
-                                .increment_proof_count();
+                            unsafe {
+                                self.clause_db
+                                    .get_unchecked_mut(key)
+                                    .increment_proof_count()
+                            };
                             self.clause_db.note_use(*key);
 
                             self.clause_db.store(

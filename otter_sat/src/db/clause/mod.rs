@@ -19,7 +19,7 @@ use std::{
 use db_clause::dbClause;
 
 use crate::{
-    config::{dbs::ClauseDBConfig, Config},
+    config::{Config, dbs::ClauseDBConfig},
     context::callbacks::{CallbackOnClause, CallbackOnClauseSource, CallbackOnLiteral},
     db::{
         atom::AtomDB,
@@ -414,7 +414,7 @@ impl ClauseDB {
         premises: HashSet<ClauseKey>,
         increment_proof_count: bool,
     ) -> Result<ClauseKey, err::SubsumptionError> {
-        let clause = self.get_unchecked_mut(&key);
+        let clause = unsafe { self.get_unchecked_mut(&key) };
 
         match clause.len() {
             0..=2 => Err(err::SubsumptionError::ShortClause),

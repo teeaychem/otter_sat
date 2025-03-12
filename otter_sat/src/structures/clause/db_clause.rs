@@ -40,6 +40,6 @@ impl Clause for dbClause {
     }
 
     unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool {
-        self.clause().unsatisfiable_on_unchecked(valuation)
+        unsafe { self.clause().unsatisfiable_on_unchecked(valuation) }
     }
 }

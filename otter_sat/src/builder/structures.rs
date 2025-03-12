@@ -5,7 +5,7 @@ use crate::{
         consequence_q::{self},
     },
     structures::{
-        atom::{Atom, ATOM_MAX},
+        atom::{ATOM_MAX, Atom},
         clause::{Clause, ClauseSource},
         literal::{CLiteral, Literal},
     },
@@ -15,8 +15,8 @@ use crate::{
 use std::{borrow::Borrow, collections::HashSet};
 
 use super::{
-    preprocess::{preprocess_clause, PreprocessingOk},
     ClauseOk,
+    preprocess::{PreprocessingOk, preprocess_clause},
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
@@ -104,7 +104,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         match preprocess_clause(&mut clause_vec) {
             Ok(PreprocessingOk::Tautology) => return Ok(ClauseOk::Tautology),
             Err(PreprocessingError::Unsatisfiable) => {
-                return Err(err::ErrorKind::from(err::BuildError::Unsatisfiable))
+                return Err(err::ErrorKind::from(err::BuildError::Unsatisfiable));
             }
             _ => {}
         };
@@ -188,7 +188,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         match preprocess_clause(&mut clause_vec) {
             Ok(PreprocessingOk::Tautology) => return Ok(ClauseOk::Tautology),
             Err(PreprocessingError::Unsatisfiable) => {
-                return Err(err::ErrorKind::from(err::BuildError::Unsatisfiable))
+                return Err(err::ErrorKind::from(err::BuildError::Unsatisfiable));
             }
             _ => {}
         };

@@ -35,7 +35,7 @@ use std::{borrow::Borrow, collections::HashSet};
 
 use crate::{
     config::{Config, StoppingCriteria},
-    db::{atom::AtomDB, clause::ClauseDB, literal::LiteralDB, ClauseKey},
+    db::{ClauseKey, atom::AtomDB, clause::ClauseDB, literal::LiteralDB},
     misc::log::targets::{self},
     structures::{
         atom::Atom,
@@ -47,7 +47,7 @@ use crate::{
     types::err::{self},
 };
 
-use super::{cell::Cell, config::BufferConfig, ResolutionBuffer, ResolutionOk};
+use super::{ResolutionBuffer, ResolutionOk, cell::Cell, config::BufferConfig};
 
 impl ResolutionBuffer {
     pub fn new(config: &Config) -> Self {
@@ -355,6 +355,6 @@ impl ResolutionBuffer {
 
     /// Sets a cell corresponding to an atoms to the given enum case.
     unsafe fn set(&mut self, atom: Atom, to: Cell) {
-        *self.buffer.get_unchecked_mut(atom as usize) = to
+        *unsafe { self.buffer.get_unchecked_mut(atom as usize) } = to
     }
 }

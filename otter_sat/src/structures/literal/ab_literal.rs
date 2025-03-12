@@ -1,5 +1,5 @@
 use crate::structures::{
-    atom::{Atom, ATOM_MAX},
+    atom::{ATOM_MAX, Atom},
     clause::ABClause,
 };
 

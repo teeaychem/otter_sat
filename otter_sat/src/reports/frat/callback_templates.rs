@@ -9,7 +9,7 @@ For examples of use, see the bundled otter_cli.
 use std::collections::HashSet;
 
 use crate::{
-    db::{clause::db_clause::dbClause, ClauseKey},
+    db::{ClauseKey, clause::db_clause::dbClause},
     structures::clause::ClauseSource,
 };
 

@@ -32,12 +32,14 @@ impl AtomDB {
     /// # Safety
     /// Does not check that the atom is part of the valuation.
     pub unsafe fn clear_value(&mut self, atom: Atom) {
-        if let Some(present) = self.value_of(atom) {
-            *self.previous_valuation.get_unchecked_mut(atom as usize) = present;
-        }
+        unsafe {
+            if let Some(present) = self.value_of(atom) {
+                *self.previous_valuation.get_unchecked_mut(atom as usize) = present;
+            }
 
-        *self.valuation.get_unchecked_mut(atom as usize) = None;
-        *self.decision_indicies.get_unchecked_mut(atom as usize) = None;
+            *self.valuation.get_unchecked_mut(atom as usize) = None;
+            *self.decision_indicies.get_unchecked_mut(atom as usize) = None;
+        }
     }
 
     /// A string representing the current valuation, using the external representation of atoms.

@@ -2,9 +2,9 @@ use std::collections::HashSet;
 
 use crate::{
     db::{
+        ClauseKey, FormulaIndex,
         atom::AtomDB,
         clause::{activity_glue::ActivityLBD, db_clause::dbClause},
-        ClauseKey, FormulaIndex,
     },
     misc::log::targets,
     structures::{

@@ -55,7 +55,7 @@ Note: For efficiency an atom always has a 'previous' value, initialised randomly
 Use of activity, phase saving, or any other heuristic may be probabilistic, and likewise for the decision of atom and the decision of polarity.
 */
 
-use rand::{seq::IteratorRandom, Rng};
+use rand::{Rng, seq::IteratorRandom};
 
 use crate::{
     context::{ContextState, GenericContext},

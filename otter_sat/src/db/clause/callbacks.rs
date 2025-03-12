@@ -3,7 +3,7 @@ use crate::{
     structures::{clause::ClauseSource, literal::CLiteral},
 };
 
-use super::{db_clause::dbClause, ClauseDB};
+use super::{ClauseDB, db_clause::dbClause};
 
 impl ClauseDB {
     /// Set a callback to be made when an original clause is added to the context.

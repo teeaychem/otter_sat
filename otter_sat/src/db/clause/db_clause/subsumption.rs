@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, collections::HashSet};
 
 use crate::{
-    db::{atom::AtomDB, ClauseKey},
+    db::{ClauseKey, atom::AtomDB},
     misc::log::targets,
     structures::literal::{CLiteral, Literal},
     types::err::{self},

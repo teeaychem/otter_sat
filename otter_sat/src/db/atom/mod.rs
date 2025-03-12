@@ -20,14 +20,14 @@ use std::borrow::Borrow;
 use watch_db::{BinaryWatch, LongWatch};
 
 use crate::{
-    config::{dbs::AtomDBConfig, Activity, Config},
-    db::{atom::watch_db::WatchDB, LevelIndex},
+    config::{Activity, Config, dbs::AtomDBConfig},
+    db::{LevelIndex, atom::watch_db::WatchDB},
     generic::index_heap::IndexHeap,
     misc::log::targets::{self},
     structures::{
-        atom::{Atom, ATOM_MAX},
+        atom::{ATOM_MAX, Atom},
         literal::{CLiteral, Literal},
-        valuation::{vValuation, Valuation},
+        valuation::{Valuation, vValuation},
     },
     types::err::{self, AtomDBError},
 };
@@ -132,7 +132,7 @@ impl AtomDB {
     /// # Safety
     /// No check is made on whether the decision level of the atom is tracked.
     pub unsafe fn level_unchecked(&self, atom: Atom) -> Option<LevelIndex> {
-        *self.decision_indicies.get_unchecked(atom as usize)
+        *unsafe { self.decision_indicies.get_unchecked(atom as usize) }
     }
 
     /// Sets a given atom to have a given value, with a note of which decision this occurs after, if some decision has been made.
@@ -149,11 +149,11 @@ impl AtomDB {
         let value = literal.polarity();
 
         match self.value_of(atom) {
-            None => {
+            None => unsafe {
                 *self.valuation.get_unchecked_mut(atom as usize) = Some(value);
                 *self.decision_indicies.get_unchecked_mut(atom as usize) = level;
                 AtomValue::NotSet
-            }
+            },
             Some(v) if v == value => AtomValue::Same,
 
             Some(_) => AtomValue::Different,
@@ -165,9 +165,11 @@ impl AtomDB {
     /// # Safety
     /// No check is made on whether the atom is part of the valuation.
     pub unsafe fn drop_value(&mut self, atom: Atom) {
-        log::trace!(target: targets::VALUATION, "Cleared atom: {atom}");
-        self.clear_value(atom);
-        self.activity_heap.activate(atom as usize);
+        unsafe {
+            log::trace!(target: targets::VALUATION, "Cleared atom: {atom}");
+            self.clear_value(atom);
+            self.activity_heap.activate(atom as usize);
+        }
     }
 
     /// Adds `atom` being valued `value` to the binary clause wrapped in `watch_tag`.
@@ -175,7 +177,7 @@ impl AtomDB {
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
     pub unsafe fn watch_binary_unchecked(&mut self, literal: &CLiteral, watch: BinaryWatch) {
-        let atom = self.watch_dbs.get_unchecked_mut(literal.atom() as usize);
+        let atom = unsafe { self.watch_dbs.get_unchecked_mut(literal.atom() as usize) };
         match literal.polarity() {
             true => atom.positive_binary.push(watch),
             false => atom.negative_binary.push(watch),
@@ -189,7 +191,7 @@ impl AtomDB {
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
     pub unsafe fn watch_long_unchecked(&mut self, literal: &CLiteral, watch: LongWatch) {
-        let atom = self.watch_dbs.get_unchecked_mut(literal.atom() as usize);
+        let atom = unsafe { self.watch_dbs.get_unchecked_mut(literal.atom() as usize) };
         let list = match literal.polarity() {
             true => &mut atom.positive_long,
             false => &mut atom.negative_long,
@@ -213,7 +215,7 @@ impl AtomDB {
         literal: CLiteral,
         key: &ClauseKey,
     ) -> Result<(), err::ClauseDBError> {
-        let atom = self.watch_dbs.get_unchecked_mut(literal.atom() as usize);
+        let atom = unsafe { self.watch_dbs.get_unchecked_mut(literal.atom() as usize) };
         match key {
             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
                 let list = match literal.polarity() {
@@ -225,7 +227,7 @@ impl AtomDB {
                 let mut limit = list.len();
 
                 while index < limit {
-                    let list_key = list.get_unchecked(index).key;
+                    let list_key = unsafe { list.get_unchecked(index).key };
 
                     if &list_key == key {
                         list.swap_remove(index);
@@ -250,7 +252,7 @@ impl AtomDB {
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
     pub unsafe fn watchers_binary_unchecked(&self, literal: &CLiteral) -> *const Vec<BinaryWatch> {
-        let atom = self.watch_dbs.get_unchecked(literal.atom() as usize);
+        let atom = unsafe { self.watch_dbs.get_unchecked(literal.atom() as usize) };
 
         match !literal.polarity() {
             true => &atom.positive_binary,
@@ -267,7 +269,7 @@ impl AtomDB {
     /// # Safety
     /// No check is made on whether a [WatchDB] exists for the atom.
     pub unsafe fn watchers_long_unchecked(&mut self, literal: &CLiteral) -> *mut Vec<LongWatch> {
-        let atom = self.watch_dbs.get_unchecked_mut(literal.atom() as usize);
+        let atom = unsafe { self.watch_dbs.get_unchecked_mut(literal.atom() as usize) };
 
         match !literal.polarity() {
             true => &mut atom.positive_long,

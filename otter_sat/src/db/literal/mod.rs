@@ -99,10 +99,10 @@ impl LiteralDB {
     /// # Safety
     /// No check is made to ensure the relevant number of assignments have been made.
     pub unsafe fn assignments_at_unchecked(&self, level: LevelIndex) -> &[Assignment] {
-        let level_start = *self.level_indicies.get_unchecked(level as usize);
+        let level_start = *unsafe { self.level_indicies.get_unchecked(level as usize) };
 
         let level_end = if ((level + 1) as usize) < self.level_indicies.len() {
-            *self.level_indicies.get_unchecked((level + 1) as usize)
+            *unsafe { self.level_indicies.get_unchecked((level + 1) as usize) }
         } else {
             self.assignments.len()
         };
