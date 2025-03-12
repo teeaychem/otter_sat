@@ -41,7 +41,7 @@ For example, a conflict may lead to conflict analysis and no conflict may lead t
 ```rust,ignore
 match self.bcp(literal) {
     Err(err::BCP::Conflict(key)) => {
-        if self.literal_db.decision_made() {
+        if self.atom_db.decision_made() {
             let analysis_result = self.conflict_analysis(&clause_key)?;
             ...
         }
@@ -116,7 +116,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         let q_result = self.value_and_queue(
                             check,
                             QPosition::Back,
-                            self.literal_db.current_level(),
+                            self.atom_db.current_level(),
                         );
                         match q_result {
                             AtomValue::NotSet => {
@@ -194,7 +194,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 let q_result = self.value_and_queue(
                                     watch,
                                     QPosition::Back,
-                                    self.literal_db.current_level(),
+                                    self.atom_db.current_level(),
                                 );
 
                                 match q_result {

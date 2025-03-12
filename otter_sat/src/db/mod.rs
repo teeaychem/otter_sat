@@ -26,7 +26,6 @@ pub mod clause;
 pub mod consequence_q;
 mod keys;
 pub use keys::*;
-pub mod literal;
 
 use std::collections::HashSet;
 
@@ -64,7 +63,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             AssignmentSource::PureLiteral => {
                 let premises = HashSet::default();
                 // Making a free decision is not supported after some other (non-free) decision has been made.
-                if !self.literal_db.decision_is_made() {
+                if !self.atom_db.decision_is_made() {
                     self.clause_db.store(
                         *consequence.literal(),
                         ClauseSource::PureUnit,
@@ -79,9 +78,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             AssignmentSource::BCP(key) => {
                 log::info!("BCP Consequence: {key}: {}", consequence.literal());
                 //
-                match self.literal_db.decision_count() {
+                match self.atom_db.decision_count() {
                     0 => {
-                        if !self.literal_db.assumption_is_made() {
+                        if !self.atom_db.assumption_is_made() {
                             let unit_clause = consequence.literal();
 
                             let mut premises = HashSet::default();
@@ -97,10 +96,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             );
                         };
 
-                        self.literal_db.store_assignment(consequence)
+                        self.atom_db.store_assignment(consequence)
                     }
 
-                    _ => self.literal_db.store_assignment(consequence),
+                    _ => self.atom_db.store_assignment(consequence),
                 }
             }
 

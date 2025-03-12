@@ -58,24 +58,20 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// For documentation, see [procedures::backjump](crate::procedures::backjump).
     pub fn backjump(&mut self, target: LevelIndex) {
-        log::trace!(target: targets::BACKJUMP, "Backjump from {} to {}", self.literal_db.current_level(), target);
+        log::trace!(target: targets::BACKJUMP, "Backjump from {} to {}", self.atom_db.current_level(), target);
 
         // # Safety
         // The pop from the decision stack is fine, as decision_count is the height of the decision stack.
         // So, the elements to pop must exist.
         // And, if an atom is in the decision stack is should certainly be in the atom database.
 
-        for assignment in self.literal_db.assignments_above(target) {
-            unsafe { self.atom_db.drop_value(assignment.atom()) }
-        }
-
-        self.literal_db.clear_assigments_above(target);
+        self.atom_db.clear_assigments_above(target);
 
         // Retain queued consequences of the level backjumping to.
         self.clear_above(target);
 
-        if target <= self.literal_db.initial_decision_level {
-            self.literal_db.initial_decision_level = target;
+        if target <= self.atom_db.initial_decision_level {
+            self.atom_db.initial_decision_level = target;
         }
     }
 
@@ -94,7 +90,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 panic!("! Attempted search for non-chronological backjump level on an empty clause")
             }
 
-            1 => Ok(self.literal_db.lowest_decision_level()),
+            1 => Ok(self.atom_db.lowest_decision_level()),
 
             _ => {
                 // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
@@ -129,10 +125,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
 
                 match top_two {
-                    (None, _) => Ok(self.literal_db.lowest_decision_level()),
+                    (None, _) => Ok(self.atom_db.lowest_decision_level()),
 
                     (Some(second_to_top), Some(_top)) => Ok(cmp::max(
-                        self.literal_db.lowest_decision_level(),
+                        self.atom_db.lowest_decision_level(),
                         second_to_top,
                     )),
 

@@ -89,8 +89,8 @@ pub enum AnalysisResult {
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// For details on conflict analysis see the [analysis](crate::procedures::analysis) procedure.
     pub fn conflict_analysis(&mut self, key: &ClauseKey) -> Result<AnalysisResult, err::ErrorKind> {
-        log::info!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.literal_db.current_level());
-        log::info!(target: targets::ANALYSIS, "Level: {:?}", self.literal_db.top_level_assignments());
+        log::info!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.atom_db.current_level());
+        log::info!(target: targets::ANALYSIS, "Level: {:?}", self.atom_db.top_level_assignments());
         log::info!(target: targets::ANALYSIS, "Valuation: {}", self.atom_db.valuation_string());
 
         if let config::vsids::VSIDS::Chaff = self.config.vsids.value {
@@ -101,13 +101,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         self.resolution_buffer.refresh(self.atom_db.valuation());
         // Safety: Some decision must have been made for conflict analysis to take place.
 
-        for Assignment { literal, source: _ } in self.literal_db.top_level_assignments() {
+        for Assignment { literal, source: _ } in self.atom_db.top_level_assignments() {
             self.resolution_buffer.clear_value(literal.atom());
         }
 
         match self.resolution_buffer.resolve_through_current_level(
             key,
-            &self.literal_db,
             &mut self.clause_db,
             &mut self.atom_db,
         ) {
@@ -145,7 +144,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         match clause.len() {
             0 => Err(err::ErrorKind::from(err::AnalysisError::EmptyResolution)),
             1 => {
-                self.backjump(self.literal_db.lowest_decision_level());
+                self.backjump(self.atom_db.lowest_decision_level());
                 self.clause_db.store(
                     literal,
                     ClauseSource::Resolution,
