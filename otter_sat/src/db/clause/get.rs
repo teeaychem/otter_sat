@@ -5,10 +5,6 @@ use super::{ClauseDB, db_clause::dbClause};
 /// Methods to get clauses stored in the database.
 impl ClauseDB {
     /// Returns Ok(clause) corresponding to the given key, or an Err(issue) otherwise.
-    ///
-    /// ```rust, ignore
-    /// self.clause_db.get_db_clause(&key)?
-    /// ```
     pub fn get(&self, key: &ClauseKey) -> Result<&dbClause, err::ClauseDBError> {
         match key {
             ClauseKey::OriginalUnit(_) => Err(err::ClauseDBError::GetOriginalUnitKey),
@@ -60,10 +56,6 @@ impl ClauseDB {
     }
 
     /// Returns Ok(mutable clause) corresponding to the given key, or an Err(issue) otherwise.
-    ///
-    /// ```rust, ignore
-    /// self.clause_db.get_db_clause_mut(&key)?
-    /// ```
     pub fn get_mut(&mut self, key: &ClauseKey) -> Result<&mut dbClause, err::ClauseDBError> {
         match key {
             ClauseKey::OriginalUnit(_) => match self.unit_original.get_mut(key) {
