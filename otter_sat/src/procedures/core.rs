@@ -6,101 +6,99 @@ use std::collections::{HashSet, VecDeque};
 use crate::{
     context::{ContextState, GenericContext},
     db::ClauseKey,
-    structures::{clause::Clause, literal::Literal},
+    structures::{atom::Atom, clause::Clause, consequence::AssignmentSource, literal::Literal},
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
-    /// A collection of keys which identify an unsatisfiable core of a(n unsatisfiable) clause.
-    pub fn core_keys(&self) -> Vec<ClauseKey> {
-        let ContextState::Unsatisfiable(key) = self.state else {
-            todo!("Error path");
-        };
+    /// Identifies the originals keys in the resolution graph of `key`.
+    /// Note, in this context, resolution graphs are reflexive.
+    pub fn original_keys(&self, key: ClauseKey) -> HashSet<ClauseKey> {
+        let mut original_keys: HashSet<ClauseKey> = HashSet::default();
+        let mut queue: VecDeque<ClauseKey> = VecDeque::default();
 
-        let mut core: HashSet<ClauseKey> = HashSet::default();
+        queue.push_back(key);
 
-        let mut seen: HashSet<ClauseKey> = HashSet::default();
-        let mut todo: VecDeque<ClauseKey> = VecDeque::default();
-
-        match key {
-            ClauseKey::OriginalUnit(_) => return vec![key],
-
-            _ => todo.push_back(key),
-        }
-
-        let unsatisfiable_clause = self.clause_db.get(&key).expect("Final clause missing");
-
-        for literal in unsatisfiable_clause.literals() {
-            let negation = literal.negate();
-
-            let literal_key = ClauseKey::AdditionUnit(negation);
-
-            match self.clause_db.get(&literal_key) {
-                Err(_) => {
-                    core.insert(ClauseKey::OriginalUnit(negation));
-                }
-                Ok(_) => {
-                    todo.push_back(ClauseKey::AdditionUnit(negation));
-                }
-            }
-        }
-
-        while let Some(key) = todo.pop_front() {
-            if !seen.insert(key) {
-                continue;
-            }
-
+        while let Some(key) = queue.pop_front() {
             match key {
                 ClauseKey::OriginalUnit(_)
                 | ClauseKey::OriginalBinary(_)
                 | ClauseKey::Original(_) => {
-                    core.insert(key);
+                    original_keys.insert(key);
                 }
 
-                ClauseKey::AdditionUnit(unit) => {
-                    let premises = self.clause_db.resolution_graph.get(&key).expect("Hm");
+                ClauseKey::AdditionUnit(_)
+                | ClauseKey::AdditionBinary(_)
+                | ClauseKey::Addition(_, _) => match self.clause_db.resolution_graph.get(&key) {
+                    None => panic!("! Incomplete resolution graph"),
 
-                    match &premises[..] {
-                        [] => panic!("! A unit addition clause with no premises"),
-
-                        [key] => {
-                            let the_premise = unsafe { self.clause_db.get_unchecked(key) };
-
-                            for key in self.clause_db.resolution_graph.get(key).unwrap() {
-                                todo.push_back(*key);
-                            }
-
-                            for literal in the_premise.literals() {
-                                if (literal.atom() == unit.atom())
-                                    && (literal.polarity() == unit.polarity())
-                                {
-                                    continue;
-                                }
-
-                                let negation = literal.negate();
-                                let literal_key = ClauseKey::AdditionUnit(negation);
-
-                                match self.clause_db.get(&literal_key) {
-                                    Err(_) => {
-                                        core.insert(ClauseKey::OriginalUnit(negation));
-                                    }
-                                    Ok(_) => {
-                                        todo.push_back(literal_key);
-                                    }
-                                }
-                            }
+                    Some(keys) => {
+                        for key in keys {
+                            queue.push_back(*key);
                         }
+                    }
+                },
+            }
+        }
 
-                        [..] => {
-                            for key in premises {
-                                todo.push_back(*key);
-                            }
+        original_keys
+    }
+
+    /// A collection of keys which identify an unsatisfiable core of a(n unsatisfiable) clause.
+    ///
+    /// The general technique is inspired by the source of MiniSAT.
+    pub fn core_keys(&self) -> Vec<ClauseKey> {
+        let ContextState::Unsatisfiable(unsat_key) = self.state else {
+            todo!("Error path");
+        };
+
+        let mut seen_atoms: HashSet<Atom> = HashSet::default();
+        let mut core: HashSet<ClauseKey> = HashSet::default();
+
+        let mut todo: VecDeque<ClauseKey> = VecDeque::default();
+
+        todo.push_back(unsat_key);
+        for key in self.original_keys(unsat_key) {
+            core.insert(key);
+            for literal in unsafe { self.clause_db.get_unchecked(&key).literals() } {
+                seen_atoms.insert(literal.atom());
+            }
+        }
+
+        for literal in unsafe { self.clause_db.get_unchecked(&unsat_key) }.literals() {
+            seen_atoms.insert(literal.atom());
+        }
+
+        for assignment in self.atom_db.assignments.iter().rev() {
+            match assignment.source {
+                AssignmentSource::PureLiteral => {}
+
+                AssignmentSource::BCP(key) => {
+                    for key in self.original_keys(key) {
+                        core.insert(key);
+                        for literal in unsafe { self.clause_db.get_unchecked(&key).literals() } {
+                            seen_atoms.insert(literal.atom());
                         }
                     }
                 }
 
-                ClauseKey::AdditionBinary(_) | ClauseKey::Addition(_, _) => {
-                    for key in self.clause_db.resolution_graph.get(&key).expect("Hm") {
-                        todo.push_back(*key);
+                AssignmentSource::Decision => {}
+
+                AssignmentSource::Assumption => {}
+
+                AssignmentSource::Original => {
+                    if seen_atoms.contains(&assignment.literal().atom()) {
+                        core.insert(ClauseKey::OriginalUnit(*assignment.literal()));
+                    }
+                }
+
+                AssignmentSource::Addition => {
+                    let key = ClauseKey::OriginalUnit(*assignment.literal());
+
+                    for key in self.original_keys(key) {
+                        core.insert(key);
+                        for literal in unsafe { self.clause_db.get_unchecked(&key).literals() } {
+                            seen_atoms.insert(literal.atom());
+                        }
                     }
                 }
             }
