@@ -112,10 +112,18 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             // This would allow the store method to be private, and shouldn't add too much overhead.
             // As, can be done by check on config and then comparison to previous assignment, if any.
             AssignmentSource::Assumption => {
-                self.atom_db.initial_decision_level += 1;
-                self.atom_db
-                    .level_indicies
-                    .push(self.atom_db.assignments.len());
+                if self.atom_db.config.stacked_assumptions.value
+                    || self
+                        .atom_db
+                        .assignments
+                        .last()
+                        .is_none_or(|a| a.source != AssignmentSource::Assumption)
+                {
+                    self.atom_db.initial_decision_level += 1;
+                    self.atom_db
+                        .level_indicies
+                        .push(self.atom_db.assignments.len());
+                }
 
                 self.atom_db.store_assignment(assignment);
             }

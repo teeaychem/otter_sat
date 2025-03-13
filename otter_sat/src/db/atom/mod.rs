@@ -26,7 +26,7 @@ use crate::{
     misc::log::targets::{self},
     structures::{
         atom::{ATOM_MAX, Atom},
-        consequence::{Assignment, AssignmentSource},
+        consequence::Assignment,
         literal::{CLiteral, Literal},
         valuation::{Valuation, vValuation},
     },
@@ -67,7 +67,7 @@ pub struct AtomDB {
     pub q_mark: usize,
 
     /// A local configuration, typically derived from the configuration of a context.
-    config: AtomDBConfig,
+    pub config: AtomDBConfig,
 }
 
 #[derive(Debug, PartialEq, Eq)]

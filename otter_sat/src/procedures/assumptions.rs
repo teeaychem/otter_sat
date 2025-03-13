@@ -109,10 +109,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             false => {
                 // All assumption can be made, so push a fresh level.
                 // Levels store a single literal, so Top is used to represent the assumptions.
-                self.atom_db.initial_decision_level += 1;
-                self.atom_db
-                    .level_indicies
-                    .push(self.atom_db.assignments.len());
 
                 for literal in assumptions.into_iter() {
                     self.ensure_atom(literal.atom());
@@ -123,7 +119,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         AtomValue::NotSet => {
                             let assignment =
                                 Assignment::from(literal, AssignmentSource::Assumption);
-                            self.atom_db.store_assignment(assignment);
+                            unsafe { self.record_assignment(assignment) };
                         }
 
                         AtomValue::Same => log::info!("! Assumption of an atom with that value"),
