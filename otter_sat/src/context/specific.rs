@@ -1,6 +1,6 @@
 use crate::{
     config::Config,
-    db::{atom::AtomDB, clause::ClauseDB, consequence_q::ConsequenceQ},
+    db::{atom::AtomDB, clause::ClauseDB},
     generic::random::MinimalPCG32,
     resolution_buffer::ResolutionBuffer,
 };
@@ -22,7 +22,6 @@ impl Context {
 
             config,
 
-            consequence_q: ConsequenceQ::default(),
             counters: Counters::default(),
 
             rng: crate::generic::random::MinimalPCG32::from_seed(0_u64.to_le_bytes()),

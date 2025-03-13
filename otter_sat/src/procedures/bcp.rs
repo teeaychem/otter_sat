@@ -59,12 +59,9 @@ use std::borrow::Borrow;
 
 use crate::{
     context::GenericContext,
-    db::{
-        atom::{
-            AtomValue,
-            watch_db::{self},
-        },
-        consequence_q::QPosition,
+    db::atom::{
+        AtomValue,
+        watch_db::{self},
     },
     misc::log::targets::{self},
     structures::{
@@ -113,8 +110,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 match self.atom_db.value_of(check.atom()) {
                     None => {
-                        let q_result =
-                            self.value_and_queue(check, QPosition::Back, self.atom_db.level());
+                        let q_result = self.value(check, self.atom_db.level());
                         match q_result {
                             AtomValue::NotSet => {
                                 let assignment =
@@ -189,7 +185,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 self.clause_db.note_use(key);
 
                                 let level = self.atom_db.level();
-                                let q_result = self.value_and_queue(watch, QPosition::Back, level);
+                                let q_result = self.value(watch, level);
                                 match q_result {
                                     AtomValue::NotSet => {
                                         let consequence =
@@ -226,10 +222,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// In the case of conflict, a [FundamentalConflict](ErrorKind::FundamentalConflict) is returned.
     pub fn propagate_queue(&mut self) -> Result<(), ErrorKind> {
         log::info!("Initial BCP");
-        while let Some((literal, _)) = self.consequence_q.front() {
+        while let Some(Assignment { literal, source: _ }) =
+            self.atom_db.assignments.get(self.atom_db.q_head)
+        {
             match self.bcp(*literal) {
                 Ok(()) => {
-                    self.consequence_q.pop_front();
+                    self.atom_db.q_head += 1;
                 }
 
                 Err(err::BCPError::Conflict(key)) => {

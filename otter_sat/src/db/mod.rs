@@ -99,7 +99,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
 
             // TODO: tmp
-            AssignmentSource::Addition | AssignmentSource::Original => {}
+            AssignmentSource::Addition | AssignmentSource::Original => {
+                self.atom_db.store_assignment(assignment)
+            }
 
             AssignmentSource::Decision => {
                 self.atom_db

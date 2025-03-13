@@ -23,7 +23,7 @@ use std::collections::HashSet;
 
 use crate::{
     context::{ContextState, GenericContext},
-    db::{ClauseKey, atom::AtomValue, consequence_q::QPosition},
+    db::{ClauseKey, atom::AtomValue},
     structures::{
         atom::Atom,
         clause::Clause,
@@ -113,8 +113,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 for literal in assumptions.into_iter() {
                     self.ensure_atom(literal.atom());
 
-                    let q_result =
-                        self.value_and_queue(literal, QPosition::Back, self.atom_db.level());
+                    let q_result = self.value(literal, self.atom_db.level());
                     match q_result {
                         AtomValue::NotSet => {
                             let assignment =

@@ -152,8 +152,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         &mut self,
         assumptions: Option<Vec<CLiteral>>,
     ) -> Result<Report, err::ErrorKind> {
-        use crate::db::consequence_q::QPosition::{self};
-
         match self.state {
             ContextState::Solving => {}
 
@@ -266,7 +264,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let level = self.atom_db.level();
                             log::info!("Decided on {decision} at level {level}");
 
-                            let q_result = self.value_and_queue(decision, QPosition::Back, level);
+                            let q_result = self.value(decision, level);
                             match q_result {
                                 AtomValue::NotSet => {
                                     // Assignment made above
@@ -285,8 +283,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 // Conflict variants. These continue to the remaining contents of a loop.
                 ApplyConsequencesOk::UnitClause { literal } => {
-                    let q_result =
-                        self.value_and_queue(literal, QPosition::Front, self.atom_db.level());
+                    let q_result = self.value(literal, self.atom_db.level());
                     match q_result {
                         AtomValue::NotSet => {
                             let consequence = Assignment::from(literal, AssignmentSource::Addition);
@@ -308,7 +305,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     let level = self.atom_db.level();
 
-                    let q_result = self.value_and_queue(literal, QPosition::Front, level);
+                    let q_result = self.value(literal, level);
                     match q_result {
                         AtomValue::NotSet => {
                             let assignment = Assignment::from(literal, AssignmentSource::BCP(key));
