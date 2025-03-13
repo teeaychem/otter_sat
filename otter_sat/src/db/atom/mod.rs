@@ -299,23 +299,6 @@ impl AtomDB {
 }
 
 impl AtomDB {
-    /// Pushes a fresh level to the top of the level stack with the given decision.
-    pub fn push_fresh_decision(&mut self, decision: CLiteral) {
-        self.level_indicies.push(self.assignments.len());
-
-        self.store_assignment(Assignment::from(decision, AssignmentSource::Decision));
-    }
-
-    /// Pushes a fresh level to the top of the level stack with the given assumption.
-    pub fn push_fresh_assumption(&mut self, assumption: CLiteral) {
-        self.initial_decision_level += 1;
-        self.level_indicies.push(self.assignments.len());
-
-        self.store_assignment(Assignment::from(assumption, AssignmentSource::Assumption));
-    }
-}
-
-impl AtomDB {
     /// True if some assumption has been made, false otherwise.
     pub fn assumption_is_made(&self) -> bool {
         self.initial_decision_level > 0

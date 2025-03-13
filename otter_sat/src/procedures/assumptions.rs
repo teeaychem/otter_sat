@@ -53,7 +53,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 for assumption in assumptions {
                     self.ensure_atom(assumption.atom());
 
-                    self.atom_db.push_fresh_assumption(assumption);
+                    let assignment = Assignment::from(assumption, AssignmentSource::Assumption);
+                    unsafe { self.record_assignment(assignment) };
 
                     // # Safety
                     // The atom has been ensured, above.
@@ -169,35 +170,30 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             used_atoms.insert(literal.atom());
         }
 
-        for level in (0..self.atom_db.level()).rev() {
-            // Safe, as the level is bound by the current_level method.
-            let assignments = unsafe { self.atom_db.assignments_at_unchecked(level) };
-
-            for assignment in assignments.iter().rev() {
-                if used_atoms.contains(&assignment.literal().atom()) {
-                    match assignment.source() {
-                        AssignmentSource::Assumption => {
-                            assumptions.push(*assignment.literal());
-                        }
-
-                        AssignmentSource::BCP(key) => {
-                            // The method does not require all clauses in a core are preserved, as an assumption is never 'used' during resolution.
-                            match self.clause_db.get(key) {
-                                Ok(clause) => {
-                                    for literal in clause.literals() {
-                                        used_atoms.insert(literal.atom());
-                                    }
-                                }
-
-                                Err(_) => {}
-                            }
-                        }
-
-                        AssignmentSource::Addition
-                        | AssignmentSource::Decision
-                        | AssignmentSource::Original
-                        | AssignmentSource::PureLiteral => {}
+        for assignment in self.atom_db.assignments.iter().rev() {
+            if used_atoms.contains(&assignment.literal().atom()) {
+                match assignment.source() {
+                    AssignmentSource::Assumption => {
+                        assumptions.push(*assignment.literal());
                     }
+
+                    AssignmentSource::BCP(key) => {
+                        // The method does not require all clauses in a core are preserved, as an assumption is never 'used' during resolution.
+                        match self.clause_db.get(key) {
+                            Ok(clause) => {
+                                for literal in clause.literals() {
+                                    used_atoms.insert(literal.atom());
+                                }
+                            }
+
+                            Err(_) => {}
+                        }
+                    }
+
+                    AssignmentSource::Addition
+                    | AssignmentSource::Decision
+                    | AssignmentSource::Original
+                    | AssignmentSource::PureLiteral => {}
                 }
             }
         }

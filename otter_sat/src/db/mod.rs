@@ -101,11 +101,23 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             // TODO: tmp
             AssignmentSource::Addition | AssignmentSource::Original => {}
 
-            // TODO: tmp
-            AssignmentSource::Decision => {}
+            AssignmentSource::Decision => {
+                self.atom_db
+                    .level_indicies
+                    .push(self.atom_db.assignments.len());
+                self.atom_db.store_assignment(assignment)
+            }
 
+            // TODO: Infer whether to add a level?
+            // This would allow the store method to be private, and shouldn't add too much overhead.
+            // As, can be done by check on config and then comparison to previous assignment, if any.
             AssignmentSource::Assumption => {
-                panic!("! Store of a non-consequence")
+                self.atom_db.initial_decision_level += 1;
+                self.atom_db
+                    .level_indicies
+                    .push(self.atom_db.assignments.len());
+
+                self.atom_db.store_assignment(assignment);
             }
         }
     }
