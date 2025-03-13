@@ -260,21 +260,21 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     //
                     match self.make_decision() {
                         DecisionOk::Literal(decision) => {
-                            self.atom_db.push_fresh_decision(decision);
+                            let assignment = Assignment::from(decision, AssignmentSource::Decision);
+                            unsafe { self.record_assignment(assignment) };
+
                             let level = self.atom_db.level();
                             log::info!("Decided on {decision} at level {level}");
 
                             let q_result = self.value_and_queue(decision, QPosition::Back, level);
                             match q_result {
                                 AtomValue::NotSet => {
-                                    let assignment =
-                                        Assignment::from(decision, AssignmentSource::Decision);
-                                    unsafe { self.record_assignment(assignment) };
+                                    // Assignment made above
                                 }
 
-                                AtomValue::Same => {}
+                                AtomValue::Same => panic!("!"),
 
-                                AtomValue::Different => return Err(ErrorKind::ValuationConflict),
+                                AtomValue::Different => panic!("!"),
                             }
 
                             continue 'solve_loop;
