@@ -205,7 +205,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                     return Ok(self.report());
                                 }
 
-                                AssignmentSource::Assumption => {
+                                // TODO: Improve
+                                AssignmentSource::Assumption
+                                | AssignmentSource::Original
+                                | AssignmentSource::Addition => {
                                     self.note_conflict(ClauseKey::OriginalUnit(assumption));
                                     return Ok(self.report());
                                 }
@@ -258,12 +261,20 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     match self.make_decision() {
                         DecisionOk::Literal(decision) => {
                             self.atom_db.push_fresh_decision(decision);
-                            let level = self.atom_db.current_level();
+                            let level = self.atom_db.level();
                             log::info!("Decided on {decision} at level {level}");
 
-                            match self.value_and_queue(decision, QPosition::Back, level) {
+                            let q_result = self.value_and_queue(decision, QPosition::Back, level);
+                            match q_result {
+                                AtomValue::NotSet => {
+                                    let assignment =
+                                        Assignment::from(decision, AssignmentSource::Decision);
+                                    unsafe { self.record_assignment(assignment) };
+                                }
+
+                                AtomValue::Same => {}
+
                                 AtomValue::Different => return Err(ErrorKind::ValuationConflict),
-                                _ => {}
                             }
 
                             continue 'solve_loop;
@@ -274,14 +285,15 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 // Conflict variants. These continue to the remaining contents of a loop.
                 ApplyConsequencesOk::UnitClause { literal } => {
-                    let q_result = self.value_and_queue(
-                        literal,
-                        QPosition::Front,
-                        self.atom_db.current_level(),
-                    );
-
+                    let q_result =
+                        self.value_and_queue(literal, QPosition::Front, self.atom_db.level());
                     match q_result {
-                        AtomValue::NotSet | AtomValue::Same => {}
+                        AtomValue::NotSet => {
+                            let consequence = Assignment::from(literal, AssignmentSource::Addition);
+                            unsafe { self.record_assignment(consequence) };
+                        }
+
+                        AtomValue::Same => {}
 
                         AtomValue::Different => {
                             self.note_conflict(ClauseKey::AdditionUnit(literal));
@@ -294,12 +306,16 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 ApplyConsequencesOk::AssertingClause { key, literal } => {
                     self.clause_db.note_use(key);
 
-                    let consequence = Assignment::from(literal, AssignmentSource::BCP(key));
-                    unsafe { self.record_consequence(consequence) };
-                    let level = self.atom_db.current_level();
+                    let level = self.atom_db.level();
 
-                    match self.value_and_queue(literal, QPosition::Front, level) {
-                        AtomValue::NotSet | AtomValue::Same => {}
+                    let q_result = self.value_and_queue(literal, QPosition::Front, level);
+                    match q_result {
+                        AtomValue::NotSet => {
+                            let assignment = Assignment::from(literal, AssignmentSource::BCP(key));
+                            unsafe { self.record_assignment(assignment) };
+                        }
+
+                        AtomValue::Same => {}
 
                         AtomValue::Different => {
                             self.note_conflict(key);

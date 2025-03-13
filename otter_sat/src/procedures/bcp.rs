@@ -113,16 +113,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 match self.atom_db.value_of(check.atom()) {
                     None => {
-                        let q_result = self.value_and_queue(
-                            check,
-                            QPosition::Back,
-                            self.atom_db.current_level(),
-                        );
+                        let q_result =
+                            self.value_and_queue(check, QPosition::Back, self.atom_db.level());
                         match q_result {
                             AtomValue::NotSet => {
-                                let consequence =
+                                let assignment =
                                     Assignment::from(check, AssignmentSource::BCP(key));
-                                self.record_consequence(consequence);
+                                self.record_assignment(assignment);
                             }
 
                             AtomValue::Same => {}
@@ -191,17 +188,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             None => {
                                 self.clause_db.note_use(key);
 
-                                let q_result = self.value_and_queue(
-                                    watch,
-                                    QPosition::Back,
-                                    self.atom_db.current_level(),
-                                );
-
+                                let level = self.atom_db.level();
+                                let q_result = self.value_and_queue(watch, QPosition::Back, level);
                                 match q_result {
                                     AtomValue::NotSet => {
                                         let consequence =
                                             Assignment::from(watch, AssignmentSource::BCP(key));
-                                        self.record_consequence(consequence);
+                                        self.record_assignment(consequence);
                                     }
 
                                     AtomValue::Same => {}

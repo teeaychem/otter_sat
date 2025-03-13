@@ -7,12 +7,12 @@ use crate::{
     context::GenericContext,
     db::{
         atom::AtomValue,
-        consequence_q::{self},
+        consequence_q::{self, QPosition},
     },
     structures::{
         atom::Atom,
         clause::Clause,
-        consequence::{self, Assignment},
+        consequence::{self, Assignment, AssignmentSource},
         literal::{CLiteral, Literal},
     },
 };
@@ -53,18 +53,17 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
     );
 
     for atom in f.into_iter() {
-        let the_literal = CLiteral::new(atom, true);
+        let literal = CLiteral::new(atom, true);
         let q_result = context.value_and_queue(
-            the_literal,
+            literal,
             consequence_q::QPosition::Back,
-            context.atom_db.current_level(),
+            context.atom_db.level(),
         );
 
         match q_result {
             AtomValue::NotSet => {
-                let consequence =
-                    Assignment::from(the_literal, consequence::AssignmentSource::PureLiteral);
-                unsafe { context.record_consequence(consequence) };
+                let assignment = Assignment::from(literal, AssignmentSource::PureLiteral);
+                unsafe { context.record_assignment(assignment) };
             }
 
             AtomValue::Same => {}
@@ -75,17 +74,13 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
 
     for atom in t.into_iter() {
         let the_literal = CLiteral::new(atom, true);
-        let q_result = context.value_and_queue(
-            the_literal,
-            consequence_q::QPosition::Back,
-            context.atom_db.current_level(),
-        );
-
+        let q_result =
+            context.value_and_queue(the_literal, QPosition::Back, context.atom_db.level());
         match q_result {
             AtomValue::NotSet => {
                 let consequence =
                     Assignment::from(the_literal, consequence::AssignmentSource::PureLiteral);
-                unsafe { context.record_consequence(consequence) };
+                unsafe { context.record_assignment(consequence) };
             }
 
             AtomValue::Same => {}

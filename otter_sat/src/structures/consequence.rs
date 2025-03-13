@@ -27,9 +27,17 @@ pub enum AssignmentSource {
     /// A consequence of boolean constraint propagation.
     BCP(ClauseKey),
 
+    /// A decision.
     Decision,
 
+    /// An assumption.
     Assumption,
+
+    /// An original (unit) clause.
+    Original,
+
+    /// An addition (unit) clause.
+    Addition,
 }
 
 #[derive(Clone, Debug)]

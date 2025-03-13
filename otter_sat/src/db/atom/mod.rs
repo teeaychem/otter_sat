@@ -63,6 +63,9 @@ pub struct AtomDB {
     /// Indicies at which a new level begins.
     pub level_indicies: Vec<usize>,
 
+    /// Location of the first assignment which has not been exhausted.
+    pub q_mark: usize,
+
     /// A local configuration, typically derived from the configuration of a context.
     config: AtomDBConfig,
 }
@@ -95,6 +98,8 @@ impl AtomDB {
             initial_decision_level: 0,
             assignments: Vec::default(),
             level_indicies: Vec::default(),
+
+            q_mark: 0,
 
             config: config.atom_db.clone(),
         };
@@ -404,7 +409,7 @@ impl AtomDB {
     }
 
     /// The current level.
-    pub fn current_level(&self) -> LevelIndex {
+    pub fn level(&self) -> LevelIndex {
         self.level_indicies.len() as LevelIndex
     }
 }
