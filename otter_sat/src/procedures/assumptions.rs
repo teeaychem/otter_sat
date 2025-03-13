@@ -59,7 +59,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     // The atom has been ensured, above.
                     match unsafe {
                         self.atom_db
-                            .set_value(assumption, Some(self.atom_db.current_level()))
+                            .set_value(assumption, Some(self.atom_db.level()))
                     } {
                         AtomValue::NotSet => {
                             log::info!("BCP of assumption: {assumption}");
@@ -116,19 +116,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 for literal in assumptions.into_iter() {
                     self.ensure_atom(literal.atom());
 
-                    self.atom_db.store_assignment(Assignment {
-                        literal,
-                        source: AssignmentSource::Assumption,
-                    });
-
-                    let q_result = self.value_and_queue(
-                        literal,
-                        QPosition::Back,
-                        self.atom_db.current_level(),
-                    );
-
+                    let q_result =
+                        self.value_and_queue(literal, QPosition::Back, self.atom_db.level());
                     match q_result {
-                        AtomValue::NotSet => {}
+                        AtomValue::NotSet => {
+                            let assignment =
+                                Assignment::from(literal, AssignmentSource::Assumption);
+                            self.atom_db.store_assignment(assignment);
+                        }
 
                         AtomValue::Same => log::info!("! Assumption of an atom with that value"),
 
@@ -174,7 +169,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             used_atoms.insert(literal.atom());
         }
 
-        for level in (0..self.atom_db.current_level()).rev() {
+        for level in (0..self.atom_db.level()).rev() {
             // Safe, as the level is bound by the current_level method.
             let assignments = unsafe { self.atom_db.assignments_at_unchecked(level) };
 
@@ -198,7 +193,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             }
                         }
 
-                        AssignmentSource::Decision | AssignmentSource::PureLiteral => {}
+                        AssignmentSource::Addition
+                        | AssignmentSource::Decision
+                        | AssignmentSource::Original
+                        | AssignmentSource::PureLiteral => {}
                     }
                 }
             }

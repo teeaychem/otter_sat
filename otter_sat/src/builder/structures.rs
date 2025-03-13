@@ -1,12 +1,16 @@
 use crate::{
     context::GenericContext,
-    db::consequence_q::{self},
+    db::{
+        atom::AtomValue,
+        consequence_q::{self},
+    },
     structures::{
         atom::{ATOM_MAX, Atom},
         clause::{Clause, ClauseSource},
+        consequence::{Assignment, AssignmentSource},
         literal::{CLiteral, Literal},
     },
-    types::err::{self, PreprocessingError},
+    types::err::{self, ErrorKind, PreprocessingError},
 };
 
 use std::collections::HashSet;
@@ -117,7 +121,17 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     &mut self.atom_db,
                     HashSet::default(),
                 );
-                self.value_and_queue(literal, consequence_q::QPosition::Back, 0);
+                let q_result = self.value_and_queue(literal, consequence_q::QPosition::Back, 0);
+                match q_result {
+                    AtomValue::NotSet => {
+                        let assignment = Assignment::from(literal, AssignmentSource::Original);
+                        unsafe { self.record_assignment(assignment) };
+                    }
+
+                    AtomValue::Same => {}
+
+                    AtomValue::Different => return Err(ErrorKind::FundamentalConflict),
+                }
 
                 Ok(ClauseOk::Added)
             }

@@ -91,7 +91,7 @@ use crate::{
     db::{ClauseKey, atom::AtomValue},
     procedures::analysis::AnalysisResult,
     structures::{
-        consequence::{self, Assignment},
+        consequence::{self, Assignment, AssignmentSource},
         literal::CLiteral,
     },
     types::err::{self, ErrorKind},
@@ -160,17 +160,22 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let index = self.non_chronological_backjump_level(clause)?;
                             self.backjump(index);
 
-                            if let AtomValue::Different = self.value_and_queue(
+                            let q_result = self.value_and_queue(
                                 literal,
                                 QPosition::Front,
-                                self.atom_db.current_level(),
-                            ) {
-                                return Err(ErrorKind::ValuationConflict);
-                            };
+                                self.atom_db.level(),
+                            );
+                            match q_result {
+                                AtomValue::NotSet => {
+                                    let assignment =
+                                        Assignment::from(literal, AssignmentSource::BCP(key));
+                                    unsafe { self.record_assignment(assignment) };
+                                }
 
-                            let consequence =
-                                Assignment::from(literal, consequence::AssignmentSource::BCP(key));
-                            unsafe { self.record_consequence(consequence) };
+                                AtomValue::Same => {}
+
+                                AtomValue::Different => return Err(ErrorKind::ValuationConflict),
+                            }
 
                             continue 'application;
                         }

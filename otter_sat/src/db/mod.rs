@@ -53,14 +53,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// # Safety
     /// If the source of the consequence references a clause stored by a key, the clause must be present in the clause database.
-    pub unsafe fn record_consequence(&mut self, consequence: Assignment) {
-        match consequence.source() {
+    pub unsafe fn record_assignment(&mut self, assignment: Assignment) {
+        match assignment.source() {
             AssignmentSource::PureLiteral => {
                 let premises = HashSet::default();
                 // Making a free decision is not supported after some other (non-free) decision has been made.
                 if !self.atom_db.decision_is_made() {
                     self.clause_db.store(
-                        *consequence.literal(),
+                        *assignment.literal(),
                         ClauseSource::PureUnit,
                         &mut self.atom_db,
                         premises,
@@ -71,12 +71,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
 
             AssignmentSource::BCP(key) => {
-                log::info!("BCP Consequence: {key}: {}", consequence.literal());
+                log::info!("BCP Consequence: {key}: {}", assignment.literal());
                 //
                 match self.atom_db.decision_count() {
                     0 => {
                         if !self.atom_db.assumption_is_made() {
-                            let unit_clause = consequence.literal();
+                            let unit_clause = assignment.literal();
 
                             let mut premises = HashSet::default();
                             premises.insert(*key);
@@ -91,14 +91,20 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             );
                         };
 
-                        self.atom_db.store_assignment(consequence)
+                        self.atom_db.store_assignment(assignment)
                     }
 
-                    _ => self.atom_db.store_assignment(consequence),
+                    _ => self.atom_db.store_assignment(assignment),
                 }
             }
 
-            AssignmentSource::Decision | AssignmentSource::Assumption => {
+            // TODO: tmp
+            AssignmentSource::Addition | AssignmentSource::Original => {}
+
+            // TODO: tmp
+            AssignmentSource::Decision => {}
+
+            AssignmentSource::Assumption => {
                 panic!("! Store of a non-consequence")
             }
         }

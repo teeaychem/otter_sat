@@ -89,7 +89,7 @@ pub enum AnalysisResult {
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// For details on conflict analysis see the [analysis](crate::procedures::analysis) procedure.
     pub fn conflict_analysis(&mut self, key: &ClauseKey) -> Result<AnalysisResult, err::ErrorKind> {
-        log::info!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.atom_db.current_level());
+        log::info!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.atom_db.level());
         log::info!(target: targets::ANALYSIS, "Level: {:?}", self.atom_db.top_level_assignments());
         log::info!(target: targets::ANALYSIS, "Valuation: {}", self.atom_db.valuation_string());
 

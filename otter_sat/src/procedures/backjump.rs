@@ -58,7 +58,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// For documentation, see [procedures::backjump](crate::procedures::backjump).
     pub fn backjump(&mut self, target: LevelIndex) {
-        log::trace!(target: targets::BACKJUMP, "Backjump from {} to {}", self.atom_db.current_level(), target);
+        log::trace!(target: targets::BACKJUMP, "Backjump from {} to {}", self.atom_db.level(), target);
 
         // # Safety
         // The pop from the decision stack is fine, as decision_count is the height of the decision stack.
