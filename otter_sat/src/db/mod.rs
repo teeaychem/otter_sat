@@ -98,7 +98,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
             }
 
-            // TODO: tmp
             AssignmentSource::Addition | AssignmentSource::Original => {
                 self.atom_db.store_assignment(assignment)
             }
@@ -110,9 +109,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 self.atom_db.store_assignment(assignment)
             }
 
-            // TODO: Infer whether to add a level?
-            // This would allow the store method to be private, and shouldn't add too much overhead.
-            // As, can be done by check on config and then comparison to previous assignment, if any.
             AssignmentSource::Assumption => {
                 if self.atom_db.config.stacked_assumptions.value
                     || self
