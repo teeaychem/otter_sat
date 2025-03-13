@@ -165,7 +165,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 // Initial BCP, this:
                 // - Verifies clauses are satisfiable.
                 // - Proves any available unit clauses prior to asserting assumptions.
-                match self.propagate_queue() {
+                match self.propagate_unless_error() {
                     Ok(_) => {}
 
                     Err(ErrorKind::FundamentalConflict) => {
@@ -264,7 +264,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let level = self.atom_db.level();
                             log::info!("Decided on {decision} at level {level}");
 
-                            let q_result = self.value(decision, level);
+                            let q_result = unsafe { self.atom_db.set_value(decision, Some(level)) };
                             match q_result {
                                 AtomValue::NotSet => {
                                     // Assignment made above
@@ -283,7 +283,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 // Conflict variants. These continue to the remaining contents of a loop.
                 ApplyConsequencesOk::UnitClause { literal } => {
-                    let q_result = self.value(literal, self.atom_db.level());
+                    let q_result =
+                        unsafe { self.atom_db.set_value(literal, Some(self.atom_db.level())) };
                     match q_result {
                         AtomValue::NotSet => {
                             let consequence = Assignment::from(literal, AssignmentSource::Addition);
@@ -305,7 +306,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     let level = self.atom_db.level();
 
-                    let q_result = self.value(literal, level);
+                    let q_result = unsafe { self.atom_db.set_value(literal, Some(level)) };
                     match q_result {
                         AtomValue::NotSet => {
                             let assignment = Assignment::from(literal, AssignmentSource::BCP(key));

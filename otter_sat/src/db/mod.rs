@@ -18,12 +18,10 @@ Databases for holding information relevant to a solve.
     + Properties of atoms.
       * Valuation
       * Watch database
-- [Consequence queue](crate::db::consequence_q)
 */
 
 pub mod atom;
 pub mod clause;
-pub mod consequence_q;
 mod keys;
 pub use keys::*;
 

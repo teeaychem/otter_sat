@@ -35,9 +35,10 @@ Though, in practice [apply_consequences](GenericContext::apply_consequences) ret
 This is to allow for further actions to be taken due to a conflict having been found.
 
 ```rust,ignore
-while let Some((literal, _)) = self.consequence_q.front() {
+while let Some(Assignment { literal, source: _ }) = self.atom_db.assignments.get(self.atom_db.q_head) {
     match self.bcp(literal) {
-        Ok(()) => self.consequence_q.pop_front(), // continue applying consequences
+        Ok(()) => self.atom_db.q_head += 1, // continue applying consequences
+
         Err(err::BCP::Conflict(key)) => {
             if !self.atom_db.decision_made() {
                 return Ok(FundamentalConflict);
@@ -172,7 +173,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let index = self.non_chronological_backjump_level(clause)?;
                             self.backjump(index);
 
-                            let q_result = self.value(literal, self.atom_db.level());
+                            let q_result = unsafe {
+                                self.atom_db.set_value(literal, Some(self.atom_db.level()))
+                            };
                             match q_result {
                                 AtomValue::NotSet => {
                                     let assignment =

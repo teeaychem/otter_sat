@@ -113,7 +113,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 for literal in assumptions.into_iter() {
                     self.ensure_atom(literal.atom());
 
-                    let q_result = self.value(literal, self.atom_db.level());
+                    let q_result =
+                        unsafe { self.atom_db.set_value(literal, Some(self.atom_db.level())) };
                     match q_result {
                         AtomValue::NotSet => {
                             let assignment =

@@ -58,7 +58,7 @@ mod decision_levels {
         let _ = ctx.add_clause(vec![p]);
         let _ = ctx.add_clause(vec![-r, -s]);
 
-        let _ = ctx.propagate_queue();
+        let _ = ctx.propagate_unless_error();
 
         let _ = ctx.assert_assumptions(vec![r]);
 

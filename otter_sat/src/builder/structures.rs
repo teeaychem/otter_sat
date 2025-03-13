@@ -118,7 +118,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     &mut self.atom_db,
                     HashSet::default(),
                 );
-                let q_result = self.value(literal, 0);
+                let q_result = unsafe { self.atom_db.set_value(literal, Some(0)) };
                 match q_result {
                     AtomValue::NotSet => {
                         let assignment = Assignment::from(literal, AssignmentSource::Original);
