@@ -64,7 +64,7 @@ pub struct AtomDB {
     pub level_indicies: Vec<usize>,
 
     /// Location of the first assignment which has not been exhausted.
-    pub q_mark: usize,
+    pub q_head: usize,
 
     /// A local configuration, typically derived from the configuration of a context.
     pub config: AtomDBConfig,
@@ -99,7 +99,7 @@ impl AtomDB {
             assignments: Vec::default(),
             level_indicies: Vec::default(),
 
-            q_mark: 0,
+            q_head: 0,
 
             config: config.atom_db.clone(),
         };

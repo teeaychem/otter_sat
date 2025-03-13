@@ -51,10 +51,7 @@ Further, as a conflict requires immediate backjumping, this use may avoid redund
 
 use std::borrow::Borrow;
 
-use crate::{
-    context::GenericContext, db::LevelIndex, misc::log::targets::QUEUE,
-    structures::literal::CLiteral,
-};
+use crate::{context::GenericContext, db::LevelIndex, structures::literal::CLiteral};
 
 use super::atom::AtomValue;
 
@@ -71,67 +68,9 @@ pub enum QPosition {
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
-    /// Clears all queued consequences from levels greater than `level`.`
-    pub fn clear_above(&mut self, level: LevelIndex) {
-        self.consequence_q.retain(|(_, q_level)| *q_level <= level);
-    }
-
-    /// Assigns the given value to the given atom, if possible.
-    /// If the atom had no value, the pair is pushed to the consequence queue.
-    /// If valuation fails, an error is returned.
-    ///
-    /// ```rust
-    /// # use otter_sat::config::Config;
-    /// # use otter_sat::context::Context;
-    /// # use otter_sat::reports::Report;
-    /// # use otter_sat::structures::literal::{CLiteral, Literal};
-    /// # use otter_sat::db::consequence_q::QPosition::Back;
-    /// # use otter_sat::db::atom::AtomValue;
-    /// let mut ctx: Context = Context::from_config(Config::default());
-    /// let p = CLiteral::new(ctx.fresh_or_max_atom(), true);
-    /// assert_eq!(ctx.value_and_queue(p, Back, 1), AtomValue::NotSet);
-    /// assert_eq!(ctx.value_and_queue(-p, Back, 1), AtomValue::Different);
-    /// assert_eq!(ctx.value_and_queue(p, Back, 1), AtomValue::Same);
-    /// ```
-    pub fn value_and_queue(
-        &mut self,
-        literal: impl Borrow<CLiteral>,
-        position: QPosition,
-        level: LevelIndex,
-    ) -> AtomValue {
+    pub fn value(&mut self, literal: impl Borrow<CLiteral>, level: LevelIndex) -> AtomValue {
         let literal = literal.borrow();
 
-        let valuation_result = unsafe { self.atom_db.set_value(literal, Some(level)) };
-
-        match valuation_result {
-            AtomValue::NotSet => self.push_to_consequence_queue(literal, level, position),
-
-            AtomValue::Same => {}
-
-            AtomValue::Different => log::trace!(target: QUEUE, "Queueing {literal} failed."),
-        }
-
-        valuation_result
-    }
-
-    /// Pushes an atom-value (represented as a literal) consequence on the consequence queue, always.
-    ///
-    /// # Soundness
-    /// This does not check to ensure the literal is not (already) unsatisfiable on the current valuation.
-    /// I.e., that it is not possible to value the atom of the literal with the polarity of the literal.
-    /// [GenericContext::value_and_queue] may be appropriate.
-    pub fn push_to_consequence_queue(
-        &mut self,
-        literal: impl Borrow<CLiteral>,
-        level: LevelIndex,
-        position: QPosition,
-    ) {
-        let literal = literal.borrow();
-
-        match position {
-            QPosition::Front => self.consequence_q.push_front((*literal, level)),
-            QPosition::Back => self.consequence_q.push_back((*literal, level)),
-        }
-        log::trace!(target: QUEUE, "Queued {literal} at level {level}.")
+        unsafe { self.atom_db.set_value(literal, Some(level)) }
     }
 }

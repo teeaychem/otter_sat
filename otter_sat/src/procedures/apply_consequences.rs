@@ -91,7 +91,7 @@ use crate::{
     db::{ClauseKey, atom::AtomValue},
     procedures::analysis::AnalysisResult,
     structures::{
-        consequence::{self, Assignment, AssignmentSource},
+        consequence::{Assignment, AssignmentSource},
         literal::CLiteral,
     },
     types::err::{self, ErrorKind},
@@ -130,16 +130,28 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Queued consequences are removed from the queue only if BCP was successful.
     /// For, in the case of a conflict the consequence may remain, and otherwise will be removed from the queue during a backjump.
     pub fn apply_consequences(&mut self) -> Result<ApplyConsequencesOk, err::ErrorKind> {
-        use crate::db::consequence_q::QPosition::{self};
-
         'application: loop {
-            let Some((literal, _)) = self.consequence_q.front() else {
+            let Some(Assignment { literal, source: _ }) =
+                self.atom_db.assignments.get(self.atom_db.q_head)
+            else {
                 return Ok(ApplyConsequencesOk::Exhausted);
             };
 
+            // if self
+            //     .atom_db
+            //     .assignments
+            //     .get(self.atom_db.q_head)
+            //     .is_none_or(|x| x.literal != *literal)
+            // {
+            //     println!("Missing q head (@{})", self.atom_db.q_head);
+            //     println!("Searching for {literal}");
+            //     println!("Assignments: {:?}", self.atom_db.assignments);
+            //     panic!("!")
+            // }
+
             match self.bcp(*literal) {
                 Ok(()) => {
-                    self.consequence_q.pop_front();
+                    self.atom_db.q_head += 1;
                 }
 
                 Err(err::BCPError::Conflict(key)) => {
@@ -160,11 +172,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let index = self.non_chronological_backjump_level(clause)?;
                             self.backjump(index);
 
-                            let q_result = self.value_and_queue(
-                                literal,
-                                QPosition::Front,
-                                self.atom_db.level(),
-                            );
+                            let q_result = self.value(literal, self.atom_db.level());
                             match q_result {
                                 AtomValue::NotSet => {
                                     let assignment =

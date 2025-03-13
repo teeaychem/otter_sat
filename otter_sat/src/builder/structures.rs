@@ -1,9 +1,6 @@
 use crate::{
     context::GenericContext,
-    db::{
-        atom::AtomValue,
-        consequence_q::{self},
-    },
+    db::atom::AtomValue,
     structures::{
         atom::{ATOM_MAX, Atom},
         clause::{Clause, ClauseSource},
@@ -121,7 +118,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     &mut self.atom_db,
                     HashSet::default(),
                 );
-                let q_result = self.value_and_queue(literal, consequence_q::QPosition::Back, 0);
+                let q_result = self.value(literal, 0);
                 match q_result {
                     AtomValue::NotSet => {
                         let assignment = Assignment::from(literal, AssignmentSource::Original);

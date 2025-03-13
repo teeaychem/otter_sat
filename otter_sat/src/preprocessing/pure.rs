@@ -5,10 +5,7 @@ use std::collections::HashSet;
 
 use crate::{
     context::GenericContext,
-    db::{
-        atom::AtomValue,
-        consequence_q::{self, QPosition},
-    },
+    db::atom::AtomValue,
     structures::{
         atom::Atom,
         clause::Clause,
@@ -54,11 +51,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
 
     for atom in f.into_iter() {
         let literal = CLiteral::new(atom, true);
-        let q_result = context.value_and_queue(
-            literal,
-            consequence_q::QPosition::Back,
-            context.atom_db.level(),
-        );
+        let q_result = context.value(literal, context.atom_db.level());
 
         match q_result {
             AtomValue::NotSet => {
@@ -74,8 +67,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
 
     for atom in t.into_iter() {
         let the_literal = CLiteral::new(atom, true);
-        let q_result =
-            context.value_and_queue(the_literal, QPosition::Back, context.atom_db.level());
+        let q_result = context.value(the_literal, context.atom_db.level());
         match q_result {
             AtomValue::NotSet => {
                 let consequence =
