@@ -110,7 +110,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 match self.atom_db.value_of(check.atom()) {
                     None => {
-                        let q_result = self.value(check, self.atom_db.level());
+                        let q_result = self.atom_db.set_value(check, Some(self.atom_db.level()));
                         match q_result {
                             AtomValue::NotSet => {
                                 let assignment =
@@ -185,7 +185,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 self.clause_db.note_use(key);
 
                                 let level = self.atom_db.level();
-                                let q_result = self.value(watch, level);
+                                let q_result = self.atom_db.set_value(watch, Some(level));
                                 match q_result {
                                     AtomValue::NotSet => {
                                         let consequence =
@@ -220,7 +220,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Propagates literals in the queue until the queue is exhausted or a conflict is found.
     /// In the case of conflict, a [FundamentalConflict](ErrorKind::FundamentalConflict) is returned.
-    pub fn propagate_queue(&mut self) -> Result<(), ErrorKind> {
+    pub fn propagate_unless_error(&mut self) -> Result<(), ErrorKind> {
         log::info!("Initial BCP");
         while let Some(Assignment { literal, source: _ }) =
             self.atom_db.assignments.get(self.atom_db.q_head)

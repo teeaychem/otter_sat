@@ -36,7 +36,4 @@ pub mod targets {
 
     /// Logs related to subsumption
     pub const SUBSUMPTION: &str = "subsumption";
-
-    /// Logs related to the [consequence queue](crate::db::consequence_q)
-    pub const QUEUE: &str = "queue";
 }

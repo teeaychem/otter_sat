@@ -51,7 +51,11 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
 
     for atom in f.into_iter() {
         let literal = CLiteral::new(atom, true);
-        let q_result = context.value(literal, context.atom_db.level());
+        let q_result = unsafe {
+            context
+                .atom_db
+                .set_value(literal, Some(context.atom_db.level()))
+        };
 
         match q_result {
             AtomValue::NotSet => {
@@ -67,7 +71,11 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
 
     for atom in t.into_iter() {
         let the_literal = CLiteral::new(atom, true);
-        let q_result = context.value(the_literal, context.atom_db.level());
+        let q_result = unsafe {
+            context
+                .atom_db
+                .set_value(the_literal, Some(context.atom_db.level()))
+        };
         match q_result {
             AtomValue::NotSet => {
                 let consequence =
