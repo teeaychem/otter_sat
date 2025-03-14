@@ -50,7 +50,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         match self.config.atom_db.stacked_assumptions.value {
             true => {
-                for assumption in assumptions {
+                for assumption in &assumptions {
                     self.ensure_atom(assumption.atom());
 
                     let assignment = Assignment::from(assumption, AssignmentSource::Assumption);
@@ -85,15 +85,32 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                         AtomValue::Different => {
                             let key = {
-                                let original = ClauseKey::OriginalUnit(-assumption);
-                                let addition = ClauseKey::AdditionUnit(-assumption);
+                                let assignment = self
+                                    .atom_db
+                                    .assignments
+                                    .iter()
+                                    .rev() // Guess conflict was recent
+                                    .find(|a| *a.literal() == -assumption)
+                                    .expect("Missing assignment");
 
-                                if self.clause_db.get(&original).is_ok() {
-                                    original
-                                } else if self.clause_db.get(&addition).is_ok() {
-                                    addition
-                                } else {
-                                    ClauseKey::OriginalUnit(0)
+                                match assignment.source {
+                                    AssignmentSource::PureLiteral => todo!(),
+
+                                    AssignmentSource::Decision => {
+                                        panic!("! Decision prior to assumption")
+                                    }
+
+                                    AssignmentSource::BCP(key) => key,
+
+                                    AssignmentSource::Assumption => todo!(),
+
+                                    AssignmentSource::Original => {
+                                        ClauseKey::OriginalUnit(-assumption)
+                                    }
+
+                                    AssignmentSource::Addition => {
+                                        ClauseKey::AdditionUnit(-assumption)
+                                    }
                                 }
                             };
 
@@ -159,15 +176,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         // Atoms are used in place of literals, as a literal and it's negation will not appear in the trail.
         // Else, there was a previous conflict to that identified…
-        let mut used_atoms: HashSet<Atom> = HashSet::default();
+        let mut seen_atoms: HashSet<Atom> = HashSet::default();
 
         // Safe, as the relevant key is kept as proof of unsatisfiability.
-        for literal in unsafe { self.clause_db.get_unchecked(&key).literals() } {
-            used_atoms.insert(literal.atom());
-        }
-
+        seen_atoms.extend(unsafe { self.clause_db.get_unchecked(&key).atoms() });
         for assignment in self.atom_db.assignments.iter().rev() {
-            if used_atoms.contains(&assignment.literal().atom()) {
+            if seen_atoms.contains(&assignment.literal().atom()) {
                 match assignment.source() {
                     AssignmentSource::Assumption => {
                         assumptions.push(*assignment.literal());
@@ -178,7 +192,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         match self.clause_db.get(key) {
                             Ok(clause) => {
                                 for literal in clause.literals() {
-                                    used_atoms.insert(literal.atom());
+                                    seen_atoms.insert(literal.atom());
                                 }
                             }
 

@@ -113,17 +113,8 @@ fn main() {
         Report::Unsatisfiable => {
             if cli_options.core {
                 let core = ctx.core_keys();
-                for key in core {
-                    match key {
-                        ClauseKey::OriginalUnit(literal) => {
-                            println!("{}", literal.as_dimacs(true));
-                        }
-
-                        _ => {
-                            let clause = unsafe { ctx.clause_db.get_unchecked(&key) };
-                            println!("{}", clause.as_dimacs(true));
-                        }
-                    }
+                for clause in core {
+                    println!("{}", clause.as_dimacs(true));
                 }
             }
         }

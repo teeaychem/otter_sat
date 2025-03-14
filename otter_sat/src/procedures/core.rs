@@ -6,7 +6,12 @@ use std::collections::{HashSet, VecDeque};
 use crate::{
     context::{ContextState, GenericContext},
     db::ClauseKey,
-    structures::{atom::Atom, clause::Clause, consequence::AssignmentSource, literal::Literal},
+    structures::{
+        atom::Atom,
+        clause::{CClause, Clause},
+        consequence::AssignmentSource,
+        literal::Literal,
+    },
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
@@ -46,19 +51,25 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// A collection of keys which identify an unsatisfiable core of a(n unsatisfiable) clause.
     ///
     /// The general technique is inspired by the source of MiniSAT.
-    pub fn core_keys(&self) -> Vec<ClauseKey> {
+    pub fn core_keys(&self) -> HashSet<CClause> {
         let ContextState::Unsatisfiable(unsat_key) = self.state else {
             todo!("Error path");
         };
 
         let mut seen_atoms: HashSet<Atom> = HashSet::default();
-        let mut core: HashSet<ClauseKey> = HashSet::default();
+        let mut core: HashSet<CClause> = HashSet::default();
 
         let mut todo: VecDeque<ClauseKey> = VecDeque::default();
 
         todo.push_back(unsat_key);
         for key in self.original_keys(unsat_key) {
-            core.insert(key);
+            core.insert(
+                self.clause_db
+                    .get(&key)
+                    .expect("Missing original")
+                    .clone()
+                    .canonical(),
+            );
             for literal in unsafe { self.clause_db.get_unchecked(&key).literals() } {
                 seen_atoms.insert(literal.atom());
             }
@@ -74,7 +85,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 AssignmentSource::BCP(key) => {
                     for key in self.original_keys(key) {
-                        core.insert(key);
+                        core.insert(
+                            self.clause_db
+                                .get(&key)
+                                .expect("Missing original")
+                                .clone()
+                                .canonical(),
+                        );
                         for literal in unsafe { self.clause_db.get_unchecked(&key).literals() } {
                             seen_atoms.insert(literal.atom());
                         }
@@ -83,11 +100,15 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 AssignmentSource::Decision => {}
 
-                AssignmentSource::Assumption => {}
+                AssignmentSource::Assumption => {
+                    if seen_atoms.contains(&assignment.literal().atom()) {
+                        core.insert(vec![*assignment.literal()]);
+                    }
+                }
 
                 AssignmentSource::Original => {
                     if seen_atoms.contains(&assignment.literal().atom()) {
-                        core.insert(ClauseKey::OriginalUnit(*assignment.literal()));
+                        core.insert(vec![*assignment.literal()]);
                     }
                 }
 
@@ -95,7 +116,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     let key = ClauseKey::OriginalUnit(*assignment.literal());
 
                     for key in self.original_keys(key) {
-                        core.insert(key);
+                        core.insert(vec![*assignment.literal()]);
                         for literal in unsafe { self.clause_db.get_unchecked(&key).literals() } {
                             seen_atoms.insert(literal.atom());
                         }
@@ -104,6 +125,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
         }
 
-        core.into_iter().collect::<Vec<_>>()
+        core
     }
 }

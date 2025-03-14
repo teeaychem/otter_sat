@@ -6,8 +6,7 @@ use otter_sat::structures::clause::Clause;
 
 fn core_as_dimacs(context: &mut Context) -> Vec<u8> {
     let mut dimacs = vec![];
-    for key in context.core_keys() {
-        let clause = unsafe { context.clause_db.get_unchecked(&key) };
+    for clause in context.core_keys() {
         let _ = dimacs.write(clause.as_dimacs(true).as_bytes());
         let _ = dimacs.write("\n".as_bytes());
     }
