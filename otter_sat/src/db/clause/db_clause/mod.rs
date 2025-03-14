@@ -48,7 +48,7 @@ pub struct dbClause {
     /// A key for accessing the clause
     key: ClauseKey,
 
-    /// The clause, stored instantiated as a [vClause].
+    /// The clause, stored instantiated as a [CClause].
     clause: CClause,
 
     /// Whether the clause is active.

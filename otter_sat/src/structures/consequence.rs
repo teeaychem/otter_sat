@@ -1,7 +1,7 @@
 /*!
 Consequences of the context in some state.
 
-Each consequence is recorded as a [CLiteral] and [ConsequenceSource] pair, with the literal representing an atom-value bind which must hold and the source noting the direct ancestor of the consequence.
+Each consequence is recorded as a [CLiteral] and [AssignmentSource] pair, with the literal representing an atom-value bind which must hold and the source noting the direct ancestor of the consequence.
 
 If any assumptions or decisions have been made, the consequence is established only relative to those assumptions or decisions.
 However, it does not follow the consequence *requires* those assumptions or decisions.

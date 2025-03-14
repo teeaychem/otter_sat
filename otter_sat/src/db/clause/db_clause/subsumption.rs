@@ -35,7 +35,7 @@ impl dbClause {
     ///
     /// As subsumption may involve the removal of a watched literal, if `fix_watch` is set then watches will be corrected after removing the literal.
     /// Watches may be left in a corrupted state as there may be no interest in fixing them.
-    /// For example,  subsumption may lead to a binary clause and the watches for the clause may be set elsewhere.
+    /// For example, subsumption may lead to a binary clause and the watches for the clause may be set elsewhere.
     pub fn subsume(
         &mut self,
         literal: impl Borrow<CLiteral>,

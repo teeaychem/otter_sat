@@ -21,10 +21,6 @@ So, it is sufficient to push to the queue in order to update the valuation.
 - If the consequence *conflicts* with the current valuation, a conflict has been found and an error is returned.\
   Here, a prodedure such as [analysis](crate::procedures::analysis) may be used to recover from the conflict.
 
-Interaction with the queue as a [std::collections::VecDeque] is preferred, though further methods may be attached to other structs.
-For example, [GenericContext::clear_q] provides a convenient way to clear all consequences from a given level.
-
-
 ## Queued propagations
 
 A queue of observed consequences to be propagated is identified by `q_head`.
@@ -32,14 +28,7 @@ If the head points to some index in the list of assignments, then that assignmen
 Otherwise, the queue head exceeds the assignment count by an offset of one and automatically points to any fresh assignment.
 (Note, the queue head is adjusted when backjumping, if required.)
 
-
-
-Queuing a consequence requires specifying:
-- The atom and it's value, represented as a literal.
-- Whether to push the consequence to the [front](QPosition::Front) or the [back](QPosition::Back) of the queue.
-- The decision level at which the consequence was queued.
-
-Consequences are queued in various places, such as when adding a unit clause through [add_clause](GenericContext::add_clause).
+Consequences are queued in various places, such as when adding a unit clause through [add_clause](crate::context::GenericContext::add_clause).
 Consequences are applied using [procedures::apply_consequences](crate::procedures::apply_consequences).
 
 ### Consequence delay
@@ -438,11 +427,21 @@ impl AtomDB {
     pub fn level(&self) -> LevelIndex {
         self.level_indicies.len() as LevelIndex
     }
-}
 
-impl AtomDB {
     /// Stores a consequence of the top decision level.
     pub fn store_assignment(&mut self, assignment: Assignment) {
         self.assignments.push(assignment);
+    }
+
+    /// Takes the current list of assignments, leaving the default assignment container, until the list is restored.
+    /// To be used in conjunction with [AtomDB::restore_assignments].
+    pub fn take_assignments(&mut self) -> Vec<Assignment> {
+        std::mem::take(&mut self.assignments)
+    }
+
+    /// Sets the current lists of assignments to `assignments`.
+    /// To be used in conjunction with [AtomDB::take_assignments].
+    pub fn restore_assignments(&mut self, assignents: Vec<Assignment>) {
+        self.assignments = assignents;
     }
 }

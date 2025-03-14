@@ -77,7 +77,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// # Soundness
     /// The implementation of BCP requires -
     /// The literal at index 0 is a watched literal.
-    /// </div>
     pub fn bcp(&mut self, literal: impl Borrow<CLiteral>) -> Result<(), err::BCPError> {
         let literal = literal.borrow();
 

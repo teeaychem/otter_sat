@@ -3,8 +3,9 @@ Assumptions
 
 # Overview
 
-Assumptions are *added* to a context through the [add_assumption](GenericContext::add_assumption) method. \
-Assumptions are *asserted* for a solve through the [assert_assumption](GenericContext::assert_assumptions) method.
+The [solve_given](GenericContext::solve_given) method performs a solve given some collection of literals to assume. \
+
+Internally, assumptions are handled at the initial stages of the method, and in particular through the [assert_assumptions](GenericContext::assert_assumptions) method.
 
 The distinction between adding and asserting assumptions allows for distinct ways of making assumptions (see below).
 

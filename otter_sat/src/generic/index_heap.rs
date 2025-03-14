@@ -7,8 +7,8 @@ Further, the backing vector stays constant, allowing heap to act as a store of e
 
 For example, [IndexHeap] is used as a store of [atoms](crate::structures::atom), as atoms are associated with an index and it is a useful heuristic to choose an atom without a value with the most activity when given a partial valuation with no queued consequences to expand on during a solve.
 
-Further, to help maintain the heap callback functions [apply_to_index](IndexHeap::apply_to_index) and [apply_to_all](IndexHeap::apply_to_all) are provided.[^note]
-[^note]: For example, [apply_to_index](IndexHeap::apply_to_index) allows increasing the activity of an atom and [apply_to_all](IndexHeap::apply_to_all) allows scaling the activity of all atoms.
+Further, to help maintain the heap callback functions [apply_to_value_at_value_index](IndexHeap::apply_to_value_at_value_index) and [apply_to_all](IndexHeap::apply_to_all) are provided.[^note]
+[^note]: For example, [apply_to_value_at_value_index](IndexHeap::apply_to_value_at_value_index) allows increasing the activity of an atom and [apply_to_all](IndexHeap::apply_to_all) allows scaling the activity of all atoms.
 
 ```rust
 # use otter_sat::generic::index_heap::IndexHeap;
