@@ -139,8 +139,8 @@ impl ResolutionBuffer {
         };
 
         // Resolution buffer is only used by analysis, which is only called after some decision has been made
-        let the_trail = atom_db.top_level_assignments().iter().rev();
-        'resolution_loop: for consequence in the_trail {
+        let the_trail = atom_db.take_assignments();
+        'resolution_loop: for consequence in the_trail.iter().rev() {
             if self.valueless_count <= 1 {
                 match self.config.stopping {
                     StoppingCriteria::FirstUIP => {
@@ -176,27 +176,24 @@ impl ResolutionBuffer {
                         && self.clause_length > 2
                     {
                         false => key,
-                        true => {
-                            match key {
-                                ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) => {
-                                    panic!("! Subsumption called on a unit clause")
-                                }
-
-                                ClauseKey::OriginalBinary(_) | ClauseKey::AdditionBinary(_) => {
-                                    panic!("! Subsumption called on a binary clause");
-                                }
-
-                                ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
-                                    // TODO: Subsumption should use the appropriate valuation
-                                    // let rekey =
-                                    //     clause_db.subsume(key, consequence.literal(), atom_db)?;
-                                    // self.premises.insert(rekey);
-                                    // clause_db.note_use(rekey);
-                                    // rekey
-                                    key
-                                },
+                        true => match key {
+                            ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) => {
+                                panic!("! Subsumption called on a unit clause")
                             }
-                        }
+
+                            ClauseKey::OriginalBinary(_) | ClauseKey::AdditionBinary(_) => {
+                                panic!("! Subsumption called on a binary clause");
+                            }
+
+                            ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
+                                let clause = unsafe { clause_db.get_unchecked_mut(&key) };
+                                clause.subsume(consequence.literal(), atom_db, true)?;
+
+                                self.premises.insert(key);
+                                clause_db.note_use(key);
+                                key
+                            }
+                        },
                     };
 
                     if let ClauseKey::Addition(index, _) = key {
@@ -213,6 +210,8 @@ impl ResolutionBuffer {
                 }
             };
         }
+
+        atom_db.restore_assignments(the_trail);
 
         match self.valueless_count {
             0 | 1 => {

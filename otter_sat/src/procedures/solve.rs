@@ -16,7 +16,7 @@ And, if the operator cannot be applied, the formula is unsatisfiable.[^op-note]
   + The formula is unsatisfiable on the given valuation, but *may be* satisfiable on some other valuation.\
     Specifically, there is some sub-valuation of the current valuation on which the added clause asserts some literal, and a '[backjump](crate::procedures::backjump)' may be made to that valuation.
 
-[solve](crate::procedures::solve), then, manages the detailed operator, whose implementation is given in [apply_consequences].
+[solve](crate::procedures::solve), then, manages the detailed operator, whose implementation is given in [procedures::apply_consequences](crate::procedures::apply_consequences).
 This amounts to applying an instance of the operator which:
 
 - Returns *unsatisfiable*, if it is not possible to apply the consequence relation.

@@ -11,7 +11,7 @@ pub mod db_clause;
 mod get;
 mod store;
 
-use std::{borrow::Borrow, collections::HashMap};
+use std::collections::HashMap;
 
 use db_clause::dbClause;
 
@@ -19,7 +19,6 @@ use crate::{
     config::{Config, dbs::ClauseDBConfig},
     context::callbacks::{CallbackOnClause, CallbackOnClauseSource, CallbackOnLiteral},
     db::{
-        atom::AtomDB,
         clause::activity_glue::ActivityLBD,
         keys::{ClauseKey, FormulaIndex},
     },
@@ -344,32 +343,5 @@ impl ClauseDB {
         self.all_binary_clauses()
             .chain(self.all_original_long_clauses())
             .chain(self.all_active_addition_long_clauses())
-    }
-
-    /// Removes `literal` from the clause indexed by `key`, from a long clause, if possible.
-    ///
-    /// Subsumption cannot be applied to unit clauses, and there is little reason to apply subsumption to binary clauses as these will never be (re-)inspected.
-    ///
-    /// At present there is no change to the clause database when a literal is subsumed.
-    /// However, in principle a long clause of three literals may be transfered to a binary clause of two literals after subsumption.
-    /// To anticipate this possibility, the returned key on successful subsumption should be used when handling an ok result.
-    ///
-    /// # Safety
-    /// Assumes a clause is indexed by the key.
-    pub unsafe fn subsume(
-        &mut self,
-        key: ClauseKey,
-        literal: impl Borrow<CLiteral>,
-        atom_db: &mut AtomDB,
-    ) -> Result<ClauseKey, err::SubsumptionError> {
-        let clause = unsafe { self.get_unchecked_mut(&key) };
-
-        match clause.len() {
-            0..=2 => Err(err::SubsumptionError::ShortClause),
-            _ => {
-                clause.subsume(literal, atom_db, true)?;
-                Ok(key)
-            }
-        }
     }
 }

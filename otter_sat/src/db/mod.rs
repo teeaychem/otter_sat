@@ -11,13 +11,8 @@ Databases for holding information relevant to a solve.
         Clauses added to the context by some procedure (e.g. via resolution).
         Every added clause is a consequence of the collection of original clauses.
 
-  - [The literal database](crate::db::literal)
-    + The literal database handled structures who primary
-      * The decision stack
-  - [The atom database](crate::db::atom)
-    + Properties of atoms.
-      * Valuation
-      * Watch database
+  - [The assignment database](crate::db::atom)
+    + Details of assignments made, such as the current valuation and the source of each assignment.
 */
 
 pub mod atom;
@@ -35,8 +30,10 @@ use crate::{
     },
 };
 
-/// The index of a [decision level](crate::db::literal).
-pub type LevelIndex = u32;
+/// The index of a [assumption or decision level](crate::db::atom).
+///
+/// As there can only be as many decisions as there are atoms, this aliases the implementation of atoms.
+pub type LevelIndex = crate::structures::atom::Atom;
 
 /// Canonical methods to record literals and clauses to the context.
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
