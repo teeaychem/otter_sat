@@ -184,27 +184,15 @@ pub unsafe extern "C" fn ipasir_failed(solver: *mut c_void, lit: i32) -> c_int {
         return -1;
     };
 
-    if bundle.core_literals.is_empty() {
-        bundle.core_keys = bundle.context.core_keys();
-        for key in &bundle.core_keys {
-            match key {
-                ClauseKey::OriginalUnit(literal) => {
-                    bundle.core_literals.insert(*literal);
-                }
-
-                _ => {
-                    for literal in unsafe { bundle.context.clause_db.get_unchecked(key).literals() }
-                    {
-                        bundle.core_literals.insert(literal);
-                    }
-                }
-            }
-        }
+    if bundle.failed_literals.is_empty() {
+        bundle
+            .failed_literals
+            .extend(bundle.context.failed_assumpions());
     }
 
     let literal_canonical = CLiteral::from(lit);
 
-    match bundle.core_literals.contains(&literal_canonical.negate()) {
+    match bundle.failed_literals.contains(&literal_canonical.negate()) {
         true => 1,
         false => 0,
     }

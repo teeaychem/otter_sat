@@ -21,7 +21,7 @@ pub struct ContextBundle {
     pub core_keys: Vec<ClauseKey>,
 
     /// The literals which occur in the unsatisfiable core identified by [core_keys](ContextBundle::core_keys).
-    pub core_literals: HashSet<CLiteral>,
+    pub failed_literals: HashSet<CLiteral>,
 }
 
 impl ContextBundle {
@@ -30,7 +30,7 @@ impl ContextBundle {
         match self.context.refresh() {
             true => {
                 self.core_keys.clear();
-                self.core_literals.clear();
+                self.failed_literals.clear();
             }
             false => {}
         }
@@ -44,7 +44,7 @@ impl Default for ContextBundle {
             assumptions: Vec::default(),
             clause_buffer: Vec::default(),
             core_keys: Vec::default(),
-            core_literals: HashSet::default(),
+            failed_literals: HashSet::default(),
         }
     }
 }
