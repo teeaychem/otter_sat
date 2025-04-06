@@ -98,11 +98,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 .bump_relative(unsafe { self.clause_db.get_unchecked(key).atoms() });
         }
 
-        self.resolution_buffer.refresh(self.atom_db.valuation());
+        self.resolution_buffer.refresh();
         // Safety: Some decision must have been made for conflict analysis to take place.
 
         for Assignment { literal, source: _ } in self.atom_db.top_level_assignments() {
-            self.resolution_buffer.clear_value(literal.atom());
+            self.resolution_buffer.set_value(literal.atom(), None);
         }
 
         match self.resolution_buffer.resolve_through_current_level(

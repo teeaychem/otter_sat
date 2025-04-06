@@ -5,7 +5,11 @@ use std::collections::HashSet;
 use cell::Cell;
 use config::BufferConfig;
 
-use crate::{context::callbacks::CallbackOnPremises, db::ClauseKey, structures::literal::CLiteral};
+use crate::{
+    context::callbacks::CallbackOnPremises,
+    db::ClauseKey,
+    structures::{atom::Atom, literal::CLiteral},
+};
 #[doc(hidden)]
 mod cell;
 
@@ -38,6 +42,9 @@ pub struct ResolutionBuffer {
 
     /// The buffer.
     buffer: Vec<Cell>,
+
+    /// A stack of modified atoms, with the original value stored as literal polarity.
+    merged_atoms: Vec<(Atom, Option<bool>)>,
 
     /// A (typically derived) configuration for the instance of resolution.
     config: BufferConfig,

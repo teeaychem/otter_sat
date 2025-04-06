@@ -65,7 +65,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // So, the elements to pop must exist.
         // And, if an atom is in the decision stack is should certainly be in the atom database.
 
-        self.atom_db.clear_assigments_above(target);
+        let assignments = self.atom_db.clear_assigments_above(target);
+        for assignment in assignments.into_iter() {
+            self.resolution_buffer.clear_value(assignment.atom());
+        }
 
         // Retain queued consequences of the level backjumping to.
         // self.clear_above(target);

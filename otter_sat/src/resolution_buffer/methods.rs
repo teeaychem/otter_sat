@@ -42,7 +42,6 @@ use crate::{
         clause::{CClause, Clause},
         consequence::AssignmentSource,
         literal::{CLiteral, Literal},
-        valuation::Valuation,
     },
     types::err::{self},
 };
@@ -56,27 +55,22 @@ impl ResolutionBuffer {
             clause_length: 0,
             premises: HashSet::default(),
             buffer: Vec::default(),
+            merged_atoms: Vec::default(),
             config: BufferConfig::from(config),
             callback_premises: None,
         }
     }
 
-    pub fn refresh(&mut self, valuation: &impl Valuation) {
+    pub fn refresh(&mut self) {
         self.valueless_count = 0;
         self.clause_length = 0;
         self.premises.clear();
+        self.merged_atoms.clear();
+    }
 
-        match self.buffer.len().cmp(&valuation.atom_count()) {
-            std::cmp::Ordering::Less => self.buffer = valuation.values().map(Cell::Value).collect(),
-
-            std::cmp::Ordering::Equal => unsafe {
-                for index in 0..self.buffer.len() {
-                    *self.buffer.get_unchecked_mut(index) =
-                        Cell::Value(valuation.value_of_unchecked(index as Atom))
-                }
-            },
-
-            std::cmp::Ordering::Greater => todo!(),
+    pub fn grow_to_include(&mut self, atom: Atom) {
+        if self.buffer.len() <= atom as usize {
+            self.buffer.resize(atom as usize + 1, Cell::Value(None));
         }
     }
 
@@ -86,21 +80,26 @@ impl ResolutionBuffer {
     }
 
     /// Returns the resolved clause with the asserted literal as the first literal of the clause.
-    pub fn to_assertion_clause(&self) -> CClause {
+    pub fn to_assertion_clause(&mut self) -> CClause {
         let mut clause = Vec::with_capacity(self.clause_length);
         let mut conflict_index = 0;
 
-        for (atom, cell) in self.buffer.iter().enumerate() {
-            match cell {
-                Cell::Strengthened | Cell::Value(_) | Cell::Pivot => {}
+        for (atom, value) in &self.merged_atoms {
+            match unsafe { self.buffer.get_unchecked(*atom as usize) } {
+                Cell::Value(_) => {}
 
-                Cell::Conflict(value) => clause.push(CLiteral::new(atom as Atom, *value)),
+                Cell::Strengthened | Cell::Pivot => {}
 
-                Cell::Cleared(value) => {
+                Cell::Conflict(value) => clause.push(CLiteral::new(*atom, *value)),
+
+                Cell::Clause(value) => {
                     conflict_index = clause.size();
-                    clause.push(CLiteral::new(atom as Atom, *value));
+                    clause.push(CLiteral::new(*atom, *value));
                 }
             }
+            unsafe {
+                *self.buffer.get_unchecked_mut(*atom as usize) = Cell::Value(*value);
+            };
         }
 
         if !clause.is_empty() {
@@ -108,6 +107,10 @@ impl ResolutionBuffer {
         }
 
         clause
+    }
+
+    pub fn set_value(&mut self, atom: Atom, value: Option<bool>) {
+        unsafe { self.set(atom, Cell::Value(value)) }
     }
 
     /// Sets an atom to have no valuation in the resolution buffer.
@@ -202,9 +205,7 @@ impl ResolutionBuffer {
                 }
 
                 _ => {
-                    log::error!(target: targets::RESOLUTION, "Trail exhausted without assertion");
-                    log::error!(target: targets::RESOLUTION, "Clause: {:?}", self.to_assertion_clause());
-                    log::error!(target: targets::RESOLUTION, "Valueless count: {}", self.valueless_count);
+                    log::error!(target: targets::RESOLUTION, "Trail exhausted without assertion\nClause: {:?}\nValueless count: {}", self.to_assertion_clause(), self.valueless_count);
 
                     panic!("! Resolution hit a decision/assumption")
                 }
@@ -223,9 +224,7 @@ impl ResolutionBuffer {
             }
 
             _ => {
-                log::error!(target: targets::RESOLUTION, "Trail exhausted without assertion");
-                log::error!(target: targets::RESOLUTION, "Clause: {:?}", self.to_assertion_clause());
-                log::error!(target: targets::RESOLUTION, "Valueless count: {}", self.valueless_count);
+                log::error!(target: targets::RESOLUTION, "Trail exhausted without assertion\nClause: {:?}\nValueless count: {}", self.to_assertion_clause(), self.valueless_count);
                 panic!("! A clause which does not assert");
             }
         }
@@ -235,7 +234,7 @@ impl ResolutionBuffer {
     pub fn strengthen_given<'l>(&mut self, literals: impl Iterator<Item = &'l CLiteral>) {
         for literal in literals {
             match unsafe { *self.buffer.get_unchecked(literal.atom() as usize) } {
-                Cell::Cleared(_) | Cell::Conflict(_) => {
+                Cell::Clause(_) | Cell::Conflict(_) => {
                     if let Some(length_minus_one) = self.clause_length.checked_sub(1) {
                         self.clause_length = length_minus_one;
                     }
@@ -247,14 +246,9 @@ impl ResolutionBuffer {
     }
 
     /// The atoms used during resolution.
-    pub fn atoms_used(&self) -> impl Iterator<Item = Atom> + '_ {
-        self.buffer
-            .iter()
-            .enumerate()
-            .filter_map(|(index, cell)| match cell {
-                Cell::Value(_) => None,
-                _ => Some(index as Atom),
-            })
+    pub fn atoms_used(&mut self) -> impl Iterator<Item = Atom> + '_ {
+        self.merged_atoms.sort_unstable();
+        self.merged_atoms.iter().map(|(atom, _)| *atom)
     }
 
     pub fn take_premises(&mut self) -> HashSet<ClauseKey> {
@@ -276,28 +270,33 @@ impl ResolutionBuffer {
         log::info!(target: targets::RESOLUTION, "Merging clause: {:?}", clause.as_dimacs(false));
         for literal in clause.literals() {
             match unsafe { self.buffer.get_unchecked(literal.atom() as usize) } {
-                Cell::Conflict(_) | Cell::Cleared(_) | Cell::Pivot => {}
+                Cell::Conflict(_) | Cell::Clause(_) | Cell::Pivot | Cell::Strengthened => {
+                    // If present, cells of these kinds are from previously merged clauses.
+                }
 
-                Cell::Value(maybe) => match maybe {
-                    None => {
-                        self.clause_length += 1;
-                        self.valueless_count += 1;
-                        unsafe { self.set(literal.atom(), Cell::Cleared(literal.polarity())) };
-                    }
+                Cell::Value(maybe) => {
+                    self.clause_length += 1;
+                    self.merged_atoms.push((literal.atom(), *maybe));
 
-                    Some(value) if *value != literal.polarity() => {
-                        self.clause_length += 1;
-                        unsafe { self.set(literal.atom(), Cell::Conflict(literal.polarity())) };
-                    }
+                    match maybe {
+                        None => {
+                            self.valueless_count += 1;
+                            unsafe { self.set(literal.atom(), Cell::Clause(literal.polarity())) };
+                        }
 
-                    Some(_) => {
-                        log::error!(target: targets::RESOLUTION, "Satisfied clause");
-                        return Err(err::ResolutionBufferError::SatisfiedClause);
+                        Some(value) if *value != literal.polarity() => {
+                            unsafe { self.set(literal.atom(), Cell::Conflict(literal.polarity())) };
+                        }
+
+                        Some(_) => {
+                            log::error!(target: targets::RESOLUTION, "Satisfied clause");
+                            return Err(err::ResolutionBufferError::SatisfiedClause);
+                        }
                     }
-                },
-                Cell::Strengthened => {}
+                }
             }
         }
+
         Ok(())
     }
 
@@ -312,10 +311,11 @@ impl ResolutionBuffer {
         let pivot = pivot.borrow();
         let contents = unsafe { *self.buffer.get_unchecked(pivot.atom() as usize) };
         match contents {
-            Cell::Cleared(value) if pivot.polarity() != value => {
+            Cell::Clause(value) if pivot.polarity() != value => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
                 unsafe { self.set(pivot.atom(), Cell::Pivot) };
+
                 self.valueless_count -= 1;
 
                 Ok(())
