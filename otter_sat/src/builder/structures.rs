@@ -47,7 +47,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         &mut self,
         previous_value: bool,
     ) -> Result<Atom, err::AtomDBError> {
-        self.atom_db.fresh_atom(previous_value)
+        let atom = self.atom_db.fresh_atom(previous_value)?;
+        self.resolution_buffer.grow_to_include(atom);
+        Ok(atom)
     }
 
     /// Ensure `atom` is present in the context --- specifically, by introducing as many atoms as required to ensure atoms form a  contiguous block: [0..`atom`].

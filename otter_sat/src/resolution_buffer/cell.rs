@@ -1,11 +1,11 @@
 /// Cells of a resolution buffer.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Cell {
     /// Initial valuation
     Value(Option<bool>),
 
     /// The atom was not valued.
-    Cleared(bool),
+    Clause(bool),
 
     /// The atom had a conflicting value.
     Conflict(bool),
