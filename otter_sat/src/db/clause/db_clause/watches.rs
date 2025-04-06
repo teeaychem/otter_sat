@@ -9,7 +9,7 @@ use crate::{
     structures::{
         atom::Atom,
         literal::{CLiteral, Literal},
-        valuation::{Valuation, vValuation},
+        valuation::Valuation,
     },
 };
 
@@ -60,15 +60,12 @@ impl dbClause {
      Failure for a candidate for watch A to be found implies a candidate for watch B.
      Still, this is not encoded, as failure for watch A is very unlikely.
      */
-    pub fn initialise_watches(&mut self, atom_db: &mut AtomDB, valuation: Option<&vValuation>) {
+    pub fn initialise_watches(&mut self, atom_db: &mut AtomDB) {
         // As watches require two or more literals, and watch_ptr must be within the bounds of the vector, use of get_unchecked on index zero and watch_ptr is safe.
         let mut watch_a_set = false;
 
         for (index, literal) in self.clause.iter().enumerate() {
-            let index_value = match valuation {
-                Some(v) => unsafe { v.value_of_unchecked(literal.atom()) },
-                None => unsafe { atom_db.valuation().value_of_unchecked(literal.atom()) },
-            };
+            let index_value = unsafe { atom_db.valuation().value_of_unchecked(literal.atom()) };
 
             match index_value {
                 None => {
@@ -77,12 +74,14 @@ impl dbClause {
                     watch_a_set = true;
                     break;
                 }
+
                 Some(value) if value == literal.polarity() => {
                     self.note_watch(literal, atom_db);
                     self.clause.swap(0, index);
                     watch_a_set = true;
                     break;
                 }
+
                 Some(_) => {}
             }
         }
@@ -96,20 +95,16 @@ impl dbClause {
         // Still, if there is no other choice, the pointer will rest on some unsatisfied literal with the highest decision level.
         let mut watch_b_set = false;
         self.watch_ptr = 1;
-        let mut decision_level_b = unsafe {
+
+        let mut level_b = unsafe {
             let literal = self.clause.get_unchecked(self.watch_ptr);
-            let maybe_decision_level = atom_db.level_unchecked(literal.atom());
-            maybe_decision_level
+            atom_db.level_unchecked(literal.atom())
         };
 
         for index in 1..self.clause.len() {
             let literal = unsafe { self.clause.get_unchecked(index) };
 
-            let atom_value = match valuation {
-                Some(v) => unsafe { v.value_of_unchecked(literal.atom()) },
-                None => unsafe { atom_db.valuation().value_of_unchecked(literal.atom()) },
-            };
-
+            let atom_value = unsafe { atom_db.valuation().value_of_unchecked(literal.atom()) };
             match atom_value {
                 None => {
                     self.watch_ptr = index;
@@ -130,11 +125,9 @@ impl dbClause {
                     let decision_level =
                         unsafe { atom_db.level_unchecked(literal.atom()).unwrap_unchecked() };
 
-                    if decision_level_b.is_none()
-                        || decision_level_b.is_some_and(|l| decision_level > l)
-                    {
+                    if level_b.is_none_or(|l| decision_level > l) {
                         self.watch_ptr = index;
-                        decision_level_b = Some(decision_level);
+                        level_b = Some(decision_level);
                     }
                 }
             }
@@ -183,10 +176,9 @@ impl dbClause {
         // # Safety
         // The procedure makes unchecked access to literals in the clause.
         // Either direct to the initial clause, or indirect via watch_ptr.
-        // Asserting watch_ptr < clause length ensure each use of watch_ptr is safe.
+        // Asserting watch_ptr < clause length ensures each use of watch_ptr is safe.
         // And, as watch_ptr is unsigned, this also ensure direct access to the first literal is safe.
-        assert!(watch_ptr_cache < clause_length);
-
+        // assert!(watch_ptr_cache < clause_length);
         if unsafe { self.clause.get_unchecked(0).atom() } == atom {
             self.clause.swap(0, self.watch_ptr)
         }
@@ -204,19 +196,23 @@ impl dbClause {
                     self.note_watch(literal, atom_db);
                     break Ok(WatchStatus::None);
                 }
+
                 Some(value) if value == literal.polarity() => {
                     self.note_watch(literal, atom_db);
                     break Ok(WatchStatus::Witness);
                 }
+
                 Some(_) => {}
             }
 
             self.watch_ptr += 1;
 
+            // skip index 0, which contains the other watched literal
             if self.watch_ptr == clause_length {
-                self.watch_ptr = 1 // skip 0
+                self.watch_ptr = 1
             }
 
+            // If no update was made
             if self.watch_ptr == watch_ptr_cache {
                 break Err(());
             }

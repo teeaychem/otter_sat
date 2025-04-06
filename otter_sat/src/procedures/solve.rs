@@ -259,12 +259,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     match self.make_decision() {
                         DecisionOk::Literal(decision) => {
                             let assignment = Assignment::from(decision, AssignmentSource::Decision);
-                            unsafe { self.record_assignment(assignment) };
+                            self.record_assignment(assignment);
 
                             let level = self.atom_db.level();
                             log::info!("Decided on {decision} at level {level}");
 
-                            let q_result = unsafe { self.atom_db.set_value(decision, Some(level)) };
+                            let q_result =
+                                unsafe { self.atom_db.set_value_unchecked(decision, level) };
                             match q_result {
                                 AtomValue::NotSet => {
                                     // Assignment made above
@@ -283,12 +284,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 // Conflict variants. These continue to the remaining contents of a loop.
                 ApplyConsequencesOk::UnitClause { literal } => {
-                    let q_result =
-                        unsafe { self.atom_db.set_value(literal, Some(self.atom_db.level())) };
+                    let q_result = unsafe {
+                        self.atom_db
+                            .set_value_unchecked(literal, self.atom_db.level())
+                    };
                     match q_result {
                         AtomValue::NotSet => {
                             let consequence = Assignment::from(literal, AssignmentSource::Addition);
-                            unsafe { self.record_assignment(consequence) };
+                            self.record_assignment(consequence);
                         }
 
                         AtomValue::Same => {}
@@ -306,11 +309,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     let level = self.atom_db.level();
 
-                    let q_result = unsafe { self.atom_db.set_value(literal, Some(level)) };
+                    let q_result = unsafe { self.atom_db.set_value_unchecked(literal, level) };
                     match q_result {
                         AtomValue::NotSet => {
                             let assignment = Assignment::from(literal, AssignmentSource::BCP(key));
-                            unsafe { self.record_assignment(assignment) };
+                            self.record_assignment(assignment);
                         }
 
                         AtomValue::Same => {}

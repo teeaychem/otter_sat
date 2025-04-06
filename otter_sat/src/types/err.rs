@@ -116,6 +116,9 @@ impl From<BCPError> for ErrorKind {
 /// These are general errors which wrap specific errors.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BuildError {
+    /// An empty clause
+    EmptyClause,
+
     /// An clear instance of an unsatisfiable clause
     Unsatisfiable,
 }

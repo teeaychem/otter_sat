@@ -38,7 +38,7 @@ impl AtomDB {
             }
 
             *self.valuation.get_unchecked_mut(atom as usize) = None;
-            *self.decision_indicies.get_unchecked_mut(atom as usize) = None;
+            *self.atom_level_map.get_unchecked_mut(atom as usize) = None;
         }
     }
 

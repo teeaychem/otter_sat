@@ -83,8 +83,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         /*
         # Safety
 
-        The binary and long blocks are both wrapped in unsafe to keep specific unsafe instances simple.
-
         Use of unsafe operations is motivated by two isses:
 
         - When traversing through a list, watches may be dropped.
@@ -99,17 +97,20 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         */
 
         // Binary clause block.
-        unsafe {
+        {
             // Note, this does not require updating watches.
-            let binary_list = self.atom_db.watchers_binary_unchecked(literal);
+            let binary_list = unsafe { self.atom_db.watchers_binary_unchecked(literal) };
 
-            for element in &*binary_list {
+            for element in unsafe { &*binary_list } {
                 let check = element.literal;
                 let key = element.key;
 
                 match self.atom_db.value_of(check.atom()) {
                     None => {
-                        let q_result = self.atom_db.set_value(check, Some(self.atom_db.level()));
+                        let q_result = unsafe {
+                            self.atom_db
+                                .set_value_unchecked(check, self.atom_db.level())
+                        };
                         match q_result {
                             AtomValue::NotSet => {
                                 let assignment =
@@ -137,14 +138,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
 
         // Long clause block.
-        unsafe {
-            let long_list = &mut *self.atom_db.watchers_long_unchecked(literal);
+        {
+            let long_list = unsafe { &mut *self.atom_db.watchers_long_unchecked(literal) };
 
             let mut index = 0;
             let mut length = long_list.len();
 
             'long_loop: while index < length {
-                let key = long_list.get_unchecked(index).key;
+                let key = unsafe { long_list.get_unchecked(index).key };
 
                 let db_clause = match self.clause_db.get_mut(&key) {
                     Ok(stored) => stored,
@@ -170,7 +171,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     Err(()) => {
                         // After the call to update_watch, any atom without a value will be in position 0.
-                        let watch = *db_clause.get_unchecked(0);
+                        let watch = *unsafe { db_clause.get_unchecked(0) };
 
                         match self.atom_db.value_of(watch.atom()) {
                             Some(value) if watch.polarity() != value => {
@@ -183,8 +184,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             None => {
                                 self.clause_db.note_use(key);
 
-                                let level = self.atom_db.level();
-                                let q_result = self.atom_db.set_value(watch, Some(level));
+                                let q_result = unsafe {
+                                    self.atom_db
+                                        .set_value_unchecked(watch, self.atom_db.level())
+                                };
                                 match q_result {
                                     AtomValue::NotSet => {
                                         let consequence =

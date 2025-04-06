@@ -174,13 +174,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             self.backjump(index);
 
                             let q_result = unsafe {
-                                self.atom_db.set_value(literal, Some(self.atom_db.level()))
+                                self.atom_db
+                                    .set_value_unchecked(literal, self.atom_db.level())
                             };
                             match q_result {
                                 AtomValue::NotSet => {
                                     let assignment =
                                         Assignment::from(literal, AssignmentSource::BCP(key));
-                                    unsafe { self.record_assignment(assignment) };
+                                    self.record_assignment(assignment);
                                 }
 
                                 AtomValue::Same => {}
