@@ -1,5 +1,3 @@
-use crate::structures::literal::CLiteral;
-
 /// Cells of a resolution buffer.
 #[derive(Clone, Copy)]
 pub enum Cell {
@@ -7,10 +5,10 @@ pub enum Cell {
     Value(Option<bool>),
 
     /// The atom was not valued.
-    None(CLiteral),
+    Cleared(bool),
 
     /// The atom had a conflicting value.
-    Conflict(CLiteral),
+    Conflict(bool),
 
     /// The atom was part of resolution but was already proven.
     Strengthened,

@@ -90,15 +90,15 @@ impl ResolutionBuffer {
         let mut clause = Vec::with_capacity(self.clause_length);
         let mut conflict_index = 0;
 
-        for item in &self.buffer {
-            match item {
+        for (atom, cell) in self.buffer.iter().enumerate() {
+            match cell {
                 Cell::Strengthened | Cell::Value(_) | Cell::Pivot => {}
 
-                Cell::Conflict(literal) => clause.push(*literal),
+                Cell::Conflict(value) => clause.push(CLiteral::new(atom as Atom, *value)),
 
-                Cell::None(literal) => {
+                Cell::Cleared(value) => {
                     conflict_index = clause.size();
-                    clause.push(*literal)
+                    clause.push(CLiteral::new(atom as Atom, *value));
                 }
             }
         }
@@ -235,7 +235,7 @@ impl ResolutionBuffer {
     pub fn strengthen_given<'l>(&mut self, literals: impl Iterator<Item = &'l CLiteral>) {
         for literal in literals {
             match unsafe { *self.buffer.get_unchecked(literal.atom() as usize) } {
-                Cell::None(_) | Cell::Conflict(_) => {
+                Cell::Cleared(_) | Cell::Conflict(_) => {
                     if let Some(length_minus_one) = self.clause_length.checked_sub(1) {
                         self.clause_length = length_minus_one;
                     }
@@ -276,18 +276,18 @@ impl ResolutionBuffer {
         log::info!(target: targets::RESOLUTION, "Merging clause: {:?}", clause.as_dimacs(false));
         for literal in clause.literals() {
             match unsafe { self.buffer.get_unchecked(literal.atom() as usize) } {
-                Cell::Conflict(_) | Cell::None(_) | Cell::Pivot => {}
+                Cell::Conflict(_) | Cell::Cleared(_) | Cell::Pivot => {}
 
                 Cell::Value(maybe) => match maybe {
                     None => {
                         self.clause_length += 1;
                         self.valueless_count += 1;
-                        unsafe { self.set(literal.atom(), Cell::None(literal)) };
+                        unsafe { self.set(literal.atom(), Cell::Cleared(literal.polarity())) };
                     }
 
                     Some(value) if *value != literal.polarity() => {
                         self.clause_length += 1;
-                        unsafe { self.set(literal.atom(), Cell::Conflict(literal)) };
+                        unsafe { self.set(literal.atom(), Cell::Conflict(literal.polarity())) };
                     }
 
                     Some(_) => {
@@ -312,7 +312,7 @@ impl ResolutionBuffer {
         let pivot = pivot.borrow();
         let contents = unsafe { *self.buffer.get_unchecked(pivot.atom() as usize) };
         match contents {
-            Cell::None(literal) if pivot == &literal.negate() => {
+            Cell::Cleared(value) if pivot.polarity() != value => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
                 unsafe { self.set(pivot.atom(), Cell::Pivot) };
@@ -321,7 +321,7 @@ impl ResolutionBuffer {
                 Ok(())
             }
 
-            Cell::Conflict(literal) if pivot == &literal.negate() => {
+            Cell::Conflict(value) if pivot.polarity() != value => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
                 unsafe { self.set(pivot.atom(), Cell::Pivot) };
