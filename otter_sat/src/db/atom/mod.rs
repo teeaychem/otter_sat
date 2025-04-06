@@ -68,7 +68,6 @@ use crate::{
 use super::ClauseKey;
 
 /// The atom database.
-#[allow(dead_code)]
 pub struct AtomDB {
     /// Watch lists for each atom in the form of [WatchDB] structs, indexed by atoms in the `watch_dbs` field.
     watch_dbs: Vec<WatchDB>,
@@ -82,14 +81,14 @@ pub struct AtomDB {
     /// An [IndexHeap] recording the activty of atoms, where any atom without a value is 'active' on the heap.
     activity_heap: IndexHeap<Activity>,
 
-    /// A record of which decision an atom was valued on.
-    decision_indicies: Vec<Option<LevelIndex>>,
+    /// A map from atoms to levels.
+    atom_level_map: Vec<Option<LevelIndex>>,
 
     /// The level of the initial decision during a solve.
-    /// In other words, any level present *below* the limit contains assumptions.
+    /// Any level present *below* the limit contains assumptions, or consequences of assumptions.
     pub initial_decision_level: LevelIndex,
 
-    /// A stack of levels.
+    /// The assignments made, in order from initial to most recent.
     pub assignments: Vec<Assignment>,
 
     /// Indicies at which a new level begins.
@@ -125,7 +124,7 @@ impl AtomDB {
 
             valuation: Vec::default(),
             previous_valuation: Vec::default(),
-            decision_indicies: Vec::default(),
+            atom_level_map: Vec::default(),
 
             initial_decision_level: 0,
             assignments: Vec::default(),
@@ -138,7 +137,7 @@ impl AtomDB {
         // A fresh atom is created so long as the atom count is within ATOM_MAX
         // So, this is safe, for any reasonable Atom specification.
         let the_true = unsafe { db.fresh_atom(true).unwrap_unchecked() };
-        unsafe { db.set_value(CLiteral::new(the_true, true), None) };
+        unsafe { db.set_value_unchecked(CLiteral::new(the_true, true), 0) };
         db
     }
 
@@ -174,7 +173,7 @@ impl AtomDB {
         self.watch_dbs.push(WatchDB::default());
         self.valuation.push(None);
         self.previous_valuation.push(previous_value);
-        self.decision_indicies.push(None);
+        self.atom_level_map.push(None);
 
         Ok(atom)
     }
@@ -184,17 +183,17 @@ impl AtomDB {
     /// # Safety
     /// No check is made on whether the decision level of the atom is tracked.
     pub unsafe fn level_unchecked(&self, atom: Atom) -> Option<LevelIndex> {
-        *unsafe { self.decision_indicies.get_unchecked(atom as usize) }
+        *unsafe { self.atom_level_map.get_unchecked(atom as usize) }
     }
 
     /// Sets a given atom to have a given value, with a note of which decision this occurs after, if some decision has been made.
     ///
     /// # Safety
     /// No check is made on whether the atom is part of the valuation.
-    pub unsafe fn set_value(
+    pub unsafe fn set_value_unchecked(
         &mut self,
         literal: impl Borrow<CLiteral>,
-        level: Option<LevelIndex>,
+        level: LevelIndex,
     ) -> AtomValue {
         let literal = literal.borrow();
         let atom = literal.atom();
@@ -203,7 +202,7 @@ impl AtomDB {
         match self.value_of(atom) {
             None => unsafe {
                 *self.valuation.get_unchecked_mut(atom as usize) = Some(value);
-                *self.decision_indicies.get_unchecked_mut(atom as usize) = level;
+                *self.atom_level_map.get_unchecked_mut(atom as usize) = Some(level);
                 AtomValue::NotSet
             },
             Some(v) if v == value => AtomValue::Same,

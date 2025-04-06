@@ -129,6 +129,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 match top_two {
                     (None, _) => Ok(self.atom_db.lowest_decision_level()),
 
+                    // 'Simple' backjumping to a the level prior to the asserted literal.
+                    // (_, Some(top)) => Ok(top.saturating_sub(1)),
                     (Some(second_to_top), Some(_top)) => Ok(cmp::max(
                         self.atom_db.lowest_decision_level(),
                         second_to_top,

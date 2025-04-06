@@ -32,7 +32,7 @@ fn main() {
 
     // The atoms in a context are a contiguous slice of the natural numbers, starting at 1.
     // So, ensuring an atom for the last character in the map entails there will be atoms for present for all other characters.
-    assert!(the_context.ensure_atom(last_character_atom).is_ok());
+    the_context.ensure_atom(last_character_atom);
 
     // Each character in some string as a literal.
     for character in character_string.chars() {
@@ -77,11 +77,8 @@ fn main() {
             .enumerate()
             .skip(1)
         {
-            match value {
-                Some(v) => {
-                    clause.push(CLiteral::new(atom as Atom, !v));
-                }
-                None => {}
+            if let Some(v) = value {
+                clause.push(CLiteral::new(atom as Atom, !v));
             }
         }
 

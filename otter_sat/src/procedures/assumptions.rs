@@ -55,13 +55,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     self.ensure_atom(assumption.atom());
 
                     let assignment = Assignment::from(assumption, AssignmentSource::Assumption);
-                    unsafe { self.record_assignment(assignment) };
+                    self.record_assignment(assignment);
 
                     // # Safety
                     // The atom has been ensured, above.
                     match unsafe {
                         self.atom_db
-                            .set_value(assumption, Some(self.atom_db.level()))
+                            .set_value_unchecked(assumption, self.atom_db.level())
                     } {
                         AtomValue::NotSet => {
                             log::info!("BCP of assumption: {assumption}");
@@ -131,13 +131,15 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 for literal in assumptions.into_iter() {
                     self.ensure_atom(literal.atom());
 
-                    let q_result =
-                        unsafe { self.atom_db.set_value(literal, Some(self.atom_db.level())) };
+                    let q_result = unsafe {
+                        self.atom_db
+                            .set_value_unchecked(literal, self.atom_db.level())
+                    };
                     match q_result {
                         AtomValue::NotSet => {
                             let assignment =
                                 Assignment::from(literal, AssignmentSource::Assumption);
-                            unsafe { self.record_assignment(assignment) };
+                            self.record_assignment(assignment);
                         }
 
                         AtomValue::Same => log::info!("! Assumption of an atom with that value"),

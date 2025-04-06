@@ -50,21 +50,21 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         self.atom_db.fresh_atom(previous_value)
     }
 
-    /// Ensure `atom` is present in the context.
-    pub fn ensure_atom(&mut self, atom: Atom) -> Result<(), err::AtomDBError> {
+    /// Ensure `atom` is present in the context --- specifically, by introducing as many atoms as required to ensure atoms form a  contiguous block: [0..`atom`].
+    // As `atom` is an atom, the method is guaranteed to succeed.
+    pub fn ensure_atom(&mut self, atom: Atom) {
         if self.atom_db.count() <= (atom as usize) {
             for _ in 0..((atom as usize) - self.atom_db.count()) + 1 {
                 self.fresh_atom();
             }
         }
-        Ok(())
     }
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Returns a fresh literal with value true.
     ///
-    /// For a practical alternative, see [fresh_or_max_literal](GenericContext::fresh_or_max_literal).
+    /// Alternatively, see [fresh_or_max_literal](GenericContext::fresh_or_max_literal).
     pub fn fresh_literal(&mut self) -> Result<CLiteral, err::AtomDBError> {
         let atom = self.fresh_atom()?;
         Ok(CLiteral::new(atom, true))
@@ -82,6 +82,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
     }
 
+    /// Returns a vector containing `count` literals with either a fresh atom or the maximum atom and valued true.
     pub fn fresh_or_max_literals(&mut self, count: usize) -> Vec<CLiteral> {
         let mut literals = Vec::default();
         for _ in 0..count {
@@ -97,9 +98,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         if clause.size() == 0 {
             return Err(err::ErrorKind::from(err::ClauseDBError::EmptyClause));
         }
-        let mut clause_vec = clause.canonical();
+        let mut clause = clause.canonical();
 
-        match preprocess_clause(&mut clause_vec) {
+        match preprocess_clause(&mut clause) {
             Ok(PreprocessingOk::Tautology) => return Ok(ClauseOk::Tautology),
             Err(PreprocessingError::Unsatisfiable) => {
                 return Err(err::ErrorKind::from(err::BuildError::Unsatisfiable));
@@ -107,8 +108,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             _ => {}
         };
 
-        match clause_vec[..] {
-            [] => panic!("! Empty clause"),
+        match clause[..] {
+            [] => Err(err::ErrorKind::from(err::BuildError::EmptyClause)),
 
             [literal] => {
                 self.ensure_atom(literal.atom());
@@ -118,11 +119,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     &mut self.atom_db,
                     HashSet::default(),
                 );
-                let q_result = unsafe { self.atom_db.set_value(literal, Some(0)) };
+                let q_result = unsafe { self.atom_db.set_value_unchecked(literal, 0) };
                 match q_result {
                     AtomValue::NotSet => {
                         let assignment = Assignment::from(literal, AssignmentSource::Original);
-                        unsafe { self.record_assignment(assignment) };
+                        self.record_assignment(assignment);
                     }
 
                     AtomValue::Same => {}
@@ -134,12 +135,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
 
             [..] => {
-                for literal in clause_vec.literals() {
-                    self.ensure_atom(literal.atom());
-                }
+                clause.literals().for_each(|l| self.ensure_atom(l.atom()));
 
                 self.clause_db.store(
-                    clause_vec,
+                    clause,
                     ClauseSource::Original,
                     &mut self.atom_db,
                     HashSet::default(),

@@ -48,7 +48,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// # Safety
     /// If the source of the consequence references a clause stored by a key, the clause must be present in the clause database.
-    pub unsafe fn record_assignment(&mut self, assignment: Assignment) {
+    pub fn record_assignment(&mut self, assignment: Assignment) {
         match assignment.source() {
             AssignmentSource::PureLiteral => {
                 let premises = HashSet::default();
@@ -85,12 +85,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 premises,
                             );
                         };
-
-                        self.atom_db.store_assignment(assignment)
                     }
 
-                    _ => self.atom_db.store_assignment(assignment),
+                    _ => {}
                 }
+
+                self.atom_db.store_assignment(assignment)
             }
 
             AssignmentSource::Addition | AssignmentSource::Original => {

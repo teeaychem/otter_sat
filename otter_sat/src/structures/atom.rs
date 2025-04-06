@@ -32,8 +32,8 @@ Revising the representation to any unsigned integer is possible.
 /// An atom, aka. a 'variable'.
 pub type Atom = u32;
 
-/// The atom `0` is fixed internally with a value of true.
-static TOP_ATOM: Atom = 0;
+/// The atom fixed internally with a value of true (`0`).
+pub static TRUE_ATOM: Atom = 0;
 
 /// The maximum instance of an atom.
 #[cfg(feature = "boolean")]

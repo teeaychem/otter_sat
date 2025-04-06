@@ -18,7 +18,7 @@ use crate::{
 /// Given an interator over clauses returns a pair of iterators over the pure literals relative to those clauses.
 ///
 /// In other words, returns a pair of iterators where the first iterator contains all the literals which occur only with positive polarity and the second iterator contains all the literals which occur only with negative polarity.
-pub fn pure_literals<'l>(
+pub fn pure_literals(
     clauses: impl Iterator<Item = impl Iterator<Item = CLiteral>>,
 ) -> (Vec<Atom>, Vec<Atom>) {
     let mut the_true: HashSet<Atom> = HashSet::new();
@@ -54,13 +54,13 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         let q_result = unsafe {
             context
                 .atom_db
-                .set_value(literal, Some(context.atom_db.level()))
+                .set_value_unchecked(literal, context.atom_db.level())
         };
 
         match q_result {
             AtomValue::NotSet => {
                 let assignment = Assignment::from(literal, AssignmentSource::PureLiteral);
-                unsafe { context.record_assignment(assignment) };
+                context.record_assignment(assignment);
             }
 
             AtomValue::Same => {}
@@ -74,13 +74,13 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         let q_result = unsafe {
             context
                 .atom_db
-                .set_value(the_literal, Some(context.atom_db.level()))
+                .set_value_unchecked(the_literal, context.atom_db.level())
         };
         match q_result {
             AtomValue::NotSet => {
                 let consequence =
                     Assignment::from(the_literal, consequence::AssignmentSource::PureLiteral);
-                unsafe { context.record_assignment(consequence) };
+                context.record_assignment(consequence);
             }
 
             AtomValue::Same => {}

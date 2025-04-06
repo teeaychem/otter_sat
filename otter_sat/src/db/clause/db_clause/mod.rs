@@ -90,7 +90,7 @@ impl dbClause {
             watch_ptr: 0,
         };
 
-        db_clause.initialise_watches(atom_db, None);
+        db_clause.initialise_watches(atom_db);
 
         db_clause
     }
