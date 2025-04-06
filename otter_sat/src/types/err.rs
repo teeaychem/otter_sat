@@ -248,6 +248,8 @@ pub enum ResolutionBufferError {
 
     /// The trail was exhausted without finding a unique implication point.
     Exhausted,
+
+    MergeWithoutValue,
 }
 
 impl From<ResolutionBufferError> for ErrorKind {

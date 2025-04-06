@@ -46,7 +46,11 @@ use crate::{
     types::err::{self},
 };
 
-use super::{ResolutionBuffer, ResolutionOk, cell::Cell, config::BufferConfig};
+use super::{
+    ResolutionBuffer, ResolutionOk,
+    cell::{Cell, CellStatus},
+    config::BufferConfig,
+};
 
 impl ResolutionBuffer {
     pub fn new(config: &Config) -> Self {
@@ -70,7 +74,7 @@ impl ResolutionBuffer {
 
     pub fn grow_to_include(&mut self, atom: Atom) {
         if self.buffer.len() <= atom as usize {
-            self.buffer.resize(atom as usize + 1, Cell::Value(None));
+            self.buffer.resize(atom as usize + 1, Cell::default());
         }
     }
 
@@ -85,20 +89,23 @@ impl ResolutionBuffer {
         let mut conflict_index = 0;
 
         for (atom, value) in &self.merged_atoms {
-            match unsafe { self.buffer.get_unchecked(*atom as usize) } {
-                Cell::Value(_) => {}
+            let cell = unsafe { self.buffer.get_unchecked(*atom as usize) };
+            match cell.status {
+                CellStatus::Valuation => {}
 
-                Cell::Strengthened | Cell::Pivot => {}
+                CellStatus::Strengthened | CellStatus::Pivot => {}
 
-                Cell::Conflict(value) => clause.push(CLiteral::new(*atom, *value)),
+                CellStatus::Conflict => clause.push(CLiteral::new(*atom, cell.value.unwrap())),
 
-                Cell::Clause(value) => {
+                CellStatus::Clause => {
                     conflict_index = clause.size();
-                    clause.push(CLiteral::new(*atom, *value));
+                    clause.push(CLiteral::new(*atom, cell.value.unwrap()));
                 }
             }
             unsafe {
-                *self.buffer.get_unchecked_mut(*atom as usize) = Cell::Value(*value);
+                let cell = self.buffer.get_unchecked_mut(*atom as usize);
+                cell.value = *value;
+                cell.status = CellStatus::Valuation;
             };
         }
 
@@ -109,15 +116,25 @@ impl ResolutionBuffer {
         clause
     }
 
-    pub fn set_value(&mut self, atom: Atom, value: Option<bool>) {
-        unsafe { self.set(atom, Cell::Value(value)) }
+    pub fn set_valuation(
+        &mut self,
+        atom: Atom,
+        value: Option<bool>,
+        source: Option<AssignmentSource>,
+    ) {
+        let cell = unsafe { self.buffer.get_unchecked_mut(atom as usize) };
+        cell.value = value;
+        cell.source = source;
+        cell.status = CellStatus::Valuation;
     }
 
     /// Sets an atom to have no valuation in the resolution buffer.
     ///
     /// Useful to initialise the resolution buffer with the current valuation and then to 'roll it back' to the previous valuation.
     pub fn clear_value(&mut self, atom: Atom) {
-        unsafe { self.set(atom, Cell::Value(None)) }
+        let cell = unsafe { self.buffer.get_unchecked_mut(atom as usize) };
+        cell.value = None;
+        cell.status = CellStatus::Valuation;
     }
 
     /// Applies resolution with the clauses used to observe consequences at the current level.
@@ -233,12 +250,13 @@ impl ResolutionBuffer {
     /// Remove literals which conflict with those at level zero from the clause.
     pub fn strengthen_given<'l>(&mut self, literals: impl Iterator<Item = &'l CLiteral>) {
         for literal in literals {
-            match unsafe { *self.buffer.get_unchecked(literal.atom() as usize) } {
-                Cell::Clause(_) | Cell::Conflict(_) => {
+            match unsafe { self.buffer.get_unchecked(literal.atom() as usize) }.status {
+                CellStatus::Clause | CellStatus::Conflict => {
                     if let Some(length_minus_one) = self.clause_length.checked_sub(1) {
                         self.clause_length = length_minus_one;
                     }
-                    unsafe { self.set(literal.atom(), Cell::Strengthened) }
+                    let cell = unsafe { self.buffer.get_unchecked_mut(literal.atom() as usize) };
+                    cell.status = CellStatus::Strengthened;
                 }
                 _ => {}
             }
@@ -269,23 +287,34 @@ impl ResolutionBuffer {
     fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), err::ResolutionBufferError> {
         log::info!(target: targets::RESOLUTION, "Merging clause: {:?}", clause.as_dimacs(false));
         for literal in clause.literals() {
-            match unsafe { self.buffer.get_unchecked(literal.atom() as usize) } {
-                Cell::Conflict(_) | Cell::Clause(_) | Cell::Pivot | Cell::Strengthened => {
+            let cell = unsafe { self.buffer.get_unchecked(literal.atom() as usize) };
+
+            match cell.status {
+                CellStatus::Conflict
+                | CellStatus::Clause
+                | CellStatus::Pivot
+                | CellStatus::Strengthened => {
                     // If present, cells of these kinds are from previously merged clauses.
                 }
 
-                Cell::Value(maybe) => {
+                CellStatus::Valuation => {
                     self.clause_length += 1;
-                    self.merged_atoms.push((literal.atom(), *maybe));
+                    self.merged_atoms.push((literal.atom(), cell.value));
 
-                    match maybe {
+                    match cell.value {
                         None => {
                             self.valueless_count += 1;
-                            unsafe { self.set(literal.atom(), Cell::Clause(literal.polarity())) };
+                            let cell =
+                                unsafe { self.buffer.get_unchecked_mut(literal.atom() as usize) };
+                            cell.status = CellStatus::Clause;
+                            cell.value = Some(literal.polarity());
                         }
 
-                        Some(value) if *value != literal.polarity() => {
-                            unsafe { self.set(literal.atom(), Cell::Conflict(literal.polarity())) };
+                        Some(value) if value != literal.polarity() => {
+                            let cell =
+                                unsafe { self.buffer.get_unchecked_mut(literal.atom() as usize) };
+                            cell.status = CellStatus::Conflict;
+                            cell.value = Some(literal.polarity());
                         }
 
                         Some(_) => {
@@ -309,22 +338,26 @@ impl ResolutionBuffer {
         pivot: impl Borrow<CLiteral>,
     ) -> Result<(), err::ResolutionBufferError> {
         let pivot = pivot.borrow();
-        let contents = unsafe { *self.buffer.get_unchecked(pivot.atom() as usize) };
-        match contents {
-            Cell::Clause(value) if pivot.polarity() != value => {
+        let cell = unsafe { self.buffer.get_unchecked_mut(pivot.atom() as usize) };
+        match cell.status {
+            CellStatus::Clause if pivot.polarity() != cell.value.unwrap() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
-                unsafe { self.set(pivot.atom(), Cell::Pivot) };
+
+                let cell = unsafe { self.buffer.get_unchecked_mut(pivot.atom() as usize) };
+                cell.status = CellStatus::Pivot;
 
                 self.valueless_count -= 1;
 
                 Ok(())
             }
 
-            Cell::Conflict(value) if pivot.polarity() != value => {
+            CellStatus::Conflict if pivot.polarity() != cell.value.unwrap() => {
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
-                unsafe { self.set(pivot.atom(), Cell::Pivot) };
+
+                let cell = unsafe { self.buffer.get_unchecked_mut(pivot.atom() as usize) };
+                cell.status = CellStatus::Pivot;
 
                 Ok(())
             }
@@ -334,10 +367,5 @@ impl ResolutionBuffer {
                 Err(err::ResolutionBufferError::LostClause)
             }
         }
-    }
-
-    /// Sets a cell corresponding to an atoms to the given enum case.
-    unsafe fn set(&mut self, atom: Atom, to: Cell) {
-        *unsafe { self.buffer.get_unchecked_mut(atom as usize) } = to
     }
 }
