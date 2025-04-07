@@ -1,62 +1,59 @@
-use crate::{config::Activity, db::atom::AtomDB, structures::atom::Atom};
+use crate::{
+    config::{Activity, ConfigOption},
+    generic::index_heap::IndexHeap,
+    structures::atom::Atom,
+};
 
-/// Methods for inspecting and mutating the activity of an atoms.
+#[allow(non_snake_case)]
+/// Bumps the activities of each atom in the given iterator, and increases the bump for next time.
 ///
-/// The role of these methods is tied to the use of [VSIDS](crate::config::vsids).
-impl AtomDB {
-    #[allow(non_snake_case)]
-    /// Bumps the activities of each atom in the given iterator, and increases the bump for next time.
-    ///
-    /// If the bumped activity would be greater than the maximum allowed activity, the activity of every atom is rescored.
-    pub fn bump_relative<A: Iterator<Item = Atom>>(&mut self, atoms: A) {
-        for atom in atoms {
-            if self.activity_of(atom) + self.config.bump.value > self.config.bump.max {
-                self.rescore_activity()
-            }
-            self.bump_activity(atom);
+/// If the bumped activity would be greater than the maximum allowed activity, the activity of every atom is rescored.
+pub fn bump_relative<A: Iterator<Item = Atom>>(
+    atoms: A,
+    index_heap: &mut IndexHeap<Activity>,
+    bumpy: &mut ConfigOption<Activity>,
+    decay: &mut ConfigOption<Activity>,
+) {
+    for atom in atoms {
+        if *index_heap.value_at(atom as usize) + bumpy.value > bumpy.max {
+            rescore_activity(index_heap, bumpy);
         }
-
-        self.exponent_activity();
+        bump_activity(atom, index_heap, bumpy);
     }
 
-    /// Pops the most active atoms from the activity heap.
-    pub fn heap_pop_most_active(&mut self) -> Option<Atom> {
-        self.activity_heap.pop_max().map(|idx| idx as Atom)
-    }
+    exponent_activity(bumpy, decay);
+}
 
-    /// The acitivty of an atom, regardless of whether it is on the activity heap.
-    pub fn activity_of(&self, atom: Atom) -> Activity {
-        *self.activity_heap.value_at(atom as usize)
-    }
+/// Rescores the activity of all atoms and the activity bump.
+fn rescore_activity(index_heap: &mut IndexHeap<Activity>, bumpy: &mut ConfigOption<Activity>) {
+    let heap_max = index_heap
+        .peek_max_value()
+        .copied()
+        .unwrap_or(Activity::MIN);
+    let rescale = Activity::max(heap_max, bumpy.value);
 
-    /// Bumps the activity of an atom and updates it's position on the activity heap, if the atom is on the activity heap.
-    pub fn bump_activity(&mut self, atom: Atom) {
-        self.activity_heap.revalue(
-            atom as usize,
-            self.activity_of(atom) + self.config.bump.value,
-        );
-        self.activity_heap.heapify_if_active(atom as usize);
-    }
+    let factor = 1.0 / rescale;
+    let rescale = |v: &Activity| v * factor;
+    index_heap.apply_to_all(rescale);
+    bumpy.value *= factor;
+    index_heap.heapify();
+}
 
-    /// Increase the activity bump applied to atoms by a factor.
-    pub fn exponent_activity(&mut self) {
-        let factor = 1.0 / (1.0 - self.config.decay.value);
-        self.config.bump.value *= factor
-    }
+/// Bumps the activity of an atom and updates it's position on the activity heap, if the atom is on the activity heap.
+pub fn bump_activity(
+    atom: Atom,
+    index_heap: &mut IndexHeap<Activity>,
+    bumpy: &mut ConfigOption<Activity>,
+) {
+    index_heap.revalue(
+        atom as usize,
+        *index_heap.value_at(atom as usize) + bumpy.value,
+    );
+    index_heap.heapify_if_active(atom as usize);
+}
 
-    /// Rescores the activity of all atoms and the activity bump .
-    pub fn rescore_activity(&mut self) {
-        let heap_max = self
-            .activity_heap
-            .peek_max_value()
-            .copied()
-            .unwrap_or(Activity::MIN);
-        let rescale = Activity::max(heap_max, self.config.bump.value);
-
-        let factor = 1.0 / rescale;
-        let rescale = |v: &Activity| v * factor;
-        self.activity_heap.apply_to_all(rescale);
-        self.config.bump.value *= factor;
-        self.activity_heap.heapify();
-    }
+/// Increase the activity bump applied to atoms by a factor.
+pub fn exponent_activity(bumpy: &mut ConfigOption<Activity>, decay: &mut ConfigOption<Activity>) {
+    let factor = 1.0 / (1.0 - decay.value);
+    bumpy.value *= factor
 }

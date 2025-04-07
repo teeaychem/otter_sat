@@ -1,8 +1,8 @@
 use crate::{
+    atom_cells::AtomCells,
     config::Config,
     db::{atom::AtomDB, clause::ClauseDB, trail::Trail, watches::Watches},
-    generic::random::MinimalPCG32,
-    resolution_buffer::ResolutionBuffer,
+    generic::{index_heap::IndexHeap, random::MinimalPCG32},
     structures::valuation::CValuation,
 };
 
@@ -18,10 +18,11 @@ impl Context {
     pub fn from_config(config: Config) -> Self {
         let mut ctx = Self {
             valuation: CValuation::default(),
-            atom_db: AtomDB::new(&config),
+            atom_db: AtomDB::new(),
+            atom_activity: IndexHeap::default(),
             watches: Watches::default(),
             clause_db: ClauseDB::new(&config),
-            resolution_buffer: ResolutionBuffer::new(&config),
+            atom_cells: AtomCells::new(&config),
             trail: Trail::default(),
 
             config,

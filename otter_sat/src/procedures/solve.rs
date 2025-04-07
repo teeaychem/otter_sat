@@ -184,7 +184,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         // Each error lead to a return of some form…
                         Err(err::ErrorKind::SpecificValuationConflict(assumption)) => {
                             let Some(assignment) =
-                                self.resolution_buffer.get_assignment(assumption.atom())
+                                self.atom_cells.get_assignment(assumption.atom())
                             else {
                                 panic!("! Missing assignment");
                             };

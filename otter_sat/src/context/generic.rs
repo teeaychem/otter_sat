@@ -1,7 +1,8 @@
 use std::borrow::Borrow;
 
 use crate::{
-    config::Config,
+    atom_cells::AtomCells,
+    config::{Activity, Config},
     db::{
         ClauseKey, LevelIndex,
         atom::{AtomDB, AtomValue},
@@ -9,9 +10,9 @@ use crate::{
         trail::Trail,
         watches::Watches,
     },
+    generic::index_heap::IndexHeap,
     misc::log::targets,
     reports::Report,
-    resolution_buffer::ResolutionBuffer,
     structures::{
         atom::Atom,
         literal::{CLiteral, IntLiteral, Literal},
@@ -50,6 +51,9 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
     /// See [db::atom](crate::db::atom) for details.
     pub atom_db: AtomDB,
 
+    /// An [IndexHeap] recording the activty of atoms, where any atom without a value is 'active' on the heap.
+    pub atom_activity: IndexHeap<Activity>,
+
     /// Watch lists for each atom in the form of [WatchDB] structs, indexed by atoms in the `watch_dbs` field.
     pub watches: Watches,
 
@@ -66,8 +70,8 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
     /// The source of rng.
     pub rng: R,
 
-    /// A buffer for resolution
-    pub resolution_buffer: ResolutionBuffer,
+    /// Cells indexed to atoms, containing various information.
+    pub atom_cells: AtomCells,
 
     /// Terminates procedures, if true.
     pub(super) callback_terminate: Option<Box<CallbackTerminate>>,
@@ -210,7 +214,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     .get_unchecked_mut(atom as usize) = present;
             }
             *self.valuation.get_unchecked_mut(atom as usize) = None;
-            self.atom_db.activity_heap.activate(atom as usize);
+            self.atom_activity.activate(atom as usize);
 
             *self.atom_db.atom_level_map.get_unchecked_mut(atom as usize) = None;
         }

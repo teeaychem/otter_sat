@@ -31,8 +31,8 @@ pub mod targets {
     /// Logs related to preprocessing
     pub const PREPROCESSING: &str = "preprocessing";
 
-    /// Logs related to [resolution](crate::resolution_buffer)
-    pub const RESOLUTION: &str = "resolution";
+    /// Logs related to [resolution](crate::atom_cells)
+    pub const ATOMCELLS: &str = "resolution";
 
     /// Logs related to subsumption
     pub const SUBSUMPTION: &str = "subsumption";

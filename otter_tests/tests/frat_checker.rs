@@ -48,7 +48,7 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     let resolution_cb = move |premises: &HashSet<ClauseKey>| {
         transcribe_premises(&mut resolution_tx.borrow_mut(), premises)
     };
-    ctx.resolution_buffer
+    ctx.atom_cells
         .set_callback_resolution_premises(Box::new(resolution_cb));
 
     let unsatisfiable_tx = tx.clone();

@@ -151,8 +151,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
                 };
 
-                match db_clause.update_watch(literal.atom(), &mut self.valuation, &mut self.watches)
-                {
+                match db_clause.update_watch(literal.atom(), &self.valuation, &mut self.watches) {
                     Ok(watch_db::WatchStatus::Witness) | Ok(watch_db::WatchStatus::None) => {
                         length -= 1;
                         long_list.swap(index, length);

@@ -7,7 +7,7 @@ Some structures clone parts of the configuration.
 Databases.
 */
 
-use dbs::{AtomDBConfig, ClauseDBConfig};
+use dbs::ClauseDBConfig;
 use vsids::VSIDS;
 
 mod config_option;
@@ -37,9 +37,6 @@ use crate::{
 /// The primary configuration structure.
 #[derive(Clone)]
 pub struct Config {
-    /// Configuration of the atom database.
-    pub atom_db: AtomDBConfig,
-
     /// Configuration of the clause database.
     pub clause_db: ClauseDBConfig,
 
@@ -78,13 +75,21 @@ pub struct Config {
 
     /// Reuce the clause database every `conflict` conflicts.
     pub conflict_mod: ConfigOption<u32>,
+
+    /// The amount with which to bump a atom by when applying [VSIDS](crate::config::vsids).
+    pub atom_bump: ConfigOption<Activity>,
+
+    /// After a conflict increase the atom bump by a value (proportional to) 1 / (1 - `FACTOR`^-3)
+    pub atom_decay: ConfigOption<Activity>,
+
+    /// Whether to stack assumptions on individual levels, or combine all assumptions on a single level.
+    pub stacked_assumptions: ConfigOption<bool>,
 }
 
 impl Default for Config {
     /// The default context is (roughly) configured to provide quick, deterministic, results on a library of tests.
     fn default() -> Self {
         Config {
-            atom_db: AtomDBConfig::default(),
             clause_db: ClauseDBConfig::default(),
 
             luby_u: ConfigOption {
@@ -181,6 +186,30 @@ impl Default for Config {
                 max: u32::MAX,
                 max_state: ContextState::Configuration,
                 value: 50_000,
+            },
+
+            atom_bump: ConfigOption {
+                name: "atom_bump",
+                min: Activity::MIN,
+                max: (2.0 as Activity).powi(512),
+                max_state: ContextState::Configuration,
+                value: 1.0,
+            },
+
+            atom_decay: ConfigOption {
+                name: "atom_decay",
+                min: Activity::MIN,
+                max: Activity::MAX,
+                max_state: ContextState::Configuration,
+                value: 50.0 * 1e-3,
+            },
+
+            stacked_assumptions: ConfigOption {
+                name: "stacked_assumptions",
+                min: false,
+                max: true,
+                max_state: ContextState::Configuration,
+                value: true,
             },
         }
     }

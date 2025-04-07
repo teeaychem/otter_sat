@@ -3,9 +3,9 @@ use crate::structures::{
     valuation::{CValuation, Valuation},
 };
 
-use super::ResolutionBuffer;
+use super::AtomCells;
 
-impl Valuation for ResolutionBuffer {
+impl Valuation for AtomCells {
     fn value_of(&self, atom: Atom) -> Option<Option<bool>> {
         self.buffer.get(atom as usize).map(|cell| cell.value)
     }

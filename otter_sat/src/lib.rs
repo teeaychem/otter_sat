@@ -197,8 +197,8 @@ pub mod reports;
 
 pub mod db;
 
+pub mod atom_cells;
 pub mod misc;
-pub mod resolution_buffer;
 
 pub mod preprocessing;
 
