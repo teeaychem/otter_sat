@@ -35,7 +35,7 @@ use std::{borrow::Borrow, collections::HashSet};
 
 use crate::{
     config::{Config, StoppingCriteria},
-    db::{ClauseKey, atom::AtomDB, clause::ClauseDB},
+    db::{ClauseKey, atom::AtomDB, clause::ClauseDB, watches::Watches},
     misc::log::targets::{self},
     structures::{
         atom::Atom,
@@ -149,6 +149,7 @@ impl ResolutionBuffer {
         key: &ClauseKey,
         clause_db: &mut ClauseDB,
         atom_db: &mut AtomDB,
+        watch_dbs: &mut Watches,
     ) -> Result<ResolutionOk, err::ResolutionBufferError> {
         // The key has already been used to access the conflicting clause.
         let base_clause = unsafe { clause_db.get_unchecked_mut(key) };
@@ -221,7 +222,7 @@ impl ResolutionBuffer {
 
                             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
                                 let clause = unsafe { clause_db.get_unchecked_mut(&key) };
-                                clause.subsume(literal, atom_db, true)?;
+                                clause.subsume(literal, atom_db, watch_dbs, true)?;
 
                                 self.premises.insert(key);
                                 clause_db.note_use(key);

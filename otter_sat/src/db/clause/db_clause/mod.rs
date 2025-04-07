@@ -24,7 +24,7 @@ For details on the way watched literals are updated, see implementations (notabl
 */
 
 use crate::{
-    db::{atom::AtomDB, keys::ClauseKey},
+    db::{atom::AtomDB, keys::ClauseKey, watches::Watches},
     structures::{
         clause::{CClause, Clause},
         literal::CLiteral,
@@ -82,7 +82,12 @@ impl dbClause {
     /// A valuation is optional.
     /// If given, clauses are initialised with respect to the given valuation.
     /// Otherwise, clauses are initialised with respect to the current valuation of the context.
-    pub fn new_nonunit(key: ClauseKey, clause: CClause, atom_db: &mut AtomDB) -> Self {
+    pub fn new_nonunit(
+        key: ClauseKey,
+        clause: CClause,
+        atom_db: &mut AtomDB,
+        watches: &mut Watches,
+    ) -> Self {
         let mut db_clause = dbClause {
             key,
             clause,
@@ -90,7 +95,7 @@ impl dbClause {
             watch_ptr: 0,
         };
 
-        db_clause.initialise_watches(atom_db);
+        db_clause.initialise_watches(atom_db, watches);
 
         db_clause
     }

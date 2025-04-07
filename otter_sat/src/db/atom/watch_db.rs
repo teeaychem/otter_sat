@@ -130,16 +130,16 @@ pub enum WatchStatus {
 /// The watchers of an atom, distinguished by length of clause and which value of the atom is under watch.
 pub struct WatchDB {
     /// A watch from a binary clause for a value of `true`.
-    pub(super) positive_binary: Vec<BinaryWatch>,
+    pub positive_binary: Vec<BinaryWatch>,
 
     /// A watch from a binary clause for a value of `false`.
-    pub(super) negative_binary: Vec<BinaryWatch>,
+    pub negative_binary: Vec<BinaryWatch>,
 
     /// A watch from a long clause for a value of `true`.
-    pub(super) positive_long: Vec<LongWatch>,
+    pub positive_long: Vec<LongWatch>,
 
     /// A watch from a long clause for a value of `false`.
-    pub(super) negative_long: Vec<LongWatch>,
+    pub negative_long: Vec<LongWatch>,
 }
 
 impl Default for WatchDB {

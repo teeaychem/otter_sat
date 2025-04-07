@@ -1,6 +1,6 @@
 use crate::{
     config::Config,
-    db::{atom::AtomDB, clause::ClauseDB},
+    db::{atom::AtomDB, clause::ClauseDB, watches::Watches},
     generic::random::MinimalPCG32,
     resolution_buffer::ResolutionBuffer,
 };
@@ -17,6 +17,7 @@ impl Context {
     pub fn from_config(config: Config) -> Self {
         let mut ctx = Self {
             atom_db: AtomDB::new(&config),
+            watch_dbs: Watches::default(),
             clause_db: ClauseDB::new(&config),
             resolution_buffer: ResolutionBuffer::new(&config),
 
