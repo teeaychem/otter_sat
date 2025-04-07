@@ -69,8 +69,6 @@ pub struct Trail {
     pub initial_decision_level: LevelIndex,
 }
 
-use super::watches::Watches;
-
 /// The atom database.
 pub struct AtomDB {
     /// A current (often partial) [valuation](Valuation).
@@ -84,9 +82,6 @@ pub struct AtomDB {
 
     /// A map from atoms to levels.
     pub atom_level_map: Vec<Option<LevelIndex>>,
-
-    /// The assignments made, in order from initial to most recent.
-    pub trail: Trail,
 
     /// A local configuration, typically derived from the configuration of a context.
     pub config: AtomDBConfig,
@@ -114,8 +109,6 @@ impl AtomDB {
             valuation: Vec::default(),
             previous_valuation: Vec::default(),
             atom_level_map: Vec::default(),
-
-            trail: Trail::default(),
 
             config: config.atom_db.clone(),
         }
@@ -208,28 +201,6 @@ impl AtomDB {
     //     }
     // }
 
-    /// Removes levels above the given level index, if they exist.
-    ///
-    /// # Soundness
-    /// Does not clear the *valuation* of the decision.
-    pub fn clear_assigments_above(&mut self, level: LevelIndex) -> Vec<CLiteral> {
-        // level_indicies stores with zero-indexing.
-        // So, for example, the first assignment is accessed by assignments[level_indicies[0]].
-        // This means, in particular, that all assignments made after level i can be cleared by clearing any assignment at and after assignments[level_indicies[0]].
-        // And, as a corollary, that this method can not be used to clear any assignments at level zero.
-
-        if let Some(&level_start) = self.trail.level_indicies.get(level as usize) {
-            self.trail.level_indicies.split_off(level as usize);
-            let assignments = self.trail.literals.split_off(level_start);
-            for literal in &assignments {
-                unsafe { self.drop_value(literal.atom()) }
-            }
-            assignments
-        } else {
-            Vec::default()
-        }
-    }
-
     // TODO: Requires check on if assumptions have been made
     // pub fn assumptions_made(&self) -> &[CLiteral] {
     //     &self.trail[0..self.level_indicies[self.initial_decision_level as usize - 1]]
@@ -302,5 +273,31 @@ impl Trail {
     /// To be used in conjunction with [AtomDB::take_assignments].
     pub fn restore_assignments(&mut self, assignents: Vec<CLiteral>) {
         self.literals = assignents;
+    }
+
+    /// Removes levels above the given level index, if they exist.
+    ///
+    /// # Soundness
+    /// Does not clear the *valuation* of the decision.
+    pub fn clear_assigments_above(
+        &mut self,
+        level: LevelIndex,
+        atom_db: &mut AtomDB,
+    ) -> Vec<CLiteral> {
+        // level_indicies stores with zero-indexing.
+        // So, for example, the first assignment is accessed by assignments[level_indicies[0]].
+        // This means, in particular, that all assignments made after level i can be cleared by clearing any assignment at and after assignments[level_indicies[0]].
+        // And, as a corollary, that this method can not be used to clear any assignments at level zero.
+
+        if let Some(&level_start) = self.level_indicies.get(level as usize) {
+            self.level_indicies.split_off(level as usize);
+            let assignments = self.literals.split_off(level_start);
+            for literal in &assignments {
+                unsafe { atom_db.drop_value(literal.atom()) }
+            }
+            assignments
+        } else {
+            Vec::default()
+        }
     }
 }

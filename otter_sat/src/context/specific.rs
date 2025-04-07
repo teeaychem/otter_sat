@@ -1,6 +1,10 @@
 use crate::{
     config::Config,
-    db::{atom::AtomDB, clause::ClauseDB, watches::Watches},
+    db::{
+        atom::{AtomDB, Trail},
+        clause::ClauseDB,
+        watches::Watches,
+    },
     generic::random::MinimalPCG32,
     resolution_buffer::ResolutionBuffer,
 };
@@ -20,6 +24,7 @@ impl Context {
             watch_dbs: Watches::default(),
             clause_db: ClauseDB::new(&config),
             resolution_buffer: ResolutionBuffer::new(&config),
+            trail: Trail::default(),
 
             config,
 

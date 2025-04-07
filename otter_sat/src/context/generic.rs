@@ -1,6 +1,11 @@
 use crate::{
     config::Config,
-    db::{ClauseKey, atom::AtomDB, clause::ClauseDB, watches::Watches},
+    db::{
+        ClauseKey,
+        atom::{AtomDB, Trail},
+        clause::ClauseDB,
+        watches::Watches,
+    },
     reports::Report,
     resolution_buffer::ResolutionBuffer,
     structures::{
@@ -39,6 +44,9 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
 
     /// Watch lists for each atom in the form of [WatchDB] structs, indexed by atoms in the `watch_dbs` field.
     pub watch_dbs: Watches,
+
+    /// The assignments made, in order from initial to most recent.
+    pub trail: Trail,
 
     /// The clause database.
     /// See [db::clause](crate::db::clause) for details.

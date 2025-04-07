@@ -16,8 +16,8 @@ mod decision_levels {
 
         let _ = ctx.assert_assumptions(vec![p, r]);
 
-        assert!(ctx.atom_db.trail.assumption_is_made());
-        assert!(ctx.atom_db.trail.initial_decision_level == 2);
+        assert!(ctx.trail.assumption_is_made());
+        assert!(ctx.trail.initial_decision_level == 2);
 
         assert!(ctx.atom_db.value_of(q.atom()) == Some(true));
         assert!(ctx.atom_db.value_of(s.atom()) == Some(false));
@@ -38,8 +38,8 @@ mod decision_levels {
 
         let _ = ctx.assert_assumptions(vec![p, r]);
 
-        assert!(ctx.atom_db.trail.assumption_is_made());
-        assert!(ctx.atom_db.trail.initial_decision_level == 1);
+        assert!(ctx.trail.assumption_is_made());
+        assert!(ctx.trail.initial_decision_level == 1);
 
         assert!(ctx.atom_db.value_of(q.atom()).is_none());
         assert!(ctx.atom_db.value_of(s.atom()).is_none());
@@ -62,8 +62,8 @@ mod decision_levels {
 
         let _ = ctx.assert_assumptions(vec![r]);
 
-        assert!(ctx.atom_db.trail.assumption_is_made());
-        assert!(ctx.atom_db.trail.initial_decision_level == 1);
+        assert!(ctx.trail.assumption_is_made());
+        assert!(ctx.trail.initial_decision_level == 1);
 
         assert!(ctx.atom_db.value_of(q.atom()) == Some(true));
         assert!(ctx.atom_db.value_of(s.atom()) == Some(false));

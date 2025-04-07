@@ -107,10 +107,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 match self.atom_db.value_of(check.atom()) {
                     None => {
-                        let q_result = unsafe {
-                            self.atom_db
-                                .set_value_unchecked(check, self.atom_db.trail.level())
-                        };
+                        let q_result =
+                            unsafe { self.atom_db.set_value_unchecked(check, self.trail.level()) };
                         match q_result {
                             AtomValue::NotSet => {
                                 let assignment =
@@ -186,8 +184,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 self.clause_db.note_use(key);
 
                                 let q_result = unsafe {
-                                    self.atom_db
-                                        .set_value_unchecked(watch, self.atom_db.trail.level())
+                                    self.atom_db.set_value_unchecked(watch, self.trail.level())
                                 };
                                 match q_result {
                                     AtomValue::NotSet => {
@@ -225,10 +222,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// In the case of conflict, a [FundamentalConflict](ErrorKind::FundamentalConflict) is returned.
     pub fn propagate_unless_error(&mut self) -> Result<(), ErrorKind> {
         log::info!("Initial BCP");
-        while let Some(literal) = self.atom_db.trail.literals.get(self.atom_db.trail.q_head) {
+        while let Some(literal) = self.trail.literals.get(self.trail.q_head) {
             match self.bcp(*literal) {
                 Ok(()) => {
-                    self.atom_db.trail.q_head += 1;
+                    self.trail.q_head += 1;
                 }
 
                 Err(err::BCPError::Conflict(key)) => {
