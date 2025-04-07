@@ -89,7 +89,7 @@ pub struct AtomDB {
     pub initial_decision_level: LevelIndex,
 
     /// The assignments made, in order from initial to most recent.
-    pub assignments: Vec<Assignment>,
+    pub trail: Vec<CLiteral>,
 
     /// Indicies at which a new level begins.
     pub level_indicies: Vec<usize>,
@@ -127,7 +127,7 @@ impl AtomDB {
             atom_level_map: Vec::default(),
 
             initial_decision_level: 0,
-            assignments: Vec::default(),
+            trail: Vec::default(),
             level_indicies: Vec::default(),
 
             q_head: 0,
@@ -341,35 +341,35 @@ impl AtomDB {
         self.initial_decision_level
     }
 
-    /// The assignments made at `level`, in order of assignment.
-    ///
-    /// # Safety
-    /// No check is made to ensure the relevant number of assignments have been made.
-    pub unsafe fn assignments_at_unchecked(&self, level: LevelIndex) -> &[Assignment] {
-        let level_start = *unsafe { self.level_indicies.get_unchecked(level as usize) };
+    // /// The assignments made at `level`, in order of assignment.
+    // ///
+    // /// # Safety
+    // /// No check is made to ensure the relevant number of assignments have been made.
+    // pub unsafe fn assignments_at_unchecked(&self, level: LevelIndex) -> &[Assignment] {
+    //     let level_start = *unsafe { self.level_indicies.get_unchecked(level as usize) };
 
-        let level_end = if ((level + 1) as usize) < self.level_indicies.len() {
-            *unsafe { self.level_indicies.get_unchecked((level + 1) as usize) }
-        } else {
-            self.assignments.len()
-        };
+    //     let level_end = if ((level + 1) as usize) < self.level_indicies.len() {
+    //         *unsafe { self.level_indicies.get_unchecked((level + 1) as usize) }
+    //     } else {
+    //         self.assignments.len()
+    //     };
 
-        &self.assignments[level_start..level_end]
-    }
+    //     &self.assignments[level_start..level_end]
+    // }
 
-    /// The assignments made at `level`, in order of assignment.
-    pub fn assignments_above(&self, level: LevelIndex) -> &[Assignment] {
-        if let Some(&level_start) = self.level_indicies.get(level as usize) {
-            &self.assignments[level_start..]
-        } else {
-            &[]
-        }
-    }
+    // /// The assignments made at `level`, in order of assignment.
+    // pub fn assignments_above(&self, level: LevelIndex) -> &[Assignment] {
+    //     if let Some(&level_start) = self.level_indicies.get(level as usize) {
+    //         &self.assignments[level_start..]
+    //     } else {
+    //         &[]
+    //     }
+    // }
 
     /// The assignments made at the (current) top level, in order of assignment.
-    pub fn top_level_assignments(&self) -> &[Assignment] {
+    pub fn top_level_assignments(&self) -> &[CLiteral] {
         if let Some(&level_start) = self.level_indicies.last() {
-            &self.assignments[level_start..]
+            &self.trail[level_start..]
         } else {
             &[]
         }
@@ -379,9 +379,9 @@ impl AtomDB {
     ///
     /// # Soundness
     /// Does not clear the *valuation* of the decision.
-    pub fn forget_top_level(&mut self) -> Vec<Assignment> {
+    pub fn forget_top_level(&mut self) -> Vec<CLiteral> {
         if let Some(top_start) = self.level_indicies.pop() {
-            self.assignments.split_off(top_start)
+            self.trail.split_off(top_start)
         } else {
             Vec::default()
         }
@@ -391,7 +391,7 @@ impl AtomDB {
     ///
     /// # Soundness
     /// Does not clear the *valuation* of the decision.
-    pub fn clear_assigments_above(&mut self, level: LevelIndex) -> Vec<Assignment> {
+    pub fn clear_assigments_above(&mut self, level: LevelIndex) -> Vec<CLiteral> {
         // level_indicies stores with zero-indexing.
         // So, for example, the first assignment is accessed by assignments[level_indicies[0]].
         // This means, in particular, that all assignments made after level i can be cleared by clearing any assignment at and after assignments[level_indicies[0]].
@@ -399,7 +399,7 @@ impl AtomDB {
 
         if let Some(&level_start) = self.level_indicies.get(level as usize) {
             self.level_indicies.split_off(level as usize);
-            let assignments = self.assignments.split_off(level_start);
+            let assignments = self.trail.split_off(level_start);
             for assignment in &assignments {
                 unsafe { self.drop_value(assignment.atom()) }
             }
@@ -428,19 +428,24 @@ impl AtomDB {
     }
 
     /// Stores a consequence of the top decision level.
-    pub fn store_assignment(&mut self, assignment: Assignment) {
-        self.assignments.push(assignment);
+    pub fn store_assignment(&mut self, literal: CLiteral) {
+        self.trail.push(literal);
     }
 
     /// Takes the current list of assignments, leaving the default assignment container, until the list is restored.
     /// To be used in conjunction with [AtomDB::restore_assignments].
-    pub fn take_assignments(&mut self) -> Vec<Assignment> {
-        std::mem::take(&mut self.assignments)
+    pub fn take_assignments(&mut self) -> Vec<CLiteral> {
+        std::mem::take(&mut self.trail)
     }
 
     /// Sets the current lists of assignments to `assignments`.
     /// To be used in conjunction with [AtomDB::take_assignments].
-    pub fn restore_assignments(&mut self, assignents: Vec<Assignment>) {
-        self.assignments = assignents;
+    pub fn restore_assignments(&mut self, assignents: Vec<CLiteral>) {
+        self.trail = assignents;
     }
+
+    // TODO: Requires check on if assumptions have been made
+    // pub fn assumptions_made(&self) -> &[CLiteral] {
+    //     &self.trail[0..self.level_indicies[self.initial_decision_level as usize - 1]]
+    // }
 }

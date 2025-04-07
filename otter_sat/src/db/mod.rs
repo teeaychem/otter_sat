@@ -27,6 +27,7 @@ use crate::{
     structures::{
         clause::ClauseSource,
         consequence::{Assignment, AssignmentSource},
+        literal::{CLiteral, Literal},
     },
 };
 
@@ -96,36 +97,38 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     _ => {}
                 }
 
-                self.atom_db.store_assignment(assignment)
+                self.atom_db.store_assignment(*assignment.literal())
             }
 
             AssignmentSource::Addition | AssignmentSource::Original => {
-                self.atom_db.store_assignment(assignment)
+                self.atom_db.store_assignment(*assignment.literal())
             }
 
             AssignmentSource::Decision => {
-                self.atom_db
-                    .level_indicies
-                    .push(self.atom_db.assignments.len());
-                self.atom_db.store_assignment(assignment)
+                self.atom_db.level_indicies.push(self.atom_db.trail.len());
+                self.atom_db.store_assignment(*assignment.literal())
             }
 
             AssignmentSource::Assumption => {
-                if self.atom_db.config.stacked_assumptions.value
-                    || self
-                        .atom_db
-                        .assignments
-                        .last()
-                        .is_none_or(|a| a.source != AssignmentSource::Assumption)
-                {
-                    self.atom_db.initial_decision_level += 1;
-                    self.atom_db
-                        .level_indicies
-                        .push(self.atom_db.assignments.len());
-                }
-
-                self.atom_db.store_assignment(assignment);
+                self.store_assumption(*assignment.literal());
             }
         }
+    }
+
+    pub fn store_assumption(&mut self, literal: CLiteral) {
+        if self.atom_db.config.stacked_assumptions.value
+            || self.atom_db.trail.last().is_none_or(|a| {
+                let Some(assignment) = self.resolution_buffer.get_assignment(a.atom()) else {
+                    panic!("! Missing assignment");
+                };
+
+                assignment.source != AssignmentSource::Assumption
+            })
+        {
+            self.atom_db.initial_decision_level += 1;
+            self.atom_db.level_indicies.push(self.atom_db.trail.len());
+        }
+
+        self.atom_db.store_assignment(literal);
     }
 }

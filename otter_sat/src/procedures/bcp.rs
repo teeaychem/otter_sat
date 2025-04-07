@@ -224,9 +224,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// In the case of conflict, a [FundamentalConflict](ErrorKind::FundamentalConflict) is returned.
     pub fn propagate_unless_error(&mut self) -> Result<(), ErrorKind> {
         log::info!("Initial BCP");
-        while let Some(Assignment { literal, source: _ }) =
-            self.atom_db.assignments.get(self.atom_db.q_head)
-        {
+        while let Some(literal) = self.atom_db.trail.get(self.atom_db.q_head) {
             match self.bcp(*literal) {
                 Ok(()) => {
                     self.atom_db.q_head += 1;

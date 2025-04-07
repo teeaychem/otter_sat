@@ -164,7 +164,7 @@ impl ResolutionBuffer {
 
         // Resolution buffer is only used by analysis, which is only called after some decision has been made
         let the_trail = atom_db.take_assignments();
-        'resolution_loop: for consequence in the_trail.iter().rev() {
+        'resolution_loop: for assignment in the_trail.iter().rev() {
             if self.valueless_count <= 1 {
                 match self.config.stopping {
                     StoppingCriteria::FirstUIP => {
@@ -174,19 +174,29 @@ impl ResolutionBuffer {
                 }
             }
 
-            log::info!(target: targets::RESOLUTION, "Examining trail item {consequence:?}");
+            log::info!(target: targets::RESOLUTION, "Examining trail item {assignment:?}");
 
-            match consequence.source() {
+            // TODO: Fix up
+            let literal = assignment;
+            let source = *self
+                .buffer
+                .get(literal.atom() as usize)
+                .unwrap()
+                .get_assignment()
+                .clone()
+                .unwrap()
+                .source();
+
+            match source {
                 AssignmentSource::BCP(key) => {
-                    let mut key = *key;
+                    let mut key = key;
 
                     let source_clause = unsafe { clause_db.get_unchecked_mut(&key) };
 
                     // Recorded here to avoid multiple mutable borrows of clause_db
                     let source_clause_size = source_clause.size();
 
-                    let resolution_result =
-                        self.resolve_clause(source_clause, consequence.literal());
+                    let resolution_result = self.resolve_clause(source_clause, literal);
 
                     clause_db.note_use(key);
                     self.premises.insert(key);
@@ -211,7 +221,7 @@ impl ResolutionBuffer {
 
                             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
                                 let clause = unsafe { clause_db.get_unchecked_mut(&key) };
-                                clause.subsume(consequence.literal(), atom_db, true)?;
+                                clause.subsume(literal, atom_db, true)?;
 
                                 self.premises.insert(key);
                                 clause_db.note_use(key);
@@ -371,6 +381,15 @@ impl ResolutionBuffer {
                 // Skip over any clauses which are not involved in the current resolution trail
                 Err(err::ResolutionBufferError::LostClause)
             }
+        }
+    }
+}
+
+impl ResolutionBuffer {
+    pub fn get_assignment(&self, atom: Atom) -> &Option<Assignment> {
+        match self.buffer.get(atom as usize) {
+            None => &None,
+            Some(cell) => &cell.assignment,
         }
     }
 }

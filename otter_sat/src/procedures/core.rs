@@ -79,7 +79,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             seen_atoms.insert(literal.atom());
         }
 
-        for assignment in self.atom_db.assignments.iter().rev() {
+        for literal in self.atom_db.trail.iter().rev() {
+            let Some(assignment) = self.resolution_buffer.get_assignment(literal.atom()) else {
+                panic!("! Missing assignment");
+            };
+
             match assignment.source {
                 AssignmentSource::PureLiteral => {}
 
@@ -101,22 +105,22 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 AssignmentSource::Decision => {}
 
                 AssignmentSource::Assumption => {
-                    if seen_atoms.contains(&assignment.literal().atom()) {
-                        core.insert(vec![*assignment.literal()]);
+                    if seen_atoms.contains(&literal.atom()) {
+                        core.insert(vec![*literal]);
                     }
                 }
 
                 AssignmentSource::Original => {
-                    if seen_atoms.contains(&assignment.literal().atom()) {
-                        core.insert(vec![*assignment.literal()]);
+                    if seen_atoms.contains(&literal.atom()) {
+                        core.insert(vec![*literal]);
                     }
                 }
 
                 AssignmentSource::Addition => {
-                    let key = ClauseKey::OriginalUnit(*assignment.literal());
+                    let key = ClauseKey::OriginalUnit(*literal);
 
                     for key in self.original_keys(key) {
-                        core.insert(vec![*assignment.literal()]);
+                        core.insert(vec![*literal]);
                         for literal in unsafe { self.clause_db.get_unchecked(&key).literals() } {
                             seen_atoms.insert(literal.atom());
                         }

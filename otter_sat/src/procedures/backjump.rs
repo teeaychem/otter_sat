@@ -73,7 +73,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // Retain queued consequences of the level backjumping to.
         // self.clear_above(target);
 
-        self.atom_db.q_head = cmp::min(self.atom_db.q_head, self.atom_db.assignments.len());
+        self.atom_db.q_head = cmp::min(self.atom_db.q_head, self.atom_db.trail.len());
 
         if target <= self.atom_db.initial_decision_level {
             self.atom_db.initial_decision_level = target;
