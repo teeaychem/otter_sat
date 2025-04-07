@@ -49,7 +49,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         &mut self,
         previous_value: bool,
     ) -> Result<Atom, err::AtomDBError> {
-        let atom = match self.atom_db.valuation.len().try_into() {
+        let atom = match self.valuation.len().try_into() {
             // Note, ATOM_MAX over Atom::Max as the former is limited by the representation of literals, if relevant.
             Ok(atom) if atom <= ATOM_MAX => atom,
             _ => {
@@ -60,7 +60,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         self.atom_db.activity_heap.add(atom as usize, 1.0);
 
         self.watch_dbs.dbs.push(WatchDB::default());
-        self.atom_db.valuation.push(None);
+        self.valuation.push(None);
         self.atom_db.previous_valuation.push(previous_value);
         self.atom_db.atom_level_map.push(None);
 
@@ -71,8 +71,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Ensure `atom` is present in the context --- specifically, by introducing as many atoms as required to ensure atoms form a  contiguous block: [0..`atom`].
     // As `atom` is an atom, the method is guaranteed to succeed.
     pub fn ensure_atom(&mut self, atom: Atom) {
-        if self.atom_db.count() <= (atom as usize) {
-            for _ in 0..((atom as usize) - self.atom_db.count()) + 1 {
+        if self.valuation.len() <= (atom as usize) {
+            for _ in 0..((atom as usize) - self.valuation.len()) + 1 {
                 self.fresh_atom();
             }
         }
@@ -134,11 +134,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 self.clause_db.store(
                     literal,
                     ClauseSource::Original,
+                    &self.valuation,
                     &mut self.atom_db,
                     &mut self.watch_dbs,
                     HashSet::default(),
                 );
-                let q_result = unsafe { self.atom_db.set_value_unchecked(literal, 0) };
+                let q_result = unsafe { self.set_value_unchecked(literal, 0) };
                 match q_result {
                     AtomValue::NotSet => {
                         let assignment = Assignment::from(literal, AssignmentSource::Original);
@@ -159,6 +160,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 self.clause_db.store(
                     clause,
                     ClauseSource::Original,
+                    &self.valuation,
                     &mut self.atom_db,
                     &mut self.watch_dbs,
                     HashSet::default(),

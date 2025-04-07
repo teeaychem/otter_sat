@@ -65,6 +65,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     self.clause_db.store(
                         *assignment.literal(),
                         ClauseSource::PureUnit,
+                        &self.valuation,
                         &mut self.atom_db,
                         &mut self.watch_dbs,
                         premises,
@@ -90,6 +91,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             self.clause_db.store(
                                 *unit_clause,
                                 ClauseSource::BCP,
+                                &self.valuation,
                                 &mut self.atom_db,
                                 &mut self.watch_dbs,
                                 premises,

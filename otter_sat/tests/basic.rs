@@ -55,8 +55,8 @@ mod basic {
 
         assert_eq!(ctx.solve(), Ok(Report::Satisfiable));
 
-        assert_eq!(ctx.atom_db.value_of(p.atom()), Some(false));
-        assert_eq!(ctx.atom_db.value_of(q.atom()), Some(true));
+        assert_eq!(ctx.value_of(p.atom()), Some(false));
+        assert_eq!(ctx.value_of(q.atom()), Some(true));
     }
 
     #[test]
@@ -70,7 +70,7 @@ mod basic {
         assert!(ctx.add_clause(vec![p, p, q, q]).is_ok());
 
         // The atom db always contains top, and so the expected atom count is plus one.
-        assert_eq!(3, ctx.atom_db.count());
+        assert_eq!(3, ctx.valuation.len());
 
         let database = ctx
             .clause_db

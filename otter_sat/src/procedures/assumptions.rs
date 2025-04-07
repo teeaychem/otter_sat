@@ -87,10 +87,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     // # Safety
                     // The atom has been ensured, above.
-                    match unsafe {
-                        self.atom_db
-                            .set_value_unchecked(assumption, self.trail.level())
-                    } {
+                    match unsafe { self.set_value_unchecked(assumption, self.trail.level()) } {
                         AtomValue::NotSet => {
                             log::info!("BCP of assumption: {assumption}");
                             // As assumptions are stacked, immediately call BCP.
@@ -126,10 +123,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 for literal in assumptions.into_iter() {
                     self.ensure_atom(literal.atom());
 
-                    let q_result = unsafe {
-                        self.atom_db
-                            .set_value_unchecked(literal, self.trail.level())
-                    };
+                    let q_result = unsafe { self.set_value_unchecked(literal, self.trail.level()) };
                     match q_result {
                         AtomValue::NotSet => {
                             let assignment =

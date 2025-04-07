@@ -47,6 +47,7 @@ use crate::{
         clause::{CClause, Clause},
         consequence::{Assignment, AssignmentSource},
         literal::{CLiteral, Literal},
+        valuation::vValuation,
     },
     types::err::{self},
 };
@@ -152,6 +153,7 @@ impl ResolutionBuffer {
     pub fn resolve_through_current_level(
         &mut self,
         key: &ClauseKey,
+        valuation: &vValuation,
         clause_db: &mut ClauseDB,
         atom_db: &mut AtomDB,
         watch_dbs: &mut Watches,
@@ -228,7 +230,7 @@ impl ResolutionBuffer {
 
                             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
                                 let clause = unsafe { clause_db.get_unchecked_mut(&key) };
-                                clause.subsume(literal, atom_db, watch_dbs, true)?;
+                                clause.subsume(literal, valuation, watch_dbs, true)?;
 
                                 self.premises.insert(key);
                                 clause_db.note_use(key);

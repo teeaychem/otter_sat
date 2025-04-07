@@ -76,7 +76,6 @@ fn main() {
         models_found += 1;
 
         let clause: IntClause = the_context
-            .atom_db
             .valuation_canonical()
             .iter()
             .enumerate()

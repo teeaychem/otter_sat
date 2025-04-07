@@ -55,7 +55,7 @@ fn main() {
 
         count += 1;
 
-        let last_valuation = the_context.atom_db.valuation();
+        let last_valuation = the_context.valuation();
         let mut valuation_as_chars = Vec::default();
         for (atom, value) in last_valuation.atom_value_pairs() {
             let character = atom_map[atom as usize];
@@ -70,13 +70,7 @@ fn main() {
 
         let mut clause = Vec::new();
 
-        for (atom, value) in the_context
-            .atom_db
-            .valuation_canonical()
-            .iter()
-            .enumerate()
-            .skip(1)
-        {
+        for (atom, value) in the_context.valuation_canonical().iter().enumerate().skip(1) {
             if let Some(v) = value {
                 clause.push(CLiteral::new(atom as Atom, !v));
             }

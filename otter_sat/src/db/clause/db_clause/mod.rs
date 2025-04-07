@@ -28,6 +28,7 @@ use crate::{
     structures::{
         clause::{CClause, Clause},
         literal::CLiteral,
+        valuation::Valuation,
     },
 };
 
@@ -85,6 +86,7 @@ impl dbClause {
     pub fn new_nonunit(
         key: ClauseKey,
         clause: CClause,
+        valuation: &impl Valuation,
         atom_db: &mut AtomDB,
         watches: &mut Watches,
     ) -> Self {
@@ -95,7 +97,7 @@ impl dbClause {
             watch_ptr: 0,
         };
 
-        db_clause.initialise_watches(atom_db, watches);
+        db_clause.initialise_watches(valuation, atom_db, watches);
 
         db_clause
     }
