@@ -60,7 +60,7 @@ use super::atom::Atom;
 
 /// The canonical representation of a valuation.
 #[allow(non_camel_case_types)]
-pub type vValuation = Vec<Option<bool>>;
+pub type CValuation = Vec<Option<bool>>;
 
 /// A valuation is something which stores some value of a atom and/or perhaps the information that the atom has no value.
 pub trait Valuation {
@@ -89,7 +89,7 @@ pub trait Valuation {
     fn unvalued_atoms(&self) -> impl Iterator<Item = Atom>;
 
     /// The canonical representation of a valuation as a [vValuation].
-    fn canonical(&self) -> vValuation;
+    fn canonical(&self) -> CValuation;
 
     /// Ensures the first element of the valuation is false.
     fn true_check(&self) -> bool;

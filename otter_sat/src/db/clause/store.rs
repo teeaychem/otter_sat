@@ -11,7 +11,7 @@ use crate::{
     structures::{
         clause::{CClause, Clause, ClauseSource},
         literal::CLiteral,
-        valuation::{Valuation, vValuation},
+        valuation::{CValuation, Valuation},
     },
     types::err,
 };
@@ -33,7 +33,7 @@ impl ClauseDB {
         &mut self,
         clause: impl Clause,
         source: ClauseSource,
-        valuation: &vValuation,
+        valuation: &CValuation,
         atom_db: &mut AtomDB,
         watches: &mut Watches,
         premises: HashSet<ClauseKey>,
@@ -142,7 +142,7 @@ impl ClauseDB {
         &mut self,
         clause: CClause,
         source: ClauseSource,
-        valuation: &vValuation,
+        valuation: &CValuation,
         atom_db: &mut AtomDB,
         watches: &mut Watches,
     ) -> Result<ClauseKey, err::ClauseDBError> {

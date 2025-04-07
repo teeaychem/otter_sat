@@ -35,19 +35,14 @@ use std::{borrow::Borrow, collections::HashSet};
 
 use crate::{
     config::{Config, StoppingCriteria},
-    db::{
-        ClauseKey,
-        atom::{AtomDB, Trail},
-        clause::ClauseDB,
-        watches::Watches,
-    },
+    db::{ClauseKey, clause::ClauseDB, trail::Trail, watches::Watches},
     misc::log::targets::{self},
     structures::{
         atom::Atom,
         clause::{CClause, Clause},
         consequence::{Assignment, AssignmentSource},
         literal::{CLiteral, Literal},
-        valuation::vValuation,
+        valuation::CValuation,
     },
     types::err::{self},
 };
@@ -153,9 +148,8 @@ impl ResolutionBuffer {
     pub fn resolve_through_current_level(
         &mut self,
         key: &ClauseKey,
-        valuation: &vValuation,
+        valuation: &CValuation,
         clause_db: &mut ClauseDB,
-        atom_db: &mut AtomDB,
         watch_dbs: &mut Watches,
         trail: &mut Trail,
     ) -> Result<ResolutionOk, err::ResolutionBufferError> {

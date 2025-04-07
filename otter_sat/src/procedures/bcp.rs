@@ -59,10 +59,7 @@ use std::borrow::Borrow;
 
 use crate::{
     context::GenericContext,
-    db::atom::{
-        AtomValue,
-        watch_db::{self},
-    },
+    db::{atom::AtomValue, watches::watch_db},
     misc::log::targets::{self},
     structures::{
         consequence::{Assignment, AssignmentSource},
@@ -99,7 +96,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // Binary clause block.
         {
             // Note, this does not require updating watches.
-            let binary_list = unsafe { self.watch_dbs.watchers_binary_unchecked(literal) };
+            let binary_list = unsafe { self.watches.watchers_binary_unchecked(literal) };
 
             for element in unsafe { &*binary_list } {
                 let check = element.literal;
@@ -137,7 +134,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         // Long clause block.
         {
-            let long_list = unsafe { &mut *self.watch_dbs.watchers_long_unchecked(literal) };
+            let long_list = unsafe { &mut *self.watches.watchers_long_unchecked(literal) };
 
             let mut index = 0;
             let mut length = long_list.len();
@@ -154,11 +151,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
                 };
 
-                match db_clause.update_watch(
-                    literal.atom(),
-                    &mut self.valuation,
-                    &mut self.watch_dbs,
-                ) {
+                match db_clause.update_watch(literal.atom(), &mut self.valuation, &mut self.watches)
+                {
                     Ok(watch_db::WatchStatus::Witness) | Ok(watch_db::WatchStatus::None) => {
                         length -= 1;
                         long_list.swap(index, length);

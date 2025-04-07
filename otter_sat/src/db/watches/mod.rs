@@ -1,11 +1,10 @@
+pub mod watch_db;
+use watch_db::{BinaryWatch, LongWatch, WatchDB};
+
 use crate::{
+    db::ClauseKey,
     structures::literal::{CLiteral, Literal},
     types::err,
-};
-
-use super::{
-    ClauseKey,
-    atom::watch_db::{BinaryWatch, LongWatch, WatchDB},
 };
 
 #[derive(Default)]

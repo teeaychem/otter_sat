@@ -1,6 +1,6 @@
 use crate::{
     context::GenericContext,
-    db::atom::{AtomValue, watch_db::WatchDB},
+    db::{atom::AtomValue, watches::watch_db::WatchDB},
     structures::{
         atom::{ATOM_MAX, Atom},
         clause::{Clause, ClauseSource},
@@ -59,7 +59,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         self.atom_db.activity_heap.add(atom as usize, 1.0);
 
-        self.watch_dbs.dbs.push(WatchDB::default());
+        self.watches.dbs.push(WatchDB::default());
         self.valuation.push(None);
         self.atom_db.previous_valuation.push(previous_value);
         self.atom_db.atom_level_map.push(None);
@@ -136,7 +136,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     ClauseSource::Original,
                     &self.valuation,
                     &mut self.atom_db,
-                    &mut self.watch_dbs,
+                    &mut self.watches,
                     HashSet::default(),
                 );
                 let q_result = unsafe { self.set_value_unchecked(literal, 0) };
@@ -162,7 +162,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     ClauseSource::Original,
                     &self.valuation,
                     &mut self.atom_db,
-                    &mut self.watch_dbs,
+                    &mut self.watches,
                     HashSet::default(),
                 )?;
 

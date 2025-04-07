@@ -42,7 +42,7 @@ impl<T: std::ops::DerefMut<Target = [Option<bool>]>> Valuation for T {
         })
     }
 
-    fn canonical(&self) -> super::vValuation {
+    fn canonical(&self) -> super::CValuation {
         self.iter().copied().collect::<Vec<_>>()
     }
 

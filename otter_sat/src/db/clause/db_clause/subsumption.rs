@@ -1,11 +1,11 @@
 use std::borrow::Borrow;
 
 use crate::{
-    db::{atom::AtomDB, watches::Watches},
+    db::watches::Watches,
     misc::log::targets,
     structures::{
         literal::{CLiteral, Literal},
-        valuation::{Valuation, vValuation},
+        valuation::{CValuation, Valuation},
     },
     types::err::{self},
 };
@@ -42,7 +42,7 @@ impl dbClause {
     pub fn subsume(
         &mut self,
         literal: impl Borrow<CLiteral>,
-        valuation: &vValuation,
+        valuation: &CValuation,
         watches: &mut Watches,
         fix_watch: bool,
     ) -> Result<usize, err::SubsumptionError> {

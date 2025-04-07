@@ -1,13 +1,9 @@
 use crate::{
     config::Config,
-    db::{
-        atom::{AtomDB, Trail},
-        clause::ClauseDB,
-        watches::Watches,
-    },
+    db::{atom::AtomDB, clause::ClauseDB, trail::Trail, watches::Watches},
     generic::random::MinimalPCG32,
     resolution_buffer::ResolutionBuffer,
-    structures::valuation::vValuation,
+    structures::valuation::CValuation,
 };
 
 use rand::SeedableRng;
@@ -21,9 +17,9 @@ impl Context {
     /// Creates a context from some given configuration.
     pub fn from_config(config: Config) -> Self {
         let mut ctx = Self {
-            valuation: vValuation::default(),
+            valuation: CValuation::default(),
             atom_db: AtomDB::new(&config),
-            watch_dbs: Watches::default(),
+            watches: Watches::default(),
             clause_db: ClauseDB::new(&config),
             resolution_buffer: ResolutionBuffer::new(&config),
             trail: Trail::default(),
