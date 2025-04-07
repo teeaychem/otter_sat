@@ -102,8 +102,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // Safety: Some decision must have been made for conflict analysis to take place.
 
         for Assignment { literal, source: _ } in self.atom_db.top_level_assignments() {
-            self.resolution_buffer
-                .set_valuation(literal.atom(), None, None);
+            // self.resolution_buffer
+            //     .set_valuation(literal.atom(), None, None);
+            self.resolution_buffer.mark_backjump(literal.atom());
         }
 
         match self.resolution_buffer.resolve_through_current_level(

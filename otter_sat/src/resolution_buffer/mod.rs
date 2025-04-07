@@ -44,7 +44,7 @@ pub struct ResolutionBuffer {
     buffer: Vec<Cell>,
 
     /// A stack of modified atoms, with the original value stored as literal polarity.
-    merged_atoms: Vec<(Atom, Option<bool>)>,
+    merged_atoms: Vec<Atom>,
 
     /// A (typically derived) configuration for the instance of resolution.
     config: BufferConfig,
