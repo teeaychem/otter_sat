@@ -10,7 +10,7 @@ use crate::{
     structures::{
         atom::Atom,
         literal::{CLiteral, Literal},
-        valuation::{CValuation, Valuation},
+        valuation::Valuation,
     },
 };
 
@@ -61,9 +61,9 @@ impl dbClause {
      Failure for a candidate for watch A to be found implies a candidate for watch B.
      Still, this is not encoded, as failure for watch A is very unlikely.
      */
-    pub fn initialise_watches(
+    pub fn initialise_watches<Val: Valuation>(
         &mut self,
-        valuation: &impl Valuation,
+        valuation: &Val,
         atom_db: &mut AtomDB,
         watches: &mut Watches,
     ) {
@@ -178,7 +178,7 @@ impl dbClause {
     pub fn update_watch(
         &mut self,
         atom: Atom,
-        valuation: &CValuation,
+        valuation: &impl Valuation,
         watches: &mut Watches,
     ) -> Result<WatchStatus, ()> {
         let watch_ptr_cache = self.watch_ptr;

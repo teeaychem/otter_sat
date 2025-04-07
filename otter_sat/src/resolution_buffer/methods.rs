@@ -42,7 +42,7 @@ use crate::{
         clause::{CClause, Clause},
         consequence::{Assignment, AssignmentSource},
         literal::{CLiteral, Literal},
-        valuation::CValuation,
+        valuation::{CValuation, Valuation},
     },
     types::err::{self},
 };
@@ -145,10 +145,10 @@ impl ResolutionBuffer {
     /// Applies resolution with the clauses used to observe consequences at the current level.
     ///
     /// Clauses are examined in reverse order of use.
-    pub fn resolve_through_current_level(
+    pub fn resolve_through_current_level<Val: Valuation>(
         &mut self,
         key: &ClauseKey,
-        valuation: &CValuation,
+        valuation: &Val,
         clause_db: &mut ClauseDB,
         watch_dbs: &mut Watches,
         trail: &mut Trail,

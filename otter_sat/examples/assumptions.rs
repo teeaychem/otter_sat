@@ -70,10 +70,8 @@ fn main() {
 
         let mut clause = Vec::new();
 
-        for (atom, value) in the_context.valuation_canonical().iter().enumerate().skip(1) {
-            if let Some(v) = value {
-                clause.push(CLiteral::new(atom as Atom, !v));
-            }
+        for (atom, value) in the_context.valuation().atom_valued_pairs() {
+            clause.push(CLiteral::new(atom as Atom, !value));
         }
 
         the_context.clear_decisions();

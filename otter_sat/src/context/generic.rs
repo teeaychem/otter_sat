@@ -104,10 +104,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         &self.valuation
     }
 
-    /// The current valuation, as a canonical [vValuation].
-    pub fn valuation_canonical(&self) -> &CValuation {
-        &self.valuation
-    }
+    // /// The current valuation, as a canonical [CValuation].
+    // pub fn valuation_canonical(&self) -> &CValuation {
+    //     &self.valuation
+    // }
 
     pub fn value_of(&self, atom: Atom) -> Option<bool> {
         unsafe { *self.valuation.get_unchecked(atom as usize) }

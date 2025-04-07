@@ -16,6 +16,7 @@ use otter_sat::{
     structures::{
         clause::{ClauseSource, IntClause},
         literal::IntLiteral,
+        valuation::Valuation,
     },
 };
 
@@ -76,14 +77,11 @@ fn main() {
         models_found += 1;
 
         let clause: IntClause = the_context
-            .valuation_canonical()
-            .iter()
-            .enumerate()
-            .skip(1)
-            .flat_map(|(a, v)| match v {
-                Some(false) => Some(a as IntLiteral),
-                Some(true) => Some(-(a as IntLiteral)),
-                None => None,
+            .valuation()
+            .atom_valued_pairs()
+            .map(|(a, v)| match v {
+                false => a as IntLiteral,
+                true => -(a as IntLiteral),
             })
             .collect();
 

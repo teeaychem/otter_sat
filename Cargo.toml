@@ -5,22 +5,24 @@ members = [
    "otter_tests",
 ]
 
+[profile.release]
+codegen-units = 1
+debug = false
+lto = "fat"
+
+
 [profile.log]
 codegen-units = 1
 debug = true
 inherits = "dev"
-lto = true
+lto = "fat"
 
 
 [profile.profiling]
-codegen-units = 1
-debug = true
 inherits = "release"
-lto = true
+lto = "fat"
 
 [profile.redline]
 codegen-units = 1
-debug = false
 inherits = "release"
-lto = true
 panic = "abort"
