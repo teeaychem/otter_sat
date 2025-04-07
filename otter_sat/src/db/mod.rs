@@ -52,7 +52,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// # Safety
     /// If the source of the consequence references a clause stored by a key, the clause must be present in the clause database.
     pub fn record_assignment(&mut self, assignment: Assignment) {
-        self.resolution_buffer.set_valuation(
+        self.atom_cells.set_valuation(
             assignment.atom(),
             Some(assignment.value()),
             Some(assignment.clone()),
@@ -122,9 +122,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     }
 
     pub fn store_assumption(&mut self, literal: CLiteral) {
-        if self.atom_db.config.stacked_assumptions.value
+        if self.config.stacked_assumptions.value
             || self.trail.literals.last().is_none_or(|a| {
-                let Some(assignment) = self.resolution_buffer.get_assignment(a.atom()) else {
+                let Some(assignment) = self.atom_cells.get_assignment(a.atom()) else {
                     panic!("! Missing assignment");
                 };
 

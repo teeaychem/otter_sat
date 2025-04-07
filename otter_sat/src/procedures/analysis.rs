@@ -5,7 +5,7 @@ Takes a key to a clause which is unsatisfiable on the current valuation and retu
 
 In other words, conflict analysis takes a key to a clause which is unsatisfiable on the current valuation and applies resolution using the clauses used to (eventually) make the observation of a conflict given decisions made.
 
-For details on resolution, see the [resolution buffer](crate::resolution_buffer).
+For details on resolution, see the [atom cells](crate::atom_cells) structure.
 
 For the method, see: [conflict_analysis](GenericContext::conflict_analysis).
 
@@ -41,11 +41,11 @@ match analysis_result {
 */
 
 use crate::{
+    atom_cells::ResolutionOk,
     config,
     context::GenericContext,
     db::ClauseKey,
     misc::log::targets::{self},
-    resolution_buffer::ResolutionOk,
     structures::{
         clause::{Clause, ClauseSource},
         literal::{CLiteral, Literal},
@@ -93,20 +93,22 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         log::info!(target: targets::ANALYSIS, "Valuation: {}", self.valuation_string());
 
         if let config::vsids::VSIDS::Chaff = self.config.vsids.value {
-            self.atom_db
-                .bump_relative(unsafe { self.clause_db.get_unchecked(key).atoms() });
+            crate::db::atom::activity::bump_relative(
+                unsafe { self.clause_db.get_unchecked(key).atoms() },
+                &mut self.atom_activity,
+                &mut self.config.atom_bump,
+                &mut self.config.atom_decay,
+            );
         }
 
-        self.resolution_buffer.refresh();
+        self.atom_cells.refresh();
         // Safety: Some decision must have been made for conflict analysis to take place.
 
         for literal in self.trail.top_level_assignments() {
-            // self.resolution_buffer
-            //     .set_valuation(literal.atom(), None, None);
-            self.resolution_buffer.mark_backjump(literal.atom());
+            self.atom_cells.mark_backjump(literal.atom());
         }
 
-        match self.resolution_buffer.resolve_through_current_level(
+        match self.atom_cells.resolve_through_current_level(
             key,
             &self.valuation,
             &mut self.clause_db,
@@ -125,8 +127,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
 
         if let config::vsids::VSIDS::MiniSAT = self.config.vsids.value {
-            self.atom_db
-                .bump_relative(self.resolution_buffer.atoms_used());
+            crate::db::atom::activity::bump_relative(
+                self.atom_cells.atoms_used(),
+                &mut self.atom_activity,
+                &mut self.config.atom_bump,
+                &mut self.config.atom_decay,
+            );
         }
 
         /*
@@ -139,8 +145,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         //     the_buffer.strengthen_given(self.clause_db.all_unit_clauses());
         // }
 
-        let premises = self.resolution_buffer.take_premises();
-        let clause = self.resolution_buffer.to_assertion_clause();
+        let premises = self.atom_cells.take_premises();
+        let clause = self.atom_cells.to_assertion_clause();
         let literal = *unsafe { clause.get_unchecked(0) };
         log::info!(target: targets::ANALYSIS, "Addition clause: {:?}", clause);
 

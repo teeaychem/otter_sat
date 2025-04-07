@@ -33,7 +33,7 @@ pub enum ResolutionOk {
 }
 
 /// A buffer for use when applying resolution to a sequence of clauses.
-pub struct ResolutionBuffer {
+pub struct AtomCells {
     /// A count of literals in the clause whose atoms do not have a value on the given interpretation.
     valueless_count: usize,
 
@@ -56,7 +56,7 @@ pub struct ResolutionBuffer {
     callback_premises: Option<Box<CallbackOnPremises>>,
 }
 
-impl ResolutionBuffer {
+impl AtomCells {
     /// Set the callback made when an instance of resolution completes and returns premises used to `callback`.
     pub fn set_callback_resolution_premises(&mut self, callback: Box<CallbackOnPremises>) {
         self.callback_premises = Some(callback);

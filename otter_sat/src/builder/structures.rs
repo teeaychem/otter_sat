@@ -57,14 +57,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
         };
 
-        self.atom_db.activity_heap.add(atom as usize, 1.0);
+        self.atom_activity.add(atom as usize, 1.0);
 
         self.watches.dbs.push(WatchDB::default());
         self.valuation.push(None);
         self.atom_db.previous_valuation.push(previous_value);
         self.atom_db.atom_level_map.push(None);
 
-        self.resolution_buffer.grow_to_include(atom);
+        self.atom_cells.grow_to_include(atom);
         Ok(atom)
     }
 

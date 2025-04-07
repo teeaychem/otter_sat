@@ -152,7 +152,7 @@ fn frat_setup(cnf_path: &Path, ctx: &mut Context) -> Rc<RefCell<Transcriber>> {
     let resolution_cb = move |premises: &HashSet<ClauseKey>| {
         transcribe_premises(&mut resolution_tx.borrow_mut(), premises)
     };
-    ctx.resolution_buffer
+    ctx.atom_cells
         .set_callback_resolution_premises(Box::new(resolution_cb));
 
     let unsatisfiable_tx = tx.clone();
@@ -274,13 +274,13 @@ fn parse_args(args: &mut [String], cfg: &mut Config, cli_options: &mut CliConfig
             // Further, the cases should be in lexicographic order.
             //
             Some("--atom_bump") => {
-                let (min, max) = cfg.atom_db.bump.min_max();
+                let (min, max) = cfg.atom_bump.min_max();
 
                 if let Some(request) = split.next() {
                     if let Ok(value) = request.parse::<Activity>() {
                         if min <= value && value <= max {
                             println!("c atom_bump set to: {value}");
-                            cfg.atom_db.bump.value = value;
+                            cfg.atom_bump.value = value;
                             continue 'arg_examination;
                         }
                     }
@@ -291,13 +291,13 @@ fn parse_args(args: &mut [String], cfg: &mut Config, cli_options: &mut CliConfig
             }
 
             Some("--atom_decay") => {
-                let (min, max) = cfg.atom_db.decay.min_max();
+                let (min, max) = cfg.atom_decay.min_max();
 
                 if let Some(request) = split.next() {
                     if let Ok(value) = request.parse::<Activity>() {
                         if min <= value && value <= max {
                             println!("c atom_decay set to: {value}");
-                            cfg.atom_db.decay.value = value;
+                            cfg.atom_decay.value = value;
                             continue 'arg_examination;
                         }
                     }

@@ -43,29 +43,16 @@ Further, as a conflict requires immediate backjumping, this use may avoid redund
 
 #[doc(hidden)]
 pub mod activity;
-#[doc(hidden)]
-pub mod valuation;
 
-use crate::{
-    config::{Activity, Config, dbs::AtomDBConfig},
-    db::LevelIndex,
-    generic::index_heap::IndexHeap,
-    structures::atom::Atom,
-};
+use crate::{db::LevelIndex, structures::atom::Atom};
 
 /// The atom database.
 pub struct AtomDB {
     /// The previous (often partial) [valuation](Valuation) (or some randomised valuation).
     pub previous_valuation: Vec<bool>,
 
-    /// An [IndexHeap] recording the activty of atoms, where any atom without a value is 'active' on the heap.
-    pub activity_heap: IndexHeap<Activity>,
-
     /// A map from atoms to levels.
     pub atom_level_map: Vec<Option<LevelIndex>>,
-
-    /// A local configuration, typically derived from the configuration of a context.
-    pub config: AtomDBConfig,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -83,13 +70,10 @@ pub enum AtomValue {
 
 impl AtomDB {
     /// A new [AtomDB] with local configuration options derived from `config`.
-    pub fn new(config: &Config) -> Self {
+    pub fn new() -> Self {
         AtomDB {
-            activity_heap: IndexHeap::default(),
             previous_valuation: Vec::default(),
             atom_level_map: Vec::default(),
-
-            config: config.atom_db.clone(),
         }
     }
 
@@ -99,5 +83,15 @@ impl AtomDB {
     /// No check is made on whether the decision level of the atom is tracked.
     pub unsafe fn level_unchecked(&self, atom: Atom) -> Option<LevelIndex> {
         *unsafe { self.atom_level_map.get_unchecked(atom as usize) }
+    }
+
+    /// Returns the '*previous*' value of the atom from the valuation stored in the [AtomDB].
+    ///
+    /// When a context is built this value may be randomised.
+    ///
+    /// # Safety
+    /// Does not check that the atom is part of the valuation.
+    pub fn previous_value_of(&self, atom: Atom) -> bool {
+        unsafe { *self.previous_valuation.get_unchecked(atom as usize) }
     }
 }

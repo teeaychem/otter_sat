@@ -49,14 +49,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // This is safe, as no new assumptions will be created when asserting assumptions.
         // Further, the calls to BCP are as safe as can be, as a check is made to ensure the language of the context includes the atom of each assumption added.
 
-        match self.config.atom_db.stacked_assumptions.value {
+        match self.config.stacked_assumptions.value {
             true => {
                 for assumption in &assumptions {
                     self.ensure_atom(assumption.atom());
 
-                    if let Some(assignment) =
-                        self.resolution_buffer.get_assignment(assumption.atom())
-                    {
+                    if let Some(assignment) = self.atom_cells.get_assignment(assumption.atom()) {
                         let key = {
                             match assignment.source {
                                 AssignmentSource::PureLiteral => todo!(),
@@ -189,7 +187,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     assumptions.push(*literal);
                 }
 
-                let Some(assignment) = self.resolution_buffer.get_assignment(literal.atom()) else {
+                let Some(assignment) = self.atom_cells.get_assignment(literal.atom()) else {
                     panic!("! Missing assignment");
                 };
 

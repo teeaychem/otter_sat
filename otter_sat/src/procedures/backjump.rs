@@ -68,7 +68,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let assignments = self.trail.clear_assigments_above(target);
         for literal in assignments.into_iter() {
             unsafe { self.drop_value(literal.atom()) }
-            self.resolution_buffer.clear_value(literal.atom());
+            self.atom_cells.clear_value(literal.atom());
         }
 
         // Retain queued consequences of the level backjumping to.

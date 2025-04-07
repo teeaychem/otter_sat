@@ -103,7 +103,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         match rng.random_bool(self.config.random_decision_bias.value) {
             true => self.valuation().unvalued_atoms().choose(rng),
             false => {
-                while let Some(atom) = self.atom_db.heap_pop_most_active() {
+                while let Some(atom) = self.atom_activity.pop_max().map(|idx| idx as Atom) {
                     if self.value_of(atom as Atom).is_none() {
                         return Some(atom);
                     }
