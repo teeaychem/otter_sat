@@ -7,6 +7,7 @@ use crate::{
     },
     generic::random::MinimalPCG32,
     resolution_buffer::ResolutionBuffer,
+    structures::valuation::vValuation,
 };
 
 use rand::SeedableRng;
@@ -20,6 +21,7 @@ impl Context {
     /// Creates a context from some given configuration.
     pub fn from_config(config: Config) -> Self {
         let mut ctx = Self {
+            valuation: vValuation::default(),
             atom_db: AtomDB::new(&config),
             watch_dbs: Watches::default(),
             clause_db: ClauseDB::new(&config),

@@ -3,7 +3,10 @@ use std::borrow::Borrow;
 use crate::{
     db::{atom::AtomDB, watches::Watches},
     misc::log::targets,
-    structures::literal::{CLiteral, Literal},
+    structures::{
+        literal::{CLiteral, Literal},
+        valuation::{Valuation, vValuation},
+    },
     types::err::{self},
 };
 
@@ -39,7 +42,7 @@ impl dbClause {
     pub fn subsume(
         &mut self,
         literal: impl Borrow<CLiteral>,
-        atom_db: &mut AtomDB,
+        valuation: &vValuation,
         watches: &mut Watches,
         fix_watch: bool,
     ) -> Result<usize, err::SubsumptionError> {
@@ -83,7 +86,7 @@ impl dbClause {
             for index in 1..clause_length {
                 // Safe, as index is the length of the clause.
                 let index_literal = unsafe { self.clause.get_unchecked(index) };
-                let index_value = atom_db.value_of(index_literal.atom());
+                let index_value = unsafe { valuation.value_of_unchecked(index_literal.atom()) };
                 match index_value {
                     Some(value) if value != index_literal.polarity() => {}
                     _ => {
@@ -96,7 +99,13 @@ impl dbClause {
             let watched_literal = unsafe { self.clause.get_unchecked(self.watch_ptr) };
             self.note_watch(watched_literal, watches);
             // TODO: Is this sufficient to uphold the required invariant?
-            if zero_swap && atom_db.value_of(watched_literal.atom()).is_none() {
+            if zero_swap
+                && unsafe {
+                    valuation
+                        .value_of_unchecked(watched_literal.atom())
+                        .is_none()
+                }
+            {
                 self.clause.swap(0, self.watch_ptr);
             }
         }

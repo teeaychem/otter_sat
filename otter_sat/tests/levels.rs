@@ -19,8 +19,8 @@ mod decision_levels {
         assert!(ctx.trail.assumption_is_made());
         assert!(ctx.trail.initial_decision_level == 2);
 
-        assert!(ctx.atom_db.value_of(q.atom()) == Some(true));
-        assert!(ctx.atom_db.value_of(s.atom()) == Some(false));
+        assert!(ctx.value_of(q.atom()) == Some(true));
+        assert!(ctx.value_of(s.atom()) == Some(false));
     }
 
     #[test]
@@ -41,8 +41,8 @@ mod decision_levels {
         assert!(ctx.trail.assumption_is_made());
         assert!(ctx.trail.initial_decision_level == 1);
 
-        assert!(ctx.atom_db.value_of(q.atom()).is_none());
-        assert!(ctx.atom_db.value_of(s.atom()).is_none());
+        assert!(ctx.value_of(q.atom()).is_none());
+        assert!(ctx.value_of(s.atom()).is_none());
     }
 
     #[test]
@@ -65,12 +65,12 @@ mod decision_levels {
         assert!(ctx.trail.assumption_is_made());
         assert!(ctx.trail.initial_decision_level == 1);
 
-        assert!(ctx.atom_db.value_of(q.atom()) == Some(true));
-        assert!(ctx.atom_db.value_of(s.atom()) == Some(false));
+        assert!(ctx.value_of(q.atom()) == Some(true));
+        assert!(ctx.value_of(s.atom()) == Some(false));
 
         ctx.backjump(0);
 
-        assert!(ctx.atom_db.value_of(q.atom()) == Some(true));
-        assert!(ctx.atom_db.value_of(s.atom()).is_none());
+        assert!(ctx.value_of(q.atom()) == Some(true));
+        assert!(ctx.value_of(s.atom()).is_none());
     }
 }

@@ -105,10 +105,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 let check = element.literal;
                 let key = element.key;
 
-                match self.atom_db.value_of(check.atom()) {
+                match self.value_of(check.atom()) {
                     None => {
                         let q_result =
-                            unsafe { self.atom_db.set_value_unchecked(check, self.trail.level()) };
+                            unsafe { self.set_value_unchecked(check, self.trail.level()) };
                         match q_result {
                             AtomValue::NotSet => {
                                 let assignment =
@@ -154,8 +154,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
                 };
 
-                match db_clause.update_watch(literal.atom(), &mut self.atom_db, &mut self.watch_dbs)
-                {
+                match db_clause.update_watch(
+                    literal.atom(),
+                    &mut self.valuation,
+                    &mut self.watch_dbs,
+                ) {
                     Ok(watch_db::WatchStatus::Witness) | Ok(watch_db::WatchStatus::None) => {
                         length -= 1;
                         long_list.swap(index, length);
@@ -172,7 +175,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         // After the call to update_watch, any atom without a value will be in position 0.
                         let watch = *unsafe { db_clause.get_unchecked(0) };
 
-                        match self.atom_db.value_of(watch.atom()) {
+                        match self.value_of(watch.atom()) {
                             Some(value) if watch.polarity() != value => {
                                 self.clause_db.note_use(key);
 
@@ -183,9 +186,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             None => {
                                 self.clause_db.note_use(key);
 
-                                let q_result = unsafe {
-                                    self.atom_db.set_value_unchecked(watch, self.trail.level())
-                                };
+                                let q_result =
+                                    unsafe { self.set_value_unchecked(watch, self.trail.level()) };
                                 match q_result {
                                     AtomValue::NotSet => {
                                         let consequence =

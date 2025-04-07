@@ -106,7 +106,7 @@ fn main() {
     match result {
         Report::Satisfiable => {
             if cli_options.model {
-                println!("v {}", ctx.atom_db.valuation_string())
+                println!("v {}", ctx.valuation_string())
             }
         }
 

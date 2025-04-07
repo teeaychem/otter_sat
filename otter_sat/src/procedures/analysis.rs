@@ -90,7 +90,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn conflict_analysis(&mut self, key: &ClauseKey) -> Result<AnalysisResult, err::ErrorKind> {
         log::info!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.trail.level());
         log::info!(target: targets::ANALYSIS, "Level: {:?}", self.trail.top_level_assignments());
-        log::info!(target: targets::ANALYSIS, "Valuation: {}", self.atom_db.valuation_string());
+        log::info!(target: targets::ANALYSIS, "Valuation: {}", self.valuation_string());
 
         if let config::vsids::VSIDS::Chaff = self.config.vsids.value {
             self.atom_db
@@ -108,6 +108,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         match self.resolution_buffer.resolve_through_current_level(
             key,
+            &self.valuation,
             &mut self.clause_db,
             &mut self.atom_db,
             &mut self.watch_dbs,
@@ -151,6 +152,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 self.clause_db.store(
                     literal,
                     ClauseSource::Resolution,
+                    &self.valuation,
                     &mut self.atom_db,
                     &mut self.watch_dbs,
                     premises,
@@ -165,6 +167,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 let key = self.clause_db.store(
                     clause,
                     ClauseSource::Resolution,
+                    &self.valuation,
                     &mut self.atom_db,
                     &mut self.watch_dbs,
                     premises,

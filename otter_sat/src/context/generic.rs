@@ -1,16 +1,20 @@
+use std::borrow::Borrow;
+
 use crate::{
     config::Config,
     db::{
-        ClauseKey,
-        atom::{AtomDB, Trail},
+        ClauseKey, LevelIndex,
+        atom::{AtomDB, AtomValue, Trail},
         clause::ClauseDB,
         watches::Watches,
     },
+    misc::log::targets,
     reports::Report,
     resolution_buffer::ResolutionBuffer,
     structures::{
         atom::Atom,
-        literal::{CLiteral, Literal},
+        literal::{CLiteral, IntLiteral, Literal},
+        valuation::{Valuation, vValuation},
     },
     types::err::ErrorKind,
 };
@@ -37,6 +41,9 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
 
     /// Counters related to a context/solve.
     pub counters: Counters,
+
+    /// A current (often partial) [valuation](Valuation).
+    pub valuation: vValuation,
 
     /// The atom database.
     /// See [db::atom](crate::db::atom) for details.
@@ -88,9 +95,123 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
     pub fn init(&mut self) {
         let the_true: Atom = unsafe { self.fresh_atom_fundamental(true).unwrap_unchecked() };
+        unsafe { self.set_value_unchecked(CLiteral::new(the_true, true), 0) };
+    }
+
+    /// The current valuation, as some struction which implements the valuation trait.
+    pub fn valuation(&self) -> &impl Valuation {
+        &self.valuation
+    }
+
+    /// The current valuation, as a canonical [vValuation].
+    pub fn valuation_canonical(&self) -> &vValuation {
+        &self.valuation
+    }
+
+    pub fn value_of(&self, atom: Atom) -> Option<bool> {
+        unsafe { *self.valuation.get_unchecked(atom as usize) }
+    }
+
+    /// Sets a given atom to have a given value, with a note of which decision this occurs after, if some decision has been made.
+    ///
+    /// # Safety
+    /// No check is made on whether the atom is part of the valuation.
+    pub unsafe fn set_value_unchecked(
+        &mut self,
+        literal: impl Borrow<CLiteral>,
+        level: LevelIndex,
+    ) -> AtomValue {
+        let literal = literal.borrow();
+        let atom = literal.atom();
+        let value = literal.polarity();
+
+        match self.value_of(atom) {
+            None => unsafe {
+                *self.valuation.get_unchecked_mut(atom as usize) = Some(value);
+                *self.atom_db.atom_level_map.get_unchecked_mut(atom as usize) = Some(level);
+                AtomValue::NotSet
+            },
+
+            Some(v) if v == value => AtomValue::Same,
+
+            Some(_) => AtomValue::Different,
+        }
+    }
+
+    /// A string representing the current valuation, using the external representation of atoms.
+    pub fn valuation_string(&self) -> String {
+        self.valuation()
+            .atom_value_pairs()
+            .filter_map(|(atom, v)| match v {
+                None => None,
+                Some(true) => Some(format!(" {atom}")),
+                Some(false) => Some(format!("-{atom}")),
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    /// A string representing the current valuation, using [IntLiteral]s.
+    pub fn valuations_ints(&self) -> Vec<IntLiteral> {
+        self.valuation()
+            .atom_value_pairs()
+            .filter_map(|(atom, v)| match v {
+                None => None,
+                Some(true) => Some(atom as IntLiteral),
+                Some(false) => Some(-(atom as IntLiteral)),
+            })
+            .collect()
+    }
+
+    /// A string representing the current valuation, using the internal representation of atoms.
+    pub fn internal_valuation_string(&self) -> String {
+        self.valuation()
+            .atom_value_pairs()
+            .filter_map(|(atom, v)| match v {
+                None => None,
+                Some(true) => Some((atom as isize).to_string()),
+                Some(false) => Some((-(atom as isize)).to_string()),
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    /// A string representing the current valuation and the decision levels at which atoms were valued.
+    /// The internal representation of atoms is used.
+    pub fn internal_valuation_decision_string(&self) -> String {
         unsafe {
-            self.atom_db
-                .set_value_unchecked(CLiteral::new(the_true, true), 0)
-        };
+            self.valuation()
+                .atom_value_pairs()
+                .filter_map(|(atom, v)| match self.atom_db.level_unchecked(atom) {
+                    None => None,
+                    Some(level) => match v {
+                        None => None,
+                        Some(true) => Some(format!("{atom} ({level})",)),
+                        Some(false) => Some(format!("-{atom} ({level})",)),
+                    },
+                })
+                .collect::<Vec<_>>()
+                .join(" ")
+        }
+    }
+
+    /// Clears the value of an atom, and adds the atom to the activity heap.
+    ///
+    /// # Safety
+    /// No check is made on whether the atom is part of the valuation.
+    pub unsafe fn drop_value(&mut self, atom: Atom) {
+        unsafe {
+            log::trace!(target: targets::VALUATION, "Cleared atom: {atom}");
+            if let Some(present) = self.value_of(atom) {
+                *self
+                    .atom_db
+                    .previous_valuation
+                    .get_unchecked_mut(atom as usize) = present;
+            }
+            *self.valuation.get_unchecked_mut(atom as usize) = None;
+            self.atom_db.activity_heap.activate(atom as usize);
+
+            *self.atom_db.atom_level_map.get_unchecked_mut(atom as usize) = None;
+        }
     }
 }

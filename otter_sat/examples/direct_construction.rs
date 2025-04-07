@@ -37,11 +37,11 @@ fn main() {
         "After solving the status of the formula is:     {} (with valuation: {})
 ",
         the_context.report(),
-        the_context.atom_db.valuation_string()
+        the_context.valuation_string()
     );
 
-    assert_eq!(the_context.atom_db.value_of(p), Some(false));
-    assert_eq!(the_context.atom_db.value_of(q), Some(false));
+    assert_eq!(the_context.value_of(p), Some(false));
+    assert_eq!(the_context.value_of(q), Some(false));
 
     let p_error = the_context.add_clause(CLiteral::new(p, true));
 
@@ -56,7 +56,7 @@ Though, as the formula was satisfiable, the decisions made can be cleared, allow
     let p_ok = the_context.add_clause(CLiteral::new(p, true));
 
     assert!(p_ok.is_ok());
-    assert_eq!(the_context.atom_db.value_of(p), Some(true));
+    assert_eq!(the_context.value_of(p), Some(true));
 
     assert!(the_context.solve().is_ok());
 
@@ -64,7 +64,7 @@ Though, as the formula was satisfiable, the decisions made can be cleared, allow
         "After (re)solving the status of the formula is: {} (with valuation the valuation: {})
 ",
         the_context.report(),
-        the_context.atom_db.valuation_string()
+        the_context.valuation_string()
     );
 
     assert_eq!(the_context.report(), Report::Satisfiable);

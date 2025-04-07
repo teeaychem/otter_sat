@@ -47,17 +47,13 @@ pub mod activity;
 pub mod valuation;
 pub mod watch_db;
 
-use std::borrow::Borrow;
-
 use crate::{
     config::{Activity, Config, dbs::AtomDBConfig},
     db::LevelIndex,
     generic::index_heap::IndexHeap,
-    misc::log::targets::{self},
     structures::{
         atom::Atom,
         literal::{CLiteral, Literal},
-        valuation::{Valuation, vValuation},
     },
 };
 
@@ -71,9 +67,6 @@ pub struct Trail {
 
 /// The atom database.
 pub struct AtomDB {
-    /// A current (often partial) [valuation](Valuation).
-    pub valuation: vValuation,
-
     /// The previous (often partial) [valuation](Valuation) (or some randomised valuation).
     pub previous_valuation: Vec<bool>,
 
@@ -105,28 +98,11 @@ impl AtomDB {
     pub fn new(config: &Config) -> Self {
         AtomDB {
             activity_heap: IndexHeap::default(),
-
-            valuation: Vec::default(),
             previous_valuation: Vec::default(),
             atom_level_map: Vec::default(),
 
             config: config.atom_db.clone(),
         }
-    }
-
-    /// A count of atoms in the [AtomDB].
-    pub fn count(&self) -> usize {
-        self.valuation.len()
-    }
-
-    /// The current valuation, as some struction which implements the valuation trait.
-    pub fn valuation(&self) -> &impl Valuation {
-        &self.valuation
-    }
-
-    /// The current valuation, as a canonical [vValuation].
-    pub fn valuation_canonical(&self) -> &vValuation {
-        &self.valuation
     }
 
     /// Which decision an atom was valued on.
@@ -135,43 +111,6 @@ impl AtomDB {
     /// No check is made on whether the decision level of the atom is tracked.
     pub unsafe fn level_unchecked(&self, atom: Atom) -> Option<LevelIndex> {
         *unsafe { self.atom_level_map.get_unchecked(atom as usize) }
-    }
-
-    /// Sets a given atom to have a given value, with a note of which decision this occurs after, if some decision has been made.
-    ///
-    /// # Safety
-    /// No check is made on whether the atom is part of the valuation.
-    pub unsafe fn set_value_unchecked(
-        &mut self,
-        literal: impl Borrow<CLiteral>,
-        level: LevelIndex,
-    ) -> AtomValue {
-        let literal = literal.borrow();
-        let atom = literal.atom();
-        let value = literal.polarity();
-
-        match self.value_of(atom) {
-            None => unsafe {
-                *self.valuation.get_unchecked_mut(atom as usize) = Some(value);
-                *self.atom_level_map.get_unchecked_mut(atom as usize) = Some(level);
-                AtomValue::NotSet
-            },
-            Some(v) if v == value => AtomValue::Same,
-
-            Some(_) => AtomValue::Different,
-        }
-    }
-
-    /// Clears the value of an atom, and adds the atom to the activity heap.
-    ///
-    /// # Safety
-    /// No check is made on whether the atom is part of the valuation.
-    pub unsafe fn drop_value(&mut self, atom: Atom) {
-        unsafe {
-            log::trace!(target: targets::VALUATION, "Cleared atom: {atom}");
-            self.clear_value(atom);
-            self.activity_heap.activate(atom as usize);
-        }
     }
 }
 
@@ -279,11 +218,7 @@ impl Trail {
     ///
     /// # Soundness
     /// Does not clear the *valuation* of the decision.
-    pub fn clear_assigments_above(
-        &mut self,
-        level: LevelIndex,
-        atom_db: &mut AtomDB,
-    ) -> Vec<CLiteral> {
+    pub fn clear_assigments_above(&mut self, level: LevelIndex) -> Vec<CLiteral> {
         // level_indicies stores with zero-indexing.
         // So, for example, the first assignment is accessed by assignments[level_indicies[0]].
         // This means, in particular, that all assignments made after level i can be cleared by clearing any assignment at and after assignments[level_indicies[0]].
@@ -292,9 +227,6 @@ impl Trail {
         if let Some(&level_start) = self.level_indicies.get(level as usize) {
             self.level_indicies.split_off(level as usize);
             let assignments = self.literals.split_off(level_start);
-            for literal in &assignments {
-                unsafe { atom_db.drop_value(literal.atom()) }
-            }
             assignments
         } else {
             Vec::default()

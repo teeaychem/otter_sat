@@ -10,7 +10,7 @@ use crate::{
     structures::{
         atom::Atom,
         literal::{CLiteral, Literal},
-        valuation::Valuation,
+        valuation::{Valuation, vValuation},
     },
 };
 
@@ -61,12 +61,17 @@ impl dbClause {
      Failure for a candidate for watch A to be found implies a candidate for watch B.
      Still, this is not encoded, as failure for watch A is very unlikely.
      */
-    pub fn initialise_watches(&mut self, atom_db: &mut AtomDB, watches: &mut Watches) {
+    pub fn initialise_watches(
+        &mut self,
+        valuation: &impl Valuation,
+        atom_db: &mut AtomDB,
+        watches: &mut Watches,
+    ) {
         // As watches require two or more literals, and watch_ptr must be within the bounds of the vector, use of get_unchecked on index zero and watch_ptr is safe.
         let mut watch_a_set = false;
 
         for (index, literal) in self.clause.iter().enumerate() {
-            let index_value = unsafe { atom_db.valuation().value_of_unchecked(literal.atom()) };
+            let index_value = unsafe { valuation.value_of_unchecked(literal.atom()) };
 
             match index_value {
                 None => {
@@ -105,7 +110,7 @@ impl dbClause {
         for index in 1..self.clause.len() {
             let literal = unsafe { self.clause.get_unchecked(index) };
 
-            let atom_value = unsafe { atom_db.valuation().value_of_unchecked(literal.atom()) };
+            let atom_value = unsafe { valuation.value_of_unchecked(literal.atom()) };
             match atom_value {
                 None => {
                     self.watch_ptr = index;
@@ -173,7 +178,7 @@ impl dbClause {
     pub fn update_watch(
         &mut self,
         atom: Atom,
-        atom_db: &mut AtomDB,
+        valuation: &vValuation,
         watches: &mut Watches,
     ) -> Result<WatchStatus, ()> {
         let watch_ptr_cache = self.watch_ptr;
@@ -197,7 +202,7 @@ impl dbClause {
 
         loop {
             let literal = unsafe { self.clause.get_unchecked(self.watch_ptr) };
-            match atom_db.value_of(literal.atom()) {
+            match unsafe { valuation.value_of_unchecked(literal.atom()) } {
                 None => {
                     self.note_watch(literal, watches);
                     break Ok(WatchStatus::None);

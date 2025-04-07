@@ -101,14 +101,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Returns an atom which has no value on the current valuation, either by random decision or by most activity.
     pub fn atom_without_value(&mut self, rng: &mut impl Rng) -> Option<Atom> {
         match rng.random_bool(self.config.random_decision_bias.value) {
-            true => self.atom_db.valuation().unvalued_atoms().choose(rng),
+            true => self.valuation().unvalued_atoms().choose(rng),
             false => {
                 while let Some(atom) = self.atom_db.heap_pop_most_active() {
-                    if self.atom_db.value_of(atom as Atom).is_none() {
+                    if self.value_of(atom as Atom).is_none() {
                         return Some(atom);
                     }
                 }
-                self.atom_db.valuation().unvalued_atoms().next()
+                self.valuation().unvalued_atoms().next()
             }
         }
     }

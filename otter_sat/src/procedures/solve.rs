@@ -105,15 +105,15 @@ assert!(ctx.add_clause(p_or_not_q).is_ok());
 
 assert!(ctx.solve().is_ok());
 
-assert_eq!(ctx.atom_db.value_of(p), Some(false));
-assert_eq!(ctx.atom_db.value_of(q), Some(false));
+assert_eq!(ctx.value_of(p), Some(false));
+assert_eq!(ctx.value_of(q), Some(false));
 
 ctx.clear_decisions();
 
 let p_clause = vec![CLiteral::new(p, true)];
 assert!(ctx.add_clause(p_clause).is_ok());
 
-assert_eq!(ctx.atom_db.value_of(p), Some(true));
+assert_eq!(ctx.value_of(p), Some(true));
 
 assert!(ctx.solve().is_ok());
 
@@ -264,8 +264,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let level = self.trail.level();
                             log::info!("Decided on {decision} at level {level}");
 
-                            let q_result =
-                                unsafe { self.atom_db.set_value_unchecked(decision, level) };
+                            let q_result = unsafe { self.set_value_unchecked(decision, level) };
                             match q_result {
                                 AtomValue::NotSet => {
                                     // Assignment made above
@@ -284,10 +283,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 // Conflict variants. These continue to the remaining contents of a loop.
                 ApplyConsequencesOk::UnitClause { literal } => {
-                    let q_result = unsafe {
-                        self.atom_db
-                            .set_value_unchecked(literal, self.trail.level())
-                    };
+                    let q_result = unsafe { self.set_value_unchecked(literal, self.trail.level()) };
                     match q_result {
                         AtomValue::NotSet => {
                             let consequence = Assignment::from(literal, AssignmentSource::Addition);
@@ -309,7 +305,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     let level = self.trail.level();
 
-                    let q_result = unsafe { self.atom_db.set_value_unchecked(literal, level) };
+                    let q_result = unsafe { self.set_value_unchecked(literal, level) };
                     match q_result {
                         AtomValue::NotSet => {
                             let assignment = Assignment::from(literal, AssignmentSource::BCP(key));

@@ -57,7 +57,7 @@ fn main() {
         Err(e) => panic!("Solve error: {e:?}"),
     };
 
-    let valuation = the_context.atom_db.valuations_ints();
+    let valuation = the_context.valuations_ints();
 
     match the_context.report() {
         Report::Satisfiable => {

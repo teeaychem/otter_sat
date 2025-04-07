@@ -157,7 +157,7 @@ pub unsafe extern "C" fn ipasir_val(solver: *mut c_void, lit: i32) -> i32 {
 
     let literal_atom = lit.unsigned_abs();
 
-    match bundle.context.atom_db.value_of(literal_atom) {
+    match bundle.context.value_of(literal_atom) {
         Some(true) => lit,
         Some(false) => -lit,
         None => panic!("! ipasir_val called with an incomplete valuation"),

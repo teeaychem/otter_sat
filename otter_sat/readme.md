@@ -93,7 +93,7 @@ while let Ok(Report::Satisfiable) = context.solve() {
 
     // The context provides an iterator over (atom, value) pairs.
     // Though every non-constant atom has a value in this model, this avoids handling the no value option.
-    for (atom, value) in context.atom_db.valuation().atom_valued_pairs() {
+    for (atom, value) in context.valuation().atom_valued_pairs() {
         // As atoms begin at 1, a step back is required to find the appropriate character.
         match value {
             true => valuation_representation.push(' '),
@@ -106,7 +106,6 @@ while let Ok(Report::Satisfiable) = context.solve() {
     }
 
     valuation_representation.pop();
-    println!("{model_count}\t {}", valuation_representation);
 
     // After a solve, the context is refreshed to clear any decisions made.
     // Learnt clauses remain, though any assumptions made are also removed.

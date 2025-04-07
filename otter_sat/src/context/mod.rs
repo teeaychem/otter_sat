@@ -29,8 +29,8 @@ assert!(the_context.add_clause(not_p).is_ok());
 assert!(the_context.solve().is_ok());
 assert_eq!(the_context.report(), Report::Satisfiable);
 
-assert_eq!(the_context.atom_db.value_of(p), Some(false));
-assert_eq!(the_context.atom_db.value_of(q), Some(true));
+assert_eq!(the_context.value_of(p), Some(false));
+assert_eq!(the_context.value_of(q), Some(true));
 ```
 */
 
