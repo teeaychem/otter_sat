@@ -1,15 +1,18 @@
-use crate::structures::consequence::{Assignment, AssignmentSource};
+use crate::structures::consequence::Assignment;
 
 #[derive(Clone)]
 pub enum CellStatus {
     /// Initial valuation
     Valuation,
 
+    /// Backjumped from
+    Backjump,
+
     /// The atom has been merged into the clause, but had no value.
-    Clause,
+    Asserted,
 
     /// The atom has been merged into the clause, and had some conflicting value.
-    Conflict,
+    Asserting,
 
     /// The atom has been merged into the clause, but has been proven.
     Strengthened,
@@ -27,15 +30,21 @@ Cells are designed to intially store information about an assignment and additio
 #[derive(Clone)]
 pub struct Cell {
     pub value: Option<bool>,
-    pub source: Option<AssignmentSource>,
+    pub assignment: Option<Assignment>,
     pub status: CellStatus,
+}
+
+impl Cell {
+    pub fn value(&self) -> Option<bool> {
+        self.assignment.as_ref().map(|a| a.value())
+    }
 }
 
 impl Default for Cell {
     fn default() -> Self {
         Cell {
             value: None,
-            source: None,
+            assignment: None,
             status: CellStatus::Valuation,
         }
     }
@@ -45,7 +54,7 @@ impl From<Assignment> for Cell {
     fn from(assignment: Assignment) -> Self {
         Cell {
             value: Some(assignment.value()),
-            source: Some(*assignment.source()),
+            assignment: Some(assignment.clone()),
             status: CellStatus::Valuation,
         }
     }

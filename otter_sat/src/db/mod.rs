@@ -52,7 +52,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         self.resolution_buffer.set_valuation(
             assignment.atom(),
             Some(assignment.value()),
-            Some(assignment.source),
+            Some(assignment.clone()),
         );
 
         match assignment.source() {
