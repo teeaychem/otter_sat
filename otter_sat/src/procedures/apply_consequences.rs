@@ -132,9 +132,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// For, in the case of a conflict the consequence may remain, and otherwise will be removed from the queue during a backjump.
     pub fn apply_consequences(&mut self) -> Result<ApplyConsequencesOk, err::ErrorKind> {
         'application: loop {
-            let Some(Assignment { literal, source: _ }) =
-                self.atom_db.assignments.get(self.atom_db.q_head)
-            else {
+            let Some(literal) = self.atom_db.trail.get(self.atom_db.q_head) else {
                 return Ok(ApplyConsequencesOk::Exhausted);
             };
 

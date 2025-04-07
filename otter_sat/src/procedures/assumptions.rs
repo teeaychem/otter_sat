@@ -54,6 +54,34 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 for assumption in &assumptions {
                     self.ensure_atom(assumption.atom());
 
+                    if let Some(assignment) =
+                        self.resolution_buffer.get_assignment(assumption.atom())
+                    {
+                        let key = {
+                            match assignment.source {
+                                AssignmentSource::PureLiteral => todo!(),
+
+                                AssignmentSource::Decision => {
+                                    panic!("! Decision prior to assumption")
+                                }
+
+                                AssignmentSource::BCP(key) => key,
+
+                                AssignmentSource::Assumption => {
+                                    todo!("AssignmentSource::Assumption")
+                                }
+
+                                AssignmentSource::Original => ClauseKey::OriginalUnit(-assumption),
+
+                                AssignmentSource::Addition => ClauseKey::AdditionUnit(-assumption),
+                            }
+                        };
+
+                        self.store_assumption(*assumption);
+                        self.note_conflict(key);
+                        return Err(ErrorKind::FundamentalConflict);
+                    }
+
                     let assignment = Assignment::from(assumption, AssignmentSource::Assumption);
                     self.record_assignment(assignment);
 
@@ -84,40 +112,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                         AtomValue::Same => log::info!("! Assumption of an atom with that value"),
 
-                        AtomValue::Different => {
-                            let key = {
-                                let assignment = self
-                                    .atom_db
-                                    .assignments
-                                    .iter()
-                                    .rev() // Guess conflict was recent
-                                    .find(|a| *a.literal() == -assumption)
-                                    .expect("Missing assignment");
-
-                                match assignment.source {
-                                    AssignmentSource::PureLiteral => todo!(),
-
-                                    AssignmentSource::Decision => {
-                                        panic!("! Decision prior to assumption")
-                                    }
-
-                                    AssignmentSource::BCP(key) => key,
-
-                                    AssignmentSource::Assumption => todo!(),
-
-                                    AssignmentSource::Original => {
-                                        ClauseKey::OriginalUnit(-assumption)
-                                    }
-
-                                    AssignmentSource::Addition => {
-                                        ClauseKey::AdditionUnit(-assumption)
-                                    }
-                                }
-                            };
-
-                            self.note_conflict(key);
-                            return Err(ErrorKind::FundamentalConflict);
-                        }
+                        AtomValue::Different => {}
                     }
                 }
 
@@ -177,18 +172,35 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             return assumptions;
         }
 
-        // Atoms are used in place of literals, as a literal and it's negation will not appear in the trail.
+        // Atoms are used in place of literals, as a literal and its negation will not appear in the trail.
         // Else, there was a previous conflict to that identified…
         let mut seen_atoms: HashSet<Atom> = HashSet::default();
 
         // Safe, as the relevant key is kept as proof of unsatisfiability.
         seen_atoms.extend(unsafe { self.clause_db.get_unchecked(&key).atoms() });
-        for assignment in self.atom_db.assignments.iter().rev() {
-            if seen_atoms.contains(&assignment.literal().atom()) {
+
+        // # Safety
+        // Safe, as by the above check some assumption has ben made and so the initial decision level is ≥ 1.
+        let assumption_index = unsafe {
+            *self
+                .atom_db
+                .level_indicies
+                .get_unchecked(self.atom_db.initial_decision_level as usize - 1)
+        };
+
+        for (index, literal) in self.atom_db.trail.iter().enumerate().rev() {
+            if seen_atoms.contains(&literal.atom()) {
+                // Check for an assumption, as in the case of conflict it will not have been assigned.
+                if index <= assumption_index {
+                    assumptions.push(*literal);
+                }
+
+                let Some(assignment) = self.resolution_buffer.get_assignment(literal.atom()) else {
+                    panic!("! Missing assignment");
+                };
+
                 match assignment.source() {
-                    AssignmentSource::Assumption => {
-                        assumptions.push(*assignment.literal());
-                    }
+                    AssignmentSource::Assumption => {} // Handled above
 
                     AssignmentSource::BCP(key) => {
                         // The method does not require all clauses in a core are preserved, as an assumption is never 'used' during resolution.

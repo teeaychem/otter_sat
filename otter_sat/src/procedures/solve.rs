@@ -137,7 +137,7 @@ use crate::{
     reports::Report,
     structures::{
         consequence::{Assignment, AssignmentSource},
-        literal::CLiteral,
+        literal::{CLiteral, Literal},
     },
     types::err::{self, ErrorKind},
 };
@@ -183,13 +183,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                         // Each error lead to a return of some form…
                         Err(err::ErrorKind::SpecificValuationConflict(assumption)) => {
-                            let assignment = self
-                                .atom_db
-                                .assignments
-                                .iter()
-                                .find(|a| a.literal == assumption);
+                            let Some(assignment) =
+                                self.resolution_buffer.get_assignment(assumption.atom())
+                            else {
+                                panic!("! Missing assignment");
+                            };
 
-                            let source = assignment.expect("! Conflict failure").source;
+                            let source = assignment.source;
 
                             match source {
                                 AssignmentSource::PureLiteral => todo!(),

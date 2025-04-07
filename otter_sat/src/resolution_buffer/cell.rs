@@ -38,6 +38,10 @@ impl Cell {
     pub fn value(&self) -> Option<bool> {
         self.assignment.as_ref().map(|a| a.value())
     }
+
+    pub fn get_assignment(&self) -> &Option<Assignment> {
+        &self.assignment
+    }
 }
 
 impl Default for Cell {
