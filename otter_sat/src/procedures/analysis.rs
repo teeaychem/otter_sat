@@ -88,8 +88,8 @@ pub enum AnalysisResult {
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// For details on conflict analysis see the [analysis](crate::procedures::analysis) procedure.
     pub fn conflict_analysis(&mut self, key: &ClauseKey) -> Result<AnalysisResult, err::ErrorKind> {
-        log::info!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.atom_db.trail.level());
-        log::info!(target: targets::ANALYSIS, "Level: {:?}", self.atom_db.trail.top_level_assignments());
+        log::info!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.trail.level());
+        log::info!(target: targets::ANALYSIS, "Level: {:?}", self.trail.top_level_assignments());
         log::info!(target: targets::ANALYSIS, "Valuation: {}", self.atom_db.valuation_string());
 
         if let config::vsids::VSIDS::Chaff = self.config.vsids.value {
@@ -100,7 +100,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         self.resolution_buffer.refresh();
         // Safety: Some decision must have been made for conflict analysis to take place.
 
-        for literal in self.atom_db.trail.top_level_assignments() {
+        for literal in self.trail.top_level_assignments() {
             // self.resolution_buffer
             //     .set_valuation(literal.atom(), None, None);
             self.resolution_buffer.mark_backjump(literal.atom());
@@ -111,6 +111,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             &mut self.clause_db,
             &mut self.atom_db,
             &mut self.watch_dbs,
+            &mut self.trail,
         ) {
             Ok(ResolutionOk::UnitClause) | Ok(ResolutionOk::UIP) => {}
 
@@ -146,7 +147,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         match clause.len() {
             0 => Err(err::ErrorKind::from(err::AnalysisError::EmptyResolution)),
             1 => {
-                self.backjump(self.atom_db.trail.lowest_decision_level());
+                self.backjump(self.trail.lowest_decision_level());
                 self.clause_db.store(
                     literal,
                     ClauseSource::Resolution,

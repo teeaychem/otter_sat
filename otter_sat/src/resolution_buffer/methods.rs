@@ -35,7 +35,12 @@ use std::{borrow::Borrow, collections::HashSet};
 
 use crate::{
     config::{Config, StoppingCriteria},
-    db::{ClauseKey, atom::AtomDB, clause::ClauseDB, watches::Watches},
+    db::{
+        ClauseKey,
+        atom::{AtomDB, Trail},
+        clause::ClauseDB,
+        watches::Watches,
+    },
     misc::log::targets::{self},
     structures::{
         atom::Atom,
@@ -150,6 +155,7 @@ impl ResolutionBuffer {
         clause_db: &mut ClauseDB,
         atom_db: &mut AtomDB,
         watch_dbs: &mut Watches,
+        trail: &mut Trail,
     ) -> Result<ResolutionOk, err::ResolutionBufferError> {
         // The key has already been used to access the conflicting clause.
         let base_clause = unsafe { clause_db.get_unchecked_mut(key) };
@@ -164,7 +170,7 @@ impl ResolutionBuffer {
         };
 
         // Resolution buffer is only used by analysis, which is only called after some decision has been made
-        let the_trail = atom_db.trail.take_assignments();
+        let the_trail = trail.take_assignments();
         'resolution_loop: for assignment in the_trail.iter().rev() {
             if self.valueless_count <= 1 {
                 match self.config.stopping {
@@ -244,7 +250,7 @@ impl ResolutionBuffer {
             };
         }
 
-        atom_db.trail.restore_assignments(the_trail);
+        trail.restore_assignments(the_trail);
 
         match self.valueless_count {
             0 | 1 => {

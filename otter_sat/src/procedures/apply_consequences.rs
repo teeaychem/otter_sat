@@ -132,7 +132,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// For, in the case of a conflict the consequence may remain, and otherwise will be removed from the queue during a backjump.
     pub fn apply_consequences(&mut self) -> Result<ApplyConsequencesOk, err::ErrorKind> {
         'application: loop {
-            let Some(literal) = self.atom_db.trail.literals.get(self.atom_db.trail.q_head) else {
+            let Some(literal) = self.trail.literals.get(self.trail.q_head) else {
                 return Ok(ApplyConsequencesOk::Exhausted);
             };
 
@@ -150,12 +150,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
             match self.bcp(*literal) {
                 Ok(()) => {
-                    self.atom_db.trail.q_head += 1;
+                    self.trail.q_head += 1;
                 }
 
                 Err(err::BCPError::Conflict(key)) => {
                     //
-                    if !self.atom_db.trail.decision_is_made() {
+                    if !self.trail.decision_is_made() {
                         self.note_conflict(key);
 
                         return Ok(ApplyConsequencesOk::FundamentalConflict);
@@ -173,7 +173,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                             let q_result = unsafe {
                                 self.atom_db
-                                    .set_value_unchecked(literal, self.atom_db.trail.level())
+                                    .set_value_unchecked(literal, self.trail.level())
                             };
                             match q_result {
                                 AtomValue::NotSet => {

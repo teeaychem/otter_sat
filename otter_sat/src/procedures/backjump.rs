@@ -58,14 +58,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// For documentation, see [procedures::backjump](crate::procedures::backjump).
     pub fn backjump(&mut self, target: LevelIndex) {
-        log::trace!(target: targets::BACKJUMP, "Backjump from {} to {}", self.atom_db.trail.level(), target);
+        log::trace!(target: targets::BACKJUMP, "Backjump from {} to {}", self.trail.level(), target);
 
         // # Safety
         // The pop from the decision stack is fine, as decision_count is the height of the decision stack.
         // So, the elements to pop must exist.
         // And, if an atom is in the decision stack is should certainly be in the atom database.
 
-        let assignments = self.atom_db.clear_assigments_above(target);
+        let assignments = self.trail.clear_assigments_above(target, &mut self.atom_db);
         for assignment in assignments.into_iter() {
             self.resolution_buffer.clear_value(assignment.atom());
         }
@@ -73,11 +73,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // Retain queued consequences of the level backjumping to.
         // self.clear_above(target);
 
-        self.atom_db.trail.q_head =
-            cmp::min(self.atom_db.trail.q_head, self.atom_db.trail.literals.len());
+        self.trail.q_head = cmp::min(self.trail.q_head, self.trail.literals.len());
 
-        if target <= self.atom_db.trail.initial_decision_level {
-            self.atom_db.trail.initial_decision_level = target;
+        if target <= self.trail.initial_decision_level {
+            self.trail.initial_decision_level = target;
         }
     }
 
@@ -96,7 +95,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 panic!("! Attempted search for non-chronological backjump level on an empty clause")
             }
 
-            1 => Ok(self.atom_db.trail.lowest_decision_level()),
+            1 => Ok(self.trail.lowest_decision_level()),
 
             _ => {
                 // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
@@ -131,14 +130,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
 
                 match top_two {
-                    (None, _) => Ok(self.atom_db.trail.lowest_decision_level()),
+                    (None, _) => Ok(self.trail.lowest_decision_level()),
 
                     // 'Simple' backjumping to a the level prior to the asserted literal.
                     // (_, Some(top)) => Ok(top.saturating_sub(1)),
-                    (Some(second_to_top), Some(_top)) => Ok(cmp::max(
-                        self.atom_db.trail.lowest_decision_level(),
-                        second_to_top,
-                    )),
+                    (Some(second_to_top), Some(_top)) => {
+                        Ok(cmp::max(self.trail.lowest_decision_level(), second_to_top))
+                    }
 
                     _ => panic!("!"),
                 }

@@ -79,7 +79,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             seen_atoms.insert(literal.atom());
         }
 
-        for literal in self.atom_db.trail.literals.iter().rev() {
+        for literal in self.trail.literals.iter().rev() {
             let Some(assignment) = self.resolution_buffer.get_assignment(literal.atom()) else {
                 panic!("! Missing assignment");
             };
