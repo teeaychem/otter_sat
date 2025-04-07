@@ -110,8 +110,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             key,
             &self.valuation,
             &mut self.clause_db,
-            &mut self.atom_db,
-            &mut self.watch_dbs,
+            &mut self.watches,
             &mut self.trail,
         ) {
             Ok(ResolutionOk::UnitClause) | Ok(ResolutionOk::UIP) => {}
@@ -154,7 +153,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     ClauseSource::Resolution,
                     &self.valuation,
                     &mut self.atom_db,
-                    &mut self.watch_dbs,
+                    &mut self.watches,
                     premises,
                 )?;
                 Ok(AnalysisResult::UnitClause { literal })
@@ -169,7 +168,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     ClauseSource::Resolution,
                     &self.valuation,
                     &mut self.atom_db,
-                    &mut self.watch_dbs,
+                    &mut self.watches,
                     premises,
                 )?;
                 Ok(AnalysisResult::AssertingClause { key, literal })

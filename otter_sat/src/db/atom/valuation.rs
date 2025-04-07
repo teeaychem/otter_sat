@@ -1,8 +1,5 @@
-use crate::structures::atom::Atom;
-use crate::structures::literal::IntLiteral;
-use crate::structures::valuation::Valuation;
-
 use super::AtomDB;
+use crate::structures::atom::Atom;
 
 /// Methods associated with the valuation stored in a [AtomDB].
 ///

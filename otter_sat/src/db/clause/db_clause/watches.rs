@@ -1,16 +1,16 @@
 use crate::{
     db::{
-        atom::{
-            AtomDB,
+        atom::AtomDB,
+        keys::ClauseKey,
+        watches::{
+            Watches,
             watch_db::{BinaryWatch, LongWatch, WatchStatus},
         },
-        keys::ClauseKey,
-        watches::Watches,
     },
     structures::{
         atom::Atom,
         literal::{CLiteral, Literal},
-        valuation::{Valuation, vValuation},
+        valuation::{CValuation, Valuation},
     },
 };
 
@@ -178,7 +178,7 @@ impl dbClause {
     pub fn update_watch(
         &mut self,
         atom: Atom,
-        valuation: &vValuation,
+        valuation: &CValuation,
         watches: &mut Watches,
     ) -> Result<WatchStatus, ()> {
         let watch_ptr_cache = self.watch_ptr;

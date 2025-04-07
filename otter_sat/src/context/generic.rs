@@ -4,8 +4,9 @@ use crate::{
     config::Config,
     db::{
         ClauseKey, LevelIndex,
-        atom::{AtomDB, AtomValue, Trail},
+        atom::{AtomDB, AtomValue},
         clause::ClauseDB,
+        trail::Trail,
         watches::Watches,
     },
     misc::log::targets,
@@ -14,7 +15,7 @@ use crate::{
     structures::{
         atom::Atom,
         literal::{CLiteral, IntLiteral, Literal},
-        valuation::{Valuation, vValuation},
+        valuation::{CValuation, Valuation},
     },
     types::err::ErrorKind,
 };
@@ -43,14 +44,14 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
     pub counters: Counters,
 
     /// A current (often partial) [valuation](Valuation).
-    pub valuation: vValuation,
+    pub valuation: CValuation,
 
     /// The atom database.
     /// See [db::atom](crate::db::atom) for details.
     pub atom_db: AtomDB,
 
     /// Watch lists for each atom in the form of [WatchDB] structs, indexed by atoms in the `watch_dbs` field.
-    pub watch_dbs: Watches,
+    pub watches: Watches,
 
     /// The assignments made, in order from initial to most recent.
     pub trail: Trail,
@@ -104,7 +105,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     }
 
     /// The current valuation, as a canonical [vValuation].
-    pub fn valuation_canonical(&self) -> &vValuation {
+    pub fn valuation_canonical(&self) -> &CValuation {
         &self.valuation
     }
 
