@@ -60,7 +60,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             AssignmentSource::PureLiteral => {
                 let premises = HashSet::default();
                 // Making a free decision is not supported after some other (non-free) decision has been made.
-                if !self.atom_db.decision_is_made() {
+                if !self.atom_db.trail.decision_is_made() {
                     self.clause_db.store(
                         *assignment.literal(),
                         ClauseSource::PureUnit,
@@ -75,9 +75,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             AssignmentSource::BCP(key) => {
                 log::info!("BCP Consequence: {key}: {}", assignment.literal());
                 //
-                match self.atom_db.decision_count() {
+                match self.atom_db.trail.decision_count() {
                     0 => {
-                        if !self.atom_db.assumption_is_made() {
+                        if !self.atom_db.trail.assumption_is_made() {
                             let unit_clause = assignment.literal();
 
                             let mut premises = HashSet::default();
@@ -97,16 +97,19 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     _ => {}
                 }
 
-                self.atom_db.store_assignment(*assignment.literal())
+                self.atom_db.trail.store_assignment(*assignment.literal())
             }
 
             AssignmentSource::Addition | AssignmentSource::Original => {
-                self.atom_db.store_assignment(*assignment.literal())
+                self.atom_db.trail.store_assignment(*assignment.literal())
             }
 
             AssignmentSource::Decision => {
-                self.atom_db.level_indicies.push(self.atom_db.trail.len());
-                self.atom_db.store_assignment(*assignment.literal())
+                self.atom_db
+                    .trail
+                    .level_indicies
+                    .push(self.atom_db.trail.literals.len());
+                self.atom_db.trail.store_assignment(*assignment.literal())
             }
 
             AssignmentSource::Assumption => {
@@ -117,7 +120,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
     pub fn store_assumption(&mut self, literal: CLiteral) {
         if self.atom_db.config.stacked_assumptions.value
-            || self.atom_db.trail.last().is_none_or(|a| {
+            || self.atom_db.trail.literals.last().is_none_or(|a| {
                 let Some(assignment) = self.resolution_buffer.get_assignment(a.atom()) else {
                     panic!("! Missing assignment");
                 };
@@ -125,10 +128,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 assignment.source != AssignmentSource::Assumption
             })
         {
-            self.atom_db.initial_decision_level += 1;
-            self.atom_db.level_indicies.push(self.atom_db.trail.len());
+            self.atom_db.trail.initial_decision_level += 1;
+            self.atom_db
+                .trail
+                .level_indicies
+                .push(self.atom_db.trail.literals.len());
         }
 
-        self.atom_db.store_assignment(literal);
+        self.atom_db.trail.store_assignment(literal);
     }
 }

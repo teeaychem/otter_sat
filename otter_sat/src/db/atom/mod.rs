@@ -58,44 +58,41 @@ use crate::{
     misc::log::targets::{self},
     structures::{
         atom::{ATOM_MAX, Atom},
-        consequence::Assignment,
         literal::{CLiteral, Literal},
         valuation::{Valuation, vValuation},
     },
     types::err::{self, AtomDBError},
 };
 
+#[derive(Default)]
+pub struct Trail {
+    pub literals: Vec<CLiteral>,
+    pub level_indicies: Vec<usize>,
+    pub q_head: usize,
+    pub initial_decision_level: LevelIndex,
+}
+
 use super::ClauseKey;
 
 /// The atom database.
 pub struct AtomDB {
     /// Watch lists for each atom in the form of [WatchDB] structs, indexed by atoms in the `watch_dbs` field.
-    watch_dbs: Vec<WatchDB>,
+    pub watch_dbs: Vec<WatchDB>,
 
     /// A current (often partial) [valuation](Valuation).
-    valuation: vValuation,
+    pub valuation: vValuation,
 
     /// The previous (often partial) [valuation](Valuation) (or some randomised valuation).
-    previous_valuation: Vec<bool>,
+    pub previous_valuation: Vec<bool>,
 
     /// An [IndexHeap] recording the activty of atoms, where any atom without a value is 'active' on the heap.
-    activity_heap: IndexHeap<Activity>,
+    pub activity_heap: IndexHeap<Activity>,
 
     /// A map from atoms to levels.
-    atom_level_map: Vec<Option<LevelIndex>>,
-
-    /// The level of the initial decision during a solve.
-    /// Any level present *below* the limit contains assumptions, or consequences of assumptions.
-    pub initial_decision_level: LevelIndex,
+    pub atom_level_map: Vec<Option<LevelIndex>>,
 
     /// The assignments made, in order from initial to most recent.
-    pub trail: Vec<CLiteral>,
-
-    /// Indicies at which a new level begins.
-    pub level_indicies: Vec<usize>,
-
-    /// Location of the first assignment which has not been exhausted.
-    pub q_head: usize,
+    pub trail: Trail,
 
     /// A local configuration, typically derived from the configuration of a context.
     pub config: AtomDBConfig,
@@ -126,18 +123,12 @@ impl AtomDB {
             previous_valuation: Vec::default(),
             atom_level_map: Vec::default(),
 
-            initial_decision_level: 0,
-            trail: Vec::default(),
-            level_indicies: Vec::default(),
-
-            q_head: 0,
+            trail: Trail::default(),
 
             config: config.atom_db.clone(),
         };
         // A fresh atom is created so long as the atom count is within ATOM_MAX
         // So, this is safe, for any reasonable Atom specification.
-        let the_true = unsafe { db.fresh_atom(true).unwrap_unchecked() };
-        unsafe { db.set_value_unchecked(CLiteral::new(the_true, true), 0) };
         db
     }
 
@@ -154,28 +145,6 @@ impl AtomDB {
     /// The current valuation, as a canonical [vValuation].
     pub fn valuation_canonical(&self) -> &vValuation {
         &self.valuation
-    }
-
-    /// A fresh atom --- on Ok the atom is part of the language of the context.
-    ///
-    /// If used, all the relevant data structures are updated to support access via the atom, and the safety of each unchecked is guaranteed.
-    pub fn fresh_atom(&mut self, previous_value: bool) -> Result<Atom, AtomDBError> {
-        let atom = match self.valuation.len().try_into() {
-            // Note, ATOM_MAX over Atom::Max as the former is limited by the representation of literals, if relevant.
-            Ok(atom) if atom <= ATOM_MAX => atom,
-            _ => {
-                return Err(AtomDBError::AtomsExhausted);
-            }
-        };
-
-        self.activity_heap.add(atom as usize, 1.0);
-
-        self.watch_dbs.push(WatchDB::default());
-        self.valuation.push(None);
-        self.previous_valuation.push(previous_value);
-        self.atom_level_map.push(None);
-
-        Ok(atom)
     }
 
     /// Which decision an atom was valued on.
@@ -330,17 +299,6 @@ impl AtomDB {
 }
 
 impl AtomDB {
-    /// True if some assumption has been made, false otherwise.
-    pub fn assumption_is_made(&self) -> bool {
-        self.initial_decision_level > 0
-    }
-
-    /// Returns the lowest decision level.
-    /// Zero, if no assumptions has been made, otherwise some higher level.
-    pub fn lowest_decision_level(&self) -> LevelIndex {
-        self.initial_decision_level
-    }
-
     // /// The assignments made at `level`, in order of assignment.
     // ///
     // /// # Safety
@@ -366,27 +324,6 @@ impl AtomDB {
     //     }
     // }
 
-    /// The assignments made at the (current) top level, in order of assignment.
-    pub fn top_level_assignments(&self) -> &[CLiteral] {
-        if let Some(&level_start) = self.level_indicies.last() {
-            &self.trail[level_start..]
-        } else {
-            &[]
-        }
-    }
-
-    /// Removes the top level, if it exists.
-    ///
-    /// # Soundness
-    /// Does not clear the *valuation* of the decision.
-    pub fn forget_top_level(&mut self) -> Vec<CLiteral> {
-        if let Some(top_start) = self.level_indicies.pop() {
-            self.trail.split_off(top_start)
-        } else {
-            Vec::default()
-        }
-    }
-
     /// Removes levels above the given level index, if they exist.
     ///
     /// # Soundness
@@ -397,15 +334,47 @@ impl AtomDB {
         // This means, in particular, that all assignments made after level i can be cleared by clearing any assignment at and after assignments[level_indicies[0]].
         // And, as a corollary, that this method can not be used to clear any assignments at level zero.
 
-        if let Some(&level_start) = self.level_indicies.get(level as usize) {
-            self.level_indicies.split_off(level as usize);
-            let assignments = self.trail.split_off(level_start);
-            for assignment in &assignments {
-                unsafe { self.drop_value(assignment.atom()) }
+        if let Some(&level_start) = self.trail.level_indicies.get(level as usize) {
+            self.trail.level_indicies.split_off(level as usize);
+            let assignments = self.trail.literals.split_off(level_start);
+            for literal in &assignments {
+                unsafe { self.drop_value(literal.atom()) }
             }
             assignments
         } else {
             Vec::default()
+        }
+    }
+
+    // TODO: Requires check on if assumptions have been made
+    // pub fn assumptions_made(&self) -> &[CLiteral] {
+    //     &self.trail[0..self.level_indicies[self.initial_decision_level as usize - 1]]
+    // }
+}
+
+impl Trail {
+    /// Stores a consequence of the top decision level.
+    pub fn store_assignment(&mut self, literal: CLiteral) {
+        self.literals.push(literal);
+    }
+
+    /// True if some assumption has been made, false otherwise.
+    pub fn assumption_is_made(&self) -> bool {
+        self.initial_decision_level > 0
+    }
+
+    /// Returns the lowest decision level.
+    /// Zero, if no assumptions has been made, otherwise some higher level.
+    pub fn lowest_decision_level(&self) -> LevelIndex {
+        self.initial_decision_level
+    }
+
+    /// The assignments made at the (current) top level, in order of assignment.
+    pub fn top_level_assignments(&self) -> &[CLiteral] {
+        if let Some(&level_start) = self.level_indicies.last() {
+            &self.literals[level_start..]
+        } else {
+            &[]
         }
     }
 
@@ -427,25 +396,27 @@ impl AtomDB {
         self.level_indicies.len() as LevelIndex
     }
 
-    /// Stores a consequence of the top decision level.
-    pub fn store_assignment(&mut self, literal: CLiteral) {
-        self.trail.push(literal);
+    /// Removes the top level, if it exists.
+    ///
+    /// # Soundness
+    /// Does not clear the *valuation* of the decision.
+    pub fn forget_top_level(&mut self) -> Vec<CLiteral> {
+        if let Some(top_start) = self.level_indicies.pop() {
+            self.literals.split_off(top_start)
+        } else {
+            Vec::default()
+        }
     }
 
     /// Takes the current list of assignments, leaving the default assignment container, until the list is restored.
     /// To be used in conjunction with [AtomDB::restore_assignments].
     pub fn take_assignments(&mut self) -> Vec<CLiteral> {
-        std::mem::take(&mut self.trail)
+        std::mem::take(&mut self.literals)
     }
 
     /// Sets the current lists of assignments to `assignments`.
     /// To be used in conjunction with [AtomDB::take_assignments].
     pub fn restore_assignments(&mut self, assignents: Vec<CLiteral>) {
-        self.trail = assignents;
+        self.literals = assignents;
     }
-
-    // TODO: Requires check on if assumptions have been made
-    // pub fn assumptions_made(&self) -> &[CLiteral] {
-    //     &self.trail[0..self.level_indicies[self.initial_decision_level as usize - 1]]
-    // }
 }

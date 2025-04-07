@@ -3,6 +3,10 @@ use crate::{
     db::{ClauseKey, atom::AtomDB, clause::ClauseDB},
     reports::Report,
     resolution_buffer::ResolutionBuffer,
+    structures::{
+        atom::Atom,
+        literal::{CLiteral, Literal},
+    },
     types::err::ErrorKind,
 };
 
@@ -69,5 +73,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             ContextState::Unsatisfiable(key) => Ok(key),
             _ => Err(ErrorKind::InvalidState),
         }
+    }
+
+    pub fn init(&mut self) {
+        let the_true: Atom = unsafe { self.fresh_atom_fundamental(true).unwrap_unchecked() };
+        unsafe {
+            self.atom_db
+                .set_value_unchecked(CLiteral::new(the_true, true), 0)
+        };
     }
 }

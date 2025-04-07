@@ -261,7 +261,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let assignment = Assignment::from(decision, AssignmentSource::Decision);
                             self.record_assignment(assignment);
 
-                            let level = self.atom_db.level();
+                            let level = self.atom_db.trail.level();
                             log::info!("Decided on {decision} at level {level}");
 
                             let q_result =
@@ -286,7 +286,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 ApplyConsequencesOk::UnitClause { literal } => {
                     let q_result = unsafe {
                         self.atom_db
-                            .set_value_unchecked(literal, self.atom_db.level())
+                            .set_value_unchecked(literal, self.atom_db.trail.level())
                     };
                     match q_result {
                         AtomValue::NotSet => {
@@ -307,7 +307,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 ApplyConsequencesOk::AssertingClause { key, literal } => {
                     self.clause_db.note_use(key);
 
-                    let level = self.atom_db.level();
+                    let level = self.atom_db.trail.level();
 
                     let q_result = unsafe { self.atom_db.set_value_unchecked(literal, level) };
                     match q_result {
@@ -336,7 +336,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 // TODO: Dispatch stats?
 
                 if self.config.restarts.value {
-                    self.backjump(self.atom_db.lowest_decision_level());
+                    self.backjump(self.atom_db.trail.lowest_decision_level());
                     self.clause_db.refresh_heap();
                     self.counters.fresh_conflicts = 0;
                     self.counters.restarts += 1;
