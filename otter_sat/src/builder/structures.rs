@@ -1,13 +1,13 @@
 use crate::{
     context::GenericContext,
-    db::atom::AtomValue,
+    db::atom::{AtomValue, watch_db::WatchDB},
     structures::{
         atom::{ATOM_MAX, Atom},
         clause::{Clause, ClauseSource},
         consequence::{Assignment, AssignmentSource},
         literal::{CLiteral, Literal},
     },
-    types::err::{self, ErrorKind, PreprocessingError},
+    types::err::{self, AtomDBError, ErrorKind, PreprocessingError},
 };
 
 use std::collections::HashSet;
@@ -23,7 +23,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// For a practical alternative, see [fresh_or_max_atom](GenericContext::fresh_or_max_atom).
     pub fn fresh_atom(&mut self) -> Result<Atom, err::AtomDBError> {
         let previous_value = self.rng.random_bool(self.config.polarity_lean.value);
-        self.fresh_atom_specifying_previous_value(previous_value)
+        self.fresh_atom_fundamental(previous_value)
     }
 
     /// Returns a fresh atom, or the maximum atom.
@@ -36,18 +36,34 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// However, in future this method may panic if it is not possible to obtain an atom for any reason other than exhaustion of the atom limit.
     pub fn fresh_or_max_atom(&mut self) -> Atom {
         let previous_value = self.rng.random_bool(self.config.polarity_lean.value);
-        match self.fresh_atom_specifying_previous_value(previous_value) {
+        match self.fresh_atom_fundamental(previous_value) {
             Ok(atom) => atom,
             Err(err::AtomDBError::AtomsExhausted) => ATOM_MAX,
         }
     }
 
-    /// A fresh atom with a specified previous value.
-    pub fn fresh_atom_specifying_previous_value(
+    /// The fundamental method for obtaining a fresh atom --- on Ok the atom is part of the language of the context.
+    ///
+    /// If used, all the relevant data structures are updated to support access via the atom, and the safety of each unchecked is guaranteed.
+    pub fn fresh_atom_fundamental(
         &mut self,
         previous_value: bool,
     ) -> Result<Atom, err::AtomDBError> {
-        let atom = self.atom_db.fresh_atom(previous_value)?;
+        let atom = match self.atom_db.valuation.len().try_into() {
+            // Note, ATOM_MAX over Atom::Max as the former is limited by the representation of literals, if relevant.
+            Ok(atom) if atom <= ATOM_MAX => atom,
+            _ => {
+                return Err(AtomDBError::AtomsExhausted);
+            }
+        };
+
+        self.atom_db.activity_heap.add(atom as usize, 1.0);
+
+        self.atom_db.watch_dbs.push(WatchDB::default());
+        self.atom_db.valuation.push(None);
+        self.atom_db.previous_valuation.push(previous_value);
+        self.atom_db.atom_level_map.push(None);
+
         self.resolution_buffer.grow_to_include(atom);
         Ok(atom)
     }

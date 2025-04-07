@@ -38,7 +38,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Asserts all assumptions recorded in the literal database.
     /// Returns ok if asserting assumptions as successful, and an error otherwise.
     pub fn assert_assumptions(&mut self, assumptions: Vec<CLiteral>) -> Result<(), ErrorKind> {
-        if self.atom_db.decision_is_made() {
+        if self.atom_db.trail.decision_is_made() {
             log::error!("! Asserting assumptions while a decision has been made.");
             return Err(ErrorKind::InvalidState);
         }
@@ -89,7 +89,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     // The atom has been ensured, above.
                     match unsafe {
                         self.atom_db
-                            .set_value_unchecked(assumption, self.atom_db.level())
+                            .set_value_unchecked(assumption, self.atom_db.trail.level())
                     } {
                         AtomValue::NotSet => {
                             log::info!("BCP of assumption: {assumption}");
@@ -128,7 +128,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     let q_result = unsafe {
                         self.atom_db
-                            .set_value_unchecked(literal, self.atom_db.level())
+                            .set_value_unchecked(literal, self.atom_db.trail.level())
                     };
                     match q_result {
                         AtomValue::NotSet => {
@@ -168,7 +168,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         let mut assumptions: Vec<CLiteral> = Vec::default();
 
-        if !self.atom_db.assumption_is_made() {
+        if !self.atom_db.trail.assumption_is_made() {
             return assumptions;
         }
 
@@ -184,11 +184,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let assumption_index = unsafe {
             *self
                 .atom_db
+                .trail
                 .level_indicies
-                .get_unchecked(self.atom_db.initial_decision_level as usize - 1)
+                .get_unchecked(self.atom_db.trail.initial_decision_level as usize - 1)
         };
 
-        for (index, literal) in self.atom_db.trail.iter().enumerate().rev() {
+        for (index, literal) in self.atom_db.trail.literals.iter().enumerate().rev() {
             if seen_atoms.contains(&literal.atom()) {
                 // Check for an assumption, as in the case of conflict it will not have been assigned.
                 if index <= assumption_index {

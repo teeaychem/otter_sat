@@ -15,7 +15,7 @@ pub type Context = GenericContext<MinimalPCG32>;
 impl Context {
     /// Creates a context from some given configuration.
     pub fn from_config(config: Config) -> Self {
-        Self {
+        let mut ctx = Self {
             atom_db: AtomDB::new(&config),
             clause_db: ClauseDB::new(&config),
             resolution_buffer: ResolutionBuffer::new(&config),
@@ -28,6 +28,8 @@ impl Context {
             state: ContextState::Configuration,
 
             callback_terminate: None,
-        }
+        };
+        ctx.init();
+        ctx
     }
 }

@@ -163,7 +163,7 @@ impl ResolutionBuffer {
         };
 
         // Resolution buffer is only used by analysis, which is only called after some decision has been made
-        let the_trail = atom_db.take_assignments();
+        let the_trail = atom_db.trail.take_assignments();
         'resolution_loop: for assignment in the_trail.iter().rev() {
             if self.valueless_count <= 1 {
                 match self.config.stopping {
@@ -243,7 +243,7 @@ impl ResolutionBuffer {
             };
         }
 
-        atom_db.restore_assignments(the_trail);
+        atom_db.trail.restore_assignments(the_trail);
 
         match self.valueless_count {
             0 | 1 => {

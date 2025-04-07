@@ -54,7 +54,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         let q_result = unsafe {
             context
                 .atom_db
-                .set_value_unchecked(literal, context.atom_db.level())
+                .set_value_unchecked(literal, context.atom_db.trail.level())
         };
 
         match q_result {
@@ -74,7 +74,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         let q_result = unsafe {
             context
                 .atom_db
-                .set_value_unchecked(the_literal, context.atom_db.level())
+                .set_value_unchecked(the_literal, context.atom_db.trail.level())
         };
         match q_result {
             AtomValue::NotSet => {
