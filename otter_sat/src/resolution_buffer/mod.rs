@@ -17,6 +17,9 @@ pub mod config;
 #[doc(hidden)]
 pub mod methods;
 
+#[doc(hidden)]
+pub mod valuation;
+
 /// Possilbe 'Ok' results from resolution using a resolution buffer.
 pub enum ResolutionOk {
     /// A unique implication point was identified.

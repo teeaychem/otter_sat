@@ -11,7 +11,7 @@ use crate::{
     structures::{
         clause::{CClause, Clause, ClauseSource},
         literal::CLiteral,
-        valuation::{CValuation, Valuation},
+        valuation::Valuation,
     },
     types::err,
 };
@@ -29,11 +29,11 @@ impl ClauseDB {
     /// A valuation is optional.
     /// If given, clauses are initialised with respect to the given valuation.
     /// Otherwise, clauses are initialised with respect to the current valuation of the context.
-    pub fn store(
+    pub fn store<Val: Valuation>(
         &mut self,
         clause: impl Clause,
         source: ClauseSource,
-        valuation: &CValuation,
+        valuation: &Val,
         atom_db: &mut AtomDB,
         watches: &mut Watches,
         premises: HashSet<ClauseKey>,
@@ -138,11 +138,11 @@ impl ClauseDB {
         }
     }
 
-    fn store_long(
+    fn store_long<Val: Valuation>(
         &mut self,
         clause: CClause,
         source: ClauseSource,
-        valuation: &CValuation,
+        valuation: &Val,
         atom_db: &mut AtomDB,
         watches: &mut Watches,
     ) -> Result<ClauseKey, err::ClauseDBError> {
