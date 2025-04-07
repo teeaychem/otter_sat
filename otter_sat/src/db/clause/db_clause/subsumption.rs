@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 
 use crate::{
-    db::atom::AtomDB,
+    db::{atom::AtomDB, watches::Watches},
     misc::log::targets,
     structures::literal::{CLiteral, Literal},
     types::err::{self},
@@ -40,6 +40,7 @@ impl dbClause {
         &mut self,
         literal: impl Borrow<CLiteral>,
         atom_db: &mut AtomDB,
+        watches: &mut Watches,
         fix_watch: bool,
     ) -> Result<usize, err::SubsumptionError> {
         if self.clause.len() < 3 {
@@ -71,7 +72,7 @@ impl dbClause {
         let removed = self.clause.swap_remove(position);
 
         // Safe, as the atom is contained in a clause, and so is surely part of the database.
-        match unsafe { atom_db.unwatch_long_unchecked(removed, &self.key) } {
+        match unsafe { watches.unwatch_long_unchecked(removed, &self.key) } {
             Ok(()) => {}
             Err(_) => return Err(err::SubsumptionError::WatchError),
         };
@@ -93,7 +94,7 @@ impl dbClause {
             }
             // Safe, by above construction.
             let watched_literal = unsafe { self.clause.get_unchecked(self.watch_ptr) };
-            self.note_watch(watched_literal, atom_db);
+            self.note_watch(watched_literal, watches);
             // TODO: Is this sufficient to uphold the required invariant?
             if zero_swap && atom_db.value_of(watched_literal.atom()).is_none() {
                 self.clause.swap(0, self.watch_ptr);

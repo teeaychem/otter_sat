@@ -1,6 +1,6 @@
 use crate::{
     config::Config,
-    db::{ClauseKey, atom::AtomDB, clause::ClauseDB},
+    db::{ClauseKey, atom::AtomDB, clause::ClauseDB, watches::Watches},
     reports::Report,
     resolution_buffer::ResolutionBuffer,
     structures::{
@@ -36,6 +36,9 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
     /// The atom database.
     /// See [db::atom](crate::db::atom) for details.
     pub atom_db: AtomDB,
+
+    /// Watch lists for each atom in the form of [WatchDB] structs, indexed by atoms in the `watch_dbs` field.
+    pub watch_dbs: Watches,
 
     /// The clause database.
     /// See [db::clause](crate::db::clause) for details.

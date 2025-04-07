@@ -5,6 +5,7 @@ use crate::{
             watch_db::{BinaryWatch, LongWatch, WatchStatus},
         },
         keys::ClauseKey,
+        watches::Watches,
     },
     structures::{
         atom::Atom,
@@ -60,7 +61,7 @@ impl dbClause {
      Failure for a candidate for watch A to be found implies a candidate for watch B.
      Still, this is not encoded, as failure for watch A is very unlikely.
      */
-    pub fn initialise_watches(&mut self, atom_db: &mut AtomDB) {
+    pub fn initialise_watches(&mut self, atom_db: &mut AtomDB, watches: &mut Watches) {
         // As watches require two or more literals, and watch_ptr must be within the bounds of the vector, use of get_unchecked on index zero and watch_ptr is safe.
         let mut watch_a_set = false;
 
@@ -69,14 +70,14 @@ impl dbClause {
 
             match index_value {
                 None => {
-                    self.note_watch(literal, atom_db);
+                    self.note_watch(literal, watches);
                     self.clause.swap(0, index);
                     watch_a_set = true;
                     break;
                 }
 
                 Some(value) if value == literal.polarity() => {
-                    self.note_watch(literal, atom_db);
+                    self.note_watch(literal, watches);
                     self.clause.swap(0, index);
                     watch_a_set = true;
                     break;
@@ -88,7 +89,7 @@ impl dbClause {
         if !watch_a_set {
             // May fail if an appropriate backjump has not been made before adding a clause.
             let zero_literal = unsafe { self.clause.get_unchecked(0) };
-            self.note_watch(zero_literal, atom_db);
+            self.note_watch(zero_literal, watches);
         }
 
         // For the other watch literal an unvalued or satisfied literal is chosen over an unsatisfied literal.
@@ -108,14 +109,14 @@ impl dbClause {
             match atom_value {
                 None => {
                     self.watch_ptr = index;
-                    self.note_watch(literal, atom_db);
+                    self.note_watch(literal, watches);
                     watch_b_set = true;
                     break;
                 }
 
                 Some(value) if value == literal.polarity() => {
                     self.watch_ptr = index;
-                    self.note_watch(literal, atom_db);
+                    self.note_watch(literal, watches);
                     watch_b_set = true;
                     break;
                 }
@@ -135,7 +136,7 @@ impl dbClause {
 
         if !watch_b_set {
             let ptr_literal = unsafe { self.clause.get_unchecked(self.watch_ptr) };
-            self.note_watch(ptr_literal, atom_db);
+            self.note_watch(ptr_literal, watches);
         }
     }
 
@@ -143,7 +144,7 @@ impl dbClause {
     ///
     /// # Safety
     /// A binary clause contains two literals, and so the use of get_unchecked is safe.
-    pub fn note_watch(&self, literal: &CLiteral, atom_db: &mut AtomDB) {
+    pub fn note_watch(&self, literal: &CLiteral, watch_db: &mut Watches) {
         match self.key {
             ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) => {
                 panic!("! Attempt to note watches on a unit clause")
@@ -157,19 +158,24 @@ impl dbClause {
                     *self.clause.get_unchecked(0)
                 };
 
-                atom_db
+                watch_db
                     .watch_binary_unchecked(literal, BinaryWatch::new(check_literal, *self.key()));
             },
 
             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
-                atom_db.watch_long_unchecked(literal, LongWatch::new(*self.key()));
+                watch_db.watch_long_unchecked(literal, LongWatch::new(*self.key()));
             },
         }
     }
 
     /// Updates the watched literals, given an atom whose value has been set.
     #[allow(clippy::result_unit_err)]
-    pub fn update_watch(&mut self, atom: Atom, atom_db: &mut AtomDB) -> Result<WatchStatus, ()> {
+    pub fn update_watch(
+        &mut self,
+        atom: Atom,
+        atom_db: &mut AtomDB,
+        watches: &mut Watches,
+    ) -> Result<WatchStatus, ()> {
         let watch_ptr_cache = self.watch_ptr;
         let clause_length = self.clause.len();
 
@@ -193,12 +199,12 @@ impl dbClause {
             let literal = unsafe { self.clause.get_unchecked(self.watch_ptr) };
             match atom_db.value_of(literal.atom()) {
                 None => {
-                    self.note_watch(literal, atom_db);
+                    self.note_watch(literal, watches);
                     break Ok(WatchStatus::None);
                 }
 
                 Some(value) if value == literal.polarity() => {
-                    self.note_watch(literal, atom_db);
+                    self.note_watch(literal, watches);
                     break Ok(WatchStatus::Witness);
                 }
 

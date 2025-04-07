@@ -19,6 +19,7 @@ pub mod atom;
 pub mod clause;
 mod keys;
 pub use keys::*;
+pub mod watches;
 
 use std::collections::HashSet;
 
@@ -65,6 +66,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         *assignment.literal(),
                         ClauseSource::PureUnit,
                         &mut self.atom_db,
+                        &mut self.watch_dbs,
                         premises,
                     );
                 } else {
@@ -89,6 +91,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 *unit_clause,
                                 ClauseSource::BCP,
                                 &mut self.atom_db,
+                                &mut self.watch_dbs,
                                 premises,
                             );
                         };

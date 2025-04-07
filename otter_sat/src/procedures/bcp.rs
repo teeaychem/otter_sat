@@ -99,7 +99,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // Binary clause block.
         {
             // Note, this does not require updating watches.
-            let binary_list = unsafe { self.atom_db.watchers_binary_unchecked(literal) };
+            let binary_list = unsafe { self.watch_dbs.watchers_binary_unchecked(literal) };
 
             for element in unsafe { &*binary_list } {
                 let check = element.literal;
@@ -139,7 +139,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         // Long clause block.
         {
-            let long_list = unsafe { &mut *self.atom_db.watchers_long_unchecked(literal) };
+            let long_list = unsafe { &mut *self.watch_dbs.watchers_long_unchecked(literal) };
 
             let mut index = 0;
             let mut length = long_list.len();
@@ -156,7 +156,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
                 };
 
-                match db_clause.update_watch(literal.atom(), &mut self.atom_db) {
+                match db_clause.update_watch(literal.atom(), &mut self.atom_db, &mut self.watch_dbs)
+                {
                     Ok(watch_db::WatchStatus::Witness) | Ok(watch_db::WatchStatus::None) => {
                         length -= 1;
                         long_list.swap(index, length);
