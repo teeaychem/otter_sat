@@ -80,11 +80,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
 
         for literal in self.trail.literals.iter().rev() {
-            let Some(assignment) = self.atom_cells.get_assignment_source(literal.atom()) else {
-                panic!("! Missing assignment");
-            };
+            match self.atom_cells.get_assignment_source(literal.atom()) {
+                AssignmentSource::None => panic!("! Missing assignment"),
 
-            match assignment {
                 AssignmentSource::PureLiteral => {}
 
                 AssignmentSource::BCP(key) => {

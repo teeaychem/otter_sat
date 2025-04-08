@@ -38,6 +38,9 @@ pub enum AssignmentSource {
 
     /// An addition (unit) clause.
     Addition,
+
+    /// There is no assignment source, and if present the assignment is in error.
+    None,
 }
 
 #[derive(Clone, Debug)]

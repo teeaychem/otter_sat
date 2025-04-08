@@ -53,6 +53,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// If the source of the consequence references a clause stored by a key, the clause must be present in the clause database.
     pub fn record_assignment(&mut self, literal: CLiteral, source: AssignmentSource) {
         match source {
+            AssignmentSource::None => panic!("! Assignment without source"),
+
             AssignmentSource::PureLiteral => {
                 let premises = HashSet::default();
                 // Making a free decision is not supported after some other (non-free) decision has been made.
@@ -118,18 +120,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 .get_unchecked_mut(literal.atom() as usize)
         };
         cell.value = Some(literal.polarity());
-        cell.source = Some(source);
+        cell.source = source;
         cell.level = Some(self.trail.level());
     }
 
     pub fn store_assumption(&mut self, literal: CLiteral) {
         if self.config.stacked_assumptions.value
             || self.trail.literals.last().is_none_or(|a| {
-                let Some(assignment) = self.atom_cells.get_assignment_source(a.atom()) else {
-                    panic!("! Missing assignment");
-                };
-
-                assignment != &AssignmentSource::Assumption
+                self.atom_cells.get_assignment_source(a.atom()) != &AssignmentSource::Assumption
             })
         {
             self.trail.initial_decision_level += 1;

@@ -31,7 +31,7 @@ Cells are designed to intially store information about an assignment and additio
 pub struct AtomCell {
     pub value: Option<bool>,
     pub previous_value: bool,
-    pub source: Option<AssignmentSource>,
+    pub source: AssignmentSource,
     pub status: ResolutionStatus,
     pub level: Option<LevelIndex>,
 }
@@ -40,7 +40,7 @@ impl Default for AtomCell {
     fn default() -> Self {
         AtomCell {
             value: None,
-            source: None,
+            source: AssignmentSource::None,
             status: ResolutionStatus::Valuation,
             level: None,
             previous_value: false,
