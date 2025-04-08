@@ -11,7 +11,7 @@ pub struct Trail {
 }
 impl Trail {
     /// Stores a consequence of the top decision level.
-    pub fn store_assignment(&mut self, literal: CLiteral) {
+    pub fn store_literal(&mut self, literal: CLiteral) {
         self.literals.push(literal);
     }
 

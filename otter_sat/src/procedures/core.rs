@@ -80,15 +80,15 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
 
         for literal in self.trail.literals.iter().rev() {
-            let Some(assignment) = self.atom_cells.get_assignment(literal.atom()) else {
+            let Some(assignment) = self.atom_cells.get_assignment_source(literal.atom()) else {
                 panic!("! Missing assignment");
             };
 
-            match assignment.source {
+            match assignment {
                 AssignmentSource::PureLiteral => {}
 
                 AssignmentSource::BCP(key) => {
-                    for key in self.original_keys(key) {
+                    for key in self.original_keys(*key) {
                         core.insert(
                             self.clause_db
                                 .get(&key)

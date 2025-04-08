@@ -9,7 +9,7 @@ use crate::{
     reports::Report,
     structures::{
         atom::Atom,
-        consequence::{Assignment, AssignmentSource},
+        consequence::AssignmentSource,
         literal::{CLiteral, IntLiteral, Literal},
         valuation::{CValuation, Valuation},
     },
@@ -96,8 +96,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // fresh_atom_fundamental fails only if ATOM_MAX would be hit.
         // top is the first atom created, and so ATOM_MAX will not be hit.
         let top: Atom = unsafe { self.fresh_atom_fundamental(true).unwrap_unchecked() };
-        let assignment = Assignment::from(CLiteral::new(top, true), AssignmentSource::Original);
-        self.record_assignment(assignment);
+        self.record_assignment(CLiteral::new(top, true), AssignmentSource::Original);
     }
 
     /// The current valuation, as some struction which implements the valuation trait.
@@ -198,7 +197,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
 
         cell.value = None;
-        cell.assignment = None;
+        cell.source = None;
         cell.level = None;
 
         *unsafe { self.valuation.get_unchecked_mut(atom as usize) } = None;

@@ -91,10 +91,7 @@ use crate::{
     context::GenericContext,
     db::{ClauseKey, atom::AtomValue},
     procedures::analysis::AnalysisResult,
-    structures::{
-        consequence::{Assignment, AssignmentSource},
-        literal::CLiteral,
-    },
+    structures::{consequence::AssignmentSource, literal::CLiteral},
     types::err::{self, ErrorKind},
 };
 
@@ -173,9 +170,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                             match self.peek_assignment_unchecked(literal) {
                                 AtomValue::NotSet => {
-                                    let assignment =
-                                        Assignment::from(literal, AssignmentSource::BCP(key));
-                                    self.record_assignment(assignment);
+                                    self.record_assignment(literal, AssignmentSource::BCP(key));
                                 }
 
                                 AtomValue::Same => {}

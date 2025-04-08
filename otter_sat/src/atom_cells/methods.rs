@@ -40,7 +40,7 @@ use crate::{
     structures::{
         atom::Atom,
         clause::{CClause, Clause},
-        consequence::{Assignment, AssignmentSource},
+        consequence::AssignmentSource,
         literal::{CLiteral, Literal},
         valuation::Valuation,
     },
@@ -97,12 +97,14 @@ impl AtomCells {
                 CellStatus::Strengthened | CellStatus::Pivot => {}
 
                 CellStatus::Asserting => {
-                    clause.push(cell.clone().assignment.unwrap().literal().negate())
+                    let literal = CLiteral::new(*atom, !unsafe { cell.value.unwrap_unchecked() });
+                    clause.push(literal);
                 }
 
                 CellStatus::Asserted => {
                     asserted_index = clause.size();
-                    clause.push(cell.clone().assignment.unwrap().literal().negate());
+                    let literal = CLiteral::new(*atom, !unsafe { cell.value.unwrap_unchecked() });
+                    clause.push(literal);
                 }
             }
 
@@ -120,11 +122,11 @@ impl AtomCells {
         &mut self,
         atom: Atom,
         value: Option<bool>,
-        assignment: Option<Assignment>,
+        source: Option<AssignmentSource>,
     ) {
         let cell = self.get_mut(atom);
         cell.value = value;
-        cell.assignment = assignment;
+        cell.source = source;
         cell.status = CellStatus::Valuation;
     }
 
@@ -167,7 +169,7 @@ impl AtomCells {
 
         // Resolution buffer is only used by analysis, which is only called after some decision has been made
         let the_trail = trail.take_assignments();
-        'resolution_loop: for assignment in the_trail.iter().rev() {
+        'resolution_loop: for literal in the_trail.iter().rev() {
             if self.valueless_count <= 1 {
                 match self.config.stopping {
                     StoppingCriteria::FirstUIP => {
@@ -177,18 +179,10 @@ impl AtomCells {
                 }
             }
 
-            log::info!(target: targets::ATOMCELLS, "Examining trail item {assignment:?}");
+            log::info!(target: targets::ATOMCELLS, "Examining trail item {literal:?}");
 
             // TODO: Fix up
-            let literal = assignment;
-            let source = *self
-                .buffer
-                .get(literal.atom() as usize)
-                .unwrap()
-                .get_assignment()
-                .clone()
-                .unwrap()
-                .source();
+            let source = *self.get(literal.atom()).get_assignment_source().unwrap();
 
             match source {
                 AssignmentSource::BCP(key) => {
@@ -389,10 +383,10 @@ impl AtomCells {
 }
 
 impl AtomCells {
-    pub fn get_assignment(&self, atom: Atom) -> &Option<Assignment> {
+    pub fn get_assignment_source(&self, atom: Atom) -> &Option<AssignmentSource> {
         match self.buffer.get(atom as usize) {
             None => &None,
-            Some(cell) => &cell.assignment,
+            Some(cell) => &cell.source,
         }
     }
 }

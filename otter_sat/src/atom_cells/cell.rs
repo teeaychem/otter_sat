@@ -1,4 +1,4 @@
-use crate::{db::LevelIndex, structures::consequence::Assignment};
+use crate::{db::LevelIndex, structures::consequence::AssignmentSource};
 
 #[derive(Clone)]
 pub enum CellStatus {
@@ -30,19 +30,18 @@ Cells are designed to intially store information about an assignment and additio
 #[derive(Clone)]
 pub struct Cell {
     pub value: Option<bool>,
-    pub assignment: Option<Assignment>,
+    pub source: Option<AssignmentSource>,
     pub status: CellStatus,
     pub level: Option<LevelIndex>,
     pub previous_value: bool,
 }
 
 impl Cell {
-    pub fn value(&self) -> Option<bool> {
-        self.assignment.as_ref().map(|a| a.value())
-    }
-
-    pub fn get_assignment(&self) -> &Option<Assignment> {
-        &self.assignment
+    pub fn get_assignment_source(&self) -> Option<&AssignmentSource> {
+        match &self.source {
+            None => None,
+            Some(a) => Some(&a),
+        }
     }
 }
 
@@ -50,7 +49,7 @@ impl Default for Cell {
     fn default() -> Self {
         Cell {
             value: None,
-            assignment: None,
+            source: None,
             status: CellStatus::Valuation,
             level: None,
             previous_value: false,

@@ -9,7 +9,7 @@ use crate::{
     structures::{
         atom::Atom,
         clause::Clause,
-        consequence::{Assignment, AssignmentSource},
+        consequence::AssignmentSource,
         literal::{CLiteral, Literal},
     },
 };
@@ -54,8 +54,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
 
         match context.peek_assignment_unchecked(literal) {
             AtomValue::NotSet => {
-                let assignment = Assignment::from(literal, AssignmentSource::PureLiteral);
-                context.record_assignment(assignment);
+                context.record_assignment(literal, AssignmentSource::PureLiteral);
             }
 
             AtomValue::Same => {}
@@ -69,8 +68,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
 
         match context.peek_assignment_unchecked(literal) {
             AtomValue::NotSet => {
-                let assignment = Assignment::from(literal, AssignmentSource::PureLiteral);
-                context.record_assignment(assignment);
+                context.record_assignment(literal, AssignmentSource::PureLiteral);
             }
 
             AtomValue::Same => {}
