@@ -60,7 +60,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     self.clause_db.store(
                         literal,
                         ClauseSource::PureUnit,
-                        &self.valuation,
                         &mut self.atom_cells,
                         &mut self.watches,
                         premises,
@@ -86,7 +85,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             self.clause_db.store(
                                 unit_clause,
                                 ClauseSource::BCP,
-                                &self.valuation,
                                 &mut self.atom_cells,
                                 &mut self.watches,
                                 premises,
@@ -113,10 +111,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 self.store_assumption(literal);
             }
         }
-
-        let atom = literal.atom();
-
-        *unsafe { self.valuation.get_unchecked_mut(atom as usize) } = Some(literal.polarity());
 
         let cell = unsafe {
             self.atom_cells

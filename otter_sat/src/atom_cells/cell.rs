@@ -1,7 +1,7 @@
 use crate::{db::LevelIndex, structures::consequence::AssignmentSource};
 
 #[derive(Clone)]
-pub enum CellStatus {
+pub enum ResolutionStatus {
     /// Initial valuation
     Valuation,
 
@@ -28,42 +28,22 @@ Cells are designed to intially store information about an assignment and additio
 
 */
 #[derive(Clone)]
-pub struct Cell {
+pub struct AtomCell {
     pub value: Option<bool>,
-    pub source: Option<AssignmentSource>,
-    pub status: CellStatus,
-    pub level: Option<LevelIndex>,
     pub previous_value: bool,
+    pub source: Option<AssignmentSource>,
+    pub status: ResolutionStatus,
+    pub level: Option<LevelIndex>,
 }
 
-impl Cell {
-    pub fn get_assignment_source(&self) -> Option<&AssignmentSource> {
-        match &self.source {
-            None => None,
-            Some(a) => Some(&a),
-        }
-    }
-}
-
-impl Default for Cell {
+impl Default for AtomCell {
     fn default() -> Self {
-        Cell {
+        AtomCell {
             value: None,
             source: None,
-            status: CellStatus::Valuation,
+            status: ResolutionStatus::Valuation,
             level: None,
             previous_value: false,
         }
     }
 }
-
-// impl From<Assignment> for Cell {
-//     fn from(assignment: Assignment) -> Self {
-//         Cell {
-//             value: Some(assignment.value()),
-//             assignment: Some(assignment.clone()),
-//             status: CellStatus::Valuation,
-//             level: None
-//         }
-//     }
-// }

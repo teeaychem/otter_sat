@@ -61,7 +61,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         self.atom_activity.add(atom as usize, 1.0);
 
         self.watches.dbs.push(WatchDB::default());
-        self.valuation.push(None);
+        // self.valuation.push(None);
 
         self.atom_cells.grow_to_include(atom);
         let cell = self.atom_cells.get_mut(atom);
@@ -73,8 +73,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Ensure `atom` is present in the context --- specifically, by introducing as many atoms as required to ensure atoms form a  contiguous block: [0..`atom`].
     // As `atom` is an atom, the method is guaranteed to succeed.
     pub fn ensure_atom(&mut self, atom: Atom) {
-        if self.valuation.len() <= (atom as usize) {
-            for _ in 0..((atom as usize) - self.valuation.len()) + 1 {
+        if self.valuation().atom_count() <= (atom as usize) {
+            for _ in 0..((atom as usize) - self.valuation().atom_count()) + 1 {
                 self.fresh_atom();
             }
         }
@@ -136,7 +136,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 self.clause_db.store(
                     literal,
                     ClauseSource::Original,
-                    &self.valuation,
                     &mut self.atom_cells,
                     &mut self.watches,
                     HashSet::default(),
@@ -161,7 +160,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 self.clause_db.store(
                     clause,
                     ClauseSource::Original,
-                    &self.valuation,
                     &mut self.atom_cells,
                     &mut self.watches,
                     HashSet::default(),
