@@ -33,6 +33,7 @@ pub struct Cell {
     pub assignment: Option<Assignment>,
     pub status: CellStatus,
     pub level: Option<LevelIndex>,
+    pub previous_value: bool,
 }
 
 impl Cell {
@@ -52,6 +53,7 @@ impl Default for Cell {
             assignment: None,
             status: CellStatus::Valuation,
             level: None,
+            previous_value: false,
         }
     }
 }

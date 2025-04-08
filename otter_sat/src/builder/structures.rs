@@ -62,9 +62,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         self.watches.dbs.push(WatchDB::default());
         self.valuation.push(None);
-        self.atom_db.previous_valuation.push(previous_value);
 
         self.atom_cells.grow_to_include(atom);
+        let cell = self.atom_cells.get_mut(atom);
+        cell.previous_value = previous_value;
+
         Ok(atom)
     }
 
