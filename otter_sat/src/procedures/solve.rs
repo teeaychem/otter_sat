@@ -264,9 +264,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let level = self.trail.level();
                             log::info!("Decided on {decision} at level {level}");
 
-                            let q_result = unsafe { self.set_value_unchecked(decision, level) };
-                            match q_result {
+                            match unsafe { self.peek_assignment_unchecked(decision) } {
                                 AtomValue::NotSet => {
+                                    unsafe { self.set_value_unchecked(decision, level) }
                                     // Assignment made above
                                 }
 
@@ -283,9 +283,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 // Conflict variants. These continue to the remaining contents of a loop.
                 ApplyConsequencesOk::UnitClause { literal } => {
-                    let q_result = unsafe { self.set_value_unchecked(literal, self.trail.level()) };
-                    match q_result {
+                    match unsafe { self.peek_assignment_unchecked(literal) } {
                         AtomValue::NotSet => {
+                            unsafe { self.set_value_unchecked(literal, self.trail.level()) }
                             let consequence = Assignment::from(literal, AssignmentSource::Addition);
                             self.record_assignment(consequence);
                         }
@@ -303,11 +303,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 ApplyConsequencesOk::AssertingClause { key, literal } => {
                     self.clause_db.note_use(key);
 
-                    let level = self.trail.level();
-
-                    let q_result = unsafe { self.set_value_unchecked(literal, level) };
-                    match q_result {
+                    match unsafe { self.peek_assignment_unchecked(literal) } {
                         AtomValue::NotSet => {
+                            unsafe { self.set_value_unchecked(literal, self.trail.level()) }
                             let assignment = Assignment::from(literal, AssignmentSource::BCP(key));
                             self.record_assignment(assignment);
                         }

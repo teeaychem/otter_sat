@@ -85,8 +85,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     // # Safety
                     // The atom has been ensured, above.
-                    match unsafe { self.set_value_unchecked(assumption, self.trail.level()) } {
+                    match unsafe { self.peek_assignment_unchecked(assumption) } {
                         AtomValue::NotSet => {
+                            unsafe { self.set_value_unchecked(assumption, self.trail.level()) }
+
                             log::info!("BCP of assumption: {assumption}");
                             // As assumptions are stacked, immediately call BCP.
                             match self.bcp(assumption) {
@@ -105,9 +107,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             }
                         }
 
-                        AtomValue::Same => log::info!("! Assumption of an atom with that value"),
+                        AtomValue::Same => log::info!("! Assumption of an atom with same value"),
 
-                        AtomValue::Different => {}
+                        AtomValue::Different => panic!("!"),
                     }
                 }
 
@@ -121,9 +123,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 for literal in assumptions.into_iter() {
                     self.ensure_atom(literal.atom());
 
-                    let q_result = unsafe { self.set_value_unchecked(literal, self.trail.level()) };
-                    match q_result {
+                    match unsafe { self.peek_assignment_unchecked(literal) } {
                         AtomValue::NotSet => {
+                            unsafe { self.set_value_unchecked(literal, self.trail.level()) }
                             let assignment =
                                 Assignment::from(literal, AssignmentSource::Assumption);
                             self.record_assignment(assignment);
