@@ -67,7 +67,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         let assignments = self.trail.clear_assigments_above(target);
         for literal in assignments.into_iter() {
-            unsafe { self.drop_value(literal.atom()) }
+            self.drop_value(literal.atom());
             self.atom_cells.clear_value(literal.atom());
         }
 
@@ -103,7 +103,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 let mut top_two = (None, None);
 
                 for literal in clause.literals() {
-                    let level = match self.atom_cells.level_unchecked(literal.atom()) {
+                    let level = match self.atom_cells.level(literal.atom()) {
                         Some(level) => level,
 
                         None => {

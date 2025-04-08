@@ -91,9 +91,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
     pub fn init(&mut self) {
         // TODO: Double check the assignment…
-        let the_true: Atom = unsafe { self.fresh_atom_fundamental(true).unwrap_unchecked() };
-        let assignment =
-            Assignment::from(CLiteral::new(the_true, true), AssignmentSource::Original);
+
+        // # Safety
+        // fresh_atom_fundamental fails only if ATOM_MAX would be hit.
+        // top is the first atom created, and so ATOM_MAX will not be hit.
+        let top: Atom = unsafe { self.fresh_atom_fundamental(true).unwrap_unchecked() };
+        let assignment = Assignment::from(CLiteral::new(top, true), AssignmentSource::Original);
         self.record_assignment(assignment);
     }
 
@@ -120,6 +123,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     }
 
     pub fn value_of(&self, atom: Atom) -> Option<bool> {
+        // # Safety
+        // Any atom has a valuation cell
         unsafe { *self.valuation.get_unchecked(atom as usize) }
     }
 
@@ -166,7 +171,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn internal_valuation_decision_string(&self) -> String {
         self.valuation()
             .atom_value_pairs()
-            .filter_map(|(atom, v)| match self.atom_cells.level_unchecked(atom) {
+            .filter_map(|(atom, v)| match self.atom_cells.level(atom) {
                 None => None,
                 Some(level) => match v {
                     None => None,
@@ -182,20 +187,21 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// # Safety
     /// No check is made on whether the atom is part of the valuation.
-    pub unsafe fn drop_value(&mut self, atom: Atom) {
-        unsafe {
-            log::trace!(target: targets::VALUATION, "Cleared atom: {atom}");
-            if let Some(present) = self.value_of(atom) {
-                let cell = self.atom_cells.buffer.get_unchecked_mut(atom as usize);
-                cell.previous_value = present;
-            }
-            *self.valuation.get_unchecked_mut(atom as usize) = None;
-            self.atom_activity.activate(atom as usize);
+    pub fn drop_value(&mut self, atom: Atom) {
+        log::trace!(target: targets::VALUATION, "Cleared atom: {atom}");
 
-            let cell = self.atom_cells.buffer.get_unchecked_mut(atom as usize);
-            cell.value = None;
-            cell.assignment = None;
-            cell.level = None;
+        let previous_value = self.value_of(atom);
+        let cell = self.atom_cells.get_mut(atom);
+
+        if let Some(value) = previous_value {
+            cell.previous_value = value;
         }
+
+        cell.value = None;
+        cell.assignment = None;
+        cell.level = None;
+
+        *unsafe { self.valuation.get_unchecked_mut(atom as usize) } = None;
+        self.atom_activity.activate(atom as usize);
     }
 }

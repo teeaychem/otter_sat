@@ -75,7 +75,7 @@ impl dbClause {
         let removed = self.clause.swap_remove(position);
 
         // Safe, as the atom is contained in a clause, and so is surely part of the database.
-        match unsafe { watches.unwatch_long_unchecked(removed, &self.key) } {
+        match watches.unwatch_long_unchecked(removed, &self.key) {
             Ok(()) => {}
             Err(_) => return Err(err::SubsumptionError::WatchError),
         };

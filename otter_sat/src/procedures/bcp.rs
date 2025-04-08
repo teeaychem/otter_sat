@@ -96,7 +96,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // Binary clause block.
         {
             // Note, this does not require updating watches.
-            let binary_list = unsafe { self.watches.watchers_binary_unchecked(literal) };
+            let binary_list = self.watches.watchers_binary_unchecked(literal);
 
             for element in unsafe { &*binary_list } {
                 let check = element.literal;

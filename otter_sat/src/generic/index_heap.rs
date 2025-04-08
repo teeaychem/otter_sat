@@ -88,52 +88,48 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
     /// Remove `value_index` from the heap, if present.
     /// Returns true if `value_index` was removed, false otherwise.
     pub fn remove(&mut self, value_index: usize) -> bool {
-        unsafe {
-            if let Some(heap_index) = self.heap_index(value_index) {
-                if heap_index == self.limit - 1 {
-                    self.limit -= 1;
-                    self.reposition(value_index, None);
-                } else if heap_index < self.limit {
-                    self.limit -= 1;
-                    self.reposition(self.value_index(self.limit), Some(heap_index));
-                    self.heap.swap(heap_index, self.limit);
-                    self.reposition(value_index, None);
-                    self.heapify_down(heap_index);
-                }
-                true
-            } else {
-                false
+        if let Some(heap_index) = self.heap_index(value_index) {
+            if heap_index == self.limit - 1 {
+                self.limit -= 1;
+                self.reposition(value_index, None);
+            } else if heap_index < self.limit {
+                self.limit -= 1;
+                self.reposition(self.value_index(self.limit), Some(heap_index));
+                self.heap.swap(heap_index, self.limit);
+                self.reposition(value_index, None);
+                self.heapify_down(heap_index);
             }
+            true
+        } else {
+            false
         }
     }
 
     /// Activate the value on the heap at `index`.
     pub fn activate(&mut self, index: usize) -> bool {
-        unsafe {
-            match self.heap_index(index) {
-                None => {
-                    self.reposition(index, Some(self.limit));
-                    *self.heap.get_unchecked_mut(self.limit) = index;
-                    self.heapify_up(self.limit);
-                    self.limit += 1;
-                    true
-                }
-                Some(heap_index) => {
-                    self.heapify_up(heap_index);
-                    self.heapify_down(heap_index);
-                    false
-                }
+        match self.heap_index(index) {
+            None => {
+                self.reposition(index, Some(self.limit));
+                // # Safety
+                // The limit is always within the heap.
+                *unsafe { self.heap.get_unchecked_mut(self.limit) } = index;
+                self.heapify_up(self.limit);
+                self.limit += 1;
+                true
+            }
+            Some(heap_index) => {
+                self.heapify_up(heap_index);
+                self.heapify_down(heap_index);
+                false
             }
         }
     }
 
     /// Heapify (ensure invariants of the heap are upheld) if `value_index` is active.
     pub fn heapify_if_active(&mut self, value_index: usize) {
-        unsafe {
-            if let Some(heap_index) = self.heap_index(value_index) {
-                self.heapify_down(heap_index);
-                self.heapify_up(heap_index);
-            }
+        if let Some(heap_index) = self.heap_index(value_index) {
+            self.heapify_down(heap_index);
+            self.heapify_up(heap_index);
         }
     }
 
@@ -157,18 +153,18 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
     pub fn pop_max(&mut self) -> Option<usize> {
         match self.limit {
             0 => None,
-            _ => unsafe {
+            _ => {
                 let max_heap_index = self.value_index(0);
                 self.remove(max_heap_index);
                 Some(max_heap_index)
-            },
+            }
         }
     }
 
     /// Heapify (ensure invariants of the heap are upheld) the heap.
     pub fn heapify(&mut self) {
         for heap_index in (0..self.limit / 2).rev() {
-            unsafe { self.heapify_down(heap_index) }
+            self.heapify_down(heap_index)
         }
     }
 
@@ -193,6 +189,8 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
 
     /// Set the value of `value_index` to `value.
     pub fn revalue(&mut self, value_index: usize, value: V) {
+        // # Safety
+        // Value index indexes some value.
         unsafe { *self.values.get_unchecked_mut(value_index) = value }
     }
 
@@ -209,20 +207,23 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
 
 impl<V: PartialOrd + Default> IndexHeap<V> {
     /// The index of some value stored at `heap_index` on the heap.
-    ///
-    /// # Safety
-    /// Assumes `heap_index` is some location on the heap.
-    unsafe fn value_index(&self, heap_index: usize) -> usize {
+    fn value_index(&self, heap_index: usize) -> usize {
+        // # Safety
+        // heap index is some where on the heap.
         *unsafe { self.heap.get_unchecked(heap_index) }
     }
 
     /// Where `value_index` is stored on the heap, if present.
-    unsafe fn heap_index(&self, value_index: usize) -> Option<usize> {
+    fn heap_index(&self, value_index: usize) -> Option<usize> {
+        // # Safety
+        // A value index must have some heap index.
         *unsafe { self.position_in_heap.get_unchecked(value_index) }
     }
 
     /// Updates the position in the heap of `value_index` to `heap_index`.
-    unsafe fn reposition(&mut self, value_index: usize, heap_index: Option<usize>) {
+    fn reposition(&mut self, value_index: usize, heap_index: Option<usize>) {
+        // # Safety
+        // A value index must have some position in the heap
         *unsafe { self.position_in_heap.get_unchecked_mut(value_index) } = heap_index;
     }
 
@@ -254,7 +255,7 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
     /// Alterantive implementation may first identify the largest child and then determine the updated index.
     ///
     /// Only after the required update has been identified is an update made.
-    unsafe fn heapify_down(&mut self, mut heap_index: usize) {
+    fn heapify_down(&mut self, mut heap_index: usize) {
         let mut left_index;
         let mut left_value;
 
@@ -268,6 +269,9 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
         let mut a;
         let mut b;
 
+        // # Safety
+        // Each unsafe block identifies some index within the buffer, so long as heap_index is within the buffer.
+        // As the method is internal, that heap_index is within the buffer is upheld.
         loop {
             left_index = self.heap_left(heap_index);
             if left_index >= self.limit {
@@ -293,8 +297,8 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
             }
 
             if update_index != heap_index {
-                a = unsafe { self.value_index(heap_index) };
-                b = unsafe { self.value_index(update_index) };
+                a = self.value_index(heap_index);
+                b = self.value_index(update_index);
 
                 self.position_in_heap.swap(a, b);
                 self.heap.swap(heap_index, update_index);
@@ -309,7 +313,7 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
     /// Shuffles the index up from the heap, if required.
     ///
     /// Swaps the index with it's parent in the heap, if the parent is smaller.
-    unsafe fn heapify_up(&mut self, mut heap_index: usize) {
+    fn heapify_up(&mut self, mut heap_index: usize) {
         let mut parent_heap;
 
         let mut index_value;
@@ -319,6 +323,9 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
         let mut a;
         let mut b;
 
+        // # Safety
+        // Each unsafe block identifies some index within the buffer, so long as heap_index is within the buffer.
+        // As the method is internal, that heap_index is within the buffer is upheld.
         'up_loop: loop {
             if heap_index == 0 {
                 break 'up_loop;
@@ -331,8 +338,8 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
             match parent_value.partial_cmp(index_value) {
                 Some(Ordering::Greater) => break 'up_loop,
                 _ => {
-                    a = unsafe { self.value_index(heap_index) };
-                    b = unsafe { self.value_index(parent_heap) };
+                    a = self.value_index(heap_index);
+                    b = self.value_index(parent_heap);
 
                     self.position_in_heap.swap(a, b);
                     self.heap.swap(heap_index, parent_heap);
