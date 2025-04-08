@@ -6,6 +6,7 @@ use crate::{
         clause::{Clause, ClauseSource},
         consequence::{Assignment, AssignmentSource},
         literal::{CLiteral, Literal},
+        valuation::Valuation,
     },
     types::err::{self, AtomDBError, ErrorKind, PreprocessingError},
 };
@@ -49,7 +50,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         &mut self,
         previous_value: bool,
     ) -> Result<Atom, err::AtomDBError> {
-        let atom = match self.valuation.len().try_into() {
+        let atom = match self.valuation().atom_count().try_into() {
             // Note, ATOM_MAX over Atom::Max as the former is limited by the representation of literals, if relevant.
             Ok(atom) if atom <= ATOM_MAX => atom,
             _ => {
@@ -62,7 +63,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         self.watches.dbs.push(WatchDB::default());
         self.valuation.push(None);
         self.atom_db.previous_valuation.push(previous_value);
-        self.atom_db.atom_level_map.push(None);
 
         self.atom_cells.grow_to_include(atom);
         Ok(atom)
@@ -135,12 +135,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     literal,
                     ClauseSource::Original,
                     &self.valuation,
-                    &mut self.atom_db,
+                    &mut self.atom_cells,
                     &mut self.watches,
                     HashSet::default(),
                 );
 
-                match unsafe { self.peek_assignment_unchecked(literal) } {
+                match self.peek_assignment_unchecked(literal) {
                     AtomValue::NotSet => {
                         let assignment = Assignment::from(literal, AssignmentSource::Original);
                         self.record_assignment(assignment);
@@ -161,7 +161,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     clause,
                     ClauseSource::Original,
                     &self.valuation,
-                    &mut self.atom_db,
+                    &mut self.atom_cells,
                     &mut self.watches,
                     HashSet::default(),
                 )?;

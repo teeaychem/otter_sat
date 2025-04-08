@@ -7,7 +7,7 @@ use config::BufferConfig;
 
 use crate::{
     context::callbacks::CallbackOnPremises,
-    db::ClauseKey,
+    db::{ClauseKey, LevelIndex},
     structures::{atom::Atom, literal::CLiteral},
 };
 #[doc(hidden)]
@@ -44,7 +44,7 @@ pub struct AtomCells {
     premises: HashSet<ClauseKey>,
 
     /// The buffer.
-    buffer: Vec<Cell>,
+    pub buffer: Vec<Cell>,
 
     /// A stack of modified atoms, with the original value stored as literal polarity.
     merged_atoms: Vec<Atom>,
@@ -67,5 +67,12 @@ impl AtomCells {
         if let Some(callback) = &mut self.callback_premises {
             callback(premises);
         }
+    }
+
+    /// Which decision an atom was valued on.
+    pub fn level_unchecked(&self, atom: Atom) -> Option<LevelIndex> {
+        // # Safety
+        // A cell is created together with the addition of an atom
+        unsafe { self.buffer.get_unchecked(atom as usize).level }
     }
 }

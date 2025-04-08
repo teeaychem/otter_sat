@@ -103,7 +103,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 let mut top_two = (None, None);
 
                 for literal in clause.literals() {
-                    let level = match unsafe { self.atom_db.level_unchecked(literal.atom()) } {
+                    let level = match self.atom_cells.level_unchecked(literal.atom()) {
                         Some(level) => level,
 
                         None => {

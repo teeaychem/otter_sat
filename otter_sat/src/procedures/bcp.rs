@@ -103,7 +103,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 let key = element.key;
 
                 match self.value_of(check.atom()) {
-                    None => match unsafe { self.peek_assignment_unchecked(check) } {
+                    None => match self.peek_assignment_unchecked(check) {
                         AtomValue::NotSet => {
                             let assignment = Assignment::from(check, AssignmentSource::BCP(key));
                             self.record_assignment(assignment);
@@ -174,7 +174,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             None => {
                                 self.clause_db.note_use(key);
 
-                                match unsafe { self.peek_assignment_unchecked(watch) } {
+                                match self.peek_assignment_unchecked(watch) {
                                     AtomValue::NotSet => {
                                         let consequence =
                                             Assignment::from(watch, AssignmentSource::BCP(key));

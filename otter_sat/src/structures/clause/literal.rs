@@ -1,8 +1,8 @@
 //! Implementation of clause trait for a (single) literal.
 
 use crate::{
+    atom_cells::AtomCells,
     config::LBD,
-    db::atom::AtomDB,
     structures::{
         clause::Clause,
         literal::{CLiteral, Literal},
@@ -34,7 +34,7 @@ impl Clause for CLiteral {
         Some(*self)
     }
 
-    fn lbd(&self, _atom_db: &AtomDB) -> LBD {
+    fn lbd(&self, _cells: &AtomCells) -> LBD {
         0
     }
 

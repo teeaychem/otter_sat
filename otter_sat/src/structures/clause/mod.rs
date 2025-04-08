@@ -44,8 +44,8 @@ pub use source::ClauseSource;
 pub use kind::ClauseKind;
 
 use crate::{
+    atom_cells::AtomCells,
     config::LBD,
-    db::atom::AtomDB,
     structures::{atom::Atom, literal::CLiteral, valuation::Valuation},
 };
 
@@ -70,7 +70,7 @@ pub trait Clause {
 
     /// The Literal Block Distance of the clause.
     /// That is, the number of (distinct) decisions which influence the value of atoms in the clause.
-    fn lbd(&self, atom_db: &AtomDB) -> LBD;
+    fn lbd(&self, cells: &AtomCells) -> LBD;
 
     /// An iterator over all literals in the clause, order is not guaranteed.
     fn literals(&self) -> impl Iterator<Item = CLiteral>;

@@ -61,7 +61,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         *assignment.literal(),
                         ClauseSource::PureUnit,
                         &self.valuation,
-                        &mut self.atom_db,
+                        &mut self.atom_cells,
                         &mut self.watches,
                         premises,
                     );
@@ -87,7 +87,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 *unit_clause,
                                 ClauseSource::BCP,
                                 &self.valuation,
-                                &mut self.atom_db,
+                                &mut self.atom_cells,
                                 &mut self.watches,
                                 premises,
                             );
@@ -116,18 +116,17 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         let literal = assignment.literal;
         let atom = literal.atom();
-        let value = literal.polarity();
 
-        *unsafe { self.valuation.get_unchecked_mut(atom as usize) } = Some(value);
+        *unsafe { self.valuation.get_unchecked_mut(atom as usize) } = Some(assignment.value());
 
-        *unsafe { self.atom_db.atom_level_map.get_unchecked_mut(atom as usize) } =
-            Some(self.trail.level());
-
-        self.atom_cells.set_valuation(
-            assignment.atom(),
-            Some(assignment.value()),
-            Some(assignment.clone()),
-        );
+        let cell = unsafe {
+            self.atom_cells
+                .buffer
+                .get_unchecked_mut(assignment.atom() as usize)
+        };
+        cell.value = Some(assignment.value());
+        cell.assignment = Some(assignment.clone());
+        cell.level = Some(self.trail.level());
     }
 
     pub fn store_assumption(&mut self, literal: CLiteral) {

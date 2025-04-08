@@ -2,7 +2,7 @@ use otter_sat::{builder::ClauseOk, config::Config, context::Context, reports::Re
 
 mod basic {
 
-    use otter_sat::structures::{clause::Clause, literal::Literal};
+    use otter_sat::structures::{clause::Clause, literal::Literal, valuation::Valuation};
 
     use super::*;
     #[test]
@@ -70,7 +70,7 @@ mod basic {
         assert!(ctx.add_clause(vec![p, p, q, q]).is_ok());
 
         // The atom db always contains top, and so the expected atom count is plus one.
-        assert_eq!(3, ctx.valuation.len());
+        assert_eq!(3, ctx.valuation().atom_count());
 
         let database = ctx
             .clause_db

@@ -1,6 +1,6 @@
 use crate::{
+    atom_cells::AtomCells,
     db::{
-        atom::AtomDB,
         keys::ClauseKey,
         watches::{
             Watches,
@@ -64,7 +64,7 @@ impl dbClause {
     pub fn initialise_watches<Val: Valuation>(
         &mut self,
         valuation: &Val,
-        atom_db: &mut AtomDB,
+        cells: &mut AtomCells,
         watches: &mut Watches,
     ) {
         // As watches require two or more literals, and watch_ptr must be within the bounds of the vector, use of get_unchecked on index zero and watch_ptr is safe.
@@ -104,7 +104,7 @@ impl dbClause {
 
         let mut level_b = unsafe {
             let literal = self.clause.get_unchecked(self.watch_ptr);
-            atom_db.level_unchecked(literal.atom())
+            cells.level_unchecked(literal.atom())
         };
 
         for index in 1..self.clause.len() {
@@ -129,7 +129,7 @@ impl dbClause {
                 Some(_) => {
                     // Safety: The clause has a value, which must have been given at some level.
                     let decision_level =
-                        unsafe { atom_db.level_unchecked(literal.atom()).unwrap_unchecked() };
+                        unsafe { cells.level_unchecked(literal.atom()).unwrap_unchecked() };
 
                     if level_b.is_none_or(|l| decision_level > l) {
                         self.watch_ptr = index;
