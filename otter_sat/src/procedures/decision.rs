@@ -79,7 +79,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 let decision_literal = match self.config.phase_saving.value {
                     true => {
-                        let previous_value = self.previous_value_of(chosen_atom);
+                        let previous_value = self.atom_cells.previous_value_of(chosen_atom);
                         CLiteral::new(chosen_atom, previous_value)
                     }
                     false => {

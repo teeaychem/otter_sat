@@ -3,13 +3,7 @@ use std::borrow::Borrow;
 use crate::{
     atom_cells::AtomCells,
     config::{Activity, Config},
-    db::{
-        ClauseKey,
-        atom::{AtomDB, AtomValue},
-        clause::ClauseDB,
-        trail::Trail,
-        watches::Watches,
-    },
+    db::{ClauseKey, atom::AtomValue, clause::ClauseDB, trail::Trail, watches::Watches},
     generic::index_heap::IndexHeap,
     misc::log::targets,
     reports::Report,
@@ -47,10 +41,6 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
 
     /// A current (often partial) [valuation](Valuation).
     pub valuation: CValuation,
-
-    /// The atom database.
-    /// See [db::atom](crate::db::atom) for details.
-    pub atom_db: AtomDB,
 
     /// An [IndexHeap] recording the activty of atoms, where any atom without a value is 'active' on the heap.
     pub atom_activity: IndexHeap<Activity>,
@@ -196,10 +186,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         unsafe {
             log::trace!(target: targets::VALUATION, "Cleared atom: {atom}");
             if let Some(present) = self.value_of(atom) {
-                *self
-                    .atom_db
-                    .previous_valuation
-                    .get_unchecked_mut(atom as usize) = present;
+                let cell = self.atom_cells.buffer.get_unchecked_mut(atom as usize);
+                cell.previous_value = present;
             }
             *self.valuation.get_unchecked_mut(atom as usize) = None;
             self.atom_activity.activate(atom as usize);
@@ -209,15 +197,5 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             cell.assignment = None;
             cell.level = None;
         }
-    }
-
-    /// Returns the '*previous*' value of the atom from the valuation stored in the [AtomDB].
-    ///
-    /// When a context is built this value may be randomised.
-    ///
-    /// # Safety
-    /// Does not check that the atom is part of the valuation.
-    pub fn previous_value_of(&self, atom: Atom) -> bool {
-        unsafe { *self.atom_db.previous_valuation.get_unchecked(atom as usize) }
     }
 }

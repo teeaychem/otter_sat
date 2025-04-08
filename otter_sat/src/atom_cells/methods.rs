@@ -122,14 +122,14 @@ impl AtomCells {
         value: Option<bool>,
         assignment: Option<Assignment>,
     ) {
-        let cell = unsafe { self.buffer.get_unchecked_mut(atom as usize) };
+        let cell = self.get_mut(atom);
         cell.value = value;
         cell.assignment = assignment;
         cell.status = CellStatus::Valuation;
     }
 
     pub fn mark_backjump(&mut self, atom: Atom) {
-        let cell = unsafe { self.buffer.get_unchecked_mut(atom as usize) };
+        let cell = self.get_mut(atom);
         cell.status = CellStatus::Backjump;
     }
 
@@ -137,7 +137,7 @@ impl AtomCells {
     ///
     /// Useful to initialise the resolution buffer with the current valuation and then to 'roll it back' to the previous valuation.
     pub fn clear_value(&mut self, atom: Atom) {
-        let cell = unsafe { self.buffer.get_unchecked_mut(atom as usize) };
+        let cell = self.get_mut(atom);
         cell.value = None;
         cell.status = CellStatus::Valuation;
     }
