@@ -62,7 +62,7 @@ use crate::{
     db::{atom::AtomValue, watches::watch_db},
     misc::log::targets::{self},
     structures::{
-        consequence::{Assignment, AssignmentSource},
+        consequence::AssignmentSource,
         literal::{CLiteral, Literal},
     },
     types::err::{self, ErrorKind},
@@ -105,8 +105,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 match self.value_of(check.atom()) {
                     None => match self.peek_assignment_unchecked(check) {
                         AtomValue::NotSet => {
-                            let assignment = Assignment::from(check, AssignmentSource::BCP(key));
-                            self.record_assignment(assignment);
+                            self.record_assignment(check, AssignmentSource::BCP(key));
                         }
 
                         AtomValue::Same => {}
@@ -176,9 +175,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                                 match self.peek_assignment_unchecked(watch) {
                                     AtomValue::NotSet => {
-                                        let consequence =
-                                            Assignment::from(watch, AssignmentSource::BCP(key));
-                                        self.record_assignment(consequence);
+                                        self.record_assignment(watch, AssignmentSource::BCP(key));
                                     }
 
                                     AtomValue::Same => {}

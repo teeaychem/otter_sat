@@ -61,7 +61,7 @@ impl Valuation for AtomCells {
     unsafe fn clear_value_of(&mut self, atom: Atom) {
         let cell = unsafe { self.buffer.get_unchecked_mut(atom as usize) };
         cell.value = None;
-        cell.assignment = None;
+        cell.source = None;
     }
 
     fn true_check(&self) -> bool {

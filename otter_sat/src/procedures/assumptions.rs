@@ -28,7 +28,7 @@ use crate::{
     structures::{
         atom::Atom,
         clause::Clause,
-        consequence::{Assignment, AssignmentSource},
+        consequence::AssignmentSource,
         literal::{CLiteral, Literal},
     },
     types::err::{self, ErrorKind},
@@ -54,16 +54,16 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 for assumption in &assumptions {
                     self.ensure_atom(assumption.atom());
 
-                    if let Some(assignment) = self.atom_cells.get_assignment(assumption.atom()) {
+                    if let Some(source) = self.atom_cells.get_assignment_source(assumption.atom()) {
                         let key = {
-                            match assignment.source {
+                            match source {
                                 AssignmentSource::PureLiteral => todo!(),
 
                                 AssignmentSource::Decision => {
                                     panic!("! Decision prior to assumption")
                                 }
 
-                                AssignmentSource::BCP(key) => key,
+                                AssignmentSource::BCP(key) => *key,
 
                                 AssignmentSource::Assumption => {
                                     todo!("AssignmentSource::Assumption")
@@ -84,9 +84,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     // The atom has been ensured, above.
                     match self.peek_assignment_unchecked(assumption) {
                         AtomValue::NotSet => {
-                            let assignment =
-                                Assignment::from(assumption, AssignmentSource::Assumption);
-                            self.record_assignment(assignment);
+                            self.record_assignment(*assumption, AssignmentSource::Assumption);
 
                             log::info!("BCP of assumption: {assumption}");
                             // As assumptions are stacked, immediately call BCP.
@@ -124,9 +122,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     match self.peek_assignment_unchecked(literal) {
                         AtomValue::NotSet => {
-                            let assignment =
-                                Assignment::from(literal, AssignmentSource::Assumption);
-                            self.record_assignment(assignment);
+                            self.record_assignment(literal, AssignmentSource::Assumption);
                         }
 
                         AtomValue::Same => log::info!("! Assumption of an atom with that value"),
@@ -187,11 +183,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     assumptions.push(*literal);
                 }
 
-                let Some(assignment) = self.atom_cells.get_assignment(literal.atom()) else {
+                let Some(assignment) = self.atom_cells.get_assignment_source(literal.atom()) else {
                     panic!("! Missing assignment");
                 };
 
-                match assignment.source() {
+                match assignment {
                     AssignmentSource::Assumption => {} // Handled above
 
                     AssignmentSource::BCP(key) => {

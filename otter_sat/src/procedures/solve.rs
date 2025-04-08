@@ -136,7 +136,7 @@ use crate::{
     procedures::{apply_consequences::ApplyConsequencesOk, decision::DecisionOk},
     reports::Report,
     structures::{
-        consequence::{Assignment, AssignmentSource},
+        consequence::AssignmentSource,
         literal::{CLiteral, Literal},
     },
     types::err::{self, ErrorKind},
@@ -184,12 +184,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         // Each error lead to a return of some form…
                         Err(err::ErrorKind::SpecificValuationConflict(assumption)) => {
                             let Some(assignment) =
-                                self.atom_cells.get_assignment(assumption.atom())
+                                self.atom_cells.get_assignment_source(assumption.atom())
                             else {
                                 panic!("! Missing assignment");
                             };
 
-                            let source = assignment.source;
+                            let source = assignment;
 
                             match source {
                                 AssignmentSource::PureLiteral => todo!(),
@@ -199,7 +199,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 }
 
                                 AssignmentSource::BCP(key) => {
-                                    self.note_conflict(key);
+                                    self.note_conflict(*key);
                                     return Ok(self.report());
                                 }
 
@@ -260,9 +260,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         DecisionOk::Literal(decision) => {
                             match self.peek_assignment_unchecked(decision) {
                                 AtomValue::NotSet => {
-                                    let assignment =
-                                        Assignment::from(decision, AssignmentSource::Decision);
-                                    self.record_assignment(assignment);
+                                    self.record_assignment(decision, AssignmentSource::Decision);
 
                                     log::info!(
                                         "Decided on {decision} at level {}",
@@ -285,8 +283,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 ApplyConsequencesOk::UnitClause { literal } => {
                     match self.peek_assignment_unchecked(literal) {
                         AtomValue::NotSet => {
-                            let consequence = Assignment::from(literal, AssignmentSource::Addition);
-                            self.record_assignment(consequence);
+                            self.record_assignment(literal, AssignmentSource::Addition);
                         }
 
                         AtomValue::Same => {}
@@ -304,8 +301,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     match self.peek_assignment_unchecked(literal) {
                         AtomValue::NotSet => {
-                            let assignment = Assignment::from(literal, AssignmentSource::BCP(key));
-                            self.record_assignment(assignment);
+                            self.record_assignment(literal, AssignmentSource::BCP(key));
                         }
 
                         AtomValue::Same => {}

@@ -28,7 +28,7 @@ use crate::{
     context::GenericContext,
     structures::{
         clause::ClauseSource,
-        consequence::{Assignment, AssignmentSource},
+        consequence::AssignmentSource,
         literal::{CLiteral, Literal},
     },
 };
@@ -51,14 +51,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// # Safety
     /// If the source of the consequence references a clause stored by a key, the clause must be present in the clause database.
-    pub fn record_assignment(&mut self, assignment: Assignment) {
-        match assignment.source() {
+    pub fn record_assignment(&mut self, literal: CLiteral, source: AssignmentSource) {
+        match source {
             AssignmentSource::PureLiteral => {
                 let premises = HashSet::default();
                 // Making a free decision is not supported after some other (non-free) decision has been made.
                 if !self.trail.decision_is_made() {
                     self.clause_db.store(
-                        *assignment.literal(),
+                        literal,
                         ClauseSource::PureUnit,
                         &self.valuation,
                         &mut self.atom_cells,
@@ -71,20 +71,20 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
 
             AssignmentSource::BCP(key) => {
-                log::info!("BCP Consequence: {key}: {}", assignment.literal());
+                log::info!("BCP Consequence: {key}: {}", literal);
                 //
                 match self.trail.decision_count() {
                     0 => {
                         if !self.trail.assumption_is_made() {
-                            let unit_clause = assignment.literal();
+                            let unit_clause = literal;
 
                             let mut premises = HashSet::default();
-                            premises.insert(*key);
+                            premises.insert(key);
 
-                            self.clause_db.note_use(*key);
+                            self.clause_db.note_use(key);
 
                             self.clause_db.store(
-                                *unit_clause,
+                                unit_clause,
                                 ClauseSource::BCP,
                                 &self.valuation,
                                 &mut self.atom_cells,
@@ -97,52 +97,51 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     _ => {}
                 }
 
-                self.trail.store_assignment(*assignment.literal())
+                self.trail.store_literal(literal)
             }
 
             AssignmentSource::Addition | AssignmentSource::Original => {
-                self.trail.store_assignment(*assignment.literal())
+                self.trail.store_literal(literal)
             }
 
             AssignmentSource::Decision => {
                 self.trail.level_indicies.push(self.trail.literals.len());
-                self.trail.store_assignment(*assignment.literal())
+                self.trail.store_literal(literal)
             }
 
             AssignmentSource::Assumption => {
-                self.store_assumption(*assignment.literal());
+                self.store_assumption(literal);
             }
         }
 
-        let literal = assignment.literal;
         let atom = literal.atom();
 
-        *unsafe { self.valuation.get_unchecked_mut(atom as usize) } = Some(assignment.value());
+        *unsafe { self.valuation.get_unchecked_mut(atom as usize) } = Some(literal.polarity());
 
         let cell = unsafe {
             self.atom_cells
                 .buffer
-                .get_unchecked_mut(assignment.atom() as usize)
+                .get_unchecked_mut(literal.atom() as usize)
         };
-        cell.value = Some(assignment.value());
-        cell.assignment = Some(assignment.clone());
+        cell.value = Some(literal.polarity());
+        cell.source = Some(source);
         cell.level = Some(self.trail.level());
     }
 
     pub fn store_assumption(&mut self, literal: CLiteral) {
         if self.config.stacked_assumptions.value
             || self.trail.literals.last().is_none_or(|a| {
-                let Some(assignment) = self.atom_cells.get_assignment(a.atom()) else {
+                let Some(assignment) = self.atom_cells.get_assignment_source(a.atom()) else {
                     panic!("! Missing assignment");
                 };
 
-                assignment.source != AssignmentSource::Assumption
+                assignment != &AssignmentSource::Assumption
             })
         {
             self.trail.initial_decision_level += 1;
             self.trail.level_indicies.push(self.trail.literals.len());
         }
 
-        self.trail.store_assignment(literal);
+        self.trail.store_literal(literal);
     }
 }
