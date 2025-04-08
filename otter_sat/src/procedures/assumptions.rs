@@ -82,7 +82,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     // # Safety
                     // The atom has been ensured, above.
-                    match unsafe { self.peek_assignment_unchecked(assumption) } {
+                    match self.peek_assignment_unchecked(assumption) {
                         AtomValue::NotSet => {
                             let assignment =
                                 Assignment::from(assumption, AssignmentSource::Assumption);
@@ -122,7 +122,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 for literal in assumptions.into_iter() {
                     self.ensure_atom(literal.atom());
 
-                    match unsafe { self.peek_assignment_unchecked(literal) } {
+                    match self.peek_assignment_unchecked(literal) {
                         AtomValue::NotSet => {
                             let assignment =
                                 Assignment::from(literal, AssignmentSource::Assumption);

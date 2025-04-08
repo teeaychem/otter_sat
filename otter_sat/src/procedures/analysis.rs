@@ -152,18 +152,22 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         match clause.len() {
             0 => Err(err::ErrorKind::from(err::AnalysisError::EmptyResolution)),
+
             1 => {
                 self.backjump(self.trail.lowest_decision_level());
+
                 self.clause_db.store(
                     literal,
                     ClauseSource::Resolution,
                     &self.valuation,
-                    &mut self.atom_db,
+                    &mut self.atom_cells,
                     &mut self.watches,
                     premises,
                 )?;
+
                 Ok(AnalysisResult::UnitClause { literal })
             }
+
             _ => {
                 let index = self.non_chronological_backjump_level(&clause)?;
 
@@ -173,10 +177,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     clause,
                     ClauseSource::Resolution,
                     &self.valuation,
-                    &mut self.atom_db,
+                    &mut self.atom_cells,
                     &mut self.watches,
                     premises,
                 )?;
+
                 Ok(AnalysisResult::AssertingClause { key, literal })
             }
         }

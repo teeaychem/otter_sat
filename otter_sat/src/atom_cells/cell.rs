@@ -1,4 +1,4 @@
-use crate::structures::consequence::Assignment;
+use crate::{db::LevelIndex, structures::consequence::Assignment};
 
 #[derive(Clone)]
 pub enum CellStatus {
@@ -32,6 +32,7 @@ pub struct Cell {
     pub value: Option<bool>,
     pub assignment: Option<Assignment>,
     pub status: CellStatus,
+    pub level: Option<LevelIndex>,
 }
 
 impl Cell {
@@ -50,16 +51,18 @@ impl Default for Cell {
             value: None,
             assignment: None,
             status: CellStatus::Valuation,
+            level: None,
         }
     }
 }
 
-impl From<Assignment> for Cell {
-    fn from(assignment: Assignment) -> Self {
-        Cell {
-            value: Some(assignment.value()),
-            assignment: Some(assignment.clone()),
-            status: CellStatus::Valuation,
-        }
-    }
-}
+// impl From<Assignment> for Cell {
+//     fn from(assignment: Assignment) -> Self {
+//         Cell {
+//             value: Some(assignment.value()),
+//             assignment: Some(assignment.clone()),
+//             status: CellStatus::Valuation,
+//             level: None
+//         }
+//     }
+// }

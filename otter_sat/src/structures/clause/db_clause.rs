@@ -1,8 +1,9 @@
 //! Implementation of clause trait for a slice of literals.
 
 use crate::{
+    atom_cells::AtomCells,
     config::LBD,
-    db::{atom::AtomDB, clause::db_clause::dbClause},
+    db::clause::db_clause::dbClause,
     structures::{atom::Atom, clause::Clause, literal::CLiteral, valuation::Valuation},
 };
 
@@ -15,8 +16,8 @@ impl Clause for dbClause {
         self.clause().asserts(val)
     }
 
-    fn lbd(&self, atom_db: &AtomDB) -> LBD {
-        self.clause().lbd(atom_db)
+    fn lbd(&self, cells: &AtomCells) -> LBD {
+        self.clause().lbd(cells)
     }
 
     fn literals(&self) -> impl std::iter::Iterator<Item = CLiteral> {

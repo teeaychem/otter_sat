@@ -171,7 +171,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let index = self.non_chronological_backjump_level(clause)?;
                             self.backjump(index);
 
-                            match unsafe { self.peek_assignment_unchecked(literal) } {
+                            match self.peek_assignment_unchecked(literal) {
                                 AtomValue::NotSet => {
                                     let assignment =
                                         Assignment::from(literal, AssignmentSource::BCP(key));

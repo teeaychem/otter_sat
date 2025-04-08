@@ -44,15 +44,10 @@ Further, as a conflict requires immediate backjumping, this use may avoid redund
 #[doc(hidden)]
 pub mod activity;
 
-use crate::{db::LevelIndex, structures::atom::Atom};
-
 /// The atom database.
 pub struct AtomDB {
     /// The previous (often partial) [valuation](Valuation) (or some randomised valuation).
     pub previous_valuation: Vec<bool>,
-
-    /// A map from atoms to levels.
-    pub atom_level_map: Vec<Option<LevelIndex>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -73,25 +68,6 @@ impl AtomDB {
     pub fn new() -> Self {
         AtomDB {
             previous_valuation: Vec::default(),
-            atom_level_map: Vec::default(),
         }
-    }
-
-    /// Which decision an atom was valued on.
-    ///
-    /// # Safety
-    /// No check is made on whether the decision level of the atom is tracked.
-    pub unsafe fn level_unchecked(&self, atom: Atom) -> Option<LevelIndex> {
-        *unsafe { self.atom_level_map.get_unchecked(atom as usize) }
-    }
-
-    /// Returns the '*previous*' value of the atom from the valuation stored in the [AtomDB].
-    ///
-    /// When a context is built this value may be randomised.
-    ///
-    /// # Safety
-    /// Does not check that the atom is part of the valuation.
-    pub fn previous_value_of(&self, atom: Atom) -> bool {
-        unsafe { *self.previous_valuation.get_unchecked(atom as usize) }
     }
 }

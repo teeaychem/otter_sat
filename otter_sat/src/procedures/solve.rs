@@ -258,7 +258,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     //
                     match self.make_decision() {
                         DecisionOk::Literal(decision) => {
-                            match unsafe { self.peek_assignment_unchecked(decision) } {
+                            match self.peek_assignment_unchecked(decision) {
                                 AtomValue::NotSet => {
                                     let assignment =
                                         Assignment::from(decision, AssignmentSource::Decision);
@@ -283,7 +283,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 // Conflict variants. These continue to the remaining contents of a loop.
                 ApplyConsequencesOk::UnitClause { literal } => {
-                    match unsafe { self.peek_assignment_unchecked(literal) } {
+                    match self.peek_assignment_unchecked(literal) {
                         AtomValue::NotSet => {
                             let consequence = Assignment::from(literal, AssignmentSource::Addition);
                             self.record_assignment(consequence);
@@ -302,7 +302,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 ApplyConsequencesOk::AssertingClause { key, literal } => {
                     self.clause_db.note_use(key);
 
-                    match unsafe { self.peek_assignment_unchecked(literal) } {
+                    match self.peek_assignment_unchecked(literal) {
                         AtomValue::NotSet => {
                             let assignment = Assignment::from(literal, AssignmentSource::BCP(key));
                             self.record_assignment(assignment);

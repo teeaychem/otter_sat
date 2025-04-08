@@ -1,8 +1,8 @@
 //! Implementation of clause trait for a slice of literals.
 
 use crate::{
+    atom_cells::AtomCells,
     config::LBD,
-    db::atom::AtomDB,
     structures::{
         atom::Atom,
         clause::Clause,
@@ -50,10 +50,10 @@ impl Clause for ABClause {
         the_literal
     }
 
-    fn lbd(&self, atom_db: &AtomDB) -> LBD {
+    fn lbd(&self, cells: &AtomCells) -> LBD {
         let mut decision_levels = self
             .iter()
-            .map(|literal| unsafe { atom_db.level_unchecked(literal.atom()) })
+            .map(|literal| cells.level_unchecked(literal.atom()))
             .collect::<Vec<_>>();
 
         decision_levels.sort_unstable();

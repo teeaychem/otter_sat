@@ -117,10 +117,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     //     &self.valuation
     // }
 
-    pub unsafe fn peek_assignment_unchecked<BLit: Borrow<CLiteral>>(
-        &self,
-        literal: BLit,
-    ) -> AtomValue {
+    pub fn peek_assignment_unchecked<BLit: Borrow<CLiteral>>(&self, literal: BLit) -> AtomValue {
         let literal = literal.borrow();
 
         match self.value_of(literal.atom()) {
@@ -177,20 +174,18 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// A string representing the current valuation and the decision levels at which atoms were valued.
     /// The internal representation of atoms is used.
     pub fn internal_valuation_decision_string(&self) -> String {
-        unsafe {
-            self.valuation()
-                .atom_value_pairs()
-                .filter_map(|(atom, v)| match self.atom_db.level_unchecked(atom) {
+        self.valuation()
+            .atom_value_pairs()
+            .filter_map(|(atom, v)| match self.atom_cells.level_unchecked(atom) {
+                None => None,
+                Some(level) => match v {
                     None => None,
-                    Some(level) => match v {
-                        None => None,
-                        Some(true) => Some(format!("{atom} ({level})",)),
-                        Some(false) => Some(format!("-{atom} ({level})",)),
-                    },
-                })
-                .collect::<Vec<_>>()
-                .join(" ")
-        }
+                    Some(true) => Some(format!("{atom} ({level})",)),
+                    Some(false) => Some(format!("-{atom} ({level})",)),
+                },
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
     }
 
     /// Clears the value of an atom, and adds the atom to the activity heap.
@@ -209,7 +204,20 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             *self.valuation.get_unchecked_mut(atom as usize) = None;
             self.atom_activity.activate(atom as usize);
 
-            *self.atom_db.atom_level_map.get_unchecked_mut(atom as usize) = None;
+            let cell = self.atom_cells.buffer.get_unchecked_mut(atom as usize);
+            cell.value = None;
+            cell.assignment = None;
+            cell.level = None;
         }
+    }
+
+    /// Returns the '*previous*' value of the atom from the valuation stored in the [AtomDB].
+    ///
+    /// When a context is built this value may be randomised.
+    ///
+    /// # Safety
+    /// Does not check that the atom is part of the valuation.
+    pub fn previous_value_of(&self, atom: Atom) -> bool {
+        unsafe { *self.atom_db.previous_valuation.get_unchecked(atom as usize) }
     }
 }
