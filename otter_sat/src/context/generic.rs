@@ -11,7 +11,7 @@ use crate::{
         atom::Atom,
         consequence::AssignmentSource,
         literal::{CLiteral, IntLiteral, Literal},
-        valuation::{CValuation, Valuation},
+        valuation::Valuation,
     },
     types::err::ErrorKind,
 };
@@ -39,8 +39,8 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
     /// Counters related to a context/solve.
     pub counters: Counters,
 
-    /// A current (often partial) [valuation](Valuation).
-    pub valuation: CValuation,
+    /// Cells indexed to atoms, containing various information.
+    pub atom_cells: AtomCells,
 
     /// An [IndexHeap] recording the activty of atoms, where any atom without a value is 'active' on the heap.
     pub atom_activity: IndexHeap<Activity>,
@@ -60,9 +60,6 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
 
     /// The source of rng.
     pub rng: R,
-
-    /// Cells indexed to atoms, containing various information.
-    pub atom_cells: AtomCells,
 
     /// Terminates procedures, if true.
     pub(super) callback_terminate: Option<Box<CallbackTerminate>>,
@@ -92,22 +89,54 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn init(&mut self) {
         // TODO: Double check the assignment…
 
-        // # Safety
-        // fresh_atom_fundamental fails only if ATOM_MAX would be hit.
-        // top is the first atom created, and so ATOM_MAX will not be hit.
+        // # Safety: top is the first atom created, and so ATOM_MAX will not be hit.
         let top: Atom = unsafe { self.fresh_atom_fundamental(true).unwrap_unchecked() };
         self.record_assignment(CLiteral::new(top, true), AssignmentSource::Original);
     }
 
     /// The current valuation, as some struction which implements the valuation trait.
     pub fn valuation(&self) -> &impl Valuation {
-        &self.valuation
+        &self.atom_cells
+    }
+}
+
+impl<R: rand::Rng + std::default::Default> GenericContext<R> {
+    /// A string representing the current valuation, using [IntLiteral]s.
+    pub fn valuations_ints(&self) -> impl Iterator<Item = IntLiteral> {
+        self.valuation()
+            .atom_value_pairs()
+            .filter_map(|(atom, v)| match v {
+                None => None,
+                Some(true) => Some(atom as IntLiteral),
+                Some(false) => Some(-(atom as IntLiteral)),
+            })
     }
 
-    // /// The current valuation, as a canonical [CValuation].
-    // pub fn valuation_canonical(&self) -> &CValuation {
-    //     &self.valuation
-    // }
+    /// A string representing the current valuation, using the internal representation of atoms.
+    pub fn valuation_strings(&self) -> impl Iterator<Item = String> {
+        self.valuation()
+            .atom_value_pairs()
+            .filter_map(|(atom, v)| match v {
+                None => None,
+                Some(true) => Some((atom as isize).to_string()),
+                Some(false) => Some((-(atom as isize)).to_string()),
+            })
+    }
+
+    /// A string representing the current valuation and the decision levels at which atoms were valued.
+    /// The internal representation of atoms is used.
+    pub fn valuation_decision_strings(&self) -> impl Iterator<Item = String> {
+        self.valuation().atom_value_pairs().filter_map(|(atom, v)| {
+            match self.atom_cells.level(atom) {
+                None => None,
+                Some(level) => match v {
+                    None => None,
+                    Some(true) => Some(format!("{atom} ({level})",)),
+                    Some(false) => Some(format!("-{atom} ({level})",)),
+                },
+            }
+        })
+    }
 
     pub fn peek_assignment_unchecked<BLit: Borrow<CLiteral>>(&self, literal: BLit) -> AtomValue {
         let literal = literal.borrow();
@@ -122,64 +151,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     }
 
     pub fn value_of(&self, atom: Atom) -> Option<bool> {
-        // # Safety
-        // Any atom has a valuation cell
-        unsafe { *self.valuation.get_unchecked(atom as usize) }
-    }
-
-    /// A string representing the current valuation, using the external representation of atoms.
-    pub fn valuation_string(&self) -> String {
-        self.valuation()
-            .atom_value_pairs()
-            .filter_map(|(atom, v)| match v {
-                None => None,
-                Some(true) => Some(format!(" {atom}")),
-                Some(false) => Some(format!("-{atom}")),
-            })
-            .collect::<Vec<_>>()
-            .join(" ")
-    }
-
-    /// A string representing the current valuation, using [IntLiteral]s.
-    pub fn valuations_ints(&self) -> Vec<IntLiteral> {
-        self.valuation()
-            .atom_value_pairs()
-            .filter_map(|(atom, v)| match v {
-                None => None,
-                Some(true) => Some(atom as IntLiteral),
-                Some(false) => Some(-(atom as IntLiteral)),
-            })
-            .collect()
-    }
-
-    /// A string representing the current valuation, using the internal representation of atoms.
-    pub fn internal_valuation_string(&self) -> String {
-        self.valuation()
-            .atom_value_pairs()
-            .filter_map(|(atom, v)| match v {
-                None => None,
-                Some(true) => Some((atom as isize).to_string()),
-                Some(false) => Some((-(atom as isize)).to_string()),
-            })
-            .collect::<Vec<_>>()
-            .join(" ")
-    }
-
-    /// A string representing the current valuation and the decision levels at which atoms were valued.
-    /// The internal representation of atoms is used.
-    pub fn internal_valuation_decision_string(&self) -> String {
-        self.valuation()
-            .atom_value_pairs()
-            .filter_map(|(atom, v)| match self.atom_cells.level(atom) {
-                None => None,
-                Some(level) => match v {
-                    None => None,
-                    Some(true) => Some(format!("{atom} ({level})",)),
-                    Some(false) => Some(format!("-{atom} ({level})",)),
-                },
-            })
-            .collect::<Vec<_>>()
-            .join(" ")
+        // # Safety: Every atom has a valuation cell
+        self.atom_cells.get(atom).value
     }
 
     /// Clears the value of an atom, and adds the atom to the activity heap.
@@ -200,7 +173,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         cell.source = None;
         cell.level = None;
 
-        *unsafe { self.valuation.get_unchecked_mut(atom as usize) } = None;
         self.atom_activity.activate(atom as usize);
     }
 }

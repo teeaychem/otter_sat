@@ -42,14 +42,13 @@ use crate::{
         clause::{CClause, Clause},
         consequence::AssignmentSource,
         literal::{CLiteral, Literal},
-        valuation::Valuation,
     },
     types::err::{self},
 };
 
 use super::{
     AtomCells, ResolutionOk,
-    cell::{Cell, CellStatus},
+    cell::{AtomCell, ResolutionStatus},
     config::BufferConfig,
 };
 
@@ -75,7 +74,7 @@ impl AtomCells {
 
     pub fn grow_to_include(&mut self, atom: Atom) {
         if self.buffer.len() <= atom as usize {
-            self.buffer.resize(atom as usize + 1, Cell::default());
+            self.buffer.resize(atom as usize + 1, AtomCell::default());
         }
     }
 
@@ -92,23 +91,23 @@ impl AtomCells {
         for atom in &self.merged_atoms {
             let cell = unsafe { self.buffer.get_unchecked_mut(*atom as usize) };
             match cell.status {
-                CellStatus::Valuation | CellStatus::Backjump => {}
+                ResolutionStatus::Valuation | ResolutionStatus::Backjump => {}
 
-                CellStatus::Strengthened | CellStatus::Pivot => {}
+                ResolutionStatus::Strengthened | ResolutionStatus::Pivot => {}
 
-                CellStatus::Asserting => {
+                ResolutionStatus::Asserting => {
                     let literal = CLiteral::new(*atom, !unsafe { cell.value.unwrap_unchecked() });
                     clause.push(literal);
                 }
 
-                CellStatus::Asserted => {
+                ResolutionStatus::Asserted => {
                     asserted_index = clause.size();
                     let literal = CLiteral::new(*atom, !unsafe { cell.value.unwrap_unchecked() });
                     clause.push(literal);
                 }
             }
 
-            cell.status = CellStatus::Valuation;
+            cell.status = ResolutionStatus::Valuation;
         }
 
         if !clause.is_empty() {
@@ -127,12 +126,12 @@ impl AtomCells {
         let cell = self.get_mut(atom);
         cell.value = value;
         cell.source = source;
-        cell.status = CellStatus::Valuation;
+        cell.status = ResolutionStatus::Valuation;
     }
 
     pub fn mark_backjump(&mut self, atom: Atom) {
         let cell = self.get_mut(atom);
-        cell.status = CellStatus::Backjump;
+        cell.status = ResolutionStatus::Backjump;
     }
 
     /// Sets an atom to have no valuation in the resolution buffer.
@@ -141,16 +140,15 @@ impl AtomCells {
     pub fn clear_value(&mut self, atom: Atom) {
         let cell = self.get_mut(atom);
         cell.value = None;
-        cell.status = CellStatus::Valuation;
+        cell.status = ResolutionStatus::Valuation;
     }
 
     /// Applies resolution with the clauses used to observe consequences at the current level.
     ///
     /// Clauses are examined in reverse order of use.
-    pub fn resolve_through_current_level<Val: Valuation>(
+    pub fn resolve_through_current_level(
         &mut self,
         key: &ClauseKey,
-        valuation: &Val,
         clause_db: &mut ClauseDB,
         watch_dbs: &mut Watches,
         trail: &mut Trail,
@@ -182,7 +180,9 @@ impl AtomCells {
             log::info!(target: targets::ATOMCELLS, "Examining trail item {literal:?}");
 
             // TODO: Fix up
-            let source = *self.get(literal.atom()).get_assignment_source().unwrap();
+            let source = self
+                .get_assignment_source(literal.atom())
+                .expect("! Missing source");
 
             match source {
                 AssignmentSource::BCP(key) => {
@@ -218,7 +218,7 @@ impl AtomCells {
 
                             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
                                 let clause = unsafe { clause_db.get_unchecked_mut(&key) };
-                                clause.subsume(literal, valuation, watch_dbs, true)?;
+                                clause.subsume(literal, self, watch_dbs, true)?;
 
                                 self.premises.insert(key);
                                 clause_db.note_use(key);
@@ -264,12 +264,12 @@ impl AtomCells {
             let cell = unsafe { self.buffer.get_unchecked_mut(literal.atom() as usize) };
 
             match cell.status {
-                CellStatus::Asserted | CellStatus::Asserting => {
+                ResolutionStatus::Asserted | ResolutionStatus::Asserting => {
                     if let Some(length_minus_one) = self.clause_length.checked_sub(1) {
                         self.clause_length = length_minus_one;
                     }
 
-                    cell.status = CellStatus::Strengthened;
+                    cell.status = ResolutionStatus::Strengthened;
                 }
                 _ => {}
             }
@@ -303,29 +303,29 @@ impl AtomCells {
             let cell = unsafe { self.buffer.get_unchecked_mut(literal.atom() as usize) };
 
             match cell.status {
-                CellStatus::Asserting
-                | CellStatus::Asserted
-                | CellStatus::Pivot
-                | CellStatus::Strengthened => {
+                ResolutionStatus::Asserting
+                | ResolutionStatus::Asserted
+                | ResolutionStatus::Pivot
+                | ResolutionStatus::Strengthened => {
                     // If present, cells of these kinds are from previously merged clauses.
                 }
 
-                CellStatus::Backjump => {
+                ResolutionStatus::Backjump => {
                     self.clause_length += 1;
                     self.merged_atoms.push(literal.atom());
 
                     self.valueless_count += 1;
-                    cell.status = CellStatus::Asserted;
+                    cell.status = ResolutionStatus::Asserted;
                 }
 
-                CellStatus::Valuation => match cell.value {
+                ResolutionStatus::Valuation => match cell.value {
                     None => {}
 
                     Some(value) if value != literal.polarity() => {
                         self.clause_length += 1;
                         self.merged_atoms.push(literal.atom());
 
-                        cell.status = CellStatus::Asserting;
+                        cell.status = ResolutionStatus::Asserting;
                     }
 
                     Some(_) => {
@@ -352,10 +352,10 @@ impl AtomCells {
         let pivot = pivot.borrow();
         let cell = unsafe { self.buffer.get_unchecked_mut(pivot.atom() as usize) };
         match cell.status {
-            CellStatus::Asserted
+            ResolutionStatus::Asserted
                 if pivot.polarity() == unsafe { cell.value.unwrap_unchecked() } =>
             {
-                cell.status = CellStatus::Pivot;
+                cell.status = ResolutionStatus::Pivot;
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
 
@@ -364,10 +364,10 @@ impl AtomCells {
                 Ok(())
             }
 
-            CellStatus::Asserting
+            ResolutionStatus::Asserting
                 if pivot.polarity() == unsafe { cell.value.unwrap_unchecked() } =>
             {
-                cell.status = CellStatus::Pivot;
+                cell.status = ResolutionStatus::Pivot;
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
 

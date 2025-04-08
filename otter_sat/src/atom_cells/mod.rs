@@ -43,7 +43,7 @@ Further, as a conflict requires immediate backjumping, this use may avoid redund
 
 use std::collections::HashSet;
 
-use cell::Cell;
+use cell::AtomCell;
 use config::BufferConfig;
 
 use crate::{
@@ -85,7 +85,7 @@ pub struct AtomCells {
     premises: HashSet<ClauseKey>,
 
     /// The buffer.
-    pub buffer: Vec<Cell>,
+    pub buffer: Vec<AtomCell>,
 
     /// A stack of modified atoms, with the original value stored as literal polarity.
     merged_atoms: Vec<Atom>,
@@ -122,13 +122,13 @@ impl AtomCells {
         self.get(atom).previous_value
     }
 
-    pub fn get(&self, atom: Atom) -> &Cell {
+    pub fn get(&self, atom: Atom) -> &AtomCell {
         // # Safety
         // A cell is created together with the addition of an atom
         unsafe { self.buffer.get_unchecked(atom as usize) }
     }
 
-    pub fn get_mut(&mut self, atom: Atom) -> &mut Cell {
+    pub fn get_mut(&mut self, atom: Atom) -> &mut AtomCell {
         // # Safety
         // A cell is created together with the addition of an atom
         unsafe { self.buffer.get_unchecked_mut(atom as usize) }

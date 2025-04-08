@@ -3,7 +3,6 @@ use crate::{
     config::Config,
     db::{clause::ClauseDB, trail::Trail, watches::Watches},
     generic::{index_heap::IndexHeap, random::MinimalPCG32},
-    structures::valuation::CValuation,
 };
 
 use rand::SeedableRng;
@@ -17,7 +16,7 @@ impl Context {
     /// Creates a context from some given configuration.
     pub fn from_config(config: Config) -> Self {
         let mut ctx = Self {
-            valuation: CValuation::default(),
+            // valuation: CValuation::default(),
             atom_activity: IndexHeap::default(),
             watches: Watches::default(),
             clause_db: ClauseDB::new(&config),

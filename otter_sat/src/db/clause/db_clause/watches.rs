@@ -65,17 +65,12 @@ impl dbClause {
      Failure for a candidate for watch A to be found implies a candidate for watch B.
      Still, this is not encoded, as failure for watch A is very unlikely.
      */
-    pub fn initialise_watches<Val: Valuation>(
-        &mut self,
-        valuation: &Val,
-        cells: &mut AtomCells,
-        watches: &mut Watches,
-    ) {
+    pub fn initialise_watches(&mut self, cells: &mut AtomCells, watches: &mut Watches) {
         // As watches require two or more literals, and watch_ptr must be within the bounds of the vector, use of get_unchecked on index zero and watch_ptr is safe.
         let mut watch_a_set = false;
 
         for (index, literal) in self.clause.iter().enumerate() {
-            let index_value = unsafe { valuation.value_of_unchecked(literal.atom()) };
+            let index_value = unsafe { cells.value_of_unchecked(literal.atom()) };
 
             match index_value {
                 None => {
@@ -115,7 +110,7 @@ impl dbClause {
         for index in 1..self.clause.len() {
             let literal = unsafe { self.clause.get_unchecked(index) };
 
-            let atom_value = unsafe { valuation.value_of_unchecked(literal.atom()) };
+            let atom_value = unsafe { cells.value_of_unchecked(literal.atom()) };
             match atom_value {
                 None => {
                     self.watch_ptr = index;

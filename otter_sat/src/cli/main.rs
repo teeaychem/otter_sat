@@ -106,7 +106,10 @@ fn main() {
     match result {
         Report::Satisfiable => {
             if cli_options.model {
-                println!("v {}", ctx.valuation_string())
+                println!(
+                    "v {}",
+                    ctx.valuation_strings().collect::<Vec<_>>().join(" ")
+                )
             }
         }
 

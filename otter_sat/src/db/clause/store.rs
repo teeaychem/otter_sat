@@ -11,7 +11,6 @@ use crate::{
     structures::{
         clause::{CClause, Clause, ClauseSource},
         literal::CLiteral,
-        valuation::Valuation,
     },
     types::err,
 };
@@ -29,11 +28,10 @@ impl ClauseDB {
     /// A valuation is optional.
     /// If given, clauses are initialised with respect to the given valuation.
     /// Otherwise, clauses are initialised with respect to the current valuation of the context.
-    pub fn store<Val: Valuation>(
+    pub fn store(
         &mut self,
         clause: impl Clause,
         source: ClauseSource,
-        valuation: &Val,
         cells: &mut AtomCells,
         watches: &mut Watches,
         premises: HashSet<ClauseKey>,
@@ -47,9 +45,9 @@ impl ClauseDB {
                 self.store_unit(literal, source)
             }
 
-            2 => self.store_binary(clause.canonical(), source, valuation, cells, watches),
+            2 => self.store_binary(clause.canonical(), source, cells, watches),
 
-            _ => self.store_long(clause.canonical(), source, valuation, cells, watches),
+            _ => self.store_long(clause.canonical(), source, cells, watches),
         };
 
         if let Ok(key) = key {
@@ -109,14 +107,13 @@ impl ClauseDB {
         &mut self,
         clause: CClause,
         source: ClauseSource,
-        valuation: &impl Valuation,
         cells: &mut AtomCells,
         watches: &mut Watches,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match source {
             ClauseSource::Original => {
                 let key = self.fresh_original_binary_key()?;
-                let clause = dbClause::new_nonunit(key, clause, valuation, cells, watches);
+                let clause = dbClause::new_nonunit(key, clause, cells, watches);
 
                 self.make_callback_original(&clause, &source);
                 self.binary_original.push(clause);
@@ -126,7 +123,7 @@ impl ClauseDB {
 
             ClauseSource::BCP | ClauseSource::Resolution => {
                 let key = self.fresh_addition_binary_key()?;
-                let clause = dbClause::new_nonunit(key, clause, valuation, cells, watches);
+                let clause = dbClause::new_nonunit(key, clause, cells, watches);
 
                 self.make_callback_addition(&clause, &source);
                 self.binary_addition.push(clause);
@@ -138,11 +135,10 @@ impl ClauseDB {
         }
     }
 
-    fn store_long<Val: Valuation>(
+    fn store_long(
         &mut self,
         clause: CClause,
         source: ClauseSource,
-        valuation: &Val,
         cells: &mut AtomCells,
         watches: &mut Watches,
     ) -> Result<ClauseKey, err::ClauseDBError> {
@@ -156,7 +152,7 @@ impl ClauseDB {
 
                 log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
 
-                let db_clause = dbClause::new_nonunit(key, clause, valuation, cells, watches);
+                let db_clause = dbClause::new_nonunit(key, clause, cells, watches);
                 self.make_callback_original(&db_clause, &source);
 
                 self.original.push(db_clause);
@@ -173,7 +169,7 @@ impl ClauseDB {
 
                 log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
 
-                let stored_form = dbClause::new_nonunit(key, clause, valuation, cells, watches);
+                let stored_form = dbClause::new_nonunit(key, clause, cells, watches);
                 self.make_callback_addition(&stored_form, &source);
 
                 let value = ActivityLBD {

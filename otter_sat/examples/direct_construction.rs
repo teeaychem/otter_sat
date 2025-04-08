@@ -37,7 +37,10 @@ fn main() {
         "After solving the status of the formula is:     {} (with valuation: {})
 ",
         the_context.report(),
-        the_context.valuation_string()
+        the_context
+            .valuation_strings()
+            .collect::<Vec<_>>()
+            .join(" ")
     );
 
     assert_eq!(the_context.value_of(p), Some(false));
@@ -64,7 +67,10 @@ Though, as the formula was satisfiable, the decisions made can be cleared, allow
         "After (re)solving the status of the formula is: {} (with valuation the valuation: {})
 ",
         the_context.report(),
-        the_context.valuation_string()
+        the_context
+            .valuation_strings()
+            .collect::<Vec<_>>()
+            .join(" ")
     );
 
     assert_eq!(the_context.report(), Report::Satisfiable);

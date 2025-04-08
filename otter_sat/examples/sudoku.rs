@@ -65,7 +65,7 @@ fn main() {
                 "A solution was found!
 "
             );
-            let solution = valuation_to_grid(valuation, &cell_map);
+            let solution = valuation_to_grid(valuation.collect(), &cell_map);
             print_sudoku_grid(&solution);
             println!();
             match validate_solution(solution) {
