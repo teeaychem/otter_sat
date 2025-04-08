@@ -107,7 +107,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         AtomValue::NotSet => {
                             let assignment = Assignment::from(check, AssignmentSource::BCP(key));
                             self.record_assignment(assignment);
-                            unsafe { self.set_value_unchecked(check, self.trail.level()) };
                         }
 
                         AtomValue::Same => {}
@@ -180,10 +179,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                         let consequence =
                                             Assignment::from(watch, AssignmentSource::BCP(key));
                                         self.record_assignment(consequence);
-
-                                        unsafe {
-                                            self.set_value_unchecked(watch, self.trail.level())
-                                        };
                                     }
 
                                     AtomValue::Same => {}

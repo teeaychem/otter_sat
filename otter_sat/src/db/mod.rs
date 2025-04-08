@@ -52,12 +52,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// # Safety
     /// If the source of the consequence references a clause stored by a key, the clause must be present in the clause database.
     pub fn record_assignment(&mut self, assignment: Assignment) {
-        self.atom_cells.set_valuation(
-            assignment.atom(),
-            Some(assignment.value()),
-            Some(assignment.clone()),
-        );
-
         match assignment.source() {
             AssignmentSource::PureLiteral => {
                 let premises = HashSet::default();
@@ -119,6 +113,21 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 self.store_assumption(*assignment.literal());
             }
         }
+
+        let literal = assignment.literal;
+        let atom = literal.atom();
+        let value = literal.polarity();
+
+        *unsafe { self.valuation.get_unchecked_mut(atom as usize) } = Some(value);
+
+        *unsafe { self.atom_db.atom_level_map.get_unchecked_mut(atom as usize) } =
+            Some(self.trail.level());
+
+        self.atom_cells.set_valuation(
+            assignment.atom(),
+            Some(assignment.value()),
+            Some(assignment.clone()),
+        );
     }
 
     pub fn store_assumption(&mut self, literal: CLiteral) {

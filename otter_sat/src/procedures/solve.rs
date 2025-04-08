@@ -264,10 +264,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                         Assignment::from(decision, AssignmentSource::Decision);
                                     self.record_assignment(assignment);
 
-                                    unsafe {
-                                        self.set_value_unchecked(decision, self.trail.level())
-                                    }
-
                                     log::info!(
                                         "Decided on {decision} at level {}",
                                         self.trail.level()
@@ -291,7 +287,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         AtomValue::NotSet => {
                             let consequence = Assignment::from(literal, AssignmentSource::Addition);
                             self.record_assignment(consequence);
-                            unsafe { self.set_value_unchecked(literal, self.trail.level()) }
                         }
 
                         AtomValue::Same => {}
@@ -311,7 +306,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         AtomValue::NotSet => {
                             let assignment = Assignment::from(literal, AssignmentSource::BCP(key));
                             self.record_assignment(assignment);
-                            unsafe { self.set_value_unchecked(literal, self.trail.level()) };
                         }
 
                         AtomValue::Same => {}
