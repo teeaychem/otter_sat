@@ -8,19 +8,17 @@ members = [
 [profile.release]
 codegen-units = 1
 debug = false
-lto = "fat"
+lto = false
 
 
 [profile.log]
 codegen-units = 1
 debug = true
 inherits = "dev"
-lto = "fat"
 
 
 [profile.profiling]
 inherits = "release"
-lto = "fat"
 
 [profile.redline]
 codegen-units = 1

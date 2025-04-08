@@ -139,9 +139,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     &mut self.watches,
                     HashSet::default(),
                 );
-                let q_result = unsafe { self.set_value_unchecked(literal, 0) };
-                match q_result {
+
+                match unsafe { self.peek_assignment_unchecked(literal) } {
                     AtomValue::NotSet => {
+                        unsafe { self.set_value_unchecked(literal, 0) };
                         let assignment = Assignment::from(literal, AssignmentSource::Original);
                         self.record_assignment(assignment);
                     }

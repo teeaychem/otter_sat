@@ -103,21 +103,17 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 let key = element.key;
 
                 match self.value_of(check.atom()) {
-                    None => {
-                        let q_result =
+                    None => match unsafe { self.peek_assignment_unchecked(check) } {
+                        AtomValue::NotSet => {
                             unsafe { self.set_value_unchecked(check, self.trail.level()) };
-                        match q_result {
-                            AtomValue::NotSet => {
-                                let assignment =
-                                    Assignment::from(check, AssignmentSource::BCP(key));
-                                self.record_assignment(assignment);
-                            }
-
-                            AtomValue::Same => {}
-
-                            AtomValue::Different => return Err(err::BCPError::Conflict(key)),
+                            let assignment = Assignment::from(check, AssignmentSource::BCP(key));
+                            self.record_assignment(assignment);
                         }
-                    }
+
+                        AtomValue::Same => {}
+
+                        AtomValue::Different => return Err(err::BCPError::Conflict(key)),
+                    },
 
                     Some(value) if check.polarity() != value => {
                         log::trace!(target: targets::PROPAGATION, "Consequence of {key} and {literal} is contradiction.");
@@ -179,10 +175,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             None => {
                                 self.clause_db.note_use(key);
 
-                                let q_result =
-                                    unsafe { self.set_value_unchecked(watch, self.trail.level()) };
-                                match q_result {
+                                match unsafe { self.peek_assignment_unchecked(watch) } {
                                     AtomValue::NotSet => {
+                                        unsafe {
+                                            self.set_value_unchecked(watch, self.trail.level())
+                                        };
                                         let consequence =
                                             Assignment::from(watch, AssignmentSource::BCP(key));
                                         self.record_assignment(consequence);

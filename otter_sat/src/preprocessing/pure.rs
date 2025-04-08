@@ -50,11 +50,11 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
     );
 
     for atom in f.into_iter() {
-        let literal = CLiteral::new(atom, true);
-        let q_result = unsafe { context.set_value_unchecked(literal, context.trail.level()) };
+        let literal = CLiteral::new(atom, false);
 
-        match q_result {
+        match unsafe { context.peek_assignment_unchecked(literal) } {
             AtomValue::NotSet => {
+                unsafe { context.set_value_unchecked(literal, context.trail.level()) };
                 let assignment = Assignment::from(literal, AssignmentSource::PureLiteral);
                 context.record_assignment(assignment);
             }
@@ -66,13 +66,13 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
     }
 
     for atom in t.into_iter() {
-        let the_literal = CLiteral::new(atom, true);
-        let q_result = unsafe { context.set_value_unchecked(the_literal, context.trail.level()) };
-        match q_result {
+        let literal = CLiteral::new(atom, true);
+
+        match unsafe { context.peek_assignment_unchecked(literal) } {
             AtomValue::NotSet => {
-                let consequence =
-                    Assignment::from(the_literal, consequence::AssignmentSource::PureLiteral);
-                context.record_assignment(consequence);
+                unsafe { context.set_value_unchecked(literal, context.trail.level()) };
+                let assignment = Assignment::from(literal, AssignmentSource::PureLiteral);
+                context.record_assignment(assignment);
             }
 
             AtomValue::Same => {}

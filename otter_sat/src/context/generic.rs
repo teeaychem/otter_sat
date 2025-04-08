@@ -113,34 +113,40 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     //     &self.valuation
     // }
 
-    pub fn value_of(&self, atom: Atom) -> Option<bool> {
-        unsafe { *self.valuation.get_unchecked(atom as usize) }
+    pub unsafe fn peek_assignment_unchecked<BLit: Borrow<CLiteral>>(
+        &self,
+        literal: BLit,
+    ) -> AtomValue {
+        let literal = literal.borrow();
+
+        match self.value_of(literal.atom()) {
+            None => AtomValue::NotSet,
+
+            Some(v) if v == literal.polarity() => AtomValue::Same,
+
+            Some(_) => AtomValue::Different,
+        }
     }
 
     /// Sets a given atom to have a given value, with a note of which decision this occurs after, if some decision has been made.
     ///
     /// # Safety
     /// No check is made on whether the atom is part of the valuation.
-    pub unsafe fn set_value_unchecked(
+    pub unsafe fn set_value_unchecked<BLit: Borrow<CLiteral>>(
         &mut self,
-        literal: impl Borrow<CLiteral>,
+        literal: BLit,
         level: LevelIndex,
-    ) -> AtomValue {
+    ) {
         let literal = literal.borrow();
         let atom = literal.atom();
         let value = literal.polarity();
 
-        match self.value_of(atom) {
-            None => unsafe {
-                *self.valuation.get_unchecked_mut(atom as usize) = Some(value);
-                *self.atom_db.atom_level_map.get_unchecked_mut(atom as usize) = Some(level);
-                AtomValue::NotSet
-            },
+        *unsafe { self.valuation.get_unchecked_mut(atom as usize) } = Some(value);
+        *unsafe { self.atom_db.atom_level_map.get_unchecked_mut(atom as usize) } = Some(level);
+    }
 
-            Some(v) if v == value => AtomValue::Same,
-
-            Some(_) => AtomValue::Different,
-        }
+    pub fn value_of(&self, atom: Atom) -> Option<bool> {
+        unsafe { *self.valuation.get_unchecked(atom as usize) }
     }
 
     /// A string representing the current valuation, using the external representation of atoms.
