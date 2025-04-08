@@ -176,10 +176,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                     let assignment =
                                         Assignment::from(literal, AssignmentSource::BCP(key));
                                     self.record_assignment(assignment);
-
-                                    unsafe {
-                                        self.set_value_unchecked(literal, self.trail.level())
-                                    };
                                 }
 
                                 AtomValue::Same => {}

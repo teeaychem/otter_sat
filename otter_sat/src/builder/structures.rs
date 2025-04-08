@@ -144,8 +144,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     AtomValue::NotSet => {
                         let assignment = Assignment::from(literal, AssignmentSource::Original);
                         self.record_assignment(assignment);
-
-                        unsafe { self.set_value_unchecked(literal, 0) };
                     }
 
                     AtomValue::Same => {}

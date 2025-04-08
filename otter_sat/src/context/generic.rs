@@ -4,7 +4,7 @@ use crate::{
     atom_cells::AtomCells,
     config::{Activity, Config},
     db::{
-        ClauseKey, LevelIndex,
+        ClauseKey,
         atom::{AtomDB, AtomValue},
         clause::ClauseDB,
         trail::Trail,
@@ -105,8 +105,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let assignment =
             Assignment::from(CLiteral::new(the_true, true), AssignmentSource::Original);
         self.record_assignment(assignment);
-
-        unsafe { self.set_value_unchecked(CLiteral::new(the_true, true), 0) };
     }
 
     /// The current valuation, as some struction which implements the valuation trait.
@@ -132,23 +130,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
             Some(_) => AtomValue::Different,
         }
-    }
-
-    /// Sets a given atom to have a given value, with a note of which decision this occurs after, if some decision has been made.
-    ///
-    /// # Safety
-    /// No check is made on whether the atom is part of the valuation.
-    pub unsafe fn set_value_unchecked<BLit: Borrow<CLiteral>>(
-        &mut self,
-        literal: BLit,
-        level: LevelIndex,
-    ) {
-        let literal = literal.borrow();
-        let atom = literal.atom();
-        let value = literal.polarity();
-
-        *unsafe { self.valuation.get_unchecked_mut(atom as usize) } = Some(value);
-        *unsafe { self.atom_db.atom_level_map.get_unchecked_mut(atom as usize) } = Some(level);
     }
 
     pub fn value_of(&self, atom: Atom) -> Option<bool> {
