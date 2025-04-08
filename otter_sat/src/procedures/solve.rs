@@ -183,13 +183,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                         // Each error lead to a return of some form…
                         Err(err::ErrorKind::SpecificValuationConflict(assumption)) => {
-                            let Some(assignment) =
-                                self.atom_cells.get_assignment_source(assumption.atom())
-                            else {
-                                panic!("! Missing assignment");
-                            };
-
-                            let source = assignment;
+                            let source = self.atom_cells.get_assignment_source(assumption.atom());
 
                             match source {
                                 AssignmentSource::PureLiteral => todo!(),
@@ -210,6 +204,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                     self.note_conflict(ClauseKey::OriginalUnit(assumption));
                                     return Ok(self.report());
                                 }
+
+                                AssignmentSource::None => panic!("! Missing assignment"),
                             }
                         }
 

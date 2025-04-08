@@ -170,7 +170,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
 
         cell.value = None;
-        cell.source = None;
+        cell.source = AssignmentSource::None;
         cell.level = None;
 
         self.atom_activity.activate(atom as usize);

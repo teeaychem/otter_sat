@@ -117,12 +117,7 @@ impl AtomCells {
         clause
     }
 
-    pub fn set_valuation(
-        &mut self,
-        atom: Atom,
-        value: Option<bool>,
-        source: Option<AssignmentSource>,
-    ) {
+    pub fn set_valuation(&mut self, atom: Atom, value: Option<bool>, source: AssignmentSource) {
         let cell = self.get_mut(atom);
         cell.value = value;
         cell.source = source;
@@ -179,12 +174,11 @@ impl AtomCells {
 
             log::info!(target: targets::ATOMCELLS, "Examining trail item {literal:?}");
 
-            // TODO: Fix up
-            let source = self
-                .get_assignment_source(literal.atom())
-                .expect("! Missing source");
+            let source = *self.get_assignment_source(literal.atom());
 
             match source {
+                AssignmentSource::None => panic!("! Missing source"),
+
                 AssignmentSource::BCP(key) => {
                     let mut key = key;
 
@@ -383,10 +377,8 @@ impl AtomCells {
 }
 
 impl AtomCells {
-    pub fn get_assignment_source(&self, atom: Atom) -> &Option<AssignmentSource> {
-        match self.buffer.get(atom as usize) {
-            None => &None,
-            Some(cell) => &cell.source,
-        }
+    pub fn get_assignment_source(&self, atom: Atom) -> &AssignmentSource {
+        // # Safety: Every atom has a cell.
+        unsafe { &self.buffer.get_unchecked(atom as usize).source }
     }
 }

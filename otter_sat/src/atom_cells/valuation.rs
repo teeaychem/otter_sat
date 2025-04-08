@@ -1,5 +1,6 @@
 use crate::structures::{
     atom::Atom,
+    consequence::AssignmentSource,
     valuation::{CValuation, Valuation},
 };
 
@@ -61,7 +62,7 @@ impl Valuation for AtomCells {
     unsafe fn clear_value_of(&mut self, atom: Atom) {
         let cell = unsafe { self.buffer.get_unchecked_mut(atom as usize) };
         cell.value = None;
-        cell.source = None;
+        cell.source = AssignmentSource::None;
     }
 
     fn true_check(&self) -> bool {

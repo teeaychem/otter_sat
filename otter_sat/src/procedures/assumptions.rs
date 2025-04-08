@@ -54,9 +54,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 for assumption in &assumptions {
                     self.ensure_atom(assumption.atom());
 
-                    if let Some(source) = self.atom_cells.get_assignment_source(assumption.atom()) {
+                    let source = self.atom_cells.get_assignment_source(assumption.atom());
+
+                    if source != &AssignmentSource::None {
                         let key = {
                             match source {
+                                AssignmentSource::None => panic!(),
+
                                 AssignmentSource::PureLiteral => todo!(),
 
                                 AssignmentSource::Decision => {
@@ -183,11 +187,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     assumptions.push(*literal);
                 }
 
-                let Some(assignment) = self.atom_cells.get_assignment_source(literal.atom()) else {
-                    panic!("! Missing assignment");
-                };
-
-                match assignment {
+                match self.atom_cells.get_assignment_source(literal.atom()) {
                     AssignmentSource::Assumption => {} // Handled above
 
                     AssignmentSource::BCP(key) => {
@@ -207,6 +207,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     | AssignmentSource::Decision
                     | AssignmentSource::Original
                     | AssignmentSource::PureLiteral => {}
+
+                    AssignmentSource::None => panic!("! Missing assignment"),
                 }
             }
         }
