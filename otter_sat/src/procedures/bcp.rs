@@ -105,9 +105,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 match self.value_of(check.atom()) {
                     None => match unsafe { self.peek_assignment_unchecked(check) } {
                         AtomValue::NotSet => {
-                            unsafe { self.set_value_unchecked(check, self.trail.level()) };
                             let assignment = Assignment::from(check, AssignmentSource::BCP(key));
                             self.record_assignment(assignment);
+                            unsafe { self.set_value_unchecked(check, self.trail.level()) };
                         }
 
                         AtomValue::Same => {}
@@ -177,12 +177,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                                 match unsafe { self.peek_assignment_unchecked(watch) } {
                                     AtomValue::NotSet => {
-                                        unsafe {
-                                            self.set_value_unchecked(watch, self.trail.level())
-                                        };
                                         let consequence =
                                             Assignment::from(watch, AssignmentSource::BCP(key));
                                         self.record_assignment(consequence);
+
+                                        unsafe {
+                                            self.set_value_unchecked(watch, self.trail.level())
+                                        };
                                     }
 
                                     AtomValue::Same => {}

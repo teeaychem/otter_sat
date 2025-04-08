@@ -54,9 +54,10 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
 
         match unsafe { context.peek_assignment_unchecked(literal) } {
             AtomValue::NotSet => {
-                unsafe { context.set_value_unchecked(literal, context.trail.level()) };
                 let assignment = Assignment::from(literal, AssignmentSource::PureLiteral);
                 context.record_assignment(assignment);
+
+                unsafe { context.set_value_unchecked(literal, context.trail.level()) };
             }
 
             AtomValue::Same => {}
@@ -70,9 +71,10 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
 
         match unsafe { context.peek_assignment_unchecked(literal) } {
             AtomValue::NotSet => {
-                unsafe { context.set_value_unchecked(literal, context.trail.level()) };
                 let assignment = Assignment::from(literal, AssignmentSource::PureLiteral);
                 context.record_assignment(assignment);
+
+                unsafe { context.set_value_unchecked(literal, context.trail.level()) };
             }
 
             AtomValue::Same => {}

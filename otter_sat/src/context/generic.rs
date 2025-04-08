@@ -15,6 +15,7 @@ use crate::{
     reports::Report,
     structures::{
         atom::Atom,
+        consequence::{Assignment, AssignmentSource},
         literal::{CLiteral, IntLiteral, Literal},
         valuation::{CValuation, Valuation},
     },
@@ -99,7 +100,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     }
 
     pub fn init(&mut self) {
+        // TODO: Double check the assignment…
         let the_true: Atom = unsafe { self.fresh_atom_fundamental(true).unwrap_unchecked() };
+        let assignment =
+            Assignment::from(CLiteral::new(the_true, true), AssignmentSource::Original);
+        self.record_assignment(assignment);
+
         unsafe { self.set_value_unchecked(CLiteral::new(the_true, true), 0) };
     }
 

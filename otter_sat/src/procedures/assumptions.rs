@@ -80,13 +80,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         return Err(ErrorKind::FundamentalConflict);
                     }
 
-                    let assignment = Assignment::from(assumption, AssignmentSource::Assumption);
-                    self.record_assignment(assignment);
-
                     // # Safety
                     // The atom has been ensured, above.
                     match unsafe { self.peek_assignment_unchecked(assumption) } {
                         AtomValue::NotSet => {
+                            let assignment =
+                                Assignment::from(assumption, AssignmentSource::Assumption);
+                            self.record_assignment(assignment);
                             unsafe { self.set_value_unchecked(assumption, self.trail.level()) }
 
                             log::info!("BCP of assumption: {assumption}");
@@ -125,10 +125,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                     match unsafe { self.peek_assignment_unchecked(literal) } {
                         AtomValue::NotSet => {
-                            unsafe { self.set_value_unchecked(literal, self.trail.level()) }
                             let assignment =
                                 Assignment::from(literal, AssignmentSource::Assumption);
                             self.record_assignment(assignment);
+                            unsafe { self.set_value_unchecked(literal, self.trail.level()) };
                         }
 
                         AtomValue::Same => log::info!("! Assumption of an atom with that value"),
