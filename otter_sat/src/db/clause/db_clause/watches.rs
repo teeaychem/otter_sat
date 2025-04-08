@@ -43,12 +43,16 @@ use super::dbClause;
 ///
 impl dbClause {
     /// Returns the first watched literal (of two).
-    pub unsafe fn get_watch_a(&self) -> &CLiteral {
+    pub fn get_watch_a(&self) -> &CLiteral {
+        // # Safety
+        // db clauses have at least two literals
         unsafe { self.get_unchecked(0) }
     }
 
     /// Returns the second watched literal (of two).
-    pub unsafe fn get_watch_b(&self) -> &CLiteral {
+    pub fn get_watch_b(&self) -> &CLiteral {
+        // # Safety
+        // db clauses have at least two literals
         unsafe { self.get_unchecked(self.watch_ptr) }
     }
 
@@ -102,9 +106,10 @@ impl dbClause {
         let mut watch_b_set = false;
         self.watch_ptr = 1;
 
-        let mut level_b = unsafe {
-            let literal = self.clause.get_unchecked(self.watch_ptr);
-            cells.level_unchecked(literal.atom())
+        let mut level_b = {
+            // # Safety: The watch_ptr always points to some literal in the clause
+            let literal = unsafe { self.clause.get_unchecked(self.watch_ptr) };
+            cells.level(literal.atom())
         };
 
         for index in 1..self.clause.len() {
@@ -128,8 +133,7 @@ impl dbClause {
 
                 Some(_) => {
                     // Safety: The clause has a value, which must have been given at some level.
-                    let decision_level =
-                        unsafe { cells.level_unchecked(literal.atom()).unwrap_unchecked() };
+                    let decision_level = unsafe { cells.level(literal.atom()).unwrap_unchecked() };
 
                     if level_b.is_none_or(|l| decision_level > l) {
                         self.watch_ptr = index;
@@ -140,6 +144,7 @@ impl dbClause {
         }
 
         if !watch_b_set {
+            // # Safety: The watch_ptr always points to some literal in the clause
             let ptr_literal = unsafe { self.clause.get_unchecked(self.watch_ptr) };
             self.note_watch(ptr_literal, watches);
         }
@@ -167,9 +172,9 @@ impl dbClause {
                     .watch_binary_unchecked(literal, BinaryWatch::new(check_literal, *self.key()));
             },
 
-            ClauseKey::Original(_) | ClauseKey::Addition(_, _) => unsafe {
-                watch_db.watch_long_unchecked(literal, LongWatch::new(*self.key()));
-            },
+            ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
+                watch_db.watch_long_unchecked(literal, LongWatch::new(*self.key()))
+            }
         }
     }
 
@@ -190,7 +195,7 @@ impl dbClause {
         // Asserting watch_ptr < clause length ensures each use of watch_ptr is safe.
         // And, as watch_ptr is unsigned, this also ensure direct access to the first literal is safe.
         // assert!(watch_ptr_cache < clause_length);
-        if unsafe { self.clause.get_unchecked(0).atom() } == atom {
+        if self.get_watch_a().atom() == atom {
             self.clause.swap(0, self.watch_ptr)
         }
 

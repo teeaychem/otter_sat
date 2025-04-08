@@ -111,23 +111,26 @@ impl AtomCells {
     }
 
     /// Which decision an atom was valued on.
-    pub fn level_unchecked(&self, atom: Atom) -> Option<LevelIndex> {
-        // # Safety
-        // A cell is created together with the addition of an atom
-        unsafe { self.buffer.get_unchecked(atom as usize).level }
+    pub fn level(&self, atom: Atom) -> Option<LevelIndex> {
+        self.get(atom).level
     }
 
     /// Returns the '*previous*' value of the atom from the valuation stored in the [AtomDB].
     ///
-    /// When a context is built this value may be randomised.
-    ///
-    /// # Safety
-    /// Does not check that the atom is part of the valuation.
+    /// When a context is built this value may be random.
     pub fn previous_value_of(&self, atom: Atom) -> bool {
-        unsafe { self.buffer.get_unchecked(atom as usize).previous_value }
+        self.get(atom).previous_value
+    }
+
+    pub fn get(&self, atom: Atom) -> &Cell {
+        // # Safety
+        // A cell is created together with the addition of an atom
+        unsafe { self.buffer.get_unchecked(atom as usize) }
     }
 
     pub fn get_mut(&mut self, atom: Atom) -> &mut Cell {
+        // # Safety
+        // A cell is created together with the addition of an atom
         unsafe { self.buffer.get_unchecked_mut(atom as usize) }
     }
 }
