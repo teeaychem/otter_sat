@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use crate::{
     atom_cells::AtomCells,
     config::{Activity, Config},
-    db::{ClauseKey, atom::AtomValue, clause::ClauseDB, trail::Trail, watches::Watches},
+    db::{ClauseKey, atom::AssignmentStatus, clause::ClauseDB, trail::Trail, watches::Watches},
     generic::index_heap::IndexHeap,
     misc::log::targets,
     reports::Report,
@@ -137,16 +137,18 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
         })
     }
+}
 
-    pub fn peek_assignment_unchecked<BLit: Borrow<CLiteral>>(&self, literal: BLit) -> AtomValue {
+impl<R: rand::Rng + std::default::Default> GenericContext<R> {
+    pub fn check_assignment<BLit: Borrow<CLiteral>>(&self, literal: BLit) -> AssignmentStatus {
         let literal = literal.borrow();
 
         match self.value_of(literal.atom()) {
-            None => AtomValue::NotSet,
+            None => AssignmentStatus::None,
 
-            Some(v) if v == literal.polarity() => AtomValue::Same,
+            Some(v) if v == literal.polarity() => AssignmentStatus::Set,
 
-            Some(_) => AtomValue::Different,
+            Some(_) => AssignmentStatus::Conflict,
         }
     }
 

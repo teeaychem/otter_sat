@@ -33,7 +33,7 @@ impl Clause for ABClause {
         }
     }
 
-    fn asserts(&self, val: &impl Valuation) -> Option<CLiteral> {
+    fn asserts<V: Valuation>(&self, val: &V) -> Option<CLiteral> {
         let mut the_literal = None;
         for lit in self.literals() {
             if let Some(existing_val) = unsafe { val.value_of_unchecked(lit.atom()) } {

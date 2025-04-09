@@ -1,6 +1,6 @@
 use crate::{
     context::GenericContext,
-    db::{atom::AtomValue, watches::watch_db::WatchDB},
+    db::{atom::AssignmentStatus, watches::watch_db::WatchDB},
     structures::{
         atom::{ATOM_MAX, Atom},
         clause::{Clause, ClauseSource},
@@ -114,7 +114,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Adds a clause to the context, if it is compatible with the contextual valuation.
-    pub fn add_clause(&mut self, clause: impl Clause) -> Result<ClauseOk, err::ErrorKind> {
+    pub fn add_clause<C: Clause>(&mut self, clause: C) -> Result<ClauseOk, err::ErrorKind> {
         if clause.size() == 0 {
             return Err(err::ErrorKind::from(err::ClauseDBError::EmptyClause));
         }
@@ -141,14 +141,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     HashSet::default(),
                 );
 
-                match self.peek_assignment_unchecked(literal) {
-                    AtomValue::NotSet => {
+                match self.check_assignment(literal) {
+                    AssignmentStatus::None => {
                         self.record_assignment(literal, AssignmentSource::Original);
                     }
 
-                    AtomValue::Same => {}
+                    AssignmentStatus::Set => {}
 
-                    AtomValue::Different => return Err(ErrorKind::FundamentalConflict),
+                    AssignmentStatus::Conflict => return Err(ErrorKind::FundamentalConflict),
                 }
 
                 Ok(ClauseOk::Added)

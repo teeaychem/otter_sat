@@ -5,13 +5,14 @@ use std::collections::HashSet;
 
 use crate::{
     context::GenericContext,
-    db::atom::AtomValue,
+    db::atom::AssignmentStatus,
     structures::{
         atom::Atom,
         clause::Clause,
         consequence::AssignmentSource,
         literal::{CLiteral, Literal},
     },
+    types::err::{self, PreprocessingError},
 };
 
 // General order for pairs related to booleans is 0 is false, 1 is true
@@ -38,10 +39,10 @@ pub fn pure_literals(
     (pure_false, pure_true)
 }
 
-/// Finds all pure literals with respect to non-unit clauses and sets the value of the relevant atom to match the polarity of the literal.
+/// Finds all pure literals in non-unit clauses and assigns the polarity to the atom.
 pub fn set_pure<R: rand::Rng + std::default::Default>(
     context: &mut GenericContext<R>,
-) -> Result<(), ()> {
+) -> Result<(), PreprocessingError> {
     let (f, t) = pure_literals(
         context
             .clause_db
@@ -49,31 +50,19 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
             .map(|(_, sc)| sc.literals()),
     );
 
-    for atom in f.into_iter() {
-        let literal = CLiteral::new(atom, false);
-
-        match context.peek_assignment_unchecked(literal) {
-            AtomValue::NotSet => {
+    for literal in f
+        .into_iter()
+        .map(|atom| CLiteral::new(atom, false))
+        .chain(t.into_iter().map(|atom| CLiteral::new(atom, false)))
+    {
+        match context.check_assignment(literal) {
+            AssignmentStatus::None => {
                 context.record_assignment(literal, AssignmentSource::PureLiteral);
             }
 
-            AtomValue::Same => {}
+            AssignmentStatus::Set => {}
 
-            AtomValue::Different => return Err(()),
-        }
-    }
-
-    for atom in t.into_iter() {
-        let literal = CLiteral::new(atom, true);
-
-        match context.peek_assignment_unchecked(literal) {
-            AtomValue::NotSet => {
-                context.record_assignment(literal, AssignmentSource::PureLiteral);
-            }
-
-            AtomValue::Same => {}
-
-            AtomValue::Different => return Err(()),
+            AssignmentStatus::Conflict => return Err(err::PreprocessingError::Unsatisfiable),
         }
     }
 
