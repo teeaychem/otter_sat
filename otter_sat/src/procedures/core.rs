@@ -115,10 +115,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
 
                 AssignmentSource::Addition => {
-                    let key = ClauseKey::OriginalUnit(*literal);
+                    core.insert(vec![*literal]);
 
-                    for key in self.original_keys(key) {
-                        core.insert(vec![*literal]);
+                    for key in self.original_keys(ClauseKey::AdditionUnit(*literal)) {
+                        println!("\t{key}");
                         for literal in unsafe { self.clause_db.get_unchecked(&key).literals() } {
                             seen_atoms.insert(literal.atom());
                         }
