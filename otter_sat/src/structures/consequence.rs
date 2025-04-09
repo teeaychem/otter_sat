@@ -22,7 +22,7 @@ use crate::{
 #[allow(clippy::upper_case_acronyms)]
 pub enum AssignmentSource {
     /// A decision was made where the alternative the alternative would make no difference to satisfiability.
-    PureLiteral,
+    Pure,
 
     /// A consequence of boolean constraint propagation.
     BCP(ClauseKey),

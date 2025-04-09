@@ -52,7 +52,7 @@ use crate::{
     structures::{atom::Atom, literal::CLiteral},
 };
 #[doc(hidden)]
-mod cell;
+pub mod cell;
 
 pub mod config;
 #[doc(hidden)]

@@ -83,7 +83,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             match self.atom_cells.get_assignment_source(literal.atom()) {
                 AssignmentSource::None => panic!("! Missing assignment"),
 
-                AssignmentSource::PureLiteral => {}
+                AssignmentSource::Pure => {}
 
                 AssignmentSource::BCP(key) => {
                     for key in self.original_keys(*key) {

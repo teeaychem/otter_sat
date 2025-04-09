@@ -19,6 +19,9 @@ pub enum ResolutionStatus {
 
     /// The atom has been merged into the clause, and was used as a pivot.
     Pivot,
+
+    /// A proven literal
+    Proven,
 }
 
 /**

@@ -52,10 +52,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// # Safety
     /// If the source of the consequence references a clause stored by a key, the clause must be present in the clause database.
     pub fn record_assignment(&mut self, literal: CLiteral, source: AssignmentSource) {
+        // Note if the literal is proven in order to set a flag in the atom cell.
+        let mut proven_literal = false;
+
         match source {
             AssignmentSource::None => panic!("! Assignment without source"),
 
-            AssignmentSource::PureLiteral => {
+            AssignmentSource::Pure => {
                 let premises = HashSet::default();
                 // Making a free decision is not supported after some other (non-free) decision has been made.
                 if !self.trail.decision_is_made() {
@@ -66,6 +69,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         &mut self.watches,
                         premises,
                     );
+
+                    proven_literal = true;
                 } else {
                     panic!("! Origins")
                 }
@@ -92,6 +97,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 premises,
                             );
                         };
+
+                        proven_literal = true;
                     }
 
                     _ => {}
@@ -101,7 +108,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
 
             AssignmentSource::Addition | AssignmentSource::Original => {
-                self.trail.store_literal(literal)
+                self.trail.store_literal(literal);
+                proven_literal = true;
             }
 
             AssignmentSource::Decision => {
@@ -122,6 +130,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         cell.value = Some(literal.polarity());
         cell.source = source;
         cell.level = Some(self.trail.level());
+        if proven_literal {
+            cell.status = crate::atom_cells::cell::ResolutionStatus::Proven;
+        }
     }
 
     pub fn store_assumption(&mut self, literal: CLiteral) {

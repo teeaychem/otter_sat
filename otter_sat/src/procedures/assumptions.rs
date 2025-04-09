@@ -61,7 +61,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             match source {
                                 AssignmentSource::None => panic!(),
 
-                                AssignmentSource::PureLiteral => todo!(),
+                                AssignmentSource::Pure => todo!(),
 
                                 AssignmentSource::Decision => {
                                     panic!("! Decision prior to assumption")
@@ -212,7 +212,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     AssignmentSource::Addition
                     | AssignmentSource::Decision
                     | AssignmentSource::Original
-                    | AssignmentSource::PureLiteral => {}
+                    | AssignmentSource::Pure => {}
 
                     AssignmentSource::None => panic!("! Missing assignment"),
                 }
