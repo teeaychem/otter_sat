@@ -186,7 +186,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let source = self.atom_cells.get_assignment_source(assumption.atom());
 
                             match source {
-                                AssignmentSource::PureLiteral => todo!(),
+                                AssignmentSource::Pure => todo!(),
 
                                 AssignmentSource::Decision => {
                                     panic!("! Decision prior to main solve loop")

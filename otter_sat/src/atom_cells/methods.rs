@@ -93,7 +93,9 @@ impl AtomCells {
             match cell.status {
                 ResolutionStatus::Valuation | ResolutionStatus::Backjump => {}
 
-                ResolutionStatus::Strengthened | ResolutionStatus::Pivot => {}
+                ResolutionStatus::Proven
+                | ResolutionStatus::Strengthened
+                | ResolutionStatus::Pivot => {}
 
                 ResolutionStatus::Asserting => {
                     let literal = CLiteral::new(*atom, !unsafe { cell.value.unwrap_unchecked() });
@@ -107,7 +109,9 @@ impl AtomCells {
                 }
             }
 
-            cell.status = ResolutionStatus::Valuation;
+            if !matches!(cell.status, ResolutionStatus::Proven) {
+                cell.status = ResolutionStatus::Valuation;
+            }
         }
 
         if !clause.is_empty() {
@@ -297,7 +301,8 @@ impl AtomCells {
             let cell = unsafe { self.buffer.get_unchecked_mut(literal.atom() as usize) };
 
             match cell.status {
-                ResolutionStatus::Asserting
+                ResolutionStatus::Proven
+                | ResolutionStatus::Asserting
                 | ResolutionStatus::Asserted
                 | ResolutionStatus::Pivot
                 | ResolutionStatus::Strengthened => {

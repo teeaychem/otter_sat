@@ -57,7 +57,7 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
     {
         match context.check_assignment(literal) {
             AssignmentStatus::None => {
-                context.record_assignment(literal, AssignmentSource::PureLiteral);
+                context.record_assignment(literal, AssignmentSource::Pure);
             }
 
             AssignmentStatus::Set => {}
