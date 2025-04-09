@@ -89,7 +89,7 @@ So, caution should be taken to avoid overlooking a failed invariant.
 
 use crate::{
     context::GenericContext,
-    db::{ClauseKey, atom::AtomValue},
+    db::{ClauseKey, atom::AssignmentStatus},
     procedures::analysis::AnalysisResult,
     structures::{consequence::AssignmentSource, literal::CLiteral},
     types::err::{self, ErrorKind},
@@ -168,14 +168,16 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let index = self.non_chronological_backjump_level(clause)?;
                             self.backjump(index);
 
-                            match self.peek_assignment_unchecked(literal) {
-                                AtomValue::NotSet => {
+                            match self.check_assignment(literal) {
+                                AssignmentStatus::None => {
                                     self.record_assignment(literal, AssignmentSource::BCP(key));
                                 }
 
-                                AtomValue::Same => {}
+                                AssignmentStatus::Set => {}
 
-                                AtomValue::Different => return Err(ErrorKind::ValuationConflict),
+                                AssignmentStatus::Conflict => {
+                                    return Err(ErrorKind::ValuationConflict);
+                                }
                             }
 
                             continue 'application;

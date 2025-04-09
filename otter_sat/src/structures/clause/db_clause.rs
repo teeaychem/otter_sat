@@ -12,7 +12,7 @@ impl Clause for dbClause {
         self.clause().as_dimacs(zero)
     }
 
-    fn asserts(&self, val: &impl Valuation) -> Option<CLiteral> {
+    fn asserts<V: Valuation>(&self, val: &V) -> Option<CLiteral> {
         self.clause().asserts(val)
     }
 

@@ -59,7 +59,7 @@ use std::borrow::Borrow;
 
 use crate::{
     context::GenericContext,
-    db::{atom::AtomValue, watches::watch_db},
+    db::{atom::AssignmentStatus, watches::watch_db},
     misc::log::targets::{self},
     structures::{
         consequence::AssignmentSource,
@@ -103,14 +103,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 let key = element.key;
 
                 match self.value_of(check.atom()) {
-                    None => match self.peek_assignment_unchecked(check) {
-                        AtomValue::NotSet => {
+                    None => match self.check_assignment(check) {
+                        AssignmentStatus::None => {
                             self.record_assignment(check, AssignmentSource::BCP(key));
                         }
 
-                        AtomValue::Same => {}
+                        AssignmentStatus::Set => {}
 
-                        AtomValue::Different => return Err(err::BCPError::Conflict(key)),
+                        AssignmentStatus::Conflict => return Err(err::BCPError::Conflict(key)),
                     },
 
                     Some(value) if check.polarity() != value => {
@@ -173,14 +173,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             None => {
                                 self.clause_db.note_use(key);
 
-                                match self.peek_assignment_unchecked(watch) {
-                                    AtomValue::NotSet => {
+                                match self.check_assignment(watch) {
+                                    AssignmentStatus::None => {
                                         self.record_assignment(watch, AssignmentSource::BCP(key));
                                     }
 
-                                    AtomValue::Same => {}
+                                    AssignmentStatus::Set => {}
 
-                                    AtomValue::Different => {
+                                    AssignmentStatus::Conflict => {
                                         long_list.split_off(length);
                                         return Err(err::BCPError::Conflict(key));
                                     }

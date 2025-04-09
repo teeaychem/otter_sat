@@ -38,7 +38,7 @@ impl Transcriber {
     }
 
     /// Returns the external representation of a clause as a string of literals concatenated by a space (with no closing delimiter).
-    fn write_clause_to_string(&self, clause: &impl Clause, string: &mut String) {
+    fn write_clause_to_string<C: Clause>(&self, clause: &C, string: &mut String) {
         for literal in clause.literals() {
             let atom = literal.atom();
 
@@ -70,11 +70,11 @@ impl Transcriber {
     }
 
     /// Transcribes `clause` and (optionally) the premises used to derive the clause.
-    pub fn transcribe_clause(
+    pub fn transcribe_clause<C: Clause>(
         &mut self,
         step_id: char,
         key: &ClauseKey,
-        clause: &impl Clause,
+        clause: &C,
         premises: bool,
     ) {
         let mut step = format!("{step_id} ");
@@ -107,7 +107,7 @@ impl Transcriber {
     }
 
     /// Transcribes that a clause is active.
-    pub fn transcribe_active(&mut self, key: ClauseKey, clause: &impl Clause) {
+    pub fn transcribe_active<C: Clause>(&mut self, key: ClauseKey, clause: &C) {
         let mut step = format!("f ");
         Transcriber::write_id_to_string(&key, &mut step);
         write!(step, " ");

@@ -30,7 +30,7 @@ impl Clause for CLiteral {
     }
 
     /// Returns the literal asserted by the clause on the given valuation
-    fn asserts(&self, _val: &impl Valuation) -> Option<CLiteral> {
+    fn asserts<V: Valuation>(&self, _val: &V) -> Option<CLiteral> {
         Some(*self)
     }
 

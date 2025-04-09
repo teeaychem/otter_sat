@@ -55,7 +55,7 @@ pub struct Assignment {
 
 impl Assignment {
     /// Creates a consequence from a bind represented as a literal and a source.
-    pub fn from(literal: impl Borrow<CLiteral>, source: AssignmentSource) -> Self {
+    pub fn from<L: Borrow<CLiteral>>(literal: L, source: AssignmentSource) -> Self {
         Assignment {
             literal: literal.borrow().canonical(),
             source,

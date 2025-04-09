@@ -28,9 +28,9 @@ impl ClauseDB {
     /// A valuation is optional.
     /// If given, clauses are initialised with respect to the given valuation.
     /// Otherwise, clauses are initialised with respect to the current valuation of the context.
-    pub fn store(
+    pub fn store<C: Clause>(
         &mut self,
-        clause: impl Clause,
+        clause: C,
         source: ClauseSource,
         cells: &mut AtomCells,
         watches: &mut Watches,
@@ -39,8 +39,8 @@ impl ClauseDB {
         let key = match clause.size() {
             0 => Err(err::ClauseDBError::EmptyClause),
 
-            // The match ensures there is a next (and then no further) literal in the clause.
             1 => {
+                // Safety: The match ensures there is a next (and then no further) literal in the clause.
                 let literal = unsafe { clause.literals().next().unwrap_unchecked() };
                 self.store_unit(literal, source)
             }

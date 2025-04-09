@@ -291,7 +291,7 @@ impl AtomCells {
     /// Cells which have already been merged with some other clause are skipped.
     ///
     /// If the clause is satisfied and error is returned.
-    fn merge_clause(&mut self, clause: &impl Clause) -> Result<(), err::ResolutionBufferError> {
+    fn merge_clause<C: Clause>(&mut self, clause: &C) -> Result<(), err::ResolutionBufferError> {
         log::info!(target: targets::ATOMCELLS, "Merging clause: {:?}", clause.as_dimacs(false));
         for literal in clause.literals() {
             let cell = unsafe { self.buffer.get_unchecked_mut(literal.atom() as usize) };
@@ -338,10 +338,10 @@ impl AtomCells {
     /// Ensures the given pivot can be used to apply resolution with the given clause and the clause in the resolution buffer and applies resolution.
     // # Safety
     // The use of unwrap_unchecked in the conditional matches is safe as a cell must have already been verified to have some value in order to be marked as asserted or asserting.
-    fn resolve_clause(
+    fn resolve_clause<C: Clause, L: Borrow<CLiteral>>(
         &mut self,
-        clause: &impl Clause,
-        pivot: impl Borrow<CLiteral>,
+        clause: &C,
+        pivot: L,
     ) -> Result<(), err::ResolutionBufferError> {
         let pivot = pivot.borrow();
         let cell = unsafe { self.buffer.get_unchecked_mut(pivot.atom() as usize) };

@@ -87,9 +87,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// + The *chronological* backjump level is the previous decision level of a context.
     ///
     /// For documentation, see [procedures::backjump](crate::procedures::backjump).
-    pub fn non_chronological_backjump_level(
+    pub fn non_chronological_backjump_level<C: Clause>(
         &self,
-        clause: &impl Clause,
+        clause: &C,
     ) -> Result<LevelIndex, err::ErrorKind> {
         match clause.size() {
             0 => {

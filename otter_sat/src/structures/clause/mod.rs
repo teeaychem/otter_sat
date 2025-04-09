@@ -66,7 +66,7 @@ pub trait Clause {
     /// In detail, returns:
     /// - Some(*l*), if *l* has no value on the given valuation and for every other literal *l'* in the clause the polarity of *l'* conflicts with the value of the atom of *l'*.
     /// - None, otherwise.
-    fn asserts(&self, val: &impl Valuation) -> Option<CLiteral>;
+    fn asserts<V: Valuation>(&self, val: &V) -> Option<CLiteral>;
 
     /// The Literal Block Distance of the clause.
     /// That is, the number of (distinct) decisions which influence the value of atoms in the clause.
