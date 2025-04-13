@@ -20,7 +20,7 @@ impl Context {
             atom_activity: IndexHeap::default(),
             watches: Watches::default(),
             clause_db: ClauseDB::new(&config),
-            atom_cells: AtomCells::new(&config),
+            atom_cells: AtomCells::new(),
             trail: Trail::default(),
 
             config,

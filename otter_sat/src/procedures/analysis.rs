@@ -114,6 +114,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             &mut self.clause_db,
             &mut self.watches,
             &mut self.trail,
+            &self.config,
         ) {
             Ok(ResolutionOk::UnitClause) | Ok(ResolutionOk::UIP) => {}
 
