@@ -1,5 +1,7 @@
 /*!
-Procuedures to identify pure literals.
+Procuedures to identify literals which occur only positive or only negatively in a formula --- a.k.a 'pure' literals.
+
+
 */
 use std::collections::HashSet;
 

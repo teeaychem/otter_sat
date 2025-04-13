@@ -44,7 +44,6 @@ Further, as a conflict requires immediate backjumping, this use may avoid redund
 use std::collections::HashSet;
 
 use cell::AtomCell;
-use config::BufferConfig;
 
 use crate::{
     context::callbacks::CallbackOnPremises,
@@ -54,12 +53,14 @@ use crate::{
 #[doc(hidden)]
 pub mod cell;
 
-pub mod config;
 #[doc(hidden)]
 pub mod methods;
 
 #[doc(hidden)]
 pub mod valuation;
+
+#[doc(hidden)]
+pub mod resolution;
 
 /// Possilbe 'Ok' results from resolution using a resolution buffer.
 pub enum ResolutionOk {
@@ -89,9 +90,6 @@ pub struct AtomCells {
 
     /// A stack of modified atoms, with the original value stored as literal polarity.
     merged_atoms: Vec<Atom>,
-
-    /// A (typically derived) configuration for the instance of resolution.
-    config: BufferConfig,
 
     /// The callback used on completion
     callback_premises: Option<Box<CallbackOnPremises>>,
