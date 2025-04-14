@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, collections::HashSet};
 
 use crate::{
-    config::{Config, StoppingCriteria},
+    config::{Config, StoppingCriteria, StrengtheningCriteria},
     db::{ClauseKey, clause::ClauseDB, trail::Trail, watches::Watches},
     misc::log::targets,
     structures::{
@@ -22,7 +22,7 @@ impl AtomCells {
     }
 
     /// Returns the resolved clause with the asserted literal as the first literal of the clause.
-    pub fn to_assertion_clause(&mut self, clause_db: &mut ClauseDB) -> CClause {
+    pub fn to_assertion_clause(&mut self, clause_db: &mut ClauseDB, config: &Config) -> CClause {
         let mut clause = Vec::with_capacity(self.clause_length);
         let mut asserted_index = 0;
 
@@ -41,15 +41,17 @@ impl AtomCells {
                     let cell = unsafe { self.buffer.get_unchecked_mut(atom as usize) };
                     let literal = CLiteral::new(atom, !unsafe { cell.value.unwrap_unchecked() });
 
-                    if true {
-                        match self.derivable_literal(atom, clause_db) {
-                            true => {}
-                            false => {
-                                clause.push(literal);
+                    match &config.strengthening.value {
+                        StrengtheningCriteria::RecursiveBCP => {
+                            match self.derivable_literal(atom, clause_db) {
+                                true => {}
+                                false => {
+                                    clause.push(literal);
+                                }
                             }
                         }
-                    } else {
-                        clause.push(literal)
+
+                        StrengtheningCriteria::None => clause.push(literal),
                     }
                 }
 
@@ -174,7 +176,7 @@ impl AtomCells {
                 }
 
                 _ => {
-                    log::error!(target: targets::ATOMCELLS, "Trail exhausted without assertion\nClause: {:?}\nValueless count: {}", self.to_assertion_clause(clause_db), self.valueless_count);
+                    log::error!(target: targets::ATOMCELLS, "Trail exhausted without assertion\nClause: {:?}\nValueless count: {}", self.to_assertion_clause(clause_db, config), self.valueless_count);
 
                     panic!("! Resolution hit a decision/assumption")
                 }
@@ -193,7 +195,7 @@ impl AtomCells {
             }
 
             _ => {
-                log::error!(target: targets::ATOMCELLS, "Trail exhausted without assertion\nClause: {:?}\nValueless count: {}", self.to_assertion_clause(clause_db), self.valueless_count);
+                log::error!(target: targets::ATOMCELLS, "Trail exhausted without assertion\nClause: {:?}\nValueless count: {}", self.to_assertion_clause(clause_db, config), self.valueless_count);
                 panic!("! A clause which does not assert");
             }
         }
@@ -224,10 +226,7 @@ impl AtomCells {
             let cell = unsafe { self.buffer.get_unchecked_mut(literal.atom() as usize) };
 
             match cell.status {
-                CellStatus::Proven
-                | CellStatus::Asserting
-                | CellStatus::Asserted
-                | CellStatus::Pivot => {
+                CellStatus::Asserting | CellStatus::Asserted | CellStatus::Pivot => {
                     // If present, cells of these kinds are from previously merged clauses.
                 }
 
@@ -238,6 +237,8 @@ impl AtomCells {
                     self.valueless_count += 1;
                     cell.status = CellStatus::Asserted;
                 }
+
+                CellStatus::Proven => {}
 
                 CellStatus::Valuation => match cell.value {
                     None => {}
