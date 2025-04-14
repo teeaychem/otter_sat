@@ -13,7 +13,7 @@ use crate::{
     types::err,
 };
 
-use super::{AtomCells, ResolutionOk, cell::ResolutionStatus};
+use super::{AtomCells, ResolutionOk, cell::CellStatus};
 
 impl AtomCells {
     /// The length of the resolved clause.
@@ -22,38 +22,63 @@ impl AtomCells {
     }
 
     /// Returns the resolved clause with the asserted literal as the first literal of the clause.
-    pub fn to_assertion_clause(&mut self) -> CClause {
+    pub fn to_assertion_clause(&mut self, clause_db: &mut ClauseDB) -> CClause {
         let mut clause = Vec::with_capacity(self.clause_length);
         let mut asserted_index = 0;
 
-        for atom in &self.merged_atoms {
-            let cell = unsafe { self.buffer.get_unchecked_mut(*atom as usize) };
-            match cell.status {
-                ResolutionStatus::Valuation | ResolutionStatus::Backjump => {}
+        let mut index = 0;
+        let limit = self.merged_atoms.len();
 
-                ResolutionStatus::Proven
-                | ResolutionStatus::Strengthened
-                | ResolutionStatus::Pivot => {}
+        while index < limit {
+            let atom = unsafe { *self.merged_atoms.get_unchecked(index) };
 
-                ResolutionStatus::Asserting => {
-                    let literal = CLiteral::new(*atom, !unsafe { cell.value.unwrap_unchecked() });
-                    clause.push(literal);
+            match unsafe { self.buffer.get_unchecked_mut(atom as usize) }.status {
+                CellStatus::Valuation | CellStatus::Backjump => {}
+
+                CellStatus::Proven | CellStatus::Pivot => {}
+
+                CellStatus::Asserting => {
+                    let cell = unsafe { self.buffer.get_unchecked_mut(atom as usize) };
+                    let literal = CLiteral::new(atom, !unsafe { cell.value.unwrap_unchecked() });
+
+                    if true {
+                        match self.derivable_literal(atom, clause_db) {
+                            true => {}
+                            false => {
+                                clause.push(literal);
+                            }
+                        }
+                    } else {
+                        clause.push(literal)
+                    }
                 }
 
-                ResolutionStatus::Asserted => {
+                CellStatus::Asserted => {
                     asserted_index = clause.size();
-                    let literal = CLiteral::new(*atom, !unsafe { cell.value.unwrap_unchecked() });
+                    let cell = unsafe { self.buffer.get_unchecked_mut(atom as usize) };
+                    let literal = CLiteral::new(atom, !unsafe { cell.value.unwrap_unchecked() });
                     clause.push(literal);
                 }
+
+                CellStatus::Independent => panic!("! Non-valuation atom marked as required"),
+
+                CellStatus::Removable => {}
             }
 
-            if !matches!(cell.status, ResolutionStatus::Proven) {
-                cell.status = ResolutionStatus::Valuation;
-            }
+            index += 1;
         }
 
         if !clause.is_empty() {
             clause.swap(0, asserted_index);
+        }
+
+        self.restore_cached_removable_status();
+
+        for atom in &self.merged_atoms {
+            let cell = unsafe { self.buffer.get_unchecked_mut(*atom as usize) };
+            if !matches!(cell.status, CellStatus::Proven) {
+                cell.status = CellStatus::Valuation;
+            }
         }
 
         clause
@@ -149,7 +174,7 @@ impl AtomCells {
                 }
 
                 _ => {
-                    log::error!(target: targets::ATOMCELLS, "Trail exhausted without assertion\nClause: {:?}\nValueless count: {}", self.to_assertion_clause(), self.valueless_count);
+                    log::error!(target: targets::ATOMCELLS, "Trail exhausted without assertion\nClause: {:?}\nValueless count: {}", self.to_assertion_clause(clause_db), self.valueless_count);
 
                     panic!("! Resolution hit a decision/assumption")
                 }
@@ -168,26 +193,8 @@ impl AtomCells {
             }
 
             _ => {
-                log::error!(target: targets::ATOMCELLS, "Trail exhausted without assertion\nClause: {:?}\nValueless count: {}", self.to_assertion_clause(), self.valueless_count);
+                log::error!(target: targets::ATOMCELLS, "Trail exhausted without assertion\nClause: {:?}\nValueless count: {}", self.to_assertion_clause(clause_db), self.valueless_count);
                 panic!("! A clause which does not assert");
-            }
-        }
-    }
-
-    /// Remove literals which conflict with those at level zero from the clause.
-    pub fn strengthen_given<'l>(&mut self, literals: impl Iterator<Item = &'l CLiteral>) {
-        for literal in literals {
-            let cell = unsafe { self.buffer.get_unchecked_mut(literal.atom() as usize) };
-
-            match cell.status {
-                ResolutionStatus::Asserted | ResolutionStatus::Asserting => {
-                    if let Some(length_minus_one) = self.clause_length.checked_sub(1) {
-                        self.clause_length = length_minus_one;
-                    }
-
-                    cell.status = ResolutionStatus::Strengthened;
-                }
-                _ => {}
             }
         }
     }
@@ -217,30 +224,29 @@ impl AtomCells {
             let cell = unsafe { self.buffer.get_unchecked_mut(literal.atom() as usize) };
 
             match cell.status {
-                ResolutionStatus::Proven
-                | ResolutionStatus::Asserting
-                | ResolutionStatus::Asserted
-                | ResolutionStatus::Pivot
-                | ResolutionStatus::Strengthened => {
+                CellStatus::Proven
+                | CellStatus::Asserting
+                | CellStatus::Asserted
+                | CellStatus::Pivot => {
                     // If present, cells of these kinds are from previously merged clauses.
                 }
 
-                ResolutionStatus::Backjump => {
+                CellStatus::Backjump => {
                     self.clause_length += 1;
                     self.merged_atoms.push(literal.atom());
 
                     self.valueless_count += 1;
-                    cell.status = ResolutionStatus::Asserted;
+                    cell.status = CellStatus::Asserted;
                 }
 
-                ResolutionStatus::Valuation => match cell.value {
+                CellStatus::Valuation => match cell.value {
                     None => {}
 
                     Some(value) if value != literal.polarity() => {
                         self.clause_length += 1;
                         self.merged_atoms.push(literal.atom());
 
-                        cell.status = ResolutionStatus::Asserting;
+                        cell.status = CellStatus::Asserting;
                     }
 
                     Some(_) => {
@@ -248,6 +254,10 @@ impl AtomCells {
                         return Err(err::ResolutionBufferError::SatisfiedClause);
                     }
                 },
+
+                CellStatus::Independent | CellStatus::Removable => {
+                    panic!("! Uncleared removable tags")
+                }
             }
         }
 
@@ -267,22 +277,21 @@ impl AtomCells {
         let pivot = pivot.borrow();
         let cell = unsafe { self.buffer.get_unchecked_mut(pivot.atom() as usize) };
         match cell.status {
-            ResolutionStatus::Asserted
+            CellStatus::Asserted
                 if pivot.polarity() == unsafe { cell.value.unwrap_unchecked() } =>
             {
-                cell.status = ResolutionStatus::Pivot;
+                cell.status = CellStatus::Pivot;
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
-
                 self.valueless_count -= 1;
 
                 Ok(())
             }
 
-            ResolutionStatus::Asserting
+            CellStatus::Asserting
                 if pivot.polarity() == unsafe { cell.value.unwrap_unchecked() } =>
             {
-                cell.status = ResolutionStatus::Pivot;
+                cell.status = CellStatus::Pivot;
                 self.merge_clause(clause)?;
                 self.clause_length -= 1;
 
@@ -301,5 +310,178 @@ impl AtomCells {
     pub fn get_assignment_source(&self, atom: Atom) -> &AssignmentSource {
         // # Safety: Every atom has a cell.
         unsafe { &self.buffer.get_unchecked(atom as usize).source }
+    }
+
+    // TODO: Make use of binary keys to avoid retreiving clauses from the store.
+    /// Caches atoms_to_restore.
+    pub fn derivable_literal(&mut self, atom: Atom, clause_db: &mut ClauseDB) -> bool {
+        /*
+        The core task is DFS through the derivation of the literal.
+
+        This is done iteratively with a stack, and two variables tracking a key to clause and the index of some literal.
+        So long as the index is to some literal in the clause, DFS may continue.
+        Whenever the index is not to some literal in the clause, this property is restored by taking a clause and index from the stack, or else the literal can be derived.
+         */
+        let mut key: ClauseKey = {
+            match self.get_assignment_source(atom) {
+                AssignmentSource::BCP(source_key) => *source_key,
+
+                _ => return false,
+            }
+        };
+
+        self.removable_dfs_todo.clear();
+
+        let mut clause = unsafe { clause_db.get_unchecked_mut(&key) };
+        if (clause.size() == 2) && atom != unsafe { clause.literal_at_unchecked(0).atom() } {
+            clause.clause_mut().swap(0, 1);
+        }
+
+        let mut asserting_index = 1;
+
+        'dfs_loop: loop {
+            if !self.removable_dfs_todo.is_empty() && clause.size() == asserting_index {
+                let asserted_literal = unsafe { clause.literal_at_unchecked(0) };
+
+                let cell = self.get_cell_mut(asserted_literal.atom());
+                if cell.status == CellStatus::Valuation || cell.status == CellStatus::Asserting {
+                    cell.status = CellStatus::Removable;
+                    self.cached_removable_status_atoms
+                        .push(asserted_literal.atom());
+                }
+
+                asserting_index = usize::MAX;
+                continue 'dfs_loop;
+            }
+
+            // Get the releant literal for inspection, may fail
+            if let Some(asserting_literal) = clause.literal_at(asserting_index) {
+                // check the source of the source of the literal.
+
+                match self.get_cell(asserting_literal.atom()).status {
+                    CellStatus::Proven | CellStatus::Removable => {
+                        // The literal is proven.
+                        // Or, the literal is provable given the other elements of the learnt caluse.
+                        asserting_index += 1;
+                        continue 'dfs_loop;
+                    }
+
+                    CellStatus::Asserted | CellStatus::Asserting => {
+                        // Literals in the learnt clause, so continue.
+                        // As, of interest is whether the given literal is derivable given those literals.
+                        asserting_index += 1;
+                        continue 'dfs_loop;
+                    }
+
+                    CellStatus::Independent => {
+                        // Removing the given literal would require some other literal.
+                        // So, tidy and return false.
+
+                        while let Some((key, index)) = self.removable_dfs_todo.pop() {
+                            if let Some(cached_literal) = unsafe { clause_db.get_unchecked(&key) }
+                                .clause()
+                                .literal_at(index)
+                            {
+                                let cached_atom = cached_literal.atom();
+                                let cell = self.get_cell_mut(cached_atom);
+                                if cell.status == CellStatus::Valuation {
+                                    cell.status = CellStatus::Independent;
+                                    self.cached_removable_status_atoms.push(cached_atom);
+                                }
+                            };
+                        }
+
+                        return false;
+                    }
+
+                    CellStatus::Valuation => {
+                        // Clone to avoid double borrow
+                        match *self.get_assignment_source(asserting_literal.atom()) {
+                            AssignmentSource::Original
+                            | AssignmentSource::Addition
+                            | AssignmentSource::Pure => {
+                                // Original or adddition units should be handled by the outer match on CellStatus::Proven.
+                                // In any case, continue the search.
+                                asserting_index += 1;
+                                continue 'dfs_loop;
+                            }
+
+                            AssignmentSource::Decision | AssignmentSource::Assumption => {
+                                // Removing the given literal would require some other literal.
+                                // (Specifically, the decision or assumption.)
+                                // So, tidy and return false.
+
+                                let asserting_atom = asserting_literal.atom();
+                                self.get_cell_mut(asserting_atom).status = CellStatus::Independent;
+                                self.cached_removable_status_atoms.push(asserting_atom);
+
+                                while let Some((key, index)) = self.removable_dfs_todo.pop() {
+                                    if let Some(cached_literal) =
+                                        unsafe { clause_db.get_unchecked(&key) }
+                                            .clause()
+                                            .literal_at(index)
+                                    {
+                                        let cached_atom = cached_literal.atom();
+                                        let cell = self.get_cell_mut(cached_atom);
+                                        if cell.status == CellStatus::Valuation {
+                                            cell.status = CellStatus::Independent;
+                                            self.cached_removable_status_atoms.push(cached_atom);
+                                        }
+                                    };
+                                }
+
+                                return false;
+                            }
+
+                            AssignmentSource::BCP(source_key) => {
+                                self.removable_dfs_todo.push((key, asserting_index + 1));
+                                key = source_key;
+
+                                clause = unsafe { clause_db.get_unchecked_mut(&key) };
+                                if (clause.size() == 2)
+                                    && unsafe {
+                                        clause.literal_at_unchecked(asserting_index).atom()
+                                            != clause.literal_at_unchecked(0).atom()
+                                    }
+                                {
+                                    clause.clause_mut().swap(0, 1);
+                                }
+
+                                asserting_index = 1;
+                            }
+
+                            AssignmentSource::None => panic!("! Missing assignment in BCP DFS"),
+                        }
+                    }
+
+                    CellStatus::Pivot | CellStatus::Backjump => {
+                        // No pivot atom can appear as the learnt clause was obtained by resolution on the pivot.
+                        // No backjump status can appear as it will have been replaced by asserted/asserting status.
+                        panic!("! Invalid cell status within resolution")
+                    }
+                }
+            } else if let Some((next_key, next_index)) = self.removable_dfs_todo.pop() {
+                key = next_key;
+                asserting_index = next_index;
+
+                clause = unsafe { clause_db.get_unchecked_mut(&key) };
+
+                continue 'dfs_loop;
+            } else {
+                // Note the atom can be removed, for further checks.
+                // There's no need to add the atom to the cache of changed statuses.
+                // For, the atom had status asserted/asserting, and so is set to be restored already.
+
+                self.get_cell_mut(atom).status = CellStatus::Removable;
+                return true;
+            }
+        }
+    }
+
+    pub fn restore_cached_removable_status(&mut self) {
+        while let Some(atom) = self.cached_removable_status_atoms.pop() {
+            let cell = self.get_cell_mut(atom);
+            cell.status = CellStatus::Valuation;
+        }
     }
 }

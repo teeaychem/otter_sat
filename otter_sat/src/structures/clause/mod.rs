@@ -87,6 +87,11 @@ pub trait Clause {
     /// Returns whether the clause is unsatisfiable on the given valuation
     fn unsatisfiable_on(&self, valuation: &impl Valuation) -> bool;
 
+    /// Gets the literal at index 'idx', if possible
+    fn literal_at(&self, index: usize) -> Option<CLiteral>;
+
+    unsafe fn literal_at_unchecked(&self, index: usize) -> CLiteral;
+
     /// Returns whether the clause is unsatisfiable on the given valuation
     ///
     /// # Safety

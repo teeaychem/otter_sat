@@ -96,6 +96,25 @@ impl Clause for IntClause {
         })
     }
 
+    fn literal_at(&self, index: usize) -> Option<CLiteral> {
+        #[cfg(not(feature = "boolean"))]
+        return self.get(index).cloned();
+
+        #[cfg(feature = "boolean")]
+        return match self.get(index) {
+            None => None,
+            Some(l) => Some(l.canonical()),
+        };
+    }
+
+    unsafe fn literal_at_unchecked(&self, index: usize) -> CLiteral {
+        #[cfg(not(feature = "boolean"))]
+        return unsafe { *self.get_unchecked(index) };
+
+        #[cfg(feature = "boolean")]
+        return unsafe { self.get_unchecked(index).canonical() };
+    }
+
     unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool {
         self.literals().all(|literal| unsafe {
             valuation

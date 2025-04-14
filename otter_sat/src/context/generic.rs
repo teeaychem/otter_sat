@@ -154,7 +154,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
     pub fn value_of(&self, atom: Atom) -> Option<bool> {
         // # Safety: Every atom has a valuation cell
-        self.atom_cells.get(atom).value
+        self.atom_cells.get_cell(atom).value
     }
 
     /// Clears the value of an atom, and adds the atom to the activity heap.
@@ -165,7 +165,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         log::trace!(target: targets::VALUATION, "Cleared atom: {atom}");
 
         let previous_value = self.value_of(atom);
-        let cell = self.atom_cells.get_mut(atom);
+        let cell = self.atom_cells.get_cell_mut(atom);
 
         if let Some(value) = previous_value {
             cell.previous_value = value;

@@ -93,6 +93,11 @@ pub struct AtomCells {
 
     /// The callback used on completion
     callback_premises: Option<Box<CallbackOnPremises>>,
+
+    removable_dfs_todo: Vec<(ClauseKey, usize)>,
+
+    /// Reset to CellStatus::Valuation after checking failed literals.
+    cached_removable_status_atoms: Vec<Atom>,
 }
 
 impl AtomCells {
@@ -110,23 +115,23 @@ impl AtomCells {
 
     /// Which decision an atom was valued on.
     pub fn level(&self, atom: Atom) -> Option<LevelIndex> {
-        self.get(atom).level
+        self.get_cell(atom).level
     }
 
     /// Returns the '*previous*' value of the atom from the valuation stored in the [AtomDB].
     ///
     /// When a context is built this value may be random.
     pub fn previous_value_of(&self, atom: Atom) -> bool {
-        self.get(atom).previous_value
+        self.get_cell(atom).previous_value
     }
 
-    pub fn get(&self, atom: Atom) -> &AtomCell {
+    pub fn get_cell(&self, atom: Atom) -> &AtomCell {
         // # Safety
         // A cell is created together with the addition of an atom
         unsafe { self.buffer.get_unchecked(atom as usize) }
     }
 
-    pub fn get_mut(&mut self, atom: Atom) -> &mut AtomCell {
+    pub fn get_cell_mut(&mut self, atom: Atom) -> &mut AtomCell {
         // # Safety
         // A cell is created together with the addition of an atom
         unsafe { self.buffer.get_unchecked_mut(atom as usize) }
