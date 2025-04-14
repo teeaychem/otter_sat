@@ -64,7 +64,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // self.valuation.push(None);
 
         self.atom_cells.grow_to_include(atom);
-        let cell = self.atom_cells.get_mut(atom);
+        let cell = self.atom_cells.get_cell_mut(atom);
         cell.previous_value = previous_value;
 
         Ok(atom)

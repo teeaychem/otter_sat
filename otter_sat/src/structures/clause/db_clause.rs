@@ -40,6 +40,14 @@ impl Clause for dbClause {
         self.clause().unsatisfiable_on(valuation)
     }
 
+    fn literal_at(&self, index: usize) -> Option<CLiteral> {
+        self.clause().literal_at(index)
+    }
+
+    unsafe fn literal_at_unchecked(&self, index: usize) -> CLiteral {
+        unsafe { self.clause().literal_at_unchecked(index) }
+    }
+
     unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool {
         unsafe { self.clause().unsatisfiable_on_unchecked(valuation) }
     }

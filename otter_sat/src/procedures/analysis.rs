@@ -147,7 +147,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // }
 
         let premises = self.atom_cells.take_premises();
-        let clause = self.atom_cells.to_assertion_clause();
+        let clause = self.atom_cells.to_assertion_clause(&mut self.clause_db);
         let literal = *unsafe { clause.get_unchecked(0) };
         log::info!(target: targets::ANALYSIS, "Addition clause: {:?}", clause);
 

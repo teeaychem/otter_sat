@@ -1,7 +1,7 @@
 use crate::{db::LevelIndex, structures::consequence::AssignmentSource};
 
-#[derive(Clone)]
-pub enum ResolutionStatus {
+#[derive(Clone, PartialEq, Eq)]
+pub enum CellStatus {
     /// Initial valuation
     Valuation,
 
@@ -14,14 +14,17 @@ pub enum ResolutionStatus {
     /// The atom has been merged into the clause, and had some conflicting value.
     Asserting,
 
-    /// The atom has been merged into the clause, but has been proven.
-    Strengthened,
-
     /// The atom has been merged into the clause, and was used as a pivot.
     Pivot,
 
     /// A proven literal
     Proven,
+
+    /// Used when checking for derivable literals
+    Independent,
+
+    /// Used when checking for derivable literals
+    Removable,
 }
 
 /**
@@ -35,7 +38,7 @@ pub struct AtomCell {
     pub value: Option<bool>,
     pub previous_value: bool,
     pub source: AssignmentSource,
-    pub status: ResolutionStatus,
+    pub status: CellStatus,
     pub level: Option<LevelIndex>,
 }
 
@@ -44,7 +47,7 @@ impl Default for AtomCell {
         AtomCell {
             value: None,
             source: AssignmentSource::None,
-            status: ResolutionStatus::Valuation,
+            status: CellStatus::Valuation,
             level: None,
             previous_value: false,
         }

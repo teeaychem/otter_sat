@@ -36,13 +36,13 @@ use std::collections::HashSet;
 use crate::{
     atom_cells::{
         AtomCells,
-        cell::{AtomCell, ResolutionStatus},
+        cell::{AtomCell, CellStatus},
     },
     structures::{atom::Atom, consequence::AssignmentSource},
 };
 
 impl AtomCells {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             valueless_count: 0,
             clause_length: 0,
@@ -50,6 +50,8 @@ impl AtomCells {
             buffer: Vec::default(),
             merged_atoms: Vec::default(),
             callback_premises: None,
+            removable_dfs_todo: Vec::default(),
+            cached_removable_status_atoms: Vec::default(),
         }
     }
 
@@ -67,23 +69,23 @@ impl AtomCells {
     }
 
     pub fn set_valuation(&mut self, atom: Atom, value: Option<bool>, source: AssignmentSource) {
-        let cell = self.get_mut(atom);
+        let cell = self.get_cell_mut(atom);
         cell.value = value;
         cell.source = source;
-        cell.status = ResolutionStatus::Valuation;
+        cell.status = CellStatus::Valuation;
     }
 
     pub fn mark_backjump(&mut self, atom: Atom) {
-        let cell = self.get_mut(atom);
-        cell.status = ResolutionStatus::Backjump;
+        let cell = self.get_cell_mut(atom);
+        cell.status = CellStatus::Backjump;
     }
 
     /// Sets an atom to have no valuation in the resolution buffer.
     ///
     /// Useful to initialise the resolution buffer with the current valuation and then to 'roll it back' to the previous valuation.
     pub fn clear_value(&mut self, atom: Atom) {
-        let cell = self.get_mut(atom);
+        let cell = self.get_cell_mut(atom);
         cell.value = None;
-        cell.status = ResolutionStatus::Valuation;
+        cell.status = CellStatus::Valuation;
     }
 }

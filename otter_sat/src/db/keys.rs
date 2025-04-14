@@ -85,7 +85,7 @@ impl std::fmt::Display for ClauseKey {
             Self::AdditionUnit(key) => write!(f, "AdditionUnit({key})"),
             Self::OriginalBinary(key) => write!(f, "OriginalBinary({key})"),
             Self::AdditionBinary(key) => write!(f, "AdditionBinary({key})"),
-            Self::Original(key) => write!(f, "Formula({key})"),
+            Self::Original(key) => write!(f, "Original({key})"),
             Self::Addition(key, token) => write!(f, "Addition({key}, {token})"),
         }
     }

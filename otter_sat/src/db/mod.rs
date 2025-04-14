@@ -131,7 +131,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         cell.source = source;
         cell.level = Some(self.trail.level());
         if proven_literal {
-            cell.status = crate::atom_cells::cell::ResolutionStatus::Proven;
+            cell.status = crate::atom_cells::cell::CellStatus::Proven;
         }
     }
 

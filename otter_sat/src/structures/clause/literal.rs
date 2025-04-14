@@ -61,6 +61,18 @@ impl Clause for CLiteral {
             })
     }
 
+    fn literal_at(&self, index: usize) -> Option<CLiteral> {
+        if index == 0 { Some(self.clone()) } else { None }
+    }
+
+    unsafe fn literal_at_unchecked(&self, index: usize) -> CLiteral {
+        if index == 0 {
+            self.clone()
+        } else {
+            panic!("!")
+        }
+    }
+
     unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool {
         unsafe {
             valuation

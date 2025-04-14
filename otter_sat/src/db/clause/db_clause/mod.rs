@@ -125,6 +125,11 @@ impl dbClause {
     pub fn clause(&self) -> &CClause {
         &self.clause
     }
+
+    /// The clause stored.
+    pub fn clause_mut(&mut self) -> &mut CClause {
+        &mut self.clause
+    }
 }
 
 // Subsumption
