@@ -136,18 +136,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             );
         }
 
-        /*
-        TODO: Alternative? Re-enable?
-        Strengthening iterates through all the proven literals.
-        This is skipped for a literal whose proof is to be noted.
-        This is also skipped for binary clauses, as if the other literal is proven the assertion will also be added as a proof, regardless.
-         */
-        // if the_buffer.clause_legnth() > 2 {
-        //     the_buffer.strengthen_given(self.clause_db.all_unit_clauses());
-        // }
-
         let premises = self.atom_cells.take_premises();
-        let clause = self.atom_cells.to_assertion_clause(&mut self.clause_db);
+        let clause = self
+            .atom_cells
+            .to_assertion_clause(&mut self.clause_db, &self.config);
         let literal = *unsafe { clause.get_unchecked(0) };
         log::info!(target: targets::ANALYSIS, "Addition clause: {:?}", clause);
 

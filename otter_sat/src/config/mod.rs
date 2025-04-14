@@ -29,6 +29,9 @@ pub use rng::{PolarityLean, RandomDecisionBias};
 mod stopping_criteria;
 pub use stopping_criteria::StoppingCriteria;
 
+mod strenthening_criteria;
+pub use strenthening_criteria::StrengtheningCriteria;
+
 use crate::{
     context::ContextState,
     generic::{self},
@@ -60,6 +63,9 @@ pub struct Config {
 
     /// Permit (scheduled) restarts.
     pub restarts: ConfigOption<bool>,
+
+    /// Configuration for strengthening learnt clauses.
+    pub strengthening: ConfigOption<StrengtheningCriteria>,
 
     /// Permit subsumption of formulas.
     pub subsumption: ConfigOption<bool>,
@@ -146,6 +152,14 @@ impl Default for Config {
                 max: true,
                 max_state: ContextState::Configuration,
                 value: true,
+            },
+
+            strengthening: ConfigOption {
+                name: "subsumption",
+                min: StrengtheningCriteria::MIN,
+                max: StrengtheningCriteria::MAX,
+                max_state: ContextState::Configuration,
+                value: StrengtheningCriteria::None,
             },
 
             subsumption: ConfigOption {
