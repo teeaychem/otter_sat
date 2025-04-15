@@ -43,7 +43,7 @@ impl AtomCells {
 
                     match &config.minimization.value {
                         MinimizationCriteria::RecursiveBCP => {
-                            match self.derivable_literal(atom, clause_db) {
+                            match self.derivable_value(atom, clause_db) {
                                 true => {}
                                 false => {
                                     clause.push(literal);
@@ -313,6 +313,7 @@ impl AtomCells {
         unsafe { &self.buffer.get_unchecked(atom as usize).source }
     }
 
+    /// A helper method to cache information during [derivable_value].
     fn set_status(&mut self, atom: Atom, status: CellStatus) {
         let cell = self.get_cell_mut(atom);
         if cell.status == CellStatus::Valuation {
@@ -321,15 +322,29 @@ impl AtomCells {
         }
     }
 
-    /// Caches atoms_to_restore.
-    pub fn derivable_literal(&mut self, atom: Atom, clause_db: &mut ClauseDB) -> bool {
-        /*
-        The core task is DFS through the derivation of the literal.
-
-        This is done iteratively with a stack, and two variables tracking a key to clause and the index of some literal.
-        So long as the index is to some literal in the clause, DFS may continue.
-        Whenever the index is not to some literal in the clause, this property is restored by taking a clause and index from the stack, or else the literal can be derived.
-         */
+    /// Returns true when the current value of `atom` in the current (implicit) learnt clause is a consequence of the current value of the other atoms in the learnt clause.
+    ///
+    /// If the method returns true, then the atom may be omitted from the learnt clause.
+    ///
+    /// Note, the method depends on atom cells retaining all relevant information leading to the derivation of a conflict.
+    /// And, is intended to be called on 'antecedent' literals when finalising a learnt clause.
+    ///
+    /// Given a clause of the form: -a_0, ..., -a_l, b, the method returns true when there is an observed entailment a_i, ..., a_j => a_k, for 0 ≤ i,j,k ≤ l.
+    /// So, if the clause is used to obtain the entailment a_0, ..., a_l => b, there is no need to establish a_k, as it follows from some subset of the established premises.
+    /// And, for any other entailment, it is not possible to establish -a_k without also establishing -a_k', for some i ≤ k' ≤ j.
+    ///
+    /// From a practical perspective, a_k is not required for any entailment using the learnt clause and cannot be set by the learnt clause.
+    ///
+    /// The method is reasonably efficient as the check for some entailment is limited to examining entailments in the current BCP history.
+    /// And, in particular, does not return true when there is an unobserved entailment a_i, ..., a_j => a_k.
+    /// To do so would be quire difficult.
+    ///
+    /// With respect to the details, the method performs depth first search on the BCP history of the atom, and terminates with false whenever a decision or assumption is found.
+    /// Otherwise, the value of each atom used to propagate is proven or part of the clause and so the relevant entailment holds.
+    /// Use is made of the invariant to keep the propagated atom/literal as the first element of any long clause to skip inspection of *propagated* atoms, though as this invariant is not upheld for binary clauses, the atom to examine is determined case-by-case.
+    ///
+    /// The status of literals are cached for repeat calls, and [restore_cached_removable_status] must be called after the learnt clause is finalised to clear the cache.
+    pub fn derivable_value(&mut self, atom: Atom, clause_db: &mut ClauseDB) -> bool {
         let mut key: ClauseKey = {
             match self.get_assignment_source(atom) {
                 AssignmentSource::BCP(source_key) => *source_key,
@@ -340,26 +355,39 @@ impl AtomCells {
 
         self.removable_dfs_todo.clear();
 
+        // The index of the atom being checking in the clause.
+        // Set to 1 by default to avoid inspecting asserted atoms in long clauses (this rests on upholding maininting the invariant that assrted atoms are moved to the first position of an asserting clause).
+        // # Safety: It is always the case that index  ≤ clause size, and that index < clause size when an possible to inspect an atom.
         let mut index = 1;
+        // The atom as the index to check.
+        let mut check_atom;
 
+        // # Safety: Each key is obtained from inspecting the most recent round of BCP, and so each clause is present in the clause database.
         let mut clause = unsafe { clause_db.get_unchecked_mut(&key) };
+
+        // index is set to 1 by default, but as binary clauses do not uphold the relevant invariant, switch the index to the non-asserted clause if needed.
         if (clause.size() == 2) && atom != unsafe { clause.atom_at_unchecked(0) } {
             index = 0;
         }
 
         'dfs_loop: loop {
+            // Exhaustion of the current clause is indicated by index holding the size of the clause.
+            // And, if exhausted the atom asserted by the clause can be derived from the current valuation.
             if clause.size() == index {
                 let check_atom = unsafe { clause.atom_at_unchecked(0) };
                 self.set_status(check_atom, CellStatus::Removable);
 
+                // In the case of a binary clause it isn't known which atom is asserted, though both must be derivable and so the status of both is cached.
                 if clause.size() == 2 {
                     let check_atom = unsafe { clause.atom_at_unchecked(1) };
                     self.set_status(check_atom, CellStatus::Removable);
                 }
 
+                // If the DFS stack has been empties, there initial clause was derivable.
                 if self.removable_dfs_todo.is_empty() {
-                    return false;
+                    return true;
                 } else {
+                    // Otherwise, backtrack to the previous clause/index.
                     (key, index) = self.removable_dfs_todo.pop().unwrap();
 
                     clause = unsafe { clause_db.get_unchecked_mut(&key) };
@@ -368,115 +396,114 @@ impl AtomCells {
                 }
             }
 
-            // Get the releant literal for inspection, may fail
-            if let Some(check_atom) = clause.atom_at(index) {
-                // check the source of the source of the literal.
+            // Get the releant literal for inspection.
+            // # Safety: It must be that index < clause size for the previous if to fall through.
+            check_atom = unsafe { clause.atom_at_unchecked(index) };
+            // check the source of the source of the literal.
 
-                match self.get_cell(check_atom).status {
-                    CellStatus::Proven | CellStatus::Removable => {
-                        // The literal is proven.
-                        // Or, the literal is provable given the other elements of the learnt caluse.
-                        index = if clause.size() == 2 { 2 } else { index + 1 };
+            match self.get_cell(check_atom).status {
+                CellStatus::Proven | CellStatus::Removable => {
+                    // The literal is proven.
+                    // Or, the literal is provable given the other elements of the learnt caluse.
+                    index = if clause.size() == 2 { 2 } else { index + 1 };
 
-                        continue 'dfs_loop;
+                    continue 'dfs_loop;
+                }
+
+                CellStatus::Asserted | CellStatus::Asserting => {
+                    // Literals in the learnt clause, so continue.
+                    // As, of interest is whether the given literal is derivable given those literals.
+                    index = if clause.size() == 2 { 2 } else { index + 1 };
+
+                    continue 'dfs_loop;
+                }
+
+                CellStatus::Independent => {
+                    // Removing the given literal would require some other literal.
+                    // So, tidy and return false.
+
+                    while let Some((key, index)) = self.removable_dfs_todo.pop() {
+                        if let Some(atom) = unsafe { clause_db.get_unchecked(&key) }.atom_at(index)
+                        {
+                            self.set_status(atom, CellStatus::Independent);
+                        };
                     }
 
-                    CellStatus::Asserted | CellStatus::Asserting => {
-                        // Literals in the learnt clause, so continue.
-                        // As, of interest is whether the given literal is derivable given those literals.
-                        index = if clause.size() == 2 { 2 } else { index + 1 };
+                    return false;
+                }
 
-                        continue 'dfs_loop;
-                    }
+                CellStatus::Valuation => {
+                    // Clone to avoid double borrow
+                    match *self.get_assignment_source(check_atom) {
+                        AssignmentSource::Original
+                        | AssignmentSource::Addition
+                        | AssignmentSource::Pure => {
+                            // Original or adddition units should be handled by the outer match on CellStatus::Proven.
+                            // In any case, continue the search.
+                            index = if clause.size() == 2 { 2 } else { index + 1 };
 
-                    CellStatus::Independent => {
-                        // Removing the given literal would require some other literal.
-                        // So, tidy and return false.
-
-                        while let Some((key, index)) = self.removable_dfs_todo.pop() {
-                            if let Some(atom) =
-                                unsafe { clause_db.get_unchecked(&key) }.atom_at(index)
-                            {
-                                self.set_status(atom, CellStatus::Independent);
-                            };
+                            continue 'dfs_loop;
                         }
 
-                        return false;
-                    }
+                        AssignmentSource::Decision | AssignmentSource::Assumption => {
+                            // Removing the given literal would require some other literal.
+                            // (Specifically, the decision or assumption.)
+                            // So, tidy and return false.
 
-                    CellStatus::Valuation => {
-                        // Clone to avoid double borrow
-                        match *self.get_assignment_source(check_atom) {
-                            AssignmentSource::Original
-                            | AssignmentSource::Addition
-                            | AssignmentSource::Pure => {
-                                // Original or adddition units should be handled by the outer match on CellStatus::Proven.
-                                // In any case, continue the search.
-                                index = if clause.size() == 2 { 2 } else { index + 1 };
+                            self.get_cell_mut(check_atom).status = CellStatus::Independent;
+                            self.cached_removable_status_atoms.push(check_atom);
 
-                                continue 'dfs_loop;
+                            while let Some((key, index)) = self.removable_dfs_todo.pop() {
+                                if let Some(atom) =
+                                    unsafe { clause_db.get_unchecked(&key) }.atom_at(index)
+                                {
+                                    self.set_status(atom, CellStatus::Independent);
+                                };
                             }
 
-                            AssignmentSource::Decision | AssignmentSource::Assumption => {
-                                // Removing the given literal would require some other literal.
-                                // (Specifically, the decision or assumption.)
-                                // So, tidy and return false.
-
-                                self.get_cell_mut(check_atom).status = CellStatus::Independent;
-                                self.cached_removable_status_atoms.push(check_atom);
-
-                                while let Some((key, index)) = self.removable_dfs_todo.pop() {
-                                    if let Some(atom) =
-                                        unsafe { clause_db.get_unchecked(&key) }.atom_at(index)
-                                    {
-                                        self.set_status(atom, CellStatus::Independent);
-                                    };
-                                }
-
-                                return false;
-                            }
-
-                            AssignmentSource::BCP(source_key) => {
-                                index = 1;
-
-                                if clause.size() == 2 {
-                                    self.removable_dfs_todo.push((key, 2));
-
-                                    clause = unsafe { clause_db.get_unchecked_mut(&source_key) };
-                                    if unsafe { check_atom != clause.atom_at_unchecked(0) } {
-                                        index = 0;
-                                    }
-                                } else {
-                                    self.removable_dfs_todo.push((key, index + 1));
-
-                                    clause = unsafe { clause_db.get_unchecked_mut(&source_key) };
-                                }
-
-                                key = source_key;
-                            }
-
-                            AssignmentSource::None => panic!("! Missing assignment in BCP DFS"),
+                            return false;
                         }
-                    }
 
-                    CellStatus::Pivot | CellStatus::Backjump => {
-                        // No pivot atom can appear as the learnt clause was obtained by resolution on the pivot.
-                        // No backjump status can appear as it will have been replaced by asserted/asserting status.
-                        panic!("! Invalid cell status within resolution")
+                        AssignmentSource::BCP(source_key) => {
+                            // If BCP then immediately store the current clause/index on the stack to return to an move to explore the clause.
+                            // Though, for effiency on the stack is the next index to explore, or the size of the clause to indicate exhaustion.
+                            // Given this, what happens depends on whether the clause is binary or long.
+
+                            index = 1;
+
+                            if clause.size() == 2 {
+                                self.removable_dfs_todo.push((key, 2));
+
+                                // Fix the index, if required.
+                                clause = unsafe { clause_db.get_unchecked_mut(&source_key) };
+                                if unsafe { check_atom != clause.atom_at_unchecked(0) } {
+                                    index = 0;
+                                }
+                            } else {
+                                self.removable_dfs_todo.push((key, index + 1));
+
+                                clause = unsafe { clause_db.get_unchecked_mut(&source_key) };
+                            }
+
+                            key = source_key;
+                        }
+
+                        AssignmentSource::None => panic!("! Missing assignment in BCP DFS"),
                     }
                 }
-            } else if let Some((next_key, next_index)) = self.removable_dfs_todo.pop() {
-                key = next_key;
-                index = next_index;
 
-                clause = unsafe { clause_db.get_unchecked_mut(&key) };
-
-                continue 'dfs_loop;
+                CellStatus::Pivot | CellStatus::Backjump => {
+                    // No pivot atom can appear as the learnt clause was obtained by resolution on the pivot.
+                    // No backjump status can appear as it will have been replaced by asserted/asserting status.
+                    panic!("! Invalid cell status within resolution")
+                }
             }
         }
     }
 
-    pub fn restore_cached_removable_status(&mut self) {
+    /// Clears the status values made during [derivable_value] for efficient search.
+    /// Must be called immediately after a learnt clause has been finalised (and may be called before if some inefficiancy is to taste).
+    fn restore_cached_removable_status(&mut self) {
         while let Some(atom) = self.cached_removable_status_atoms.pop() {
             let cell = self.get_cell_mut(atom);
             cell.status = CellStatus::Valuation;
