@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, collections::HashSet};
 
 use crate::{
-    config::{Config, StoppingCriteria, StrengtheningCriteria},
+    config::{Config, MinimizationCriteria, StoppingCriteria},
     db::{ClauseKey, clause::ClauseDB, trail::Trail, watches::Watches},
     misc::log::targets,
     structures::{
@@ -41,8 +41,8 @@ impl AtomCells {
                     let cell = unsafe { self.buffer.get_unchecked_mut(atom as usize) };
                     let literal = CLiteral::new(atom, !unsafe { cell.value.unwrap_unchecked() });
 
-                    match &config.strengthening.value {
-                        StrengtheningCriteria::RecursiveBCP => {
+                    match &config.minimization.value {
+                        MinimizationCriteria::RecursiveBCP => {
                             match self.derivable_literal(atom, clause_db) {
                                 true => {}
                                 false => {
@@ -51,7 +51,7 @@ impl AtomCells {
                             }
                         }
 
-                        StrengtheningCriteria::None => clause.push(literal),
+                        MinimizationCriteria::None => clause.push(literal),
                     }
                 }
 
