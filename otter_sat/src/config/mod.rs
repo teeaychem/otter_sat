@@ -159,7 +159,7 @@ impl Default for Config {
                 min: StrengtheningCriteria::MIN,
                 max: StrengtheningCriteria::MAX,
                 max_state: ContextState::Configuration,
-                value: StrengtheningCriteria::None,
+                value: StrengtheningCriteria::RecursiveBCP,
             },
 
             subsumption: ConfigOption {

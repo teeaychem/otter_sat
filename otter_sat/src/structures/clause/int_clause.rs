@@ -115,6 +115,14 @@ impl Clause for IntClause {
         return unsafe { self.get_unchecked(index).canonical() };
     }
 
+    fn atom_at(&self, index: usize) -> Option<Atom> {
+        self.get(index).map(|l| l.atom())
+    }
+
+    unsafe fn atom_at_unchecked(&self, index: usize) -> Atom {
+        unsafe { self.get_unchecked(index).atom() }
+    }
+
     unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool {
         self.literals().all(|literal| unsafe {
             valuation
