@@ -23,7 +23,7 @@ The structure here allows for an arbitrary chain of resolution instances with st
 - Updating the contents of each cell to indicate whether that atom is part of the derived clause, or has been used as a pivot.
 - While, keeping track of which cells used in resolution conflict with the valuation.
 
-In addition, the structure has been extended to support self-subsumption of clauses and clause strengthening.
+In addition, the structure has been extended to support self-subsumption of clauses and clause minimization.
 
 
 Note, at present, the structure creates a cell for each atom in the context.

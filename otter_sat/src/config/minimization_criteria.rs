@@ -1,16 +1,16 @@
 use std::str::FromStr;
 
-/// Variant stregnthening criterias to use during resolution-based analysis.
+/// Variant minimization criterias to use during resolution-based analysis.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum StrengtheningCriteria {
+pub enum MinimizationCriteria {
     /// Recursively examine the implication graph from BCP to determine whether each literal in a learnt clause would follow from the other literals and proven literals.
     RecursiveBCP = 0,
 
-    /// Do not apply strenthening (other than omitting proven literals).
+    /// No clause minimization, other than omitting proven literals.
     None,
 }
 
-impl std::fmt::Display for StrengtheningCriteria {
+impl std::fmt::Display for MinimizationCriteria {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::RecursiveBCP => write!(f, "RecursiveBCP"),
@@ -19,15 +19,15 @@ impl std::fmt::Display for StrengtheningCriteria {
     }
 }
 
-impl StrengtheningCriteria {
-    /// The minimum StoppingCriteria type.
-    pub const MIN: StrengtheningCriteria = StrengtheningCriteria::None;
+impl MinimizationCriteria {
+    /// The minimum MinimizationCriteria type.
+    pub const MIN: MinimizationCriteria = MinimizationCriteria::None;
 
-    /// The maximum StrengtheningCriteria type.
-    pub const MAX: StrengtheningCriteria = StrengtheningCriteria::RecursiveBCP;
+    /// The maximum MinimizationCriteria type.
+    pub const MAX: MinimizationCriteria = MinimizationCriteria::RecursiveBCP;
 }
 
-impl FromStr for StrengtheningCriteria {
+impl FromStr for MinimizationCriteria {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

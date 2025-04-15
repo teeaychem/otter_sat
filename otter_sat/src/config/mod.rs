@@ -29,8 +29,8 @@ pub use rng::{PolarityLean, RandomDecisionBias};
 mod stopping_criteria;
 pub use stopping_criteria::StoppingCriteria;
 
-mod strenthening_criteria;
-pub use strenthening_criteria::StrengtheningCriteria;
+mod minimization_criteria;
+pub use minimization_criteria::MinimizationCriteria;
 
 use crate::{
     context::ContextState,
@@ -64,8 +64,8 @@ pub struct Config {
     /// Permit (scheduled) restarts.
     pub restarts: ConfigOption<bool>,
 
-    /// Configuration for strengthening learnt clauses.
-    pub strengthening: ConfigOption<StrengtheningCriteria>,
+    /// Configuration for minimizing learnt clauses.
+    pub minimization: ConfigOption<MinimizationCriteria>,
 
     /// Permit subsumption of formulas.
     pub subsumption: ConfigOption<bool>,
@@ -154,12 +154,12 @@ impl Default for Config {
                 value: true,
             },
 
-            strengthening: ConfigOption {
+            minimization: ConfigOption {
                 name: "subsumption",
-                min: StrengtheningCriteria::MIN,
-                max: StrengtheningCriteria::MAX,
+                min: MinimizationCriteria::MIN,
+                max: MinimizationCriteria::MAX,
                 max_state: ContextState::Configuration,
-                value: StrengtheningCriteria::RecursiveBCP,
+                value: MinimizationCriteria::RecursiveBCP,
             },
 
             subsumption: ConfigOption {
