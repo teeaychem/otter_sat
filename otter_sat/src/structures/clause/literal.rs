@@ -4,6 +4,7 @@ use crate::{
     atom_cells::AtomCells,
     config::LBD,
     structures::{
+        atom::Atom,
         clause::Clause,
         literal::{CLiteral, Literal},
         valuation::Valuation,
@@ -71,6 +72,14 @@ impl Clause for CLiteral {
         } else {
             panic!("!")
         }
+    }
+
+    fn atom_at(&self, index: usize) -> Option<Atom> {
+        if index == 0 { Some(self.atom()) } else { None }
+    }
+
+    unsafe fn atom_at_unchecked(&self, index: usize) -> Atom {
+        if index == 0 { self.atom() } else { panic!("!") }
     }
 
     unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool {

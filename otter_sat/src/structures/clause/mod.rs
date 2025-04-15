@@ -92,6 +92,11 @@ pub trait Clause {
 
     unsafe fn literal_at_unchecked(&self, index: usize) -> CLiteral;
 
+    /// Gets the literal at index 'idx', if possible
+    fn atom_at(&self, index: usize) -> Option<Atom>;
+
+    unsafe fn atom_at_unchecked(&self, index: usize) -> Atom;
+
     /// Returns whether the clause is unsatisfiable on the given valuation
     ///
     /// # Safety
