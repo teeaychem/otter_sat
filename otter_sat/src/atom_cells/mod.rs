@@ -91,7 +91,7 @@ pub struct AtomCells {
     premises: HashSet<ClauseKey>,
 
     /// The buffer.
-    pub buffer: Vec<AtomCell>,
+    pub cells: Vec<AtomCell>,
 
     /// A stack of modified atoms, with the original value stored as literal polarity.
     merged_atoms: Vec<Atom>,
@@ -133,12 +133,12 @@ impl AtomCells {
     pub fn get_cell(&self, atom: Atom) -> &AtomCell {
         // # Safety
         // A cell is created together with the addition of an atom
-        unsafe { self.buffer.get_unchecked(atom as usize) }
+        unsafe { self.cells.get_unchecked(atom as usize) }
     }
 
     pub fn get_cell_mut(&mut self, atom: Atom) -> &mut AtomCell {
         // # Safety
         // A cell is created together with the addition of an atom
-        unsafe { self.buffer.get_unchecked_mut(atom as usize) }
+        unsafe { self.cells.get_unchecked_mut(atom as usize) }
     }
 }

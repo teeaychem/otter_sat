@@ -47,7 +47,7 @@ impl AtomCells {
             valueless_count: 0,
             clause_length: 0,
             premises: HashSet::default(),
-            buffer: Vec::default(),
+            cells: Vec::default(),
             merged_atoms: Vec::default(),
             callback_premises: None,
             removable_dfs_todo: Vec::default(),
@@ -63,8 +63,8 @@ impl AtomCells {
     }
 
     pub fn grow_to_include(&mut self, atom: Atom) {
-        if self.buffer.len() <= atom as usize {
-            self.buffer.resize(atom as usize + 1, AtomCell::default());
+        if self.cells.len() <= atom as usize {
+            self.cells.resize(atom as usize + 1, AtomCell::default());
         }
     }
 
