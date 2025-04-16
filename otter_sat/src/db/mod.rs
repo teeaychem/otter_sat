@@ -25,6 +25,8 @@ pub mod watches;
 use std::collections::HashSet;
 
 use crate::{
+    atom_cells::cell::ResolutionFlag,
+    config::MinimizationCriteria,
     context::GenericContext,
     structures::{
         clause::ClauseSource,
@@ -131,7 +133,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         cell.source = source;
         cell.level = Some(self.trail.level());
         if proven_literal {
-            cell.status = crate::atom_cells::cell::CellStatus::Proven;
+            match self.config.minimization.value {
+                MinimizationCriteria::RecursiveBCP | MinimizationCriteria::Proven => {
+                    cell.resolution_flag = ResolutionFlag::Proven;
+                }
+
+                MinimizationCriteria::None => {}
+            }
         }
     }
 

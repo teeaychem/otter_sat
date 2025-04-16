@@ -36,7 +36,7 @@ use std::collections::HashSet;
 use crate::{
     atom_cells::{
         AtomCells,
-        cell::{AtomCell, CellStatus},
+        cell::{AtomCell, ResolutionFlag},
     },
     structures::{atom::Atom, consequence::AssignmentSource},
 };
@@ -72,12 +72,12 @@ impl AtomCells {
         let cell = self.get_cell_mut(atom);
         cell.value = value;
         cell.source = source;
-        cell.status = CellStatus::Valuation;
+        cell.resolution_flag = ResolutionFlag::Valuation;
     }
 
     pub fn mark_backjump(&mut self, atom: Atom) {
         let cell = self.get_cell_mut(atom);
-        cell.status = CellStatus::Backjump;
+        cell.resolution_flag = ResolutionFlag::Backjump;
     }
 
     /// Sets an atom to have no valuation in the resolution buffer.
@@ -86,6 +86,6 @@ impl AtomCells {
     pub fn clear_value(&mut self, atom: Atom) {
         let cell = self.get_cell_mut(atom);
         cell.value = None;
-        cell.status = CellStatus::Valuation;
+        cell.resolution_flag = ResolutionFlag::Valuation;
     }
 }

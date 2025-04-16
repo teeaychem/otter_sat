@@ -74,6 +74,11 @@ pub enum ResolutionOk {
     Repeat(ClauseKey, CLiteral),
 }
 
+struct DFSTodo {
+    pub key: ClauseKey,
+    pub index: usize,
+}
+
 /// A buffer for use when applying resolution to a sequence of clauses.
 pub struct AtomCells {
     /// A count of literals in the clause whose atoms do not have a value on the given interpretation.
@@ -94,7 +99,7 @@ pub struct AtomCells {
     /// The callback used on completion
     callback_premises: Option<Box<CallbackOnPremises>>,
 
-    removable_dfs_todo: Vec<(ClauseKey, usize)>,
+    removable_dfs_todo: Vec<DFSTodo>,
 
     /// Reset to CellStatus::Valuation after checking failed literals.
     cached_removable_status_atoms: Vec<Atom>,
