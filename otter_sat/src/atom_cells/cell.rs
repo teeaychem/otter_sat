@@ -24,7 +24,7 @@ pub enum ResolutionFlag {
     Independent,
 
     /// Used when checking for derivable literals.
-    Removable,
+    Derivable,
 }
 
 /**
@@ -51,5 +51,11 @@ impl Default for AtomCell {
             level: None,
             previous_value: false,
         }
+    }
+}
+
+impl AtomCell {
+    pub unsafe fn value_unchecked(&self) -> bool {
+        unsafe { self.value.unwrap_unchecked() }
     }
 }

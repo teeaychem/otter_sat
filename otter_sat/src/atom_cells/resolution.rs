@@ -19,70 +19,57 @@ use super::{
 };
 
 impl AtomCells {
-    /// The length of the resolved clause.
-    pub fn clause_legnth(&self) -> usize {
-        self.clause_length
-    }
-
     /// Returns the resolved clause with the asserted literal as the first literal of the clause.
     pub fn to_assertion_clause(&mut self, clause_db: &mut ClauseDB, config: &Config) -> CClause {
         let mut clause = Vec::with_capacity(self.clause_length);
-        let mut asserted_index = 0;
 
         let mut index = 0;
         let limit = self.merged_atoms.len();
 
+        let mut atom;
+        let mut atom_cell;
+
         while index < limit {
-            let atom = unsafe { *self.merged_atoms.get_unchecked(index) };
+            // # Safety: index is bounded by merged_atoms.len()
+            atom = unsafe { *self.merged_atoms.get_unchecked(index) };
+            atom_cell = self.get_cell(atom);
+            // # Safety: atoms always have a cell
+            let cell_value = unsafe { atom_cell.value_unchecked() };
 
-            match unsafe { self.buffer.get_unchecked_mut(atom as usize) }.resolution_flag {
-                Flag::Valuation | Flag::Backjump => {}
-
-                Flag::Proven | Flag::Pivot => {}
+            match atom_cell.resolution_flag {
+                Flag::Valuation | Flag::Backjump | Flag::Proven | Flag::Pivot | Flag::Derivable => {
+                }
 
                 Flag::Asserting => {
-                    let cell = unsafe { self.buffer.get_unchecked_mut(atom as usize) };
-                    let literal = CLiteral::new(atom, !unsafe { cell.value.unwrap_unchecked() });
-
                     match &config.minimization.value {
-                        MinimizationCriteria::RecursiveBCP => {
-                            match self.derivable_value(atom, clause_db) {
-                                true => {}
-                                false => {
-                                    clause.push(literal);
-                                }
+                        MinimizationCriteria::Proven // Proven literals are already flagged
+                        | MinimizationCriteria::None
+                        | MinimizationCriteria::Recursive if !self.derivable_value(atom, clause_db) => {
+                             {
+                                clause.push(CLiteral::new(atom, !cell_value));
                             }
                         }
 
-                        MinimizationCriteria::Proven => clause.push(literal),
-
-                        MinimizationCriteria::None => clause.push(literal),
+                        _ => {}
                     }
                 }
 
                 Flag::Asserted => {
-                    asserted_index = clause.size();
-                    let cell = unsafe { self.buffer.get_unchecked_mut(atom as usize) };
-                    let literal = CLiteral::new(atom, !unsafe { cell.value.unwrap_unchecked() });
-                    clause.push(literal);
+                    let asserted_index = clause.size();
+                    clause.push(CLiteral::new(atom, !cell_value));
+                    clause.swap(0, asserted_index);
                 }
 
                 Flag::Independent => panic!("! Non-valuation atom marked as required"),
-
-                Flag::Removable => {}
             }
 
             index += 1;
         }
 
-        if !clause.is_empty() {
-            clause.swap(0, asserted_index);
-        }
-
         self.restore_cached_removable_status();
 
-        for atom in &self.merged_atoms {
-            let cell = unsafe { self.buffer.get_unchecked_mut(*atom as usize) };
+        while let Some(atom) = self.merged_atoms.pop() {
+            let cell = self.get_cell_mut(atom);
             if !matches!(cell.resolution_flag, Flag::Proven) {
                 cell.resolution_flag = Flag::Valuation;
             }
@@ -104,18 +91,24 @@ impl AtomCells {
     ) -> Result<ResolutionOk, err::ResolutionBufferError> {
         // The key has already been used to access the conflicting clause.
         let base_clause = unsafe { clause_db.get_unchecked_mut(key) };
+        let mut key = *key;
 
         self.merge_clause(base_clause);
-        clause_db.note_use(*key);
-        self.premises.insert(*key);
+        clause_db.note_use(key);
+        self.premises.insert(key);
 
         // bump clause activity
         if let ClauseKey::Addition(index, _) = key {
-            clause_db.bump_activity(*index)
+            clause_db.bump_activity(index)
         };
+
+        let mut source_clause;
+        let mut source_clause_size;
+        let mut resolution_result;
 
         // Resolution buffer is only used by analysis, which is only called after some decision has been made
         let the_trail = trail.take_assignments();
+
         'resolution_loop: for literal in the_trail.iter().rev() {
             if self.valueless_count <= 1 {
                 match config.stopping_criteria.value {
@@ -128,20 +121,15 @@ impl AtomCells {
 
             log::info!(target: targets::ATOMCELLS, "Examining trail item {literal:?}");
 
-            let source = *self.get_assignment_source(literal.atom());
-
-            match source {
+            match self.get_assignment_source(literal.atom()) {
                 AssignmentSource::None => panic!("! Missing source"),
 
-                AssignmentSource::BCP(key) => {
-                    let mut key = key;
+                AssignmentSource::BCP(bcp_key) => {
+                    key = *bcp_key;
 
-                    let source_clause = unsafe { clause_db.get_unchecked_mut(&key) };
-
-                    // Recorded here to avoid multiple mutable borrows of clause_db
-                    let source_clause_size = source_clause.size();
-
-                    let resolution_result = self.resolve_clause(source_clause, literal);
+                    source_clause = unsafe { clause_db.get_unchecked_mut(&key) };
+                    source_clause_size = source_clause.size(); // Recorded here to avoid multiple mutable borrows of clause_db
+                    resolution_result = self.resolve_clause(source_clause, literal);
 
                     clause_db.note_use(key);
                     self.premises.insert(key);
@@ -150,19 +138,11 @@ impl AtomCells {
                         continue 'resolution_loop; // the clause wasn't relevant
                     }
 
-                    key = match config.subsumption.value
-                        && self.clause_length < source_clause_size
-                        && self.clause_length > 2
-                    {
-                        false => key,
-                        true => match key {
-                            ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) => {
-                                panic!("! Subsumption called on a unit clause")
-                            }
+                    if self.clause_length < source_clause_size && config.subsumption.value {
+                        match key {
+                            ClauseKey::OriginalUnit(_) | ClauseKey::AdditionUnit(_) => {}
 
-                            ClauseKey::OriginalBinary(_) | ClauseKey::AdditionBinary(_) => {
-                                panic!("! Subsumption called on a binary clause");
-                            }
+                            ClauseKey::OriginalBinary(_) | ClauseKey::AdditionBinary(_) => {}
 
                             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
                                 let clause = unsafe { clause_db.get_unchecked_mut(&key) };
@@ -170,9 +150,8 @@ impl AtomCells {
 
                                 self.premises.insert(key);
                                 clause_db.note_use(key);
-                                key
                             }
-                        },
+                        }
                     };
 
                     if let ClauseKey::Addition(index, _) = key {
@@ -215,9 +194,7 @@ impl AtomCells {
     pub fn take_premises(&mut self) -> HashSet<ClauseKey> {
         std::mem::take(&mut self.premises)
     }
-}
 
-impl AtomCells {
     /// Merge a clause into the resolution buffer, used to set up the resolution buffer and to merge additional clauses.
     ///
     /// Updates relevant 'value' cells in the resolution buffer to reflect their relation to the given clause along with connected metadata.
@@ -228,10 +205,10 @@ impl AtomCells {
     fn merge_clause<C: Clause>(&mut self, clause: &C) -> Result<(), err::ResolutionBufferError> {
         log::info!(target: targets::ATOMCELLS, "Merging clause: {:?}", clause.as_dimacs(false));
         for literal in clause.literals() {
-            let cell = unsafe { self.buffer.get_unchecked_mut(literal.atom() as usize) };
+            let cell = unsafe { self.cells.get_unchecked_mut(literal.atom() as usize) };
 
             match cell.resolution_flag {
-                Flag::Asserting | Flag::Asserted | Flag::Pivot => {
+                Flag::Asserting | Flag::Asserted | Flag::Pivot | Flag::Proven => {
                     // If present, cells of these kinds are from previously merged clauses.
                 }
 
@@ -242,8 +219,6 @@ impl AtomCells {
                     self.valueless_count += 1;
                     cell.resolution_flag = Flag::Asserted;
                 }
-
-                Flag::Proven => {}
 
                 Flag::Valuation => match cell.value {
                     None => {}
@@ -261,7 +236,7 @@ impl AtomCells {
                     }
                 },
 
-                Flag::Independent | Flag::Removable => {
+                Flag::Independent | Flag::Derivable => {
                     panic!("! Uncleared removable tags")
                 }
             }
@@ -281,7 +256,7 @@ impl AtomCells {
         pivot: L,
     ) -> Result<(), err::ResolutionBufferError> {
         let pivot = pivot.borrow();
-        let cell = unsafe { self.buffer.get_unchecked_mut(pivot.atom() as usize) };
+        let cell = unsafe { self.cells.get_unchecked_mut(pivot.atom() as usize) };
         match cell.resolution_flag {
             Flag::Asserted if pivot.polarity() == unsafe { cell.value.unwrap_unchecked() } => {
                 cell.resolution_flag = Flag::Pivot;
@@ -309,9 +284,10 @@ impl AtomCells {
 }
 
 impl AtomCells {
+    /// Returns the [AssignmentSource] of an [Atom].
     pub fn get_assignment_source(&self, atom: Atom) -> &AssignmentSource {
         // # Safety: Every atom has a cell.
-        unsafe { &self.buffer.get_unchecked(atom as usize).source }
+        unsafe { &self.cells.get_unchecked(atom as usize).source }
     }
 
     /// A helper method to cache information during [derivable_value].
@@ -323,7 +299,7 @@ impl AtomCells {
         }
     }
 
-    /// A helper method to cache information during [derivable_value].
+    /// Helper method to mark the DFS stack as independent when [derivable_value] returns false.
     fn flag_stack_independent(&mut self, clause_db: &mut ClauseDB) {
         while let Some(DFSTodo { key, index }) = self.removable_dfs_todo.pop() {
             if let Some(atom) = unsafe { clause_db.get_unchecked(&key) }.atom_at(index) {
@@ -382,11 +358,11 @@ impl AtomCells {
             // Exhaustion of the current clause is indicated by index holding the size of the clause.
             // And, if exhausted the atom asserted by the clause can be derived from the current valuation.
             if index == clause.size() {
-                self.set_status(unsafe { clause.atom_at_unchecked(0) }, Flag::Removable);
+                self.set_status(unsafe { clause.atom_at_unchecked(0) }, Flag::Derivable);
 
                 // In the case of a binary clause it isn't known which atom is asserted, though both must be derivable and so the status of both is cached.
                 if clause.size() == 2 {
-                    self.set_status(unsafe { clause.atom_at_unchecked(1) }, Flag::Removable);
+                    self.set_status(unsafe { clause.atom_at_unchecked(1) }, Flag::Derivable);
                 }
 
                 // If the DFS stack has been empties, the initial clause was derivable. Otherwise, backtrack to the previous clause/index.
@@ -410,7 +386,7 @@ impl AtomCells {
             // Literals in the learnt clause, so continue.
             // As, of interest is whether the given literal is derivable given those literals.
             match check_cell.resolution_flag {
-                Flag::Proven | Flag::Removable | Flag::Asserted | Flag::Asserting => {
+                Flag::Proven | Flag::Derivable | Flag::Asserted | Flag::Asserting => {
                     index = if clause.size() == 2 { 2 } else { index + 1 };
 
                     continue 'dfs_loop;

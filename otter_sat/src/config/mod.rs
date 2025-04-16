@@ -159,7 +159,7 @@ impl Default for Config {
                 min: MinimizationCriteria::MIN,
                 max: MinimizationCriteria::MAX,
                 max_state: ContextState::Configuration,
-                value: MinimizationCriteria::RecursiveBCP,
+                value: MinimizationCriteria::Recursive,
             },
 
             subsumption: ConfigOption {
