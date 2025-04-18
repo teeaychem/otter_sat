@@ -30,7 +30,7 @@ pub fn transcribe_addition(tx: &mut Transcriber, clause: &dbClause, source: &Cla
 
         ClauseSource::Resolution => tx.transcribe_clause('a', clause.key(), clause.clause(), true),
 
-        ClauseSource::PureUnit => panic!("X_X"),
+        ClauseSource::Unit => panic!("X_X"),
     }
     tx.flush()
 }

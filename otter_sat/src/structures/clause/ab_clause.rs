@@ -1,4 +1,4 @@
-//! Implementation of clause trait for a slice of literals.
+//! Implementation of clause trait for a Vec of [ABLiteral]s.
 
 use crate::{
     atom_cells::AtomCells,
@@ -26,11 +26,10 @@ impl Clause for ABClause {
         }
         if zero {
             the_string += "0";
-            the_string
         } else {
             the_string.pop();
-            the_string
         }
+        the_string
     }
 
     fn asserts<V: Valuation>(&self, val: &V) -> Option<CLiteral> {
@@ -104,10 +103,7 @@ impl Clause for ABClause {
         return self.get(index).cloned();
 
         #[cfg(not(feature = "boolean"))]
-        return match self.get(index) {
-            None => None,
-            Some(l) => Some(l.canonical()),
-        };
+        return self.get(index).map(|l| l.canonical());
     }
 
     unsafe fn literal_at_unchecked(&self, index: usize) -> CLiteral {

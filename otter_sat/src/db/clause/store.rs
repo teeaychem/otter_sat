@@ -99,7 +99,7 @@ impl ClauseDB {
                 Ok(key)
             }
 
-            ClauseSource::PureUnit => panic!("! Store of a pure unit clause"),
+            ClauseSource::Unit => panic!("! Store of a pure unit clause"),
         }
     }
 
@@ -131,7 +131,7 @@ impl ClauseDB {
                 Ok(key)
             }
 
-            ClauseSource::PureUnit => panic!("! Store of a pure unit clause"),
+            ClauseSource::Unit => panic!("! Store of a pure unit clause"),
         }
     }
 
@@ -143,7 +143,7 @@ impl ClauseDB {
         watches: &mut Watches,
     ) -> Result<ClauseKey, err::ClauseDBError> {
         match source {
-            ClauseSource::BCP | ClauseSource::PureUnit => {
+            ClauseSource::BCP | ClauseSource::Unit => {
                 panic!("! Store of non-long clause via store_long")
             } // Sources only valid for unit clauses.
 

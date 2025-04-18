@@ -50,7 +50,7 @@ impl AtomCells {
             cells: Vec::default(),
             merged_atoms: Vec::default(),
             callback_premises: None,
-            removable_dfs_todo: Vec::default(),
+            recursive_minimization_todo: Vec::default(),
             cached_removable_status_atoms: Vec::default(),
         }
     }
@@ -59,7 +59,6 @@ impl AtomCells {
         self.valueless_count = 0;
         self.clause_length = 0;
         self.premises.clear();
-        self.merged_atoms.clear();
     }
 
     pub fn grow_to_include(&mut self, atom: Atom) {

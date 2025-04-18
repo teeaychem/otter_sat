@@ -14,7 +14,7 @@ use crate::{
 };
 
 use super::{
-    AtomCells, DFSTodo, ResolutionOk,
+    AtomCells, ReMiTodo, ResolutionOk,
     cell::{AtomCell, ResolutionFlag as Flag},
 };
 
@@ -301,7 +301,7 @@ impl AtomCells {
 
     /// Helper method to mark the DFS stack as independent when [derivable_value] returns false.
     fn flag_stack_independent(&mut self, clause_db: &mut ClauseDB) {
-        while let Some(DFSTodo { key, index }) = self.removable_dfs_todo.pop() {
+        while let Some(ReMiTodo { key, index }) = self.recursive_minimization_todo.pop() {
             if let Some(atom) = unsafe { clause_db.get_unchecked(&key) }.atom_at(index) {
                 self.set_status(atom, Flag::Independent);
             };
@@ -366,7 +366,7 @@ impl AtomCells {
                 }
 
                 // If the DFS stack has been empties, the initial clause was derivable. Otherwise, backtrack to the previous clause/index.
-                if let Some(next) = self.removable_dfs_todo.pop() {
+                if let Some(next) = self.recursive_minimization_todo.pop() {
                     key = next.key;
                     index = next.index;
                     clause = unsafe { clause_db.get_unchecked_mut(&key) };
@@ -424,7 +424,8 @@ impl AtomCells {
                             index = 1;
 
                             if clause.size() == 2 {
-                                self.removable_dfs_todo.push(DFSTodo { key, index: 2 });
+                                self.recursive_minimization_todo
+                                    .push(ReMiTodo { key, index: 2 });
 
                                 clause = unsafe { clause_db.get_unchecked_mut(&source_key) };
 
@@ -433,7 +434,7 @@ impl AtomCells {
                                     index = 0;
                                 }
                             } else {
-                                self.removable_dfs_todo.push(DFSTodo {
+                                self.recursive_minimization_todo.push(ReMiTodo {
                                     key,
                                     index: index + 1,
                                 });

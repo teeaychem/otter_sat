@@ -5,7 +5,7 @@ pub enum ClauseSource {
     BCP,
 
     /// A *unit* clause set by free decision on the value of the contained atom.
-    PureUnit,
+    Unit,
 
     /// A clause read from a formula.
     Original,
