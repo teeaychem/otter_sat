@@ -87,14 +87,22 @@ pub trait Clause {
     /// Returns whether the clause is unsatisfiable on the given valuation
     fn unsatisfiable_on(&self, valuation: &impl Valuation) -> bool;
 
-    /// Gets the literal at index 'idx', if possible
+    /// Returns the literal at index 'index', if the clause contains at least `index` literals.
     fn literal_at(&self, index: usize) -> Option<CLiteral>;
 
+    /// Returns the literal at `index`, without checking whether the clause contains at least `index` literals.
+    ///
+    /// # Safety
+    /// Well-defined only if the clause contains at least `index` literals.
     unsafe fn literal_at_unchecked(&self, index: usize) -> CLiteral;
 
-    /// Gets the literal at index 'idx', if possible
+    /// Returns the atom at index 'index', if the clause contains at least `index` atoms.
     fn atom_at(&self, index: usize) -> Option<Atom>;
 
+    /// Returns the atom at `index`, without checking whether the clause contains at least `index` atoms.
+    ///
+    /// # Safety
+    /// Well-defined only if the clause contains at least `index` atoms.
     unsafe fn atom_at_unchecked(&self, index: usize) -> Atom;
 
     /// Returns whether the clause is unsatisfiable on the given valuation

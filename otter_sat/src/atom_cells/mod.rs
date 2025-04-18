@@ -74,8 +74,12 @@ pub enum ResolutionOk {
     Repeat(ClauseKey, CLiteral),
 }
 
-struct DFSTodo {
+/// A store of information to return to during recursive minimization.
+struct ReMiTodo {
+    /// The key to the clause under consideration.
     pub key: ClauseKey,
+
+    /// The index of the literal in the clause tto next consider (or the length of the clause to indicate exhaustion).fb
     pub index: usize,
 }
 
@@ -90,16 +94,18 @@ pub struct AtomCells {
     /// The (direct) premises used top derive the clause.
     premises: HashSet<ClauseKey>,
 
-    /// The buffer.
+    /// The cells.
     pub cells: Vec<AtomCell>,
 
     /// A stack of modified atoms, with the original value stored as literal polarity.
+    /// Note, merged atoms are cleared when finialising a learnt clause.
     merged_atoms: Vec<Atom>,
 
     /// The callback used on completion
     callback_premises: Option<Box<CallbackOnPremises>>,
 
-    removable_dfs_todo: Vec<DFSTodo>,
+    /// A persistent stack used during recursive minimization.
+    recursive_minimization_todo: Vec<ReMiTodo>,
 
     /// Reset to CellStatus::Valuation after checking failed literals.
     cached_removable_status_atoms: Vec<Atom>,
@@ -130,15 +136,15 @@ impl AtomCells {
         self.get_cell(atom).previous_value
     }
 
+    /// The the cell for 'atom'.
     pub fn get_cell(&self, atom: Atom) -> &AtomCell {
-        // # Safety
-        // A cell is created together with the addition of an atom
+        // # Safety: A cell is created together with the addition of an atom
         unsafe { self.cells.get_unchecked(atom as usize) }
     }
 
+    /// The the cell for 'atom', mutable.
     pub fn get_cell_mut(&mut self, atom: Atom) -> &mut AtomCell {
-        // # Safety
-        // A cell is created together with the addition of an atom
+        // # Safety: A cell is created together with the addition of an atom
         unsafe { self.cells.get_unchecked_mut(atom as usize) }
     }
 }

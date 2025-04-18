@@ -136,17 +136,18 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             );
         }
 
-        let premises = self.atom_cells.take_premises();
         let clause = self
             .atom_cells
             .to_assertion_clause(&mut self.clause_db, &self.config);
-        let literal = *unsafe { clause.get_unchecked(0) };
+        let premises = self.atom_cells.take_premises();
+
         log::info!(target: targets::ANALYSIS, "Addition clause: {:?}", clause);
 
         match clause.len() {
             0 => Err(err::ErrorKind::from(err::AnalysisError::EmptyResolution)),
 
             1 => {
+                let literal = unsafe { clause.literal_at_unchecked(0) };
                 self.backjump(self.trail.lowest_decision_level());
 
                 self.clause_db.store(
@@ -161,6 +162,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
 
             _ => {
+                let literal = unsafe { clause.literal_at_unchecked(0) };
                 let index = self.non_chronological_backjump_level(&clause)?;
 
                 self.backjump(index);

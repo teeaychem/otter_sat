@@ -66,7 +66,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 if !self.trail.decision_is_made() {
                     self.clause_db.store(
                         literal,
-                        ClauseSource::PureUnit,
+                        ClauseSource::Unit,
                         &mut self.atom_cells,
                         &mut self.watches,
                         premises,
