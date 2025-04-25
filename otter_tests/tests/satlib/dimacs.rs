@@ -272,7 +272,7 @@ fn lran2000() {
     assert_eq!(report, Report::Satisfiable);
 }
 
-mod partiy {
+mod parity {
     use super::*;
 
     #[test]

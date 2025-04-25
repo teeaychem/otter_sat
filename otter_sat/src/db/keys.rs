@@ -48,7 +48,7 @@ impl ClauseKey {
         }
     }
 
-    /// Retokens an addition key to distnguish multiple uses of the same index.
+    /// Retokens an addition key to distinguish multiple uses of the same index.
     ///
     /// Returns an error if used on any other key, or if the token limit has been reached.
     pub fn retoken(&self) -> Result<Self, err::ClauseDBError> {

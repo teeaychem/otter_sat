@@ -1,5 +1,5 @@
 /*!
-A heap on some subset of elements with fixed indicies.
+A heap on some subset of elements with fixed indices.
 
 In other words, a heap backed by a vector with a companion vector which tracks the current location of the initial index of a heap element in the heap.
 
@@ -254,8 +254,8 @@ impl<Value: PartialOrd + Default> IndexHeap<Value> {
     /// 1. Between the index and the left index, as if the left index is larger the index should (at least) be pushed to the left.
     /// 2. Between the index and the right index, as if the right index is larger the index should be pushed to the right.
     ///
-    /// The implemention maintains a note of the update index to use, and revises this to the left and right as needed.
-    /// Alterantive implementation may first identify the largest child and then determine the updated index.
+    /// The implementation maintains a note of the update index to use, and revises this to the left and right as needed.
+    /// Alternative implementation may first identify the largest child and then determine the updated index.
     ///
     /// Only after the required update has been identified is an update made.
     fn heapify_down(&mut self, mut heap_index: usize) {

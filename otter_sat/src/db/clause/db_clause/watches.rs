@@ -25,9 +25,9 @@ use super::dbClause;
 /// The approach to watch literals follows [Optimal implementation of watched literals and more general techniques](https://www.jair.org/index.php/jair/article/view/10839).
 ///
 /// In short:
-/// - The clause is stored using an mutable, indexable data strcutre, here a vector.
+/// - The clause is stored using an mutable, indexable data structure, here a vector.
 /// - A watched literal 'watch A' is kept at the first index.
-/// - A watched literal 'watch B' is indentified by a mutable index.
+/// - A watched literal 'watch B' is identified by a mutable index.
 /// - An update to the watched literals is called when the atom of one of the literals is assigned some value.
 /// - When doing so, watch A is updated to be the *other* watched literal, if possible.
 ///   - With this, watch A will always be a literal whose atom has no value, if possible.

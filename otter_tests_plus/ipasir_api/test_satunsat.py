@@ -5,7 +5,7 @@ import unittest
 from utils import BUILD_DIR, build_binaries, is_comment
 
 """
-This test uses harcoded expectations from buidling the satunsat with minisat.
+This test uses hardcoded expectations from building the satunsat with minisat.
 The parameters are as suggested from examples.txt.
 """
 

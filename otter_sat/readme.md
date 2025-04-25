@@ -55,7 +55,7 @@ Most structs, functions, etc. have *some* documentation, and *some* structs, fun
 
 The design of the solver is only 'mostly' stable.
 Many too-be-implemented features (bound variable elimination, vivification, etc.) would be additive.
-Still, taming idiosyncracies, support for SMT solving, and interest in very large problems may require more fundamental revisions.
+Still, taming idiosyncrasies, support for SMT solving, and interest in very large problems may require more fundamental revisions.
 
 # Examples
 

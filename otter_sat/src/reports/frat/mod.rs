@@ -39,7 +39,7 @@ let addition_callback = move |clause: &dbClause, source: &ClauseSource| {
 
 # Notes
 
-For the moment the transcriber automatically syncronises resolution information with new clauses by…
+For the moment the transcriber automatically synchronises resolution information with new clauses by…
 - Storing a clause after resolution has completed and before any other instance of resolution begins
   Specifically, the channel is FIFO and resolution information is stored in a FIFO queue.
   So, the contents of some buffered resolution information can always be associated with the relevant stored clause.
@@ -49,7 +49,7 @@ For the moment the transcriber automatically syncronises resolution information 
 A few decisions make this a little more delicate than it otherwise could be
 
 - On-the-fly self-subsumption
-  + For formulas, specifically,  means it's important to record an origial formula before subsumption is applied.
+  + For formulas, specifically,  means it's important to record an original formula before subsumption is applied.
     Rather than do anything complex this is addressed by writing the original formula at the start of a proof.
 
 - Atom renaming
@@ -57,8 +57,8 @@ A few decisions make this a little more delicate than it otherwise could be
   - The context stores a translation, but to avoid interacting (and introducing mutexes) the transcriber listens for atoms being added to the context and keeps an internal map of their external string
 
 - Multiple clause databases
-  + Requires disambiguating indicies.
-    As there are no explicit limits on indicies in the FRAT document, simple ASCII prefixes are used.
+  + Requires disambiguating indices.
+    As there are no explicit limits on indices in the FRAT document, simple ASCII prefixes are used.
 */
 
 pub mod callback_templates;

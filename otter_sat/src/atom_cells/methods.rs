@@ -12,7 +12,7 @@ Resolution allows the derivation of a clause from a collection of clauses.
         - For example, *q* is a pivot for  *p ∨ -q* and *p ∨ q ∨ r*, as *-q* is in the first and *q* in the second.
           Similarly, there are two pivots in the pair of clauses *p ∨ -q* and *-p ∨ q*.
 
-Resolution is defined for a pair of formulas, but may be chained indefinetly so long as some pivot is present.
+Resolution is defined for a pair of formulas, but may be chained indefinitely so long as some pivot is present.
 For example, given *p ∨ -q ∨ -r* and *-p*, resolution can be used to derive *-q ∨ -r* and in turn the clause *r ∨ s* can be used to derive *-q ∨ s*.
 
 Further, it is often useful to stop resolution when a clause becomes asserting on some valuation.

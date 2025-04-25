@@ -27,7 +27,7 @@ And, Knuth attributes the introduction of watched literals to [An Empirical Comp
 It seems general use of watched literals followed from [Chaff](https://dl.acm.org/doi/10.1145/378239.379017).[^patent]
 [^patent]: [US7418369B2](https://patents.google.com/patent/US7418369B2/en) is a patent covering Chaff, though at the time of writing the status of the patent is 'Expired'.
 
-The given implentation of watch literals follows [Optimal implementation of watched literals and more general techniques](https://www.jair.org/index.php/jair/article/view/10839).
+The given implementation of watch literals follows [Optimal implementation of watched literals and more general techniques](https://www.jair.org/index.php/jair/article/view/10839).
 
 # Implementation
 
@@ -49,7 +49,7 @@ So, in total each atom has four associated watch lists in it's watch database.
 Note, a unit clause (a clause containing one literal) never watches any atoms.
 
 The [WatchDB] structure does not have any associated mutating methods.
-Instead, mutation of a [WatchDB] is through methods beloning to the [WatchDB].
+Instead, mutation of a [WatchDB] is through methods belonging to the [WatchDB].
 Those methods are included in this file in order to access private members of the [WatchDB].
 
 # Use
@@ -63,7 +63,7 @@ The list of long clauses watchers of an atom contains, at present, only the keys
 In principle, this list could be enhanced, I believe a technique like the following is employed by MiniSAT:
 
 - For each watch, include the *other* watched literal at the time the watch was made.
-- BCP then examines the value of thie literal before requesting the update to a watched literal.
+- BCP then examines the value of the literal before requesting the update to a watched literal.
 - And, if the literal witnesses satisfiability of the clause, no update to watches is made.
 
 This is sound, as a satisfied clause can never be used for propagation.

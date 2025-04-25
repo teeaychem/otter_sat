@@ -16,7 +16,7 @@ At present, features include:
 
 - Documentation of theory and implementation, some of which may be considered quite detailed --- see [docs.rs/otter_sat](https://docs.rs/otter_sat) (or via `cargo doc --lib`)
 - Optional generation of [FRAT proofs](https://arxiv.org/pdf/2109.09665v1) which can be checked by independent tools such as [FRAT-rs](https://github.com/digama0/frat).
-- Clause learning thorugh analysis of implication graphs.
+- Clause learning through analysis of implication graphs.
 - Clause forgetting based on glue principles (see: [Glucose](https://github.com/audemard/glucose) for details).
   - By default all clauses which do not match the required `glue` level are forgotten at regular intervals.
 - A [VSIDS](https://arxiv.org/abs/1506.08905) decision selection heuristic.
@@ -31,7 +31,7 @@ At present, features include:
 
 The CLI is built as `otter_cli` in the target directory when compiling the library.
 
-Alterantively, `cargo run` may be used.
+Alternatively, `cargo run` may be used.
 For example:
 
 ``` shell

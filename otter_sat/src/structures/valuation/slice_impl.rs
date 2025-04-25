@@ -1,4 +1,4 @@
-/// Implimentation of the valuation trait for any structure which can be dereferenced to a slice of optional booleans.
+/// Implementation of the valuation trait for any structure which can be dereferenced to a slice of optional booleans.
 use crate::structures::{atom::Atom, valuation::Valuation};
 
 impl<T: std::ops::DerefMut<Target = [Option<bool>]>> Valuation for T {

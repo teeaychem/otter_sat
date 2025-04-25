@@ -83,7 +83,7 @@ loop {
 }
 ```
 
-The distinction between a unit clause and clause being returned from [apply_consequence](crate::procedures::apply_consequences) is made only to avoid the overhead of accessing a clause and determing the relevant backjump level in the case of a unit clause.
+The distinction between a unit clause and clause being returned from [apply_consequence](crate::procedures::apply_consequences) is made only to avoid the overhead of accessing a clause and determining the relevant backjump level in the case of a unit clause.
 
 # Example
 
@@ -127,7 +127,7 @@ and the [Handbook of satisfiability](https://www.iospress.com/catalog/books/hand
 Though, the presentation given is original.
 
 [^a]: Specifically, Chapter 2 on decision procedures for propositional logic.
-[^b]: Specifcally, chapters 3 and 4 on complete algorithms and CDCL techniques.
+[^b]: Specifically, chapters 3 and 4 on complete algorithms and CDCL techniques.
 */
 
 use crate::{

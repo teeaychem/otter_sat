@@ -83,7 +83,7 @@ For:
 In order to maintain the invariant that [apply_consequences](GenericContext::apply_consequences) returns the same formula only if there are no further consequences to apply, missed propagations are returned to and their consequences applied *within* an instance.
 
 Still, missed conflicts may conflict with other invariants.
-For example, if all propagations via watched literals occurr prior to making a new decision and a watch is always given to a satisfied literal or a literal whose atom has no valuation, no propagation will be missed (as every asserting clause will be identified).
+For example, if all propagations via watched literals occur prior to making a new decision and a watch is always given to a satisfied literal or a literal whose atom has no valuation, no propagation will be missed (as every asserting clause will be identified).
 So, caution should be taken to avoid overlooking a failed invariant.
 */
 

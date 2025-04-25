@@ -1,14 +1,14 @@
 /*!
 A database of assignment related objects.
 
-# Assignemnts
+# Assignments
 
 Assignments are atom-value pairs with a source, such  that the given atom *must* have the given value on the current valuation.
 For convenience, each atom-value pair represented as a literal.
 
 The following invariant is always upheld:
 <div class="warning">
-Whenever the valuation is extended so that atom <i>a</i> has value <i>v</i>, that atom <i>a</i> has value <i>v</i> is added to the list of assignments, togeter with the source of that assignment.
+Whenever the valuation is extended so that atom <i>a</i> has value <i>v</i>, that atom <i>a</i> has value <i>v</i> is added to the list of assignments, together with the source of that assignment.
 </div>
 
 # Details
@@ -62,7 +62,7 @@ pub mod valuation;
 #[doc(hidden)]
 pub mod resolution;
 
-/// Possilbe 'Ok' results from resolution using a resolution buffer.
+/// Possible 'Ok' results from resolution using a resolution buffer.
 pub enum ResolutionOk {
     /// A unique implication point was identified.
     UIP,
@@ -79,7 +79,7 @@ struct ReMiTodo {
     /// The key to the clause under consideration.
     pub key: ClauseKey,
 
-    /// The index of the literal in the clause tto next consider (or the length of the clause to indicate exhaustion).fb
+    /// The index of the literal in the clause to next consider (or the length of the clause to indicate exhaustion).fb
     pub index: usize,
 }
 

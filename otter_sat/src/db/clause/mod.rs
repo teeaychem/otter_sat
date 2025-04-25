@@ -37,10 +37,10 @@ pub struct ClauseDB {
     config: ClauseDBConfig,
 
     /// A count of addition clauses.
-    // This can't be inferred from the addition vec, as indicies may be reused.
+    // This can't be inferred from the addition vec, as indices may be reused.
     addition_count: usize,
 
-    /// A stack of keys for learned clauses whose indicies are empty.
+    /// A stack of keys for learned clauses whose indices are empty.
     empty_keys: Vec<ClauseKey>,
 
     /// Original unit clauses.
@@ -199,9 +199,9 @@ impl ClauseDB {
         }
     }
 
-    /// Bumps the acitivty of a clause, rescoring all acitivies if needed.
+    /// Bumps the activity of a clause, rescoring all acitivies if needed.
     ///
-    /// See the corresponding method with respect to atoms for more detials.
+    /// See the corresponding method with respect to atoms for more details.
     pub fn bump_activity(&mut self, index: FormulaIndex) {
         if let Some(max) = self.activity_heap.peek_max_value() {
             if max.activity + self.config.bump.value > self.config.bump.max {

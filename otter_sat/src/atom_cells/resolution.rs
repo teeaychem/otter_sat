@@ -385,7 +385,7 @@ impl AtomCells {
                 }
             }
 
-            // Get the releant literal for inspection.
+            // Get the relevant literal for inspection.
             // # Safety: It must be that index < clause size for the previous if to fall through.
             check_atom = unsafe { clause.atom_at_unchecked(index) };
             check_cell = self.get_cell(check_atom);
@@ -412,7 +412,7 @@ impl AtomCells {
                         AssignmentSource::Original
                         | AssignmentSource::Addition
                         | AssignmentSource::Pure => {
-                            // Original or adddition units should be handled by the outer match on Proven. In any case, continue the search.
+                            // Original or addition units should be handled by the outer match on Proven. In any case, continue the search.
                             index = if clause.size() == 2 { 2 } else { index + 1 };
 
                             continue 'dfs_loop;
@@ -427,7 +427,7 @@ impl AtomCells {
 
                         AssignmentSource::BCP(source_key) => {
                             // If BCP then immediately store the current clause/index on the stack to return to an move to explore the clause.
-                            // Though, for effiency on the stack is the next index to explore, or the size of the clause to indicate exhaustion.
+                            // Though, for efficiency on the stack is the next index to explore, or the size of the clause to indicate exhaustion.
                             // Given this, what happens depends on whether the clause is binary or long.
                             index = 1;
 

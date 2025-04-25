@@ -66,7 +66,7 @@ pub enum DecisionOk {
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Makes a decision using rng to determine whether to make a random decision or to take the atom with the highest activity.
     ///
-    /// Returns a result detailing the status of the decision or an error from attempting to enque the decision.
+    /// Returns a result detailing the status of the decision or an error from attempting to enqueue the decision.
     pub fn make_decision(&mut self) -> DecisionOk {
         // Takes ownership of rng to satisfy the borrow checker.
         // Avoidable, at the cost of a less generic atom method.
@@ -113,7 +113,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
     }
 
-    /// Resets all decisions and consequences of those choises.
+    /// Resets all decisions and consequences of those choices.
     ///
     /// In other words, backjumps to before any decision was made.
     /// Note, this does not clear any assumptions made.

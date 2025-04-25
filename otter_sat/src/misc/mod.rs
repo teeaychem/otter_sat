@@ -1,5 +1,5 @@
 /*!
-Miscelaneous things
+Miscellaneous things
 */
 
 pub mod log;
