@@ -31,7 +31,7 @@ use crate::{
         consequence::AssignmentSource,
         literal::{CLiteral, Literal},
     },
-    types::err::{self, ErrorKind},
+    types::err::{BCPError, ErrorKind},
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
@@ -43,7 +43,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             return Err(ErrorKind::InvalidState);
         }
 
-        // Additional safety notes:
+        // # Safety:
         // Assumptions are stored in the literal database, which is mutated when a fresh decision level is made.
         // For this reason, it is not possible to directly loop over the assumptions, and instead the unsafe `recorded_assumption` method is used to access assumptions by index.
         // This is safe, as no new assumptions will be created when asserting assumptions.
@@ -92,17 +92,20 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                             log::info!("BCP of assumption: {assumption}");
                             // As assumptions are stacked, immediately call BCP.
+
                             match self.bcp(assumption) {
                                 Ok(_) => {}
 
-                                Err(err::BCPError::Conflict(key)) => {
+                                Err(BCPError::Conflict(key)) => {
                                     // TODO: Unify re-use of BCP result parsing.
                                     self.note_conflict(key);
 
                                     return Err(ErrorKind::FundamentalConflict);
                                 }
 
-                                Err(err::BCPError::CorruptWatch) => {
+                                Err(BCPError::Missed) => todo!(),
+
+                                Err(BCPError::CorruptWatch) => {
                                     panic!("! Corrupt watch with assumptions")
                                 }
                             }
@@ -177,8 +180,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // Safe, as the relevant key is kept as proof of unsatisfiability.
         seen_atoms.extend(unsafe { self.clause_db.get_unchecked(&key).atoms() });
 
-        // # Safety
-        // Safe, as by the above check some assumption has ben made and so the initial decision level is ≥ 1.
+        // # Safety: By the above check some assumption has ben made and so the initial decision level is ≥ 1.
         let assumption_index = unsafe {
             *self
                 .trail
@@ -197,7 +199,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     AssignmentSource::Assumption => {} // Handled above
 
                     AssignmentSource::BCP(key) => {
-                        // The method does not require all clauses in a core are preserved, as an assumption is never 'used' during resolution.
+                        // The method does not require all clauses in a core are preserved.
+                        // For, an assumption is never 'used' during resolution.
                         match self.clause_db.get(key) {
                             Ok(clause) => {
                                 for literal in clause.literals() {

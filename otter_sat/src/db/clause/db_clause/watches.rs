@@ -44,15 +44,13 @@ use super::dbClause;
 impl dbClause {
     /// Returns the first watched literal (of two).
     pub fn get_watch_a(&self) -> &CLiteral {
-        // # Safety
-        // db clauses have at least two literals
+        // # Safety:  db clauses have at least two literals
         unsafe { self.get_unchecked(0) }
     }
 
     /// Returns the second watched literal (of two).
     pub fn get_watch_b(&self) -> &CLiteral {
-        // # Safety
-        // db clauses have at least two literals
+        // # Safety: db clauses have at least two literals
         unsafe { self.get_unchecked(self.watch_ptr) }
     }
 

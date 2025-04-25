@@ -158,7 +158,8 @@ impl ClauseDB {
                 if value.lbd <= self.config.lbd_bound.value {
                     break 'reduction_loop;
                 } else {
-                    self.remove_addition(index)?;
+                    // # Safety: Index is drawn from the activity heap, which matches the size of the addition db.
+                    unsafe { self.remove_addition(index) }?;
                 }
             } else {
                 log::warn!(target: targets::REDUCTION, "Reduction called but there were no candidates");
@@ -174,9 +175,15 @@ impl ClauseDB {
     As the elements are optional for reuse, take places None at the index, as would be needed anyway
      */
     /// Removes an addition clause at the given index, and sends a dispatch if possible.
-    fn remove_addition(&mut self, index: usize) -> Result<(), err::ClauseDBError> {
-        let the_clause = std::mem::take(unsafe { self.addition.get_unchecked_mut(index) });
-        match the_clause {
+    ///
+    /// # Safety
+    /// The clause db size for additions must exceed `index`.
+    /// Though, does not require there is a clause stored at `index`.
+    unsafe fn remove_addition(&mut self, index: usize) -> Result<(), err::ClauseDBError> {
+        // # Safety: By assumption, the clause db size for additions exceeds `index`.
+        let to_remove = std::mem::take(unsafe { self.addition.get_unchecked_mut(index) });
+
+        match to_remove {
             None => {
                 log::error!(target: targets::CLAUSE_DB, "Remove called on a missing addition clause");
                 Err(err::ClauseDBError::Missing)

@@ -55,8 +55,4 @@ impl Clause for dbClause {
     unsafe fn atom_at_unchecked(&self, index: usize) -> Atom {
         unsafe { self.clause().atom_at_unchecked(index) }
     }
-
-    unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool {
-        unsafe { self.clause().unsatisfiable_on_unchecked(valuation) }
-    }
 }

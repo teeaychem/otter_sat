@@ -53,9 +53,3 @@ impl Default for AtomCell {
         }
     }
 }
-
-impl AtomCell {
-    pub unsafe fn value_unchecked(&self) -> bool {
-        unsafe { self.value.unwrap_unchecked() }
-    }
-}

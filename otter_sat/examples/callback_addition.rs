@@ -53,8 +53,6 @@ fn main() {
     }
     let atom_count = args[1].parse::<usize>().expect("?");
 
-    let length: *mut i32 = Box::into_raw(Box::new(0_i32));
-
     let config = Config::default();
 
     let mut the_context: Context = Context::from_config(config);
@@ -95,7 +93,4 @@ fn main() {
 
     println!();
     println!("Models found {models_found}");
-    unsafe {
-        println!("Longest clause learnt {}", *length);
-    }
 }

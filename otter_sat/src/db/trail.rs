@@ -93,34 +93,4 @@ impl Trail {
             Vec::default()
         }
     }
-
-    // /// The assignments made at `level`, in order of assignment.
-    // ///
-    // /// # Safety
-    // /// No check is made to ensure the relevant number of assignments have been made.
-    // pub unsafe fn assignments_at_unchecked(&self, level: LevelIndex) -> &[Assignment] {
-    //     let level_start = *unsafe { self.level_indicies.get_unchecked(level as usize) };
-
-    //     let level_end = if ((level + 1) as usize) < self.level_indicies.len() {
-    //         *unsafe { self.level_indicies.get_unchecked((level + 1) as usize) }
-    //     } else {
-    //         self.assignments.len()
-    //     };
-
-    //     &self.assignments[level_start..level_end]
-    // }
-
-    // /// The assignments made at `level`, in order of assignment.
-    // pub fn assignments_above(&self, level: LevelIndex) -> &[Assignment] {
-    //     if let Some(&level_start) = self.level_indicies.get(level as usize) {
-    //         &self.assignments[level_start..]
-    //     } else {
-    //         &[]
-    //     }
-    // }
-
-    // TODO: Requires check on if assumptions have been made
-    // pub fn assumptions_made(&self) -> &[CLiteral] {
-    //     &self.trail[0..self.level_indicies[self.initial_decision_level as usize - 1]]
-    // }
 }
