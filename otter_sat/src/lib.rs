@@ -175,11 +175,12 @@ For example, when used with [env_logger](https://docs.rs/env_logger/latest/env_l
 
 */
 
-#![allow(mixed_script_confusables)]
-#![allow(unused_must_use)]
-#![allow(clippy::single_match)]
 #![allow(clippy::collapsible_else_if)]
 #![allow(clippy::derivable_impls)]
+#![allow(clippy::single_match)]
+#![allow(mixed_script_confusables)]
+#![allow(unused_labels)]
+#![allow(unused_must_use)]
 // #![allow(unused_imports)]
 // #![warn(missing_docs)]
 

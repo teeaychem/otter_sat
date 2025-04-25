@@ -19,52 +19,56 @@ use super::{
 };
 
 impl AtomCells {
-    /// Returns the resolved clause with the asserted literal as the first literal of the clause.
+    /// Returns an asserting clause using information from the internal merged_atoms buffer and resolution_flag information.
+    /// The asserted literal is in the first position of the clause.
     pub fn to_assertion_clause(&mut self, clause_db: &mut ClauseDB, config: &Config) -> CClause {
-        let mut clause = Vec::with_capacity(self.clause_length);
-
-        let mut index = 0;
-        let limit = self.merged_atoms.len();
+        let mut assertion_clause = Vec::with_capacity(self.clause_length);
 
         let mut atom;
         let mut atom_cell;
+        let mut cell_value;
 
-        while index < limit {
+        'collect_atoms: for index in 0..self.merged_atoms.len() {
             // # Safety: index is bounded by merged_atoms.len()
             atom = unsafe { *self.merged_atoms.get_unchecked(index) };
+
             atom_cell = self.get_cell(atom);
 
             // # Safety: As the atom has been merged, it has some value.
-            let cell_value = unsafe { atom_cell.value.unwrap_unchecked() };
+            cell_value = unsafe { atom_cell.value.unwrap_unchecked() };
 
             match atom_cell.resolution_flag {
-                Flag::Valuation | Flag::Backjump | Flag::Proven | Flag::Pivot | Flag::Derivable => {
-                }
-
                 Flag::Asserting => {
                     match &config.minimization.value {
-                        MinimizationCriteria::Proven // Proven literals are already flagged
-                        | MinimizationCriteria::None
-                        | MinimizationCriteria::Recursive if !self.derivable_value(atom, clause_db) => {
-                             {
-                                clause.push(CLiteral::new(atom, !cell_value));
-                            }
+                        MinimizationCriteria::Proven => {
+                            // Given this flag proven literals do not appear in merged atoms.
+                            // So, any merged atom is not proven.
+                            assertion_clause.push(CLiteral::new(atom, !cell_value))
                         }
 
-                        _ => {}
+                        MinimizationCriteria::None => {
+                            assertion_clause.push(CLiteral::new(atom, !cell_value))
+                        }
+
+                        MinimizationCriteria::Recursive => {
+                            if !self.derivable_value(atom, clause_db) {
+                                assertion_clause.push(CLiteral::new(atom, !cell_value))
+                            }
+                        }
                     }
                 }
 
                 Flag::Asserted => {
-                    let asserted_index = clause.size();
-                    clause.push(CLiteral::new(atom, !cell_value));
-                    clause.swap(0, asserted_index);
+                    let asserted_index = assertion_clause.size();
+                    assertion_clause.push(CLiteral::new(atom, !cell_value));
+                    assertion_clause.swap(0, asserted_index);
+                }
+
+                Flag::Valuation | Flag::Backjump | Flag::Proven | Flag::Pivot | Flag::Derivable => {
                 }
 
                 Flag::Independent => panic!("! Non-valuation atom marked as required"),
             }
-
-            index += 1;
         }
 
         self.restore_cached_removable_status();
@@ -76,7 +80,7 @@ impl AtomCells {
             }
         }
 
-        clause
+        assertion_clause
     }
 
     /// Applies resolution with the clauses used to observe consequences at the current level.
