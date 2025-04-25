@@ -5,7 +5,7 @@ Or, rather, anything which has methods for returning an atom and a polarity (and
 
 The 'canonical' implementation of the literal trait is given by the [CLiteral] structure.
 This is either:
-- An [IntLiteral], which aliases a literal to an integer such that the absolute value of the integer is the atom of the literal, and the sign of the intger is the polarity of the literal.
+- An [IntLiteral], which aliases a literal to an integer such that the absolute value of the integer is the atom of the literal, and the sign of the integer is the polarity of the literal.
 - An [ABLiteral] which holds an atom (the 'A') and a boolean (the 'B') representing the polarity of the literal.
 
 <div class="warning">
@@ -16,7 +16,7 @@ Implementation of the literal trait requires implementation of two additional tr
 - [Ord]
   + Literals should be ordered by atom and then polarity, with the (Rust default) ordering of 'false' being (strictly) less than 'true'.
 - [Hash](std::hash::Hash)
-  + Literals are hashable in order to allow for straightforward use of literals as indicies of maps, etc.
+  + Literals are hashable in order to allow for straightforward use of literals as indices of maps, etc.
 
 # Examples
 

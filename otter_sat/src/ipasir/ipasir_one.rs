@@ -52,7 +52,7 @@ pub unsafe extern "C" fn ipasir_init() -> *mut c_void {
     Box::into_raw(boxed_context) as *mut c_void
 }
 
-/// Releases the pointed instace of the context (and supporting structures).
+/// Releases the pointed instance of the context (and supporting structures).
 ///
 /// # Safety
 /// Recovers a context bundle from a raw pointer.

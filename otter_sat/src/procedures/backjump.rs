@@ -15,7 +15,7 @@ In this case, all decisions and all consequences of those decisions from level *
 Performs a backjump to some level.
 
 For sound application the target level must be equal to or lower than the current level.
-Still, passing a traget level greater than the current level is safe --- nothing will happen.
+Still, passing a target level greater than the current level is safe --- nothing will happen.
 
 # [backjump_level](GenericContext::non_chronological_backjump_level) --- The backjump level of a(n unsatisfiable) clause
 
@@ -65,7 +65,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // So, the elements to pop must exist.
         // And, if an atom is in the decision stack is should certainly be in the atom database.
 
-        let assignments = self.trail.clear_assigments_above(target);
+        let assignments = self.trail.clear_assignments_above(target);
         for literal in assignments.into_iter() {
             self.drop_value(literal.atom());
             self.atom_cells.clear_value(literal.atom());

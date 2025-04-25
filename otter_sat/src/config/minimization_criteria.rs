@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-/// Variant minimization criterias to use during resolution-based analysis.
+/// Variant minimization criteria to use during resolution-based analysis.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MinimizationCriteria {
     /// Recursively examine the implication graph from BCP to determine whether each literal in a learnt clause would follow from the other literals and proven literals.

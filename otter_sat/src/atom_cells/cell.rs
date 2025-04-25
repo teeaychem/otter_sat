@@ -30,7 +30,7 @@ pub enum ResolutionFlag {
 /**
 Cells of a resolution buffer.
 
-Cells are designed to intially store information about an assignment and additional metadata to aid resolution.
+Cells are designed to initially store information about an assignment and additional metadata to aid resolution.
 
 */
 #[derive(Clone)]

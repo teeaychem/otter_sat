@@ -72,7 +72,7 @@ pub trait Valuation {
     /// Implementations are not required to check the atom is part of the valuation.
     unsafe fn value_of_unchecked(&self, atom: Atom) -> Option<bool>;
 
-    /// An iterator over the values of a atoms in the valuation, in strict, continguous, atom order.
+    /// An iterator over the values of a atoms in the valuation, in strict, contiguous, atom order.
     /// I.e. the first element is the atom '1' and then *n*th element is atom *n*.
     fn values(&self) -> impl Iterator<Item = Option<bool>>;
 

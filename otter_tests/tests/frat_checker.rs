@@ -246,7 +246,7 @@ mod frat_tests {
                 assert_eq!(frat_dir_test(dir), 13);
             }
 
-            mod curcuit {
+            mod circuit {
                 use super::*;
                 fn circuit_dir() -> PathBuf {
                     dimacs_dir().join("CFA")

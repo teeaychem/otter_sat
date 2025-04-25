@@ -80,11 +80,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         /*
         # Safety
 
-        Use of unsafe operations is motivated by two isses:
+        Use of unsafe operations is motivated by two issues:
 
         - When traversing through a list, watches may be dropped.
-          For this an index to the current element is used, and the element retreived when needed.
-          As custom checks are made to ensure this traveral works, accessing the element is unchecked.
+          For this an index to the current element is used, and the element retrieved when needed.
+          As custom checks are made to ensure this traversal works, accessing the element is unchecked.
 
         - When updating a watch the consequence queue may be updated, requiring a split borrow of a context.
           As the consequence queue is not examined until after the current instance of BCP is complete, this is safe.

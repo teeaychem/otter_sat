@@ -184,7 +184,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let assumption_index = unsafe {
             *self
                 .trail
-                .level_indicies
+                .level_indices
                 .get_unchecked(self.trail.initial_decision_level as usize - 1)
         };
 

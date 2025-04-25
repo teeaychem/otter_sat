@@ -7,7 +7,7 @@ The library has two basic methods for building a context:
 - [fresh_atom](crate::context::GenericContext::fresh_atom), to obtain a fresh atom.
 - [add_clause](crate::context::GenericContext::add_clause), to add a clause.
 
-A formula may be added to a context by interweaving these two methods, together with relevant strucutre initialisers.
+A formula may be added to a context by interweaving these two methods, together with relevant structure initialisers.
 In rough strokes, the pattern is to:
 - Obtain a collection of atoms to represent a clause.
 - Create [CLiteral](crate::structures::literal::CLiteral)s from the atoms.
@@ -15,7 +15,7 @@ In rough strokes, the pattern is to:
 - Add the clause to the context.
 
 For examples, see below.
-And, in particular, note this process may be simplified by using the canonical strucutres and associated methods.
+And, in particular, note this process may be simplified by using the canonical structures and associated methods.
 
 # Examples
 

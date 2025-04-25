@@ -99,5 +99,5 @@ mod basic {
         assert!(clause_iter.next().is_none());
     }
 
-    // TOOD: Incremental tests based on example
+    // TODO: Incremental tests based on example
 }

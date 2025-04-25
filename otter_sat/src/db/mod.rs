@@ -115,7 +115,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
 
             AssignmentSource::Decision => {
-                self.trail.level_indicies.push(self.trail.literals.len());
+                self.trail.level_indices.push(self.trail.literals.len());
                 self.trail.store_literal(literal)
             }
 
@@ -148,7 +148,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             })
         {
             self.trail.initial_decision_level += 1;
-            self.trail.level_indicies.push(self.trail.literals.len());
+            self.trail.level_indices.push(self.trail.literals.len());
         }
 
         self.trail.store_literal(literal);

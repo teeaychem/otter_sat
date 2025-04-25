@@ -19,7 +19,7 @@ Two distinguished watch candidates.
 In particular, watches are initialised for any clause containing two or more literals.
 
 At present, the literals watched are the *first* literal in the clause and the literal at the position of `watch_ptr`.
-In order to preserve this invariant, order of literals in the claue is mutated as nedded.
+In order to preserve this invariant, order of literals in the claue is mutated as needed.
 For details on the way watched literals are updated, see implementations (notably [update_watch](dbClause::update_watch)).
 */
 

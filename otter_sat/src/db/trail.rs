@@ -5,7 +5,7 @@ use super::LevelIndex;
 #[derive(Default)]
 pub struct Trail {
     pub literals: Vec<CLiteral>,
-    pub level_indicies: Vec<usize>,
+    pub level_indices: Vec<usize>,
     pub q_head: usize,
     pub initial_decision_level: LevelIndex,
 }
@@ -28,7 +28,7 @@ impl Trail {
 
     /// The assignments made at the (current) top level, in order of assignment.
     pub fn top_level_assignments(&self) -> &[CLiteral] {
-        if let Some(&level_start) = self.level_indicies.last() {
+        if let Some(&level_start) = self.level_indices.last() {
             &self.literals[level_start..]
         } else {
             &[]
@@ -40,7 +40,7 @@ impl Trail {
     ///
     /// In other words, a count of how many decisions have been made.
     pub fn decision_count(&self) -> LevelIndex {
-        (self.level_indicies.len() as LevelIndex) - self.initial_decision_level
+        (self.level_indices.len() as LevelIndex) - self.initial_decision_level
     }
 
     /// Returns true if some decision is active, false otherwise (regardless of whether an assumption has been made).
@@ -50,7 +50,7 @@ impl Trail {
 
     /// The current level.
     pub fn level(&self) -> LevelIndex {
-        self.level_indicies.len() as LevelIndex
+        self.level_indices.len() as LevelIndex
     }
 
     /// Removes the top level, if it exists.
@@ -58,7 +58,7 @@ impl Trail {
     /// # Soundness
     /// Does not clear the *valuation* of the decision.
     pub fn forget_top_level(&mut self) -> Vec<CLiteral> {
-        if let Some(top_start) = self.level_indicies.pop() {
+        if let Some(top_start) = self.level_indices.pop() {
             self.literals.split_off(top_start)
         } else {
             Vec::default()
@@ -81,13 +81,13 @@ impl Trail {
     ///
     /// # Soundness
     /// Does not clear the *valuation* of the decision.
-    pub fn clear_assigments_above(&mut self, level: LevelIndex) -> Vec<CLiteral> {
-        // level_indicies stores with zero-indexing.
-        // So, for example, the first assignment is accessed by assignments[level_indicies[0]].
-        // This means, in particular, that all assignments made after level i can be cleared by clearing any assignment at and after assignments[level_indicies[0]].
+    pub fn clear_assignments_above(&mut self, level: LevelIndex) -> Vec<CLiteral> {
+        // level_indices stores with zero-indexing.
+        // So, for example, the first assignment is accessed by assignments[level_indices[0]].
+        // This means, in particular, that all assignments made after level i can be cleared by clearing any assignment at and after assignments[level_indices[0]].
         // And, as a corollary, that this method can not be used to clear any assignments at level zero.
-        if let Some(&level_start) = self.level_indicies.get(level as usize) {
-            self.level_indicies.split_off(level as usize);
+        if let Some(&level_start) = self.level_indices.get(level as usize) {
+            self.level_indices.split_off(level as usize);
             self.literals.split_off(level_start)
         } else {
             Vec::default()

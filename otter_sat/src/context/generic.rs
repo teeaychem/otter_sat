@@ -42,7 +42,7 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
     /// Cells indexed to atoms, containing various information.
     pub atom_cells: AtomCells,
 
-    /// An [IndexHeap] recording the activty of atoms, where any atom without a value is 'active' on the heap.
+    /// An [IndexHeap] recording the activity of atoms, where any atom without a value is 'active' on the heap.
     pub atom_activity: IndexHeap<Activity>,
 
     /// Watch lists for each atom in the form of [Watches], indexed by atoms in the `watch_dbs` field.

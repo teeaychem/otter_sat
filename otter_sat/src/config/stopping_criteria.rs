@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-/// Variant stopping criterias to use during resolution-based analysis.
+/// Variant stopping criteria to use during resolution-based analysis.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StoppingCriteria {
     /// Stop at the first unique implication point.
@@ -38,7 +38,7 @@ impl FromStr for StoppingCriteria {
 
             "None" => Ok(Self::None),
 
-            _unkown_string => Err(()),
+            _unknown_string => Err(()),
         }
     }
 }

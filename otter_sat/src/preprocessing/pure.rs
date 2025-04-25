@@ -18,7 +18,7 @@ use crate::{
 };
 
 // General order for pairs related to booleans is 0 is false, 1 is true
-/// Given an interator over clauses returns a pair of iterators over the pure literals relative to those clauses.
+/// Given an iterator over clauses returns a pair of iterators over the pure literals relative to those clauses.
 ///
 /// In other words, returns a pair of iterators where the first iterator contains all the literals which occur only with positive polarity and the second iterator contains all the literals which occur only with negative polarity.
 pub fn pure_literals(

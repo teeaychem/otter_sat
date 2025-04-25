@@ -15,7 +15,7 @@ Though, strictly, 'solver' is only used as, or when referring to, the parameter 
 By default, cargo does not build a library suitable for to linking to a C program.\
 For details on building a suitable library, see: <https://doc.rust-lang.org/reference/linkage.html>
 
-# Efficiancy
+# Efficiency
 
 At present, the library uses a 'transparent' representation of literals added through the IPASIR API --- whether as part of a clause, as an assumption, etc.
 This means if the literal -83 is added through the API all internal data structures will 'grow' to allow for 83 atoms.

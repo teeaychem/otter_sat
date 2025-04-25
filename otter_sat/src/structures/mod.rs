@@ -14,7 +14,7 @@ Use of a trait or it's canonical implementation within the library is situationa
 
 ## Languages
 A *language* 𝓛 is some set of [atoms](atom), closed under the operations of negation, conjunction, and disjunction. \
-Every formula is expressed in some language, and every [context](crate::context) is implicity relative to some language.
+Every formula is expressed in some language, and every [context](crate::context) is implicitly relative to some language.
 
 Languages do not have an implementation. \
 Instead use context to determine which set of atoms constitutes *the* language of interest (typically, those atoms appearing in the input formula) and whether some collection of atoms belongs to the language, and if so whether it is negated, a conjunction, or disjunction.

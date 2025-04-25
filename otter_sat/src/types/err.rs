@@ -151,7 +151,7 @@ pub enum ClauseDBError {
     /// Perhaps an issue during addition during addition or transfer of a clause…?
     CorruptList,
 
-    /// A learnt cluase is missing.
+    /// A learnt clause is missing.
     Missing,
 
     /// An invalid key token.
@@ -223,7 +223,7 @@ impl From<ParseError> for ErrorKind {
     }
 }
 
-/// An errror during preprocessing.
+/// An error during preprocessing.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PreprocessingError {
     /// The formula was identified as unsatisfiable.
@@ -283,7 +283,7 @@ pub enum SubsumptionError {
     /// Watches for the subsumed atom were not found.
     WatchError,
 
-    /// Unable to retreive a clause from the clause database.
+    /// Unable to retrieve a clause from the clause database.
     ClauseDB,
 }
 

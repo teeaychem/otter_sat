@@ -21,7 +21,7 @@ let atom = 97;
 
 That the atoms are [0..*m*) for some *m*.
 
-This representation allows atoms to be used as the indicies of a structure, e.g. `exteranal_string[a]` without taking too much space.
+This representation allows atoms to be used as the indices of a structure, e.g. `exteranal_string[a]` without taking too much space.
 Revising the representation to any unsigned integer is possible.
 
 # Notes

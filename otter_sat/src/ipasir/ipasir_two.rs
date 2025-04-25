@@ -44,10 +44,10 @@ pub enum ipasir2_errorcode {
     /// The function is not implemented.
     IPASIR2_E_UNSUPPORTED,
 
-    /// The function does not suport the given argument value.
+    /// The function does not support the given argument value.
     IPASIR2_E_UNSUPPORTED_ARGUMENT,
 
-    /// The function does not suport the given option.
+    /// The function does not support the given option.
     IPASIR2_E_UNSUPPORTED_OPTION,
 
     /// The function is not permitted given the current state of the solver.
@@ -148,7 +148,7 @@ pub unsafe extern "C" fn ipasir2_options(
     ipasir2_errorcode::IPASIR2_E_UNSUPPORTED
 }
 
-/// Returns the handle to the option with the gien name.
+/// Returns the handle to the option with the given name.
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
 #[unsafe(no_mangle)]

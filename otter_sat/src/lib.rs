@@ -16,7 +16,7 @@ Some guiding principles of otter_sat are (see [below](#guiding-principles) for f
 
 The library is design around the core structure of a [context].
 
-Clauses may be added though the [DIMACS](crate::context::GenericContext::read_dimacs) representation of a formula or [programatically](crate::context::GenericContext::add_clause).
+Clauses may be added though the [DIMACS](crate::context::GenericContext::read_dimacs) representation of a formula or [programmatically](crate::context::GenericContext::add_clause).
 
 Internally, and at a high-level, a solve is viewed in terms of manipulation of, and relationships between, a handful of databases which instantiate core theoretical objects.
 Notably:
@@ -142,7 +142,7 @@ assert_eq!(ctx.report(), Report::Unsatisfiable);
     - Clauses are stored in a [clause database](db::clause), and are accesseed through [keys](db::ClauseKey).
       An internal distinction is made between unit clauses, binary clauses, and long(er) clauses.
       This distinction is encoded in the clause keys, and supports a variety of methods, but the internal structure of the clause database is private.
-    - Things such as [literals](structures::literal) and [clauses](structures::clause) are defined first as traits whose canonical instantations are used only when there is 'good reason' to do so.
+    - Things such as [literals](structures::literal) and [clauses](structures::clause) are defined first as traits whose canonical instantiations are used only when there is 'good reason' to do so.
     - The algorithm for determining satisfiability is factored into a collection of [procedures].
     - Use of external crates is limited to crates which help support modularity, such as [log](https://docs.rs/log/latest/log/) and [rand](https://docs.rs/rand/latest/rand/).
 
@@ -150,14 +150,14 @@ assert_eq!(ctx.report(), Report::Unsatisfiable);
 
 + The core solver (excluding techniques such as subsumption) supports generation of [FRAT proofs](https://arxiv.org/pdf/2109.09665v1) which can be checked by independent tools such as [FRAT-rs](https://github.com/digama0/frat).
 
-+ Verification itself is handled via a system for sending dispatches from a solve, and incurrs minimal overhead (checks on an optional) when not used.\
++ Verification itself is handled via a system for sending dispatches from a solve, and incurs minimal overhead (checks on an optional) when not used.\
   As a consequence of this, the system for handling dispatches is somewhat complex.
   And, as a consequence of *that* an effort has been made to make ignoring the system easy.
 
 ## Simple efficiency
 
 The solver is efficient in most operations, and known inefficiencies are often noted.
-Still, while comprimises are made for the same of efficiency, overall the library is written using mostly simple Rust, with annotated uses of unsafe, notes on when using a function would be unsound, and fights with the borrow checker explained.
+Still, while compromises are made for the same of efficiency, overall the library is written using mostly simple Rust, with annotated uses of unsafe, notes on when using a function would be unsound, and fights with the borrow checker explained.
   + The library makes free use of unsafe so long as some reason is given for why safety is maintained.
   + Though, many relevant invariants escape the borrow checker, and for this purpose 'soundness' notes are made where relevant.
   + In addition, there are times when some not-so-simple Rust is required to appease the borrow checker (notably [BCP](crate::procedures::bcp)) and explanations are given of these.

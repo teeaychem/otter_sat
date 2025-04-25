@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 /// A nonogram solver.
 ///
-/// Given the representation of a nonogram a cnf fomula is built and passed to an otter_sat.
+/// Given the representation of a nonogram a cnf formula is built and passed to an otter_sat.
 /// A satisfying valuation is a solution to the puzzle.
 /// If a solution, the valuation is parsed, and the completed nonogram is displayed.
 use otter_sat::{
@@ -161,7 +161,7 @@ fn main() {
 /// - A literal capturing the start position of a block
 /// - A literal capturing the length of a block.
 ///
-/// The blocks are linked by a block id, given by when the block occurs in the row or colum on the puzzle position.
+/// The blocks are linked by a block id, given by when the block occurs in the row or column on the puzzle position.
 /// Coherence between rows and columns is guaranteed by the fill literals.
 ///
 /// In this respect, the generation of row/column clauses is a equivalent to the generation of column/row clauses, with a few variables changed.
@@ -220,7 +220,7 @@ impl Nonogram {
         CLiteral::new(atom, polarity)
     }
 
-    fn block_legnth_row_literal(
+    fn block_length_row_literal(
         &mut self,
         row: usize,
         block_idx: usize,
@@ -316,9 +316,9 @@ impl Nonogram {
         for col in 0..self.row_length {
             let start_literal = self.block_start_row_literal(row, col, block_idx, false);
             for length in 2..(self.row_length - col) {
-                let length_literal = self.block_legnth_row_literal(row, block_idx, length, false);
-                for offest in 0..length {
-                    let fill_literal = self.fill_literal(row, col + offest, true);
+                let length_literal = self.block_length_row_literal(row, block_idx, length, false);
+                for offset in 0..length {
+                    let fill_literal = self.fill_literal(row, col + offset, true);
                     let clause = vec![start_literal, length_literal, fill_literal];
                     clauses.push(clause);
                 }
@@ -346,7 +346,7 @@ impl Nonogram {
                     let length_literal = self.fill_literal(row, start_col + length, true);
                     clause.push(length_literal);
                 }
-                let length_literal = self.block_legnth_row_literal(row, block_idx, length, true);
+                let length_literal = self.block_length_row_literal(row, block_idx, length, true);
                 clause.push(length_literal);
                 clauses.push(clause);
             }
@@ -387,11 +387,11 @@ impl Nonogram {
         let mut clauses: Vec<CClause> = vec![];
 
         for length in 1..=self.row_length {
-            let block_length_literal = self.block_legnth_row_literal(row, block_idx, length, false);
+            let block_length_literal = self.block_length_row_literal(row, block_idx, length, false);
             for other_length in 1..=self.row_length {
                 if length != other_length {
                     let other_block_length_literal =
-                        self.block_legnth_row_literal(row, block_idx, other_length, false);
+                        self.block_length_row_literal(row, block_idx, other_length, false);
                     let clause = vec![block_length_literal, other_block_length_literal];
                     clauses.push(clause);
                 }
@@ -475,7 +475,7 @@ impl Nonogram {
             for block_idx in 0..row.len() {
                 let mut block_clauses = vec![];
                 block_clauses.push(self.row_clauses_block_starts_somewhere(row_idx, block_idx));
-                block_clauses.push(vec![self.block_legnth_row_literal(
+                block_clauses.push(vec![self.block_length_row_literal(
                     row_idx,
                     block_idx,
                     row[block_idx],

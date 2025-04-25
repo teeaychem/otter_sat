@@ -103,7 +103,7 @@ fn cell_atom(
 
 /// A solved sudoku puzzle requires each cell to have some value.
 /// This requirement is encoded through disjunctions over values for each row and col pairing.
-/// For exmaple, the disjunction for row 1 and col 3 will read 1-3-1 ∨ 1-3-2 ∨ … ∨ 1-3-8 ∨ 1-3-9.
+/// For example, the disjunction for row 1 and col 3 will read 1-3-1 ∨ 1-3-2 ∨ … ∨ 1-3-8 ∨ 1-3-9.
 fn add_clauses_cell_value_choice(context: &mut Context, cell_map: &mut HashMap<String, Atom>) {
     for row in 1..GRID_SIZE + 1 {
         for col in 1..GRID_SIZE + 1 {
@@ -125,7 +125,7 @@ fn add_clauses_cell_value_choice(context: &mut Context, cell_map: &mut HashMap<S
 /// A solved sudoku puzzle requires each cell to have a unique value.
 /// This requirement is encoded through a collection of implications for each cell stating that if the cell has a particular value it does not have any other value.
 /// These have the form p → ¬q, which is equivalent to ¬p ∨ ¬q.
-/// So, for example, 'if the cell at row 4 and colum 8 has value 2, then the cell does not have value 7' is encoded through the clause: ¬4-8-2 ∨ ¬4-8-7.
+/// So, for example, 'if the cell at row 4 and column 8 has value 2, then the cell does not have value 7' is encoded through the clause: ¬4-8-2 ∨ ¬4-8-7.
 fn add_clauses_cells_have_unique_value(
     context: &mut Context,
     cell_map: &mut HashMap<String, Atom>,
