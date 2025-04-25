@@ -27,17 +27,17 @@ A clause built using basic methods.
 # use otter_sat::reports::Report;
 # use otter_sat::structures::{clause::CClause, literal::{CLiteral, Literal}};
 #
-let mut the_context = Context::from_config(Config::default());
-let p = the_context.fresh_or_max_atom();
-let q = the_context.fresh_or_max_atom();
+let mut ctx = Context::from_config(Config::default());
+let p = ctx.fresh_or_max_atom();
+let q = ctx.fresh_or_max_atom();
 
 let clause_a = CClause::from([CLiteral::new(p, true), CLiteral::new(q, false)]);
 let clause_b = CClause::from([CLiteral::new(p, false), CLiteral::new(q, true)]);
 
- assert!(the_context.add_clause(clause_a).is_ok());
- assert!(the_context.add_clause(clause_b).is_ok());
- the_context.solve();
- assert_eq!(the_context.report(), Report::Satisfiable)
+ assert!(ctx.add_clause(clause_a).is_ok());
+ assert!(ctx.add_clause(clause_b).is_ok());
+ ctx.solve();
+ assert_eq!(ctx.report(), Report::Satisfiable)
 ```
 
 A simplified build, using canonical structures.
@@ -48,17 +48,17 @@ A simplified build, using canonical structures.
 # use otter_sat::reports::Report;
 # use otter_sat::structures::{clause::CClause, literal::{CLiteral, Literal}};
 #
-let mut the_context = Context::from_config(Config::default());
-let p = the_context.fresh_or_max_literal();
-let q = the_context.fresh_or_max_literal();
+let mut ctx = Context::from_config(Config::default());
+let p = ctx.fresh_or_max_literal();
+let q = ctx.fresh_or_max_literal();
 
 let clause_a = vec![p, -q];
 let clause_b = vec![-p, q];
 
- assert!(the_context.add_clause(clause_a).is_ok());
- assert!(the_context.add_clause(clause_b).is_ok());
- the_context.solve();
- assert_eq!(the_context.report(), Report::Satisfiable)
+ assert!(ctx.add_clause(clause_a).is_ok());
+ assert!(ctx.add_clause(clause_b).is_ok());
+ ctx.solve();
+ assert_eq!(ctx.report(), Report::Satisfiable)
 ```
 */
 mod dimacs;

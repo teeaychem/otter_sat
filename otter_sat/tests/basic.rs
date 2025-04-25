@@ -78,10 +78,10 @@ mod basic {
             .map(|(_key, clause)| clause)
             .collect::<Vec<_>>();
 
-        let the_clause_dimacs = database[0].as_dimacs(true);
+        let clause_dimacs = database[0].as_dimacs(true);
 
         assert_eq!(
-            the_clause_dimacs.split_whitespace().count(),
+            clause_dimacs.split_whitespace().count(),
             "1 2 0".split_whitespace().count()
         );
     }

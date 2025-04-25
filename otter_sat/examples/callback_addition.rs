@@ -56,19 +56,19 @@ fn main() {
 
     let config = Config::default();
 
-    let mut the_context: Context = Context::from_config(config);
-    the_context.set_callback_addition(Box::new(addition_hook));
+    let mut ctx: Context = Context::from_config(config);
+    ctx.set_callback_addition(Box::new(addition_hook));
 
     for _ in 0..atom_count {
-        let _ = the_context.fresh_atom();
+        let _ = ctx.fresh_atom();
     }
 
     let mut models_found = 0;
 
     loop {
-        assert!(the_context.solve().is_ok());
+        assert!(ctx.solve().is_ok());
 
-        match the_context.report() {
+        match ctx.report() {
             Report::Satisfiable => {}
 
             Report::Unknown | Report::Unsatisfiable => break,
@@ -76,7 +76,7 @@ fn main() {
 
         models_found += 1;
 
-        let clause: IntClause = the_context
+        let clause: IntClause = ctx
             .valuation()
             .atom_valued_pairs()
             .map(|(a, v)| match v {
@@ -85,9 +85,9 @@ fn main() {
             })
             .collect();
 
-        the_context.clear_decisions();
+        ctx.clear_decisions();
 
-        match the_context.add_clause(clause) {
+        match ctx.add_clause(clause) {
             Ok(_) => {}
             Err(_) => break,
         };

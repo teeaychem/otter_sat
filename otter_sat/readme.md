@@ -123,7 +123,7 @@ assert_eq!(model_count, 2_usize.pow(atom_count));
 - Parse and solve a DIMACS formula
 
 ``` rust
-let mut the_context = Context::from_config(Config::default());
+let mut ctx = Context::from_config(Config::default());
 
 let mut dimacs = vec![];
 let _ = dimacs.write(b"
@@ -133,7 +133,7 @@ let _ = dimacs.write(b"
  1 -2 0
 ");
 
-the_context.read_dimacs(dimacs.as_slice());
-the_context.solve();
-assert_eq!(the_context.report(), report::Solve::Unsatisfiable);
+ctx.read_dimacs(dimacs.as_slice());
+ctx.solve();
+assert_eq!(ctx.report(), report::Solve::Unsatisfiable);
 ```

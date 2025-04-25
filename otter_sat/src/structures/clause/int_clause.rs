@@ -17,19 +17,19 @@ pub type IntClause = Vec<IntLiteral>;
 
 impl Clause for IntClause {
     fn as_dimacs(&self, zero: bool) -> String {
-        let mut the_string = String::new();
+        let mut dimacs_string = String::new();
         for literal in self.literals() {
             match literal.polarity() {
-                true => the_string.push_str(format!(" {literal} ").as_str()),
-                false => the_string.push_str(format!("{literal} ").as_str()),
+                true => dimacs_string.push_str(format!(" {literal} ").as_str()),
+                false => dimacs_string.push_str(format!("{literal} ").as_str()),
             };
         }
         if zero {
-            the_string += "0";
-            the_string
+            dimacs_string += "0";
+            dimacs_string
         } else {
-            the_string.pop();
-            the_string
+            dimacs_string.pop();
+            dimacs_string
         }
     }
 

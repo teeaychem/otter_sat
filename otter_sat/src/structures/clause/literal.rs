@@ -13,20 +13,20 @@ use crate::{
 
 impl Clause for CLiteral {
     fn as_dimacs(&self, zero: bool) -> String {
-        let mut the_string = String::new();
+        let mut dimacs_string = String::new();
 
-        let the_represenetation = match self.polarity() {
+        let literal_representation = match self.polarity() {
             true => format!(" {} ", self.atom()),
             false => format!("-{} ", self.atom()),
         };
-        the_string.push_str(the_represenetation.as_str());
+        dimacs_string.push_str(literal_representation.as_str());
 
         if zero {
-            the_string += "0";
-            the_string
+            dimacs_string += "0";
+            dimacs_string
         } else {
-            the_string.pop();
-            the_string
+            dimacs_string.pop();
+            dimacs_string
         }
     }
 
