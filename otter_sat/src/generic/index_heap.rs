@@ -268,7 +268,7 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
         let mut a;
         let mut b;
 
-        // # Safety
+        // # Safety:
         // Each unsafe block identifies some index within the buffer, so long as heap_index is within the buffer.
         // As the method is internal, that heap_index is within the buffer is upheld.
         loop {

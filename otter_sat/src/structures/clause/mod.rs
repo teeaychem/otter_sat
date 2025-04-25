@@ -104,10 +104,4 @@ pub trait Clause {
     /// # Safety
     /// Well-defined only if the clause contains at least `index` atoms.
     unsafe fn atom_at_unchecked(&self, index: usize) -> Atom;
-
-    /// Returns whether the clause is unsatisfiable on the given valuation
-    ///
-    /// # Safety
-    /// Is not required to check whether the atom is defined on the valuation.
-    unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool;
 }

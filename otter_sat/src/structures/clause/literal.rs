@@ -77,12 +77,4 @@ impl Clause for CLiteral {
     unsafe fn atom_at_unchecked(&self, index: usize) -> Atom {
         if index == 0 { self.atom() } else { panic!("!") }
     }
-
-    unsafe fn unsatisfiable_on_unchecked(&self, valuation: &impl Valuation) -> bool {
-        unsafe {
-            valuation
-                .value_of_unchecked(self.atom())
-                .is_some_and(|v| v != self.polarity())
-        }
-    }
 }

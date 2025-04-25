@@ -93,6 +93,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         if let config::vsids::VSIDS::Chaff = self.config.vsids.value {
             crate::db::atom::activity::bump_relative(
+                // # Safety: key is the conflict key and as analysis is called directly on a conflict the key must be in the db.
                 unsafe { self.clause_db.get_unchecked(key).atoms() },
                 &mut self.atom_activity,
                 &mut self.config.atom_bump,
@@ -101,7 +102,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
 
         self.atom_cells.refresh();
-        // Safety: Some decision must have been made for conflict analysis to take place.
 
         for literal in self.trail.top_level_assignments() {
             self.atom_cells.mark_backjump(literal.atom());
@@ -141,11 +141,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         log::info!(target: targets::ANALYSIS, "Addition clause: {:?}", clause);
 
-        match clause.len() {
-            0 => Err(err::ErrorKind::from(err::AnalysisError::EmptyResolution)),
+        match clause[..] {
+            [] => Err(err::ErrorKind::from(err::AnalysisError::EmptyResolution)),
 
-            1 => {
-                let literal = unsafe { clause.literal_at_unchecked(0) };
+            [literal] => {
                 self.backjump(self.trail.lowest_decision_level());
 
                 self.clause_db.store(
@@ -159,8 +158,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 Ok(AnalysisResult::UnitClause { literal })
             }
 
-            _ => {
-                let literal = unsafe { clause.literal_at_unchecked(0) };
+            [first, ..] => {
                 let index = self.non_chronological_backjump_level(&clause)?;
 
                 self.backjump(index);
@@ -173,7 +171,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     premises,
                 )?;
 
-                Ok(AnalysisResult::AssertingClause { key, literal })
+                Ok(AnalysisResult::AssertingClause {
+                    key,
+                    literal: first,
+                })
             }
         }
     }

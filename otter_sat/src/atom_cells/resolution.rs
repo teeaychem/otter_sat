@@ -33,8 +33,9 @@ impl AtomCells {
             // # Safety: index is bounded by merged_atoms.len()
             atom = unsafe { *self.merged_atoms.get_unchecked(index) };
             atom_cell = self.get_cell(atom);
-            // # Safety: atoms always have a cell
-            let cell_value = unsafe { atom_cell.value_unchecked() };
+
+            // # Safety: As the atom has been merged, it has some value.
+            let cell_value = unsafe { atom_cell.value.unwrap_unchecked() };
 
             match atom_cell.resolution_flag {
                 Flag::Valuation | Flag::Backjump | Flag::Proven | Flag::Pivot | Flag::Derivable => {
@@ -367,7 +368,7 @@ impl AtomCells {
                     self.set_status(unsafe { clause.atom_at_unchecked(1) }, Flag::Derivable);
                 }
 
-                // If the DFS stack has been empties, the initial clause was derivable. Otherwise, backtrack to the previous clause/index.
+                // If the DFS stack has been emptied, the initial clause was derivable. Otherwise, backtrack to the previous clause/index.
                 if let Some(next) = self.recursive_minimization_todo.pop() {
                     key = next.key;
                     index = next.index;

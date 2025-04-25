@@ -124,14 +124,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             }
         }
 
-        let cell = unsafe {
-            self.atom_cells
-                .cells
-                .get_unchecked_mut(literal.atom() as usize)
-        };
+        let cell = self.atom_cells.get_cell_mut(literal.atom());
+
         cell.value = Some(literal.polarity());
         cell.source = source;
         cell.level = Some(self.trail.level());
+
         if proven_literal {
             match self.config.minimization.value {
                 MinimizationCriteria::Recursive | MinimizationCriteria::Proven => {
