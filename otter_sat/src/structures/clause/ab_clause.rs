@@ -17,36 +17,36 @@ pub type ABClause = Vec<ABLiteral>;
 
 impl Clause for ABClause {
     fn as_dimacs(&self, zero: bool) -> String {
-        let mut the_string = String::new();
+        let mut dimacs_string = String::new();
         for literal in self.literals() {
             match literal.polarity() {
-                true => the_string.push_str(format!(" {literal} ").as_str()),
-                false => the_string.push_str(format!("{literal} ").as_str()),
+                true => dimacs_string.push_str(format!(" {literal} ").as_str()),
+                false => dimacs_string.push_str(format!("{literal} ").as_str()),
             };
         }
         if zero {
-            the_string += "0";
+            dimacs_string += "0";
         } else {
-            the_string.pop();
+            dimacs_string.pop();
         }
-        the_string
+        dimacs_string
     }
 
     fn asserts<V: Valuation>(&self, val: &V) -> Option<CLiteral> {
-        let mut the_literal = None;
+        let mut asserted_literal = None;
         for lit in self.literals() {
             if let Some(existing_val) = unsafe { val.value_of_unchecked(lit.atom()) } {
                 match existing_val == lit.polarity() {
                     true => return None,
                     false => continue,
                 }
-            } else if the_literal.is_none() {
-                the_literal = Some(lit);
+            } else if asserted_literal.is_none() {
+                asserted_literal = Some(lit);
             } else {
                 return None;
             }
         }
-        the_literal
+        asserted_literal
     }
 
     fn lbd(&self, cells: &AtomCells) -> LBD {

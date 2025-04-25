@@ -28,16 +28,16 @@ pub fn load_dimacs(context: &mut Context, path: &PathBuf) -> Result<(), err::Err
 }
 
 pub fn cnf_lib_subdir(dirs: Vec<&str>) -> PathBuf {
-    let mut the_path = Path::new("..").join("cnf_lib");
+    let mut path = Path::new("..").join("cnf_lib");
     for dir in dirs {
-        the_path = the_path.join(dir);
+        path = path.join(dir);
     }
-    the_path
+    path
 }
 
 pub fn silent_formula_report(path: PathBuf, config: &Config) -> Report {
-    let mut the_context = Context::from_config(config.clone());
-    match load_dimacs(&mut the_context, &path) {
+    let mut ctx = Context::from_config(config.clone());
+    match load_dimacs(&mut ctx, &path) {
         Ok(()) => {}
         Err(err::ErrorKind::ClauseDB(err::ClauseDBError::EmptyClause)) => {
             return Report::Unsatisfiable;
@@ -47,12 +47,12 @@ pub fn silent_formula_report(path: PathBuf, config: &Config) -> Report {
         }
     };
 
-    match the_context.solve() {
+    match ctx.solve() {
         Ok(_) => {}
         Err(e) => panic!("{e:?}"),
     }
 
-    the_context.report()
+    ctx.report()
 }
 
 pub fn silent_on_directory(subdir: PathBuf, config: &Config, require: Report) -> usize {
@@ -62,8 +62,8 @@ pub fn silent_on_directory(subdir: PathBuf, config: &Config, require: Report) ->
 
     match dir_info {
         Err(_) => panic!("Formulas missing"),
-        Ok(the_gen) => {
-            for test in the_gen.flatten() {
+        Ok(dir) => {
+            for test in dir.flatten() {
                 if test
                     .path()
                     .extension()

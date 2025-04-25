@@ -45,10 +45,10 @@ pub unsafe extern "C" fn ipasir_signature() -> *const c_char {
 /// Returns a raw pointer to the initialised context.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir_init() -> *mut c_void {
-    let the_bundle = ContextBundle::default();
-    assert!(the_bundle.context.state.eq(&ContextState::Configuration));
+    let ctx_bundle = ContextBundle::default();
+    assert!(ctx_bundle.context.state.eq(&ContextState::Configuration));
 
-    let boxed_context = Box::new(the_bundle);
+    let boxed_context = Box::new(ctx_bundle);
     Box::into_raw(boxed_context) as *mut c_void
 }
 

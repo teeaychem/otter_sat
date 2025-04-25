@@ -188,11 +188,11 @@ impl ClauseDB {
                 log::error!(target: targets::CLAUSE_DB, "Remove called on a missing addition clause");
                 Err(err::ClauseDBError::Missing)
             }
-            Some(the_clause) => {
-                self.make_callback_delete(&the_clause);
+            Some(clause) => {
+                self.make_callback_delete(&clause);
 
                 self.activity_heap.remove(index);
-                self.empty_keys.push(*the_clause.key());
+                self.empty_keys.push(*clause.key());
                 self.addition_count -= 1;
                 Ok(())
             }

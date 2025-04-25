@@ -42,24 +42,24 @@ fn main() {
     ];
 
     let config = Config::default();
-    let mut the_context: Context = Context::from_config(config);
+    let mut ctx: Context = Context::from_config(config);
     let mut cell_map = HashMap::<String, Atom>::default();
 
-    add_clauses_cell_value_choice(&mut the_context, &mut cell_map);
-    add_clauses_cells_have_unique_value(&mut the_context, &mut cell_map);
-    add_clauses_each_col_has_all_values(&mut the_context, &mut cell_map);
-    add_clauses_each_row_has_all_values(&mut the_context, &mut cell_map);
-    add_clauses_each_subgrid_has_all_values(&mut the_context, &mut cell_map);
-    add_clauses_detailing_puzzle(&mut the_context, &mut cell_map, the_puzzle);
+    add_clauses_cell_value_choice(&mut ctx, &mut cell_map);
+    add_clauses_cells_have_unique_value(&mut ctx, &mut cell_map);
+    add_clauses_each_col_has_all_values(&mut ctx, &mut cell_map);
+    add_clauses_each_row_has_all_values(&mut ctx, &mut cell_map);
+    add_clauses_each_subgrid_has_all_values(&mut ctx, &mut cell_map);
+    add_clauses_detailing_puzzle(&mut ctx, &mut cell_map, the_puzzle);
 
-    match the_context.solve() {
+    match ctx.solve() {
         Ok(_) => {}
         Err(e) => panic!("Solve error: {e:?}"),
     };
 
-    let valuation = the_context.valuations_ints();
+    let valuation = ctx.valuations_ints();
 
-    match the_context.report() {
+    match ctx.report() {
         Report::Satisfiable => {
             println!(
                 "A solution was found!
@@ -89,13 +89,13 @@ fn cell_atom(
     context: &mut Context,
     cell_map: &mut HashMap<String, Atom>,
 ) -> Atom {
-    let the_string = format!("{row}_{col}_{value}");
+    let cell_value_string = format!("{row}_{col}_{value}");
 
-    match cell_map.get(&the_string) {
+    match cell_map.get(&cell_value_string) {
         Some(atom) => *atom,
         None => {
             let atom = context.fresh_or_max_atom();
-            cell_map.insert(the_string, atom);
+            cell_map.insert(cell_value_string, atom);
             atom
         }
     }

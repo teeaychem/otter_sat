@@ -15,22 +15,22 @@ In particular, [from_config](Context::from_config) is implemented for a context 
 # use otter_sat::config::Config;
 # use otter_sat::reports::Report;
 # use otter_sat::structures::literal::{CLiteral, Literal};
-let mut the_context = Context::from_config(Config::default());
+let mut ctx = Context::from_config(Config::default());
 
-let p = the_context.fresh_or_max_atom();
-let q = the_context.fresh_or_max_atom();
+let p = ctx.fresh_or_max_atom();
+let q = ctx.fresh_or_max_atom();
 
 let p_q_clause = vec![CLiteral::new(p, true), CLiteral::new(q, true)];
-assert!(the_context.add_clause(p_q_clause).is_ok());
+assert!(ctx.add_clause(p_q_clause).is_ok());
 
 let not_p = CLiteral::new(p, false);
 
-assert!(the_context.add_clause(not_p).is_ok());
-assert!(the_context.solve().is_ok());
-assert_eq!(the_context.report(), Report::Satisfiable);
+assert!(ctx.add_clause(not_p).is_ok());
+assert!(ctx.solve().is_ok());
+assert_eq!(ctx.report(), Report::Satisfiable);
 
-assert_eq!(the_context.value_of(p), Some(false));
-assert_eq!(the_context.value_of(q), Some(true));
+assert_eq!(ctx.value_of(p), Some(false));
+assert_eq!(ctx.value_of(q), Some(true));
 ```
 */
 

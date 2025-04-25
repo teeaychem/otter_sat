@@ -73,8 +73,8 @@ loop {
         }
 
         apply_consequences::Ok::AssertingClause(key, literal) => {
-            let the_clause = self.clause_db.get(&key)?;
-            self.backjump(self.non_chronological_backjump_level(the_clause)?);
+            let clause = self.clause_db.get(&key)?;
+            self.backjump(self.non_chronological_backjump_level(clause)?);
             self.q_literal(literal)?;
         }
     }

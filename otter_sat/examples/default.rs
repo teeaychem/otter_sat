@@ -22,11 +22,11 @@ fn main() {
 
     let buf_file = BufReader::new(&cnf_file);
 
-    let mut the_context: Context = Context::from_config(Config::default());
+    let mut ctx: Context = Context::from_config(Config::default());
 
-    let _ = the_context.read_dimacs(buf_file);
+    let _ = ctx.read_dimacs(buf_file);
 
-    let result = the_context.solve();
+    let result = ctx.solve();
 
     println!("{result:?}");
 }

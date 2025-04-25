@@ -32,8 +32,8 @@ Though, in this case there is no need for a backjump level, as the formula itsel
 
 ```rust,ignore
 if let AssertingClause(key, literal) = result {
-    let the_clause = self.clause_db.get(&key)?;
-    let index = self.non_chronological_backjump_level(the_clause)?;
+    let clause = self.clause_db.get(&key)?;
+    let index = self.non_chronological_backjump_level(clause)?;
     self.backjump(index);
 }
 ```

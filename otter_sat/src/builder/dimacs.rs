@@ -39,7 +39,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// # use otter_sat::context::Context;
     /// # use otter_sat::config::Config;
     /// # use std::io::Write;
-    /// let mut the_context = Context::from_config(Config::default());
+    /// let mut ctx = Context::from_config(Config::default());
     ///
     /// let mut dimacs = vec![];
     /// let _ = dimacs.write(b"
@@ -52,8 +52,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///        3 -4 0
     /// ");
     ///
-    /// assert!(the_context.read_dimacs(dimacs.as_slice()).is_ok());
-    /// assert!(the_context.solve().is_ok());
+    /// assert!(ctx.read_dimacs(dimacs.as_slice()).is_ok());
+    /// assert!(ctx.solve().is_ok());
     /// ```
     #[allow(clippy::manual_flatten, unused_labels)]
     pub fn read_dimacs(&mut self, mut reader: impl BufRead) -> Result<ParserInfo, err::ErrorKind> {
@@ -187,20 +187,20 @@ mod dimacs_parser_tests {
 
     #[test]
     fn bad_delimiter() {
-        let mut the_context = Context::from_config(Config::default());
+        let mut ctx = Context::from_config(Config::default());
 
         let mut dimacs = vec![];
         let _ = dimacs.write(b"1  2");
 
         assert_eq!(
-            the_context.read_dimacs(dimacs.as_slice()),
+            ctx.read_dimacs(dimacs.as_slice()),
             Err(ErrorKind::Parse(ParseError::MissingDelimiter))
         );
     }
 
     #[test]
     fn bad_problem_spec() {
-        let mut the_context = Context::from_config(Config::default());
+        let mut ctx = Context::from_config(Config::default());
 
         let mut dimacs = vec![];
         let _ = dimacs.write(
@@ -210,14 +210,14 @@ p cnf
         );
 
         assert_eq!(
-            the_context.read_dimacs(dimacs.as_slice()),
+            ctx.read_dimacs(dimacs.as_slice()),
             Err(ErrorKind::Parse(ParseError::ProblemSpecification))
         );
     }
 
     #[test]
     fn empty_ok() {
-        let mut the_context = Context::from_config(Config::default());
+        let mut ctx = Context::from_config(Config::default());
 
         let mut dimacs = vec![];
         let _ = dimacs.write(
@@ -226,20 +226,20 @@ p cnf
 ",
         );
 
-        assert!(the_context.read_dimacs(dimacs.as_slice()).is_ok());
+        assert!(ctx.read_dimacs(dimacs.as_slice()).is_ok());
     }
 
     #[test]
     fn atoms_ensured() {
-        let mut the_context = Context::from_config(Config::default());
+        let mut ctx = Context::from_config(Config::default());
 
         let required_atoms = 10;
 
         let mut dimacs = vec![];
         let _ = dimacs.write(format!("p cnf {required_atoms} 0").as_bytes());
-        let _ = the_context.read_dimacs(dimacs.as_slice());
+        let _ = ctx.read_dimacs(dimacs.as_slice());
 
         // One extra, as the atom database always contains top.
-        assert_eq!(the_context.valuation().atom_count(), required_atoms + 1);
+        assert_eq!(ctx.valuation().atom_count(), required_atoms + 1);
     }
 }

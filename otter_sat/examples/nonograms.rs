@@ -263,7 +263,7 @@ impl Nonogram {
 
 impl Nonogram {
     fn row_clauses_block_start(&mut self, row: usize, total_blocks: usize) -> Vec<CClause> {
-        let mut the_clauses: Vec<CClause> = vec![];
+        let mut clauses: Vec<CClause> = vec![];
 
         let mut starts = vec![];
         for block_idx in 0..total_blocks {
@@ -274,7 +274,7 @@ impl Nonogram {
         let mut required_fill = vec![start_literal];
         required_fill.extend_from_slice(&starts);
 
-        the_clauses.push(required_fill);
+        clauses.push(required_fill);
 
         for idx in 1..self.row_length {
             let mut starts = vec![];
@@ -286,10 +286,10 @@ impl Nonogram {
             let mut required_fill = vec![prior_literal, start_literal];
             required_fill.extend_from_slice(&starts);
 
-            the_clauses.push(required_fill);
+            clauses.push(required_fill);
         }
 
-        the_clauses
+        clauses
     }
 
     fn row_clauses_block_start_fills(&mut self, row: usize, block_idx: usize) -> Vec<CClause> {
@@ -336,19 +336,19 @@ impl Nonogram {
                 self.block_start_row_literal(row, start_col, block_idx, false);
 
             for length in 1..=(self.row_length - start_col) {
-                let mut the_clause = vec![start_block_literal];
+                let mut clause = vec![start_block_literal];
                 for offset in 1..length {
                     let fill_literal = self.fill_literal(row, start_col + offset, false);
-                    the_clause.push(fill_literal);
+                    clause.push(fill_literal);
                 }
 
                 if start_col + length < self.row_length {
                     let length_literal = self.fill_literal(row, start_col + length, true);
-                    the_clause.push(length_literal);
+                    clause.push(length_literal);
                 }
                 let length_literal = self.block_legnth_row_literal(row, block_idx, length, true);
-                the_clause.push(length_literal);
-                clauses.push(the_clause);
+                clause.push(length_literal);
+                clauses.push(clause);
             }
         }
 
@@ -506,7 +506,7 @@ impl Nonogram {
 
 impl Nonogram {
     fn col_clauses_block_start(&mut self, col: usize, total_blocks: usize) -> Vec<CClause> {
-        let mut the_clauses = vec![];
+        let mut clauses = vec![];
 
         let mut starts = vec![];
         for block_idx in 0..total_blocks {
@@ -517,7 +517,7 @@ impl Nonogram {
         let mut required_fill = vec![start_literal];
         required_fill.extend_from_slice(&starts);
 
-        the_clauses.push(required_fill);
+        clauses.push(required_fill);
 
         for idx in 1..self.col_length {
             let mut starts = vec![];
@@ -528,10 +528,10 @@ impl Nonogram {
             let start_literal = self.fill_literal(idx, col, false);
             let mut required_fill = vec![prior_literal, start_literal];
             required_fill.extend_from_slice(&starts);
-            the_clauses.push(required_fill);
+            clauses.push(required_fill);
         }
 
-        the_clauses
+        clauses
     }
 
     fn col_clauses_block_start_fills(&mut self, col: usize, block_idx: usize) -> Vec<CClause> {
@@ -578,20 +578,20 @@ impl Nonogram {
                 self.block_start_col_literal(start_row, col, block_idx, false);
 
             for length in 1..=(self.col_length - start_row) {
-                let mut the_clause = vec![start_block_literal];
+                let mut clause = vec![start_block_literal];
                 for offset in 1..length {
                     let fill_literal = self.fill_literal(start_row + offset, col, false);
-                    the_clause.push(fill_literal);
+                    clause.push(fill_literal);
                 }
 
                 if start_row + length < self.col_length {
                     let length_literal = self.fill_literal(start_row + length, col, true);
-                    the_clause.push(length_literal);
+                    clause.push(length_literal);
                 }
 
                 let length_literal = self.block_length_col_literal(col, block_idx, length, true);
-                the_clause.push(length_literal);
-                clauses.push(the_clause);
+                clause.push(length_literal);
+                clauses.push(clause);
             }
         }
 

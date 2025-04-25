@@ -20,7 +20,7 @@ use otter_sat::{
 fn main() {
     let config = Config::default();
 
-    let mut the_context: Context = Context::from_config(config);
+    let mut ctx: Context = Context::from_config(config);
 
     // The representation of an atom will be given by the corresponding index in this map…
     let mut atom_map = Vec::<char>::default();
@@ -32,23 +32,23 @@ fn main() {
 
     // The atoms in a context are a contiguous slice of the natural numbers, starting at 1.
     // So, ensuring an atom for the last character in the map entails there will be atoms for present for all other characters.
-    the_context.ensure_atom(last_character_atom);
+    ctx.ensure_atom(last_character_atom);
 
     // Each character in some string as a literal.
     for character in character_string.chars() {
         atom_map.push(character);
     }
 
-    let plural_atom = the_context.fresh_atom().unwrap();
+    let plural_atom = ctx.fresh_atom().unwrap();
     let assumptions = vec![CLiteral::new(plural_atom, true)];
     atom_map.push('s');
 
     let mut count = 0;
 
     loop {
-        assert!(the_context.solve_given(Some(assumptions.clone())).is_ok());
+        assert!(ctx.solve_given(Some(assumptions.clone())).is_ok());
 
-        match the_context.report() {
+        match ctx.report() {
             Report::Satisfiable => {}
 
             Report::Unknown | Report::Unsatisfiable => break,
@@ -56,7 +56,7 @@ fn main() {
 
         count += 1;
 
-        let last_valuation = the_context.valuation();
+        let last_valuation = ctx.valuation();
         let mut valuation_as_chars = Vec::default();
         for (atom, value) in last_valuation.atom_value_pairs() {
             let character = atom_map[atom as usize];
@@ -71,14 +71,14 @@ fn main() {
 
         let mut clause = Vec::new();
 
-        for (atom, value) in the_context.valuation().atom_valued_pairs() {
+        for (atom, value) in ctx.valuation().atom_valued_pairs() {
             clause.push(CLiteral::new(atom as Atom, !value));
         }
 
-        the_context.clear_decisions();
+        ctx.clear_decisions();
         // std::process::exit(1);
 
-        match the_context.add_clause(clause) {
+        match ctx.add_clause(clause) {
             Ok(_) => {}
             Err(_) => break,
         };
