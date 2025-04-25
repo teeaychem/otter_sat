@@ -66,13 +66,13 @@ impl Trail {
     }
 
     /// Takes the current list of assignments, leaving the default assignment container, until the list is restored.
-    /// To be used in conjunction with [AtomDB::restore_assignments].
+    /// To be used in conjunction with [Trail::restore_assignments].
     pub fn take_assignments(&mut self) -> Vec<CLiteral> {
         std::mem::take(&mut self.literals)
     }
 
     /// Sets the current lists of assignments to `assignments`.
-    /// To be used in conjunction with [AtomDB::take_assignments].
+    /// To be used in conjunction with [Trail::take_assignments].
     pub fn restore_assignments(&mut self, assignents: Vec<CLiteral>) {
         self.literals = assignents;
     }

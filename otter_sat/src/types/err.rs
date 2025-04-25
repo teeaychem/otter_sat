@@ -25,7 +25,7 @@ pub enum ErrorKind {
     ClauseDB(ClauseDBError),
 
     /// An error in the atom database.
-    AtomDB(AtomDBError),
+    Atom(AtomError),
 
     /// An related to parsing.
     Parse(ParseError),
@@ -82,14 +82,14 @@ impl From<AnalysisError> for ErrorKind {
 
 /// An error from the clause database.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum AtomDBError {
+pub enum AtomError {
     /// There are no more fresh atoms.
     AtomsExhausted,
 }
 
-impl From<AtomDBError> for ErrorKind {
-    fn from(e: AtomDBError) -> Self {
-        ErrorKind::AtomDB(e)
+impl From<AtomError> for ErrorKind {
+    fn from(e: AtomError) -> Self {
+        ErrorKind::Atom(e)
     }
 }
 
@@ -103,6 +103,9 @@ pub enum BCPError {
     /// Some corruption in the watched literals of a clause.
     /// This is unexpected.
     CorruptWatch,
+
+    /// A propagation was missed
+    Missed,
 }
 
 impl From<BCPError> for ErrorKind {

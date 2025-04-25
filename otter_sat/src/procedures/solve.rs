@@ -132,7 +132,7 @@ Though, the presentation given is original.
 
 use crate::{
     context::{ContextState, GenericContext},
-    db::{ClauseKey, atom::AssignmentStatus},
+    db::{ClauseKey, atom::ValuationStatus},
     procedures::{apply_consequences::ApplyConsequencesOk, decision::DecisionOk},
     reports::Report,
     structures::{
@@ -255,7 +255,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     match self.make_decision() {
                         DecisionOk::Literal(decision) => {
                             match self.check_assignment(decision) {
-                                AssignmentStatus::None => {
+                                ValuationStatus::None => {
                                     self.record_assignment(decision, AssignmentSource::Decision);
 
                                     log::info!(
@@ -264,9 +264,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                     );
                                 }
 
-                                AssignmentStatus::Set => panic!("!"),
+                                ValuationStatus::Set => panic!("!"),
 
-                                AssignmentStatus::Conflict => panic!("!"),
+                                ValuationStatus::Conflict => panic!("!"),
                             }
 
                             continue 'solve_loop;
@@ -278,13 +278,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 // Conflict variants. These continue to the remaining contents of a loop.
                 ApplyConsequencesOk::UnitClause { literal } => {
                     match self.check_assignment(literal) {
-                        AssignmentStatus::None => {
+                        ValuationStatus::None => {
                             self.record_assignment(literal, AssignmentSource::Addition);
                         }
 
-                        AssignmentStatus::Set => {}
+                        ValuationStatus::Set => {}
 
-                        AssignmentStatus::Conflict => {
+                        ValuationStatus::Conflict => {
                             self.note_conflict(ClauseKey::AdditionUnit(literal));
 
                             break 'solve_loop;
@@ -296,13 +296,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     self.clause_db.note_use(key);
 
                     match self.check_assignment(literal) {
-                        AssignmentStatus::None => {
+                        ValuationStatus::None => {
                             self.record_assignment(literal, AssignmentSource::BCP(key));
                         }
 
-                        AssignmentStatus::Set => {}
+                        ValuationStatus::Set => {}
 
-                        AssignmentStatus::Conflict => {
+                        ValuationStatus::Conflict => {
                             self.note_conflict(key);
 
                             break 'solve_loop;

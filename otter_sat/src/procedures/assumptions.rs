@@ -24,7 +24,7 @@ use std::collections::HashSet;
 
 use crate::{
     context::{ContextState, GenericContext},
-    db::{ClauseKey, atom::AssignmentStatus},
+    db::{ClauseKey, atom::ValuationStatus},
     structures::{
         atom::Atom,
         clause::Clause,
@@ -87,7 +87,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     // # Safety
                     // The atom has been ensured, above.
                     match self.check_assignment(assumption) {
-                        AssignmentStatus::None => {
+                        ValuationStatus::None => {
                             self.record_assignment(*assumption, AssignmentSource::Assumption);
 
                             log::info!("BCP of assumption: {assumption}");
@@ -108,11 +108,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             }
                         }
 
-                        AssignmentStatus::Set => {
+                        ValuationStatus::Set => {
                             log::info!("! Assumption of an atom with same value")
                         }
 
-                        AssignmentStatus::Conflict => panic!("!"),
+                        ValuationStatus::Conflict => panic!("!"),
                     }
                 }
 
@@ -127,15 +127,15 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     self.ensure_atom(literal.atom());
 
                     match self.check_assignment(literal) {
-                        AssignmentStatus::None => {
+                        ValuationStatus::None => {
                             self.record_assignment(literal, AssignmentSource::Assumption);
                         }
 
-                        AssignmentStatus::Set => {
+                        ValuationStatus::Set => {
                             log::info!("! Assumption of an atom with that value")
                         }
 
-                        AssignmentStatus::Conflict => {
+                        ValuationStatus::Conflict => {
                             return Err(ErrorKind::AssumptionConflict(literal));
                         }
                     }

@@ -89,7 +89,7 @@ So, caution should be taken to avoid overlooking a failed invariant.
 
 use crate::{
     context::GenericContext,
-    db::{ClauseKey, atom::AssignmentStatus},
+    db::{ClauseKey, atom::ValuationStatus},
     procedures::analysis::AnalysisResult,
     structures::{consequence::AssignmentSource, literal::CLiteral},
     types::err::{self, ErrorKind},
@@ -133,18 +133,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 return Ok(ApplyConsequencesOk::Exhausted);
             };
 
-            // if self
-            //     .atom_db
-            //     .assignments
-            //     .get(self.atom_db.q_head)
-            //     .is_none_or(|x| x.literal != *literal)
-            // {
-            //     println!("Missing q head (@{})", self.atom_db.q_head);
-            //     println!("Searching for {literal}");
-            //     println!("Assignments: {:?}", self.atom_db.assignments);
-            //     panic!("!")
-            // }
-
             match self.bcp(*literal) {
                 Ok(()) => {
                     self.trail.q_head += 1;
@@ -169,13 +157,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             self.backjump(index);
 
                             match self.check_assignment(literal) {
-                                AssignmentStatus::None => {
+                                ValuationStatus::None => {
                                     self.record_assignment(literal, AssignmentSource::BCP(key));
                                 }
 
-                                AssignmentStatus::Set => {}
+                                ValuationStatus::Set => {}
 
-                                AssignmentStatus::Conflict => {
+                                ValuationStatus::Conflict => {
                                     return Err(ErrorKind::ValuationConflict);
                                 }
                             }

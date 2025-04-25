@@ -7,7 +7,7 @@ use std::collections::HashSet;
 
 use crate::{
     context::GenericContext,
-    db::atom::AssignmentStatus,
+    db::atom::ValuationStatus,
     structures::{
         atom::Atom,
         clause::Clause,
@@ -58,13 +58,13 @@ pub fn set_pure<R: rand::Rng + std::default::Default>(
         .chain(t.into_iter().map(|atom| CLiteral::new(atom, false)))
     {
         match context.check_assignment(literal) {
-            AssignmentStatus::None => {
+            ValuationStatus::None => {
                 context.record_assignment(literal, AssignmentSource::Pure);
             }
 
-            AssignmentStatus::Set => {}
+            ValuationStatus::Set => {}
 
-            AssignmentStatus::Conflict => return Err(err::PreprocessingError::Unsatisfiable),
+            ValuationStatus::Conflict => return Err(err::PreprocessingError::Unsatisfiable),
         }
     }
 

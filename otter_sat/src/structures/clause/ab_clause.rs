@@ -130,3 +130,9 @@ impl Clause for ABClause {
         })
     }
 }
+
+impl From<ABLiteral> for ABClause {
+    fn from(value: ABLiteral) -> Self {
+        vec![value]
+    }
+}

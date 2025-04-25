@@ -97,7 +97,9 @@ impl AtomCells {
         clause_db.note_use(key);
         self.premises.insert(key);
 
-        // bump clause activity
+        /*
+        bump clause activity
+        */
         if let ClauseKey::Addition(index, _) = key {
             clause_db.bump_activity(index)
         };
@@ -290,7 +292,7 @@ impl AtomCells {
         unsafe { &self.cells.get_unchecked(atom as usize).source }
     }
 
-    /// A helper method to cache information during [derivable_value].
+    /// A helper method to cache information during [derivable_value](AtomCells::derivable_value).
     fn set_status(&mut self, atom: Atom, status: Flag) {
         let cell = self.get_cell_mut(atom);
         if cell.resolution_flag == Flag::Valuation {
@@ -299,7 +301,7 @@ impl AtomCells {
         }
     }
 
-    /// Helper method to mark the DFS stack as independent when [derivable_value] returns false.
+    /// Helper method to mark the DFS stack as independent when [derivable_value](AtomCells::derivable_value) returns false.
     fn flag_stack_independent(&mut self, clause_db: &mut ClauseDB) {
         while let Some(ReMiTodo { key, index }) = self.recursive_minimization_todo.pop() {
             if let Some(atom) = unsafe { clause_db.get_unchecked(&key) }.atom_at(index) {
@@ -329,7 +331,7 @@ impl AtomCells {
     /// Otherwise, the value of each atom used to propagate is proven or part of the clause and so the relevant entailment holds.
     /// Use is made of the invariant to keep the propagated atom/literal as the first element of any long clause to skip inspection of *propagated* atoms, though as this invariant is not upheld for binary clauses, the atom to examine is determined case-by-case.
     ///
-    /// The status of literals are cached for repeat calls, and [restore_cached_removable_status] must be called after the learnt clause is finalised to clear the cache.
+    /// The status of literals are cached for repeat calls, and [restore_cached_removable_status](AtomCells::restore_cached_removable_status) must be called after the learnt clause is finalised to clear the cache.
     pub fn derivable_value(&mut self, atom: Atom, clause_db: &mut ClauseDB) -> bool {
         let mut key: ClauseKey = {
             match self.get_assignment_source(atom) {
@@ -458,7 +460,7 @@ impl AtomCells {
         }
     }
 
-    /// Clears the status values made during [derivable_value] for efficient search.
+    /// Clears the status values made during [derivable_value](AtomCells::derivable_value) for efficient search.
     /// Must be called immediately after a learnt clause has been finalised (and may be called before if some inefficiancy is to taste).
     fn restore_cached_removable_status(&mut self) {
         while let Some(atom) = self.cached_removable_status_atoms.pop() {

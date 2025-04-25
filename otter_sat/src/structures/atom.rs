@@ -4,8 +4,8 @@
 Broadly, atoms are things with a name to which assigning a (boolean) value (true or false) is of interset.
 - 'Internal' atoms are used internal to a context.
 - 'External' atoms are used to used during external interaction with a context, e.g. when providing a formula as input or reading the value of an atom. \
-     External atoms are a string of non-whitespace characters that which does not being with '-' (a minus sign). \
-     Examples: `p`, `atom_one`, `96`, `0`.
+  External atoms are a string of non-whitespace characters that which does not being with '-' (a minus sign). \
+  Examples: `p`, `atom_one`, `96`, `0`.
 
 Each (*internal+) atom is a u32 *u* such that either:
 - *u* is 0, or:

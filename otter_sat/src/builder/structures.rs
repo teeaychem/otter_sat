@@ -1,6 +1,6 @@
 use crate::{
     context::GenericContext,
-    db::{atom::AssignmentStatus, watches::watch_db::WatchDB},
+    db::{atom::ValuationStatus, watches::watch_db::WatchDB},
     structures::{
         atom::{ATOM_MAX, Atom},
         clause::{Clause, ClauseSource},
@@ -8,7 +8,7 @@ use crate::{
         literal::{CLiteral, Literal},
         valuation::Valuation,
     },
-    types::err::{self, AtomDBError, ErrorKind, PreprocessingError},
+    types::err::{self, AtomError, ErrorKind, PreprocessingError},
 };
 
 use std::collections::HashSet;
@@ -22,7 +22,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Returns a fresh atom.
     ///
     /// For a practical alternative, see [fresh_or_max_atom](GenericContext::fresh_or_max_atom).
-    pub fn fresh_atom(&mut self) -> Result<Atom, err::AtomDBError> {
+    pub fn fresh_atom(&mut self) -> Result<Atom, err::AtomError> {
         let previous_value = self.rng.random_bool(self.config.polarity_lean.value);
         self.fresh_atom_fundamental(previous_value)
     }
@@ -39,22 +39,19 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let previous_value = self.rng.random_bool(self.config.polarity_lean.value);
         match self.fresh_atom_fundamental(previous_value) {
             Ok(atom) => atom,
-            Err(err::AtomDBError::AtomsExhausted) => ATOM_MAX,
+            Err(err::AtomError::AtomsExhausted) => ATOM_MAX,
         }
     }
 
     /// The fundamental method for obtaining a fresh atom --- on Ok the atom is part of the language of the context.
     ///
     /// If used, all the relevant data structures are updated to support access via the atom, and the safety of each unchecked is guaranteed.
-    pub fn fresh_atom_fundamental(
-        &mut self,
-        previous_value: bool,
-    ) -> Result<Atom, err::AtomDBError> {
+    pub fn fresh_atom_fundamental(&mut self, previous_value: bool) -> Result<Atom, err::AtomError> {
         let atom = match self.valuation().atom_count().try_into() {
             // Note, ATOM_MAX over Atom::Max as the former is limited by the representation of literals, if relevant.
             Ok(atom) if atom <= ATOM_MAX => atom,
             _ => {
-                return Err(AtomDBError::AtomsExhausted);
+                return Err(AtomError::AtomsExhausted);
             }
         };
 
@@ -85,7 +82,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Returns a fresh literal with value true.
     ///
     /// Alternatively, see [fresh_or_max_literal](GenericContext::fresh_or_max_literal).
-    pub fn fresh_literal(&mut self) -> Result<CLiteral, err::AtomDBError> {
+    pub fn fresh_literal(&mut self) -> Result<CLiteral, err::AtomError> {
         let atom = self.fresh_atom()?;
         Ok(CLiteral::new(atom, true))
     }
@@ -98,7 +95,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn fresh_or_max_literal(&mut self) -> CLiteral {
         match self.fresh_literal() {
             Ok(literal) => literal,
-            Err(err::AtomDBError::AtomsExhausted) => CLiteral::new(ATOM_MAX, true),
+            Err(err::AtomError::AtomsExhausted) => CLiteral::new(ATOM_MAX, true),
         }
     }
 
@@ -142,13 +139,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 );
 
                 match self.check_assignment(literal) {
-                    AssignmentStatus::None => {
+                    ValuationStatus::None => {
                         self.record_assignment(literal, AssignmentSource::Original);
                     }
 
-                    AssignmentStatus::Set => {}
+                    ValuationStatus::Set => {}
 
-                    AssignmentStatus::Conflict => return Err(ErrorKind::FundamentalConflict),
+                    ValuationStatus::Conflict => return Err(ErrorKind::FundamentalConflict),
                 }
 
                 Ok(ClauseOk::Added)
