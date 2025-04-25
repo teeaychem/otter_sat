@@ -76,7 +76,8 @@ fn main() {
         Report::Unsatisfiable => {
             println!("It is not possible to solve the puzzle.")
         }
-        _ => {}
+
+        Report::Unknown => {}
     }
 }
 

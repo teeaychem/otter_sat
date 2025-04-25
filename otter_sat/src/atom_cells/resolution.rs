@@ -122,7 +122,8 @@ impl AtomCells {
                     StoppingCriteria::FirstUIP => {
                         break 'resolution_loop;
                     }
-                    _ => {}
+
+                    StoppingCriteria::None => {}
                 }
             }
 
@@ -185,7 +186,7 @@ impl AtomCells {
                 Ok(ResolutionOk::UIP)
             }
 
-            _ => {
+            _multiple_valueless => {
                 log::error!(target: targets::ATOMCELLS, "Trail exhausted without assertion\nClause: {:?}\nValueless count: {}", self.to_assertion_clause(clause_db, config), self.valueless_count);
                 panic!("! A clause which does not assert");
             }

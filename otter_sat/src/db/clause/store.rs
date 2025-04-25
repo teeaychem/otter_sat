@@ -47,7 +47,7 @@ impl ClauseDB {
 
             2 => self.store_binary(clause.canonical(), source, cells, watches),
 
-            _ => self.store_long(clause.canonical(), source, cells, watches),
+            _long_clause => self.store_long(clause.canonical(), source, cells, watches),
         };
 
         if let Ok(key) = key {

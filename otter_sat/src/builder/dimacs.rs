@@ -112,7 +112,9 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     info.expected_clauses = Some(clauses);
                 }
 
-                _ => break,
+                Some(_other_char) => break,
+
+                None => break,
             }
         }
 
@@ -121,11 +123,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         'formula_loop: loop {
             match buffer.chars().next() {
                 Some('%') => break 'formula_loop,
+
                 Some('c') => {}
+
                 // Some('p') => {
                 //     return Err(err::BuildErrorKind::Parse(err::Parse::MisplacedProblem(line_counter)))
                 // }
-                _ => {
+                _non_comment => {
                     let split_buf = buffer.split_whitespace();
                     for item in split_buf {
                         match item {
@@ -135,9 +139,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 clause.dedup();
                                 self.add_clause(clause)?;
                             }
-                            _ => {
-                                let literal = match item.parse::<IntLiteral>() {
+
+                            literal => {
+                                let literal = match literal.parse::<IntLiteral>() {
                                     Ok(int) => int.canonical(),
+
                                     Err(e) => panic!("{e}"),
                                 };
 

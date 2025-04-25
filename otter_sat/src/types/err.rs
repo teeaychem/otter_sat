@@ -85,6 +85,9 @@ impl From<AnalysisError> for ErrorKind {
 pub enum AtomError {
     /// There are no more fresh atoms.
     AtomsExhausted,
+
+    /// An undefined error
+    Undefined,
 }
 
 impl From<AtomError> for ErrorKind {

@@ -87,7 +87,8 @@ fn frat_verify(file_path: PathBuf, config: Config) -> bool {
     let _ = std::fs::remove_file(frat_path);
     match output.status.code() {
         Some(0) => true,
-        _ => {
+
+        _unexpected_output_code => {
             println!("{output:?}");
             false
         }

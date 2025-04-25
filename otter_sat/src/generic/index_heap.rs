@@ -29,16 +29,17 @@ let mut test_heap = IndexHeap::default();
  assert!(test_heap.pop_max().is_none());
 */
 
+use std::cmp::Ordering;
+
 /// The index heap struct.
-pub struct IndexHeap<V: PartialOrd + Default> {
-    values: Vec<V>,
+pub struct IndexHeap<Value: PartialOrd + Default> {
+    values: Vec<Value>,
     position_in_heap: Vec<Option<usize>>,
     heap: Vec<usize>,
     limit: usize,
 }
-use std::cmp::Ordering;
 
-impl<V: Default + PartialOrd + Default> Default for IndexHeap<V> {
+impl<Value: PartialOrd + Default> Default for IndexHeap<Value> {
     fn default() -> Self {
         IndexHeap {
             values: Vec::default(),
@@ -116,6 +117,7 @@ impl<Value: PartialOrd + Default> IndexHeap<Value> {
                 self.limit += 1;
                 true
             }
+
             Some(heap_index) => {
                 self.heapify_up(heap_index);
                 self.heapify_down(heap_index);
@@ -136,7 +138,8 @@ impl<Value: PartialOrd + Default> IndexHeap<Value> {
     pub fn peek_max(&self) -> Option<usize> {
         match self.limit {
             0 => None,
-            _ => Some(unsafe { *self.heap.get_unchecked(0) }),
+
+            _at_least_one => Some(unsafe { *self.heap.get_unchecked(0) }),
         }
     }
 
@@ -152,7 +155,8 @@ impl<Value: PartialOrd + Default> IndexHeap<Value> {
     pub fn pop_max(&mut self) -> Option<usize> {
         match self.limit {
             0 => None,
-            _ => {
+
+            _at_least_one => {
                 let max_heap_index = self.value_index(0);
                 self.remove(max_heap_index);
                 Some(max_heap_index)
@@ -207,7 +211,7 @@ impl<Value: PartialOrd + Default> IndexHeap<Value> {
     }
 }
 
-impl<V: PartialOrd + Default> IndexHeap<V> {
+impl<Value: PartialOrd + Default> IndexHeap<Value> {
     /// The index of some value stored at `heap_index` on the heap.
     fn value_index(&self, heap_index: usize) -> usize {
         // # Safety: heap index is some where on the heap.
@@ -336,7 +340,8 @@ impl<V: PartialOrd + Default> IndexHeap<V> {
 
             match parent_value.partial_cmp(index_value) {
                 Some(Ordering::Greater) => break 'up_loop,
-                _ => {
+
+                Some(Ordering::Equal) | Some(Ordering::Less) | None => {
                     a = self.value_index(heap_index);
                     b = self.value_index(parent_heap);
 

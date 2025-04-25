@@ -29,16 +29,16 @@ impl<T: std::ops::DerefMut<Target = [Option<bool>]>> Valuation for T {
     }
 
     fn valued_atoms(&self) -> impl Iterator<Item = Atom> {
-        self.iter().enumerate().filter_map(|(var, val)| match val {
-            None => None,
-            _ => Some(var as Atom),
-        })
+        self.iter()
+            .enumerate()
+            .filter_map(|(var, val)| val.as_ref().map(|_| var as Atom))
     }
 
     fn unvalued_atoms(&self) -> impl Iterator<Item = Atom> {
         self.iter().enumerate().filter_map(|(var, val)| match val {
             None => Some(var as Atom),
-            _ => None,
+
+            Some(_) => None,
         })
     }
 

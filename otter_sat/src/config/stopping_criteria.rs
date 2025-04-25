@@ -35,8 +35,10 @@ impl FromStr for StoppingCriteria {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "FirstUIP" => Ok(Self::FirstUIP),
+
             "None" => Ok(Self::None),
-            _ => Err(()),
+
+            _unkown_string => Err(()),
         }
     }
 }

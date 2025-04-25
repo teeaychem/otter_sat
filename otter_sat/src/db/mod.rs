@@ -103,7 +103,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         proven_literal = true;
                     }
 
-                    _ => {}
+                    _decisions_made => {}
                 }
 
                 self.trail.store_literal(literal)
