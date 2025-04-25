@@ -81,24 +81,26 @@ impl dbClause {
         };
 
         if fix_watch && position == self.watch_ptr {
+            let mut index_literal;
+            let mut index_value;
+
             let clause_length = self.clause.len();
             self.watch_ptr = 1;
             for index in 1..clause_length {
                 // Safe, as index is the length of the clause.
-                let index_literal = unsafe { self.clause.get_unchecked(index) };
-                let index_value = unsafe { valuation.value_of_unchecked(index_literal.atom()) };
-                match index_value {
-                    Some(value) if value != index_literal.polarity() => {}
-                    _ => {
-                        self.watch_ptr = index;
-                        break;
-                    }
+                index_literal = unsafe { self.clause.get_unchecked(index) };
+                index_value = unsafe { valuation.value_of_unchecked(index_literal.atom()) };
+
+                if index_value.is_some_and(|value| value == index_literal.polarity()) {
+                    self.watch_ptr = index;
+                    break;
                 }
             }
-            // Safe, by above construction.
+
+            // # Safety: by above construction.
             let watched_literal = unsafe { self.clause.get_unchecked(self.watch_ptr) };
             self.note_watch(watched_literal, watches);
-            // TODO: Is this sufficient to uphold the required invariant?
+
             if zero_swap
                 && unsafe {
                     valuation

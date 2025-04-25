@@ -92,13 +92,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         clause: &C,
     ) -> Result<LevelIndex, err::ErrorKind> {
         match clause.size() {
-            0 => {
-                panic!("! Attempted search for non-chronological backjump level on an empty clause")
-            }
+            0 => panic!("! Attempted non-chronological backjump level on an empty clause"),
 
             1 => Ok(self.trail.lowest_decision_level()),
 
-            _ => {
+            _decision_made => {
                 // Work through the clause, keeping an ordered record of the top two decision levels: (second_to_top, top)
                 let mut top_two = (None, None);
 
@@ -122,24 +120,22 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                         (None, _) => top_two.0 = Some(level),
 
-                        (Some(second_to_top), _) if level > second_to_top => {
-                            top_two.0 = Some(level)
+                        (Some(second_to_top), _) => {
+                            if level > second_to_top {
+                                top_two.0 = Some(level)
+                            }
                         }
-
-                        _ => {}
                     }
                 }
 
                 match top_two {
                     (None, _) => Ok(self.trail.lowest_decision_level()),
 
-                    // 'Simple' backjumping to a the level prior to the asserted literal.
-                    // (_, Some(top)) => Ok(top.saturating_sub(1)),
                     (Some(second_to_top), Some(_top)) => {
                         Ok(cmp::max(self.trail.lowest_decision_level(), second_to_top))
                     }
 
-                    _ => panic!("!"),
+                    (Some(_), None) => panic!("!"),
                 }
             }
         }

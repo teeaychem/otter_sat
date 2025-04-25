@@ -13,6 +13,7 @@ impl ClauseDB {
                 //
                 match self.unit_addition.get(key) {
                     Some(clause) => Ok(clause),
+
                     None => Err(err::ClauseDBError::Missing),
                 }
             }
@@ -21,6 +22,7 @@ impl ClauseDB {
                 //
                 match self.original.get(*index as usize) {
                     Some(clause) => Ok(clause),
+
                     None => Err(err::ClauseDBError::Missing),
                 }
             }
@@ -29,6 +31,7 @@ impl ClauseDB {
                 //
                 match self.binary_original.get(*index as usize) {
                     Some(clause) => Ok(clause),
+
                     None => Err(err::ClauseDBError::Missing),
                 }
             }
@@ -37,6 +40,7 @@ impl ClauseDB {
                 //
                 match self.binary_addition.get(*index as usize) {
                     Some(clause) => Ok(clause),
+
                     None => Err(err::ClauseDBError::Missing),
                 }
             }
@@ -46,9 +50,12 @@ impl ClauseDB {
                 match self.addition.get(*index as usize) {
                     Some(Some(clause)) => match clause.key() {
                         ClauseKey::Addition(_, clause_token) if clause_token == token => Ok(clause),
+
                         _ => Err(err::ClauseDBError::InvalidKeyToken),
                     },
+
                     Some(None) => Err(err::ClauseDBError::InvalidKeyIndex),
+
                     None => Err(err::ClauseDBError::InvalidKeyIndex),
                 }
             }
@@ -60,6 +67,7 @@ impl ClauseDB {
         match key {
             ClauseKey::OriginalUnit(_) => match self.unit_original.get_mut(key) {
                 Some(clause) => Ok(clause),
+
                 None => Err(err::ClauseDBError::Missing),
             },
 
@@ -67,6 +75,7 @@ impl ClauseDB {
                 //
                 match self.unit_addition.get_mut(key) {
                     Some(clause) => Ok(clause),
+
                     None => Err(err::ClauseDBError::Missing),
                 }
             }
@@ -75,6 +84,7 @@ impl ClauseDB {
                 //
                 match self.original.get_mut(*index as usize) {
                     Some(clause) => Ok(clause),
+
                     None => Err(err::ClauseDBError::Missing),
                 }
             }
@@ -83,6 +93,7 @@ impl ClauseDB {
                 //
                 match self.binary_original.get_mut(*index as usize) {
                     Some(clause) => Ok(clause),
+
                     None => Err(err::ClauseDBError::Missing),
                 }
             }
@@ -91,6 +102,7 @@ impl ClauseDB {
                 //
                 match self.binary_addition.get_mut(*index as usize) {
                     Some(clause) => Ok(clause),
+
                     None => Err(err::ClauseDBError::Missing),
                 }
             }
@@ -100,9 +112,12 @@ impl ClauseDB {
                 match self.addition.get_mut(*index as usize) {
                     Some(Some(clause)) => match clause.key() {
                         ClauseKey::Addition(_, clause_token) if clause_token == token => Ok(clause),
+
                         _ => Err(err::ClauseDBError::InvalidKeyToken),
                     },
+
                     Some(None) => Err(err::ClauseDBError::InvalidKeyIndex),
+
                     None => Err(err::ClauseDBError::InvalidKeyIndex),
                 }
             }
@@ -126,6 +141,7 @@ impl ClauseDB {
                 //
                 match self.unit_addition.get(key) {
                     Some(clause) => clause,
+
                     None => panic!("! Missing AdditionUnit"),
                 }
             }
@@ -161,6 +177,7 @@ impl ClauseDB {
                 //
                 match self.unit_original.get_mut(key) {
                     Some(clause) => clause,
+
                     None => panic!("! Missing unchecked OriginalUnit"),
                 }
             }
@@ -169,6 +186,7 @@ impl ClauseDB {
                 //
                 match self.unit_addition.get_mut(key) {
                     Some(clause) => clause,
+
                     None => panic!("! Missing unchecked AdditionUnit"),
                 }
             }

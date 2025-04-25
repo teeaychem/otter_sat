@@ -134,8 +134,10 @@ fn main() {
         for col in row {
             match col {
                 0 => print!(" "),
+
                 1 => print!("x"),
-                _ => panic!("! An incomplete nonogram valuation"),
+
+                _undecided => panic!("! An incomplete nonogram valuation"),
             }
         }
         println!();

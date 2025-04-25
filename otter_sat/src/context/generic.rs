@@ -82,7 +82,11 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn unsatisfiable_clause(&self) -> Result<ClauseKey, ErrorKind> {
         match self.state {
             ContextState::Unsatisfiable(key) => Ok(key),
-            _ => Err(ErrorKind::InvalidState),
+
+            ContextState::Configuration
+            | ContextState::Input
+            | ContextState::Satisfiable
+            | ContextState::Solving => Err(ErrorKind::InvalidState),
         }
     }
 

@@ -24,9 +24,12 @@ impl ClauseKind {
     pub fn identify(clause: &impl Clause) -> Self {
         match clause.size() {
             0 => Self::Empty,
+
             1 => Self::Unit,
+
             2 => Self::Binary,
-            _ => Self::Long,
+
+            _long_clause => Self::Long,
         }
     }
 }

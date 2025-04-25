@@ -37,9 +37,12 @@ impl FromStr for MinimizationCriteria {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "Recursive" => Ok(Self::Recursive),
+
             "Proven" => Ok(Self::Proven),
+
             "None" => Ok(Self::None),
-            _ => Err(()),
+
+            _unknown_string => Err(()),
         }
     }
 }

@@ -39,7 +39,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let previous_value = self.rng.random_bool(self.config.polarity_lean.value);
         match self.fresh_atom_fundamental(previous_value) {
             Ok(atom) => atom,
-            Err(err::AtomError::AtomsExhausted) => ATOM_MAX,
+
+            Err(e) => match e {
+                err::AtomError::AtomsExhausted => ATOM_MAX,
+
+                err::AtomError::Undefined => todo!(),
+            },
         }
     }
 
@@ -50,9 +55,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         let atom = match self.valuation().atom_count().try_into() {
             // Note, ATOM_MAX over Atom::Max as the former is limited by the representation of literals, if relevant.
             Ok(atom) if atom <= ATOM_MAX => atom,
-            _ => {
-                return Err(AtomError::AtomsExhausted);
-            }
+
+            Ok(_max) => return Err(AtomError::AtomsExhausted),
+
+            Err(_) => return Err(AtomError::Undefined),
         };
 
         self.atom_activity.add(atom as usize, 1.0);
@@ -95,7 +101,10 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn fresh_or_max_literal(&mut self) -> CLiteral {
         match self.fresh_literal() {
             Ok(literal) => literal,
+
             Err(err::AtomError::AtomsExhausted) => CLiteral::new(ATOM_MAX, true),
+
+            Err(err::AtomError::Undefined) => todo!(),
         }
     }
 
@@ -119,10 +128,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         match preprocess_clause(&mut clause) {
             Ok(PreprocessingOk::Tautology) => return Ok(ClauseOk::Tautology),
+
+            Ok(PreprocessingOk::Clause) => {}
+
             Err(PreprocessingError::Unsatisfiable) => {
                 return Err(err::ErrorKind::from(err::BuildError::Unsatisfiable));
             }
-            _ => {}
         };
 
         match clause[..] {

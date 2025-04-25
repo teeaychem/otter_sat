@@ -122,7 +122,7 @@ fn main() {
             }
         }
 
-        _ => {}
+        Report::Unknown => {}
     }
 }
 
@@ -213,8 +213,13 @@ fn read_dimacs(path: &str, context: &mut Context) -> PathBuf {
             context.read_dimacs(std::io::BufReader::new(&file))
         }
 
-        _ => {
-            println!("c The file does not contain a supported extension.");
+        Some(unknown) => {
+            println!("c Files with extension '{unknown:?}' are not supported.");
+            std::process::exit(1);
+        }
+
+        None => {
+            println!("c The file does not have a supported extension.");
             std::process::exit(1);
         }
     };

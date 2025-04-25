@@ -50,7 +50,8 @@ fn main() {
 
         match the_context.report() {
             Report::Satisfiable => {}
-            _ => break,
+
+            Report::Unknown | Report::Unsatisfiable => break,
         };
 
         count += 1;

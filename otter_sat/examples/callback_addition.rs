@@ -27,20 +27,21 @@ fn addition_hook(clause: &dbClause, _: &ClauseSource) {
         1 => {
             print!("!")
         }
+
         2 => {
             print!("'")
         }
-        l if l < 5 => {
-            print!("*")
-        }
-        l if l < 7 => {
-            print!(":")
-        }
-        l if l < 9 => {
-            print!("`")
-        }
-        _ => {
-            print!(".")
+
+        l => {
+            if l < 5 {
+                print!("*")
+            } else if l < 7 {
+                print!(":")
+            } else if l < 9 {
+                print!("`")
+            } else {
+                print!(".")
+            }
         }
     }
 }
@@ -69,7 +70,8 @@ fn main() {
 
         match the_context.report() {
             Report::Satisfiable => {}
-            _ => break,
+
+            Report::Unknown | Report::Unsatisfiable => break,
         };
 
         models_found += 1;
