@@ -1,7 +1,4 @@
-use crate::structures::{
-    atom::{ATOM_MAX, Atom},
-    clause::ABClause,
-};
+use crate::structures::atom::{ATOM_MAX, Atom};
 
 use super::{IntLiteral, Literal};
 
@@ -149,13 +146,5 @@ impl TryFrom<isize> for ABLiteral {
         } else {
             Err(())
         }
-    }
-}
-
-// Into
-
-impl Into<ABClause> for ABLiteral {
-    fn into(self) -> ABClause {
-        vec![self]
     }
 }

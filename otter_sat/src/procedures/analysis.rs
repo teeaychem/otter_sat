@@ -42,7 +42,7 @@ match analysis_result {
 
 use crate::{
     atom_cells::ResolutionOk,
-    config,
+    config::{self},
     context::GenericContext,
     db::ClauseKey,
     misc::log::targets::{self},
@@ -59,6 +59,7 @@ pub enum AnalysisResult {
     MissedPropagation {
         /// The key to the clause.
         key: ClauseKey,
+
         /// The literal asserted by the clause.
         literal: CLiteral,
     },
@@ -89,9 +90,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// For details on conflict analysis see the [analysis](crate::procedures::analysis) procedure.
     pub fn conflict_analysis(&mut self, key: &ClauseKey) -> Result<AnalysisResult, err::ErrorKind> {
         log::info!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.trail.level());
-        log::info!(target: targets::ANALYSIS, "Level: {:?}", self.trail.top_level_assignments());
-        log::info!(target: targets::ANALYSIS, "Valuation: {}", self.valuation_strings().collect::<Vec<_>>()
-            .join(" "));
 
         if let config::vsids::VSIDS::Chaff = self.config.vsids.value {
             crate::db::atom::activity::bump_relative(

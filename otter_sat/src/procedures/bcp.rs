@@ -10,7 +10,7 @@ This is done by examining clauses watching the atom with the opposite polarity a
 
 # Complications
 
-Use is made of [watchers_binary_unchecked](crate::db::atom::AtomDB::watchers_binary_unchecked) and [watchers_long_unchecked](crate::db::atom::AtomDB::watchers_long_unchecked) to obtain pointers to watch lists of interest.
+Use is made of [binary_unchecked](crate::db::watches::Watches::binary_unchecked) and [long_unchecked](crate::db::watches::Watches::long_unchecked) to obtain pointers to watch lists of interest.
 A handful of issues are avoided by doing this:
 1. A mutable borrow of the database for a watch list conflicting with an immutable borrow of the database to obtain the value of an atom.
 2. A mutable borrow of the context conflicting with a mutable borrow to add a literal to the consequence queue.
@@ -59,7 +59,7 @@ use std::borrow::Borrow;
 
 use crate::{
     context::GenericContext,
-    db::{atom::AssignmentStatus, watches::watch_db},
+    db::{atom::ValuationStatus, watches::watch_db},
     misc::log::targets::{self},
     structures::{
         consequence::AssignmentSource,
@@ -96,7 +96,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // Binary clause block.
         {
             // Note, this does not require updating watches.
-            let binary_list = self.watches.watchers_binary_unchecked(literal);
+            let binary_list = self.watches.binary_unchecked(literal);
 
             for element in unsafe { &*binary_list } {
                 let check = element.literal;
@@ -104,13 +104,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 match self.value_of(check.atom()) {
                     None => match self.check_assignment(check) {
-                        AssignmentStatus::None => {
+                        ValuationStatus::None => {
                             self.record_assignment(check, AssignmentSource::BCP(key));
                         }
 
-                        AssignmentStatus::Set => {}
+                        ValuationStatus::Set => {}
 
-                        AssignmentStatus::Conflict => return Err(err::BCPError::Conflict(key)),
+                        ValuationStatus::Conflict => return Err(err::BCPError::Conflict(key)),
                     },
 
                     Some(value) if check.polarity() != value => {
@@ -128,7 +128,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         // Long clause block.
         {
-            let long_list = unsafe { &mut *self.watches.watchers_long_unchecked(literal) };
+            let long_list = unsafe { &mut *self.watches.long_unchecked(literal) };
 
             let mut index = 0;
             let mut length = long_list.len();
@@ -174,13 +174,13 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                                 self.clause_db.note_use(key);
 
                                 match self.check_assignment(watch) {
-                                    AssignmentStatus::None => {
+                                    ValuationStatus::None => {
                                         self.record_assignment(watch, AssignmentSource::BCP(key));
                                     }
 
-                                    AssignmentStatus::Set => {}
+                                    ValuationStatus::Set => {}
 
-                                    AssignmentStatus::Conflict => {
+                                    ValuationStatus::Conflict => {
                                         long_list.split_off(length);
                                         return Err(err::BCPError::Conflict(key));
                                     }

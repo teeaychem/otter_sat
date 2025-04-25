@@ -18,7 +18,7 @@ use super::dbClause;
 
 /// Methods for watched literals of a clause.
 ///
-/// For more details on watched literals see documentation of the [watch_db](crate::db::atom::watch_db) structure.
+/// For more details on watched literals see documentation of the [watch_db](crate::db::watches::watch_db) structure.
 ///
 /// # Implementation notes
 ///

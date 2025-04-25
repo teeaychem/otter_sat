@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use crate::{
     atom_cells::AtomCells,
     config::{Activity, Config},
-    db::{ClauseKey, atom::AssignmentStatus, clause::ClauseDB, trail::Trail, watches::Watches},
+    db::{ClauseKey, atom::ValuationStatus, clause::ClauseDB, trail::Trail, watches::Watches},
     generic::index_heap::IndexHeap,
     misc::log::targets,
     reports::Report,
@@ -45,7 +45,7 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
     /// An [IndexHeap] recording the activty of atoms, where any atom without a value is 'active' on the heap.
     pub atom_activity: IndexHeap<Activity>,
 
-    /// Watch lists for each atom in the form of [WatchDB] structs, indexed by atoms in the `watch_dbs` field.
+    /// Watch lists for each atom in the form of [Watches], indexed by atoms in the `watch_dbs` field.
     pub watches: Watches,
 
     /// The assignments made, in order from initial to most recent.
@@ -140,15 +140,15 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
-    pub fn check_assignment<BLit: Borrow<CLiteral>>(&self, literal: BLit) -> AssignmentStatus {
+    pub fn check_assignment<BLit: Borrow<CLiteral>>(&self, literal: BLit) -> ValuationStatus {
         let literal = literal.borrow();
 
         match self.value_of(literal.atom()) {
-            None => AssignmentStatus::None,
+            None => ValuationStatus::None,
 
-            Some(v) if v == literal.polarity() => AssignmentStatus::Set,
+            Some(v) if v == literal.polarity() => ValuationStatus::Set,
 
-            Some(_) => AssignmentStatus::Conflict,
+            Some(_) => ValuationStatus::Conflict,
         }
     }
 

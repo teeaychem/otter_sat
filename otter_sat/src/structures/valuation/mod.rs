@@ -88,7 +88,7 @@ pub trait Valuation {
     /// An iterator through atoms which do not have some value.
     fn unvalued_atoms(&self) -> impl Iterator<Item = Atom>;
 
-    /// The canonical representation of a valuation as a [vValuation].
+    /// The canonical representation of a valuation as a canonical valuation ([CValuation]).
     fn canonical(&self) -> CValuation;
 
     /// Ensures the first element of the valuation is false.

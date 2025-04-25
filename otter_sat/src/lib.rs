@@ -1,4 +1,3 @@
-// #![warn(missing_docs)]
 /*!
 A library for determining the satisfiability of boolean formulas written in conjunctive normal form.
 
@@ -182,6 +181,7 @@ For example, when used with [env_logger](https://docs.rs/env_logger/latest/env_l
 #![allow(clippy::collapsible_else_if)]
 #![allow(clippy::derivable_impls)]
 // #![allow(unused_imports)]
+// #![warn(missing_docs)]
 
 pub mod builder;
 pub mod procedures;

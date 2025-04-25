@@ -63,15 +63,11 @@ impl Clause for CLiteral {
     }
 
     fn literal_at(&self, index: usize) -> Option<CLiteral> {
-        if index == 0 { Some(self.clone()) } else { None }
+        if index == 0 { Some(*self) } else { None }
     }
 
     unsafe fn literal_at_unchecked(&self, index: usize) -> CLiteral {
-        if index == 0 {
-            self.clone()
-        } else {
-            panic!("!")
-        }
+        if index == 0 { *self } else { panic!("!") }
     }
 
     fn atom_at(&self, index: usize) -> Option<Atom> {

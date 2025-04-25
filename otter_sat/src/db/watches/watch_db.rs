@@ -49,7 +49,7 @@ So, in total each atom has four associated watch lists in it's watch database.
 Note, a unit clause (a clause containing one literal) never watches any atoms.
 
 The [WatchDB] structure does not have any associated mutating methods.
-Instead, mutation of a [WatchDB] is through methods beloning to the [AtomDB](crate::db::atom::AtomDB).
+Instead, mutation of a [WatchDB] is through methods beloning to the [WatchDB].
 Those methods are included in this file in order to access private members of the [WatchDB].
 
 # Use
@@ -79,11 +79,6 @@ For example:
 In principle, this may save unnecessary access to the clause database (as there may be no need to examine the clause).
 Though, at the cost of fragmenting access to the atom database (as a check of the other literal is separate from checks after accessing the clause).
 And, in practice, it seems the cost of fragmentation is greater than that of unnecessary access.
-
-# Safety
-As the [AtomDB](crate::db::atom::AtomDB) methods do not perform a check for whether a [WatchDB] exists for a given atom, these are all marked unsafe.
-
-At present, this is the only use of *unsafe* with respect to [WatchDB]s.
 */
 
 use crate::{db::keys::ClauseKey, structures::literal::CLiteral};

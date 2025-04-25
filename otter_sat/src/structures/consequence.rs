@@ -49,7 +49,7 @@ pub struct Assignment {
     /// The atom-value bind which must hold, represented as a literal.
     pub literal: CLiteral,
 
-    /// The immediate reason why the atom-value pair must be.
+    /// The source of why an atom was assigned the relevant value.
     pub source: AssignmentSource,
 }
 

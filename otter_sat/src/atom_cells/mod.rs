@@ -129,7 +129,7 @@ impl AtomCells {
         self.get_cell(atom).level
     }
 
-    /// Returns the '*previous*' value of the atom from the valuation stored in the [AtomDB].
+    /// Returns the '*previous*' value of the atom.
     ///
     /// When a context is built this value may be random.
     pub fn previous_value_of(&self, atom: Atom) -> bool {
