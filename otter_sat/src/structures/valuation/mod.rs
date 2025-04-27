@@ -59,7 +59,6 @@ mod slice_impl;
 use super::atom::Atom;
 
 /// The canonical representation of a valuation.
-#[allow(non_camel_case_types)]
 pub type CValuation = Vec<Option<bool>>;
 
 /// A valuation is something which stores some value of a atom and/or perhaps the information that the atom has no value.

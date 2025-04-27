@@ -1,5 +1,3 @@
-#![allow(clippy::useless_format)]
-
 use std::{collections::HashSet, fmt::Write};
 
 use crate::{
@@ -108,7 +106,7 @@ impl Transcriber {
 
     /// Transcribes that a clause is active.
     pub fn transcribe_active<C: Clause>(&mut self, key: ClauseKey, clause: &C) {
-        let mut step = format!("f ");
+        let mut step = String::from("f ");
         Transcriber::write_id_to_string(&key, &mut step);
         write!(step, " ");
         self.write_clause_to_string(clause, &mut step);

@@ -1,9 +1,6 @@
-use std::collections::HashSet;
-
 use crate::{
     config::Config,
     context::Context,
-    db::ClauseKey,
     structures::{clause::CClause, literal::CLiteral},
 };
 
@@ -12,16 +9,14 @@ pub struct ContextBundle {
     /// A context.
     pub context: Context,
 
+    /// Assumptions held.
     pub assumptions: Vec<CLiteral>,
 
     /// A buffer to hold the literals of a clause being added to the solver.
     pub clause_buffer: CClause,
 
-    /// The keys to a an unsatisfiable core of the formula.
-    pub core_keys: Vec<ClauseKey>,
-
     /// The literals which occur in the unsatisfiable core identified by [core_keys](ContextBundle::core_keys).
-    pub failed_literals: HashSet<CLiteral>,
+    pub failed_literals: std::collections::HashSet<CLiteral>,
 }
 
 impl ContextBundle {
@@ -29,7 +24,6 @@ impl ContextBundle {
     pub fn keep_fresh(&mut self) {
         match self.context.refresh() {
             true => {
-                self.core_keys.clear();
                 self.failed_literals.clear();
             }
             false => {}
@@ -43,8 +37,7 @@ impl Default for ContextBundle {
             context: Context::from_config(Config::default()),
             assumptions: Vec::default(),
             clause_buffer: Vec::default(),
-            core_keys: Vec::default(),
-            failed_literals: HashSet::default(),
+            failed_literals: std::collections::HashSet::default(),
         }
     }
 }

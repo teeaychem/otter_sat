@@ -12,15 +12,13 @@ Otherwise, if an IPASIR2 function wraps an IPASIR function, initial support is i
 */
 
 use crate::{
-    context::ContextState,
-    db::clause::db_clause::dbClause,
+    db::clause::db_clause::DBClause,
     ipasir::{
-        ContextBundle, IPASIR_SIGNATURE,
-        ipasir_one::{ipasir_failed, ipasir_init, ipasir_set_learn},
+        ContextBundle,
+        ipasir_one::{ipasir_failed, ipasir_init},
     },
-    reports::Report,
     structures::{
-        clause::{CClause, Clause, ClauseSource, IntClause},
+        clause::{Clause, ClauseSource, IntClause},
         literal::{CLiteral, Literal},
     },
 };
@@ -32,7 +30,6 @@ use super::ipasir_one::{
 use std::ffi::{c_char, c_int, c_void};
 
 /// Codes used to indicate the success or failure of a function call.
-#[allow(non_camel_case_types)]
 #[repr(C)]
 pub enum ipasir2_errorcode {
     /// The call succeeded.
@@ -61,7 +58,6 @@ pub enum ipasir2_errorcode {
 }
 
 /// States of the context, these are a subset of [ContextState].
-#[allow(non_camel_case_types)]
 #[repr(C)]
 pub enum ipasir2_state {
     /// The context allows for configuration.
@@ -81,7 +77,6 @@ pub enum ipasir2_state {
 }
 
 /// IPASIR Configuration Options
-#[allow(non_camel_case_types)]
 #[repr(C)]
 pub struct ipasir2_option {
     /// Unique option identifier.
@@ -178,7 +173,6 @@ pub unsafe extern "C" fn ipasir2_set_option(
 /// The `proofmeta` structure is not supported.
 /// # Safety
 /// Recovers a context bundle and takes a clause from raw pointers.
-#[allow(unused_variables)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir2_add(
     solver: *mut c_void,
@@ -303,7 +297,7 @@ pub unsafe extern "C" fn ipasir2_set_export(
     if let Some(callback) = callback {
         let bundle: &mut ContextBundle = unsafe { &mut *(solver as *mut ContextBundle) };
 
-        let callback = Box::new(move |clause: &dbClause, _: &ClauseSource| {
+        let callback = Box::new(move |clause: &DBClause, _: &ClauseSource| {
             if clause.len() < (max_length as usize) {
                 let mut int_clause: Vec<c_int> = clause.literals().map(|l| l.into()).collect();
                 let callback_ptr: *mut i32 = int_clause.as_mut_ptr();
@@ -341,7 +335,7 @@ pub unsafe extern "C" fn ipasir2_delete(
     if let Some(callback) = callback {
         let bundle: &mut ContextBundle = unsafe { &mut *(solver as *mut ContextBundle) };
 
-        let callback = Box::new(move |clause: &dbClause| {
+        let callback = Box::new(move |clause: &DBClause| {
             let callback_ptr: *mut i32 = if cfg!(feature = "boolean") {
                 let mut int_clause: IntClause = clause.literals().map(|l| l.into()).collect();
                 int_clause.as_mut_ptr()

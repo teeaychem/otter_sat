@@ -12,7 +12,6 @@ use crate::{
 };
 
 /// The implementation of a clause as a vector of literals.
-#[allow(non_camel_case_types)]
 pub type ABClause = Vec<ABLiteral>;
 
 impl Clause for ABClause {

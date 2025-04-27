@@ -55,7 +55,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// assert!(ctx.read_dimacs(dimacs.as_slice()).is_ok());
     /// assert!(ctx.solve().is_ok());
     /// ```
-    #[allow(clippy::manual_flatten, unused_labels)]
     pub fn read_dimacs(&mut self, mut reader: impl BufRead) -> Result<ParserInfo, err::ErrorKind> {
         //
         let mut buffer = String::default();

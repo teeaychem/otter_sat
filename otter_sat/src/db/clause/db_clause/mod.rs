@@ -43,9 +43,8 @@ mod subsumption;
 mod watches;
 
 /// A clause together with some metadata.
-#[allow(non_camel_case_types)]
 #[derive(Clone)]
-pub struct dbClause {
+pub struct DBClause {
     /// A key for accessing the clause
     key: ClauseKey,
 
@@ -59,7 +58,7 @@ pub struct dbClause {
     watch_ptr: usize,
 }
 
-impl dbClause {
+impl DBClause {
     /// Bundles a [ClauseKey] and [Clause] into a [dbClause] and initialises non-watch defaults.
     ///
     /// Note:
@@ -89,7 +88,7 @@ impl dbClause {
         cells: &mut AtomCells,
         watches: &mut Watches,
     ) -> Self {
-        let mut db_clause = dbClause {
+        let mut db_clause = DBClause {
             key,
             clause,
             active: true,
@@ -134,13 +133,13 @@ impl dbClause {
 
 // Subsumption
 
-impl std::fmt::Display for dbClause {
+impl std::fmt::Display for DBClause {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.clause.as_dimacs(false))
     }
 }
 
-impl Deref for dbClause {
+impl Deref for DBClause {
     type Target = [CLiteral];
 
     fn deref(&self) -> &Self::Target {
@@ -148,15 +147,15 @@ impl Deref for dbClause {
     }
 }
 
-impl PartialEq for dbClause {
+impl PartialEq for DBClause {
     fn eq(&self, other: &Self) -> bool {
         self.key.eq(&other.key)
     }
 }
 
-impl Eq for dbClause {}
+impl Eq for DBClause {}
 
-impl Hash for dbClause {
+impl Hash for DBClause {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.key.hash(state);
     }

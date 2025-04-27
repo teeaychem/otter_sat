@@ -11,7 +11,7 @@ To run the example (e.g.): cargo run --profile release --example ipasir_conflict
 use otter_sat::{
     config::Config,
     context::Context,
-    db::clause::db_clause::dbClause,
+    db::clause::db_clause::DBClause,
     reports::Report,
     structures::{
         clause::{ClauseSource, IntClause},
@@ -20,7 +20,7 @@ use otter_sat::{
     },
 };
 
-fn addition_hook(clause: &dbClause, _: &ClauseSource) {
+fn addition_hook(clause: &DBClause, _: &ClauseSource) {
     let length = clause.len();
 
     match length {

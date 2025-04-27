@@ -1,11 +1,11 @@
 use crate::{db::ClauseKey, types::err};
 
-use super::{ClauseDB, db_clause::dbClause};
+use super::{ClauseDB, db_clause::DBClause};
 
 /// Methods to get clauses stored in the database.
 impl ClauseDB {
     /// Returns Ok(clause) corresponding to the given key, or an Err(issue) otherwise.
-    pub fn get(&self, key: &ClauseKey) -> Result<&dbClause, err::ClauseDBError> {
+    pub fn get(&self, key: &ClauseKey) -> Result<&DBClause, err::ClauseDBError> {
         match key {
             ClauseKey::OriginalUnit(_) => Err(err::ClauseDBError::GetOriginalUnitKey),
 
@@ -63,7 +63,7 @@ impl ClauseDB {
     }
 
     /// Returns Ok(mutable clause) corresponding to the given key, or an Err(issue) otherwise.
-    pub fn get_mut(&mut self, key: &ClauseKey) -> Result<&mut dbClause, err::ClauseDBError> {
+    pub fn get_mut(&mut self, key: &ClauseKey) -> Result<&mut DBClause, err::ClauseDBError> {
         match key {
             ClauseKey::OriginalUnit(_) => match self.unit_original.get_mut(key) {
                 Some(clause) => Ok(clause),
@@ -130,7 +130,7 @@ impl ClauseDB {
     /// No check is made on whether a clause is stored by the key.
     /// So, to be used only when there is a guarantee that the clause has not been removed.
     /// E.g., It is always safe to use with binary clauses, but not with long addition clauses, as these may be removed.
-    pub unsafe fn get_unchecked(&self, key: &ClauseKey) -> &dbClause {
+    pub unsafe fn get_unchecked(&self, key: &ClauseKey) -> &DBClause {
         match key {
             ClauseKey::OriginalUnit(_) => match self.unit_original.get(key) {
                 Some(clause) => clause,
@@ -171,7 +171,7 @@ impl ClauseDB {
     ///
     /// # Safety
     /// Does not check for a clause, nor the token of a addition key.
-    pub unsafe fn get_unchecked_mut(&mut self, key: &ClauseKey) -> &mut dbClause {
+    pub unsafe fn get_unchecked_mut(&mut self, key: &ClauseKey) -> &mut DBClause {
         match key {
             ClauseKey::OriginalUnit(_) => {
                 //

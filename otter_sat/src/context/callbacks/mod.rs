@@ -7,7 +7,7 @@ use std::collections::HashSet;
 
 use super::GenericContext;
 use crate::{
-    db::{ClauseKey, clause::db_clause::dbClause},
+    db::{ClauseKey, clause::db_clause::DBClause},
     structures::{clause::ClauseSource, literal::CLiteral},
 };
 
@@ -15,10 +15,10 @@ use crate::{
 pub type CallbackOnPremises = dyn FnMut(&HashSet<ClauseKey>);
 
 /// The type of callback made on a clause and source of that clause.
-pub type CallbackOnClauseSource = dyn FnMut(&dbClause, &ClauseSource);
+pub type CallbackOnClauseSource = dyn FnMut(&DBClause, &ClauseSource);
 
 /// The type of callback made on a clause.
-pub type CallbackOnClause = dyn FnMut(&dbClause);
+pub type CallbackOnClause = dyn FnMut(&DBClause);
 
 /// The type of callback made on a literal.
 pub type CallbackOnLiteral = dyn FnMut(CLiteral);

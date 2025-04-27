@@ -10,9 +10,9 @@ use crate::{
     types::err::{self},
 };
 
-use super::dbClause;
+use super::DBClause;
 
-impl dbClause {
+impl DBClause {
     /*
     For the moment subsumption does not allow subsumption to a unit clause
 

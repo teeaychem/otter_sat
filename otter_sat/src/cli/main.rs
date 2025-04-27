@@ -36,7 +36,7 @@ use std::{
 use otter_sat::{
     config::{Activity, Config, PolarityLean, StoppingCriteria, vsids::VSIDS},
     context::Context,
-    db::{ClauseKey, clause::db_clause::dbClause},
+    db::{ClauseKey, clause::db_clause::DBClause},
     generic::luby::LubyRepresentation,
     reports::{
         Report,
@@ -141,14 +141,14 @@ fn frat_setup(cnf_path: &Path, ctx: &mut Context) -> Rc<RefCell<Transcriber>> {
     let tx = std::rc::Rc::new(std::cell::RefCell::new(transcriber));
 
     let addition_tx = tx.clone();
-    let addition_cb = move |clause: &dbClause, source: &ClauseSource| {
+    let addition_cb = move |clause: &DBClause, source: &ClauseSource| {
         transcribe_addition(&mut addition_tx.borrow_mut(), clause, source)
     };
     ctx.set_callback_addition(Box::new(addition_cb));
 
     let deletion_tx = tx.clone();
     let deletion_cb =
-        move |clause: &dbClause| transcribe_deletion(&mut deletion_tx.borrow_mut(), clause);
+        move |clause: &DBClause| transcribe_deletion(&mut deletion_tx.borrow_mut(), clause);
     ctx.set_callback_delete(Box::new(deletion_cb));
 
     let resolution_tx = tx.clone();
@@ -159,7 +159,7 @@ fn frat_setup(cnf_path: &Path, ctx: &mut Context) -> Rc<RefCell<Transcriber>> {
         .set_callback_resolution_premises(Box::new(resolution_cb));
 
     let unsatisfiable_tx = tx.clone();
-    let unsatisfiable_cb = move |clause: &dbClause| {
+    let unsatisfiable_cb = move |clause: &DBClause| {
         transcribe_unsatisfiable(&mut unsatisfiable_tx.borrow_mut(), clause)
     };
     ctx.set_callback_unsatisfiable(Box::new(unsatisfiable_cb));

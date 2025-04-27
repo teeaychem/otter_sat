@@ -457,7 +457,6 @@ impl Nonogram {
     }
 
     #[rustfmt::skip]
-    #[allow(clippy::needless_range_loop)]
     fn row_clauses(&mut self) -> Vec<CClause> {
         let mut clauses: Vec<CClause> = vec![];
 
@@ -472,13 +471,13 @@ impl Nonogram {
 
             clauses.append(&mut row_clauses);
 
-            for block_idx in 0..row.len() {
+            for (block_idx, block) in row.iter().enumerate() {
                 let mut block_clauses = vec![];
                 block_clauses.push(self.row_clauses_block_starts_somewhere(row_idx, block_idx));
                 block_clauses.push(vec![self.block_length_row_literal(
                     row_idx,
                     block_idx,
-                    row[block_idx],
+                    *block,
                     true,
                 )]);
 
@@ -703,7 +702,6 @@ impl Nonogram {
     }
 
     #[rustfmt::skip]
-    #[allow(clippy::needless_range_loop)]
     fn col_clauses(&mut self) -> Vec<CClause> {
         let mut clauses: Vec<CClause> = vec![];
 
@@ -718,13 +716,13 @@ impl Nonogram {
 
             clauses.append(&mut col_clauses);
 
-            for block_idx in 0..col.len() {
+            for (block_idx, block) in col.iter().enumerate() {
                 let mut block_clauses = vec![];
                 block_clauses.push(self.col_clauses_block_starts_somewhere(col_idx, block_idx));
                 block_clauses.push(vec![self.block_length_col_literal(
                     col_idx,
                     block_idx,
-                    col[block_idx],
+                    *block,
                     true,
                 )]);
 

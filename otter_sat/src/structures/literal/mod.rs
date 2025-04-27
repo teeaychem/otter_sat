@@ -52,7 +52,6 @@ assert_eq!(canonical_literal, int_literal);
 ```
 */
 
-#[allow(non_snake_case)]
 #[doc(hidden)]
 mod ab_literal;
 pub use ab_literal::ABLiteral;

@@ -6,13 +6,12 @@ For a general overview, see the [ipasir module](crate::ipasir).
 
 use crate::{
     context::ContextState,
-    db::{ClauseKey, clause::db_clause::dbClause},
+    db::clause::db_clause::DBClause,
     ipasir::{ContextBundle, IPASIR_SIGNATURE},
     reports::Report,
     structures::{
-        atom::Atom,
-        clause::{CClause, Clause, ClauseSource},
-        literal::{ABLiteral, CLiteral, Literal},
+        clause::{Clause, ClauseSource},
+        literal::{CLiteral, Literal},
     },
 };
 use std::ffi::{c_char, c_int, c_void};
@@ -73,7 +72,6 @@ pub unsafe extern "C" fn ipasir_release(solver: *mut c_void) {
 ///
 /// # Safety
 /// Recovers a context bundle and takes a clause from raw pointers.
-#[allow(unused_variables)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir_add(solver: *mut c_void, lit_or_zero: c_int) {
     let bundle: &mut ContextBundle = unsafe { &mut *(solver as *mut ContextBundle) };
@@ -234,7 +232,7 @@ pub unsafe extern "C" fn ipasir_set_learn(
     if let Some(callback) = learn {
         let bundle: &mut ContextBundle = unsafe { &mut *(solver as *mut ContextBundle) };
 
-        let callback_addition = Box::new(move |clause: &dbClause, _: &ClauseSource| {
+        let callback_addition = Box::new(move |clause: &DBClause, _: &ClauseSource| {
             if clause.len() <= (max_length as usize) {
                 let mut int_clause: Vec<c_int> = clause.literals().map(|l| l.into()).collect();
                 int_clause.push(0);
@@ -245,7 +243,7 @@ pub unsafe extern "C" fn ipasir_set_learn(
 
         bundle.context.set_callback_addition(callback_addition);
 
-        let callback_original = Box::new(move |clause: &dbClause, _: &ClauseSource| {
+        let callback_original = Box::new(move |clause: &DBClause, _: &ClauseSource| {
             if clause.len() <= (max_length as usize) {
                 let mut int_clause: Vec<c_int> = clause.literals().map(|l| l.into()).collect();
                 int_clause.push(0);

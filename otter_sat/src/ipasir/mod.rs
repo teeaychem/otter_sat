@@ -7,7 +7,7 @@ Information about the APIs may be found at:
 - <https://github.com/biotomas/ipasir>, for IPASIR.
 - <https://github.com/ipasir2/ipasir2>, for IPASIR2.
 
-Note, 'solver' and 'context' are synonymous in this module.\
+Note, 'solver' and 'context' are mostly synonymous in this module.\
 Though, strictly, 'solver' is only used as, or when referring to, the parameter of an API function, and 'context' is only used to refer to an instance of the context structure.
 
 # Compiling a library
@@ -33,28 +33,12 @@ These structs are primarily used to buffer or cache information that a context h
 Each IPASIR callback is implemented as a closure over some native callback.
 */
 
-use std::{
-    collections::{HashMap, HashSet},
-    ffi::{c_int, c_void},
-    sync::OnceLock,
-};
-
-use crate::{
-    config::Config,
-    context::Context,
-    db::ClauseKey,
-    structures::{
-        atom::Atom,
-        clause::{CClause, Clause, IntClause},
-        literal::CLiteral,
-    },
-};
-
+#[doc(hidden)]
 mod context_bundle;
 pub use context_bundle::ContextBundle;
 
 pub mod ipasir_one;
 pub mod ipasir_two;
 
-/// The signature of the solver, written (once) when needed using [env!].
-pub static IPASIR_SIGNATURE: OnceLock<std::ffi::CString> = OnceLock::new();
+/// The signature of the solver, derived from Cargo.toml (once) when needed using [env!].
+pub static IPASIR_SIGNATURE: std::sync::OnceLock<std::ffi::CString> = std::sync::OnceLock::new();
