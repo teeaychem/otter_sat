@@ -203,5 +203,5 @@ pub mod misc;
 
 pub mod preprocessing;
 
-#[allow(dead_code, unused_variables, unused_imports)]
+#[allow(non_camel_case_types, unused_variables)]
 pub mod ipasir;

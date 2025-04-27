@@ -4,7 +4,7 @@ use crate::{
     atom_cells::AtomCells,
     db::{
         ClauseKey, FormulaIndex,
-        clause::{activity_glue::ActivityLBD, db_clause::dbClause},
+        clause::{activity_glue::ActivityLBD, db_clause::DBClause},
         watches::Watches,
     },
     misc::log::targets,
@@ -68,7 +68,7 @@ impl ClauseDB {
         match source {
             ClauseSource::Original => {
                 let key = ClauseKey::OriginalUnit(literal);
-                let clause = dbClause::new_unit(key, literal);
+                let clause = DBClause::new_unit(key, literal);
 
                 self.make_callback_original(&clause, &source);
                 self.unit_original.insert(key, clause);
@@ -78,7 +78,7 @@ impl ClauseDB {
 
             ClauseSource::BCP => {
                 let key = ClauseKey::AdditionUnit(literal);
-                let clause = dbClause::new_unit(key, literal);
+                let clause = DBClause::new_unit(key, literal);
 
                 self.make_callback_addition(&clause, &source);
                 self.unit_addition.insert(key, clause);
@@ -90,7 +90,7 @@ impl ClauseDB {
 
             ClauseSource::Resolution => {
                 let key = ClauseKey::AdditionUnit(literal);
-                let clause = dbClause::new_unit(key, literal);
+                let clause = DBClause::new_unit(key, literal);
                 self.make_callback_addition(&clause, &source);
                 self.unit_addition.insert(key, clause);
 
@@ -113,7 +113,7 @@ impl ClauseDB {
         match source {
             ClauseSource::Original => {
                 let key = self.fresh_original_binary_key()?;
-                let clause = dbClause::new_nonunit(key, clause, cells, watches);
+                let clause = DBClause::new_nonunit(key, clause, cells, watches);
 
                 self.make_callback_original(&clause, &source);
                 self.binary_original.push(clause);
@@ -123,7 +123,7 @@ impl ClauseDB {
 
             ClauseSource::BCP | ClauseSource::Resolution => {
                 let key = self.fresh_addition_binary_key()?;
-                let clause = dbClause::new_nonunit(key, clause, cells, watches);
+                let clause = DBClause::new_nonunit(key, clause, cells, watches);
 
                 self.make_callback_addition(&clause, &source);
                 self.binary_addition.push(clause);
@@ -152,7 +152,7 @@ impl ClauseDB {
 
                 log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
 
-                let db_clause = dbClause::new_nonunit(key, clause, cells, watches);
+                let db_clause = DBClause::new_nonunit(key, clause, cells, watches);
                 self.make_callback_original(&db_clause, &source);
 
                 self.original.push(db_clause);
@@ -169,7 +169,7 @@ impl ClauseDB {
 
                 log::trace!(target: targets::CLAUSE_DB, "{key}: {}", clause.as_dimacs(false));
 
-                let stored_form = dbClause::new_nonunit(key, clause, cells, watches);
+                let stored_form = DBClause::new_nonunit(key, clause, cells, watches);
                 self.make_callback_addition(&stored_form, &source);
 
                 let value = ActivityLBD {

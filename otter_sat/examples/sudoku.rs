@@ -234,18 +234,18 @@ fn add_clauses_each_subgrid_has_all_values(
 }
 
 /// To detail the puzzle, unit clauses are added to represent the existing values.
-#[allow(clippy::needless_range_loop)]
 fn add_clauses_detailing_puzzle(
     context: &mut Context,
     cell_map: &mut HashMap<String, Atom>,
     puzzle: SudokuGrid,
 ) {
-    for row in 0..GRID_SIZE {
-        for col in 0..GRID_SIZE {
-            let value = puzzle[row][col];
-            if value != 0 {
-                let clause =
-                    CLiteral::new(cell_atom(row + 1, col + 1, value, context, cell_map), true);
+    for (row_index, row) in puzzle.iter().enumerate() {
+        for (col_index, value) in row.iter().enumerate() {
+            if *value != 0 {
+                let clause = CLiteral::new(
+                    cell_atom(row_index + 1, col_index + 1, *value, context, cell_map),
+                    true,
+                );
                 match context.add_clause(clause) {
                     Ok(_) => {}
                     Err(e) => panic!("Failed to add clause: {e:?}"),
@@ -291,12 +291,11 @@ fn valuation_to_grid(valuation: Vec<IntLiteral>, cell_map: &HashMap<String, Atom
     solution
 }
 
-#[allow(clippy::needless_range_loop)]
 fn validate_solution(solution: SudokuGrid) -> bool {
     // Every cell has a value
-    for row in 0..GRID_SIZE {
-        for col in 0..GRID_SIZE {
-            if solution[row][col] == 0 {
+    for row in solution {
+        for col in row {
+            if col == 0 {
                 return false;
             }
         }

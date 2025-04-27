@@ -3,7 +3,7 @@ use crate::{
     structures::{clause::ClauseSource, literal::CLiteral},
 };
 
-use super::{ClauseDB, db_clause::dbClause};
+use super::{ClauseDB, db_clause::DBClause};
 
 impl ClauseDB {
     /// Set a callback to be made when an original clause is added to the context.
@@ -34,14 +34,14 @@ impl ClauseDB {
 
 impl ClauseDB {
     /// Make the callback to be made when an original clause is added to the context.
-    pub fn make_callback_original(&mut self, clause: &dbClause, source: &ClauseSource) {
+    pub fn make_callback_original(&mut self, clause: &DBClause, source: &ClauseSource) {
         if let Some(callback) = &mut self.callback_original {
             callback(clause, source);
         }
     }
 
     /// Make the callback set to be made when an addition clause is added to the context.
-    pub fn make_callback_addition(&mut self, clause: &dbClause, source: &ClauseSource) {
+    pub fn make_callback_addition(&mut self, clause: &DBClause, source: &ClauseSource) {
         if let Some(callback) = &mut self.callback_addition {
             callback(clause, source);
         }
@@ -55,14 +55,14 @@ impl ClauseDB {
     }
 
     /// Make the callback set to be made when a clause is deleted from the context.
-    pub fn make_callback_delete(&mut self, clause: &dbClause) {
+    pub fn make_callback_delete(&mut self, clause: &DBClause) {
         if let Some(callback) = &mut self.callback_delete {
             callback(clause);
         }
     }
 
     /// Make the callback set to be made when the context is identified as unsatisfiable.
-    pub fn make_callback_unsatisfiable(&mut self, clause: &dbClause) {
+    pub fn make_callback_unsatisfiable(&mut self, clause: &DBClause) {
         if let Some(callback) = &mut self.callback_unsatisfiable {
             callback(clause);
         }

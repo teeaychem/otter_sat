@@ -4,7 +4,6 @@ use crate::{
     structures::atom::Atom,
 };
 
-#[allow(non_snake_case)]
 /// Bumps the activities of each atom in the given iterator, and increases the bump for next time.
 ///
 /// If the bumped activity would be greater than the maximum allowed activity, the activity of every atom is rescored.

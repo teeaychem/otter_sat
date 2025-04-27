@@ -122,6 +122,16 @@ pub enum WatchStatus {
     Conflict,
 }
 
+/// The status of a watch pointer, relative to some attempted update.
+#[derive(Clone, Copy, PartialEq)]
+pub enum WatchPointerStatus {
+    /// The pointer was moved to a new literal.
+    Moved,
+
+    /// The pointer was not moved to a new literal.
+    Unmoved,
+}
+
 /// The watchers of an atom, distinguished by length of clause and which value of the atom is under watch.
 pub struct WatchDB {
     /// A watch from a binary clause for a value of `true`.

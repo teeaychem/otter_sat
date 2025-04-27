@@ -13,7 +13,7 @@ mod store;
 
 use std::collections::HashMap;
 
-use db_clause::dbClause;
+use db_clause::DBClause;
 
 use crate::{
     config::{Config, dbs::ClauseDBConfig},
@@ -44,22 +44,22 @@ pub struct ClauseDB {
     empty_keys: Vec<ClauseKey>,
 
     /// Original unit clauses.
-    unit_original: HashMap<ClauseKey, dbClause>,
+    unit_original: HashMap<ClauseKey, DBClause>,
 
     /// Additionl unit clauses.
-    unit_addition: HashMap<ClauseKey, dbClause>,
+    unit_addition: HashMap<ClauseKey, DBClause>,
 
     /// Binary clauses.
-    binary_original: Vec<dbClause>,
+    binary_original: Vec<DBClause>,
 
     /// Binary clauses.
-    binary_addition: Vec<dbClause>,
+    binary_addition: Vec<DBClause>,
 
     /// Original clauses.
-    original: Vec<dbClause>,
+    original: Vec<DBClause>,
 
     /// Addition clauses.
-    addition: Vec<Option<dbClause>>,
+    addition: Vec<Option<DBClause>>,
 
     /// An activity heap of addition clause keys.
     activity_heap: IndexHeap<ActivityLBD>,

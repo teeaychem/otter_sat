@@ -3,11 +3,11 @@
 use crate::{
     atom_cells::AtomCells,
     config::LBD,
-    db::clause::db_clause::dbClause,
+    db::clause::db_clause::DBClause,
     structures::{atom::Atom, clause::Clause, literal::CLiteral, valuation::Valuation},
 };
 
-impl Clause for dbClause {
+impl Clause for DBClause {
     fn as_dimacs(&self, zero: bool) -> String {
         self.clause().as_dimacs(zero)
     }

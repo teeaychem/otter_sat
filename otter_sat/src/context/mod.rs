@@ -44,7 +44,6 @@ pub use specific::Context;
 
 use crate::db::ClauseKey;
 
-#[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// The state of a context.
 /// These states correspond to the states defined in the IPASIR2 specification.

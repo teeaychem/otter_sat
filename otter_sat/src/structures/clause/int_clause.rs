@@ -12,7 +12,6 @@ use crate::{
 };
 
 /// The implementation of a clause as a vector of integers.
-#[allow(non_camel_case_types)]
 pub type IntClause = Vec<IntLiteral>;
 
 impl Clause for IntClause {

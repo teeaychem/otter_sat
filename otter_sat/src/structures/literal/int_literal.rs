@@ -3,7 +3,6 @@ use crate::structures::atom::Atom;
 use super::{ABLiteral, Literal};
 
 /// The representation of a literal as an atom paired with a boolean.
-#[allow(non_camel_case_types)]
 pub type IntLiteral = i32;
 
 impl Literal for IntLiteral {

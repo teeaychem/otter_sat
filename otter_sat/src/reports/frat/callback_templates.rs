@@ -9,14 +9,14 @@ For examples of use, see the bundled otter_cli.
 use std::collections::HashSet;
 
 use crate::{
-    db::{ClauseKey, clause::db_clause::dbClause},
+    db::{ClauseKey, clause::db_clause::DBClause},
     structures::clause::ClauseSource,
 };
 
 use super::Transcriber;
 
 /// Transcribe the addition of an original or addition clause to the context.
-pub fn transcribe_addition(tx: &mut Transcriber, clause: &dbClause, source: &ClauseSource) {
+pub fn transcribe_addition(tx: &mut Transcriber, clause: &DBClause, source: &ClauseSource) {
     match source {
         ClauseSource::BCP => {
             if let ClauseKey::AdditionUnit(literal) = clause.key() {
@@ -36,7 +36,7 @@ pub fn transcribe_addition(tx: &mut Transcriber, clause: &dbClause, source: &Cla
 }
 
 /// Transcribe the deletion of a clause from the context.
-pub fn transcribe_deletion(tx: &mut Transcriber, clause: &dbClause) {
+pub fn transcribe_deletion(tx: &mut Transcriber, clause: &DBClause) {
     tx.transcribe_clause('d', clause.key(), clause, false);
 
     tx.flush()
@@ -48,6 +48,6 @@ pub fn transcribe_premises(tx: &mut Transcriber, premises: &HashSet<ClauseKey>) 
 }
 
 /// Transcribe the relevant information to highlight that an unsatisfiable clause has been derived.
-pub fn transcribe_unsatisfiable(tx: &mut Transcriber, _clause: &dbClause) {
+pub fn transcribe_unsatisfiable(tx: &mut Transcriber, _clause: &DBClause) {
     tx.transcribe_unsatisfiable_clause();
 }

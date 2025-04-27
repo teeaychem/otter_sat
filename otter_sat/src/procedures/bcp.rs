@@ -59,7 +59,10 @@ use std::borrow::Borrow;
 
 use crate::{
     context::GenericContext,
-    db::{atom::ValuationStatus, watches::watch_db},
+    db::{
+        atom::ValuationStatus,
+        watches::watch_db::{self, WatchPointerStatus},
+    },
     misc::log::targets::{self},
     structures::{
         consequence::AssignmentSource,
@@ -158,7 +161,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                         return Err(err::BCPError::CorruptWatch);
                     }
 
-                    Err(()) => {
+                    Err(WatchPointerStatus::Unmoved) => {
                         // After the call to update_watch, any atom without a value will be in position 0.
                         let watch = *unsafe { db_clause.get_unchecked(0) };
 
@@ -190,6 +193,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             Some(_) => {}
                         }
                     }
+
+                    Err(WatchPointerStatus::Moved) => panic!("! Handled by an Ok"),
                 }
 
                 index += 1;

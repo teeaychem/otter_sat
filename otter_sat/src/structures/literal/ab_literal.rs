@@ -3,7 +3,6 @@ use crate::structures::atom::{ATOM_MAX, Atom};
 use super::{IntLiteral, Literal};
 
 /// The representation of a literal as an atom paired with a boolean.
-#[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
 pub struct ABLiteral {
     /// The atom of a literal.

@@ -4,7 +4,7 @@ use crate::{
         keys::ClauseKey,
         watches::{
             Watches,
-            watch_db::{BinaryWatch, LongWatch, WatchStatus},
+            watch_db::{BinaryWatch, LongWatch, WatchPointerStatus, WatchStatus},
         },
     },
     structures::{
@@ -14,7 +14,7 @@ use crate::{
     },
 };
 
-use super::dbClause;
+use super::DBClause;
 
 /// Methods for watched literals of a clause.
 ///
@@ -41,7 +41,7 @@ use super::dbClause;
 /// After any update to the watched literals, the first literal has no value on the current valuation, if possible.
 /// </div>
 ///
-impl dbClause {
+impl DBClause {
     /// Returns the first watched literal (of two).
     pub fn get_watch_a(&self) -> &CLiteral {
         // # Safety:  db clauses have at least two literals
@@ -172,13 +172,12 @@ impl dbClause {
     }
 
     /// Updates the watched literals, given an atom whose value has been set.
-    #[allow(clippy::result_unit_err)]
     pub fn update_watch(
         &mut self,
         atom: Atom,
         valuation: &impl Valuation,
         watches: &mut Watches,
-    ) -> Result<WatchStatus, ()> {
+    ) -> Result<WatchStatus, WatchPointerStatus> {
         let watch_ptr_cache = self.watch_ptr;
         let clause_length = self.clause.len();
 
@@ -223,7 +222,7 @@ impl dbClause {
 
             // If no update was made
             if self.watch_ptr == watch_ptr_cache {
-                break Err(());
+                break Err(WatchPointerStatus::Unmoved);
             }
         }
     }
