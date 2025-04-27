@@ -222,7 +222,6 @@ pub unsafe extern "C" fn ipasir_set_terminate(
 /// # Safety
 /// Recovers a context bundle from a raw pointer.
 #[unsafe(no_mangle)]
-#[allow(clippy::useless_conversion)]
 pub unsafe extern "C" fn ipasir_set_learn(
     solver: *mut c_void,
     data: *mut c_void,

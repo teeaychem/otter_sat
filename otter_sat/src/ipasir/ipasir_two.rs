@@ -285,7 +285,6 @@ pub unsafe extern "C" fn ipasir2_set_terminate(
 /// # Safety
 /// Recovers a context bundle and reads from multiple C pointers.
 #[unsafe(no_mangle)]
-#[allow(clippy::useless_conversion)]
 pub unsafe extern "C" fn ipasir2_set_export(
     solver: *mut c_void,
     data: *mut c_void,
@@ -323,7 +322,6 @@ pub unsafe extern "C" fn ipasir2_set_export(
 ///
 /// # Safety
 /// Recovers a context bundle and reads from multiple C pointers.
-#[allow(clippy::useless_conversion)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ipasir2_delete(
     solver: *mut c_void,
