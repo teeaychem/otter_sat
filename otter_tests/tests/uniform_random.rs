@@ -1,7 +1,8 @@
 use otter_sat::{config::Config, reports::Report};
 
-use otter_tests::{cnf_lib_subdir, silent_on_directory};
+use otter_tests::general::{cnf_lib_subdir, silent_on_directory};
 
+#[cfg(test)]
 mod three_sat {
 
     use super::*;
@@ -83,6 +84,7 @@ mod three_sat {
     }
 }
 
+#[cfg(test)]
 mod three_sat_and_backbone_minimal_subinstances {
     use super::*;
 

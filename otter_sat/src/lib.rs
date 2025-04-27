@@ -203,5 +203,5 @@ pub mod misc;
 
 pub mod preprocessing;
 
-#[allow(non_camel_case_types, unused_variables)]
+#[allow(non_camel_case_types, unused_variables, clippy::useless_conversion)]
 pub mod ipasir;
