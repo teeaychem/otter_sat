@@ -1,5 +1,5 @@
 use otter_sat::{config::Config, reports::Report};
-use otter_tests::{cnf_lib_subdir, silent_formula_report, silent_on_directory};
+use otter_tests::general::{cnf_lib_subdir, silent_formula_report, silent_on_directory};
 
 #[test]
 fn aim() {
@@ -107,58 +107,6 @@ fn dubois() {
     );
 }
 
-mod graph_colouring {
-    use super::*;
-
-    #[test]
-    #[ignore = "expensive"]
-    fn one_two_five_one_seven() {
-        assert_eq!(
-            Report::Satisfiable,
-            silent_formula_report(
-                cnf_lib_subdir(vec!["SATLIB", "DIMACS", "GCP", "g125.17.cnf.xz"]),
-                &Config::default()
-            )
-        );
-    }
-
-    #[test]
-    #[ignore = "expensive"]
-    fn one_two_five_one_eight() {
-        assert_eq!(
-            Report::Satisfiable,
-            silent_formula_report(
-                cnf_lib_subdir(vec!["SATLIB", "DIMACS", "GCP", "g125.18.cnf.xz"]),
-                &Config::default()
-            )
-        );
-    }
-
-    #[test]
-    #[ignore = "expensive"]
-    fn two_five_zero_one_five() {
-        assert_eq!(
-            Report::Satisfiable,
-            silent_formula_report(
-                cnf_lib_subdir(vec!["SATLIB", "DIMACS", "GCP", "g250.15.cnf.xz"]),
-                &Config::default()
-            )
-        );
-    }
-
-    #[test]
-    #[ignore = "expensive"]
-    fn two_five_zero_two_nine() {
-        assert_eq!(
-            Report::Satisfiable,
-            silent_formula_report(
-                cnf_lib_subdir(vec!["SATLIB", "DIMACS", "GCP", "g250.29.cnf.xz"]),
-                &Config::default()
-            )
-        );
-    }
-}
-
 #[test]
 fn hanoi() {
     silent_on_directory(
@@ -243,154 +191,60 @@ fn jnh() {
 }
 
 #[test]
-#[ignore = "expensive"]
-fn lran600() {
-    let report = silent_formula_report(
-        cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN", "f600.cnf.xz"]),
-        &Config::default(),
-    );
-    assert_eq!(report, Report::Satisfiable);
-}
-
-#[test]
-#[ignore = "expensive"]
-fn lran1000() {
-    let report = silent_formula_report(
-        cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN", "f1000.cnf.xz"]),
-        &Config::default(),
-    );
-    assert_eq!(report, Report::Satisfiable);
-}
-
-#[test]
-#[ignore = "expensive"]
-fn lran2000() {
-    let report = silent_formula_report(
-        cnf_lib_subdir(vec!["SATLIB", "DIMACS", "LRAN", "f2000.cnf.xz"]),
-        &Config::default(),
-    );
-    assert_eq!(report, Report::Satisfiable);
-}
-
-mod parity {
-    use super::*;
-
-    #[test]
-    fn eight() {
-        let mut formulas = Vec::new();
-        for index in 1..6 {
-            formulas.push(format!("par8-{index}.cnf.xz"));
-        }
-
-        let mut ok_count = 0;
-        for formula in &formulas {
-            assert_eq!(
-                Report::Satisfiable,
-                silent_formula_report(
-                    cnf_lib_subdir(vec!["SATLIB", "DIMACS", "PARITY"]).join(formula),
-                    &Config::default()
-                )
-            );
-            ok_count += 1;
-        }
-        assert_eq!(ok_count, formulas.len());
-    }
-
-    #[test]
-    fn sixteen() {
-        let mut formulas = Vec::new();
-        for index in 1..6 {
-            formulas.push(format!("par16-{index}.cnf.xz"));
-        }
-
-        let mut ok_count = 0;
-        for formula in &formulas {
-            assert_eq!(
-                Report::Satisfiable,
-                silent_formula_report(
-                    cnf_lib_subdir(vec!["SATLIB", "DIMACS", "PARITY"]).join(formula),
-                    &Config::default()
-                )
-            );
-            ok_count += 1;
-        }
-        assert_eq!(ok_count, formulas.len());
-    }
-
-    #[test]
-    #[ignore = "expensive"]
-    fn thirty_two() {
-        let mut formulas = Vec::new();
-        for index in 1..6 {
-            formulas.push(format!("par32-{index}.cnf.xz"));
-        }
-
-        let mut ok_count = 0;
-        for formula in &formulas {
-            assert_eq!(
-                Report::Satisfiable,
-                silent_formula_report(
-                    cnf_lib_subdir(vec!["SATLIB", "DIMACS", "PARITY"]).join(formula),
-                    &Config::default()
-                )
-            );
-            ok_count += 1;
-        }
-        assert_eq!(ok_count, formulas.len());
-    }
-}
-
-mod phole {
-    use super::*;
-
-    #[test]
-    fn normal() {
-        let formulas = ["hole6.cnf.xz", "hole7.cnf.xz", "hole8.cnf.xz"];
-
-        let mut ok_count = 0;
-        for formula in formulas {
-            assert_eq!(
-                Report::Unsatisfiable,
-                silent_formula_report(
-                    cnf_lib_subdir(vec!["SATLIB", "DIMACS", "PHOLE"]).join(formula),
-                    &Config::default()
-                )
-            );
-            ok_count += 1;
-        }
-        assert_eq!(ok_count, formulas.len());
-    }
-
-    #[test]
-    #[ignore = "expensive"]
-    fn tough_nine() {
-        assert_eq!(
-            Report::Unsatisfiable,
-            silent_formula_report(
-                cnf_lib_subdir(vec!["SATLIB", "DIMACS", "PHOLE", "hole9.cnf.xz"]),
-                &Config::default()
-            )
-        );
-    }
-
-    #[test]
-    #[ignore = "expensive"]
-    fn tough_ten() {
-        assert_eq!(
-            Report::Unsatisfiable,
-            silent_formula_report(
-                cnf_lib_subdir(vec!["SATLIB", "DIMACS", "PHOLE", "hole10.cnf.xz"]),
-                &Config::default()
-            )
-        );
-    }
-}
-
-#[test]
 fn pret() {
     silent_on_directory(
         cnf_lib_subdir(vec!["SATLIB", "DIMACS", "PRET"]),
         &Config::default(),
         Report::Unsatisfiable,
     );
+}
+
+#[test]
+fn all_interval_series() {
+    let pass = silent_on_directory(
+        cnf_lib_subdir(vec!["SATLIB", "ais"]),
+        &Config::default(),
+        Report::Satisfiable,
+    );
+    assert_eq!(pass, 4);
+}
+
+#[test]
+fn bounded_model_check() {
+    silent_on_directory(
+        cnf_lib_subdir(vec!["SATLIB", "bmc"]),
+        &Config::default(),
+        Report::Satisfiable,
+    );
+}
+
+#[test]
+fn beijing() {
+    let collection_path = cnf_lib_subdir(vec!["SATLIB", "beijing"]);
+
+    let satisfiable_formulas = [
+        "2bitcomp_5.cnf.xz",
+        "2bitmax_6.cnf.xz",
+        "3bitadd_31.cnf.xz",
+        "3bitadd_32.cnf.xz",
+        "3blocks.cnf.xz",
+        "4blocks.cnf.xz",
+        "4blocksb.cnf.xz",
+        "e0ddr2-10-by-5-1.cnf.xz",
+        "e0ddr2-10-by-5-4.cnf.xz",
+        "enddr2-10-by-5-1.cnf.xz",
+        "enddr2-10-by-5-8.cnf.xz",
+        "ewddr2-10-by-5-1.cnf.xz",
+        "ewddr2-10-by-5-8.cnf.xz",
+    ];
+
+    let mut count = 0;
+    for formula in satisfiable_formulas {
+        assert_eq!(
+            Report::Satisfiable,
+            silent_formula_report(collection_path.join(formula), &Config::default())
+        );
+        count += 1;
+    }
+    assert_eq!(count, satisfiable_formulas.len());
 }
