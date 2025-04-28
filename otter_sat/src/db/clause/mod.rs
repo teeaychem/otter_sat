@@ -18,10 +18,7 @@ use db_clause::DBClause;
 use crate::{
     config::{Config, dbs::ClauseDBConfig},
     context::callbacks::{CallbackOnClause, CallbackOnClauseSource, CallbackOnLiteral},
-    db::{
-        clause::activity_glue::ActivityLBD,
-        keys::{ClauseKey, FormulaIndex},
-    },
+    db::{clause::activity_glue::ActivityLBD, keys::ClauseKey},
     generic::index_heap::IndexHeap,
     misc::log::targets::{self},
     structures::{
@@ -34,7 +31,7 @@ use crate::{
 /// A database of clause related things.
 pub struct ClauseDB {
     /// Clause database specific configuration parameters.
-    config: ClauseDBConfig,
+    pub(super) config: ClauseDBConfig,
 
     /// A count of addition clauses.
     // This can't be inferred from the addition vec, as indices may be reused.
@@ -62,7 +59,7 @@ pub struct ClauseDB {
     addition: Vec<Option<DBClause>>,
 
     /// An activity heap of addition clause keys.
-    activity_heap: IndexHeap<ActivityLBD>,
+    pub(super) activity_heap: IndexHeap<ActivityLBD>,
 
     /// Resolution graph
     pub resolution_graph: HashMap<ClauseKey, Vec<ClauseKey>>,
@@ -197,35 +194,6 @@ impl ClauseDB {
                 Ok(())
             }
         }
-    }
-
-    /// Bumps the activity of a clause, rescoring all acitivies if needed.
-    ///
-    /// See the corresponding method with respect to atoms for more details.
-    pub fn bump_activity(&mut self, index: FormulaIndex) {
-        if let Some(max) = self.activity_heap.peek_max_value() {
-            if max.activity + self.config.bump.value > self.config.bump.max {
-                let factor = 1.0 / max.activity;
-                let decay_activity = |s: &ActivityLBD| ActivityLBD {
-                    activity: s.activity * factor,
-                    lbd: s.lbd,
-                };
-                self.activity_heap.apply_to_all(decay_activity);
-                self.config.bump.value *= factor
-            }
-        }
-
-        let bump_activity = |s: &ActivityLBD| ActivityLBD {
-            activity: s.activity + self.config.bump.value,
-            lbd: s.lbd,
-        };
-
-        let index = index as usize;
-        self.activity_heap
-            .apply_to_value_at_value_index(index, bump_activity);
-        self.activity_heap.heapify_if_active(index);
-
-        self.config.bump.value *= 1.0 / (1.0 - self.config.decay.value);
     }
 
     /// The count of all clauses encountered, including removed clauses.

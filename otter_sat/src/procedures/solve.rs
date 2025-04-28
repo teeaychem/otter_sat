@@ -132,12 +132,13 @@ Though, the presentation given is original.
 
 use crate::{
     context::{ContextState, GenericContext},
-    db::{ClauseKey, atom::ValuationStatus},
+    db::ClauseKey,
     procedures::{apply_consequences::ApplyConsequencesOk, decision::DecisionOk},
     reports::Report,
     structures::{
         consequence::AssignmentSource,
         literal::{CLiteral, Literal},
+        valuation::ValuationStatus,
     },
     types::err::{self, ErrorKind},
 };

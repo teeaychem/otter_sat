@@ -59,14 +59,12 @@ use std::borrow::Borrow;
 
 use crate::{
     context::GenericContext,
-    db::{
-        atom::ValuationStatus,
-        watches::watch_db::{self, WatchPointerStatus},
-    },
+    db::watches::watch_db::{self, WatchPointerStatus},
     misc::log::targets::{self},
     structures::{
         consequence::AssignmentSource,
         literal::{CLiteral, Literal},
+        valuation::ValuationStatus,
     },
     types::err::{self, ErrorKind},
 };

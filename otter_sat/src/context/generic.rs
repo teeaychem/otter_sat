@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use crate::{
     atom_cells::AtomCells,
     config::{Activity, Config},
-    db::{ClauseKey, atom::ValuationStatus, clause::ClauseDB, trail::Trail, watches::Watches},
+    db::{ClauseKey, clause::ClauseDB, trail::Trail, watches::Watches},
     generic::index_heap::IndexHeap,
     misc::log::targets,
     reports::Report,
@@ -11,7 +11,7 @@ use crate::{
         atom::Atom,
         consequence::AssignmentSource,
         literal::{CLiteral, IntLiteral, Literal},
-        valuation::Valuation,
+        valuation::{Valuation, ValuationStatus},
     },
     types::err::ErrorKind,
 };

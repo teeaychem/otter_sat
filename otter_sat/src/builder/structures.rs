@@ -1,12 +1,12 @@
 use crate::{
     context::GenericContext,
-    db::{atom::ValuationStatus, watches::watch_db::WatchDB},
+    db::watches::watch_db::WatchDB,
     structures::{
         atom::{ATOM_MAX, Atom},
         clause::{Clause, ClauseSource},
         consequence::AssignmentSource,
         literal::{CLiteral, Literal},
-        valuation::Valuation,
+        valuation::{Valuation, ValuationStatus},
     },
     types::err::{self, AtomError, ErrorKind, PreprocessingError},
 };
