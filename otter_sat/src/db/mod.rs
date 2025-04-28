@@ -15,7 +15,7 @@ Databases for holding information relevant to a solve.
     + Details of assignments made, such as the current valuation and the source of each assignment.
 */
 
-pub mod atom;
+pub mod activity;
 pub mod clause;
 mod keys;
 pub use keys::*;

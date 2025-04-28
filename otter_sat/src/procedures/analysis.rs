@@ -92,7 +92,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         log::info!(target: targets::ANALYSIS, "Analysis of {key} at level {}", self.trail.level());
 
         if let config::vsids::VSIDS::Chaff = self.config.vsids.value {
-            crate::db::atom::activity::bump_relative(
+            crate::db::activity::bump_atoms_relative(
                 // # Safety: key is the conflict key and as analysis is called directly on a conflict the key must be in the db.
                 unsafe { self.clause_db.get_unchecked(key).atoms() },
                 &mut self.atom_activity,
@@ -126,7 +126,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
 
         if let config::vsids::VSIDS::MiniSAT = self.config.vsids.value {
-            crate::db::atom::activity::bump_relative(
+            crate::db::activity::bump_atoms_relative(
                 self.atom_cells.atoms_used(),
                 &mut self.atom_activity,
                 &mut self.config.atom_bump,

@@ -89,9 +89,9 @@ So, caution should be taken to avoid overlooking a failed invariant.
 
 use crate::{
     context::GenericContext,
-    db::{ClauseKey, atom::ValuationStatus},
+    db::ClauseKey,
     procedures::analysis::AnalysisResult,
-    structures::{consequence::AssignmentSource, literal::CLiteral},
+    structures::{consequence::AssignmentSource, literal::CLiteral, valuation::ValuationStatus},
     types::err::{self, ErrorKind},
 };
 

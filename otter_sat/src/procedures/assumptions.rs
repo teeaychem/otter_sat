@@ -24,12 +24,13 @@ use std::collections::HashSet;
 
 use crate::{
     context::{ContextState, GenericContext},
-    db::{ClauseKey, atom::ValuationStatus},
+    db::ClauseKey,
     structures::{
         atom::Atom,
         clause::Clause,
         consequence::AssignmentSource,
         literal::{CLiteral, Literal},
+        valuation::ValuationStatus,
     },
     types::err::{BCPError, ErrorKind},
 };

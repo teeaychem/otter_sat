@@ -1,6 +1,3 @@
-#[doc(hidden)]
-pub mod activity;
-
 #[derive(Debug, PartialEq, Eq)]
 /// The status of the valuation of an atom, relative to some known valuation.
 pub enum ValuationStatus {

@@ -56,6 +56,9 @@ assert_eq!(sub_valuation.value_of(1), Some(None));
 
 mod slice_impl;
 
+mod status;
+pub use status::ValuationStatus;
+
 use super::atom::Atom;
 
 /// The canonical representation of a valuation.

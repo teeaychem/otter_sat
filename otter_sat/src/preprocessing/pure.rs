@@ -7,12 +7,12 @@ use std::collections::HashSet;
 
 use crate::{
     context::GenericContext,
-    db::atom::ValuationStatus,
     structures::{
         atom::Atom,
         clause::Clause,
         consequence::AssignmentSource,
         literal::{CLiteral, Literal},
+        valuation::ValuationStatus,
     },
     types::err::{self, PreprocessingError},
 };
