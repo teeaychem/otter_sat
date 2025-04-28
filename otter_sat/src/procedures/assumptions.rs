@@ -30,7 +30,7 @@ use crate::{
         clause::Clause,
         consequence::AssignmentSource,
         literal::{CLiteral, Literal},
-        valuation::ValuationStatus,
+        valuation::{Valuation, ValuationStatus},
     },
     types::err::{BCPError, ErrorKind},
 };
@@ -40,6 +40,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Returns ok if asserting assumptions as successful, and an error otherwise.
     pub fn assert_assumptions(&mut self, assumptions: Vec<CLiteral>) -> Result<(), ErrorKind> {
         if self.trail.decision_is_made() {
+            println!("Decision made");
             log::error!("! Asserting assumptions while a decision has been made.");
             return Err(ErrorKind::InvalidState);
         }
@@ -58,6 +59,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     let source = self.atom_cells.get_assignment_source(assumption.atom());
 
                     if source != &AssignmentSource::None {
+                        if let Some(value) =
+                            unsafe { self.atom_cells.value_of_unchecked(assumption.atom()) }
+                        {
+                            if value == assumption.polarity() {
+                                continue;
+                            }
+                        }
+
                         let key = {
                             match source {
                                 AssignmentSource::None => panic!(),

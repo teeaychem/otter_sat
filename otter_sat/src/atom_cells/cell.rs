@@ -1,6 +1,6 @@
 use crate::{db::LevelIndex, structures::consequence::AssignmentSource};
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ResolutionFlag {
     /// Initial valuation.
     Valuation,
@@ -33,7 +33,7 @@ Cells of a resolution buffer.
 Cells are designed to initially store information about an assignment and additional metadata to aid resolution.
 
 */
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AtomCell {
     pub value: Option<bool>,
     pub previous_value: bool,
