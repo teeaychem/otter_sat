@@ -89,7 +89,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             let mut premises = HashSet::default();
                             premises.insert(key);
 
-                            self.clause_db.note_use(key);
+                            self.clause_db.lock_addition_clause(key);
 
                             self.clause_db.store(
                                 unit_clause,

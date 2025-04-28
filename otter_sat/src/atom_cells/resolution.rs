@@ -99,7 +99,7 @@ impl AtomCells {
         let mut key = *key;
 
         self.merge_clause(base_clause);
-        clause_db.note_use(key);
+        clause_db.lock_addition_clause(key);
         self.premises.insert(key);
 
         /*
@@ -139,7 +139,7 @@ impl AtomCells {
                     source_clause_size = source_clause.size(); // Recorded here to avoid multiple mutable borrows of clause_db
                     resolution_result = self.resolve_clause(source_clause, literal);
 
-                    clause_db.note_use(key);
+                    clause_db.lock_addition_clause(key);
                     self.premises.insert(key);
 
                     if resolution_result.is_err() {
@@ -157,7 +157,7 @@ impl AtomCells {
                                 clause.subsume(literal, self, watch_dbs, true)?;
 
                                 self.premises.insert(key);
-                                clause_db.note_use(key);
+                                clause_db.lock_addition_clause(key);
                             }
                         }
                     };
