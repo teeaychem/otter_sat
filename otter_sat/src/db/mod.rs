@@ -63,7 +63,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             AssignmentSource::Pure => {
                 let premises = HashSet::default();
                 // Making a free decision is not supported after some other (non-free) decision has been made.
-                if !self.trail.decision_is_made() {
+                if !self.trail.assumption_is_made() && !self.trail.decision_is_made() {
                     self.clause_db.store(
                         literal,
                         ClauseSource::Unit,
@@ -81,35 +81,44 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             AssignmentSource::BCP(key) => {
                 log::info!("BCP Consequence: {key}: {}", literal);
                 //
-                match self.trail.decision_count() {
-                    0 => {
-                        if !self.trail.assumption_is_made() {
-                            let unit_clause = literal;
+                if !self.trail.assumption_is_made() {
+                    match self.trail.decision_count() {
+                        0 => {
+                            if !self.trail.assumption_is_made() {
+                                let unit_clause = literal;
 
-                            let mut premises = HashSet::default();
-                            premises.insert(key);
+                                let mut premises = HashSet::default();
+                                premises.insert(key);
 
-                            self.clause_db.lock_addition_clause(key);
+                                self.clause_db.lock_addition_clause(key);
 
-                            self.clause_db.store(
-                                unit_clause,
-                                ClauseSource::BCP,
-                                &mut self.atom_cells,
-                                &mut self.watches,
-                                premises,
-                            );
-                        };
+                                self.clause_db.store(
+                                    unit_clause,
+                                    ClauseSource::BCP,
+                                    &mut self.atom_cells,
+                                    &mut self.watches,
+                                    premises,
+                                );
+                            };
 
-                        proven_literal = true;
+                            proven_literal = true;
+                        }
+
+                        _decisions_made => {}
                     }
-
-                    _decisions_made => {}
                 }
 
                 self.trail.store_literal(literal)
             }
 
-            AssignmentSource::Addition | AssignmentSource::Original => {
+            AssignmentSource::Addition => {
+                self.trail.store_literal(literal);
+                if !self.trail.assumption_is_made() && !self.trail.decision_is_made() {
+                    proven_literal = true;
+                }
+            }
+
+            AssignmentSource::Original => {
                 self.trail.store_literal(literal);
                 proven_literal = true;
             }
