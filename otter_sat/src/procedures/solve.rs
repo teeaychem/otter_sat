@@ -294,7 +294,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 }
 
                 ApplyConsequencesOk::AssertingClause { key, literal } => {
-                    self.clause_db.note_use(key);
+                    self.clause_db.lock_addition_clause(key);
 
                     match self.check_assignment(literal) {
                         ValuationStatus::None => {
@@ -322,7 +322,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                 if self.config.restarts.value {
                     self.backjump(self.trail.lowest_decision_level());
-                    self.clause_db.refresh_heap();
+                    self.clause_db.unlock_all_addition_clauses();
                     self.counters.fresh_conflicts = 0;
                     self.counters.restarts += 1;
                 };

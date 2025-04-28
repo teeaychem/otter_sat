@@ -9,6 +9,7 @@ pub mod activity_glue;
 mod callbacks;
 pub mod db_clause;
 mod get;
+mod iterators;
 mod store;
 
 use std::collections::HashMap;
@@ -21,10 +22,6 @@ use crate::{
     db::{clause::activity_glue::ActivityLBD, keys::ClauseKey},
     generic::index_heap::IndexHeap,
     misc::log::targets::{self},
-    structures::{
-        clause::{CClause, Clause},
-        literal::CLiteral,
-    },
     types::err::{self},
 };
 
@@ -111,37 +108,28 @@ impl ClauseDB {
 }
 
 impl ClauseDB {
-    /// Notes the use of a clause.
-    ///
-    /// In particular, the removal of an addition clause from the activity heap to prevent it's removal.
-    pub fn note_use(&mut self, key: ClauseKey) {
+    /// Locks an addition clause, preventing the removal of addition clauses until unlocked.
+    /// Returns true if a lock was placed and false otherwise.
+    pub fn lock_addition_clause(&mut self, key: ClauseKey) -> bool {
         match key {
-            ClauseKey::Addition(index, _) => {
-                self.activity_heap.remove(index as usize);
-            }
+            ClauseKey::Addition(index, _) => self.activity_heap.remove(index as usize),
             ClauseKey::OriginalUnit(_)
             | ClauseKey::AdditionUnit(_)
             | ClauseKey::OriginalBinary(_)
             | ClauseKey::AdditionBinary(_)
-            | ClauseKey::Original(_) => {}
+            | ClauseKey::Original(_) => false,
         }
     }
 
-    /// Places every addition clause on the activity heap and ensures the integrity of the heap.
-    ///
-    /// After this is called every addition clause is a candidate for deletion.
-    pub fn refresh_heap(&mut self) {
-        for (index, slot) in self.addition.iter().enumerate() {
-            if slot.is_some() {
+    /// Make every addition clause a clause a candidate for deletion by placing each on the activity heap.
+    pub fn unlock_all_addition_clauses(&mut self) {
+        for (index, clause_slot) in self.addition.iter().enumerate() {
+            if clause_slot.is_some() {
                 self.activity_heap.activate(index);
             }
         }
         self.activity_heap.heapify();
     }
-
-    /*
-    To keep things simple a formula clause is ignored while a learnt clause is deleted
-    */
 
     /// Removed addition clauses from the database up to the given limit (to remove) by taking keys from the activity heap.
     // TODO: Improvements…?
@@ -219,104 +207,5 @@ impl ClauseDB {
     /// The count of the current addition clauses in the context.
     pub fn current_addition_count(&self) -> usize {
         self.addition.len()
-    }
-
-    /// An iterator over all original unit clauses, given as [CLiteral]s.
-    pub fn all_original_unit_clauses(
-        &self,
-    ) -> impl Iterator<Item = (ClauseKey, CLiteral)> + use<'_> {
-        self.unit_original.values().flat_map(|c| {
-            c.clause()
-                .literals()
-                .last()
-                .map(|literal| (ClauseKey::OriginalUnit(literal), literal))
-        })
-    }
-
-    /// An iterator over all addition unit clauses, given as [CLiteral]s.
-    pub fn all_addition_unit_clauses(
-        &self,
-    ) -> impl Iterator<Item = (ClauseKey, CLiteral)> + use<'_> {
-        self.unit_addition.values().flat_map(|c| {
-            c.clause()
-                .literals()
-                .last()
-                .map(|literal| (ClauseKey::AdditionUnit(literal), literal))
-        })
-    }
-
-    /// An iterator over all unit clauses, given as [CLiteral]s.
-    pub fn all_unit_clauses(&self) -> impl Iterator<Item = (ClauseKey, CLiteral)> + use<'_> {
-        self.all_original_unit_clauses()
-            .chain(self.all_addition_unit_clauses())
-    }
-
-    /// An iterator over all original binary clauses.
-    pub fn all_original_binary_clauses(
-        &self,
-    ) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
-        self.binary_original.iter().map(|c| (*c.key(), c.clause()))
-    }
-
-    /// An iterator over all addition binary clauses.
-    pub fn all_addition_binary_clauses(
-        &self,
-    ) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
-        self.binary_addition.iter().map(|c| (*c.key(), c.clause()))
-    }
-
-    /// An iterator over all addition binary clauses.
-    pub fn all_binary_clauses(&self) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
-        self.all_original_binary_clauses()
-            .chain(self.all_addition_binary_clauses())
-    }
-
-    /// An iterator over all original binary clauses.
-    pub fn all_original_long_clauses(
-        &self,
-    ) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
-        self.original.iter().map(|c| (*c.key(), c.clause()))
-    }
-
-    /// An iterator over all addition binary clauses.
-    pub fn all_addition_long_clauses(
-        &self,
-    ) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
-        self.addition
-            .iter()
-            .flat_map(|c| c.as_ref().map(|db_c| (*db_c.key(), db_c.clause())))
-    }
-
-    /// An iterator over all addition binary clauses.
-    pub fn all_active_addition_long_clauses(
-        &self,
-    ) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
-        self.addition.iter().flat_map(|c| match c {
-            Some(db_c) => match db_c.is_active() {
-                true => Some((*db_c.key(), db_c.clause())),
-                false => None,
-            },
-            None => None,
-        })
-    }
-
-    /// An iterator over all addition binary clauses.
-    pub fn all_long_clauses(&self) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
-        self.all_original_long_clauses()
-            .chain(self.all_addition_long_clauses())
-    }
-
-    /// An iterator over all non-unit clauses, given as [impl Clause]s.
-    pub fn all_nonunit_clauses(&self) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
-        self.all_binary_clauses().chain(self.all_long_clauses())
-    }
-
-    /// An iterator over all active non-unit clauses, given as [impl Clause]s.
-    pub fn all_active_nonunit_clauses(
-        &self,
-    ) -> impl Iterator<Item = (ClauseKey, &CClause)> + use<'_> {
-        self.all_binary_clauses()
-            .chain(self.all_original_long_clauses())
-            .chain(self.all_active_addition_long_clauses())
     }
 }

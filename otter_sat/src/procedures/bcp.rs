@@ -165,14 +165,14 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
                         match self.value_of(watch.atom()) {
                             Some(value) if watch.polarity() != value => {
-                                self.clause_db.note_use(key);
+                                self.clause_db.lock_addition_clause(key);
 
                                 long_list.split_off(length);
                                 return Err(err::BCPError::Conflict(key));
                             }
 
                             None => {
-                                self.clause_db.note_use(key);
+                                self.clause_db.lock_addition_clause(key);
 
                                 match self.check_assignment(watch) {
                                     ValuationStatus::None => {
