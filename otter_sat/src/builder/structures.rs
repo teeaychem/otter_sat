@@ -52,7 +52,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     ///
     /// If used, all the relevant data structures are updated to support access via the atom, and the safety of each unchecked is guaranteed.
     pub fn fresh_atom_fundamental(&mut self, previous_value: bool) -> Result<Atom, err::AtomError> {
-        let atom = match self.valuation().atom_count().try_into() {
+        let atom = match self.assignment().atom_count().try_into() {
             // Note, ATOM_MAX over Atom::Max as the former is limited by the representation of literals, if relevant.
             Ok(atom) if atom <= ATOM_MAX => atom,
 
@@ -76,8 +76,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// Ensure `atom` is present in the context --- specifically, by introducing as many atoms as required to ensure atoms form a  contiguous block: [0..`atom`].
     // As `atom` is an atom, the method is guaranteed to succeed.
     pub fn ensure_atom(&mut self, atom: Atom) {
-        if self.valuation().atom_count() <= (atom as usize) {
-            for _ in 0..((atom as usize) - self.valuation().atom_count()) + 1 {
+        if self.assignment().atom_count() <= (atom as usize) {
+            for _ in 0..((atom as usize) - self.assignment().atom_count()) + 1 {
                 self.fresh_atom();
             }
         }

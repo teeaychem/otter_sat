@@ -100,7 +100,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             let binary_list = self.watches.binary_unchecked(literal);
 
             for element in unsafe { &*binary_list } {
-                let check = element.literal;
+                let check = element.unwatched;
                 let key = element.key;
 
                 match self.value_of(check.atom()) {
@@ -210,7 +210,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// In the case of conflict, a [FundamentalConflict](ErrorKind::FundamentalConflict) is returned.
     pub fn propagate_unless_error(&mut self) -> Result<(), ErrorKind> {
         log::info!("Initial BCP");
-        while let Some(literal) = self.trail.literals.get(self.trail.q_head) {
+        while let Some(literal) = self.trail.assignments.get(self.trail.q_head) {
             match self.bcp(*literal) {
                 Ok(()) => {
                     self.trail.q_head += 1;

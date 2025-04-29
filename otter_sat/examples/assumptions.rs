@@ -56,7 +56,7 @@ fn main() {
 
         count += 1;
 
-        let last_valuation = ctx.valuation();
+        let last_valuation = ctx.assignment();
         let mut valuation_as_chars = Vec::default();
         for (atom, value) in last_valuation.atom_value_pairs() {
             let character = atom_map[atom as usize];
@@ -71,7 +71,7 @@ fn main() {
 
         let mut clause = Vec::new();
 
-        for (atom, value) in ctx.valuation().atom_valued_pairs() {
+        for (atom, value) in ctx.assignment().atom_valued_pairs() {
             clause.push(CLiteral::new(atom as Atom, !value));
         }
 

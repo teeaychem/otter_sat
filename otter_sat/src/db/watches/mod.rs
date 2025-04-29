@@ -1,3 +1,5 @@
+//! Watch lists for each atom.
+
 pub mod watch_db;
 use watch_db::{BinaryWatch, LongWatch, WatchDB};
 
@@ -7,8 +9,10 @@ use crate::{
     types::err,
 };
 
+/// A collection of [WatchDB]s for each atom.
 #[derive(Default)]
 pub struct Watches {
+    /// A mapping of [Atom]s to [WatchDB]s, implicitly given by interpreting each index as an atom.
     pub dbs: Vec<WatchDB>,
 }
 

@@ -70,7 +70,7 @@ mod basic {
         assert!(ctx.add_clause(vec![p, p, q, q]).is_ok());
 
         // The atom db always contains top, and so the expected atom count is plus one.
-        assert_eq!(3, ctx.valuation().atom_count());
+        assert_eq!(3, ctx.assignment().atom_count());
 
         let database = ctx
             .clause_db

@@ -64,8 +64,24 @@ pub struct GenericContext<R: rand::Rng + std::default::Default> {
     /// Terminates procedures, if true.
     pub(super) callback_terminate: Option<Box<CallbackTerminate>>,
 }
+impl<R: rand::Rng + std::default::Default> GenericContext<R> {
+    /// Require initialisation of a context.
+    ///
+    /// - Records Top (true) as an assignment as this helps simplify various actions, esp. wrt. the trail.
+    ///   Though, does not record Top as a clause as doing so would complicate various actions.
+    pub fn init(&mut self) {
+        // # Safety: top is the first atom created, and so ATOM_MAX will not be hit.
+        let top: Atom = unsafe { self.fresh_atom_fundamental(true).unwrap_unchecked() };
+        self.record_assignment(CLiteral::new(top, true), AssignmentSource::Original);
+    }
+}
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
+    /// The current assignment of atoms to values, as a [Valuation]
+    pub fn assignment(&self) -> &impl Valuation {
+        &self.atom_cells
+    }
+
     /// A report on the state of the context.
     pub fn report(&self) -> Report {
         use crate::context::ContextState;
@@ -89,25 +105,12 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             | ContextState::Solving => Err(ErrorKind::InvalidState),
         }
     }
-
-    pub fn init(&mut self) {
-        // TODO: Double check the assignment…
-
-        // # Safety: top is the first atom created, and so ATOM_MAX will not be hit.
-        let top: Atom = unsafe { self.fresh_atom_fundamental(true).unwrap_unchecked() };
-        self.record_assignment(CLiteral::new(top, true), AssignmentSource::Original);
-    }
-
-    /// The current valuation, as some struction which implements the valuation trait.
-    pub fn valuation(&self) -> &impl Valuation {
-        &self.atom_cells
-    }
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// A string representing the current valuation, using [IntLiteral]s.
     pub fn valuations_ints(&self) -> impl Iterator<Item = IntLiteral> {
-        self.valuation()
+        self.assignment()
             .atom_value_pairs()
             .filter_map(|(atom, v)| match v {
                 None => None,
@@ -118,7 +121,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
     /// A string representing the current valuation, using the internal representation of atoms.
     pub fn valuation_strings(&self) -> impl Iterator<Item = String> {
-        self.valuation()
+        self.assignment()
             .atom_value_pairs()
             .filter_map(|(atom, v)| match v {
                 None => None,
@@ -130,20 +133,21 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     /// A string representing the current valuation and the decision levels at which atoms were valued.
     /// The internal representation of atoms is used.
     pub fn valuation_decision_strings(&self) -> impl Iterator<Item = String> {
-        self.valuation().atom_value_pairs().filter_map(|(atom, v)| {
-            match self.atom_cells.level(atom) {
+        self.assignment()
+            .atom_value_pairs()
+            .filter_map(|(atom, v)| match self.atom_cells.level(atom) {
                 None => None,
                 Some(level) => match v {
                     None => None,
                     Some(true) => Some(format!("{atom} ({level})",)),
                     Some(false) => Some(format!("-{atom} ({level})",)),
                 },
-            }
-        })
+            })
     }
 }
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
+    /// Returns a [ValuationStatus] with respect to `literal`.
     pub fn check_assignment<BLit: Borrow<CLiteral>>(&self, literal: BLit) -> ValuationStatus {
         let literal = literal.borrow();
 
@@ -156,8 +160,8 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
     }
 
+    /// The value of `atom` on the contextual assignment.
     pub fn value_of(&self, atom: Atom) -> Option<bool> {
-        // # Safety: Every atom has a valuation cell
         self.atom_cells.get_cell(atom).value
     }
 

@@ -77,7 +77,7 @@ fn main() {
         models_found += 1;
 
         let clause: IntClause = ctx
-            .valuation()
+            .assignment()
             .atom_valued_pairs()
             .map(|(a, v)| match v {
                 false => a as IntLiteral,

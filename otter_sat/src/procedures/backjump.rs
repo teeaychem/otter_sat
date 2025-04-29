@@ -74,7 +74,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // Retain queued consequences of the level backjumping to.
         // self.clear_above(target);
 
-        self.trail.q_head = cmp::min(self.trail.q_head, self.trail.literals.len());
+        self.trail.q_head = cmp::min(self.trail.q_head, self.trail.assignments.len());
 
         if target <= self.trail.initial_decision_level {
             self.trail.initial_decision_level = target;

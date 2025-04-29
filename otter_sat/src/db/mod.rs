@@ -108,28 +108,28 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                     }
                 }
 
-                self.trail.store_literal(literal)
+                self.trail.write_literal(literal)
             }
 
             AssignmentSource::Addition => {
-                self.trail.store_literal(literal);
+                self.trail.write_literal(literal);
                 if !self.trail.assumption_is_made() && !self.trail.decision_is_made() {
                     proven_literal = true;
                 }
             }
 
             AssignmentSource::Original => {
-                self.trail.store_literal(literal);
+                self.trail.write_literal(literal);
                 proven_literal = true;
             }
 
             AssignmentSource::Decision => {
-                self.trail.level_indices.push(self.trail.literals.len());
-                self.trail.store_literal(literal)
+                self.trail.level_indices.push(self.trail.assignments.len());
+                self.trail.write_literal(literal)
             }
 
             AssignmentSource::Assumption => {
-                self.store_assumption(literal);
+                self.write_assumption(literal);
             }
         }
 
@@ -150,16 +150,20 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         }
     }
 
-    pub fn store_assumption(&mut self, literal: CLiteral) {
+    /// Writes an assumption to the context.
+    pub fn write_assumption(&mut self, literal: CLiteral) {
+        // The only issue is whether to introduce a fresh level for the assumption…
         if self.config.stacked_assumptions.value
-            || self.trail.literals.last().is_none_or(|a| {
-                self.atom_cells.get_assignment_source(a.atom()) != &AssignmentSource::Assumption
+            || self.trail.assignments.last().is_none()
+            || self.trail.assignments.last().is_some_and(|assignment| {
+                self.atom_cells.get_assignment_source(assignment.atom())
+                    != &AssignmentSource::Assumption
             })
         {
             self.trail.initial_decision_level += 1;
-            self.trail.level_indices.push(self.trail.literals.len());
+            self.trail.level_indices.push(self.trail.assignments.len());
         }
 
-        self.trail.store_literal(literal);
+        self.trail.write_literal(literal);
     }
 }

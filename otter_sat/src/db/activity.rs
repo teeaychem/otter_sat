@@ -1,3 +1,5 @@
+//! Items related to the activity of atoms and clauses.
+
 use crate::{
     config::{Activity, ConfigOption},
     db::{clause::activity_glue::ActivityLBD, keys::FormulaIndex},

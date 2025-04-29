@@ -79,7 +79,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             seen_atoms.insert(literal.atom());
         }
 
-        for literal in self.trail.literals.iter().rev() {
+        for literal in self.trail.assignments.iter().rev() {
             match self.atom_cells.get_assignment_source(literal.atom()) {
                 AssignmentSource::None => panic!("! Missing assignment"),
 

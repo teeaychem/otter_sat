@@ -89,7 +89,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                             }
                         };
 
-                        self.store_assumption(*assumption);
+                        self.write_assumption(*assumption);
                         self.note_conflict(key);
                         return Err(ErrorKind::FundamentalConflict);
                     }
@@ -198,7 +198,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
                 .get_unchecked(self.trail.initial_decision_level as usize - 1)
         };
 
-        for (index, literal) in self.trail.literals.iter().enumerate().rev() {
+        for (index, literal) in self.trail.assignments.iter().enumerate().rev() {
             if seen_atoms.contains(&literal.atom()) {
                 // Check for an assumption, as in the case of conflict it will not have been assigned.
                 if index <= assumption_index {
