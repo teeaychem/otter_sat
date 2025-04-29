@@ -1,18 +1,34 @@
+//! The trail of assignments.
+//!
+//! All assignments made with each assignment distinguished by the level at which it was made.
+//!
+//! The first level (level zero) contains proven literals, and each leel greater than zero begins with either an assumption or decision.
+//! Every following assignment is on the same level unless the assignment is a decision or, if stacked assumptions is enabled, an assumption.
+
 use crate::structures::literal::CLiteral;
 
 use super::LevelIndex;
 
+/// A structure to hold the trail.
 #[derive(Default)]
 pub struct Trail {
-    pub literals: Vec<CLiteral>,
+    /// Each assignment made, recorded as a literal, in order from first to last.
+    pub assignments: Vec<CLiteral>,
+
+    /// Indices to the initial assignment of each level.
     pub level_indices: Vec<usize>,
+
+    /// The index of the first assignment whose consequences have not been examined.
     pub q_head: usize,
+
+    /// The first level at which a decision is made.
+    /// Zero, if no assumptions has been made.
     pub initial_decision_level: LevelIndex,
 }
 impl Trail {
-    /// Stores a consequence of the top decision level.
-    pub fn store_literal(&mut self, literal: CLiteral) {
-        self.literals.push(literal);
+    /// Writes a consequence to the top decision level.
+    pub fn write_literal(&mut self, literal: CLiteral) {
+        self.assignments.push(literal);
     }
 
     /// True if some assumption has been made, false otherwise.
@@ -21,7 +37,7 @@ impl Trail {
     }
 
     /// Returns the lowest decision level.
-    /// Zero, if no assumptions has been made, otherwise some higher level.
+    /// As a decision level always has some index greater than zero, a return value of zero indicates no decision has been made.
     pub fn lowest_decision_level(&self) -> LevelIndex {
         self.initial_decision_level
     }
@@ -29,7 +45,7 @@ impl Trail {
     /// The assignments made at the (current) top level, in order of assignment.
     pub fn top_level_assignments(&self) -> &[CLiteral] {
         if let Some(&level_start) = self.level_indices.last() {
-            &self.literals[level_start..]
+            &self.assignments[level_start..]
         } else {
             &[]
         }
@@ -59,7 +75,7 @@ impl Trail {
     /// Does not clear the *valuation* of the decision.
     pub fn forget_top_level(&mut self) -> Vec<CLiteral> {
         if let Some(top_start) = self.level_indices.pop() {
-            self.literals.split_off(top_start)
+            self.assignments.split_off(top_start)
         } else {
             Vec::default()
         }
@@ -68,13 +84,13 @@ impl Trail {
     /// Takes the current list of assignments, leaving the default assignment container, until the list is restored.
     /// To be used in conjunction with [Trail::restore_assignments].
     pub fn take_assignments(&mut self) -> Vec<CLiteral> {
-        std::mem::take(&mut self.literals)
+        std::mem::take(&mut self.assignments)
     }
 
     /// Sets the current lists of assignments to `assignments`.
     /// To be used in conjunction with [Trail::take_assignments].
     pub fn restore_assignments(&mut self, assignents: Vec<CLiteral>) {
-        self.literals = assignents;
+        self.assignments = assignents;
     }
 
     /// Removes levels above the given level index, if they exist.
@@ -88,7 +104,7 @@ impl Trail {
         // And, as a corollary, that this method can not be used to clear any assignments at level zero.
         if let Some(&level_start) = self.level_indices.get(level as usize) {
             self.level_indices.split_off(level as usize);
-            self.literals.split_off(level_start)
+            self.assignments.split_off(level_start)
         } else {
             Vec::default()
         }

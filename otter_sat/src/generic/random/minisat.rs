@@ -1,17 +1,15 @@
-/*!
-The pseudorandom number generator used in MiniSAT 2.1.
-*/
+//! The pseudorandom number generator used in MiniSAT 2.1.
 
 use rand::SeedableRng;
 use rand_core::{RngCore, impls};
 
 /// State and increment
 #[derive(Default)]
-pub struct MiniSATRNG {
+pub struct MiniRNG {
     state: u64,
 }
 
-impl RngCore for MiniSATRNG {
+impl RngCore for MiniRNG {
     fn next_u32(&mut self) -> u32 {
         let old_state = self.state;
 
@@ -33,7 +31,7 @@ impl RngCore for MiniSATRNG {
     }
 }
 
-impl SeedableRng for MiniSATRNG {
+impl SeedableRng for MiniRNG {
     type Seed = [u8; 8];
 
     fn from_seed(seed: Self::Seed) -> Self {

@@ -83,25 +83,36 @@ And, in practice, it seems the cost of fragmentation is greater than that of unn
 
 use crate::{db::keys::ClauseKey, structures::literal::CLiteral};
 
-/// A binary clause together with the *other* literal in the clause.
+/// A binary clause together with the unwatched literal in the clause.
+///
+/// For example, given the clause 1 -2, then 1 would be unwatched if the BinaryWatch is intended for 2's watch list.
 pub struct BinaryWatch {
-    pub literal: CLiteral,
+    /// The unwatched literal in the binary clause.
+    pub unwatched: CLiteral,
+
+    /// The key to the watched binary clause.
     pub key: ClauseKey,
 }
 
 impl BinaryWatch {
-    pub fn new(literal: CLiteral, key: ClauseKey) -> Self {
-        Self { literal, key }
+    /// A fresh [WatchDB] element for a binary clause.
+    /// `watched` is the watched literal from the binary clause.
+    pub fn new(unwatched: CLiteral, key: ClauseKey) -> Self {
+        Self { unwatched, key }
     }
 }
 
 /// A long clause watch of an atom.
+///
+/// As watched literals are with respect to a clause (and not a watch db element) the watched literals are accessed by calling methods on the [DBClause] indexed by `key`.
 #[derive(PartialEq, Eq)]
 pub struct LongWatch {
+    /// They key to the watched long clause.
     pub key: ClauseKey,
 }
 
 impl LongWatch {
+    /// A fresh [WatchDB] element for a long clause.
     pub fn new(key: ClauseKey) -> Self {
         LongWatch { key }
     }

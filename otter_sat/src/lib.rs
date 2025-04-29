@@ -83,7 +83,7 @@ while let Ok(Report::Satisfiable) = context.solve() {
 
     // The context provides an iterator over (atom, value) pairs.
     // Though every non-constant atom has a value in this model, this avoids handling the no value option.
-    for (atom, value) in context.valuation().atom_valued_pairs() {
+    for (atom, value) in context.assignment().atom_valued_pairs() {
         // As atoms begin at 1, a step back is required to find the appropriate character.
         match value {
             true => valuation_representation.push(' '),
@@ -182,7 +182,7 @@ For example, when used with [env_logger](https://docs.rs/env_logger/latest/env_l
 #![allow(unused_labels)]
 #![allow(unused_must_use)]
 // #![allow(unused_imports)]
-// #![warn(missing_docs)]
+#![warn(missing_docs)]
 
 pub mod builder;
 pub mod procedures;

@@ -144,11 +144,12 @@ use crate::{
 };
 
 impl<R: rand::Rng + std::default::Default> GenericContext<R> {
+    /// Determines the satisfiability of the context.
     pub fn solve(&mut self) -> Result<Report, err::ErrorKind> {
         self.solve_given(None)
     }
 
-    /// Determines the satisfiability of the context, unless interrupted.
+    /// Determines the satisfiability of the context given `assumptions`.
     pub fn solve_given(
         &mut self,
         assumptions: Option<Vec<CLiteral>>,

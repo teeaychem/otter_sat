@@ -166,7 +166,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
             return Err(err::ErrorKind::from(ParseError::MissingDelimiter));
         }
 
-        info.added_atoms = self.valuation().atom_count().saturating_sub(1);
+        info.added_atoms = self.assignment().atom_count().saturating_sub(1);
         info.added_clauses = self.clause_db.current_clause_count();
 
         Ok(info)
@@ -239,6 +239,6 @@ p cnf
         let _ = ctx.read_dimacs(dimacs.as_slice());
 
         // One extra, as the atom database always contains top.
-        assert_eq!(ctx.valuation().atom_count(), required_atoms + 1);
+        assert_eq!(ctx.assignment().atom_count(), required_atoms + 1);
     }
 }
