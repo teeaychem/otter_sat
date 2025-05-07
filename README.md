@@ -10,60 +10,8 @@ At present, this repository contains three key interrelated sub-directories:
 - `otter_tests_plus` a collection of additional tests to ensure the soundness of `otter_sat`, which do not reasonably fit in a crate.
   For example, tests to ensure the library conforms to the IPASIR API.
 
-# Features
+Documentation of theory and implementation, some of which may be considered quite detailed is available inline with the source or at[docs.rs/otter_sat](https://docs.rs/otter_sat) (or via `cargo doc --lib`)
 
-At present, features include:
-
-- Documentation of theory and implementation, some of which may be considered quite detailed --- see [docs.rs/otter_sat](https://docs.rs/otter_sat) (or via `cargo doc --lib`)
-- An 'xz' feature for reading compressed formulas from (e.g.) the [Global Benchmark Database](https://benchmark-database.de/).
-- Clause learning through analysis of implication graphs.
-- Clause forgetting based on glue principles (see: [Glucose](https://github.com/audemard/glucose) for details).
-- A [VSIDS](https://arxiv.org/abs/1506.08905) decision selection heuristic.
-- Luby-based restarts.
-- Watch literals and watch lists.
-- Phase saving.
-- Some optional unpredictability.
-- On-the-fly self-subsumption.
-- Recursive clause minimisation.
-- And more… (!)
-
-# Verification
-
-otter_sat supports verification of unsatisfiable report through optional generation of [FRAT proofs](https://arxiv.org/pdf/2109.09665v1).
-FRAT proof may be checked by independent tools such as [FRAT-rs](https://github.com/digama0/frat).
-
-Proofs are written by binding a writing structure to various callback functions exposed by otter_sat, with a reference implementation provided as part of [`otter_tests`](otter_tests/src/frat/mod.rs)
-
-# Incremental solving and the IPASIR API
-
-otter_sat provides full C bindings for the IPASIR API, and in turn supports incremental solving.
-To use these bindings otter_sat should be compiled in a suitable way, e.g. as a cdylib.
-For example, via:
-
-```sh
-cargo rustc --crate-type=cdylib
-```
-
-The setup and tests `ipasir_api` tests contained in `otter_tests_plus` may be used as reference material for compiling and linking to otter_sat as an external library.
-
-
-# The CLI
-
-A CLI to the solver is built as `otter_cli` in the target directory when compiling the library.
-
-The CLI supports command supports adjustments to a all configuration options.
-For details of the options, see the configuration module found at [otter_sat/src/config/mod.rs].
-
-``` shell
-otter_cli --model --atom_bump=1.3 --clause_decay=0.3 CNF_FILE.cnf
-```
-
-Alternatively, `cargo run` may be used.
-For example:
-
-``` shell
-cargo run --profile release --features xz -- --model --atom_bump=1.3 --clause_decay=0.3 CNF_FILE.cnf.xz
-```
 
 # Examples
 
@@ -111,12 +59,67 @@ Specific examples are:
   cargo run --example sudoku
   ```
 
-- Reduction of nonogram puzzles to SAT:
+- Reduction of nonogram puzzles to SAT (reasonably quick in debug mode, but release is recommended):
   ``` shell
   cargo run --example nonograms --profile release
   ```
 
-Nonograms is reasonably quick in debug mode, but release is recommended.
+
+# Features
+
+At present, otter_sat supports a variety of common features.
+Features include:
+
+- Clause forgetting based on glue principles (see: [Glucose](https://github.com/audemard/glucose) for details).
+- A [VSIDS](https://arxiv.org/abs/1506.08905) decision selection heuristic.
+- Luby-based restarts.
+- Watch literals and watch lists.
+- Phase saving.
+- Some optional unpredictability.
+- On-the-fly self-subsumption.
+- Recursive clause minimisation.
+- An `xz` feature for reading compressed formulas from (e.g.) the [Global Benchmark Database](https://benchmark-database.de/).
+- And more… (!)
+
+
+# Verification
+
+otter_sat supports verification of unsatisfiable report through optional generation of [FRAT proofs](https://arxiv.org/pdf/2109.09665v1).
+FRAT proof may be checked by independent tools such as [FRAT-rs](https://github.com/digama0/frat).
+
+Proofs are written by binding a writing structure to various callback functions exposed by otter_sat, with a reference implementation provided as part of [`otter_tests`](otter_tests/src/frat/mod.rs)
+
+
+# Incremental solving and the IPASIR API
+
+otter_sat provides full C bindings for the IPASIR API, and in turn supports incremental solving.
+To use these bindings otter_sat should be compiled in a suitable way, e.g. as a cdylib.
+For example, via:
+
+```sh
+cargo rustc --crate-type=cdylib
+```
+
+The setup and tests `ipasir_api` tests contained in `otter_tests_plus` may be used as reference material for compiling and linking to otter_sat as an external library.
+
+
+# A CLI
+
+A CLI to the solver is built as `otter_cli` in the target directory when compiling the library.
+
+The CLI supports command supports adjustments to a all configuration options.
+For details of the options, see the configuration module found at [otter_sat/src/config/mod.rs].
+
+``` shell
+otter_cli --model --atom_bump=1.3 --clause_decay=0.3 CNF_FILE.cnf
+```
+
+Alternatively, `cargo run` may be used.
+For example:
+
+``` shell
+cargo run --profile release --features xz -- --model --atom_bump=1.3 --clause_decay=0.3 CNF_FILE.cnf.xz
+```
 
 
 # How otter_sat was made
