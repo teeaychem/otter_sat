@@ -28,8 +28,14 @@ let decision_as_literal = CLiteral::new(atom, value);
 
 # Activity
 
-Atoms may be selected by activity, and the [atom database](crate::db::atom) stores atoms without a value on a max value activity heap in order to support quick access to the most active atom without a value.
-Though, as storing *only* without a value takes considerably more effort than *at least* those atoms without a value, it may take some work to find the relevant atom.
+Atoms are paired with an `activity` value.
+Activity appoximates the relative degree to which the atom has been involved in deriving a conflict from BCP.
+And, in particular, when a decision on some atom is required a decision on an atom with high activity may be (and in by default) preferred with the goal of quickly identifying whether the decision would lead to an unsatisfiable assignment.
+
+For quick access to atoms with high activity values, atoms are stored on a custom max activity heap, which also supports tracking the activity of atoms not currently on the heap.
+
+Likewise, clauses are paired with an activity value which appoximates the relative degree to which the clause has been involved in deriving a conflict from BCP.
+And, when removing clauses from the database, clauses with low acitivty are removed ahead of clauses with a higher activity (though in the case of clauses, additional considerations factor into the ordering of clauses).
 
 # Phase saving
 

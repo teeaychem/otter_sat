@@ -17,7 +17,7 @@ This motivates the use of two watches:
 - One watch on any other literal which does not conflict with the background valuation, if possible.
   + For, if it is *only* possible to watch some other literal which conflicts with the current valuation, the other literal must be true.
 
-The watch database records which clauses are watching an atoms, and for the implementation of watching literals see the way clauses are stored in a database [dbClause](crate::db::clause::db_clause) and in particular the associated methods [initialise_watches](crate::db::clause::db_clause::dbClause::initialise_watches) and [update_watch](crate::db::clause::db_clause::dbClause::initialise_watches).
+The watch database records which clauses are watching an atoms, and for the implementation of watching literals see the way clauses are stored in a database [DBClause](crate::db::clause::db_clause) and in particular the associated methods [initialise_watches](crate::db::clause::db_clause::DBClause::initialise_watches) and [update_watch](crate::db::clause::db_clause::DBClause::initialise_watches).
 
 # Literature
 
@@ -104,7 +104,7 @@ impl BinaryWatch {
 
 /// A long clause watch of an atom.
 ///
-/// As watched literals are with respect to a clause (and not a watch db element) the watched literals are accessed by calling methods on the [DBClause] indexed by `key`.
+/// As watched literals are with respect to a clause (and not a watch db element) the watched literals are accessed by calling methods on the [DBClause](crate::db::clause::db_clause) indexed by `key`.
 #[derive(PartialEq, Eq)]
 pub struct LongWatch {
     /// They key to the watched long clause.

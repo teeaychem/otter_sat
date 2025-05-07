@@ -11,7 +11,7 @@ Databases for holding information relevant to a solve.
         Clauses added to the context by some procedure (e.g. via resolution).
         Every added clause is a consequence of the collection of original clauses.
 
-  - [The assignment database](crate::db::atom)
+  - [The trail](crate::db::trail)
     + Details of assignments made, such as the current valuation and the source of each assignment.
 */
 
@@ -35,7 +35,7 @@ use crate::{
     },
 };
 
-/// The index of a [assumption or decision level](crate::db::atom).
+/// The index of a [assumption or decision level](crate::structures::atom).
 ///
 /// As there can only be as many decisions as there are atoms, this aliases the implementation of atoms.
 pub type LevelIndex = crate::structures::atom::Atom;

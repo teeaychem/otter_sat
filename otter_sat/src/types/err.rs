@@ -24,7 +24,7 @@ pub enum ErrorKind {
     /// An error in the clause database.
     ClauseDB(ClauseDBError),
 
-    /// An error in the atom database.
+    /// An error relating to atoms.
     Atom(AtomError),
 
     /// An related to parsing.
@@ -269,7 +269,7 @@ pub enum StateError {
     SolveInProgress,
 }
 
-/// Errors during [subsumption](crate::db::clause::db_clause::dbClause::subsume).
+/// Errors during [subsumption](crate::db::clause::db_clause::DBClause::subsume).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SubsumptionError {
     /// The clause was too short for subsumption to.

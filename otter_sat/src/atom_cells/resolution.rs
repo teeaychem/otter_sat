@@ -316,6 +316,7 @@ impl AtomCells {
         }
     }
 
+    #[allow(rustdoc::private_intra_doc_links)]
     /// Returns true when the current value of `atom` in the current (implicit) learnt clause is a consequence of the current value of the other atoms in the learnt clause.
     ///
     /// If the method returns true, then the atom may be omitted from the learnt clause.
@@ -337,7 +338,7 @@ impl AtomCells {
     /// Otherwise, the value of each atom used to propagate is proven or part of the clause and so the relevant entailment holds.
     /// Use is made of the invariant to keep the propagated atom/literal as the first element of any long clause to skip inspection of *propagated* atoms, though as this invariant is not upheld for binary clauses, the atom to examine is determined case-by-case.
     ///
-    /// The status of literals are cached for repeat calls, and [restore_cached_removable_status](AtomCells::restore_cached_removable_status) must be called after the learnt clause is finalised to clear the cache.
+    /// The status of literals are cached for repeat calls, and the *private* method [restore_cached_removable_status](AtomCells::restore_cached_removable_status) must be called after the learnt clause is finalised to clear the cache.
     pub fn derivable_value(&mut self, atom: Atom, clause_db: &mut ClauseDB) -> bool {
         let mut key: ClauseKey = {
             match self.get_assignment_source(atom) {
