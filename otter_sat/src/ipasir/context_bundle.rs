@@ -15,7 +15,7 @@ pub struct ContextBundle {
     /// A buffer to hold the literals of a clause being added to the solver.
     pub clause_buffer: CClause,
 
-    /// The literals which occur in the unsatisfiable core identified by [core_keys](ContextBundle::core_keys).
+    /// The literals which occur in the unsatisfiable core identified by [core_keys](Context::core_keys).
     pub failed_literals: std::collections::HashSet<CLiteral>,
 }
 

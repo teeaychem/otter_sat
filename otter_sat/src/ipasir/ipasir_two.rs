@@ -57,7 +57,7 @@ pub enum ipasir2_errorcode {
     IPASIR2_E_INVALID_OPTION_VALUE,
 }
 
-/// States of the context, these are a subset of [ContextState].
+/// States of the context.
 #[repr(C)]
 pub enum ipasir2_state {
     /// The context allows for configuration.

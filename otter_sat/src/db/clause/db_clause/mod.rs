@@ -3,9 +3,9 @@ A struct holding a [clause](Clause) and associated metadata.
 
 For [clause trait](Clause) see [Clause], and for the canonical representation of a clause see [CClause].
 
-A [dbClause] contains:
+A [DBClause] contains:
 - A [clause](Clause) (represented as a [CClause]).
-- A [key](ClauseKey) used to access the [dbClause]/[clause](Clause).
+- A [key](ClauseKey) used to access the [DBClause]/[clause](Clause).
 - Other, useful, metadata.
 
 # Terminology
@@ -20,7 +20,7 @@ In particular, watches are initialised for any clause containing two or more lit
 
 At present, the literals watched are the *first* literal in the clause and the literal at the position of `watch_ptr`.
 In order to preserve this invariant, order of literals in the claue is mutated as needed.
-For details on the way watched literals are updated, see implementations (notably [update_watch](dbClause::update_watch)).
+For details on the way watched literals are updated, see implementations (notably [update_watch](DBClause::update_watch)).
 */
 
 use crate::{
@@ -59,10 +59,10 @@ pub struct DBClause {
 }
 
 impl DBClause {
-    /// Bundles a [ClauseKey] and [Clause] into a [dbClause] and initialises non-watch defaults.
+    /// Bundles a [ClauseKey] and [Clause] into a [DBClause] and initialises non-watch defaults.
     ///
     /// Note:
-    /// - This does not store the [dbClause] in the [clause database](crate::db::clause::ClauseDB).
+    /// - This does not store the [DBClause] in the [clause database](crate::db::clause::ClauseDB).
     ///   Instead, this is the canonical way to obtain some thing to be stored in a database.
     pub fn new_unit(key: ClauseKey, literal: CLiteral) -> Self {
         Self {
@@ -73,9 +73,9 @@ impl DBClause {
         }
     }
 
-    /// Bundles a [ClauseKey] and [Clause] into a [dbClause] and initialises defaults.
+    /// Bundles a [ClauseKey] and [Clause] into a [DBClause] and initialises defaults.
     ///
-    /// Note: This does not store the [dbClause] in the [clause database](crate::db::clause::ClauseDB).
+    /// Note: This does not store the [DBClause] in the [clause database](crate::db::clause::ClauseDB).
     /// Instead, this is the canonical way to obtain some thing to be stored in a database.
     /// See, e.g. the [ClauseDB]((crate::db::clause::ClauseDB)) '[store](crate::db::clause::ClauseDB::store)' method for example use.
     ///
@@ -100,22 +100,22 @@ impl DBClause {
         db_clause
     }
 
-    /// The key used to access the [dbClause].
+    /// The key used to access the [DBClause].
     pub const fn key(&self) -> &ClauseKey {
         &self.key
     }
 
-    /// Whether the [dbClause] is active.
+    /// Whether the [DBClause] is active.
     pub fn is_active(&self) -> bool {
         self.active
     }
 
-    /// Activates the [dbClause].
+    /// Activates the [DBClause].
     pub fn activate(&mut self) {
         self.active = true
     }
 
-    /// Deactivates the [dbClause].
+    /// Deactivates the [DBClause].
     pub fn deactivate(&mut self) {
         self.active = false
     }

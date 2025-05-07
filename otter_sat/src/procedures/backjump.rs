@@ -60,11 +60,6 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
     pub fn backjump(&mut self, target: LevelIndex) {
         log::trace!(target: targets::BACKJUMP, "Backjump from {} to {}", self.trail.level(), target);
 
-        // # Safety
-        // The pop from the decision stack is fine, as decision_count is the height of the decision stack.
-        // So, the elements to pop must exist.
-        // And, if an atom is in the decision stack is should certainly be in the atom database.
-
         let assignments = self.trail.clear_assignments_above(target);
         for literal in assignments.into_iter() {
             self.drop_value(literal.atom());

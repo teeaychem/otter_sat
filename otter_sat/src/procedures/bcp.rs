@@ -10,17 +10,17 @@ This is done by examining clauses watching the atom with the opposite polarity a
 
 # Complications
 
-Use is made of [binary_unchecked](crate::db::watches::Watches::binary_unchecked) and [long_unchecked](crate::db::watches::Watches::long_unchecked) to obtain pointers to watch lists of interest.
+Use is made of [binary_unchecked](crate::db::watches::Watches::binary_watched) and [long_watched](crate::db::watches::Watches::long_watched) to obtain pointers to watch lists of interest.
 A handful of issues are avoided by doing this:
 1. A mutable borrow of the database for a watch list conflicting with an immutable borrow of the database to obtain the value of an atom.
 2. A mutable borrow of the context conflicting with a mutable borrow to add a literal to the consequence queue.
 3. A mutable borrow of the database in a call to update the watched literals in some clause.
 
 (1) and (2) could be avoided by a more nuanced borrow checker, as these are separate structures, combined to ease reasoning about the library.
-This is not the case for (3), as a watch list has been borrowed, and a call to [dbClause::update_watch](crate::db::clause::db_clause::dbClause::update_watch) may mutate watch lists.
+This is not the case for (3), as a watch list has been borrowed, and a call to [DBClause::update_watch](crate::db::clause::db_clause::DBClause::update_watch) may mutate watch lists.
 Still, the *borrowed* watch list will not be mutated.
 For, the literal bcp is being called on has been given some value, and the inspected list being for the atom with the opposite value.
-And, the atom with the opposite value is not a [candidate](crate::db::clause::db_clause::dbClause) for updating a watch to as it:
+And, the atom with the opposite value is not a [candidate](crate::db::clause::db_clause::DBClause) for updating a watch to as it:
 - Has some value.
 - Has a value which conflicts with the current valuation.
 
@@ -97,7 +97,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
         // Binary clause block.
         {
             // Note, this does not require updating watches.
-            let binary_list = self.watches.binary_unchecked(literal);
+            let binary_list = self.watches.binary_watched(literal);
 
             for element in unsafe { &*binary_list } {
                 let check = element.unwatched;
@@ -129,7 +129,7 @@ impl<R: rand::Rng + std::default::Default> GenericContext<R> {
 
         // Long clause block.
         {
-            let long_list = unsafe { &mut *self.watches.long_unchecked(literal) };
+            let long_list = unsafe { &mut *self.watches.long_watched(literal) };
 
             let mut index = 0;
             let mut length = long_list.len();

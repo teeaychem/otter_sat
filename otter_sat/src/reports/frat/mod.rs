@@ -20,7 +20,7 @@ Steps:
 Though callbacks available during a solve.
 
 ```rust,ignore
-let addition_callback = move |clause: &dbClause, source: &ClauseSource| {
+let addition_callback = move |clause: &DBClause, source: &ClauseSource| {
     match source {
         ClauseSource::BCP => {
             if let ClauseKey::AdditionUnit(literal) = clause.key() {

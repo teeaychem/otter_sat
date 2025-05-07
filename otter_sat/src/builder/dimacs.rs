@@ -238,7 +238,7 @@ p cnf
         let _ = dimacs.write(format!("p cnf {required_atoms} 0").as_bytes());
         let _ = ctx.read_dimacs(dimacs.as_slice());
 
-        // One extra, as the atom database always contains top.
+        // One extra, as the context always contains top as 0.
         assert_eq!(ctx.assignment().atom_count(), required_atoms + 1);
     }
 }

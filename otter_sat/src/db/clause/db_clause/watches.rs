@@ -161,12 +161,11 @@ impl DBClause {
                     *self.clause.get_unchecked(0)
                 };
 
-                watch_db
-                    .watch_binary_unchecked(literal, BinaryWatch::new(check_literal, *self.key()));
+                watch_db.watch_binary(literal, BinaryWatch::new(check_literal, *self.key()));
             },
 
             ClauseKey::Original(_) | ClauseKey::Addition(_, _) => {
-                watch_db.watch_long_unchecked(literal, LongWatch::new(*self.key()))
+                watch_db.watch_long(literal, LongWatch::new(*self.key()))
             }
         }
     }
